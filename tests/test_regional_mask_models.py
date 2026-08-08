@@ -79,6 +79,56 @@ def test_workflow_canvas_owns_scalar_and_ordered_mask_layers() -> None:
     }
 
 
+def test_canvas_resampling_remaps_mask_resources_without_reordering_regions() -> None:
+    """Resource replacement should preserve scalar, region, and active identity."""
+
+    canvas = WorkflowCanvasState()
+    image_id = uuid4()
+    old_scalar_id, old_first_id, old_second_id = uuid4(), uuid4(), uuid4()
+    new_scalar_id, new_first_id, new_second_id = uuid4(), uuid4(), uuid4()
+    canvas.bind_mask(("cube", "scalar"), old_scalar_id, image_id)
+    collection = canvas.ensure_regional_mask_collection(("cube", "batch"))
+    first = collection.add_region(image_id, mask_id=old_first_id)
+    second = collection.add_region(image_id, mask_id=old_second_id)
+    canvas.active_input_mask_uuid = old_second_id
+
+    assert canvas.remap_mask_ids(
+        image_id,
+        (
+            (old_scalar_id, new_scalar_id),
+            (old_first_id, new_first_id),
+            (old_second_id, new_second_id),
+        ),
+    )
+
+    scalar_entry = canvas.mask_entry(("cube", "scalar"))
+    assert scalar_entry is not None and scalar_entry.mask_id == new_scalar_id
+    assert [entry.region_id for entry in collection.entries] == [
+        first.region_id,
+        second.region_id,
+    ]
+    assert [entry.mask_id for entry in collection.entries] == [
+        new_first_id,
+        new_second_id,
+    ]
+    assert canvas.active_input_mask_uuid == new_second_id
+
+
+def test_canvas_mask_remap_rejects_foreign_or_colliding_resources_atomically() -> None:
+    """Invalid replacement sets should leave every workflow identity untouched."""
+
+    canvas = WorkflowCanvasState()
+    image_id = uuid4()
+    first_id, second_id = uuid4(), uuid4()
+    canvas.bind_mask(("cube", "first"), first_id, image_id)
+    canvas.bind_mask(("cube", "second"), second_id, image_id)
+
+    with pytest.raises(ValueError, match="target already belongs"):
+        canvas.remap_mask_ids(image_id, ((first_id, second_id),))
+
+    assert canvas.mask_ids() == (first_id, second_id)
+
+
 def test_collection_rejects_duplicate_mask_layer_identity() -> None:
     """One CuteCanvas layer cannot represent two authored regions."""
 

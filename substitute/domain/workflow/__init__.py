@@ -46,6 +46,12 @@ from substitute.domain.workflow.input_canvas_plan import (
     InputCanvasSurface,
     InputCanvasSurfaceKind,
 )
+from substitute.domain.workflow.synthetic_canvas_resize import (
+    SyntheticCanvasAnchor,
+    SyntheticCanvasResamplingMode,
+    SyntheticCanvasResizeRequest,
+    SyntheticCanvasResizeScope,
+)
 from substitute.domain.workflow.canvas_session import (
     CanvasBoundSession,
     CanvasGenerationIdentity,
@@ -137,6 +143,10 @@ __all__ = [
     "RegionalMaskCollection",
     "RegionalMaskEntry",
     "StackManager",
+    "SyntheticCanvasAnchor",
+    "SyntheticCanvasResamplingMode",
+    "SyntheticCanvasResizeRequest",
+    "SyntheticCanvasResizeScope",
     "WorkflowAssetKind",
     "WorkflowAssetRef",
     "WorkflowCanvasState",

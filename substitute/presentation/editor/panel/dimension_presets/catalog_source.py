@@ -14,11 +14,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Prepare saved dimension preset snapshots for panel context menus."""
+"""Prepare shared saved-dimension catalogs for editor presentation."""
 
 from __future__ import annotations
 
-from sugarsubstitute_shared.presentation.localization import app_text
+from sugarsubstitute_shared.presentation.localization import (
+    app_text,
+    translate_application_message,
+)
 
 from substitute.application.user_presets import (
     DimensionPresetPayload,
@@ -27,28 +30,25 @@ from substitute.application.user_presets import (
     UserPresetAssociation,
     UserPresetService,
 )
-from sugarsubstitute_shared.presentation.localization import (
-    translate_application_message,
-)
 from substitute.presentation.editor.panel.context.active_model_snapshot import (
     PanelActiveModelSnapshotController,
 )
-from substitute.presentation.editor.panel.menus.dimension_preset_models import (
-    DimensionPresetMenuItem,
-    DimensionPresetMenuModel,
-    DimensionPresetMenuSection,
-    DimensionPresetMenuSource,
+from substitute.presentation.editor.panel.dimension_presets.models import (
+    DimensionPresetCatalog,
+    DimensionPresetCatalogSource,
+    DimensionPresetItem,
+    DimensionPresetSection,
 )
 from substitute.presentation.editor.panel.menus.preset_model_scope_policy import (
     dimension_preset_model_scopes,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
 
-_LOGGER = get_logger("presentation.editor.panel.menus.dimension_preset_menu_source")
+_LOGGER = get_logger("presentation.editor.panel.dimension_presets.catalog_source")
 
 
-class EditorDimensionPresetMenuSource(DimensionPresetMenuSource):
-    """Own prepared saved dimension menu data for one live editor panel."""
+class EditorDimensionPresetCatalogSource(DimensionPresetCatalogSource):
+    """Own prepared saved dimensions for one live editor panel."""
 
     def __init__(
         self,
@@ -56,85 +56,81 @@ class EditorDimensionPresetMenuSource(DimensionPresetMenuSource):
         user_preset_service: UserPresetService,
         active_model_snapshots: PanelActiveModelSnapshotController,
     ) -> None:
-        """Store collaborators needed to prepare active checkpoint family state."""
+        """Store services used to resolve global and model-family scopes."""
 
         self._user_preset_service = user_preset_service
         self._active_model_snapshots = active_model_snapshots
-        self._menu_model: DimensionPresetMenuModel | None = None
+        self._catalog: DimensionPresetCatalog | None = None
         self._model_save_association: UserPresetAssociation | None = None
 
-    def prepare_dimension_preset_menu_model(self, *, reason: str) -> None:
-        """Prepare saved dimensions for later context-menu rendering."""
+    def prepare_dimension_preset_catalog(self, *, reason: str) -> None:
+        """Prepare saved dimensions for later menu or modal rendering."""
 
         try:
-            menu_model, save_association = self._prepared_dimension_preset_model()
+            catalog, save_association = self._prepare_catalog()
         except Exception as error:
-            self._menu_model = None
+            self._catalog = None
             self._model_save_association = None
             log_warning(
                 _LOGGER,
-                "Failed to prepare saved dimensions for context menu",
+                "Failed to prepare saved dimensions",
                 reason=reason,
                 error_type=type(error).__name__,
             )
             return
-        self._menu_model = menu_model
+        self._catalog = catalog
         self._model_save_association = save_association
 
-    def _prepared_dimension_preset_model(
+    def _prepare_catalog(
         self,
-    ) -> tuple[DimensionPresetMenuModel, UserPresetAssociation | None]:
-        """Build saved dimensions for global and active model-family contexts."""
+    ) -> tuple[DimensionPresetCatalog, UserPresetAssociation | None]:
+        """Build saved dimensions for global and active model contexts."""
 
         scopes = dimension_preset_model_scopes(self._active_model_snapshots.snapshot)
         listing = self._user_preset_service.list_dimension_presets(
             scopes.listing_associations
         )
         sections = [
-            DimensionPresetMenuSection(
+            DimensionPresetSection(
                 title=translate_application_message(
-                    "For %1",
-                    section.association.label,
+                    "For %1", section.association.label
                 ),
-                presets=_menu_items_for_presets(section.presets),
+                presets=_items_for_presets(section.presets),
             )
             for section in listing.association_sections
         ]
         if listing.global_presets:
             sections.append(
-                DimensionPresetMenuSection(
+                DimensionPresetSection(
                     title=app_text("Global"),
-                    presets=_menu_items_for_presets(listing.global_presets),
+                    presets=_items_for_presets(listing.global_presets),
                 )
             )
         return (
-            DimensionPresetMenuModel(
+            DimensionPresetCatalog(
                 sections=tuple(sections),
                 model_save_label=scopes.save_label,
-                can_save_globally=True,
             ),
             scopes.save_association,
         )
 
-    def current_dimension_preset_menu_model(
-        self,
-    ) -> DimensionPresetMenuModel | None:
-        """Return the prepared saved-dimension model for menu rendering."""
+    def current_dimension_preset_catalog(self) -> DimensionPresetCatalog | None:
+        """Return the prepared catalog for any presentation renderer."""
 
-        return self._menu_model
+        return self._catalog
 
     def save_current_dimensions_globally(self, width: int, height: int) -> None:
-        """Persist the current dimensions globally and refresh prepared state."""
+        """Persist dimensions globally and refresh prepared state."""
 
         self._user_preset_service.save_dimension_preset(
             width=width,
             height=height,
             association=GLOBAL_PRESET_ASSOCIATION,
         )
-        self.prepare_dimension_preset_menu_model(reason="dimension_preset_saved")
+        self.prepare_dimension_preset_catalog(reason="dimension_preset_saved")
 
     def save_current_dimensions_for_model(self, width: int, height: int) -> None:
-        """Persist current dimensions for the prepared active model family."""
+        """Persist dimensions for the prepared active model family."""
 
         association = self._model_save_association
         if association is None:
@@ -144,30 +140,30 @@ class EditorDimensionPresetMenuSource(DimensionPresetMenuSource):
             height=height,
             association=association,
         )
-        self.prepare_dimension_preset_menu_model(reason="dimension_preset_saved")
+        self.prepare_dimension_preset_catalog(reason="dimension_preset_saved")
 
 
-def _menu_items_for_presets(
+def _items_for_presets(
     presets: tuple[UserPreset, ...],
-) -> tuple[DimensionPresetMenuItem, ...]:
-    """Convert application presets into presentation menu items."""
+) -> tuple[DimensionPresetItem, ...]:
+    """Convert application presets into renderer-neutral items."""
 
     return tuple(
-        DimensionPresetMenuItem(
+        DimensionPresetItem(
             label=preset.label,
-            short_edge=_dimension_payload_for_preset(preset).short_edge,
-            long_edge=_dimension_payload_for_preset(preset).long_edge,
+            short_edge=_payload(preset).short_edge,
+            long_edge=_payload(preset).long_edge,
         )
         for preset in presets
     )
 
 
-def _dimension_payload_for_preset(preset: UserPreset) -> DimensionPresetPayload:
-    """Return the dimension payload for a dimension preset."""
+def _payload(preset: UserPreset) -> DimensionPresetPayload:
+    """Return a validated dimension payload."""
 
     if not isinstance(preset.payload, DimensionPresetPayload):
-        raise TypeError("Dimension preset menu item requires a dimension payload")
+        raise TypeError("Dimension preset requires a dimension payload")
     return preset.payload
 
 
-__all__ = ["EditorDimensionPresetMenuSource"]
+__all__ = ["EditorDimensionPresetCatalogSource"]

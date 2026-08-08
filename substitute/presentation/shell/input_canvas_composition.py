@@ -37,6 +37,12 @@ from substitute.application.workflows.ordered_mask_graph_value_service import (
 from substitute.application.workflows.restored_ordered_mask_collection_service import (
     RestoredOrderedMaskCollectionService,
 )
+from substitute.application.workflows.synthetic_canvas_resolution_role_service import (
+    SyntheticCanvasResolutionRoleService,
+)
+from substitute.application.workflows.synthetic_canvas_resolution_transaction_service import (
+    SyntheticCanvasResolutionTransactionService,
+)
 from substitute.application.workflows.workflow_input_canvas_service import (
     WorkflowInputCanvasService,
 )
@@ -73,11 +79,20 @@ from substitute.presentation.canvas.input.input_generation_snapshot_service impo
 from substitute.presentation.canvas.input.input_node_interaction_controller import (
     InputNodeInteractionController,
 )
+from substitute.presentation.canvas.input.input_mask_visual_opacity_controller import (
+    InputMaskVisualOpacityController,
+)
 from substitute.presentation.canvas.input.input_node_preview_coordinator import (
     InputNodePreviewCoordinator,
 )
 from substitute.presentation.canvas.input.input_tool_options import (
     install_input_tool_options,
+)
+from substitute.presentation.canvas.input.synthetic_canvas_geometry_adapter import (
+    SyntheticCanvasGeometryAdapter,
+)
+from substitute.presentation.editor.panel.mask_visual_opacity_projection import (
+    project_mask_visual_opacity_value,
 )
 from substitute.presentation.regional import region_color
 from substitute.presentation.regional.canvas_hover_presenter import (
@@ -98,6 +113,9 @@ from substitute.presentation.shell.input_canvas_shell_adapter import (
 from substitute.presentation.shell.regional_mask_action_controller import (
     RegionalMaskActionController,
 )
+from substitute.presentation.shell.synthetic_canvas_resolution_controller import (
+    SyntheticCanvasResolutionController,
+)
 
 
 @dataclass(frozen=True)
@@ -109,12 +127,17 @@ class MainWindowInputCanvasComposition:
     input_canvas_shell_adapter: Any
     input_canvas_presenter: Any
     input_node_interaction_controller: Any
+    input_mask_visual_opacity_controller: Any
     input_document_change_observer: Any
     input_generation_snapshot_service: Any
     input_editable_document_lifecycle: Any
     input_canvas_capability_service: Any
     regional_interaction_coordinator: Any
     restored_ordered_mask_collections: Any
+    synthetic_canvas_resolution_role_service: Any
+    synthetic_canvas_resolution_transaction_service: Any
+    synthetic_canvas_geometry_adapter: Any
+    synthetic_canvas_resolution_controller: Any
 
 
 def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposition:
@@ -176,6 +199,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         active_workflow=shell.get_active_workflow,
         active_panel=lambda: shell.active_editor_panel,
         mask_color=region_color,
+        preview_coordinator=input_node_preview_coordinator,
     )
     input_canvas_presenter = InputCanvasPresenter(
         input_document=input_canvas.document,
@@ -228,7 +252,26 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
             )
         ),
         refresh_mask_pickers=input_canvas_presenter.refresh_active_mask_pickers,
-        tool_controller=input_canvas_tool_controller,
+    )
+    input_mask_visual_opacity_controller = InputMaskVisualOpacityController(
+        active_workflow=shell.get_active_workflow,
+        active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
+        binding_service=workflow_input_canvas_service,
+        state_service=shell.input_canvas_state_service,
+        document=input_canvas.document,
+        project_opacity=lambda workflow_id, association_key, opacity: (
+            _project_mask_visual_opacity(
+                shell,
+                workflow_id,
+                association_key,
+                opacity,
+            )
+        ),
+        mark_changed=input_canvas_shell_adapter.mark_input_canvas_presentation_changed,
+        request_autosave=shell.request_session_autosave,
+    )
+    input_canvas.document.canvas.sceneEditHistoryChanged.connect(
+        input_mask_visual_opacity_controller.reconcile_history
     )
     input_document_change_observer = InputDocumentChangeObserver(
         changed=input_canvas.document.maskContentChanged,
@@ -273,18 +316,52 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         shell.input_canvas_plan_service,
         shell.graph_section_service,
     )
+    synthetic_resolution_roles = SyntheticCanvasResolutionRoleService(
+        shell.input_canvas_plan_service
+    )
+    synthetic_resolution_transactions = SyntheticCanvasResolutionTransactionService(
+        roles=synthetic_resolution_roles,
+        graph_sections=shell.graph_section_service,
+    )
+    synthetic_canvas_geometry = SyntheticCanvasGeometryAdapter(
+        input_canvas.document.canvas,
+        parent=input_canvas.document,
+    )
+    synthetic_resolution_controller = SyntheticCanvasResolutionController(
+        geometry=synthetic_canvas_geometry,
+        roles=synthetic_resolution_roles,
+        transactions=synthetic_resolution_transactions,
+        graph_sections=shell.graph_section_service,
+        workflows=lambda: shell.workflow_session_service.workflows,
+        modal_parent=lambda: shell,
+        preset_source=lambda workflow_id: _dimension_presets_for(shell, workflow_id),
+        refresh_editor=lambda workflow_id: _refresh_editor_after_resolution(
+            shell,
+            workflow_id,
+        ),
+        mark_changed=input_canvas_shell_adapter.mark_input_canvas_changed,
+        request_autosave=shell.request_session_autosave,
+        parent=shell,
+    )
     composition = MainWindowInputCanvasComposition(
         workflow_input_canvas_service=workflow_input_canvas_service,
         input_canvas_tool_controller=input_canvas_tool_controller,
         input_canvas_shell_adapter=input_canvas_shell_adapter,
         input_canvas_presenter=input_canvas_presenter,
         input_node_interaction_controller=input_node_interaction_controller,
+        input_mask_visual_opacity_controller=input_mask_visual_opacity_controller,
         input_document_change_observer=input_document_change_observer,
         input_generation_snapshot_service=input_generation_snapshot_service,
         input_editable_document_lifecycle=input_editable_document_lifecycle,
         input_canvas_capability_service=input_canvas_capability_service,
         regional_interaction_coordinator=regional_interaction_coordinator,
         restored_ordered_mask_collections=restored_ordered_mask_collections,
+        synthetic_canvas_resolution_role_service=synthetic_resolution_roles,
+        synthetic_canvas_resolution_transaction_service=(
+            synthetic_resolution_transactions
+        ),
+        synthetic_canvas_geometry_adapter=synthetic_canvas_geometry,
+        synthetic_canvas_resolution_controller=synthetic_resolution_controller,
     )
     shell.workflow_input_canvas_service = composition.workflow_input_canvas_service
     shell.input_canvas_tool_controller = composition.input_canvas_tool_controller
@@ -292,6 +369,9 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     shell.input_canvas_presenter = composition.input_canvas_presenter
     shell.input_node_interaction_controller = (
         composition.input_node_interaction_controller
+    )
+    shell.input_mask_visual_opacity_controller = (
+        composition.input_mask_visual_opacity_controller
     )
     shell.input_document_change_observer = composition.input_document_change_observer
     shell.input_generation_snapshot_service = (
@@ -307,7 +387,56 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     shell.restored_ordered_mask_collections = (
         composition.restored_ordered_mask_collections
     )
+    shell.synthetic_canvas_resolution_role_service = (
+        composition.synthetic_canvas_resolution_role_service
+    )
+    shell.synthetic_canvas_resolution_transaction_service = (
+        composition.synthetic_canvas_resolution_transaction_service
+    )
+    shell.synthetic_canvas_geometry_adapter = (
+        composition.synthetic_canvas_geometry_adapter
+    )
+    shell.synthetic_canvas_resolution_controller = (
+        composition.synthetic_canvas_resolution_controller
+    )
     return composition
+
+
+def _dimension_presets_for(shell: Any, workflow_id: str) -> Any:
+    """Return the shared prepared preset source for one live editor panel."""
+
+    panel = getattr(shell, "editor_panels", {}).get(workflow_id)
+    return getattr(panel, "dimension_preset_source", None)
+
+
+def _refresh_editor_after_resolution(shell: Any, workflow_id: str) -> None:
+    """Reproject the active editor after an authoritative size mutation."""
+
+    coordinator = getattr(shell, "workflow_workspace", None)
+    if coordinator is not None:
+        coordinator.project_workflow(
+            workflow_id,
+            force_refresh=True,
+            source="synthetic_canvas_resolution",
+        )
+
+
+def _project_mask_visual_opacity(
+    shell: Any,
+    workflow_id: str,
+    association_key: tuple[str, str],
+    opacity: float,
+) -> None:
+    """Project one document-history value into its workflow's mounted node card."""
+
+    panel = getattr(shell, "editor_panels", {}).get(workflow_id)
+    if panel is not None:
+        project_mask_visual_opacity_value(
+            panel,
+            cube_alias=association_key[0],
+            node_name=association_key[1],
+            opacity=opacity,
+        )
 
 
 __all__ = ["MainWindowInputCanvasComposition", "compose_input_canvas_controllers"]

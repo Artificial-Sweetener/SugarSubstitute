@@ -1419,16 +1419,6 @@ def test_layer_coverage_editor_previews_exclusively_and_commits_only_on_apply(
             canvas.layer_control.settings.cursor().shape() is Qt.CursorShape.ArrowCursor
         )
 
-        canvas.layer_control.settings.opacity_slider.setValue(40)
-        app.processEvents()
-        layer = next(
-            item
-            for item in canvas.document.tool_options.mask_layers()
-            if item.mask_id == mask_id
-        )
-        assert layer.opacity == 0.4
-        assert canvas.document.export_mask_image(mask_id) == before
-
         completed = QSignalSpy(canvas.document.canvas.layerEdgeModificationCompleted)
         rendered_before = _render_without_children(canvas.document.canvas)
         press_counter = _MousePressCounter()

@@ -240,6 +240,12 @@ class MainWindowSignalBinder:
         editor_panel.inputMaskClicked.connect(
             self._shell.input_node_interaction_controller.handle_mask_clicked
         )
+        editor_panel.inputMaskOpacityChanged.connect(
+            self._shell.input_mask_visual_opacity_controller.handle
+        )
+        editor_panel.inputMaskOpacityCommitted.connect(
+            self._shell.input_mask_visual_opacity_controller.handle_commit
+        )
         editor_panel.promptSceneQueueRequested.connect(
             self._shell.workspace_scene_generation_actions.enqueue_prompt_scene
         )

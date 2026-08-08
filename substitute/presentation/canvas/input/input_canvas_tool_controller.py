@@ -96,6 +96,7 @@ class InputCanvasToolController:
         self._runtime = runtime
         self._layout = layout
         self._requested_native_tool_id: str | None = None
+        self._held_tool_id: str | None = None
 
     @property
     def palette(self) -> CanvasToolPalette:
@@ -146,6 +147,8 @@ class InputCanvasToolController:
                 ),
             )
         )
+        if self._restore_held_tool():
+            return
         self._synchronize_or_recover()
 
     def request_tool(self, tool_id: str) -> bool:
@@ -173,6 +176,8 @@ class InputCanvasToolController:
             else:
                 self._synchronize_or_recover()
             activated = accepted and self.palette.active_tool_id == tool_id
+            if activated:
+                self._held_tool_id = tool_id
             if activated and self._layout is not None:
                 self._layout.remember_tool(tool_id)
             return activated
@@ -189,6 +194,8 @@ class InputCanvasToolController:
                 document_operation_id=self._input_document.current_canvas_operation(),
             )
         activated = accepted and self.palette.active_tool_id == tool_id
+        if activated:
+            self._held_tool_id = tool_id
         if activated and self._layout is not None:
             self._layout.remember_tool(tool_id)
         return activated
@@ -203,12 +210,6 @@ class InputCanvasToolController:
         if self._layout is not None:
             self._layout.remember_tool(tool_id)
 
-    def request_brush_after_mask_activation(self) -> bool:
-        """Select Brush through the same authorization path as a toolbar click."""
-
-        self.refresh_tool_context()
-        return self.request_tool(InputCanvasToolId.BRUSH)
-
     def _synchronize_or_recover(self) -> None:
         """Synchronize the native mode or recover to enabled navigation."""
 
@@ -219,6 +220,17 @@ class InputCanvasToolController:
         if tool_id is not None and self.palette.set_active_tool(tool_id):
             return
         self._recover_navigation_mode()
+
+    def _restore_held_tool(self) -> bool:
+        """Restore a user-held mode after transient capability loss clears."""
+
+        tool_id = self._held_tool_id
+        if tool_id is None:
+            return False
+        presentation = self.palette.presentation_for(tool_id)
+        if presentation is None or not presentation.enabled:
+            return False
+        return self.request_tool(tool_id)
 
     def _recover_navigation_mode(self) -> None:
         """Use Pan/Zoom as the safe active mode when its context is available."""

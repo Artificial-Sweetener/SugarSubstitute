@@ -24,6 +24,9 @@ from .thumbnail_picker_base import ThumbnailPickerBase
 class MaskPicker(ThumbnailPickerBase):
     maskSelected: Any
     clicked: Any
+    visualOpacityChanged: Any
+    visualOpacityCommitted: Any
+    opacity_control: Any
 
     def __init__(
         self,
@@ -40,5 +43,6 @@ class MaskPicker(ThumbnailPickerBase):
     def pick_mask(self) -> None: ...
     def set_mask_path(self, mask_path: str) -> None: ...
     def refresh_mask_path(self, mask_path: str) -> None: ...
+    def set_visual_opacity(self, opacity: float) -> None: ...
     @staticmethod
     def _load_mask_pixmap_from_file_bytes(mask_path: str) -> Any: ...

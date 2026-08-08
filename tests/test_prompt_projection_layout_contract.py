@@ -124,6 +124,8 @@ from tests.prompt_projection_layout_test_helpers import (
 )
 from tests.prompt_projection_test_helpers import ensure_qapp
 
+_REGION_TEXT_COLOR = QColor(222, 223, 224)
+
 
 def _line_texts(layout: PromptLayoutEditToFrameCoordinator) -> tuple[str, ...]:
     """Return visible line text, including inline-object display text."""
@@ -2496,7 +2498,7 @@ def test_projection_layout_uses_half_height_separator_rows_without_row_carets() 
         if line.fragments  # noqa: SLF001
     ]
 
-    assert structural_line.height == pytest.approx(content_lines[0].height * 0.5)
+    assert structural_line.height == pytest.approx(content_lines[0].height)
     assert structural_line.caret_stops == ()
     leading_state = projection.caret_map.state_for_source_position(token.source_start)
     trailing_state = projection.caret_map.state_for_source_position(
@@ -2635,6 +2637,7 @@ def test_region_structure_mode_and_topology_matrix(
             error_foreground=RgbColor(180, 20, 20),
             warning_foreground=RgbColor(180, 140, 20),
         ),
+        text_color=_REGION_TEXT_COLOR,
     )
     region_tokens = tuple(
         token
@@ -2679,6 +2682,7 @@ def test_region_chrome_prepares_centered_dividers_and_continuous_rails_once() ->
             error_foreground=RgbColor(180, 20, 20),
             warning_foreground=RgbColor(180, 140, 20),
         ),
+        text_color=_REGION_TEXT_COLOR,
     )
 
     assert len(snapshot.divider_lines) == 2
@@ -2700,8 +2704,8 @@ def test_region_chrome_prepares_centered_dividers_and_continuous_rails_once() ->
     assert chrome.prepare_count == 1
 
 
-def test_region_chrome_renders_named_dividers_with_shared_region_palette() -> None:
-    """Named separators should expose centered labels and distinct region colors."""
+def test_region_chrome_renders_normal_bold_titles_between_region_rules() -> None:
+    """Named separators should use normal text styling and distinct rule colors."""
 
     layout, _projection = _layout_for(
         "global\n[SEP|Subject]\nfirst\n[SEP|Background]\nsecond"
@@ -2715,6 +2719,7 @@ def test_region_chrome_renders_named_dividers_with_shared_region_palette() -> No
             error_foreground=RgbColor(180, 20, 20),
             warning_foreground=RgbColor(180, 140, 20),
         ),
+        text_color=_REGION_TEXT_COLOR,
     )
 
     assert tuple(label.text for label in snapshot.labels) == (
@@ -2724,6 +2729,23 @@ def test_region_chrome_renders_named_dividers_with_shared_region_palette() -> No
     assert len(snapshot.strokes) == 2
     assert snapshot.strokes[0].pen.color() != snapshot.strokes[1].pen.color()
     assert all(len(stroke.lines) == 3 for stroke in snapshot.strokes)
+    for divider, stroke in zip(snapshot.divider_lines, snapshot.strokes, strict=True):
+        assert tuple(line.length() for line in stroke.lines[1:]) == pytest.approx(
+            (divider.length(), divider.length())
+        )
+    assert all(
+        QFontMetricsF(label.font).height() <= label.rect.height()
+        for label in snapshot.labels
+    )
+    base_font = layout.frame.output.configuration.base_font
+    assert all(label.color == _REGION_TEXT_COLOR for label in snapshot.labels)
+    assert all(label.font.weight() == QFont.Weight.Bold for label in snapshot.labels)
+    assert all(
+        label.font.pointSizeF() == pytest.approx(base_font.pointSizeF())
+        and label.font.pixelSize() == base_font.pixelSize()
+        for label in snapshot.labels
+    )
+    assert all(target.color == _REGION_TEXT_COLOR for target in snapshot.edit_targets)
 
 
 def test_region_chrome_hover_emphasizes_one_region_without_relayout() -> None:
@@ -2736,7 +2758,11 @@ def test_region_chrome_hover_emphasizes_one_region_without_relayout() -> None:
         error_foreground=RgbColor(180, 20, 20),
         warning_foreground=RgbColor(180, 140, 20),
     )
-    chrome.prepare_active(layout.frame.output, semantic_palette=palette)
+    chrome.prepare_active(
+        layout.frame.output,
+        semantic_palette=palette,
+        text_color=_REGION_TEXT_COLOR,
+    )
     baseline = chrome.active_snapshot
     assert baseline is not None
     baseline_widths = tuple(stroke.pen.widthF() for stroke in baseline.strokes)
@@ -2755,6 +2781,46 @@ def test_region_chrome_hover_emphasizes_one_region_without_relayout() -> None:
     assert chrome.active_snapshot is baseline
 
 
+def test_region_chrome_reflows_framing_rules_while_title_draft_changes() -> None:
+    """Uncommitted title text should resize its editor and rules without relayout."""
+
+    layout, _projection = _layout_for("global\n[SEP|A]\nregion")
+    chrome = PromptRegionChrome()
+    palette = SemanticPalette(
+        accent=RgbColor(20, 80, 160),
+        error_foreground=RgbColor(180, 20, 20),
+        warning_foreground=RgbColor(180, 140, 20),
+    )
+    chrome.prepare_active(
+        layout.frame.output,
+        semantic_palette=palette,
+        text_color=_REGION_TEXT_COLOR,
+    )
+    prepare_count = chrome.prepare_count
+
+    assert chrome.set_editing_region(0) is True
+    assert chrome.set_editing_region_draft(0, "A") is True
+    short = chrome.active_snapshot
+    assert short is not None
+    short_target = short.edit_targets[0]
+    short_rules = short.strokes[0].lines[-2:]
+
+    assert chrome.set_editing_region_draft(0, "A much longer region title") is True
+    long = chrome.active_snapshot
+    assert long is not None
+    long_target = long.edit_targets[0]
+    long_rules = long.strokes[0].lines[-2:]
+
+    assert long_target.width > short_target.width
+    assert long_rules[0].x2() < short_rules[0].x2()
+    assert long_rules[1].x1() > short_rules[1].x1()
+    assert tuple(line.length() for line in long_rules) == pytest.approx(
+        (long_target.rule_length, long_target.rule_length)
+    )
+    assert chrome.prepare_count == prepare_count
+    assert long.labels == ()
+
+
 def test_region_chrome_renders_rail_for_empty_terminal_partition() -> None:
     """A terminal separator should expose its empty regional input row."""
 
@@ -2768,6 +2834,7 @@ def test_region_chrome_renders_rail_for_empty_terminal_partition() -> None:
             error_foreground=RgbColor(180, 20, 20),
             warning_foreground=RgbColor(180, 140, 20),
         ),
+        text_color=_REGION_TEXT_COLOR,
     )
 
     assert len(snapshot.divider_lines) == 1
@@ -2790,6 +2857,7 @@ def test_region_chrome_skips_line_scan_for_ordinary_prompts() -> None:
             error_foreground=RgbColor(180, 20, 20),
             warning_foreground=RgbColor(180, 140, 20),
         ),
+        text_color=_REGION_TEXT_COLOR,
     )
 
     assert snapshot.visited_line_count == 0
@@ -2816,6 +2884,7 @@ def test_region_chrome_uses_boundary_lookups_for_long_regional_prompts() -> None
             error_foreground=RgbColor(180, 20, 20),
             warning_foreground=RgbColor(180, 140, 20),
         ),
+        text_color=_REGION_TEXT_COLOR,
     )
 
     assert len(snapshot.divider_lines) == 2
@@ -2841,6 +2910,7 @@ def test_region_chrome_skips_raw_region_structure_without_preparation() -> None:
             error_foreground=RgbColor(180, 20, 20),
             warning_foreground=RgbColor(180, 140, 20),
         ),
+        text_color=_REGION_TEXT_COLOR,
     )
 
     assert snapshot.divider_lines == ()
@@ -2861,8 +2931,16 @@ def test_region_chrome_reuses_empty_snapshot_for_ordinary_prompt_syncs() -> None
         warning_foreground=RgbColor(180, 140, 20),
     )
 
-    first_snapshot = chrome.prepare(layout.frame.output, semantic_palette=palette)
-    second_snapshot = chrome.prepare(layout.frame.output, semantic_palette=palette)
+    first_snapshot = chrome.prepare(
+        layout.frame.output,
+        semantic_palette=palette,
+        text_color=_REGION_TEXT_COLOR,
+    )
+    second_snapshot = chrome.prepare(
+        layout.frame.output,
+        semantic_palette=palette,
+        text_color=_REGION_TEXT_COLOR,
+    )
 
     assert second_snapshot is first_snapshot
     assert chrome.prepare_count == 1

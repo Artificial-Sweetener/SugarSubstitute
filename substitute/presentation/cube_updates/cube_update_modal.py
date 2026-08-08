@@ -38,7 +38,6 @@ from dataclasses import dataclass
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication,
     QFrame,
     QGridLayout,
     QLayout,
@@ -50,10 +49,9 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (  # type: ignore[import-untyped]
     CheckBox,
     ComboBox,
-    MessageBoxBase,
     StrongBodyLabel,
 )
-from shiboken6 import isValid
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
 from substitute.application.cube_library import (
     LoadedCubeUpdateAction,
@@ -75,7 +73,6 @@ _CONTENT_BOTTOM_MARGIN = 16
 _CONTENT_SPACING = 12
 _ACTION_BUTTON_HEIGHT = 32
 _ACTION_BUTTON_MINIMUM_WIDTH = 108
-_FALLBACK_PARENT: QWidget | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +85,7 @@ class _CandidateRowControls:
     version_combo: ComboBox
 
 
-class CubeUpdateModal(MessageBoxBase):  # type: ignore[misc]
+class CubeUpdateModal(FullWindowModalBase):
     """Ask which loaded cubes should be refreshed to the latest version."""
 
     def __init__(
@@ -100,8 +97,7 @@ class CubeUpdateModal(MessageBoxBase):  # type: ignore[misc]
     ) -> None:
         """Build the update selection modal."""
 
-        parent_widget = _resolve_parent(parent)
-        super().__init__(parent_widget)
+        super().__init__(parent)
         self._candidates = tuple(candidates)
         self._available_versions_by_cube_id = {
             cube_id: tuple(versions)
@@ -109,7 +105,7 @@ class CubeUpdateModal(MessageBoxBase):  # type: ignore[misc]
         }
         self._checkboxes: dict[LoadedCubeUpdateCandidate, CheckBox] = {}
         self._row_controls: dict[LoadedCubeUpdateCandidate, _CandidateRowControls] = {}
-        self._dialog_max_height = _dialog_max_height(parent_widget)
+        self._dialog_max_height = _dialog_max_height(self.modal_owner)
 
         self.setClosableOnMaskClicked(False)
         self.setModal(True)
@@ -487,21 +483,6 @@ def _add_combo_item(
     combo.addItem(str(label), userData=user_data)
     if isinstance(label, ApplicationMessage):
         set_localized_combo_item(combo, item_index, label)
-
-
-def _resolve_parent(parent: object | None) -> QWidget:
-    """Return a QWidget parent because qfluent mask dialogs require one."""
-
-    if isinstance(parent, QWidget) and isValid(parent):
-        return parent
-    active_window = QApplication.activeWindow()
-    if isinstance(active_window, QWidget) and isValid(active_window):
-        return active_window
-    global _FALLBACK_PARENT
-    if _FALLBACK_PARENT is None or not isValid(_FALLBACK_PARENT):
-        _FALLBACK_PARENT = QWidget()
-        _FALLBACK_PARENT.resize(1024, 768)
-    return _FALLBACK_PARENT
 
 
 def _dialog_max_height(parent: QWidget) -> int:

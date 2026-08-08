@@ -59,7 +59,7 @@
   <context>
     <name>AppText</name>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="968"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="967"></location>
       <source>"%1"</source>
       <translation>«%1»</translation>
     </message>
@@ -90,7 +90,7 @@ Vista previa del prompt:
       <translation>%1 %2.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="408"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="406"></location>
       <source>%1 (%2)</source>
       <translation>%1 (%2)</translation>
     </message>
@@ -100,7 +100,7 @@ Vista previa del prompt:
       <translation>%1 (omitido)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="189"></location>
+      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="193"></location>
       <source>%1 Canvas</source>
       <translation>Lienzo de %1</translation>
     </message>
@@ -200,7 +200,7 @@ Vista previa del prompt:
       <translation>%1 salidas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="906"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="905"></location>
       <source>%1 posts</source>
       <translation>%1 publicaciones</translation>
     </message>
@@ -225,27 +225,27 @@ Vista previa del prompt:
       <translation>%1 elementos guardados de la instalación necesitan reparación antes de que Substitute pueda abrirse.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="328"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="325"></location>
       <source>%1 uses %2, but CivitAI did not find a matching download.</source>
       <translation>%1 usa %2, pero CivitAI no encontró una descarga que coincida.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="334"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="331"></location>
       <source>%1 uses %2, but CivitAI did not offer a safe download.</source>
       <translation>%1 usa %2, pero CivitAI no ofreció una descarga segura.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="320"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="317"></location>
       <source>%1 uses %2, which is missing.</source>
       <translation>%1 usa %2, que no está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="345"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="342"></location>
       <source>%1 uses %2. Download information is unavailable.</source>
       <translation>%1 usa %2. La información de descarga no está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="340"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="337"></location>
       <source>%1 uses %2. Turn on CivitAI model lookup in Settings to search for it.</source>
       <translation>%1 usa %2. Activa la búsqueda de modelos en CivitAI desde Configuración para buscarlo.</translation>
     </message>
@@ -260,7 +260,7 @@ Vista previa del prompt:
       <translation>%1 comodines</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="371"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="367"></location>
       <source>%1 | Current: v%2 | Available: v%3</source>
       <translation>%1 | Actual: v%2 | Disponible: v%3</translation>
     </message>
@@ -285,7 +285,7 @@ Vista previa del prompt:
       <translation>%1 · %2 · Actualización disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="831"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="812"></location>
       <source>%1 • %2</source>
       <translation>%1 • %2</translation>
     </message>
@@ -310,7 +310,7 @@ Vista previa del prompt:
       <translation>%1/%2: se encontraron %3 %4. Cubos: %5.%6</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="780"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="761"></location>
       <source>%1: %2</source>
       <translation>%1: %2</translation>
     </message>
@@ -460,7 +460,7 @@ Vista previa del prompt:
       <translation>Activando el destino de Comfy %1 en %2:%3.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="259"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="102"></location>
       <source>Add</source>
       <translation>Añadir</translation>
     </message>
@@ -480,7 +480,7 @@ Vista previa del prompt:
       <translation>Añadir cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="521"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="520"></location>
       <source>Add cubes</source>
       <translation>Añadir cubos</translation>
     </message>
@@ -520,7 +520,7 @@ Vista previa del prompt:
       <translation>Opciones avanzadas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="348"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="344"></location>
       <source>Affected cubes</source>
       <translation>Cubos afectados</translation>
     </message>
@@ -570,7 +570,7 @@ Vista previa del prompt:
       <translation>Guarda también un JPEG junto a cada PNG canónico de receta.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="408"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="404"></location>
       <source>Always use newest version</source>
       <translation>Usar siempre la versión más reciente</translation>
     </message>
@@ -578,6 +578,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="964"></location>
       <source>Ambiguous</source>
       <translation>Ambiguo</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="249"></location>
+      <source>Anchor point</source>
+      <translation>Punto de anclaje</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_controller.py" line="812"></location>
@@ -595,7 +600,7 @@ Vista previa del prompt:
       <translation>Menú de la aplicación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="50"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="64"></location>
       <source>Apply</source>
       <translation>Aplicar</translation>
     </message>
@@ -675,7 +680,7 @@ Vista previa del prompt:
       <translation>Disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="520"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="519"></location>
       <source>Back</source>
       <translation>Atrás</translation>
     </message>
@@ -740,7 +745,7 @@ Vista previa del prompt:
       <translation>Bloqueado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="74"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Blue</source>
       <translation>Azul</translation>
     </message>
@@ -810,7 +815,7 @@ Vista previa del prompt:
       <translation>Uso de la caché</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="915"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="914"></location>
       <source>Cached copy</source>
       <translation>Copia en caché</translation>
     </message>
@@ -820,7 +825,7 @@ Vista previa del prompt:
       <translation>Se puede instalar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="58"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="72"></location>
       <source>Cancel</source>
       <translation>Cancelar</translation>
     </message>
@@ -853,6 +858,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2097"></location>
       <source>Cancelling the model download.</source>
       <translation>Cancelando la descarga del modelo.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="171"></location>
+      <source>Change canvas resolution</source>
+      <translation>Cambiar la resolución del lienzo</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
@@ -1020,12 +1030,17 @@ Vista previa del prompt:
       <translation>Elige una carpeta y conecta Substitute a ComfyUI.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="120"></location>
+      <source>Choose a new size for the Input canvas and its masks</source>
+      <translation>Elige un tamaño nuevo para el lienzo de Entrada y sus máscaras</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="1174"></location>
       <source>Choose a shorter folder for this operation.</source>
       <translation>Elige una carpeta más corta para esta operación.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="265"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="261"></location>
       <source>Choose a specific cube version</source>
       <translation>Elegir una versión concreta del cubo</translation>
     </message>
@@ -1075,7 +1090,17 @@ Vista previa del prompt:
       <translation>Elige cómo presenta el texto SugarSubstitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="260"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="295"></location>
+      <source>Choose how regional mask pixels are resampled.</source>
+      <translation>Elige cómo se remuestrean los píxeles de las máscaras regionales.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="174"></location>
+      <source>Choose how the Input canvas and its regional masks should fit the new size.</source>
+      <translation>Elige cómo deben adaptarse el lienzo de Entrada y sus máscaras regionales al nuevo tamaño.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="256"></location>
       <source>Choose how this workflow cube should handle the update</source>
       <translation>Elige cómo debe gestionar la actualización este cubo de flujo de trabajo</translation>
     </message>
@@ -1155,7 +1180,12 @@ Vista previa del prompt:
       <translation>Elige el idioma que usa SugarSubstitute. Los cambios se aplican de inmediato.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="405"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="251"></location>
+      <source>Choose the point that stays fixed while the canvas changes.</source>
+      <translation>Elige el punto que permanece fijo mientras cambia el lienzo.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="401"></location>
       <source>Choose version...</source>
       <translation>Elegir versión...</translation>
     </message>
@@ -1220,7 +1250,7 @@ Vista previa del prompt:
       <translation>Elige la configuración</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="109"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="106"></location>
       <source>CivitAI API key</source>
       <translation>Clave de API de CivitAI</translation>
     </message>
@@ -1375,7 +1405,7 @@ Vista previa del prompt:
       <translation>Haz clic para añadir un punto, arrástralo para moverlo y haz clic derecho para eliminarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_expandable_settings.py" line="55"></location>
+      <location filename="../substitute/presentation/canvas/input/input_expandable_settings.py" line="69"></location>
       <source>Close</source>
       <translation>Cerrar</translation>
     </message>
@@ -1620,7 +1650,7 @@ Vista previa del prompt:
       <translation>ComfyUI está listo, pero %1 no se cargó. Los flujos de trabajo que usan esta extensión podrían fallar o mostrar nodos que faltan.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="255"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="251"></location>
       <source>ComfyUI is ready, but it reported issues while loading.</source>
       <translation>ComfyUI está listo, pero notificó problemas durante la carga.</translation>
     </message>
@@ -1705,7 +1735,7 @@ Vista previa del prompt:
       <translation>Origen de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="252"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="248"></location>
       <source>ComfyUI started with issues</source>
       <translation>ComfyUI se inició con problemas</translation>
     </message>
@@ -1875,7 +1905,7 @@ Vista previa del prompt:
       <translation>La generación continua necesita la cola de generación.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="46"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="60"></location>
       <source>Contract</source>
       <translation>Contraer</translation>
     </message>
@@ -1905,7 +1935,7 @@ Vista previa del prompt:
       <translation>Copiar toda la salida</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="291"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="287"></location>
       <source>Copy report</source>
       <translation>Copiar informe</translation>
     </message>
@@ -1915,7 +1945,7 @@ Vista previa del prompt:
       <translation>Copiar etiqueta</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="534"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="533"></location>
       <source>Copy tag title</source>
       <translation>Copiar título de la etiqueta</translation>
     </message>
@@ -2085,7 +2115,7 @@ Vista previa del prompt:
       <translation>Cubo desactivado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="580"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="579"></location>
       <source>Cube library</source>
       <translation>Biblioteca de cubos</translation>
     </message>
@@ -2095,7 +2125,7 @@ Vista previa del prompt:
       <translation>No se pudo abrir el selector de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="656"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="655"></location>
       <source>Cube stack</source>
       <translation>Pila de cubos</translation>
     </message>
@@ -2105,7 +2135,7 @@ Vista previa del prompt:
       <translation>La pila de cubos no está disponible en los flujos de trabajo de Comfy</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="225"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="221"></location>
       <source>Cube updates available</source>
       <translation>Hay actualizaciones de cubos disponibles</translation>
     </message>
@@ -2168,7 +2198,7 @@ Install these nodes now?</source>
       <translation>Uso de la caché de Danbooru</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1125"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1124"></location>
       <source>Danbooru did not respond. Try again in a moment.</source>
       <translation>Danbooru no respondió. Vuelve a intentarlo dentro de un momento.</translation>
     </message>
@@ -2178,22 +2208,22 @@ Install these nodes now?</source>
       <translation>Clasificación de imagen de Danbooru</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1127"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1126"></location>
       <source>Danbooru returned content the app could not render safely.</source>
       <translation>Danbooru devolvió contenido que la aplicación no pudo mostrar de forma segura.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1108"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1107"></location>
       <source>Danbooru unavailable</source>
       <translation>Danbooru no está disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="126"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="125"></location>
       <source>Danbooru wiki</source>
       <translation>Wiki de Danbooru</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="856"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="855"></location>
       <source>Danbooru wiki content could not be loaded unexpectedly.</source>
       <translation>No se pudo cargar el contenido de la wiki de Danbooru debido a un error inesperado.</translation>
     </message>
@@ -2208,22 +2238,22 @@ Install these nodes now?</source>
       <translation>Predeterminado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1106"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1105"></location>
       <source>Definition not found</source>
       <translation>No se encontró la definición</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1111"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1110"></location>
       <source>Definition unavailable</source>
       <translation>Definición no disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="651"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="649"></location>
       <source>Delete</source>
       <translation>Eliminar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="716"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="714"></location>
       <source>Delete '%1'?</source>
       <translation>¿Eliminar «%1»?</translation>
     </message>
@@ -2233,7 +2263,7 @@ Install these nodes now?</source>
       <translation>Elimina la carpeta incompleta en %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="715"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="713"></location>
       <source>Delete wildcard</source>
       <translation>Eliminar comodín</translation>
     </message>
@@ -2303,7 +2333,7 @@ Install these nodes now?</source>
       <translation>Los flujos de trabajo directos de Comfy no contienen ninguna pila de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="633"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="631"></location>
       <source>Disable</source>
       <translation>Desactivar</translation>
     </message>
@@ -2313,12 +2343,12 @@ Install these nodes now?</source>
       <translation>Desactivado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="238"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="236"></location>
       <source>Discard</source>
       <translation>Descartar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="304"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="302"></location>
       <source>Discard changes</source>
       <translation>Descartar cambios</translation>
     </message>
@@ -2333,7 +2363,7 @@ Install these nodes now?</source>
       <translation>Descargar miniaturas de CivitAI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="211"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="208"></location>
       <source>Download and open recipe</source>
       <translation>Descargar y abrir la receta</translation>
     </message>
@@ -2403,7 +2433,7 @@ Install these nodes now?</source>
       <translation>Advertencias de segmentos duplicados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="71"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="69"></location>
       <source>Edit Color</source>
       <translation>Editar color</translation>
     </message>
@@ -2413,7 +2443,7 @@ Install these nodes now?</source>
       <translation>Editar curva (%1 puntos)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="57"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="71"></location>
       <source>Edit layer coverage</source>
       <translation>Editar cobertura de capa</translation>
     </message>
@@ -2493,7 +2523,7 @@ Install these nodes now?</source>
       <translation>Borrador</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="788"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="769"></location>
       <source>Error</source>
       <translation>Se produjo un error</translation>
     </message>
@@ -2508,12 +2538,12 @@ Install these nodes now?</source>
       <translation>Resumen de errores</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="305"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="301"></location>
       <source>Errors</source>
       <translation>Errores</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="337"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
       <source>Exception</source>
       <translation>Excepción</translation>
     </message>
@@ -2543,7 +2573,7 @@ Install these nodes now?</source>
       <translation>Instalación local existente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="45"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="59"></location>
       <source>Expand</source>
       <translation>Expandir</translation>
     </message>
@@ -2593,7 +2623,7 @@ Install these nodes now?</source>
       <translation>Ha fallado: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="903"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="906"></location>
       <source>Failed to allocate output run number.</source>
       <translation>No se pudo asignar el número de ejecución de salida.</translation>
     </message>
@@ -2673,12 +2703,12 @@ Install these nodes now?</source>
       <translation>No se pudo iniciar la escucha de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="47"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="61"></location>
       <source>Feather</source>
       <translation>Desvanecer</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="666"></location>
       <source>Fetching Danbooru wiki content...</source>
       <translation>Obteniendo contenido de la wiki de Danbooru...</translation>
     </message>
@@ -2743,12 +2773,12 @@ Install these nodes now?</source>
       <translation>Corrige la instalación guardada para que Substitute pueda volver a abrirse.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="54"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="68"></location>
       <source>Flip horizontal</source>
       <translation>Voltear horizontalmente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="59"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="73"></location>
       <source>Flip vertical</source>
       <translation>Voltear verticalmente</translation>
     </message>
@@ -2763,7 +2793,7 @@ Install these nodes now?</source>
       <translation>Carpetas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_preset_menu_source.py" line="95"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="82"></location>
       <source>For %1</source>
       <translation>Para %1</translation>
     </message>
@@ -2773,7 +2803,7 @@ Install these nodes now?</source>
       <translation>Forzar el modo CPU</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="527"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="526"></location>
       <source>Forward</source>
       <translation>Adelante</translation>
     </message>
@@ -2833,7 +2863,7 @@ Install these nodes now?</source>
       <translation>No se puede generar porque todos los cubos tienen un error de ejecución.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1093"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1097"></location>
       <source>Generation dispatch failed.</source>
       <translation>No se pudo enviar la generación.</translation>
     </message>
@@ -2903,7 +2933,7 @@ Install these nodes now?</source>
       <translation>Se necesita una URL de GitHub</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_preset_menu_source.py" line="106"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="92"></location>
       <source>Global</source>
       <translation>Preajustes globales</translation>
     </message>
@@ -2918,7 +2948,7 @@ Install these nodes now?</source>
       <translation>Ir a la página de CivitAI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="73"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="71"></location>
       <source>Green</source>
       <translation>Verde</translation>
     </message>
@@ -2933,7 +2963,7 @@ Install these nodes now?</source>
       <translation>Dureza</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="43"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="203"></location>
       <source>Height</source>
       <translation>Altura</translation>
     </message>
@@ -2993,7 +3023,7 @@ Install these nodes now?</source>
       <translation>Ocultar los controles de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="358"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
       <source>Hide report</source>
       <translation>Ocultar informe</translation>
     </message>
@@ -3043,7 +3073,7 @@ Install these nodes now?</source>
       <translation>Ignorar duplicado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="416"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="412"></location>
       <source>Ignore selected</source>
       <translation>Ignorar seleccionados</translation>
     </message>
@@ -3053,12 +3083,12 @@ Install these nodes now?</source>
       <translation>Ignorar ortografía</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="341"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="337"></location>
       <source>Ignore this startup issue next time</source>
       <translation>Ignorar este problema de inicio la próxima vez</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="314"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="310"></location>
       <source>Ignored</source>
       <translation>Ignorado</translation>
     </message>
@@ -3088,7 +3118,7 @@ Install these nodes now?</source>
       <translation>Independiente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="792"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="773"></location>
       <source>Info</source>
       <translation>Información</translation>
     </message>
@@ -3213,7 +3243,7 @@ Install these nodes now?</source>
       <translation>Tamaño de JPEG</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="301"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="297"></location>
       <source>Keep current</source>
       <translation>Mantener la actual</translation>
     </message>
@@ -3223,7 +3253,7 @@ Install these nodes now?</source>
       <translation>Mantén los valores predeterminados o indica a Substitute dónde están tus carpetas.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="396"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="392"></location>
       <source>Keep v%1</source>
       <translation>Mantener v%1</translation>
     </message>
@@ -3298,7 +3328,7 @@ Install these nodes now?</source>
       <translation>RGB latente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="180"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="176"></location>
       <source>Later</source>
       <translation>Más tarde</translation>
     </message>
@@ -3423,12 +3453,12 @@ Install these nodes now?</source>
       <translation>Cargando el estado de la biblioteca de cubos del destino activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="666"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="665"></location>
       <source>Loading definition</source>
       <translation>Cargando la definición</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="278"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="275"></location>
       <source>Loading...</source>
       <translation>Cargando...</translation>
     </message>
@@ -3473,7 +3503,7 @@ Install these nodes now?</source>
       <translation>Búsqueda y descargas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="855"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="854"></location>
       <source>Lookup failed</source>
       <translation>La búsqueda ha fallado</translation>
     </message>
@@ -3523,7 +3553,7 @@ Install these nodes now?</source>
       <translation>Asegúrate de que este equipo pueda conectarse al servidor remoto de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1110"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1109"></location>
       <source>Malformed Danbooru response</source>
       <translation>Respuesta incorrecta de Danbooru</translation>
     </message>
@@ -3573,17 +3603,17 @@ Install these nodes now?</source>
       <translation>La actualización manual de metadatos necesita un tipo de modelo y un valor.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="702"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="681"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>No se pudieron verificar las dimensiones de la máscara</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="639"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="618"></location>
       <source>Mask dimensions do not match</source>
       <translation>Las dimensiones de la máscara no coinciden</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_mask_layer_button.py" line="39"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_layer_button.py" line="53"></location>
       <source>Mask layer</source>
       <translation>Capa de máscara</translation>
     </message>
@@ -3643,7 +3673,7 @@ Install these nodes now?</source>
       <translation>Falta el campo: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="135"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="132"></location>
       <source>Missing model</source>
       <translation>Falta el modelo</translation>
     </message>
@@ -3673,7 +3703,7 @@ Install these nodes now?</source>
       <translation>La descarga del modelo no está disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="394"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="391"></location>
       <source>Model file</source>
       <translation>Archivo del modelo</translation>
     </message>
@@ -3698,7 +3728,7 @@ Install these nodes now?</source>
       <translation>Carpeta de modelos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_selection_contextual_toolbar.py" line="39"></location>
+      <location filename="../substitute/presentation/canvas/input/input_selection_contextual_toolbar.py" line="53"></location>
       <source>Modify selection</source>
       <translation>Modificar selección</translation>
     </message>
@@ -3728,7 +3758,7 @@ Install these nodes now?</source>
       <translation>Mover</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/drag_handle.py" line="36"></location>
+      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/drag_handle.py" line="50"></location>
       <source>Move Contextual Toolbar</source>
       <translation>Mover la barra de herramientas contextual</translation>
     </message>
@@ -3743,9 +3773,14 @@ Install these nodes now?</source>
       <translation>Subir</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/save_preset_dialog.py" line="74"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="179"></location>
       <source>Name</source>
       <translation>Nombre</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="305"></location>
+      <source>Nearest Neighbor</source>
+      <translation>Vecino más cercano</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/interactions/parenthesis_education_controller.py" line="69"></location>
@@ -3783,6 +3818,11 @@ Install these nodes now?</source>
       <translation>Nueva lista personalizada</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="184"></location>
+      <source>New size</source>
+      <translation>Nuevo tamaño</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="340"></location>
       <source>Next</source>
       <translation>Siguiente</translation>
@@ -3813,7 +3853,7 @@ Install these nodes now?</source>
       <translation>No hay paquetes de cubos registrados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1120"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1119"></location>
       <source>No Danbooru wiki page was found for "%1".</source>
       <translation>No se encontró ninguna página en la wiki de Danbooru para «%1».</translation>
     </message>
@@ -3833,7 +3873,7 @@ Install these nodes now?</source>
       <translation>No hay ningún almacén de credenciales compatible disponible en el sistema operativo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1111"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1110"></location>
       <source>No cubes available</source>
       <translation>No hay cubos disponibles</translation>
     </message>
@@ -3878,7 +3918,7 @@ Install these nodes now?</source>
       <translation>No fue necesario detener ningún proceso administrado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1113"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1112"></location>
       <source>No matching cubes</source>
       <translation>No hay cubos que coincidan</translation>
     </message>
@@ -3913,7 +3953,7 @@ Install these nodes now?</source>
       <translation>No se ha validado ningún repositorio.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="487"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="485"></location>
       <source>No selection</source>
       <translation>Sin selección</translation>
     </message>
@@ -3928,12 +3968,12 @@ Install these nodes now?</source>
       <translation>No hay sugerencias ortográficas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="255"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="252"></location>
       <source>No thumbnail</source>
       <translation>Sin miniatura</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="335"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="331"></location>
       <source>Node</source>
       <translation>Nodo</translation>
     </message>
@@ -3958,7 +3998,7 @@ Install these nodes now?</source>
       <translation>Contexto del nodo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="344"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="340"></location>
       <source>Node errors</source>
       <translation>Errores del nodo</translation>
     </message>
@@ -4008,7 +4048,7 @@ Install these nodes now?</source>
       <translation>Número de generaciones que se añadirán a la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="47"></location>
+      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="38"></location>
       <source>OK</source>
       <translation>Aceptar</translation>
     </message>
@@ -4028,7 +4068,7 @@ Install these nodes now?</source>
       <translation>Ofrecer descargas de modelos verificadas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="578"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="577"></location>
       <source>On Pixiv:</source>
       <translation>En Pixiv:</translation>
     </message>
@@ -4053,7 +4093,7 @@ Install these nodes now?</source>
       <translation>Abrir todo en Photoshop</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="198"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="195"></location>
       <source>Open CivitAI Settings</source>
       <translation>Abrir la configuración de CivitAI</translation>
     </message>
@@ -4113,7 +4153,7 @@ Install these nodes now?</source>
       <translation>Abrir el asistente de instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="541"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="540"></location>
       <source>Open tag wiki article in browser</source>
       <translation>Abrir el artículo de la etiqueta en la wiki mediante el navegador</translation>
     </message>
@@ -4283,7 +4323,7 @@ Install these nodes now?</source>
       <translation>Elige la instalación que se ajuste a tu situación actual. Puedes cambiarla más adelante si cambia tu forma de trabajar.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="78"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="92"></location>
       <source>Pixels</source>
       <translation>Píxeles</translation>
     </message>
@@ -4353,7 +4393,7 @@ Install these nodes now?</source>
       <translation>Posible error ortográfico: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="762"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="761"></location>
       <source>Posts</source>
       <translation>Publicaciones</translation>
     </message>
@@ -4403,6 +4443,16 @@ Install these nodes now?</source>
       <translation>Preparando tu configuración existente de ComfyUI.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="306"></location>
+      <source>Preserves hard mask edges by copying the nearest pixel without blending.</source>
+      <translation>Conserva los bordes definidos de la máscara copiando el píxel más cercano sin mezclarlo.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="212"></location>
+      <source>Preset</source>
+      <translation>Preajuste</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/controls_page.py" line="401"></location>
       <source>Press a key combination...</source>
       <translation>Pulsa una combinación de teclas...</translation>
@@ -4443,7 +4493,7 @@ Install these nodes now?</source>
       <translation>Proyecto</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="329"></location>
       <source>Prompt</source>
       <translation>ID del prompt</translation>
     </message>
@@ -4541,6 +4591,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/about/about_info_service.py" line="102"></location>
       <source>QPane</source>
       <translation>QPane</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="310"></location>
+      <source>Qt Smooth</source>
+      <translation>Suavizado de Qt</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/comfy_runtime_actions.py" line="92"></location>
@@ -4648,7 +4703,7 @@ Install these nodes now?</source>
       <translation>Selección rectangular</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="70"></location>
       <source>Red</source>
       <translation>Rojo</translation>
     </message>
@@ -4663,7 +4718,7 @@ Install these nodes now?</source>
       <translation>Volver a acoplar el lienzo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="200"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="222"></location>
       <source>Referenced local image file does not exist.</source>
       <translation>El archivo de imagen local al que se hace referencia no existe.</translation>
     </message>
@@ -4683,7 +4738,7 @@ Install these nodes now?</source>
       <translation>Actualizar en segundo plano el contenido almacenado en caché</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="525"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="524"></location>
       <source>Refresh catalog</source>
       <translation>Actualizar catálogo</translation>
     </message>
@@ -4698,7 +4753,7 @@ Install these nodes now?</source>
       <translation>Actualizando la biblioteca de cubos tras solicitar el reinicio.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1544"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1543"></location>
       <source>Refreshing...</source>
       <translation>Actualizando...</translation>
     </message>
@@ -4793,7 +4848,7 @@ Install these nodes now?</source>
       <translation>Eliminando el cambio previsto.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="642"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="178"></location>
       <source>Rename</source>
       <translation>Cambiar nombre</translation>
     </message>
@@ -4838,12 +4893,12 @@ Install these nodes now?</source>
       <translation>La reparación volverá a instalar ComfyUI con un backend que coincida con el acelerador detectado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="888"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="869"></location>
       <source>Report issue</source>
       <translation>Notificar problema</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="877"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="858"></location>
       <source>Repository</source>
       <translation>Repositorio</translation>
     </message>
@@ -4907,7 +4962,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Los nodos personalizados necesarios están instalados.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="172"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="194"></location>
       <source>Required image input has no selected image.</source>
       <translation>La entrada de imagen obligatoria no tiene ninguna imagen seleccionada.</translation>
     </message>
@@ -4917,9 +4972,19 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Nodos necesarios instalados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="704"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="703"></location>
       <source>Reset</source>
       <translation>Restablecer</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="69"></location>
+      <source>Resize canvas</source>
+      <translation>Cambiar tamaño del lienzo</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="173"></location>
+      <source>Resize canvas only</source>
+      <translation>Cambiar solo el tamaño del lienzo</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="298"></location>
@@ -4962,7 +5027,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>El reinicio no está disponible en este servidor.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="191"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="187"></location>
       <source>Restart now</source>
       <translation>Reiniciar ahora</translation>
     </message>
@@ -4972,7 +5037,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Se solicitó el reinicio.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="122"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="118"></location>
       <source>Restart required</source>
       <translation>Es necesario reiniciar</translation>
     </message>
@@ -5067,7 +5132,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Revisa el registro de inicio y actualiza o desactiva el último componente que se estaba cargando antes de agotarse el tiempo de espera.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="814"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="795"></location>
       <source>Review the startup report.</source>
       <translation>Revisa el informe de inicio.</translation>
     </message>
@@ -5077,12 +5142,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Presentación enriquecida de prompts</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="44"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="58"></location>
       <source>Rotate left</source>
       <translation>Girar a la izquierda</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="49"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="63"></location>
       <source>Rotate right</source>
       <translation>Girar a la derecha</translation>
     </message>
@@ -5182,7 +5247,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar y continuar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="302"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="300"></location>
       <source>Save changes</source>
       <translation>Guardar cambios</translation>
     </message>
@@ -5202,7 +5267,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guarda las salidas de todos los cubos o solo la del último cubo activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="421"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="450"></location>
       <source>Save for %1</source>
       <translation>Guardar para %1</translation>
     </message>
@@ -5210,6 +5275,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
       <source>Save globally</source>
       <translation>Guardar globalmente</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="191"></location>
+      <source>Save or Load preset</source>
+      <translation>Guardar o cargar preajuste</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/workflows/cube_item.py" line="273"></location>
@@ -5257,6 +5327,16 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardando tus opciones de instalación.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="229"></location>
+      <source>Scale canvas and masks</source>
+      <translation>Escalar lienzo y máscaras</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="292"></location>
+      <source>Scaling quality</source>
+      <translation>Calidad de escalado</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="455"></location>
       <source>Scene</source>
       <translation>Escena</translation>
@@ -5287,7 +5367,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Buscar %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="585"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="584"></location>
       <source>Search cubes</source>
       <translation>Buscar cubos</translation>
     </message>
@@ -5542,7 +5622,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar imágenes en el visor de la wiki</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="358"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
       <source>Show report</source>
       <translation>Mostrar informe</translation>
     </message>
@@ -5552,7 +5632,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Muestra fotogramas de vista previa del muestreador mientras ComfyUI está generando.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1566"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1565"></location>
       <source>Showing stale catalog</source>
       <translation>Mostrando un catálogo obsoleto</translation>
     </message>
@@ -5622,7 +5702,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Selección inteligente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="167"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="164"></location>
       <source>Some CivitAI downloads require an API key. Paste it here to use it for this download and save it for next time.</source>
       <translation>Algunas descargas de CivitAI necesitan una clave de API. Pégala aquí para usarla en esta descarga y guardarla para la próxima vez.</translation>
     </message>
@@ -5667,7 +5747,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Corrección ortográfica</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="325"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="321"></location>
       <source>Stage</source>
       <translation>Etapa</translation>
     </message>
@@ -6182,7 +6262,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración de carpetas guardada de Substitute necesita corrección</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2854"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2859"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6372,6 +6452,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Intercambiar anchura y altura</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="217"></location>
+      <source>Swap width and height</source>
+      <translation>Intercambiar anchura y altura</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/controls_page.py" line="97"></location>
       <source>Switches the primary Generate control and updates its visible mode.</source>
       <translation>Cambia el control principal Generar y actualiza su modo visible.</translation>
@@ -6532,6 +6617,16 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>El entorno de ComfyUI conectado no cumple los requisitos actualizados. Repara ese entorno antes de continuar. %1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="381"></location>
+      <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
+      <translation>El lienzo cambió mientras este diálogo estaba abierto. Revisa el tamaño actual e inténtalo de nuevo.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="391"></location>
+      <source>The canvas could not be resized. Nothing was changed.</source>
+      <translation>No se pudo cambiar el tamaño del lienzo. No se modificó nada.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="175"></location>
       <source>The defaults usually work well for first-time setup.</source>
       <translation>Los valores predeterminados suelen funcionar bien en la primera instalación.</translation>
@@ -6632,7 +6727,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>La receta se cargó con advertencias de la biblioteca de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1128"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1127"></location>
       <source>The requested definition is not available.</source>
       <translation>La definición solicitada no está disponible.</translation>
     </message>
@@ -6682,12 +6777,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>La carpeta seleccionada no contiene una instalación completa de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="704"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="683"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>No se pudieron comparar las dimensiones de la máscara seleccionada con la imagen de entrada cargada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="641"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="620"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>Las dimensiones de la máscara seleccionada no coinciden con las de la imagen de entrada cargada.</translation>
     </message>
@@ -6742,6 +6837,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudo añadir el flujo de trabajo a la cola.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="399"></location>
+      <source>The workflow dimensions could not be updated, so the canvas change was undone.</source>
+      <translation>No se pudieron actualizar las dimensiones del flujo de trabajo, por lo que se deshizo el cambio del lienzo.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/appearance/appearance_restart_coordinator.py" line="86"></location>
       <source>Theme mode</source>
       <translation>Modo del tema</translation>
@@ -6757,7 +6857,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Después, vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="125"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="121"></location>
       <source>These changes will apply after restart.</source>
       <translation>Estos cambios se aplicarán después de reiniciar.</translation>
     </message>
@@ -6777,7 +6877,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>La primera vez puede tardar un poco.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="414"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="411"></location>
       <source>This cube</source>
       <translation>Este cubo</translation>
     </message>
@@ -6807,17 +6907,17 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Aquí es donde Substitute colocará ComfyUI. La mayoría de los usuarios pueden mantener la ubicación predeterminada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="359"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="356"></location>
       <source>This recipe uses a model that is not available in your current ComfyUI model folders. Turn on CivitAI model lookup in Settings to search for it.</source>
       <translation>Esta receta usa un modelo que no está disponible en tus carpetas actuales de modelos de ComfyUI. Activa la búsqueda de modelos en CivitAI desde Configuración para buscarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="369"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="366"></location>
       <source>This recipe uses a model that is not available in your current ComfyUI model folders. We could not find an automatic download that is safe to offer.</source>
       <translation>Esta receta usa un modelo que no está disponible en tus carpetas actuales de modelos de ComfyUI. No encontramos ninguna descarga automática que fuera seguro ofrecer.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="364"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="361"></location>
       <source>This recipe uses a model that is not in your current ComfyUI model folders. We found a matching file on CivitAI and can download it for you, then open the recipe.</source>
       <translation>Esta receta usa un modelo que no está en tus carpetas actuales de modelos de ComfyUI. Encontramos un archivo coincidente en CivitAI; podemos descargarlo y abrir la receta.</translation>
     </message>
@@ -6902,7 +7002,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Transformar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="37"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="51"></location>
       <source>Transform selection</source>
       <translation>Transformar selección</translation>
     </message>
@@ -6922,7 +7022,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Volver a intentarlo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="579"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="577"></location>
       <source>Unable to apply changes</source>
       <translation>No se pudieron aplicar los cambios</translation>
     </message>
@@ -6932,37 +7032,42 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se puede copiar la imagen de salida.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="608"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="606"></location>
       <source>Unable to create asset</source>
       <translation>No se pudo crear el recurso</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="724"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="722"></location>
       <source>Unable to delete asset</source>
       <translation>No se pudo eliminar el recurso</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="202"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="200"></location>
       <source>Unable to load assets</source>
       <translation>No se pudieron cargar los recursos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="466"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="464"></location>
       <source>Unable to read asset</source>
       <translation>No se pudo leer el recurso</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1553"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1552"></location>
       <source>Unable to refresh catalog</source>
       <translation>No se pudo actualizar el catálogo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="679"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="677"></location>
       <source>Unable to rename asset</source>
       <translation>No se pudo cambiar el nombre del recurso</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="544"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="186"></location>
+      <source>Unable to resize canvas</source>
+      <translation>No se puede cambiar el tamaño del lienzo</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="542"></location>
       <source>Unable to save asset</source>
       <translation>No se pudo guardar el recurso</translation>
     </message>
@@ -6972,7 +7077,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se puede transferir la imagen de salida.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="702"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="700"></location>
       <source>Unable to update asset</source>
       <translation>No se pudo actualizar el recurso</translation>
     </message>
@@ -7042,7 +7147,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Actualiza las dependencias de ComfyUI y reinicia la aplicación.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="400"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="396"></location>
       <source>Update all v%1 instances</source>
       <translation>Actualizar todas las instancias v%1</translation>
     </message>
@@ -7052,7 +7157,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Actualización disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="309"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="305"></location>
       <source>Update selected</source>
       <translation>Actualizar seleccionados</translation>
     </message>
@@ -7067,17 +7172,17 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Actualiza primero la extensión. Si continúa fallando, informa a la persona responsable de su mantenimiento.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="248"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="244"></location>
       <source>Update this workflow cube to the latest version</source>
       <translation>Actualizar este cubo de flujo de trabajo a la versión más reciente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="389"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="385"></location>
       <source>Update to v%1</source>
       <translation>Actualizar a v%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="228"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="224"></location>
       <source>Updated versions are available for loaded cubes.</source>
       <translation>Hay versiones actualizadas disponibles para los cubos cargados.</translation>
     </message>
@@ -7232,6 +7337,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Se usa para los errores de validación y los elementos resaltados de error.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="311"></location>
+      <source>Uses Qt smooth scaling to blend neighboring pixels for softer resized masks.</source>
+      <translation>Usa el escalado suave de Qt para mezclar píxeles adyacentes y suavizar las máscaras redimensionadas.</translation>
+    </message>
+    <message>
       <location filename="../substitute/infrastructure/comfy/attached_install.py" line="101"></location>
       <source>Using ComfyUI Python %1 (%2) at %3.</source>
       <translation>Usando Python %1 (%2) de ComfyUI en %3.</translation>
@@ -7287,7 +7397,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Personalización visual.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="72"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="86"></location>
       <source>Visual opacity</source>
       <translation>Opacidad visual</translation>
     </message>
@@ -7317,7 +7427,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Esperando a que comience la descarga...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="790"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="771"></location>
       <source>Warning</source>
       <translation>Advertencia</translation>
     </message>
@@ -7327,7 +7437,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Color de advertencia</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="310"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="306"></location>
       <source>Warnings</source>
       <translation>Advertencias</translation>
     </message>
@@ -7372,7 +7482,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Por qué se detiene aquí la instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="42"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="199"></location>
       <source>Width</source>
       <translation>Anchura</translation>
     </message>
@@ -7412,7 +7522,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Windows limita a 255 caracteres cada nombre de archivo o carpeta.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="327"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="323"></location>
       <source>Workflow</source>
       <translation>Flujo de trabajo</translation>
     </message>
@@ -7547,12 +7657,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>[Validación] torch=%1 backend=%2 canal=%3 dispositivo=%4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="422"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="419"></location>
       <source>a model</source>
       <translation>un modelo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="85"></location>
       <source>by</source>
       <translation>en</translation>
     </message>
@@ -7632,17 +7742,17 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>copia del código fuente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="329"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="325"></location>
       <source>unknown</source>
       <translation>desconocido</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="474"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="470"></location>
       <source>v%1  Current</source>
       <translation>v%1  Actual</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="472"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="468"></location>
       <source>v%1  Newest</source>
       <translation>v%1  Más reciente</translation>
     </message>

@@ -97,9 +97,10 @@ class IntegerSpinnerSlider(QWidget):
         return int(self.spinbox.value())
 
     def setValue(self, value: int) -> None:
-        """Set the value through the authoritative spin box."""
+        """Set the value and enforce visual synchronization of both controls."""
 
         self.spinbox.setValue(value)
+        self.slider.setValue(self._value_to_slider(self.spinbox.value()))
 
     def _build_layout(self) -> None:
         """Arrange the spin box and slider as one compact control."""
@@ -128,9 +129,7 @@ class IntegerSpinnerSlider(QWidget):
     def _apply_spinbox_value(self, value: int) -> None:
         """Synchronize the slider and publish one value change."""
 
-        self.slider.blockSignals(True)
         self.slider.setValue(self._value_to_slider(value))
-        self.slider.blockSignals(False)
         self.valueChanged.emit(value)
 
 
@@ -182,9 +181,10 @@ class DecimalSpinnerSlider(QWidget):
         return float(self.spinbox.value())
 
     def setValue(self, value: float) -> None:
-        """Set the value through the authoritative spin box."""
+        """Set the value and enforce visual synchronization of both controls."""
 
         self.spinbox.setValue(value)
+        self.slider.setValue(self._value_to_slider(self.spinbox.value()))
 
     def _build_layout(self) -> None:
         """Arrange the spin box and slider as one compact control."""
@@ -213,9 +213,7 @@ class DecimalSpinnerSlider(QWidget):
     def _apply_spinbox_value(self, value: float) -> None:
         """Synchronize the slider and publish one value change."""
 
-        self.slider.blockSignals(True)
         self.slider.setValue(self._value_to_slider(value))
-        self.slider.blockSignals(False)
         self.valueChanged.emit(value)
 
 

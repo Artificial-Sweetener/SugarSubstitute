@@ -565,6 +565,14 @@ def _canvas_state_to_json(canvas: WorkflowCanvasState) -> JsonObject:
             }
             for collection in canvas.regional_mask_collections.values()
         ],
+        "mask_visual_opacities": [
+            {
+                "cube_alias": association_key[0],
+                "node_name": association_key[1],
+                "opacity": opacity,
+            }
+            for association_key, opacity in canvas.mask_visual_opacities.items()
+        ],
         "input_image_uuid": _uuid_to_text(canvas.input_image_uuid),
         "active_input_mask_uuid": _uuid_to_text(canvas.active_input_mask_uuid),
         "active_canvas_route": canvas.active_canvas_route,
@@ -589,6 +597,19 @@ def _canvas_state_from_json(payload: Mapping[str, object]) -> WorkflowCanvasStat
         canvas.bind_image(
             _required_str(entry_payload, "input_key"),
             _uuid_from_text(_required_str(entry_payload, "image_id")),
+        )
+
+    for item in _optional_sequence(payload.get("mask_visual_opacities")):
+        opacity_payload = _required_mapping(item)
+        canvas.set_mask_visual_opacity(
+            (
+                _required_str(opacity_payload, "cube_alias"),
+                _required_str(opacity_payload, "node_name"),
+            ),
+            _optional_float_with_default(
+                opacity_payload.get("opacity"),
+                default=0.5,
+            ),
         )
 
     mask_payload = payload.get("mask_entries")

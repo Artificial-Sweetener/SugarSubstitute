@@ -125,6 +125,10 @@ class InputCanvas(QWidget):
             features=features,
             execution_runtime=execution_runtime,
         )
+        input_document = self.document
+        self.destroyed.connect(
+            lambda _object=None, document=input_document: document.close()
+        )
         self.canvas = self.document.canvas
         self.canvas.setEditorCursorTheme(InputCanvasCursorTheme())
         self._route_session_boundary = (

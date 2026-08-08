@@ -28,6 +28,9 @@ from substitute.presentation.regional.panel_signal_binding import (
 from substitute.presentation.regional.panel_initial_projection import (
     project_regional_panel_widget,
 )
+from substitute.presentation.editor.panel.mask_visual_opacity_projection import (
+    project_mask_visual_opacity,
+)
 
 
 def bind_picker_signals(
@@ -51,6 +54,19 @@ def bind_picker_signals(
         cube_alias=cube_alias,
         node_name=node_name,
     )
+    project_mask_visual_opacity(
+        widget,
+        panel,
+        cube_alias=cube_alias,
+        node_name=node_name,
+    )
+
+    visual_opacity_changed = getattr(widget, "visualOpacityChanged", None)
+    if visual_opacity_changed is not None:
+        visual_opacity_changed.connect(panel.inputMaskOpacityChanged.emit)
+    visual_opacity_committed = getattr(widget, "visualOpacityCommitted", None)
+    if visual_opacity_committed is not None:
+        visual_opacity_committed.connect(panel.inputMaskOpacityCommitted.emit)
 
     if isinstance(widget, ImagePicker):
         widget.imageSelected.connect(

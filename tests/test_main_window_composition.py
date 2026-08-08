@@ -312,6 +312,7 @@ class _FakeInputCanvasShellAdapter:
         self.shell = shell
         self.resolve_workflow_name = object()
         self.mark_input_canvas_changed = object()
+        self.mark_input_canvas_presentation_changed = object()
 
 
 class _FakeInputCanvasPresenter:
@@ -385,6 +386,25 @@ class _FakeInputCanvasCapabilityService:
 
         self.input_canvas_plan_service = input_canvas_plan_service
         self.graph_section_service = graph_section_service
+
+
+class _FakeSyntheticCanvasGeometryAdapter:
+    """Capture the native canvas selected for synthetic geometry work."""
+
+    def __init__(self, canvas: object, parent: object) -> None:
+        """Store the canvas and QObject parent supplied by composition."""
+
+        self.canvas = canvas
+        self.parent = parent
+
+
+class _FakeSyntheticCanvasResolutionController:
+    """Capture shell orchestration collaborators for synthetic resolution."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store constructor keyword arguments for assertions."""
+
+        self.kwargs = kwargs
 
 
 class _FakeOutputImagePipeline:
@@ -911,6 +931,16 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         "InputCanvasCapabilityService",
         _FakeInputCanvasCapabilityService,
     )
+    monkeypatch.setattr(
+        input_canvas_composition,
+        "SyntheticCanvasGeometryAdapter",
+        _FakeSyntheticCanvasGeometryAdapter,
+    )
+    monkeypatch.setattr(
+        input_canvas_composition,
+        "SyntheticCanvasResolutionController",
+        _FakeSyntheticCanvasResolutionController,
+    )
     palette = object()
     registered_options: dict[str, object] = {}
     registered_actions: list[tuple[object, object]] = []
@@ -944,6 +974,7 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         maskContentChanged=_FakeSignal(),
         activeMaskChanged=_FakeSignal(),
     )
+    document.canvas = SimpleNamespace(sceneEditHistoryChanged=_FakeSignal())
     current_image_id_for_event = object()
     bound_runtimes: list[tuple[object, object]] = []
     input_canvas = SimpleNamespace(
@@ -1065,6 +1096,15 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     assert (
         shell.input_canvas_capability_service.graph_section_service
         is shell.graph_section_service
+    )
+    assert shell.synthetic_canvas_geometry_adapter.canvas is document.canvas
+    assert (
+        shell.synthetic_canvas_resolution_controller.kwargs["geometry"]
+        is shell.synthetic_canvas_geometry_adapter
+    )
+    assert (
+        shell.synthetic_canvas_resolution_controller.kwargs["roles"]
+        is shell.synthetic_canvas_resolution_role_service
     )
 
 

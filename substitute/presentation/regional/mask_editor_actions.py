@@ -40,7 +40,6 @@ class RegionalMaskActionOutcome:
 
     handled: bool
     activate_canvas: bool = False
-    request_brush: bool = False
 
 
 def parse_regional_mask_action(action: str) -> RegionalMaskActionRequest | None:

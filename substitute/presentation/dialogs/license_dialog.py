@@ -22,12 +22,11 @@ from sugarsubstitute_shared.presentation.localization import app_text
 from substitute.presentation.localization import LocalizedPrimaryPushButton
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtWidgets import QApplication, QLayout, QSizePolicy, QWidget
+from PySide6.QtWidgets import QLayout, QSizePolicy, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    MessageBoxBase,
     TextBrowser,
 )
-from shiboken6 import isValid
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
 _DIALOG_MAX_WIDTH = 780
 _DIALOG_MIN_WIDTH = 320
@@ -43,10 +42,9 @@ _CONTENT_BOTTOM_MARGIN = 16
 _FOOTER_HEIGHT = 68
 _ACTION_BUTTON_HEIGHT = 32
 _CLOSE_BUTTON_MINIMUM_WIDTH = 88
-_FALLBACK_PARENT: QWidget | None = None
 
 
-class LicenseDialog(MessageBoxBase):  # type: ignore[misc]
+class LicenseDialog(FullWindowModalBase):
     """Show a read-only GPLv3 license text in the existing modal shell."""
 
     def __init__(
@@ -57,13 +55,12 @@ class LicenseDialog(MessageBoxBase):  # type: ignore[misc]
     ) -> None:
         """Create a parent-sized modal license reader."""
 
-        parent_widget = _resolve_parent(parent)
-        super().__init__(parent_widget)
+        super().__init__(parent)
         self.setObjectName("SugarSubstituteLicenseDialog")
         self.setModal(True)
         self.setClosableOnMaskClicked(True)
 
-        dialog_size = _dialog_size(parent_widget)
+        dialog_size = _dialog_size(self.modal_owner)
         self.widget.setMinimumWidth(dialog_size.width())
         self.widget.setMaximumWidth(dialog_size.width())
         self.widget.setMinimumHeight(dialog_size.height())
@@ -125,21 +122,6 @@ class LicenseDialog(MessageBoxBase):  # type: ignore[misc]
             0,
             Qt.AlignmentFlag.AlignVCenter,
         )
-
-
-def _resolve_parent(parent: QWidget | None) -> QWidget:
-    """Return a QWidget parent accepted by qfluent's modal mask."""
-
-    if parent is not None and isValid(parent):
-        return parent
-    active_window = QApplication.activeWindow()
-    if isinstance(active_window, QWidget) and isValid(active_window):
-        return active_window
-    global _FALLBACK_PARENT  # noqa: PLW0603
-    if _FALLBACK_PARENT is None or not isValid(_FALLBACK_PARENT):
-        _FALLBACK_PARENT = QWidget()
-        _FALLBACK_PARENT.resize(900, 700)
-    return _FALLBACK_PARENT
 
 
 def _dialog_size(parent: QWidget) -> QSize:

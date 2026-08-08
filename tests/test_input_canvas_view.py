@@ -26,6 +26,7 @@ from uuid import uuid4
 import pytest
 from PySide6.QtCore import (
     QCoreApplication,
+    QEvent,
     QPoint,
     QPointF,
     QRect,
@@ -37,6 +38,7 @@ from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 from cutecanvas import EditorTransformTarget, LayerPolicy
+from shiboken6 import isValid
 
 import substitute.presentation.canvas.input.input_canvas_view as input_mod
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
@@ -86,6 +88,35 @@ def test_input_canvas_features_can_defer_sam_for_harness(
     monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
 
     assert _input_canvas_cutecanvas_features() == ("mask",)
+
+
+def test_input_canvas_destruction_closes_document_before_qt_children(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Destroy the host only after its document closes every CuteCanvas view."""
+
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS", "1")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM", "1")
+    app = _app()
+    host = input_mod.InputCanvas()
+    document = host.document
+    original_close = document.close
+    close_observations: list[bool] = []
+
+    def close_document() -> None:
+        """Record whether the embedded canvas remains valid at document shutdown."""
+
+        close_observations.append(isValid(host.canvas))
+        original_close()
+
+    monkeypatch.setattr(document, "close", close_document)
+
+    host.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.processEvents()
+
+    assert close_observations == [True]
+    assert isValid(host) is False
 
 
 def test_set_available_false_disables_canvas_tool_chrome_and_shows_overlay() -> None:

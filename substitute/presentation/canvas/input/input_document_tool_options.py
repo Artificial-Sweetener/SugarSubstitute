@@ -270,10 +270,6 @@ class InputDocumentToolOptions:
             self.toolContextChanged.emit()
         return changed
 
-    def set_mask_visual_opacity(self, mask_id: UUID, opacity: float) -> bool:
-        """Set final visual-only opacity without changing mask coverage."""
-        return bool(self._canvas.setMaskProperties(mask_id, opacity=opacity))
-
     def begin_mask_edge_preview(self, mask_id: UUID) -> UUID | None:
         """Begin one nonmodal whole-mask edge preview."""
         return self._canvas.beginMaskEdgePreview(mask_id)

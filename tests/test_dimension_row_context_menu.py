@@ -32,10 +32,10 @@ from sugarsubstitute_shared.localization import render_source_application_text
 from substitute.domain.node_behavior import FieldBehavior
 from substitute.application.node_behavior import DimensionFieldPair
 import substitute.presentation.editor.panel.menus.dimension_row_actions as dimension_row_actions
-from substitute.presentation.editor.panel.menus.dimension_preset_models import (
-    DimensionPresetMenuItem,
-    DimensionPresetMenuModel,
-    DimensionPresetMenuSection,
+from substitute.presentation.editor.panel.dimension_presets import (
+    DimensionPresetCatalog,
+    DimensionPresetItem,
+    DimensionPresetSection,
 )
 from substitute.presentation.editor.panel.menus.dimension_row_actions import (
     AspectRatioPreset,
@@ -50,7 +50,10 @@ from substitute.presentation.widgets.menu_model import (
     MenuSeparator,
     MenuSubmenu,
 )
-from substitute.presentation.editor.panel.widgets.field_row import FieldRowBuilder
+from substitute.presentation.editor.panel.widgets.field_row import (
+    BuiltFieldRow,
+    FieldRowBuilder,
+)
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
     pytest.skip(
@@ -201,24 +204,24 @@ def _install_fake_dimension_menu(monkeypatch: Any) -> None:
 class _FakeDimensionPresetSource:
     """Return deterministic saved dimension menu data and record saves."""
 
-    def __init__(self, model: DimensionPresetMenuModel) -> None:
+    def __init__(self, model: DimensionPresetCatalog) -> None:
         """Store the menu model returned by this source."""
 
         self.model = model
         self.global_saves: list[tuple[int, int]] = []
         self.model_saves: list[tuple[int, int]] = []
 
-    def current_dimension_preset_menu_model(self) -> DimensionPresetMenuModel | None:
+    def current_dimension_preset_catalog(self) -> DimensionPresetCatalog | None:
         """Return prepared saved dimension menu sections."""
 
         return self.model
 
-    def prepare_dimension_preset_menu_model(self, *, reason: str) -> None:
+    def prepare_dimension_preset_catalog(self, *, reason: str) -> None:
         """Fail if menu rendering tries to prepare foreground data."""
 
         raise AssertionError(f"unexpected menu-open preparation: {reason}")
 
-    def list_dimension_presets(self) -> DimensionPresetMenuModel:
+    def list_dimension_presets(self) -> DimensionPresetCatalog:
         """Fail if menu rendering tries to load saved dimensions."""
 
         raise AssertionError("unexpected menu-open preset loading")
@@ -450,12 +453,12 @@ def test_dimension_group_with_saved_source_places_set_dimensions_before_ratio(
     panel = _Panel()
     content = QWidget(panel)
     source = _FakeDimensionPresetSource(
-        DimensionPresetMenuModel(
+        DimensionPresetCatalog(
             sections=(
-                DimensionPresetMenuSection(
+                DimensionPresetSection(
                     title="Global",
                     presets=(
-                        DimensionPresetMenuItem(
+                        DimensionPresetItem(
                             label="832 x 1216",
                             short_edge=832,
                             long_edge=1216,
@@ -508,22 +511,22 @@ def test_saved_dimension_actions_apply_portrait_and_landscape(
     panel = _Panel()
     content = QWidget(panel)
     source = _FakeDimensionPresetSource(
-        DimensionPresetMenuModel(
+        DimensionPresetCatalog(
             sections=(
-                DimensionPresetMenuSection(
+                DimensionPresetSection(
                     title="For Illustrious",
                     presets=(
-                        DimensionPresetMenuItem(
+                        DimensionPresetItem(
                             label="1024 x 1536",
                             short_edge=1024,
                             long_edge=1536,
                         ),
                     ),
                 ),
-                DimensionPresetMenuSection(
+                DimensionPresetSection(
                     title="Global",
                     presets=(
-                        DimensionPresetMenuItem(
+                        DimensionPresetItem(
                             label="SDXL square",
                             short_edge=1024,
                             long_edge=1024,
@@ -600,7 +603,7 @@ def test_save_current_dimensions_actions_call_source(
     panel = _Panel()
     content = QWidget(panel)
     source = _FakeDimensionPresetSource(
-        DimensionPresetMenuModel(model_save_label="Illustrious")
+        DimensionPresetCatalog(model_save_label="Illustrious")
     )
     try:
         content_layout = QVBoxLayout(content)
@@ -630,6 +633,47 @@ def test_save_current_dimensions_actions_call_source(
         _cleanup_widgets(app, content, panel)
 
 
+def test_save_only_dimension_row_menu_preserves_existing_save_hierarchy(
+    monkeypatch: Any,
+) -> None:
+    """A restricted dimension row should expose saving without resize actions."""
+
+    app = _ensure_app()
+    _install_fake_dimension_menu(monkeypatch)
+    panel = _Panel()
+    content = QWidget(panel)
+    source = _FakeDimensionPresetSource(
+        DimensionPresetCatalog(model_save_label="Illustrious")
+    )
+    try:
+        content_layout = QVBoxLayout(content)
+        width = _spinbox(panel, value=960, key="source_width")
+        height = _spinbox(panel, value=1344, key="source_height")
+        built_row = _add_dimension_row(
+            panel,
+            content_layout,
+            width=width,
+            height=height,
+            dimension_preset_source=source,
+        )
+        assert built_row.dimension_actions is not None
+
+        built_row.dimension_actions.show_save_only()
+        built_row.row.customContextMenuRequested.emit(QPoint(1, 1))
+
+        root_menu = _FakeRoundMenu.instances[0]
+        assert root_menu.entries == [("menu", "Save current dimensions")]
+        save_menu = _submenu(root_menu, "Save current dimensions")
+        assert [action.text() for action in save_menu.actions] == [
+            "Save globally",
+            "Save for Illustrious",
+        ]
+        _action(save_menu, "Save globally").trigger()
+        assert source.global_saves == [(960, 1344)]
+    finally:
+        _cleanup_widgets(app, content, panel)
+
+
 def test_save_for_model_is_omitted_without_family(
     monkeypatch: Any,
 ) -> None:
@@ -639,7 +683,7 @@ def test_save_for_model_is_omitted_without_family(
     _install_fake_dimension_menu(monkeypatch)
     panel = _Panel()
     content = QWidget(panel)
-    source = _FakeDimensionPresetSource(DimensionPresetMenuModel())
+    source = _FakeDimensionPresetSource(DimensionPresetCatalog())
     try:
         content_layout = QVBoxLayout(content)
         width = _spinbox(panel, value=1024, key="source_width")
@@ -696,20 +740,20 @@ def test_menu_open_consumes_prepared_snapshot_without_loading_presets(
 
             self.current_calls = 0
 
-        def current_dimension_preset_menu_model(
+        def current_dimension_preset_catalog(
             self,
-        ) -> DimensionPresetMenuModel | None:
+        ) -> DimensionPresetCatalog | None:
             """Return no prepared dimensions for this menu invocation."""
 
             self.current_calls += 1
             return None
 
-        def prepare_dimension_preset_menu_model(self, *, reason: str) -> None:
+        def prepare_dimension_preset_catalog(self, *, reason: str) -> None:
             """Fail if context-menu opening tries to prepare data."""
 
             raise AssertionError(f"unexpected menu-open preparation: {reason}")
 
-        def list_dimension_presets(self) -> DimensionPresetMenuModel:
+        def list_dimension_presets(self) -> DimensionPresetCatalog:
             """Fail if context-menu opening tries to load presets."""
 
             raise AssertionError("unexpected menu-open preset loading")
@@ -978,7 +1022,7 @@ def _add_dimension_row(
     width: QWidget,
     height: QWidget,
     dimension_preset_source: Any | None = None,
-) -> None:
+) -> BuiltFieldRow:
     """Add a standard source dimension row to the test layout."""
 
     builder = FieldRowBuilder(
@@ -987,15 +1031,18 @@ def _add_dimension_row(
         icon_resolver=lambda _node, _label, column_index=None: None,
         dimension_preset_source=dimension_preset_source,
     )
-    builder.add_n_column_row(
+    built_row = builder.build_n_column_row(
         fields=[("source_width", width), ("source_height", height)],
         field_behaviors={
             "source_width": FieldBehavior(field_key="source_width"),
             "source_height": FieldBehavior(field_key="source_height"),
         },
-        content_layout=content_layout,
         node_name="resize",
     )
+    content_layout.addWidget(built_row.row)
+    if built_row.field_key is not None:
+        panel.row_widgets[built_row.field_key] = (built_row.row, None)
+    return built_row
 
 
 def _binding(

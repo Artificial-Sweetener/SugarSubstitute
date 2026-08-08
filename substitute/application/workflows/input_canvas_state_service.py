@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import math
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -156,6 +157,141 @@ class InputCanvasStateService:
         )
         return self._input_route_projector.show_mask(image_id, mask_id)
 
+    def set_mask_visual_opacity(
+        self,
+        workflow_id: str,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+        opacity: float,
+    ) -> bool:
+        """Apply one node-owned visual opacity atomically to all of its masks."""
+
+        try:
+            normalized = float(opacity)
+        except (TypeError, ValueError):
+            normalized = float("nan")
+        if not math.isfinite(normalized) or not 0.0 <= normalized <= 1.0:
+            log_warning(
+                _LOGGER,
+                "Rejected invalid Input mask visual opacity",
+                workflow_id=workflow_id,
+                association_key=association_key,
+                opacity=opacity,
+                rejection_reason="invalid_opacity",
+            )
+            return False
+
+        previous_opacity = workflow.canvas.mask_visual_opacity(association_key)
+        updated_mask_ids: list[UUID] = []
+        for mask_id in self._mask_ids_for_association(workflow, association_key):
+            if self._input_document.set_mask_visual_opacity(mask_id, normalized):
+                updated_mask_ids.append(mask_id)
+                continue
+            for updated_mask_id in updated_mask_ids:
+                self._input_document.set_mask_visual_opacity(
+                    updated_mask_id,
+                    previous_opacity,
+                )
+            log_warning(
+                _LOGGER,
+                "Failed to apply Input mask visual opacity",
+                workflow_id=workflow_id,
+                association_key=association_key,
+                mask_id=str(mask_id),
+                opacity=normalized,
+                rejection_reason="document_rejected_opacity",
+            )
+            return False
+        workflow.canvas.set_mask_visual_opacity(association_key, normalized)
+        log_debug(
+            _LOGGER,
+            "Applied Input mask visual opacity",
+            workflow_id=workflow_id,
+            association_key=association_key,
+            opacity=normalized,
+            mask_count=len(updated_mask_ids),
+        )
+        return True
+
+    def mask_ids_for_association(
+        self,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+    ) -> tuple[UUID, ...]:
+        """Return every materialized mask owned by one graph mask node."""
+
+        return self._mask_ids_for_association(workflow, association_key)
+
+    def synchronize_mask_visual_opacity_state(
+        self,
+        workflow_id: str,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+        opacity: float,
+    ) -> bool:
+        """Adopt one opacity already restored by CuteCanvas history."""
+
+        try:
+            normalized = float(opacity)
+        except (TypeError, ValueError):
+            normalized = float("nan")
+        if not math.isfinite(normalized) or not 0.0 <= normalized <= 1.0:
+            log_warning(
+                _LOGGER,
+                "Rejected invalid mask opacity restored by document history",
+                workflow_id=workflow_id,
+                association_key=association_key,
+                opacity=opacity,
+                rejection_reason="invalid_history_opacity",
+            )
+            return False
+        if workflow.canvas.mask_visual_opacity(association_key) == normalized:
+            return False
+        workflow.canvas.set_mask_visual_opacity(association_key, normalized)
+        log_debug(
+            _LOGGER,
+            "Synchronized mask opacity restored by document history",
+            workflow_id=workflow_id,
+            association_key=association_key,
+            opacity=normalized,
+        )
+        return True
+
+    def apply_materialized_mask_visual_opacity(
+        self,
+        workflow_id: str,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+        mask_id: UUID,
+    ) -> bool:
+        """Apply an explicit node value to one newly materialized associated mask."""
+
+        opacity = workflow.canvas.mask_visual_opacities.get(association_key)
+        if opacity is None:
+            return True
+        if mask_id not in self._mask_ids_for_association(workflow, association_key):
+            log_warning(
+                _LOGGER,
+                "Rejected Input mask opacity projection for foreign association",
+                workflow_id=workflow_id,
+                association_key=association_key,
+                mask_id=str(mask_id),
+                rejection_reason="mask_association_mismatch",
+            )
+            return False
+        applied = self._input_document.set_mask_visual_opacity(mask_id, opacity)
+        if not applied:
+            log_warning(
+                _LOGGER,
+                "Failed to project stored Input mask visual opacity",
+                workflow_id=workflow_id,
+                association_key=association_key,
+                mask_id=str(mask_id),
+                opacity=opacity,
+                rejection_reason="document_rejected_opacity",
+            )
+        return applied
+
     def load_input_image(
         self,
         workflows: Mapping[str, WorkflowState],
@@ -237,6 +373,13 @@ class InputCanvasStateService:
                 image_id=image_id,
                 association_key=association_key,
             )
+            if association_key is not None:
+                self.apply_materialized_mask_visual_opacity(
+                    workflow_id,
+                    active_workflow,
+                    association_key,
+                    snapshot_mask_id,
+                )
             active_mask_id = self._valid_active_input_mask(active_workflow)
             self._bind_input_route_scope(
                 workflow_id,
@@ -277,6 +420,13 @@ class InputCanvasStateService:
             image_id=image_id,
             association_key=association_key,
         )
+        if association_key is not None:
+            self.apply_materialized_mask_visual_opacity(
+                workflow_id,
+                active_workflow,
+                association_key,
+                live_mask_id,
+            )
         active_mask_id = self._valid_active_input_mask(active_workflow)
         self._bind_input_route_scope(
             workflow_id,
@@ -331,6 +481,12 @@ class InputCanvasStateService:
             )
             return None
         active_workflow.canvas.bind_mask(association_key, mask_id, image_id)
+        self.apply_materialized_mask_visual_opacity(
+            workflow_id,
+            active_workflow,
+            association_key,
+            mask_id,
+        )
         log_debug(
             _LOGGER,
             "Created input canvas mask layer for image",
@@ -375,6 +531,12 @@ class InputCanvasStateService:
             )
             return None
         active_workflow.canvas.bind_mask(association_key, mask_id, image_id)
+        self.apply_materialized_mask_visual_opacity(
+            workflow_id,
+            active_workflow,
+            association_key,
+            mask_id,
+        )
         log_debug(
             _LOGGER,
             "Loaded input canvas mask layer from file",
@@ -765,6 +927,25 @@ class InputCanvasStateService:
         """Return whether one complete mask entry proves mask ownership."""
 
         return workflow.canvas.owns_mask(mask_id, image_id)
+
+    @staticmethod
+    def _mask_ids_for_association(
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+    ) -> tuple[UUID, ...]:
+        """Return every materialized mask owned by one scalar or ordered node."""
+
+        scalar = workflow.canvas.mask_entry(association_key)
+        collection = workflow.canvas.regional_mask_collection(association_key)
+        return (() if scalar is None else (scalar.mask_id,)) + (
+            ()
+            if collection is None
+            else tuple(
+                entry.mask_id
+                for entry in collection.entries
+                if entry.mask_id is not None
+            )
+        )
 
     def _remove_input_uuid_if_unreferenced(
         self,

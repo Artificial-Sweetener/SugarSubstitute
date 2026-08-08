@@ -22,8 +22,6 @@ from collections.abc import Callable
 from typing import Protocol
 
 from PySide6.QtCore import QPointF
-from PySide6.QtWidgets import QInputDialog, QWidget
-from sugarsubstitute_shared.presentation.localization import app_text
 
 from substitute.application.prompt_editor.document.views import (
     PromptDocumentView,
@@ -37,6 +35,9 @@ from substitute.presentation.editor.prompt_editor.core.editing.source_commands i
 )
 from substitute.presentation.editor.prompt_editor.projection.prepared_frame import (
     PromptProjectionPreparedFrame,
+)
+from substitute.presentation.editor.prompt_editor.interactions.region_inline_editor import (
+    PromptRegionInlineEditor,
 )
 
 
@@ -57,7 +58,6 @@ class PromptRegionSourceCommands(Protocol):
         """Commit one source-backed replacement."""
 
 
-PromptRegionNamePrompt = Callable[[QWidget, str], tuple[str, bool]]
 PromptRegionHoverSink = Callable[[int | None], None]
 
 
@@ -67,22 +67,20 @@ class PromptRegionPointerController:
     def __init__(
         self,
         *,
-        parent: QWidget,
         document_view: Callable[[], PromptDocumentView],
         source_commands: PromptRegionSourceCommands,
         scroll_offset: Callable[[], float],
         cursor_position: Callable[[], int],
-        name_prompt: PromptRegionNamePrompt | None = None,
+        inline_editor: PromptRegionInlineEditor,
         hover_sink: PromptRegionHoverSink | None = None,
     ) -> None:
         """Store focused owners for hit testing, naming, and hover publication."""
 
-        self._parent = parent
         self._document_view = document_view
         self._source_commands = source_commands
         self._scroll_offset = scroll_offset
         self._cursor_position = cursor_position
-        self._name_prompt = name_prompt or _prompt_for_region_name
+        self._inline_editor = inline_editor
         self._hover_sink = hover_sink
         self._naming = PromptRegionNamingService()
         self._hovered_region_index: int | None = None
@@ -97,31 +95,44 @@ class PromptRegionPointerController:
         hit = self._separator_hit(position, frame)
         if hit is None:
             return False
-        _index, separator = hit
-        return self._rename(separator)
+        index, separator = hit
+        return self._begin_rename(index, separator)
 
     def handle_keyboard_rename(self) -> bool:
         """Rename the separator adjacent to the current source caret."""
 
         cursor_position = self._cursor_position()
-        for separator in self._document_view().region_structure.separators:
+        for index, separator in enumerate(
+            self._document_view().region_structure.separators
+        ):
             if separator.token_start <= cursor_position <= separator.token_end:
-                return self._rename(separator)
+                return self._begin_rename(index, separator)
         return False
 
-    def _rename(self, separator: PromptRegionSeparatorView) -> bool:
-        """Prompt for and commit one separator name through the source owner."""
+    def _begin_rename(
+        self,
+        index: int,
+        separator: PromptRegionSeparatorView,
+    ) -> bool:
+        """Begin in-place editing for one source-backed separator name."""
 
-        authored_name, accepted = self._name_prompt(
-            self._parent,
-            "" if separator.name is None else separator.name,
+        return self._inline_editor.begin(
+            region_index=index,
+            current_name="" if separator.name is None else separator.name,
+            commit=lambda authored_name: self._commit_name(separator, authored_name),
         )
-        if not accepted:
-            return True
+
+    def _commit_name(
+        self,
+        separator: PromptRegionSeparatorView,
+        authored_name: str,
+    ) -> bool:
+        """Commit one valid inline name through the source command owner."""
+
         try:
             replacement = self._naming.replacement_for(separator, authored_name)
         except ValueError:
-            return True
+            return False
         self._source_commands.replace_source_range(
             start=replacement.source_start,
             end=replacement.source_end,
@@ -168,17 +179,6 @@ class PromptRegionPointerController:
                 ):
                     return index, separator
         return None
-
-
-def _prompt_for_region_name(parent: QWidget, current_name: str) -> tuple[str, bool]:
-    """Ask for an authored name using existing localized application text."""
-
-    return QInputDialog.getText(
-        parent,
-        app_text("Rename"),
-        app_text("Name"),
-        text=current_name,
-    )
 
 
 __all__ = ["PromptRegionPointerController"]

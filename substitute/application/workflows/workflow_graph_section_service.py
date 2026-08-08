@@ -24,6 +24,12 @@ from substitute.application.workflows.editor_projection_service import (
     WorkflowEditorProjectionService,
 )
 from substitute.domain.workflow import WorkflowState
+from substitute.shared.logging.logger import (
+    get_logger,
+    log_warning_exception,
+)
+
+_LOGGER = get_logger("application.workflows.workflow_graph_section_service")
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +38,14 @@ class WorkflowGraphFieldMutation:
 
     changed: bool
     old_value: object = None
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowGraphBatchMutation:
+    """Describe one atomic multi-field graph mutation."""
+
+    changed: bool
+    old_values: tuple[tuple[str, str, object], ...] = ()
 
 
 class WorkflowGraphSectionService:
@@ -108,6 +122,58 @@ class WorkflowGraphSectionService:
             setattr(state, "dirty", True)
         return WorkflowGraphFieldMutation(changed=True, old_value=old_value)
 
+    def set_input_values_atomic(
+        self,
+        workflow: WorkflowState,
+        *,
+        section_key: str,
+        values: tuple[tuple[str, str, object], ...],
+    ) -> WorkflowGraphBatchMutation:
+        """Validate and apply several node inputs as one rollback-safe mutation."""
+
+        resolved: list[tuple[dict[str, object], str, str, object, object]] = []
+        for node_name, field_key, value in values:
+            inputs = self._node_inputs(
+                workflow,
+                section_key=section_key,
+                node_name=node_name,
+            )
+            if inputs is None or field_key not in inputs:
+                return WorkflowGraphBatchMutation(changed=False)
+            resolved.append(
+                (inputs, node_name, field_key, value, inputs.get(field_key))
+            )
+        changed_entries = tuple(entry for entry in resolved if entry[3] != entry[4])
+        if not changed_entries:
+            return WorkflowGraphBatchMutation(changed=True)
+        applied: list[tuple[dict[str, object], str, object]] = []
+        try:
+            for inputs, _node_name, field_key, value, old_value in changed_entries:
+                inputs[field_key] = value
+                applied.append((inputs, field_key, old_value))
+        except Exception as error:
+            for inputs, field_key, old_value in reversed(applied):
+                inputs[field_key] = old_value
+            log_warning_exception(
+                _LOGGER,
+                "Rolled back atomic workflow graph input mutation",
+                error=error,
+                section_key=section_key,
+                requested_field_count=len(values),
+                applied_field_count=len(applied),
+            )
+            raise
+        state = self.section_state(workflow, section_key)
+        if state is not None and hasattr(state, "dirty"):
+            setattr(state, "dirty", True)
+        return WorkflowGraphBatchMutation(
+            changed=True,
+            old_values=tuple(
+                (node_name, field_key, old_value)
+                for _inputs, node_name, field_key, _value, old_value in changed_entries
+            ),
+        )
+
     def _node_inputs(
         self,
         workflow: WorkflowState,
@@ -130,4 +196,8 @@ class WorkflowGraphSectionService:
         return inputs if isinstance(inputs, dict) else None
 
 
-__all__ = ["WorkflowGraphFieldMutation", "WorkflowGraphSectionService"]
+__all__ = [
+    "WorkflowGraphBatchMutation",
+    "WorkflowGraphFieldMutation",
+    "WorkflowGraphSectionService",
+]

@@ -484,6 +484,8 @@ def test_editor_panel_signals_route_editor_events_and_layout_autosave() -> None:
         inputImageClicked=_Signal(),
         inputMaskChanged=_Signal(),
         inputMaskClicked=_Signal(),
+        inputMaskOpacityChanged=_Signal(),
+        inputMaskOpacityCommitted=_Signal(),
         promptSceneQueueRequested=_Signal(),
         promptEditorLayoutChanged=_Signal(),
     )
@@ -510,6 +512,14 @@ def test_editor_panel_signals_route_editor_events_and_layout_autosave() -> None:
                 ("mask_clicked", (alias, node, path))
             ),
         ),
+        input_mask_visual_opacity_controller=SimpleNamespace(
+            handle=lambda alias, node, opacity: events.append(
+                ("mask_opacity", (alias, node, opacity))
+            ),
+            handle_commit=lambda alias, node, before, after: events.append(
+                ("mask_opacity_commit", (alias, node, before, after))
+            ),
+        ),
         request_session_autosave=lambda: events.append(("autosave", None)),
     )
 
@@ -519,6 +529,8 @@ def test_editor_panel_signals_route_editor_events_and_layout_autosave() -> None:
     editor_panel.inputImageClicked.fire("CubeA", "ImageNode", "image.png")
     editor_panel.inputMaskChanged.fire("CubeA", "MaskNode", "mask.png")
     editor_panel.inputMaskClicked.fire("CubeA", "MaskNode", "mask.png")
+    editor_panel.inputMaskOpacityChanged.fire("CubeA", "MaskNode", 0.37)
+    editor_panel.inputMaskOpacityCommitted.fire("CubeA", "MaskNode", 0.5, 0.37)
     editor_panel.promptSceneQueueRequested.fire("portrait")
     editor_panel.promptEditorLayoutChanged.fire()
 
@@ -528,6 +540,8 @@ def test_editor_panel_signals_route_editor_events_and_layout_autosave() -> None:
         ("image_clicked", ("CubeA", "ImageNode", "image.png")),
         ("mask_changed", ("CubeA", "MaskNode", "mask.png")),
         ("mask_clicked", ("CubeA", "MaskNode", "mask.png")),
+        ("mask_opacity", ("CubeA", "MaskNode", 0.37)),
+        ("mask_opacity_commit", ("CubeA", "MaskNode", 0.5, 0.37)),
         ("prompt_scene", "portrait"),
         ("autosave", None),
     ]

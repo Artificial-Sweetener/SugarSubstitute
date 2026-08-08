@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 from PySide6.QtWidgets import QApplication
 
 from substitute.presentation.widgets import (
@@ -45,6 +47,32 @@ def test_integer_spinner_slider_synchronizes_both_controls() -> None:
     control.spinbox.setValue(42)
     assert control.slider.value() == 41
     assert observed == [85, 42]
+    control.close()
+
+
+def test_integer_spinner_slider_projection_moves_fluent_handle_with_fill() -> None:
+    """Keep Fluent's visual handle synchronized during spin-box projection."""
+
+    app = _app()
+    control = IntegerSpinnerSlider(
+        minimum=0,
+        maximum=100,
+        step=1,
+        value=50,
+    )
+    control.show()
+    app.processEvents()
+    fluent_slider = cast(Any, control.slider)
+    handle = fluent_slider.handle
+    initial_handle_x = handle.x()
+
+    control.setValue(70)
+    app.processEvents()
+
+    expected_handle_x = int(0.7 * fluent_slider.grooveLength)
+    assert control.slider.value() == 70
+    assert handle.x() != initial_handle_x
+    assert handle.x() == expected_handle_x
     control.close()
 
 

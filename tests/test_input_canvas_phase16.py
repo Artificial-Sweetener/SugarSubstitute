@@ -29,10 +29,6 @@ from cutecanvas import CuteCanvas
 from substitute.domain.workflow import WorkflowCanvasState
 from substitute.presentation.canvas.input import (
     InputCanvasPresenter,
-    InputCanvasToolController,
-)
-from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
-    create_input_canvas_tool_system,
 )
 from substitute.presentation.canvas.input.input_node_interaction_controller import (
     InputNodeInteractionController,
@@ -126,19 +122,15 @@ class _Panel:
         raise AssertionError("widget-local path memory must not be read")
 
 
-def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
-    """LoadImageMask click intent should activate image, mask, then brush mode."""
+def test_presenter_mask_click_activates_owning_image_and_mask() -> None:
+    """LoadImageMask clicks should select their authoritative image and layer."""
 
     image_id = uuid4()
     mask_id = uuid4()
     active_images: list[UUID] = []
     active_masks: list[UUID] = []
     focused: list[str] = []
-    control_modes: list[object] = []
     workflow = _workflow(image_id=image_id, mask_id=mask_id)
-    document = _tool_document(
-        control_modes=control_modes, masks_by_image={image_id: [mask_id]}
-    )
 
     def set_active_input_image(
         _workflow_id: str,
@@ -160,13 +152,6 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
         active_masks.append(value)
         return True
 
-    runtime = create_input_canvas_tool_system()
-    tool_controller = InputCanvasToolController(
-        input_document=document,
-        operation_setter=document.set_canvas_operation,
-        current_image_id_provider=lambda: image_id,
-        runtime=runtime,
-    )
     state_service = SimpleNamespace(
         set_active_input_image=set_active_input_image,
         set_active_workflow_mask=set_active_workflow_mask,
@@ -199,7 +184,6 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
         handle_ordered_mask_action=lambda *_args: RegionalMaskActionOutcome(False),
         activate_input_canvas=activate_input,
         refresh_mask_pickers=lambda: None,
-        tool_controller=tool_controller,
     )
 
     controller.handle_mask_clicked("CubeA", "MaskNode", "")
@@ -207,7 +191,6 @@ def test_presenter_mask_click_activates_owner_then_brush_mode() -> None:
     assert active_images == [image_id]
     assert active_masks == [mask_id]
     assert focused == ["Input"]
-    assert control_modes == [CuteCanvas.CONTROL_MODE_DRAW_BRUSH]
     assert workflow.canvas.active_canvas_route == "Input"
 
 

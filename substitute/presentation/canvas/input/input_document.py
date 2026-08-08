@@ -43,11 +43,17 @@ from substitute.application.workflows.input_canvas_document_port import (
 from substitute.presentation.canvas.input.input_preview_binding import (
     InputDocumentPreviewBindings,
 )
+from substitute.presentation.canvas.input.input_document_view_lifetime import (
+    InputDocumentViewLifetime,
+)
 from substitute.presentation.canvas.input.input_document_persistence import (
     InputDocumentPersistence,
 )
 from substitute.presentation.canvas.input.input_document_catalog import (
     InputDocumentCatalog,
+)
+from substitute.presentation.canvas.input.input_document_mask_opacity_history import (
+    InputDocumentMaskOpacityHistory,
 )
 from substitute.presentation.canvas.input.input_document_tool_options import (
     InputDocumentToolOptions,
@@ -110,6 +116,8 @@ class InputCanvasDocument(QObject):
             self._document,
             execution_runtime=execution_runtime,
         )
+        self._closed = False
+        self._view_lifetime = InputDocumentViewLifetime(self._finalize_close)
         self._session = CanvasViewSession()
         self._canvas = CuteCanvas(
             document=self._document,
@@ -118,14 +126,20 @@ class InputCanvasDocument(QObject):
             session=self._session,
         )
         self._canvas.setEditorPolicy(_EDITOR_POLICY)
+        self._view_lifetime.register(self._canvas)
         self._catalog = InputDocumentCatalog(
             lambda composition_id: self._canvas.listMasksForComposition(composition_id),
+        )
+        self._mask_opacity_history = InputDocumentMaskOpacityHistory(
+            document=self._document,
+            catalog=self._catalog,
         )
         self._preview_bindings = InputDocumentPreviewBindings(
             document=self._document,
             runtime=self._runtime,
             composition_for_image=self._catalog.composition_for_image,
             mask_layer_for_image=self._catalog.mask_layer_for_image,
+            view_lifetime=self._view_lifetime,
         )
         self._generation_capture = InputDocumentGenerationCapture(
             composition_for_image=self._catalog.composition_for_image,
@@ -408,6 +422,42 @@ class InputCanvasDocument(QObject):
             self.toolContextChanged.emit()
         return changed
 
+    def set_mask_visual_opacity(self, mask_id: UUID, opacity: float) -> bool:
+        """Apply presentation-only opacity without changing mask coverage."""
+
+        return bool(self._canvas.setMaskProperties(mask_id, opacity=opacity))
+
+    def commit_mask_visual_opacity_edit(
+        self,
+        mask_ids: tuple[UUID, ...],
+        *,
+        before: float,
+        after: float,
+    ) -> bool:
+        """Commit one node's already-previewed opacity as one scene history edit."""
+
+        return self._mask_opacity_history.commit(
+            mask_ids,
+            before=before,
+            after=after,
+        )
+
+    def mask_visual_opacity(self, mask_id: UUID) -> float | None:
+        """Return one materialized mask layer's current visual opacity."""
+
+        composition_id = self._catalog.composition_for_mask(mask_id)
+        if composition_id is None:
+            return None
+        mask = next(
+            (
+                candidate
+                for candidate in self._canvas.listMasksForComposition(composition_id)
+                if candidate.mask_id == mask_id
+            ),
+            None,
+        )
+        return None if mask is None or mask.opacity is None else float(mask.opacity)
+
     def create_blank_mask(self, image_id: UUID, size: object) -> UUID | None:
         """Create one restricted editable mask in an explicitly named image."""
 
@@ -475,7 +525,15 @@ class InputCanvasDocument(QObject):
 
     def close(self) -> None:
         """Release the Input view, document runtime, and durable document."""
-        self._canvas.close()
+
+        if self._closed:
+            return
+        self._closed = True
+        self._view_lifetime.close()
+
+    def _finalize_close(self) -> None:
+        """Close document authority after every mounted view has been destroyed."""
+
         self._runtime.close()
         self._document.close()
 

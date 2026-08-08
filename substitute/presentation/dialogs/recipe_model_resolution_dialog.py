@@ -39,7 +39,6 @@ from PySide6.QtCore import QSize, Qt, QUrl
 from PySide6.QtGui import QPixmap
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
-    QApplication,
     QHBoxLayout,
     QLineEdit,
     QListWidget,
@@ -52,16 +51,14 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon,
     LineEdit,
-    MessageBoxBase,
 )
-from shiboken6 import isValid
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
 from substitute.application.recipes import (
     RecipeModelCivitaiState,
     RecipeModelResolutionRequired,
 )
 
-_FALLBACK_PARENT: QWidget | None = None
 _DIALOG_WIDTH = 720
 _LIST_MINIMUM_HEIGHT = 220
 _ACTION_BUTTON_HEIGHT = 32
@@ -81,7 +78,7 @@ class RecipeModelResolutionAction(str):
     CANCEL = "cancel"
 
 
-class RecipeModelResolutionDialog(MessageBoxBase):  # type: ignore[misc]
+class RecipeModelResolutionDialog(FullWindowModalBase):
     """Show missing recipe models before workflow materialization."""
 
     def __init__(
@@ -94,7 +91,7 @@ class RecipeModelResolutionDialog(MessageBoxBase):  # type: ignore[misc]
     ) -> None:
         """Build the resolver dialog for one blocked recipe load."""
 
-        super().__init__(_resolve_parent(parent))
+        super().__init__(parent)
         self._required = required
         self._selected_action = RecipeModelResolutionAction.CANCEL
         self.setClosableOnMaskClicked(False)
@@ -436,21 +433,6 @@ def _clear_layout(layout: QLayout) -> None:
         nested_layout = item.layout()
         if nested_layout is not None:
             _clear_layout(nested_layout)
-
-
-def _resolve_parent(parent: object | None) -> QWidget:
-    """Return a QWidget parent because qfluent mask dialogs require one."""
-
-    if isinstance(parent, QWidget) and isValid(parent):
-        return parent
-    active_window = QApplication.activeWindow()
-    if isinstance(active_window, QWidget) and isValid(active_window):
-        return active_window
-    global _FALLBACK_PARENT
-    if _FALLBACK_PARENT is None or not isValid(_FALLBACK_PARENT):
-        _FALLBACK_PARENT = QWidget()
-        _FALLBACK_PARENT.resize(1024, 768)
-    return _FALLBACK_PARENT
 
 
 __all__ = [

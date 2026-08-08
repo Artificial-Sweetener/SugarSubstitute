@@ -199,6 +199,7 @@ from .observability import (
 from .content_media_owner import PromptProjectionContentMediaOwner
 from .prepared_frame import PromptProjectionPreparedFrame
 from .region_chrome import PromptRegionChrome
+from .region_chrome_state import PromptRegionChromeEditTarget
 from .reorder_chip_geometry import (
     PromptReorderChipGeometrySnapshot,
 )
@@ -2175,6 +2176,30 @@ class PromptProjectionSurface(QAbstractScrollArea):
         """Publish transient regional chrome without changing prompt selection."""
 
         if not self._region_chrome.set_hovered_region(region_index):
+            return
+        self._publish_render_frame()
+        self.viewport().update()
+
+    def region_edit_target(
+        self,
+        region_index: int,
+    ) -> PromptRegionChromeEditTarget | None:
+        """Return prepared document-local geometry for one separator editor."""
+
+        return self._region_chrome.edit_target(region_index)
+
+    def set_region_editing(self, region_index: int | None) -> None:
+        """Publish label suppression while an inline editor owns one separator."""
+
+        if not self._region_chrome.set_editing_region(region_index):
+            return
+        self._publish_render_frame()
+        self.viewport().update()
+
+    def set_region_editing_draft(self, region_index: int, text: str) -> None:
+        """Publish live separator geometry without mutating prompt source text."""
+
+        if not self._region_chrome.set_editing_region_draft(region_index, text):
             return
         self._publish_render_frame()
         self.viewport().update()

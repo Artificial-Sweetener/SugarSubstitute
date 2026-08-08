@@ -374,17 +374,28 @@ def test_input_controller_synchronizes_external_native_mode_changes() -> None:
     assert controller.palette.active_tool_id == InputCanvasToolId.PAN_ZOOM
 
 
-def test_mask_activation_brush_request_uses_the_same_palette_policy() -> None:
-    """Load Image as Mask activation should route through ordinary Brush selection."""
+def test_input_controller_restores_held_tool_after_transient_mask_loss() -> None:
+    """Owning-image switches should not replace the user's held mask tool."""
 
     image_id = uuid4()
     document = _ToolDocument(has_mask=True)
     controller, applied = _controller(document, image_id=image_id)
     controller.refresh_tool_context()
+    assert controller.request_tool(InputCanvasToolId.MOVE)
 
-    assert controller.request_brush_after_mask_activation() is True
-    assert applied == [CuteCanvas.CONTROL_MODE_DRAW_BRUSH]
-    assert controller.palette.active_tool_id == InputCanvasToolId.BRUSH
+    document.has_mask = False
+    controller.refresh_tool_context()
+    assert controller.palette.active_tool_id == InputCanvasToolId.PAN_ZOOM
+
+    document.has_mask = True
+    controller.refresh_tool_context()
+
+    assert controller.palette.active_tool_id == InputCanvasToolId.MOVE
+    assert applied == [
+        CuteCanvas.CONTROL_MODE_MOVE,
+        CuteCanvas.CONTROL_MODE_PANZOOM,
+        CuteCanvas.CONTROL_MODE_MOVE,
+    ]
 
 
 def test_runtime_native_mode_registration_uses_the_ordinary_input_route() -> None:

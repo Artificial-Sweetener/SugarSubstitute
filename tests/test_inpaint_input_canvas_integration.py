@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Exercise the mounted inpaint image, mask, activation, and brush workflow."""
+"""Exercise the mounted inpaint image, mask, and activation workflow."""
 
 from __future__ import annotations
 
@@ -54,13 +54,6 @@ from substitute.presentation.canvas.input.input_canvas_presenter import (
     InputCanvasPresenter,
 )
 from substitute.presentation.canvas.input.input_document import InputCanvasDocument
-from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
-    InputCanvasToolId,
-    create_input_canvas_tool_system,
-)
-from substitute.presentation.canvas.input.input_canvas_tool_controller import (
-    InputCanvasToolController,
-)
 from substitute.presentation.canvas.input.input_route_projector import (
     InputRouteProjector,
 )
@@ -207,7 +200,7 @@ def _plan_service() -> InputCanvasPlanService:
     )
 
 
-def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
+def test_image_selection_creates_blank_mask_and_mask_click_preserves_tool(
     tmp_path: Path,
 ) -> None:
     """The production inpaint path should create and activate an editable mask."""
@@ -240,13 +233,6 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
     )
     panel = _EditorPanel()
     canvas_host = _CanvasHost(document.canvas)
-    runtime = create_input_canvas_tool_system()
-    tool_controller = InputCanvasToolController(
-        input_document=document,
-        operation_setter=document.set_canvas_operation,
-        current_image_id_provider=route_projector.current_image_id_for_event,
-        runtime=runtime,
-    )
     presenter = InputCanvasPresenter(
         input_document=document,
         current_image_id_provider=route_projector.current_image_id_for_event,
@@ -281,7 +267,6 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
         handle_ordered_mask_action=lambda *_args: RegionalMaskActionOutcome(False),
         activate_input_canvas=lambda: canvas_host.activate_canvas("Input"),
         refresh_mask_pickers=presenter.refresh_active_mask_pickers,
-        tool_controller=tool_controller,
     )
 
     interaction_controller.handle_image_changed(
@@ -327,9 +312,6 @@ def test_image_selection_creates_blank_mask_and_mask_click_activates_brush(
     assert document.current_image_id() == image_id
     assert document.canvas.activeMaskID() == mask_id
     assert route_projector.current_image_id_for_event() == image_id
-    tool_controller.refresh_tool_context()
-    brush = tool_controller.palette.presentation_for(InputCanvasToolId.BRUSH)
-    assert brush is not None and brush.enabled is True
-    assert document.canvas.getControlMode() == document.canvas.CONTROL_MODE_DRAW_BRUSH
+    assert document.canvas.getControlMode() == document.canvas.CONTROL_MODE_PANZOOM
     assert canvas_host.focused == ["Input", "Input"]
     assert panel.refreshes

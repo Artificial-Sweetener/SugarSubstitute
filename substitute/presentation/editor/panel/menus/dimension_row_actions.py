@@ -33,11 +33,11 @@ from substitute.application.node_behavior import (
     DimensionFieldPair,
     infer_dimension_field_pairs,
 )
-from substitute.presentation.editor.panel.menus.dimension_preset_models import (
-    DimensionPresetMenuItem,
-    DimensionPresetMenuModel,
-    DimensionPresetMenuSection,
-    DimensionPresetMenuSource,
+from substitute.presentation.editor.panel.dimension_presets import (
+    DimensionPresetCatalog,
+    DimensionPresetCatalogSource,
+    DimensionPresetItem,
+    DimensionPresetSection,
 )
 from substitute.presentation.widgets.menu_model import (
     MenuEntry,
@@ -66,6 +66,13 @@ class DimensionSide(Enum):
 
     WIDTH = "width"
     HEIGHT = "height"
+
+
+class DimensionContextMenuContent(Enum):
+    """Select the dimension actions exposed by one presentation surface."""
+
+    FULL = "full"
+    SAVE_ONLY = "save_only"
 
 
 @dataclass(frozen=True)
@@ -114,50 +121,113 @@ def bind_dimension_row_actions(
     row_container: QWidget,
     fields: list[tuple[str, QWidget]],
     column_widgets: Mapping[str, QWidget],
-    dimension_preset_source: DimensionPresetMenuSource | None = None,
-) -> None:
+    dimension_preset_source: DimensionPresetCatalogSource | None = None,
+) -> DimensionRowActions | None:
     """Attach supported dimension actions to one eligible grouped row."""
 
     binding = _dimension_row_binding(fields, column_widgets)
     if binding is None or not _can_use_dimension_actions(binding):
-        return
+        return None
     row_container.setProperty(
         "dimension_field_group",
         [binding.pair.width_key, binding.pair.height_key],
     )
-    _bind_context_menu(
-        widget=row_container,
+    actions = DimensionRowActions(
         binding=binding,
-        side=None,
         dimension_preset_source=dimension_preset_source,
+    )
+    actions.bind(
+        widget=row_container,
+        side=None,
         position_mapper=row_container.mapToGlobal,
     )
-    _bind_context_menu(
+    actions.bind(
         widget=binding.width_column,
-        binding=binding,
         side=DimensionSide.WIDTH,
-        dimension_preset_source=dimension_preset_source,
     )
-    _bind_context_menu(
+    actions.bind(
         widget=binding.height_column,
-        binding=binding,
         side=DimensionSide.HEIGHT,
-        dimension_preset_source=dimension_preset_source,
     )
     for widget in _context_widgets_for_value_widget(binding.width_widget):
-        _bind_context_menu(
+        actions.bind(
             widget=widget,
-            binding=binding,
             side=DimensionSide.WIDTH,
-            dimension_preset_source=dimension_preset_source,
         )
     for widget in _context_widgets_for_value_widget(binding.height_widget):
-        _bind_context_menu(
+        actions.bind(
             widget=widget,
-            binding=binding,
             side=DimensionSide.HEIGHT,
-            dimension_preset_source=dimension_preset_source,
         )
+    return actions
+
+
+class DimensionRowActions:
+    """Own the context-menu presentation for one grouped dimension row."""
+
+    def __init__(
+        self,
+        *,
+        binding: DimensionRowBinding,
+        dimension_preset_source: DimensionPresetCatalogSource | None,
+    ) -> None:
+        """Store the row binding and shared preset owner."""
+
+        self._binding = binding
+        self._dimension_preset_source = dimension_preset_source
+        self._content = DimensionContextMenuContent.FULL
+
+    def show_save_only(self) -> None:
+        """Restrict the row menu to saving its current dimensions."""
+
+        self._content = DimensionContextMenuContent.SAVE_ONLY
+
+    def bind(
+        self,
+        *,
+        widget: QWidget,
+        side: DimensionSide | None,
+        position_mapper: Callable[[QPoint], QPoint] | None = None,
+    ) -> None:
+        """Bind this menu owner to one row interaction surface."""
+
+        def show_menu(position: QPoint) -> None:
+            """Show the current context-menu presentation for this widget."""
+
+            self._show(
+                source_widget=widget,
+                position=position,
+                fixed_side=side,
+                position_mapper=position_mapper,
+            )
+
+        widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        widget.customContextMenuRequested.connect(show_menu)
+
+    def _show(
+        self,
+        *,
+        source_widget: QWidget,
+        position: QPoint,
+        fixed_side: DimensionSide | None,
+        position_mapper: Callable[[QPoint], QPoint] | None,
+    ) -> None:
+        """Render and open the menu using the row's current presentation."""
+
+        anchor_side = fixed_side or _side_for_row_position(self._binding, position)
+        menu = build_dimension_context_menu(
+            source_widget=source_widget,
+            binding=self._binding,
+            anchor_side=anchor_side,
+            dimension_preset_source=self._dimension_preset_source,
+            content=self._content,
+        )
+        global_position = (
+            position_mapper(position)
+            if position_mapper is not None
+            else source_widget.mapToGlobal(position)
+        )
+        menu.exec(global_position)
 
 
 def apply_aspect_ratio(
@@ -203,85 +273,66 @@ def apply_saved_dimensions(
     write_height(height)
 
 
-def _bind_context_menu(
+def build_dimension_context_menu(
     *,
-    widget: QWidget,
-    binding: DimensionRowBinding,
-    side: DimensionSide | None,
-    dimension_preset_source: DimensionPresetMenuSource | None,
-    position_mapper: Callable[[QPoint], QPoint] | None = None,
-) -> None:
-    """Bind the dimension menu to one widget and optional fixed side."""
-
-    def show_menu(position: QPoint) -> None:
-        """Show the context menu for this bound widget."""
-
-        _show_dimension_context_menu(
-            widget,
-            position,
-            binding,
-            side,
-            dimension_preset_source,
-            position_mapper,
-        )
-
-    widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-    widget.customContextMenuRequested.connect(show_menu)
-
-
-def _show_dimension_context_menu(
     source_widget: QWidget,
-    position: QPoint,
     binding: DimensionRowBinding,
-    fixed_side: DimensionSide | None,
-    dimension_preset_source: DimensionPresetMenuSource | None,
-    position_mapper: Callable[[QPoint], QPoint] | None,
-) -> None:
-    """Show QFluent actions for one grouped dimension row."""
+    anchor_side: DimensionSide | None,
+    dimension_preset_source: DimensionPresetCatalogSource | None,
+    include_swap: bool = True,
+    content: DimensionContextMenuContent = DimensionContextMenuContent.FULL,
+) -> RoundMenu:
+    """Build reusable dimension actions for the requested presentation surface."""
 
-    anchor_side = fixed_side or _side_for_row_position(binding, position)
-    entries: list[MenuEntry] = [
-        MenuItem(
-            "dimension.swap",
-            SWAP_DIMENSION_ACTION_TEXT,
-            callback=lambda: _swap_dimension_values(binding),
+    entries: list[MenuEntry] = []
+    if content is DimensionContextMenuContent.FULL and include_swap:
+        entries.append(
+            MenuItem(
+                "dimension.swap",
+                SWAP_DIMENSION_ACTION_TEXT,
+                callback=lambda: _swap_dimension_values(binding),
+            )
         )
-    ]
     saved_dimensions_model = (
-        dimension_preset_source.current_dimension_preset_menu_model()
+        dimension_preset_source.current_dimension_preset_catalog()
         if dimension_preset_source is not None
         else None
     )
-    saved_dimensions_entry = _saved_dimensions_entry(
-        binding,
-        saved_dimensions_model,
-    )
-    if saved_dimensions_entry is not None:
-        entries.append(saved_dimensions_entry)
-    entries.append(_aspect_ratio_entry(binding, anchor_side))
+    if content is DimensionContextMenuContent.FULL:
+        saved_dimensions_entry = _saved_dimensions_entry(
+            binding,
+            saved_dimensions_model,
+        )
+        if saved_dimensions_entry is not None:
+            entries.append(saved_dimensions_entry)
+        ratio_anchor_sides = (
+            (anchor_side,)
+            if anchor_side is not None
+            else (DimensionSide.WIDTH, DimensionSide.HEIGHT)
+        )
+        entries.extend(
+            _aspect_ratio_entry(binding, ratio_anchor_side)
+            for ratio_anchor_side in ratio_anchor_sides
+        )
     save_entry = _save_current_dimensions_entry(
         binding,
         dimension_preset_source,
         saved_dimensions_model,
     )
     if save_entry is not None:
-        entries.append(MenuSeparator())
+        if entries:
+            entries.append(MenuSeparator())
         entries.append(save_entry)
     menu = QFluentMenuRenderer(parent=source_widget).render(
         MenuModel(entries=tuple(entries))
     )
     _install_submenu_click_openers_for_tree(menu)
-    global_position = (
-        position_mapper(position)
-        if position_mapper is not None
-        else source_widget.mapToGlobal(position)
-    )
-    menu.exec(global_position)
+    return menu
 
 
 def _saved_dimensions_entry(
     binding: DimensionRowBinding,
-    menu_model: DimensionPresetMenuModel | None,
+    menu_model: DimensionPresetCatalog | None,
 ) -> MenuSubmenu | None:
     """Return the saved dimensions submenu when saved presets exist."""
 
@@ -311,7 +362,7 @@ def _saved_dimension_orientation_entry(
     *,
     title: str,
     binding: DimensionRowBinding,
-    sections: tuple[DimensionPresetMenuSection, ...],
+    sections: tuple[DimensionPresetSection, ...],
     landscape: bool,
 ) -> MenuSubmenu:
     """Return one orientation submenu grouped by preset specificity sections."""
@@ -336,7 +387,7 @@ def _saved_dimension_orientation_entry(
 def _saved_dimension_entries(
     *,
     binding: DimensionRowBinding,
-    presets: tuple[DimensionPresetMenuItem, ...],
+    presets: tuple[DimensionPresetItem, ...],
     landscape: bool,
 ) -> tuple[MenuItem, ...]:
     """Return saved dimension actions for one specificity section."""
@@ -370,7 +421,7 @@ def _saved_dimension_callback(
 
 
 def _saved_dimension_action_text(
-    preset: DimensionPresetMenuItem,
+    preset: DimensionPresetItem,
     width: int,
     height: int,
 ) -> str:
@@ -385,8 +436,8 @@ def _saved_dimension_action_text(
 
 def _save_current_dimensions_entry(
     binding: DimensionRowBinding,
-    dimension_preset_source: DimensionPresetMenuSource | None,
-    menu_model: DimensionPresetMenuModel | None,
+    dimension_preset_source: DimensionPresetCatalogSource | None,
+    menu_model: DimensionPresetCatalog | None,
 ) -> MenuSubmenu | None:
     """Return save actions for the current dimension row values."""
 
@@ -507,7 +558,7 @@ class _SubmenuClickOpener(QObject):
 
 
 def _oriented_dimensions(
-    preset: DimensionPresetMenuItem,
+    preset: DimensionPresetItem,
     *,
     landscape: bool,
 ) -> tuple[int, int]:
@@ -751,11 +802,14 @@ def _is_numeric_value(value: object | None) -> TypeGuard[int | float]:
 
 __all__ = [
     "AspectRatioPreset",
+    "DimensionContextMenuContent",
     "DimensionRowBinding",
+    "DimensionRowActions",
     "DimensionSide",
     "LANDSCAPE_ASPECT_RATIOS",
     "PORTRAIT_ASPECT_RATIOS",
     "apply_saved_dimensions",
     "apply_aspect_ratio",
     "bind_dimension_row_actions",
+    "build_dimension_context_menu",
 ]

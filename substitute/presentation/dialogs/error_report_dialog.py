@@ -38,7 +38,6 @@ from typing import cast
 from PySide6.QtCore import QRectF, Qt, QPropertyAnimation
 from PySide6.QtGui import QGuiApplication, QPainter, QPaintEvent
 from PySide6.QtWidgets import (
-    QApplication,
     QFrame,
     QGridLayout,
     QLayout,
@@ -50,13 +49,12 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
     InfoBarIcon,
-    MessageBoxBase,
     PlainTextEdit,
     StrongBodyLabel,
     Theme,
     drawIcon,
 )
-from shiboken6 import isValid
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
 from substitute.application.errors import (
     DiagnosticSeverity,
@@ -89,10 +87,9 @@ _CLOSE_BUTTON_MINIMUM_WIDTH = 88
 _ACTION_BUTTON_MINIMUM_WIDTH = 108
 _HEADER_ICON_TEXT_SPACING = 12
 _REPORT_TOGGLE_DURATION_MS = 160
-_FALLBACK_PARENT: QWidget | None = None
 
 
-class ErrorReportDialog(MessageBoxBase):  # type: ignore[misc]
+class ErrorReportDialog(FullWindowModalBase):
     """Show a user-friendly error summary with complete diagnostic details."""
 
     def __init__(
@@ -105,14 +102,13 @@ class ErrorReportDialog(MessageBoxBase):  # type: ignore[misc]
     ) -> None:
         """Build the modal error report dialog."""
 
-        parent_widget = _resolve_parent(parent)
-        super().__init__(parent_widget)
+        super().__init__(parent)
         del open_console
         self._report = report
         self._report_text = report_text
         self._details_visible = False
         self._details_animation_target_visible = False
-        self._dialog_max_height = _dialog_max_height(parent_widget)
+        self._dialog_max_height = _dialog_max_height(self.modal_owner)
 
         self.setClosableOnMaskClicked(False)
         self.setModal(True)
@@ -564,21 +560,6 @@ def _affected_cube_count(report: ErrorReport) -> int:
     if isinstance(value, int):
         return value
     return 0
-
-
-def _resolve_parent(parent: object | None) -> QWidget:
-    """Return a QWidget parent because qfluent mask dialogs require one."""
-
-    if isinstance(parent, QWidget) and isValid(parent):
-        return parent
-    active_window = QApplication.activeWindow()
-    if isinstance(active_window, QWidget) and isValid(active_window):
-        return active_window
-    global _FALLBACK_PARENT
-    if _FALLBACK_PARENT is None or not isValid(_FALLBACK_PARENT):
-        _FALLBACK_PARENT = QWidget()
-        _FALLBACK_PARENT.resize(1024, 768)
-    return _FALLBACK_PARENT
 
 
 def _dialog_max_height(parent: QWidget) -> int:

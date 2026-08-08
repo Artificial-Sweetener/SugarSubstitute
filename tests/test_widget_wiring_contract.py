@@ -342,12 +342,16 @@ def test_bind_picker_signals_routes_image_and_mask_events_to_panel(monkeypatch) 
 
             self.maskSelected = _Signal()
             self.clicked = _Signal()
+            self.visualOpacityChanged = _Signal()
+            self.visualOpacityCommitted = _Signal()
 
     panel = SimpleNamespace(
         inputImageChanged=_Emitter("image_changed"),
         inputImageClicked=_Emitter("image_clicked"),
         inputMaskChanged=_Emitter("mask_changed"),
         inputMaskClicked=_Emitter("mask_clicked"),
+        inputMaskOpacityChanged=_Emitter("mask_opacity"),
+        inputMaskOpacityCommitted=_Emitter("mask_opacity_commit"),
     )
     image_picker = _ImagePicker()
     mask_picker = _MaskPicker()
@@ -368,12 +372,16 @@ def test_bind_picker_signals_routes_image_and_mask_events_to_panel(monkeypatch) 
     image_picker.imageClicked.emit("E:/image.png")
     mask_picker.maskSelected.emit("CubeA", "mask_node", "E:/mask.png")
     mask_picker.clicked.emit("CubeA", "mask_node")
+    mask_picker.visualOpacityChanged.emit("CubeA", "mask_node", 0.37)
+    mask_picker.visualOpacityCommitted.emit("CubeA", "mask_node", 0.5, 0.37)
 
     assert panel_events == [
         ("image_changed", ("CubeA", "image_node", "E:/image.png")),
         ("image_clicked", ("CubeA", "image_node", "E:/image.png")),
         ("mask_changed", ("CubeA", "mask_node", "E:/mask.png")),
         ("mask_clicked", ("CubeA", "mask_node", "")),
+        ("mask_opacity", ("CubeA", "mask_node", 0.37)),
+        ("mask_opacity_commit", ("CubeA", "mask_node", 0.5, 0.37)),
     ]
 
 

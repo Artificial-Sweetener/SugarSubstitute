@@ -27,8 +27,8 @@ from substitute.presentation.editor.panel.context.active_model_context import (
 from substitute.presentation.editor.panel.context.active_model_snapshot import (
     PanelActiveModelSnapshotController,
 )
-from substitute.presentation.editor.panel.menus.dimension_preset_models import (
-    DimensionPresetMenuSource,
+from substitute.presentation.editor.panel.dimension_presets import (
+    DimensionPresetCatalogSource,
 )
 from substitute.presentation.editor.panel.menus.node_input_preset_menu_source import (
     NodeInputPresetSource,
@@ -51,7 +51,7 @@ class PanelPresetContextRefreshCoordinator:
         host: PromptEditorRegistry,
         model_context: PanelActiveModelContextController,
         model_snapshots: PanelActiveModelSnapshotController,
-        dimension_presets: DimensionPresetMenuSource | None,
+        dimension_presets: DimensionPresetCatalogSource | None,
         node_input_presets: NodeInputPresetSource | None,
     ) -> None:
         """Store authoritative model state and downstream preset consumers."""
@@ -160,7 +160,7 @@ class PanelPresetContextRefreshCoordinator:
 
         self._model_snapshots.refresh_from_cache()
         if self._dimension_presets is not None:
-            self._dimension_presets.prepare_dimension_preset_menu_model(reason=reason)
+            self._dimension_presets.prepare_dimension_preset_catalog(reason=reason)
         if self._node_input_presets is not None:
             self._node_input_presets.prepare_known_node_input_preset_menu_models(
                 reason=reason

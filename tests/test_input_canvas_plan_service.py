@@ -29,6 +29,9 @@ from substitute.application.workflows.input_asset_endpoint_service import (
 from substitute.application.workflows.input_canvas_plan_service import (
     InputCanvasPlanService,
 )
+from substitute.application.workflows.synthetic_canvas_resolution_role_service import (
+    SyntheticCanvasResolutionRoleService,
+)
 from substitute.application.workflows.workflow_node_definition_service import (
     WorkflowNodeDefinitionService,
 )
@@ -61,6 +64,40 @@ def test_custom_named_spatial_root_creates_mask_only_canvas() -> None:
         "mask"
     ]
     assert plan.rejected_mask_nodes == ()
+
+
+def test_synthetic_resolution_role_comes_only_from_graph_authority() -> None:
+    """Card roles should follow semantic authority and ignore node/class naming."""
+
+    graph = _regional_graph(
+        root_class="ArbitraryPackSpatialSource",
+        width=1216,
+        height=832,
+    )
+    plans = _service()
+    roles = SyntheticCanvasResolutionRoleService(plans)
+
+    role = roles.resolve_for_node(
+        section_key="renamed cube",
+        graph=graph,
+        node_name="latent_root",
+        node_definitions=_regional_definitions("ArbitraryPackSpatialSource"),
+    )
+
+    assert role is not None
+    assert role.section_key == "renamed cube"
+    assert role.field_pair_for_node("latent_root") == ("width", "height")
+    assert role.authority.dimensions.width == 1216
+    assert role.authority.dimensions.height == 832
+    assert (
+        roles.resolve_for_node(
+            section_key="renamed cube",
+            graph=graph,
+            node_name="sampler",
+            node_definitions=_regional_definitions("ArbitraryPackSpatialSource"),
+        )
+        is None
+    )
 
 
 def test_prompt_by_region_mask_batch_creates_ordered_synthetic_canvas_binding() -> None:

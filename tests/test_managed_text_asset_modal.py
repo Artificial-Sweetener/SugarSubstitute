@@ -24,7 +24,6 @@ from typing import Any
 
 import pytest
 from PySide6.QtWidgets import QHBoxLayout, QWidget
-from shiboken6 import delete, isValid
 
 from substitute.application.managed_text_assets import (
     CreateManagedTextAssetRequest,
@@ -41,9 +40,6 @@ from substitute.presentation.managed_text_assets import (
 )
 from substitute.presentation.editor.prompt_editor.runtime_services import (
     PromptEditorRuntimeServices,
-)
-from substitute.presentation.managed_text_assets import (
-    managed_text_asset_modal as managed_text_asset_modal_module,
 )
 from tests.prompt_autocomplete_test_helpers import EmptyPromptAutocompleteGateway
 from tests.prompt_projection_test_helpers import (
@@ -213,22 +209,6 @@ def test_managed_text_asset_modal_rows_are_text_only() -> None:
     entry = modal._entries["a.txt"]
 
     assert not hasattr(entry.row, "checkbox")
-
-
-def test_managed_text_asset_modal_replaces_deleted_fallback_parent() -> None:
-    """Replace a cached Qt parent after its underlying object is destroyed."""
-
-    app = ensure_qapp()
-    app.closeAllWindows()
-    process_events(app)
-    stale_parent = managed_text_asset_modal_module._fallback_parent()
-    delete(stale_parent)
-
-    replacement = managed_text_asset_modal_module._fallback_parent()
-
-    assert isValid(stale_parent) is False
-    assert isValid(replacement) is True
-    assert replacement is not stale_parent
 
 
 def test_managed_text_asset_modal_apply_saves_text_only() -> None:

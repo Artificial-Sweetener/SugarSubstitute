@@ -187,10 +187,11 @@ from .factories.meta_factories import (
     sanitize_sampler_link_selection,
     sanitize_scheduler_link_selection,
 )
-from .menus.dimension_preset_menu_source import EditorDimensionPresetMenuSource
+from .dimension_presets import EditorDimensionPresetCatalogSource
 from .menus.node_input_preset_menu_source import EditorNodeInputPresetMenuSource
 from .meta_registry import MetaRegistry
 from .node_card.mode_controller import NodeCardModeController
+from .node_card.body_contribution import NodeCardBodyContributor
 from .prompt.preset_adapter import (
     PanelPromptSegmentPresetAdapter,
 )
@@ -409,6 +410,8 @@ class EditorPanel(QWidget):
     inputImageClicked = Signal(str, str, str)
     inputMaskChanged = Signal(str, str, str)
     inputMaskClicked = Signal(str, str, str)
+    inputMaskOpacityChanged = Signal(str, str, float)
+    inputMaskOpacityCommitted = Signal(str, str, float, float)
     promptEditorLayoutChanged = Signal()
     promptSceneQueueRequested = Signal(str)
 
@@ -629,6 +632,7 @@ class EditorPanel(QWidget):
         wheel_adjustment_mode: PromptWheelAdjustmentMode = (
             PromptWheelAdjustmentMode.HOVER_DWELL
         ),
+        node_card_body_contributors: tuple[NodeCardBodyContributor, ...] = (),
     ) -> None:
         """Initialize editor panel with live definitions and node-behavior service."""
 
@@ -684,6 +688,7 @@ class EditorPanel(QWidget):
                 user_preset_service=user_preset_service,
             ),
         )
+        self._node_card_body_contributors = node_card_body_contributors
         self._runtime_issue_presenter = EditorPanelRuntimeIssuePresenter(
             cast(EditorPanelRuntimeIssueHost, self),
             workflow_issue_state=workflow_issue_state or WorkflowIssueState(),
@@ -708,7 +713,7 @@ class EditorPanel(QWidget):
             node_definition_gateway
         )
         self.dimension_preset_source = (
-            EditorDimensionPresetMenuSource(
+            EditorDimensionPresetCatalogSource(
                 user_preset_service=user_preset_service,
                 active_model_snapshots=active_model_snapshots,
             )
@@ -2147,6 +2152,7 @@ class EditorPanel(QWidget):
                 dimension_preset_source=self.dimension_preset_source,
                 node_input_preset_source=self.node_input_preset_source,
                 prompt_segment_preset_source=self.prompt_segment_preset_source,
+                body_contributors=self._node_card_body_contributors,
             )
         card = self._node_card_builder.build_node_card(
             node_name=node_name,

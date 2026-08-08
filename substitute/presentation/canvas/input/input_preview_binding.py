@@ -30,6 +30,8 @@ from cutecanvas import (
     CanvasViewportSource,
 )
 
+from .input_document_view_lifetime import InputDocumentViewLifetime
+
 
 @dataclass(frozen=True, slots=True)
 class InputPreviewBinding:
@@ -42,6 +44,7 @@ class InputPreviewBinding:
     render_variant: CanvasRenderVariant
     features: tuple[str, ...]
     source_size: QSize
+    view_lifetime: InputDocumentViewLifetime
 
 
 class InputDocumentPreviewBindings:
@@ -54,12 +57,14 @@ class InputDocumentPreviewBindings:
         runtime: CanvasDocumentRuntime,
         composition_for_image: Callable[[UUID], UUID | None],
         mask_layer_for_image: Callable[[UUID, UUID], UUID | None],
+        view_lifetime: InputDocumentViewLifetime,
     ) -> None:
         """Capture identity lookups without owning document membership."""
         self._document = document
         self._runtime = runtime
         self._composition_for_image = composition_for_image
         self._mask_layer_for_image = mask_layer_for_image
+        self._view_lifetime = view_lifetime
 
     def image(self, image_id: UUID) -> InputPreviewBinding | None:
         """Return the embedded image layer for one materialized Input image."""
@@ -84,13 +89,14 @@ class InputDocumentPreviewBindings:
             layer_id=layer.layer_id,
         )
         return InputPreviewBinding(
-            (composition_id, layer.layer_id),
-            self._document,
-            self._runtime,
-            CanvasViewportSource.content(reference),
-            CanvasRenderVariant.COMPOSITE,
-            (),
-            _composition_size(composition.scene_bounds),
+            identity=(composition_id, layer.layer_id),
+            document=self._document,
+            runtime=self._runtime,
+            source=CanvasViewportSource.content(reference),
+            render_variant=CanvasRenderVariant.COMPOSITE,
+            features=(),
+            source_size=_composition_size(composition.scene_bounds),
+            view_lifetime=self._view_lifetime,
         )
 
     def mask(self, image_id: UUID, mask_id: UUID) -> InputPreviewBinding | None:
@@ -107,13 +113,14 @@ class InputDocumentPreviewBindings:
             layer_id=layer_id,
         )
         return InputPreviewBinding(
-            (composition_id, layer_id),
-            self._document,
-            self._runtime,
-            CanvasViewportSource.content(reference),
-            CanvasRenderVariant.MASK_COVERAGE,
-            ("mask",),
-            _composition_size(composition.scene_bounds),
+            identity=(composition_id, layer_id),
+            document=self._document,
+            runtime=self._runtime,
+            source=CanvasViewportSource.content(reference),
+            render_variant=CanvasRenderVariant.MASK_COVERAGE,
+            features=("mask",),
+            source_size=_composition_size(composition.scene_bounds),
+            view_lifetime=self._view_lifetime,
         )
 
 

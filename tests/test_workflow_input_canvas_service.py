@@ -132,6 +132,52 @@ class _FakeInputCanvasStateService:
         self.activated_masks.append(mask_id)
         return True
 
+    def apply_materialized_mask_visual_opacity(
+        self,
+        workflow_id: str,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+        mask_id: UUID,
+    ) -> bool:
+        """Accept node-level presentation projection in materialization tests."""
+
+        _ = workflow_id, workflow, association_key, mask_id
+        return True
+
+    def set_mask_visual_opacity(
+        self,
+        workflow_id: str,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+        opacity: float,
+    ) -> bool:
+        """Accept node-level presentation changes in graph-service tests."""
+
+        _ = workflow_id, workflow, association_key, opacity
+        return True
+
+    def mask_ids_for_association(
+        self,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+    ) -> tuple[UUID, ...]:
+        """Return the configured fake mask for protocol completeness."""
+
+        _ = workflow, association_key
+        return (self._mask_id,)
+
+    def synchronize_mask_visual_opacity_state(
+        self,
+        workflow_id: str,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+        opacity: float,
+    ) -> bool:
+        """Accept restored document state for protocol completeness."""
+
+        _ = workflow_id, workflow, association_key, opacity
+        return True
+
     def load_input_image(
         self,
         workflows: object,

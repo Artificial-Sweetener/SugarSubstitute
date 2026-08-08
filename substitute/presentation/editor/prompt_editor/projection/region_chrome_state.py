@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QLineF, QPointF
+from PySide6.QtCore import QLineF, QPointF, QRectF
 from PySide6.QtGui import QColor, QFont, QPen
 
 from substitute.domain.appearance import RgbColor
@@ -39,8 +39,25 @@ class PromptRegionChromeStroke:
 class PromptRegionChromeLabel:
     """Describe one centered authored separator name."""
 
+    region_index: int
     text: str
     baseline: QPointF
+    rect: QRectF
+    color: QColor
+    font: QFont
+
+
+@dataclass(frozen=True, slots=True)
+class PromptRegionChromeEditTarget:
+    """Describe the in-place editor geometry for one separator row."""
+
+    region_index: int
+    center: QPointF
+    row_height: float
+    width: float
+    maximum_width: float
+    rule_length: float
+    separator_line_count: int
     color: QColor
     font: QFont
 
@@ -57,10 +74,12 @@ class PromptRegionChromeSnapshot:
     pen: QPen
     strokes: tuple[PromptRegionChromeStroke, ...]
     labels: tuple[PromptRegionChromeLabel, ...]
+    edit_targets: tuple[PromptRegionChromeEditTarget, ...]
     visited_line_count: int
 
 
 __all__ = [
+    "PromptRegionChromeEditTarget",
     "PromptRegionChromeLabel",
     "PromptRegionChromeSnapshot",
     "PromptRegionChromeStroke",

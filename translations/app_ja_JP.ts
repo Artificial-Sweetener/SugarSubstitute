@@ -59,7 +59,7 @@
   <context>
     <name>AppText</name>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="968"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="967"></location>
       <source>"%1"</source>
       <translation>「%1」</translation>
     </message>
@@ -90,7 +90,7 @@ Prompt preview:
       <translation>%1：%2。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="408"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="406"></location>
       <source>%1 (%2)</source>
       <translation>%1（%2）</translation>
     </message>
@@ -100,7 +100,7 @@ Prompt preview:
       <translation>%1（バイパス）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="189"></location>
+      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="193"></location>
       <source>%1 Canvas</source>
       <translation>%1 キャンバス</translation>
     </message>
@@ -200,7 +200,7 @@ Prompt preview:
       <translation>出力 %1 件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="906"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="905"></location>
       <source>%1 posts</source>
       <translation>投稿 %1 件</translation>
     </message>
@@ -225,27 +225,27 @@ Prompt preview:
       <translation>Substitute を開く前に、保存済みのセットアップ項目 %1 件を修復する必要があります。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="328"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="325"></location>
       <source>%1 uses %2, but CivitAI did not find a matching download.</source>
       <translation>%1 は %2 を使用していますが、CivitAI で一致するダウンロードが見つかりませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="334"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="331"></location>
       <source>%1 uses %2, but CivitAI did not offer a safe download.</source>
       <translation>%1 は %2 を使用していますが、CivitAI から安全にダウンロードできませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="320"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="317"></location>
       <source>%1 uses %2, which is missing.</source>
       <translation>%1 が使用する %2 がありません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="345"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="342"></location>
       <source>%1 uses %2. Download information is unavailable.</source>
       <translation>%1 は %2 を使用しています。ダウンロード情報を取得できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="340"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="337"></location>
       <source>%1 uses %2. Turn on CivitAI model lookup in Settings to search for it.</source>
       <translation>%1 は %2 を使用しています。検索するには、設定で CivitAI のモデル検索を有効にしてください。</translation>
     </message>
@@ -260,7 +260,7 @@ Prompt preview:
       <translation>%1 個のワイルドカード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="371"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="367"></location>
       <source>%1 | Current: v%2 | Available: v%3</source>
       <translation>%1 | 現在：v%2 | 利用可能：v%3</translation>
     </message>
@@ -285,7 +285,7 @@ Prompt preview:
       <translation>%1 · %2 · 更新あり</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="831"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="812"></location>
       <source>%1 • %2</source>
       <translation>%1 • %2</translation>
     </message>
@@ -310,7 +310,7 @@ Prompt preview:
       <translation>%1/%2：%3 件の%4が見つかりました。キューブ：%5。%6</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="780"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="761"></location>
       <source>%1: %2</source>
       <translation>%1：%2</translation>
     </message>
@@ -460,7 +460,7 @@ Prompt preview:
       <translation>%2:%3 の %1 Comfy ターゲットを有効化しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="259"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="102"></location>
       <source>Add</source>
       <translation>追加</translation>
     </message>
@@ -480,7 +480,7 @@ Prompt preview:
       <translation>キューブを追加</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="521"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="520"></location>
       <source>Add cubes</source>
       <translation>キューブを追加</translation>
     </message>
@@ -520,7 +520,7 @@ Prompt preview:
       <translation>詳細オプション</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="348"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="344"></location>
       <source>Affected cubes</source>
       <translation>影響を受けるキューブ</translation>
     </message>
@@ -570,7 +570,7 @@ Prompt preview:
       <translation>標準のレシピ PNG と同じ場所に JPEG も保存します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="408"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="404"></location>
       <source>Always use newest version</source>
       <translation>常に最新バージョンを使用</translation>
     </message>
@@ -578,6 +578,11 @@ Prompt preview:
       <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="964"></location>
       <source>Ambiguous</source>
       <translation>候補を特定できません</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="249"></location>
+      <source>Anchor point</source>
+      <translation>アンカーポイント</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_controller.py" line="812"></location>
@@ -595,7 +600,7 @@ Prompt preview:
       <translation>アプリケーションメニュー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="50"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="64"></location>
       <source>Apply</source>
       <translation>適用</translation>
     </message>
@@ -675,7 +680,7 @@ Prompt preview:
       <translation>利用可能</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="520"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="519"></location>
       <source>Back</source>
       <translation>戻る</translation>
     </message>
@@ -740,7 +745,7 @@ Prompt preview:
       <translation>ブロック中</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="74"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Blue</source>
       <translation>青</translation>
     </message>
@@ -810,7 +815,7 @@ Prompt preview:
       <translation>キャッシュ使用量</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="915"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="914"></location>
       <source>Cached copy</source>
       <translation>キャッシュされたコピー</translation>
     </message>
@@ -820,7 +825,7 @@ Prompt preview:
       <translation>インストール可能</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="58"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="72"></location>
       <source>Cancel</source>
       <translation>キャンセル</translation>
     </message>
@@ -853,6 +858,11 @@ Prompt preview:
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2097"></location>
       <source>Cancelling the model download.</source>
       <translation>モデルのダウンロードをキャンセルしています。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="171"></location>
+      <source>Change canvas resolution</source>
+      <translation>キャンバス解像度を変更</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
@@ -1020,12 +1030,17 @@ Prompt preview:
       <translation>フォルダーを選び、Substitute を ComfyUI に接続します。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="120"></location>
+      <source>Choose a new size for the Input canvas and its masks</source>
+      <translation>入力キャンバスとマスクの新しいサイズを選択</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="1174"></location>
       <source>Choose a shorter folder for this operation.</source>
       <translation>この操作には、より短いフォルダーを選択してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="265"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="261"></location>
       <source>Choose a specific cube version</source>
       <translation>特定のキューブバージョンを選択</translation>
     </message>
@@ -1075,7 +1090,17 @@ Prompt preview:
       <translation>SugarSubstitute の表示言語を選びます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="260"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="295"></location>
+      <source>Choose how regional mask pixels are resampled.</source>
+      <translation>領域マスクのピクセルを再サンプリングする方法を選択します。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="174"></location>
+      <source>Choose how the Input canvas and its regional masks should fit the new size.</source>
+      <translation>入力キャンバスと領域マスクを新しいサイズに合わせる方法を選択します。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="256"></location>
       <source>Choose how this workflow cube should handle the update</source>
       <translation>このワークフローキューブの更新方法を選択</translation>
     </message>
@@ -1155,7 +1180,12 @@ Prompt preview:
       <translation>SugarSubstitute で使用する言語を選びます。変更はすぐに反映されます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="405"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="251"></location>
+      <source>Choose the point that stays fixed while the canvas changes.</source>
+      <translation>キャンバスの変更中に固定する点を選択します。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="401"></location>
       <source>Choose version...</source>
       <translation>バージョンを選択...</translation>
     </message>
@@ -1220,7 +1250,7 @@ Prompt preview:
       <translation>セットアップ方法を選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="109"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="106"></location>
       <source>CivitAI API key</source>
       <translation>CivitAI API キー</translation>
     </message>
@@ -1375,7 +1405,7 @@ Prompt preview:
       <translation>クリックで点を追加、ドラッグで移動、右クリックで削除します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_expandable_settings.py" line="55"></location>
+      <location filename="../substitute/presentation/canvas/input/input_expandable_settings.py" line="69"></location>
       <source>Close</source>
       <translation>閉じる</translation>
     </message>
@@ -1620,7 +1650,7 @@ Prompt preview:
       <translation>ComfyUI は準備完了ですが、%1 を読み込めませんでした。この拡張機能を使用するワークフローは失敗したり、ノードが見つからない状態になったりする可能性があります。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="255"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="251"></location>
       <source>ComfyUI is ready, but it reported issues while loading.</source>
       <translation>ComfyUI は準備完了ですが、読み込み中の問題が報告されました。</translation>
     </message>
@@ -1705,7 +1735,7 @@ Prompt preview:
       <translation>ComfyUI ソース</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="252"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="248"></location>
       <source>ComfyUI started with issues</source>
       <translation>ComfyUI は問題のある状態で起動しました</translation>
     </message>
@@ -1875,7 +1905,7 @@ Prompt preview:
       <translation>連続生成には生成キューが必要です。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="46"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="60"></location>
       <source>Contract</source>
       <translation>縮小</translation>
     </message>
@@ -1905,7 +1935,7 @@ Prompt preview:
       <translation>すべての出力をコピー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="291"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="287"></location>
       <source>Copy report</source>
       <translation>レポートをコピー</translation>
     </message>
@@ -1915,7 +1945,7 @@ Prompt preview:
       <translation>タグをコピー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="534"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="533"></location>
       <source>Copy tag title</source>
       <translation>タグのタイトルをコピー</translation>
     </message>
@@ -2085,7 +2115,7 @@ Prompt preview:
       <translation>キューブは無効です</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="580"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="579"></location>
       <source>Cube library</source>
       <translation>キューブライブラリ</translation>
     </message>
@@ -2095,7 +2125,7 @@ Prompt preview:
       <translation>キューブピッカーでエラーが発生しました</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="656"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="655"></location>
       <source>Cube stack</source>
       <translation>キューブスタック</translation>
     </message>
@@ -2105,7 +2135,7 @@ Prompt preview:
       <translation>Comfy ワークフローではキューブスタックを利用できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="225"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="221"></location>
       <source>Cube updates available</source>
       <translation>キューブの更新があります</translation>
     </message>
@@ -2168,7 +2198,7 @@ Install these nodes now?</source>
       <translation>Danbooru キャッシュ使用量</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1125"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1124"></location>
       <source>Danbooru did not respond. Try again in a moment.</source>
       <translation>Danbooru から応答がありません。しばらくしてからもう一度お試しください。</translation>
     </message>
@@ -2178,22 +2208,22 @@ Install these nodes now?</source>
       <translation>Danbooru 画像レーティング</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1127"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1126"></location>
       <source>Danbooru returned content the app could not render safely.</source>
       <translation>Danbooru から、アプリで安全に表示できないコンテンツが返されました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1108"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1107"></location>
       <source>Danbooru unavailable</source>
       <translation>Danbooru を利用できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="126"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="125"></location>
       <source>Danbooru wiki</source>
       <translation>Danbooru Wiki</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="856"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="855"></location>
       <source>Danbooru wiki content could not be loaded unexpectedly.</source>
       <translation>予期しないエラーにより、Danbooru Wiki の内容を読み込めませんでした。</translation>
     </message>
@@ -2208,22 +2238,22 @@ Install these nodes now?</source>
       <translation>デフォルト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1106"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1105"></location>
       <source>Definition not found</source>
       <translation>定義が見つかりません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1111"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1110"></location>
       <source>Definition unavailable</source>
       <translation>定義を利用できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="651"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="649"></location>
       <source>Delete</source>
       <translation>削除</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="716"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="714"></location>
       <source>Delete '%1'?</source>
       <translation>「%1」を削除しますか？</translation>
     </message>
@@ -2233,7 +2263,7 @@ Install these nodes now?</source>
       <translation>%1 にある未完成のフォルダーを削除してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="715"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="713"></location>
       <source>Delete wildcard</source>
       <translation>ワイルドカードを削除</translation>
     </message>
@@ -2303,7 +2333,7 @@ Install these nodes now?</source>
       <translation>直接読み込んだ Comfy ワークフローには Cube スタックがありません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="633"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="631"></location>
       <source>Disable</source>
       <translation>無効にする</translation>
     </message>
@@ -2313,12 +2343,12 @@ Install these nodes now?</source>
       <translation>無効</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="238"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="236"></location>
       <source>Discard</source>
       <translation>破棄</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="304"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="302"></location>
       <source>Discard changes</source>
       <translation>変更を破棄</translation>
     </message>
@@ -2333,7 +2363,7 @@ Install these nodes now?</source>
       <translation>CivitAI サムネイルをダウンロード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="211"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="208"></location>
       <source>Download and open recipe</source>
       <translation>レシピをダウンロードして開く</translation>
     </message>
@@ -2403,7 +2433,7 @@ Install these nodes now?</source>
       <translation>重複部分の警告</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="71"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="69"></location>
       <source>Edit Color</source>
       <translation>色を編集</translation>
     </message>
@@ -2413,7 +2443,7 @@ Install these nodes now?</source>
       <translation>カーブを編集（%1点）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="57"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="71"></location>
       <source>Edit layer coverage</source>
       <translation>レイヤーカバレッジを編集</translation>
     </message>
@@ -2493,7 +2523,7 @@ Install these nodes now?</source>
       <translation>消しゴム</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="788"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="769"></location>
       <source>Error</source>
       <translation>エラー</translation>
     </message>
@@ -2508,12 +2538,12 @@ Install these nodes now?</source>
       <translation>エラー概要</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="305"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="301"></location>
       <source>Errors</source>
       <translation>エラー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="337"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
       <source>Exception</source>
       <translation>例外</translation>
     </message>
@@ -2543,7 +2573,7 @@ Install these nodes now?</source>
       <translation>既存のローカル環境の設定</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="45"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="59"></location>
       <source>Expand</source>
       <translation>拡張</translation>
     </message>
@@ -2593,7 +2623,7 @@ Install these nodes now?</source>
       <translation>失敗 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="903"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="906"></location>
       <source>Failed to allocate output run number.</source>
       <translation>出力の実行番号を割り当てられませんでした。</translation>
     </message>
@@ -2673,12 +2703,12 @@ Install these nodes now?</source>
       <translation>生成リスナーを開始できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="47"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="61"></location>
       <source>Feather</source>
       <translation>ぼかし</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="666"></location>
       <source>Fetching Danbooru wiki content...</source>
       <translation>Danbooru Wiki の内容を取得しています...</translation>
     </message>
@@ -2743,12 +2773,12 @@ Install these nodes now?</source>
       <translation>保存済みの設定を修復し、Substitute を再び開けるようにします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="54"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="68"></location>
       <source>Flip horizontal</source>
       <translation>水平方向に反転</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="59"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="73"></location>
       <source>Flip vertical</source>
       <translation>垂直方向に反転</translation>
     </message>
@@ -2763,7 +2793,7 @@ Install these nodes now?</source>
       <translation>フォルダー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_preset_menu_source.py" line="95"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="82"></location>
       <source>For %1</source>
       <translation>対象：%1</translation>
     </message>
@@ -2773,7 +2803,7 @@ Install these nodes now?</source>
       <translation>CPU モードを強制</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="527"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="526"></location>
       <source>Forward</source>
       <translation>進む</translation>
     </message>
@@ -2833,7 +2863,7 @@ Install these nodes now?</source>
       <translation>すべてのキューブにランタイムエラーがあるため、生成できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1093"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1097"></location>
       <source>Generation dispatch failed.</source>
       <translation>生成ジョブを送信できませんでした。</translation>
     </message>
@@ -2903,7 +2933,7 @@ Install these nodes now?</source>
       <translation>GitHub URL が必要です</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_preset_menu_source.py" line="106"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="92"></location>
       <source>Global</source>
       <translation>グローバル</translation>
     </message>
@@ -2918,7 +2948,7 @@ Install these nodes now?</source>
       <translation>CivitAI ページを開く</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="73"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="71"></location>
       <source>Green</source>
       <translation>緑</translation>
     </message>
@@ -2933,7 +2963,7 @@ Install these nodes now?</source>
       <translation>硬さ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="43"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="203"></location>
       <source>Height</source>
       <translation>高さ</translation>
     </message>
@@ -2993,7 +3023,7 @@ Install these nodes now?</source>
       <translation>生成コントロールを非表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="358"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
       <source>Hide report</source>
       <translation>レポートを隠す</translation>
     </message>
@@ -3043,7 +3073,7 @@ Install these nodes now?</source>
       <translation>重複を無視</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="416"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="412"></location>
       <source>Ignore selected</source>
       <translation>選択項目を無視</translation>
     </message>
@@ -3053,12 +3083,12 @@ Install these nodes now?</source>
       <translation>スペルを無視</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="341"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="337"></location>
       <source>Ignore this startup issue next time</source>
       <translation>次回からこの起動時の問題を無視</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="314"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="310"></location>
       <source>Ignored</source>
       <translation>無視</translation>
     </message>
@@ -3088,7 +3118,7 @@ Install these nodes now?</source>
       <translation>個別</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="792"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="773"></location>
       <source>Info</source>
       <translation>情報</translation>
     </message>
@@ -3213,7 +3243,7 @@ Install these nodes now?</source>
       <translation>JPEG サイズ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="301"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="297"></location>
       <source>Keep current</source>
       <translation>現在のまま</translation>
     </message>
@@ -3223,7 +3253,7 @@ Install these nodes now?</source>
       <translation>既定値を使うか、Substitute で使用するフォルダーを指定します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="396"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="392"></location>
       <source>Keep v%1</source>
       <translation>v%1 のまま</translation>
     </message>
@@ -3298,7 +3328,7 @@ Install these nodes now?</source>
       <translation>潜在 RGB</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="180"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="176"></location>
       <source>Later</source>
       <translation>後で</translation>
     </message>
@@ -3423,12 +3453,12 @@ Install these nodes now?</source>
       <translation>現在のターゲットからキューブライブラリの状態を読み込んでいます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="666"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="665"></location>
       <source>Loading definition</source>
       <translation>定義を読み込んでいます</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="278"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="275"></location>
       <source>Loading...</source>
       <translation>読み込み中...</translation>
     </message>
@@ -3473,7 +3503,7 @@ Install these nodes now?</source>
       <translation>検索とダウンロード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="855"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="854"></location>
       <source>Lookup failed</source>
       <translation>検索に失敗しました</translation>
     </message>
@@ -3523,7 +3553,7 @@ Install these nodes now?</source>
       <translation>このコンピューターからリモートの ComfyUI サーバーに接続できることを確認してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1110"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1109"></location>
       <source>Malformed Danbooru response</source>
       <translation>Danbooru から不正な形式の応答がありました</translation>
     </message>
@@ -3573,17 +3603,17 @@ Install these nodes now?</source>
       <translation>メタデータを手動更新するには、モデルの種類と値が必要です。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="702"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="681"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>マスクのサイズを確認できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="639"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="618"></location>
       <source>Mask dimensions do not match</source>
       <translation>マスクのサイズが一致しません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_mask_layer_button.py" line="39"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_layer_button.py" line="53"></location>
       <source>Mask layer</source>
       <translation>マスクレイヤー</translation>
     </message>
@@ -3643,7 +3673,7 @@ Install these nodes now?</source>
       <translation>フィールドがありません：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="135"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="132"></location>
       <source>Missing model</source>
       <translation>不足しているモデル</translation>
     </message>
@@ -3673,7 +3703,7 @@ Install these nodes now?</source>
       <translation>モデルをダウンロードできません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="394"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="391"></location>
       <source>Model file</source>
       <translation>モデルファイル</translation>
     </message>
@@ -3698,7 +3728,7 @@ Install these nodes now?</source>
       <translation>モデルフォルダー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_selection_contextual_toolbar.py" line="39"></location>
+      <location filename="../substitute/presentation/canvas/input/input_selection_contextual_toolbar.py" line="53"></location>
       <source>Modify selection</source>
       <translation>選択範囲を変更</translation>
     </message>
@@ -3728,7 +3758,7 @@ Install these nodes now?</source>
       <translation>移動</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/drag_handle.py" line="36"></location>
+      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/drag_handle.py" line="50"></location>
       <source>Move Contextual Toolbar</source>
       <translation>コンテキストツールバーを移動</translation>
     </message>
@@ -3743,9 +3773,14 @@ Install these nodes now?</source>
       <translation>上へ移動</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/save_preset_dialog.py" line="74"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="179"></location>
       <source>Name</source>
       <translation>名前</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="305"></location>
+      <source>Nearest Neighbor</source>
+      <translation>ニアレストネイバー</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/interactions/parenthesis_education_controller.py" line="69"></location>
@@ -3783,6 +3818,11 @@ Install these nodes now?</source>
       <translation>新規カスタムリスト</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="184"></location>
+      <source>New size</source>
+      <translation>新しいサイズ</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="340"></location>
       <source>Next</source>
       <translation>次へ</translation>
@@ -3813,7 +3853,7 @@ Install these nodes now?</source>
       <translation>追跡中のキューブパックはありません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1120"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1119"></location>
       <source>No Danbooru wiki page was found for "%1".</source>
       <translation>「%1」の Danbooru Wiki ページが見つかりませんでした。</translation>
     </message>
@@ -3833,7 +3873,7 @@ Install these nodes now?</source>
       <translation>対応しているオペレーティングシステムの認証情報ストアがありません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1111"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1110"></location>
       <source>No cubes available</source>
       <translation>利用できるキューブはありません</translation>
     </message>
@@ -3878,7 +3918,7 @@ Install these nodes now?</source>
       <translation>管理対象プロセスを終了する必要はありませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1113"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1112"></location>
       <source>No matching cubes</source>
       <translation>一致するキューブはありません</translation>
     </message>
@@ -3913,7 +3953,7 @@ Install these nodes now?</source>
       <translation>検証済みのリポジトリはありません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="487"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="485"></location>
       <source>No selection</source>
       <translation>未選択</translation>
     </message>
@@ -3928,12 +3968,12 @@ Install these nodes now?</source>
       <translation>スペルの候補はありません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="255"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="252"></location>
       <source>No thumbnail</source>
       <translation>サムネイルなし</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="335"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="331"></location>
       <source>Node</source>
       <translation>ノード</translation>
     </message>
@@ -3958,7 +3998,7 @@ Install these nodes now?</source>
       <translation>ノードのコンテキスト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="344"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="340"></location>
       <source>Node errors</source>
       <translation>ノードエラー</translation>
     </message>
@@ -4008,7 +4048,7 @@ Install these nodes now?</source>
       <translation>生成キューに追加する件数</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="47"></location>
+      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="38"></location>
       <source>OK</source>
       <translation>決定</translation>
     </message>
@@ -4028,7 +4068,7 @@ Install these nodes now?</source>
       <translation>検証済みモデルのダウンロードを提案</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="578"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="577"></location>
       <source>On Pixiv:</source>
       <translation>Pixiv では：</translation>
     </message>
@@ -4053,7 +4093,7 @@ Install these nodes now?</source>
       <translation>すべて Photoshop で開く</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="198"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="195"></location>
       <source>Open CivitAI Settings</source>
       <translation>CivitAI 設定を開く</translation>
     </message>
@@ -4113,7 +4153,7 @@ Install these nodes now?</source>
       <translation>セットアップウィザードを開く</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="541"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="540"></location>
       <source>Open tag wiki article in browser</source>
       <translation>タグの Wiki 記事をブラウザーで開く</translation>
     </message>
@@ -4283,7 +4323,7 @@ Install these nodes now?</source>
       <translation>現在の状況に合うセットアップを選択します。ワークフローが変わった場合は後から変更できます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="78"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="92"></location>
       <source>Pixels</source>
       <translation>ピクセル</translation>
     </message>
@@ -4353,7 +4393,7 @@ Install these nodes now?</source>
       <translation>スペルに問題がある可能性：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="762"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="761"></location>
       <source>Posts</source>
       <translation>投稿</translation>
     </message>
@@ -4403,6 +4443,16 @@ Install these nodes now?</source>
       <translation>既存の ComfyUI 環境を準備しています。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="306"></location>
+      <source>Preserves hard mask edges by copying the nearest pixel without blending.</source>
+      <translation>最も近いピクセルをブレンドせずにコピーし、マスクの硬いエッジを保持します。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="212"></location>
+      <source>Preset</source>
+      <translation>プリセット</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/controls_page.py" line="401"></location>
       <source>Press a key combination...</source>
       <translation>キーの組み合わせを押してください...</translation>
@@ -4443,7 +4493,7 @@ Install these nodes now?</source>
       <translation>プロジェクト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="329"></location>
       <source>Prompt</source>
       <translation>プロンプト</translation>
     </message>
@@ -4541,6 +4591,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/about/about_info_service.py" line="102"></location>
       <source>QPane</source>
       <translation>QPane</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="310"></location>
+      <source>Qt Smooth</source>
+      <translation>Qt スムーズ</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/comfy_runtime_actions.py" line="92"></location>
@@ -4648,7 +4703,7 @@ Install these nodes now?</source>
       <translation>矩形選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="70"></location>
       <source>Red</source>
       <translation>赤</translation>
     </message>
@@ -4663,7 +4718,7 @@ Install these nodes now?</source>
       <translation>キャンバスを再度ドッキング</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="200"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="222"></location>
       <source>Referenced local image file does not exist.</source>
       <translation>参照しているローカル画像ファイルがありません。</translation>
     </message>
@@ -4683,7 +4738,7 @@ Install these nodes now?</source>
       <translation>キャッシュ内容をバックグラウンドで更新</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="525"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="524"></location>
       <source>Refresh catalog</source>
       <translation>カタログを更新</translation>
     </message>
@@ -4698,7 +4753,7 @@ Install these nodes now?</source>
       <translation>再起動要求後、Cube Library を更新しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1544"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1543"></location>
       <source>Refreshing...</source>
       <translation>更新中...</translation>
     </message>
@@ -4793,7 +4848,7 @@ Install these nodes now?</source>
       <translation>予定されている変更を削除しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="642"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="178"></location>
       <source>Rename</source>
       <translation>名前を変更</translation>
     </message>
@@ -4838,12 +4893,12 @@ Install these nodes now?</source>
       <translation>修復では、検出されたアクセラレーターに合うバックエンドを使用して ComfyUI を再インストールします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="888"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="869"></location>
       <source>Report issue</source>
       <translation>問題を報告</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="877"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="858"></location>
       <source>Repository</source>
       <translation>リポジトリ</translation>
     </message>
@@ -4907,7 +4962,7 @@ No known extension claimant.</source>
       <translation>必要なカスタムノードはすべてインストールされています。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="172"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="194"></location>
       <source>Required image input has no selected image.</source>
       <translation>必須の画像入力で画像が選択されていません。</translation>
     </message>
@@ -4917,9 +4972,19 @@ No known extension claimant.</source>
       <translation>必要なノードをインストールしました</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="704"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="703"></location>
       <source>Reset</source>
       <translation>リセット</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="69"></location>
+      <source>Resize canvas</source>
+      <translation>キャンバスのサイズを変更</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="173"></location>
+      <source>Resize canvas only</source>
+      <translation>キャンバスのみサイズ変更</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="298"></location>
@@ -4962,7 +5027,7 @@ No known extension claimant.</source>
       <translation>このサーバーでは再起動を利用できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="191"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="187"></location>
       <source>Restart now</source>
       <translation>今すぐ再起動</translation>
     </message>
@@ -4972,7 +5037,7 @@ No known extension claimant.</source>
       <translation>再起動を要求しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="122"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="118"></location>
       <source>Restart required</source>
       <translation>再起動が必要です</translation>
     </message>
@@ -5067,7 +5132,7 @@ No known extension claimant.</source>
       <translation>起動ログを確認し、タイムアウト直前に読み込まれていたコンポーネントを更新または無効にしてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="814"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="795"></location>
       <source>Review the startup report.</source>
       <translation>起動レポートを確認してください。</translation>
     </message>
@@ -5077,12 +5142,12 @@ No known extension claimant.</source>
       <translation>リッチプロンプト表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="44"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="58"></location>
       <source>Rotate left</source>
       <translation>左に回転</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="49"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="63"></location>
       <source>Rotate right</source>
       <translation>右に回転</translation>
     </message>
@@ -5182,7 +5247,7 @@ No known extension claimant.</source>
       <translation>保存して続行</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="302"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="300"></location>
       <source>Save changes</source>
       <translation>変更を保存</translation>
     </message>
@@ -5202,7 +5267,7 @@ No known extension claimant.</source>
       <translation>各キューブの出力を保存するか、最後のアクティブキューブだけを保存します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="421"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="450"></location>
       <source>Save for %1</source>
       <translation>%1 用に保存</translation>
     </message>
@@ -5210,6 +5275,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
       <source>Save globally</source>
       <translation>グローバルに保存</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="191"></location>
+      <source>Save or Load preset</source>
+      <translation>プリセットを保存または読み込む</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/workflows/cube_item.py" line="273"></location>
@@ -5257,6 +5327,16 @@ No known extension claimant.</source>
       <translation>セットアップ内容を保存しています。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="229"></location>
+      <source>Scale canvas and masks</source>
+      <translation>キャンバスとマスクを拡大縮小</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="292"></location>
+      <source>Scaling quality</source>
+      <translation>拡大縮小の品質</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="455"></location>
       <source>Scene</source>
       <translation>シーン</translation>
@@ -5287,7 +5367,7 @@ No known extension claimant.</source>
       <translation>%1 を検索</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="585"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="584"></location>
       <source>Search cubes</source>
       <translation>キューブを検索</translation>
     </message>
@@ -5542,7 +5622,7 @@ No known extension claimant.</source>
       <translation>Wiki ビューアーに画像を表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="358"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
       <source>Show report</source>
       <translation>レポートを表示</translation>
     </message>
@@ -5552,7 +5632,7 @@ No known extension claimant.</source>
       <translation>ComfyUI の生成中にサンプラーのプレビューフレームを表示します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1566"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1565"></location>
       <source>Showing stale catalog</source>
       <translation>古いカタログを表示中</translation>
     </message>
@@ -5622,7 +5702,7 @@ No known extension claimant.</source>
       <translation>スマート選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="167"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="164"></location>
       <source>Some CivitAI downloads require an API key. Paste it here to use it for this download and save it for next time.</source>
       <translation>一部の CivitAI ダウンロードには API キーが必要です。ここに貼り付けると、今回のダウンロードに使用し、次回のために保存します。</translation>
     </message>
@@ -5667,7 +5747,7 @@ No known extension claimant.</source>
       <translation>スペルチェック</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="325"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="321"></location>
       <source>Stage</source>
       <translation>段階</translation>
     </message>
@@ -6182,7 +6262,7 @@ No known extension claimant.</source>
       <translation>Substitute に保存されたフォルダー設定を修正する必要があります</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2854"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2859"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6372,6 +6452,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>幅と高さを入れ替え</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="217"></location>
+      <source>Swap width and height</source>
+      <translation>幅と高さを入れ替え</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/controls_page.py" line="97"></location>
       <source>Switches the primary Generate control and updates its visible mode.</source>
       <translation>主な生成コントロールを切り替え、表示モードを更新します。</translation>
@@ -6532,6 +6617,16 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>接続した ComfyUI 環境は、更新された要件を満たしていません。続行する前に、その環境を修復してください。%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="381"></location>
+      <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
+      <translation>このダイアログを開いている間にキャンバスが変更されました。現在のサイズを確認して、もう一度お試しください。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="391"></location>
+      <source>The canvas could not be resized. Nothing was changed.</source>
+      <translation>キャンバスのサイズを変更できませんでした。変更は行われていません。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="175"></location>
       <source>The defaults usually work well for first-time setup.</source>
       <translation>初回セットアップでは通常、この既定値で問題ありません。</translation>
@@ -6632,7 +6727,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>レシピは Cube Library の警告付きで読み込まれました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1128"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1127"></location>
       <source>The requested definition is not available.</source>
       <translation>要求された定義は利用できません。</translation>
     </message>
@@ -6682,12 +6777,12 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>選択したフォルダーには、完全な ComfyUI がインストールされていません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="704"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="683"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>選択したマスクの寸法を、読み込まれた入力画像と照合できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="641"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="620"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>選択したマスクの寸法が、読み込まれた入力画像と一致しません。</translation>
     </message>
@@ -6742,6 +6837,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ワークフローをキューに追加できませんでした。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="399"></location>
+      <source>The workflow dimensions could not be updated, so the canvas change was undone.</source>
+      <translation>ワークフローの寸法を更新できなかったため、キャンバスの変更を元に戻しました。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/appearance/appearance_restart_coordinator.py" line="86"></location>
       <source>Theme mode</source>
       <translation>テーマモード</translation>
@@ -6757,7 +6857,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>その後、もう一度お試しください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="125"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="121"></location>
       <source>These changes will apply after restart.</source>
       <translation>これらの変更は再起動後に適用されます。</translation>
     </message>
@@ -6777,7 +6877,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>初回は少し時間がかかる場合があります。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="414"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="411"></location>
       <source>This cube</source>
       <translation>このキューブ</translation>
     </message>
@@ -6807,17 +6907,17 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>Substitute はここに ComfyUI を配置します。通常は既定の場所をそのまま使用できます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="359"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="356"></location>
       <source>This recipe uses a model that is not available in your current ComfyUI model folders. Turn on CivitAI model lookup in Settings to search for it.</source>
       <translation>このレシピでは、現在の ComfyUI モデルフォルダーにないモデルを使用します。設定で CivitAI モデル検索を有効にして検索してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="369"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="366"></location>
       <source>This recipe uses a model that is not available in your current ComfyUI model folders. We could not find an automatic download that is safe to offer.</source>
       <translation>このレシピでは、現在の ComfyUI モデルフォルダーにないモデルを使用します。安全に提供できる自動ダウンロードは見つかりませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="364"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="361"></location>
       <source>This recipe uses a model that is not in your current ComfyUI model folders. We found a matching file on CivitAI and can download it for you, then open the recipe.</source>
       <translation>このレシピでは、現在の ComfyUI モデルフォルダーにないモデルを使用します。CivitAI で一致するファイルが見つかりました。ダウンロードしてからレシピを開くことができます。</translation>
     </message>
@@ -6902,7 +7002,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>変形</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="37"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="51"></location>
       <source>Transform selection</source>
       <translation>選択範囲を変形</translation>
     </message>
@@ -6922,7 +7022,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>再試行</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="579"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="577"></location>
       <source>Unable to apply changes</source>
       <translation>変更を適用できません</translation>
     </message>
@@ -6932,37 +7032,42 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>出力画像をコピーできません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="608"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="606"></location>
       <source>Unable to create asset</source>
       <translation>素材を作成できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="724"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="722"></location>
       <source>Unable to delete asset</source>
       <translation>素材を削除できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="202"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="200"></location>
       <source>Unable to load assets</source>
       <translation>素材を読み込めません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="466"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="464"></location>
       <source>Unable to read asset</source>
       <translation>素材を読み取れません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1553"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1552"></location>
       <source>Unable to refresh catalog</source>
       <translation>カタログを更新できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="679"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="677"></location>
       <source>Unable to rename asset</source>
       <translation>素材の名前を変更できません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="544"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="186"></location>
+      <source>Unable to resize canvas</source>
+      <translation>キャンバスのサイズを変更できません</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="542"></location>
       <source>Unable to save asset</source>
       <translation>素材を保存できません</translation>
     </message>
@@ -6972,7 +7077,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>出力画像を転送できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="702"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="700"></location>
       <source>Unable to update asset</source>
       <translation>素材を更新できません</translation>
     </message>
@@ -7042,7 +7147,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ComfyUI の依存関係を更新してから、アプリケーションを再起動してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="400"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="396"></location>
       <source>Update all v%1 instances</source>
       <translation>すべての v%1 インスタンスを更新</translation>
     </message>
@@ -7052,7 +7157,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>更新あり</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="309"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="305"></location>
       <source>Update selected</source>
       <translation>選択項目を更新</translation>
     </message>
@@ -7067,17 +7172,17 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>まず拡張機能を更新してください。それでも失敗する場合は、メンテナーに報告してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="248"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="244"></location>
       <source>Update this workflow cube to the latest version</source>
       <translation>このワークフローキューブを最新バージョンに更新</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="389"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="385"></location>
       <source>Update to v%1</source>
       <translation>v%1 に更新</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="228"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="224"></location>
       <source>Updated versions are available for loaded cubes.</source>
       <translation>読み込まれたキューブに新しいバージョンがあります。</translation>
     </message>
@@ -7232,6 +7337,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>検証エラーとエラーの強調表示に使用します。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="311"></location>
+      <source>Uses Qt smooth scaling to blend neighboring pixels for softer resized masks.</source>
+      <translation>Qt のスムーズスケーリングで隣接ピクセルをブレンドし、サイズ変更後のマスクをより滑らかにします。</translation>
+    </message>
+    <message>
       <location filename="../substitute/infrastructure/comfy/attached_install.py" line="101"></location>
       <source>Using ComfyUI Python %1 (%2) at %3.</source>
       <translation>%3 にある ComfyUI Python %1（%2）を使用しています。</translation>
@@ -7287,7 +7397,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>外観のカスタマイズ。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="72"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="86"></location>
       <source>Visual opacity</source>
       <translation>表示不透明度</translation>
     </message>
@@ -7317,7 +7427,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ダウンロードの開始を待っています...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="790"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="771"></location>
       <source>Warning</source>
       <translation>警告</translation>
     </message>
@@ -7327,7 +7437,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>警告色</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="310"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="306"></location>
       <source>Warnings</source>
       <translation>警告</translation>
     </message>
@@ -7372,7 +7482,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ここでセットアップが一時停止する理由</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="42"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="199"></location>
       <source>Width</source>
       <translation>幅</translation>
     </message>
@@ -7412,7 +7522,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>Windows では、個々のファイル名またはフォルダー名は 255 文字までに制限されています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="327"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="323"></location>
       <source>Workflow</source>
       <translation>ワークフロー</translation>
     </message>
@@ -7547,12 +7657,12 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>[検証] PyTorch=%1 バックエンド=%2 チャンネル=%3 デバイス=%4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="422"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="419"></location>
       <source>a model</source>
       <translation>モデル</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="85"></location>
       <source>by</source>
       <translation>幅</translation>
     </message>
@@ -7632,17 +7742,17 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ソースチェックアウト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="329"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="325"></location>
       <source>unknown</source>
       <translation>不明</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="474"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="470"></location>
       <source>v%1  Current</source>
       <translation>v%1  現在</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="472"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="468"></location>
       <source>v%1  Newest</source>
       <translation>v%1  最新</translation>
     </message>

@@ -422,6 +422,10 @@ Prömpt prëvïëw:
       <translation>⟦Åmbïgüöüs ···⟧</translation>
     </message>
     <message>
+      <source>Anchor point</source>
+      <translation>⟦Ånchör pöïnt ···⟧</translation>
+    </message>
+    <message>
       <source>Another process is already using the saved ComfyUI address</source>
       <translation>⟦Ånöthër pröcëss ïs àlrëàdy üsïng thë sàvëd CömfyÜÏ àddrëss ···⟧</translation>
     </message>
@@ -642,6 +646,10 @@ Prömpt prëvïëw:
       <translation>⟦Càncëllïng thë mödël döwnlöàd. ···⟧</translation>
     </message>
     <message>
+      <source>Change canvas resolution</source>
+      <translation>⟦Chàngë cànvàs rësölütïön ···⟧</translation>
+    </message>
+    <message>
       <source>Change the colors that appear in Substitute.</source>
       <translation>⟦Chàngë thë cölörs thàt àppëàr ïn Sübstïtütë. ···⟧</translation>
     </message>
@@ -774,6 +782,10 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë à földër ànd cönnëct Sübstïtütë tö CömfyÜÏ. ···⟧</translation>
     </message>
     <message>
+      <source>Choose a new size for the Input canvas and its masks</source>
+      <translation>⟦Chöösë à nëw sïzë för thë Ïnpüt cànvàs ànd ïts màsks ···⟧</translation>
+    </message>
+    <message>
       <source>Choose a shorter folder for this operation.</source>
       <translation>⟦Chöösë à shörtër földër för thïs öpëràtïön. ···⟧</translation>
     </message>
@@ -816,6 +828,14 @@ Prömpt prëvïëw:
     <message>
       <source>Choose how SugarSubstitute presents text.</source>
       <translation>⟦Chöösë höw SügàrSübstïtütë prësënts tëxt. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose how regional mask pixels are resampled.</source>
+      <translation>⟦Chöösë höw rëgïönàl màsk pïxëls àrë rësàmplëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose how the Input canvas and its regional masks should fit the new size.</source>
+      <translation>⟦Chöösë höw thë Ïnpüt cànvàs ànd ïts rëgïönàl màsks shöüld fït thë nëw sïzë. ···⟧</translation>
     </message>
     <message>
       <source>Choose how this workflow cube should handle the update</source>
@@ -880,6 +900,10 @@ Prömpt prëvïëw:
     <message>
       <source>Choose the language used by SugarSubstitute. Changes apply immediately.</source>
       <translation>⟦Chöösë thë làngüàgë üsëd by SügàrSübstïtütë. Chàngës àpply ïmmëdïàtëly. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose the point that stays fixed while the canvas changes.</source>
+      <translation>⟦Chöösë thë pöïnt thàt stàys fïxëd whïlë thë cànvàs chàngës. ···⟧</translation>
     </message>
     <message>
       <source>Choose version...</source>
@@ -2958,6 +2982,10 @@ Install these nodes now?</source>
       <translation>⟦Nàmë ···⟧</translation>
     </message>
     <message>
+      <source>Nearest Neighbor</source>
+      <translation>⟦Nëàrëst Nëïghbör ···⟧</translation>
+    </message>
+    <message>
       <source>Nested parentheses were converted to :%1. Explicit weights are stable across diffusion models.</source>
       <translation>⟦Nëstëd pàrënthësës wërë cönvërtëd tö :%1. Ëxplïcït wëïghts àrë stàblë àcröss dïffüsïön mödëls. ···⟧</translation>
     </message>
@@ -2984,6 +3012,10 @@ Install these nodes now?</source>
     <message>
       <source>New custom list</source>
       <translation>⟦Nëw cüstöm lïst ···⟧</translation>
+    </message>
+    <message>
+      <source>New size</source>
+      <translation>⟦Nëw sïzë ···⟧</translation>
     </message>
     <message>
       <source>Next</source>
@@ -3482,6 +3514,14 @@ Install these nodes now?</source>
       <translation>⟦Prëpàrïng yöür ëxïstïng CömfyÜÏ sëtüp. ···⟧</translation>
     </message>
     <message>
+      <source>Preserves hard mask edges by copying the nearest pixel without blending.</source>
+      <translation>⟦Prësërvës hàrd màsk ëdgës by cöpyïng thë nëàrëst pïxël wïthöüt blëndïng. ···⟧</translation>
+    </message>
+    <message>
+      <source>Preset</source>
+      <translation>⟦Prësët ···⟧</translation>
+    </message>
+    <message>
       <source>Press a key combination...</source>
       <translation>⟦Prëss à këy cömbïnàtïön... ···⟧</translation>
     </message>
@@ -3592,6 +3632,10 @@ Install these nodes now?</source>
     <message>
       <source>QPane</source>
       <translation>⟦QPànë ···⟧</translation>
+    </message>
+    <message>
+      <source>Qt Smooth</source>
+      <translation>⟦Qt Smööth ···⟧</translation>
     </message>
     <message>
       <source>Qt WebEngine is not available, so ComfyUI Settings cannot open here.</source>
@@ -3898,6 +3942,14 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rësët ···⟧</translation>
     </message>
     <message>
+      <source>Resize canvas</source>
+      <translation>⟦Rësïzë cànvàs ···⟧</translation>
+    </message>
+    <message>
+      <source>Resize canvas only</source>
+      <translation>⟦Rësïzë cànvàs önly ···⟧</translation>
+    </message>
+    <message>
       <source>Resolve wildcards on generation</source>
       <translation>⟦Rësölvë wïldcàrds ön gënëràtïön ···⟧</translation>
     </message>
@@ -4130,6 +4182,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sàvë glöbàlly ···⟧</translation>
     </message>
     <message>
+      <source>Save or Load preset</source>
+      <translation>⟦Sàvë ör Löàd prësët ···⟧</translation>
+    </message>
+    <message>
       <source>Save outputs</source>
       <translation>⟦Sàvë öütpüts ···⟧</translation>
     </message>
@@ -4164,6 +4220,14 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Saving your setup choices.</source>
       <translation>⟦Sàvïng yöür sëtüp chöïcës. ···⟧</translation>
+    </message>
+    <message>
+      <source>Scale canvas and masks</source>
+      <translation>⟦Scàlë cànvàs ànd màsks ···⟧</translation>
+    </message>
+    <message>
+      <source>Scaling quality</source>
+      <translation>⟦Scàlïng qüàlïty ···⟧</translation>
     </message>
     <message>
       <source>Scene</source>
@@ -5060,6 +5124,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Swàp wïdth &amp; hëïght ···⟧</translation>
     </message>
     <message>
+      <source>Swap width and height</source>
+      <translation>⟦Swàp wïdth ànd hëïght ···⟧</translation>
+    </message>
+    <message>
       <source>Switches the primary Generate control and updates its visible mode.</source>
       <translation>⟦Swïtchës thë prïmàry Gënëràtë cöntröl ànd üpdàtës ïts vïsïblë mödë. ···⟧</translation>
     </message>
@@ -5186,6 +5254,14 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>The attached ComfyUI environment does not satisfy its updated requirements. Repair that environment before continuing. %1</source>
       <translation>⟦Thë àttàchëd CömfyÜÏ ënvïrönmënt döës nöt sàtïsfy ïts üpdàtëd rëqüïrëmënts. Rëpàïr thàt ënvïrönmënt bëförë cöntïnüïng. %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
+      <translation>⟦Thë cànvàs chàngëd whïlë thïs dïàlög wàs öpën. Rëvïëw thë cürrënt sïzë ànd try àgàïn. ···⟧</translation>
+    </message>
+    <message>
+      <source>The canvas could not be resized. Nothing was changed.</source>
+      <translation>⟦Thë cànvàs cöüld nöt bë rësïzëd. Nöthïng wàs chàngëd. ···⟧</translation>
     </message>
     <message>
       <source>The defaults usually work well for first-time setup.</source>
@@ -5354,6 +5430,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>The workflow could not be queued.</source>
       <translation>⟦Thë wörkflöw cöüld nöt bë qüëüëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>The workflow dimensions could not be updated, so the canvas change was undone.</source>
+      <translation>⟦Thë wörkflöw dïmënsïöns cöüld nöt bë üpdàtëd, sö thë cànvàs chàngë wàs ündönë. ···⟧</translation>
     </message>
     <message>
       <source>Theme mode</source>
@@ -5530,6 +5610,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Unable to rename asset</source>
       <translation>⟦Ünàblë tö rënàmë àssët ···⟧</translation>
+    </message>
+    <message>
+      <source>Unable to resize canvas</source>
+      <translation>⟦Ünàblë tö rësïzë cànvàs ···⟧</translation>
     </message>
     <message>
       <source>Unable to save asset</source>
@@ -5746,6 +5830,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Used for validation failures and error highlights.</source>
       <translation>⟦Üsëd för vàlïdàtïön fàïlürës ànd ërrör hïghlïghts. ···⟧</translation>
+    </message>
+    <message>
+      <source>Uses Qt smooth scaling to blend neighboring pixels for softer resized masks.</source>
+      <translation>⟦Üsës Qt smööth scàlïng tö blënd nëïghbörïng pïxëls för söftër rësïzëd màsks. ···⟧</translation>
     </message>
     <message>
       <source>Using ComfyUI Python %1 (%2) at %3.</source>

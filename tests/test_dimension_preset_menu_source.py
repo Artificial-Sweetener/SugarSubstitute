@@ -31,11 +31,11 @@ from substitute.domain.user_presets import (
 from substitute.presentation.editor.panel.context.active_model_context import (
     PanelActiveModelContextController,
 )
-from substitute.presentation.editor.panel.menus.dimension_preset_menu_source import (
-    EditorDimensionPresetMenuSource,
+from substitute.presentation.editor.panel.dimension_presets import (
+    EditorDimensionPresetCatalogSource,
 )
-from substitute.presentation.editor.panel.menus.dimension_preset_models import (
-    DimensionPresetMenuModel,
+from substitute.presentation.editor.panel.dimension_presets import (
+    DimensionPresetCatalog,
 )
 from substitute.presentation.editor.panel.context.active_model_snapshot import (
     PanelActiveModelSnapshotController,
@@ -194,7 +194,7 @@ def test_source_saves_current_dimensions_for_active_model_family() -> None:
         ),
     )
 
-    source.prepare_dimension_preset_menu_model(reason="test")
+    source.prepare_dimension_preset_catalog(reason="test")
     source.save_current_dimensions_for_model(1536, 1024)
 
     assert len(repository.presets) == 1
@@ -290,7 +290,7 @@ def test_source_does_not_list_models_during_menu_model_construction() -> None:
         catalog_service=catalog,
     )
 
-    source.prepare_dimension_preset_menu_model(reason="test")
+    source.prepare_dimension_preset_catalog(reason="test")
 
     assert catalog.list_calls == 0
 
@@ -302,7 +302,7 @@ def _source(
     catalog: tuple[ModelCatalogItem, ...] = (),
     fail_catalog: bool = False,
     catalog_service: _Catalog | None = None,
-) -> EditorDimensionPresetMenuSource:
+) -> EditorDimensionPresetCatalogSource:
     """Return one menu source with deterministic service behavior."""
 
     ids = iter(("dimension:test-1", "dimension:test-2"))
@@ -317,19 +317,19 @@ def _source(
         model_catalog_service=catalog_lookup,
     )
     active_model_snapshots.refresh_from_cache()
-    return EditorDimensionPresetMenuSource(
+    return EditorDimensionPresetCatalogSource(
         user_preset_service=service,
         active_model_snapshots=active_model_snapshots,
     )
 
 
 def _prepared_model(
-    source: EditorDimensionPresetMenuSource,
-) -> DimensionPresetMenuModel:
+    source: EditorDimensionPresetCatalogSource,
+) -> DimensionPresetCatalog:
     """Prepare and return the current dimension menu model."""
 
-    source.prepare_dimension_preset_menu_model(reason="test")
-    model = source.current_dimension_preset_menu_model()
+    source.prepare_dimension_preset_catalog(reason="test")
+    model = source.current_dimension_preset_catalog()
     assert model is not None
     return model
 

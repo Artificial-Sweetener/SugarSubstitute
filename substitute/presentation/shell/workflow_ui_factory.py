@@ -25,6 +25,9 @@ from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
 )
 from substitute.presentation.editor.panel.view import EditorPanel
+from substitute.presentation.editor.panel.node_card.synthetic_resolution_contributor import (
+    SyntheticCanvasResolutionContributor,
+)
 from substitute.presentation.shell.main_window_signal_binder import (
     main_window_signal_binder_for,
 )
@@ -93,6 +96,17 @@ class WorkflowUiFactory:
                 workflow_id=workflow_id,
                 editor_panel_execution_factories=(
                     self._shell.editor_panel_execution_factories
+                ),
+                node_card_body_contributors=(
+                    SyntheticCanvasResolutionContributor(
+                        roles=self._shell.synthetic_canvas_resolution_role_service,
+                        change_requested=lambda role: (
+                            self._shell.synthetic_canvas_resolution_controller.open_for_role(
+                                workflow_id,
+                                role,
+                            )
+                        ),
+                    ),
                 ),
             ),
         )

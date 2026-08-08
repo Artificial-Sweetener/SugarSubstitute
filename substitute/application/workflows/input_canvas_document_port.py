@@ -61,5 +61,8 @@ class InputCanvasDocumentPort(Protocol):
     def remove_mask_from_image(self, image_id: UUID, mask_id: UUID) -> bool:
         """Remove one mask association from an explicitly named input image."""
 
+    def set_mask_visual_opacity(self, mask_id: UUID, opacity: float) -> bool:
+        """Apply presentation-only opacity to one materialized mask layer."""
+
 
 __all__ = ["CanvasDocumentMutation", "InputCanvasDocumentPort"]

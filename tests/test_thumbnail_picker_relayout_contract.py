@@ -26,6 +26,7 @@ from typing import cast
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
+from PySide6.QtCore import Signal
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
@@ -59,6 +60,9 @@ class _Gateway:
 
 class _Panel(QWidget):
     """Provide the minimal panel surface consumed by NodeCardBuilder."""
+
+    inputMaskOpacityChanged = Signal(str, str, float)
+    inputMaskOpacityCommitted = Signal(str, str, float, float)
 
     def __init__(self) -> None:
         """Initialize panel maps used by row registration and wiring."""

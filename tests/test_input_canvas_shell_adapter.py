@@ -25,6 +25,7 @@ from substitute.presentation.shell.input_canvas_shell_adapter import (
 )
 from substitute.presentation.shell.workflow_surface_invalidation import (
     CANVAS_AND_GENERATION_SURFACES,
+    CANVAS_PRESENTATION_SURFACES,
     WorkflowInvalidationReason,
 )
 
@@ -83,6 +84,29 @@ def test_mark_input_canvas_changed_marks_canvas_and_generation_surfaces() -> Non
         (
             "wf-a",
             CANVAS_AND_GENERATION_SURFACES,
+            WorkflowInvalidationReason.CANVAS_STATE_CHANGED,
+        )
+    ]
+
+
+def test_mark_input_canvas_presentation_changed_excludes_generation() -> None:
+    """Visual-only canvas state should not invalidate generation availability."""
+
+    calls: list[tuple[str, object, object]] = []
+    shell = SimpleNamespace(
+        workflow_surface_invalidation_service=SimpleNamespace(
+            mark_dirty=lambda workflow_id, surfaces, reason: calls.append(
+                (workflow_id, surfaces, reason)
+            )
+        )
+    )
+
+    InputCanvasShellAdapter(shell).mark_input_canvas_presentation_changed("wf-a")
+
+    assert calls == [
+        (
+            "wf-a",
+            CANVAS_PRESENTATION_SURFACES,
             WorkflowInvalidationReason.CANVAS_STATE_CHANGED,
         )
     ]

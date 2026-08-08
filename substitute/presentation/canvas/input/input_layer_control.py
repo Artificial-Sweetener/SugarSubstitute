@@ -71,7 +71,7 @@ class InputLayerControl(CanvasControlFrame):
         self._geometry_timer.setSingleShot(True)
         self._geometry_timer.timeout.connect(self._apply_intrinsic_geometry)
 
-        self.settings = InputMaskLayerSettings(document, self)
+        self.settings = InputMaskLayerSettings(self)
         self.settings.hide()
         self.settings.closeRequested.connect(self.close_settings)
         self.settings.coverageEditRequested.connect(self._request_coverage_edit)

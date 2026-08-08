@@ -77,18 +77,18 @@ class RegionalMaskActionController:
             return RegionalMaskActionOutcome(True)
         if request.kind == "add":
             changed = self.add(cube_alias, node_name) is not None
-            return RegionalMaskActionOutcome(True, changed, changed)
+            return RegionalMaskActionOutcome(True, changed)
         if request.kind == "import":
             assert request.path is not None
             changed = self.import_mask(cube_alias, node_name, request.path) is not None
-            return RegionalMaskActionOutcome(True, changed, changed)
+            return RegionalMaskActionOutcome(True, changed)
         if request.kind == "remove":
             assert request.index is not None
             changed = self.remove(cube_alias, node_name, request.index)
-            return RegionalMaskActionOutcome(True, changed, False)
+            return RegionalMaskActionOutcome(True, changed)
         assert request.index is not None
         changed = self.select_region(cube_alias, node_name, request.index)
-        return RegionalMaskActionOutcome(True, changed, changed)
+        return RegionalMaskActionOutcome(True, changed)
 
     def select_region(self, cube_alias: str, node_name: str, index: int) -> bool:
         """Select one ordered node row and its exact CuteCanvas mask layer."""

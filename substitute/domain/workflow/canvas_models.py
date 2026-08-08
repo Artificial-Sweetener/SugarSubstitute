@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
+import math
 from uuid import UUID
 
 from substitute.domain.common import ImageIdentity, MaskAssociationKey
@@ -130,9 +131,35 @@ class WorkflowCanvasState:
     regional_mask_collections: dict[MaskAssociationKey, RegionalMaskCollection] = field(
         default_factory=dict
     )
+    mask_visual_opacities: dict[MaskAssociationKey, float] = field(default_factory=dict)
     input_image_uuid: UUID | None = None
     active_input_mask_uuid: UUID | None = None
     active_canvas_route: str | None = None
+
+    def mask_visual_opacity(self, association_key: MaskAssociationKey) -> float:
+        """Return one node's visual mask opacity or CuteCanvas's native default."""
+
+        return self.mask_visual_opacities.get(association_key, 0.5)
+
+    def set_mask_visual_opacity(
+        self,
+        association_key: MaskAssociationKey,
+        opacity: float,
+    ) -> None:
+        """Persist one bounded node-level mask presentation value."""
+
+        normalized = float(opacity)
+        if not math.isfinite(normalized) or not 0.0 <= normalized <= 1.0:
+            raise ValueError("Mask visual opacity must be between 0.0 and 1.0.")
+        self.mask_visual_opacities[association_key] = normalized
+
+    def remove_mask_visual_opacity(
+        self,
+        association_key: MaskAssociationKey,
+    ) -> None:
+        """Remove presentation state for one retired mask node."""
+
+        self.mask_visual_opacities.pop(association_key, None)
 
     def image_entry(self, input_key: str) -> InputCanvasImageEntry | None:
         """Return the complete image entry for one graph input identity."""
@@ -251,6 +278,15 @@ class WorkflowCanvasState:
             if entry.mask_id is not None
         )
 
+    def mask_association_keys(self) -> tuple[MaskAssociationKey, ...]:
+        """Return every scalar or ordered graph mask identity once."""
+
+        return tuple(
+            dict.fromkeys(
+                (*self.mask_entries.keys(), *self.regional_mask_collections.keys())
+            )
+        )
+
     def regional_mask_collection(
         self,
         association_key: MaskAssociationKey,
@@ -313,6 +349,69 @@ class WorkflowCanvasState:
             }
         )
         return owners
+
+    def remap_mask_ids(
+        self,
+        image_id: UUID,
+        replacements: tuple[tuple[UUID, UUID], ...],
+    ) -> bool:
+        """Replace canvas-generated mask resources without changing region identity."""
+
+        remap = {old_id: new_id for old_id, new_id in replacements if old_id != new_id}
+        if not remap:
+            return False
+        if len(remap) != len(
+            tuple(item for item in replacements if item[0] != item[1])
+        ):
+            raise ValueError("Mask identity remap contains duplicate source ids.")
+        if len(set(remap.values())) != len(remap):
+            raise ValueError("Mask identity remap contains duplicate target ids.")
+        owned_occurrences = [
+            (entry.mask_id, entry.image_id) for entry in self.mask_entries.values()
+        ] + [
+            (entry.mask_id, entry.image_id)
+            for collection in self.regional_mask_collections.values()
+            for entry in collection.entries
+            if entry.mask_id is not None
+        ]
+        for old_id in remap:
+            matches = tuple(
+                owner for mask_id, owner in owned_occurrences if mask_id == old_id
+            )
+            if matches != (image_id,):
+                raise ValueError(
+                    "Mask identity remap source must have one image owner."
+                )
+        retained_ids = {
+            mask_id for mask_id, _owner in owned_occurrences if mask_id not in remap
+        }
+        if retained_ids.intersection(remap.values()):
+            raise ValueError(
+                "Mask identity remap target already belongs to the workflow."
+            )
+
+        self.mask_entries = {
+            association_key: replace(
+                entry,
+                mask_id=remap.get(entry.mask_id, entry.mask_id),
+            )
+            for association_key, entry in self.mask_entries.items()
+        }
+        for collection in self.regional_mask_collections.values():
+            collection.entries = [
+                replace(
+                    entry,
+                    mask_id=(
+                        remap.get(entry.mask_id, entry.mask_id)
+                        if entry.mask_id is not None
+                        else None
+                    ),
+                )
+                for entry in collection.entries
+            ]
+        if self.active_input_mask_uuid in remap:
+            self.active_input_mask_uuid = remap[self.active_input_mask_uuid]
+        return True
 
 
 __all__ = [

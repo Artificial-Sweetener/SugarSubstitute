@@ -19,17 +19,21 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from itertools import pairwise
 import os
 from typing import Any, cast
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QKeySequence, QTextCursor
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLineEdit
 import pytest
 
 from substitute.presentation.editor.prompt_editor.autocomplete_preview_state import (
     PromptAutocompletePreviewState,
+)
+from substitute.presentation.editor.prompt_editor.interactions.region_inline_editor import (
+    REGION_NAME_INLINE_EDITOR_OBJECT_NAME,
 )
 from tests.real_shell_prompt_editor_harness import (
     RealShellPromptEditorHarness,
@@ -260,20 +264,24 @@ def test_real_shell_second_separator_completion_publishes_adjacent_region_immedi
 
 def test_real_shell_f2_names_separator_with_source_backed_undo(
     harness: RealShellPromptEditorHarness,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """F2 should author a hidden named marker without weakening undo or redo."""
+    """F2 should edit a hidden named marker in place with source-backed history."""
 
-    monkeypatch.setattr(
-        "substitute.presentation.editor.prompt_editor.interactions."
-        "region_pointer_controller._prompt_for_region_name",
-        lambda _parent, _current: ("Subject", True),
-    )
     field = harness.add_prompt_workflow(initial_text="global\n[SEP]\nregion")
     separator_end = field.editor.toPlainText().index("[SEP]") + len("[SEP]")
     harness.set_source_cursor_position(field, separator_end)
 
     harness.press_key(field, Qt.Key.Key_F2)
+    inline_editor = field.editor.viewport().findChild(
+        QLineEdit,
+        REGION_NAME_INLINE_EDITOR_OBJECT_NAME,
+    )
+    assert inline_editor is not None
+    assert inline_editor.isVisible()
+    assert inline_editor.selectedText() == ""
+    QTest.keyClicks(inline_editor, "Subject")
+    QTest.keyClick(inline_editor, Qt.Key.Key_Return)
+    harness.process_events(cycles=8)
     named = harness.capture_state_snapshot(field, label="named-separator")
     harness.undo(field)
     undone = harness.capture_state_snapshot(field, label="unnamed-separator")
@@ -284,6 +292,116 @@ def test_real_shell_f2_names_separator_with_source_backed_undo(
     assert undone.source_text == "global\n[SEP]\nregion"
     assert redone.source_text == named.source_text
     assert named.projection_region_separator_count == 1
+
+
+def test_real_shell_double_click_edits_named_separator_in_place(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Reframe a named separator on every uncommitted inline-edit keystroke."""
+
+    field = harness.add_prompt_workflow(initial_text="global\n[SEP|Foreground]\nregion")
+    rendered = harness.capture_reorder_rendered_layout(
+        field,
+        label="named-separator-before-inline-edit",
+    )
+    divider = rendered.region_divider_lines[0]
+    divider_center = QPoint(
+        round((divider[0] + divider[2]) / 2.0),
+        round((divider[1] + divider[3]) / 2.0),
+    )
+
+    QTest.mouseDClick(
+        field.editor.viewport(),
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        divider_center,
+    )
+    harness.process_events(cycles=4)
+    inline_editor = field.editor.viewport().findChild(
+        QLineEdit,
+        REGION_NAME_INLINE_EDITOR_OBJECT_NAME,
+    )
+
+    assert inline_editor is not None
+    assert inline_editor.isVisible()
+    assert inline_editor.selectedText() == "Foreground"
+    divider_length = abs(divider[2] - divider[0])
+    editor_widths: list[int] = []
+    rule_inner_edges: list[tuple[float, float]] = []
+    live_framing_rules: tuple[tuple[float, float, float, float], ...] = ()
+    for character in "Subject":
+        QTest.keyClicks(inline_editor, character)
+        harness.process_events(cycles=2)
+        live = harness.capture_reorder_rendered_layout(
+            field,
+            label=f"named-separator-inline-editor-{character}",
+        )
+        framing_rules = live.region_stroke_lines[-2:]
+        live_framing_rules = framing_rules
+        editor_widths.append(inline_editor.width())
+        rule_inner_edges.append((framing_rules[0][2], framing_rules[1][0]))
+
+        assert field.editor.toPlainText() == "global\n[SEP|Foreground]\nregion"
+        assert abs(framing_rules[0][2] - framing_rules[0][0]) == pytest.approx(
+            divider_length
+        )
+        assert abs(framing_rules[1][2] - framing_rules[1][0]) == pytest.approx(
+            divider_length
+        )
+        assert inline_editor.isVisible()
+
+    assert all(
+        current_width > previous_width
+        for previous_width, current_width in pairwise(editor_widths)
+    )
+    assert all(
+        current_left < previous_left and current_right > previous_right
+        for (previous_left, previous_right), (current_left, current_right) in pairwise(
+            rule_inner_edges
+        )
+    )
+
+    QTest.keyClick(inline_editor, Qt.Key.Key_Return)
+    harness.process_events(cycles=8)
+
+    after = harness.capture_state_snapshot(field, label="separator-inline-renamed")
+    settled_framing_rules = harness.capture_reorder_rendered_layout(
+        field,
+        label="separator-inline-renamed-rendered",
+    ).region_stroke_lines[-2:]
+    assert after.source_text == "global\n[SEP|Subject]\nregion"
+    assert len(settled_framing_rules) == len(live_framing_rules)
+    assert all(
+        settled_rule == pytest.approx(live_rule)
+        for settled_rule, live_rule in zip(
+            settled_framing_rules,
+            live_framing_rules,
+            strict=True,
+        )
+    )
+
+
+def test_real_shell_region_inline_edit_commits_when_focus_leaves(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Leaving an active separator title should commit it like other inline edits."""
+
+    field = harness.add_prompt_workflow(initial_text="global\n[SEP]\nregion")
+    separator_end = field.editor.toPlainText().index("[SEP]") + len("[SEP]")
+    harness.set_source_cursor_position(field, separator_end)
+    harness.press_key(field, Qt.Key.Key_F2)
+    inline_editor = field.editor.viewport().findChild(
+        QLineEdit,
+        REGION_NAME_INLINE_EDITOR_OBJECT_NAME,
+    )
+
+    assert inline_editor is not None
+    QTest.keyClicks(inline_editor, "Background")
+    harness.click_away_from_editor()
+
+    after = harness.capture_state_snapshot(field, label="separator-focus-committed")
+    assert after.source_text == "global\n[SEP|Background]\nregion"
+    assert not inline_editor.isVisible()
 
 
 def test_real_shell_adjacent_separator_region_accepts_text_without_collapsing(

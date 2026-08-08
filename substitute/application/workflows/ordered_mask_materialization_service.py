@@ -300,13 +300,21 @@ class OrderedMaskMaterializationService:
             image_id,
             path,
         )
-        return _adopt_temporary_layer(
+        adopted_mask_id = _adopt_temporary_layer(
             workflow,
             collection=collection,
             entry=entry,
             temporary_key=temporary_key,
             mask_id=mask_id,
         )
+        if adopted_mask_id is not None:
+            self._input_canvas_state_service.apply_materialized_mask_visual_opacity(
+                workflow_id,
+                workflow,
+                binding.association_key,
+                adopted_mask_id,
+            )
+        return adopted_mask_id
 
     def _create_region_layer(
         self,
@@ -329,13 +337,21 @@ class OrderedMaskMaterializationService:
             image_id,
             image_size,
         )
-        return _adopt_temporary_layer(
+        adopted_mask_id = _adopt_temporary_layer(
             workflow,
             collection=collection,
             entry=entry,
             temporary_key=temporary_key,
             mask_id=mask_id,
         )
+        if adopted_mask_id is not None:
+            self._input_canvas_state_service.apply_materialized_mask_visual_opacity(
+                workflow_id,
+                workflow,
+                binding.association_key,
+                adopted_mask_id,
+            )
+        return adopted_mask_id
 
     def _allocate_region_path(
         self,

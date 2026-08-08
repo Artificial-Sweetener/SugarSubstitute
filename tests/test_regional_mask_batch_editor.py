@@ -28,8 +28,9 @@ from pathlib import Path
 import pytest
 
 from PySide6.QtGui import QColor
+from PySide6.QtCore import Signal
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QFileDialog, QPushButton, QWidget
+from PySide6.QtWidgets import QApplication, QFileDialog, QLabel, QPushButton, QWidget
 
 from substitute.domain.workflow import ProjectMaskAssetRef, WorkflowState
 from substitute.application.workflows.input_canvas_state_service import (
@@ -50,9 +51,30 @@ from substitute.presentation.regional.mask_collection_presenter import (
 from substitute.presentation.regional.panel_initial_projection import (
     project_regional_panel_widget,
 )
+from substitute.presentation.regional.panel_signal_binding import (
+    bind_regional_panel_signals,
+)
 from substitute.presentation.shell.regional_mask_action_controller import (
     RegionalMaskActionController,
 )
+
+
+class _RegionalPromptSignalWidget(QWidget):
+    """Expose the prompt signals consumed by regional panel binding."""
+
+    regionHovered = Signal(object)
+    textChanged = Signal()
+
+    def __init__(self, text: str, parent: QWidget) -> None:
+        """Store one current prompt source snapshot."""
+
+        super().__init__(parent)
+        self.text = text
+
+    def toPlainText(self) -> str:  # noqa: N802
+        """Return the current prompt source snapshot."""
+
+        return self.text
 
 
 def test_mask_batch_editor_expands_selection_and_publishes_add_intent() -> None:
@@ -96,8 +118,10 @@ def test_mask_batch_editor_expands_selection_and_publishes_add_intent() -> None:
         for button in editor.findChildren(QPushButton)
         if button.property("region_index") is not None
     }
+    assert updated_rows[0].property("region_selected") is True
+    assert updated_rows[1].property("region_selected") is False
     assert updated_rows[0].minimumHeight() == 48
-    assert updated_rows[1].minimumHeight() == 28
+    assert updated_rows[1].minimumHeight() == 44
     editor.deleteLater()
     application.processEvents()
 
@@ -130,10 +154,85 @@ def test_mask_batch_editor_publishes_hover_without_changing_selection() -> None:
 
     assert hovered[-1] == 1
     assert editor.selected_index == 0
-    assert "rgba(255, 255, 255, 24)" in rows[1].styleSheet()
+    assert rows[1].property("region_linked_hovered") is True
 
     editor.hide()
     editor.deleteLater()
+    application.processEvents()
+
+
+def test_mask_batch_editor_prefers_sep_names_without_large_button_titles() -> None:
+    """Rows should show normal-sized authored names without internal button text."""
+
+    application = cast(
+        QApplication,
+        QApplication.instance() or QApplication([]),
+    )
+    editor = RegionalMaskBatchEditor(
+        cube_alias="Prompt by Region",
+        node_name="load_mask_batch",
+        values=["foreground.png", "background.png"],
+        labels=["Character", None],
+    )
+    rows = sorted(
+        (
+            button
+            for button in editor.findChildren(QPushButton)
+            if button.property("region_index") is not None
+        ),
+        key=lambda button: int(button.property("region_index")),
+    )
+    labels = [row.findChild(QLabel, "regionalMaskLabel") for row in rows]
+
+    assert [label.text() for label in labels if label is not None] == [
+        "Character",
+        "background",
+    ]
+    assert all(row.text() == "" for row in rows)
+    assert all(
+        label is not None and label.font().pointSizeF() == editor.font().pointSizeF()
+        for label in labels
+    )
+
+    editor.set_region_names(["Subject", "Setting"])
+
+    assert [label.text() for label in labels if label is not None] == [
+        "Subject",
+        "Setting",
+    ]
+    editor.deleteLater()
+    application.processEvents()
+
+
+def test_regional_prompt_text_change_routes_current_sep_names_to_coordinator() -> None:
+    """Prompt commits should publish current source for immediate mask relabeling."""
+
+    application = cast(
+        QApplication,
+        QApplication.instance() or QApplication([]),
+    )
+    panel = QWidget()
+    widget = _RegionalPromptSignalWidget(
+        "global\n[SEP|Subject]\nregion",
+        panel,
+    )
+    calls: list[tuple[QWidget, str, str, str]] = []
+    cast(Any, panel).mainwindow = SimpleNamespace(
+        regional_interaction_coordinator=SimpleNamespace(
+            handle_prompt_text_changed=lambda *args: calls.append(args)
+        )
+    )
+    bind_regional_panel_signals(
+        widget,
+        panel,
+        cube_alias="Region",
+        node_name="positive",
+    )
+
+    widget.textChanged.emit()
+
+    assert calls == [(panel, "Region", "positive", "global\n[SEP|Subject]\nregion")]
+    panel.deleteLater()
     application.processEvents()
 
 
@@ -386,7 +485,7 @@ def test_node_and_canvas_selection_share_authoritative_region_state() -> None:
 
     outcome = controller.handle("Region", "load_mask_batch", "@region:select:1")
     assert outcome.handled is True
-    assert outcome.request_brush is True
+    assert outcome.activate_canvas is True
     assert collection.selected_region_id == second.region_id
     assert workflow.canvas.active_input_mask_uuid == second_mask_id
     assert editor.selected_index == 1

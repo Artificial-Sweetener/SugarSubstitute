@@ -45,6 +45,19 @@ def bind_regional_panel_signals(
                 index,
             )
         )
+        text_changed = getattr(widget, "textChanged", None)
+        source_text = getattr(widget, "toPlainText", None)
+        if text_changed is not None and callable(source_text):
+            text_changed.connect(
+                lambda alias=cube_alias, name=node_name, editor=widget: (
+                    _publish_region_names(
+                        panel,
+                        alias,
+                        name,
+                        editor.toPlainText(),
+                    )
+                )
+            )
     if not isinstance(widget, RegionalMaskBatchEditor):
         return
     widget.regionActionRequested.connect(
@@ -85,6 +98,21 @@ def _publish_region_hover(
     )
     if callable(handler):
         handler(panel, cube_alias, node_name, region_index)
+
+
+def _publish_region_names(
+    panel: Any,
+    cube_alias: str,
+    node_name: str,
+    source_text: str,
+) -> None:
+    """Route committed SEP names to the related ordered mask editor."""
+
+    mainwindow = getattr(panel, "mainwindow", None)
+    coordinator = getattr(mainwindow, "regional_interaction_coordinator", None)
+    handler = getattr(coordinator, "handle_prompt_text_changed", None)
+    if callable(handler):
+        handler(panel, cube_alias, node_name, source_text)
 
 
 __all__ = ["bind_regional_panel_signals"]

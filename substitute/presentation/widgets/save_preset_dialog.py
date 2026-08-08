@@ -44,10 +44,10 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     CaptionLabel,
     ComboBox,
     LineEdit,
-    MessageBoxBase,
 )
 
 from substitute.application.user_presets import UserPresetAssociation
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
 _SCOPE_TEXT_WIDTH = 300
 _DIALOG_WIDTH = 360
@@ -62,7 +62,7 @@ class PresetSaveScope:
     association: UserPresetAssociation
 
 
-class SavePresetDialog(MessageBoxBase):  # type: ignore[misc]
+class SavePresetDialog(FullWindowModalBase):
     """Collect a saved preset name and target scope."""
 
     def __init__(
