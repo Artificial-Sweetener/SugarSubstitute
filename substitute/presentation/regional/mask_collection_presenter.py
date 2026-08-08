@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Protocol
 
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QWidget
@@ -33,6 +34,17 @@ from substitute.presentation.regional.color_provider import authored_region_colo
 type _MaskColorProvider = Callable[[int, int], QColor]
 
 
+class _RegionalPreviewCoordinator(Protocol):
+    """Bind ordered mask previews after their editor rows are projected."""
+
+    def bind_regional_collection(
+        self,
+        workflow: WorkflowState,
+        association_key: MaskAssociationKey,
+    ) -> bool:
+        """Mount every available CuteCanvas preview for one mask collection."""
+
+
 class RegionalMaskCollectionPresenter:
     """Render one ordered mask collection's colors, values, and selection."""
 
@@ -43,6 +55,7 @@ class RegionalMaskCollectionPresenter:
         active_workflow: Callable[[], WorkflowState | None],
         active_panel: Callable[[], object | None],
         mask_color: _MaskColorProvider,
+        preview_coordinator: _RegionalPreviewCoordinator | None = None,
     ) -> None:
         """Capture authoritative workflow and linked view boundaries."""
 
@@ -50,6 +63,7 @@ class RegionalMaskCollectionPresenter:
         self._active_workflow = active_workflow
         self._active_panel = active_panel
         self._mask_color = mask_color
+        self._preview_coordinator = preview_coordinator
         self._editor_projector = RegionalMaskEditorProjector()
 
     def refresh(self, association_key: MaskAssociationKey) -> None:
@@ -83,6 +97,11 @@ class RegionalMaskCollectionPresenter:
         if not isinstance(panel, QWidget):
             return
         self._editor_projector.project_panel(panel, workflow, association_key)
+        if self._preview_coordinator is not None:
+            self._preview_coordinator.bind_regional_collection(
+                workflow,
+                association_key,
+            )
 
 
 __all__ = ["RegionalMaskCollectionPresenter"]

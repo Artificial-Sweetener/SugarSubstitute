@@ -153,9 +153,6 @@ class InputToolOptionsDocumentPort(Protocol):
     def set_active_mask_id(self, mask_id: UUID) -> bool:
         """Activate one mask layer."""
 
-    def set_mask_visual_opacity(self, mask_id: UUID, opacity: float) -> bool:
-        """Set a final presentation-only layer opacity."""
-
     def begin_mask_edge_preview(self, mask_id: UUID) -> UUID | None:
         """Begin one nonmodal whole-mask edge preview."""
 

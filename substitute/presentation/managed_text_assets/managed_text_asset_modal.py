@@ -55,12 +55,11 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     CaptionLabel,
     FluentIcon,
     ListWidget,
-    MessageBoxBase,
     PushButton,
     SimpleCardWidget,
     ToolButton,
 )
-from shiboken6 import isValid
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
 from substitute.application.managed_text_assets import (
     CreateManagedTextAssetRequest,
@@ -107,7 +106,6 @@ from sugarsubstitute_shared.presentation.localization import (
 )
 
 _LOGGER = get_logger("presentation.managed_text_assets.modal")
-_FALLBACK_PARENT: QWidget | None = None
 _MODAL_WIDTH = 980
 _MODAL_MINIMUM_HEIGHT = 360
 _MODAL_OWNER_HEIGHT_FRACTION = 0.9
@@ -125,7 +123,7 @@ class ManagedTextAssetCreateAction:
     category: str | None = None
 
 
-class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
+class ManagedTextAssetModal(FullWindowModalBase):
     """Manage backend-neutral editable text assets inside a large two-pane modal."""
 
     saved = Signal()
@@ -151,7 +149,7 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
     ) -> None:
         """Build the managed text asset modal."""
 
-        super().__init__(parent or _fallback_parent())
+        super().__init__(parent)
         self._static_shadow = ManagedTextAssetModalShadow(
             modal=self,
             center_widget=self.widget,
@@ -782,19 +780,6 @@ class ManagedTextAssetModal(MessageBoxBase):  # type: ignore[misc]
         if self._error_presenter is None:
             self._error_presenter = ErrorPresenter(parent=self)
         return self._error_presenter
-
-
-def _fallback_parent() -> QWidget:
-    """Return a parent widget for qfluent dialogs opened without a caller."""
-
-    global _FALLBACK_PARENT
-    active_window = QApplication.activeWindow()
-    if active_window is not None and isValid(active_window):
-        return active_window
-    if _FALLBACK_PARENT is None or not isValid(_FALLBACK_PARENT):
-        _FALLBACK_PARENT = QWidget()
-        _FALLBACK_PARENT.resize(1200, 800)
-    return _FALLBACK_PARENT
 
 
 __all__ = ["ManagedTextAssetCreateAction", "ManagedTextAssetModal"]

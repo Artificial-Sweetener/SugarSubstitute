@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from substitute.presentation.shell.workflow_surface_invalidation import (
     CANVAS_AND_GENERATION_SURFACES,
+    CANVAS_PRESENTATION_SURFACES,
     WorkflowInvalidationReason,
 )
 
@@ -54,6 +55,18 @@ class InputCanvasShellAdapter:
             mark_dirty(
                 workflow_id,
                 CANVAS_AND_GENERATION_SURFACES,
+                WorkflowInvalidationReason.CANVAS_STATE_CHANGED,
+            )
+
+    def mark_input_canvas_presentation_changed(self, workflow_id: str) -> None:
+        """Mark only the canvas presentation dirty after a visual-only mutation."""
+
+        service = getattr(self._shell, "workflow_surface_invalidation_service", None)
+        mark_dirty = getattr(service, "mark_dirty", None)
+        if callable(mark_dirty):
+            mark_dirty(
+                workflow_id,
+                CANVAS_PRESENTATION_SURFACES,
                 WorkflowInvalidationReason.CANVAS_STATE_CHANGED,
             )
 

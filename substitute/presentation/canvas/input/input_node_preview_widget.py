@@ -32,6 +32,15 @@ from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 from .input_preview_binding import InputPreviewBinding
 
 
+class _ThumbnailCuteCanvas(CuteCanvas):
+    """Allow a fit-only renderer to contract below editing-safe dimensions."""
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        """Return the smallest paintable viewport for thumbnail presentation."""
+
+        return QSize(1, 1)
+
+
 class InputNodePreviewWidget(QWidget):
     """Render one live document source as presentation-only picker content."""
 
@@ -48,11 +57,12 @@ class InputNodePreviewWidget(QWidget):
             raise ValueError("preferred_width must be positive")
         self._binding = binding
         self._preferred_width = preferred_width
-        self._canvas = CuteCanvas(
+        self._canvas = _ThumbnailCuteCanvas(
             document=binding.document,
             document_runtime=binding.runtime,
             features=binding.features,
         )
+        binding.view_lifetime.register(self._canvas)
         self._canvas.setViewportSpec(
             CanvasViewportSpec(
                 binding.source,
@@ -79,6 +89,7 @@ class InputNodePreviewWidget(QWidget):
 
     def sizeHint(self) -> QSize:
         """Return the picker width with the authoritative source aspect ratio."""
+
         return QSize(
             self._preferred_width,
             self.heightForWidth(self._preferred_width),
@@ -96,6 +107,38 @@ class InputNodePreviewWidget(QWidget):
     def set_thumbnail_corner_radius(self, radius: int) -> None:
         """Delegate node-card chrome clipping to the authoritative viewport draw."""
         self._canvas.setViewportCornerRadius(float(radius))
+
+    def aspect_fit_size(
+        self,
+        *,
+        maximum_width: int,
+        maximum_height: int | None = None,
+    ) -> QSize:
+        """Fit the source aspect inside one optional bounding rectangle."""
+
+        if maximum_width <= 0:
+            raise ValueError("maximum_width must be positive")
+        if maximum_height is not None and maximum_height <= 0:
+            raise ValueError("maximum_height must be positive when supplied")
+        width = maximum_width
+        height = self.heightForWidth(width)
+        if maximum_height is not None and height > maximum_height:
+            source_size = self._binding.source_size
+            width = max(
+                1,
+                round(maximum_height * source_size.width() / source_size.height()),
+            )
+            height = self.heightForWidth(width)
+        return QSize(width, height)
+
+    def set_preferred_width(self, preferred_width: int) -> None:
+        """Resize this viewport while preserving its authoritative source aspect."""
+
+        if preferred_width <= 0:
+            raise ValueError("preferred_width must be positive")
+        self._preferred_width = preferred_width
+        self.setFixedSize(self.sizeHint())
+        self.updateGeometry()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Release only this viewport while preserving the shared runtime."""

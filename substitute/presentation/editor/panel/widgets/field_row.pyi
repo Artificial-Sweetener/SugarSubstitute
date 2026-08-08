@@ -20,8 +20,11 @@ from typing import Any
 
 from PySide6.QtWidgets import QWidget
 
-from substitute.presentation.editor.panel.menus.dimension_preset_models import (
-    DimensionPresetMenuSource,
+from substitute.presentation.editor.panel.dimension_presets import (
+    DimensionPresetCatalogSource,
+)
+from substitute.presentation.editor.panel.menus.dimension_row_actions import (
+    DimensionRowActions,
 )
 
 EDITOR_ROW_HEIGHT: int
@@ -37,11 +40,13 @@ class BuiltFieldRow:
     field_key: Any
     row: QWidget
     text_targets: tuple[FieldRowTextTarget, ...]
+    dimension_actions: DimensionRowActions | None
     def __init__(
         self,
         field_key: Any,
         row: QWidget,
         text_targets: tuple[FieldRowTextTarget, ...] = ...,
+        dimension_actions: DimensionRowActions | None = ...,
     ) -> None: ...
 
 class FieldRowTextTarget:
@@ -61,16 +66,28 @@ class FieldRowBuilder:
         panel: Any,
         icon_builder: Any,
         icon_resolver: Any,
-        dimension_preset_source: DimensionPresetMenuSource | None = ...,
+        dimension_preset_source: DimensionPresetCatalogSource | None = ...,
     ) -> None: ...
     def make_horizontal_divider(self, parent: QWidget) -> QWidget: ...
     def build_input_row(self, *args: Any, **kwargs: Any) -> BuiltFieldRow: ...
     def build_n_column_row(self, *args: Any, **kwargs: Any) -> BuiltFieldRow: ...
     def add_input_row(self, *args: Any, **kwargs: Any) -> Any: ...
     def add_n_column_row(self, *args: Any, **kwargs: Any) -> Any: ...
+    def gather_visible_keys(
+        self,
+        *,
+        input_keys: list[str],
+        field_groups: tuple[tuple[str, ...], ...],
+        skip_keys: set[str],
+    ) -> list[list[str]]: ...
 
 def apply_editor_row_height(widget: QWidget) -> None: ...
 def apply_editor_control_height(widget: QWidget) -> None: ...
+def make_grouped_field_divider(
+    parent: QWidget,
+    *,
+    field_key: Any = ...,
+) -> QWidget: ...
 def bind_field_widget_card_relayout(
     *,
     field_widget: QWidget,

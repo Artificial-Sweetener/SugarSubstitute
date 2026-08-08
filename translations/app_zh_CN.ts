@@ -59,7 +59,7 @@
   <context>
     <name>AppText</name>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="968"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="967"></location>
       <source>"%1"</source>
       <translation>“%1”</translation>
     </message>
@@ -90,7 +90,7 @@ Prompt preview:
       <translation>%1：%2。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="408"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="406"></location>
       <source>%1 (%2)</source>
       <translation>%1（%2）</translation>
     </message>
@@ -100,7 +100,7 @@ Prompt preview:
       <translation>%1（已绕过）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="189"></location>
+      <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="193"></location>
       <source>%1 Canvas</source>
       <translation>%1 画布</translation>
     </message>
@@ -200,7 +200,7 @@ Prompt preview:
       <translation>%1 个输出</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="906"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="905"></location>
       <source>%1 posts</source>
       <translation>%1 个帖子</translation>
     </message>
@@ -225,27 +225,27 @@ Prompt preview:
       <translation>有 %1 个已保存的设置项需要修复，之后才能打开 Substitute。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="328"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="325"></location>
       <source>%1 uses %2, but CivitAI did not find a matching download.</source>
       <translation>%1 使用了 %2，但 CivitAI 未找到匹配的下载项。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="334"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="331"></location>
       <source>%1 uses %2, but CivitAI did not offer a safe download.</source>
       <translation>%1 使用 %2，但 CivitAI 未提供安全的下载。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="320"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="317"></location>
       <source>%1 uses %2, which is missing.</source>
       <translation>%1 使用了缺失的 %2。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="345"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="342"></location>
       <source>%1 uses %2. Download information is unavailable.</source>
       <translation>%1 使用了 %2，但下载信息不可用。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="340"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="337"></location>
       <source>%1 uses %2. Turn on CivitAI model lookup in Settings to search for it.</source>
       <translation>%1 使用了 %2。请在“设置”中开启 CivitAI 模型查找以搜索该模型。</translation>
     </message>
@@ -260,7 +260,7 @@ Prompt preview:
       <translation>%1 个通配符</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="371"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="367"></location>
       <source>%1 | Current: v%2 | Available: v%3</source>
       <translation>%1 | 当前：v%2 | 可用：v%3</translation>
     </message>
@@ -285,7 +285,7 @@ Prompt preview:
       <translation>%1 · %2 · 有可用更新</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="831"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="812"></location>
       <source>%1 • %2</source>
       <translation>%1 • %2</translation>
     </message>
@@ -310,7 +310,7 @@ Prompt preview:
       <translation>%1/%2：找到 %3 个%4。方块：%5。%6</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="780"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="761"></location>
       <source>%1: %2</source>
       <translation>%1：%2</translation>
     </message>
@@ -460,7 +460,7 @@ Prompt preview:
       <translation>正在激活位于 %2:%3 的 %1 Comfy 目标。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/cube_library_page.py" line="259"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="102"></location>
       <source>Add</source>
       <translation>添加</translation>
     </message>
@@ -480,7 +480,7 @@ Prompt preview:
       <translation>添加立方体</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="521"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="520"></location>
       <source>Add cubes</source>
       <translation>添加立方体</translation>
     </message>
@@ -520,7 +520,7 @@ Prompt preview:
       <translation>高级选项</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="348"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="344"></location>
       <source>Affected cubes</source>
       <translation>受影响的 Cube</translation>
     </message>
@@ -570,7 +570,7 @@ Prompt preview:
       <translation>同时在每个标准配方 PNG 旁保存一张 JPEG。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="408"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="404"></location>
       <source>Always use newest version</source>
       <translation>始终使用最新版本</translation>
     </message>
@@ -578,6 +578,11 @@ Prompt preview:
       <location filename="../substitute/presentation/editor/prompt_editor/projection/builder.py" line="964"></location>
       <source>Ambiguous</source>
       <translation>匹配不明确</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="249"></location>
+      <source>Anchor point</source>
+      <translation>锚点</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_controller.py" line="812"></location>
@@ -595,7 +600,7 @@ Prompt preview:
       <translation>应用菜单</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="50"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="64"></location>
       <source>Apply</source>
       <translation>应用</translation>
     </message>
@@ -675,7 +680,7 @@ Prompt preview:
       <translation>可用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="520"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="519"></location>
       <source>Back</source>
       <translation>返回</translation>
     </message>
@@ -740,7 +745,7 @@ Prompt preview:
       <translation>受阻</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="74"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
       <source>Blue</source>
       <translation>蓝色</translation>
     </message>
@@ -810,7 +815,7 @@ Prompt preview:
       <translation>缓存用量</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="915"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="914"></location>
       <source>Cached copy</source>
       <translation>缓存的副本</translation>
     </message>
@@ -820,7 +825,7 @@ Prompt preview:
       <translation>可安装</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="58"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_coverage_editor.py" line="72"></location>
       <source>Cancel</source>
       <translation>取消</translation>
     </message>
@@ -853,6 +858,11 @@ Prompt preview:
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2097"></location>
       <source>Cancelling the model download.</source>
       <translation>正在取消模型下载。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="171"></location>
+      <source>Change canvas resolution</source>
+      <translation>更改画布分辨率</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
@@ -1020,12 +1030,17 @@ Prompt preview:
       <translation>选择文件夹并将 Substitute 连接到 ComfyUI。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="120"></location>
+      <source>Choose a new size for the Input canvas and its masks</source>
+      <translation>为输入画布及其遮罩选择新尺寸</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="1174"></location>
       <source>Choose a shorter folder for this operation.</source>
       <translation>请为此操作选择较短的文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="265"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="261"></location>
       <source>Choose a specific cube version</source>
       <translation>选择特定的立方体版本</translation>
     </message>
@@ -1075,7 +1090,17 @@ Prompt preview:
       <translation>选择 SugarSubstitute 显示文本的方式。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="260"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="295"></location>
+      <source>Choose how regional mask pixels are resampled.</source>
+      <translation>选择区域蒙版像素的重采样方式。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="174"></location>
+      <source>Choose how the Input canvas and its regional masks should fit the new size.</source>
+      <translation>选择输入画布及其区域遮罩适应新尺寸的方式。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="256"></location>
       <source>Choose how this workflow cube should handle the update</source>
       <translation>选择此工作流立方体处理更新的方式</translation>
     </message>
@@ -1155,7 +1180,12 @@ Prompt preview:
       <translation>选择 SugarSubstitute 使用的语言。更改会立即生效。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="405"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="251"></location>
+      <source>Choose the point that stays fixed while the canvas changes.</source>
+      <translation>选择画布变化时保持固定的点。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="401"></location>
       <source>Choose version...</source>
       <translation>选择版本...</translation>
     </message>
@@ -1220,7 +1250,7 @@ Prompt preview:
       <translation>选择设置方式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="109"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="106"></location>
       <source>CivitAI API key</source>
       <translation>CivitAI API 密钥</translation>
     </message>
@@ -1375,7 +1405,7 @@ Prompt preview:
       <translation>单击添加点，拖动移动，右键单击删除点。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_expandable_settings.py" line="55"></location>
+      <location filename="../substitute/presentation/canvas/input/input_expandable_settings.py" line="69"></location>
       <source>Close</source>
       <translation>关闭</translation>
     </message>
@@ -1620,7 +1650,7 @@ Prompt preview:
       <translation>ComfyUI 已就绪，但 %1 未能加载。使用此扩展的工作流可能会失败或显示缺失的节点。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="255"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="251"></location>
       <source>ComfyUI is ready, but it reported issues while loading.</source>
       <translation>ComfyUI 已就绪，但报告了加载问题。</translation>
     </message>
@@ -1705,7 +1735,7 @@ Prompt preview:
       <translation>ComfyUI 来源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="252"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="248"></location>
       <source>ComfyUI started with issues</source>
       <translation>ComfyUI 已启动，但存在问题</translation>
     </message>
@@ -1875,7 +1905,7 @@ Prompt preview:
       <translation>连续生成需要生成队列。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="46"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="60"></location>
       <source>Contract</source>
       <translation>收缩</translation>
     </message>
@@ -1905,7 +1935,7 @@ Prompt preview:
       <translation>复制所有输出</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="291"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="287"></location>
       <source>Copy report</source>
       <translation>复制报告</translation>
     </message>
@@ -1915,7 +1945,7 @@ Prompt preview:
       <translation>复制标签</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="534"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="533"></location>
       <source>Copy tag title</source>
       <translation>复制标签标题</translation>
     </message>
@@ -2085,7 +2115,7 @@ Prompt preview:
       <translation>立方体已禁用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="580"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="579"></location>
       <source>Cube library</source>
       <translation>立方体库</translation>
     </message>
@@ -2095,7 +2125,7 @@ Prompt preview:
       <translation>立方体选择器失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="656"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="655"></location>
       <source>Cube stack</source>
       <translation>立方体堆栈</translation>
     </message>
@@ -2105,7 +2135,7 @@ Prompt preview:
       <translation>Comfy 工作流不使用方块栈</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="225"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="221"></location>
       <source>Cube updates available</source>
       <translation>有可用的立方体更新</translation>
     </message>
@@ -2168,7 +2198,7 @@ Install these nodes now?</source>
       <translation>Danbooru 缓存用量</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1125"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1124"></location>
       <source>Danbooru did not respond. Try again in a moment.</source>
       <translation>Danbooru 未响应。请稍后重试。</translation>
     </message>
@@ -2178,22 +2208,22 @@ Install these nodes now?</source>
       <translation>Danbooru 图像分级</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1127"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1126"></location>
       <source>Danbooru returned content the app could not render safely.</source>
       <translation>Danbooru 返回的内容无法在应用中安全显示。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1108"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1107"></location>
       <source>Danbooru unavailable</source>
       <translation>Danbooru 不可用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="126"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="125"></location>
       <source>Danbooru wiki</source>
       <translation>Danbooru 百科</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="856"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="855"></location>
       <source>Danbooru wiki content could not be loaded unexpectedly.</source>
       <translation>由于意外错误，无法加载 Danbooru Wiki 内容。</translation>
     </message>
@@ -2208,22 +2238,22 @@ Install these nodes now?</source>
       <translation>默认</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1106"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1105"></location>
       <source>Definition not found</source>
       <translation>未找到定义</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1111"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1110"></location>
       <source>Definition unavailable</source>
       <translation>定义不可用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="651"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="649"></location>
       <source>Delete</source>
       <translation>删除</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="716"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="714"></location>
       <source>Delete '%1'?</source>
       <translation>删除“%1”？</translation>
     </message>
@@ -2233,7 +2263,7 @@ Install these nodes now?</source>
       <translation>请删除 %1 处未完成的文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="715"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="713"></location>
       <source>Delete wildcard</source>
       <translation>删除通配符</translation>
     </message>
@@ -2303,7 +2333,7 @@ Install these nodes now?</source>
       <translation>直接载入的 Comfy 工作流不包含 Cube 堆栈。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="633"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="631"></location>
       <source>Disable</source>
       <translation>禁用</translation>
     </message>
@@ -2313,12 +2343,12 @@ Install these nodes now?</source>
       <translation>已禁用</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="238"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="236"></location>
       <source>Discard</source>
       <translation>丢弃</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="304"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="302"></location>
       <source>Discard changes</source>
       <translation>放弃更改</translation>
     </message>
@@ -2333,7 +2363,7 @@ Install these nodes now?</source>
       <translation>下载 CivitAI 缩略图</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="211"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="208"></location>
       <source>Download and open recipe</source>
       <translation>下载并打开配方</translation>
     </message>
@@ -2403,7 +2433,7 @@ Install these nodes now?</source>
       <translation>重复片段警告</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="71"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="69"></location>
       <source>Edit Color</source>
       <translation>编辑颜色</translation>
     </message>
@@ -2413,7 +2443,7 @@ Install these nodes now?</source>
       <translation>编辑曲线（%1 个点）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="57"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="71"></location>
       <source>Edit layer coverage</source>
       <translation>编辑图层覆盖范围</translation>
     </message>
@@ -2493,7 +2523,7 @@ Install these nodes now?</source>
       <translation>橡皮擦</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="788"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="769"></location>
       <source>Error</source>
       <translation>错误</translation>
     </message>
@@ -2508,12 +2538,12 @@ Install these nodes now?</source>
       <translation>错误摘要</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="305"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="301"></location>
       <source>Errors</source>
       <translation>错误</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="337"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
       <source>Exception</source>
       <translation>异常</translation>
     </message>
@@ -2543,7 +2573,7 @@ Install these nodes now?</source>
       <translation>现有本地环境设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="45"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="59"></location>
       <source>Expand</source>
       <translation>扩展</translation>
     </message>
@@ -2593,7 +2623,7 @@ Install these nodes now?</source>
       <translation>失败 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="903"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="906"></location>
       <source>Failed to allocate output run number.</source>
       <translation>无法分配输出运行编号。</translation>
     </message>
@@ -2673,12 +2703,12 @@ Install these nodes now?</source>
       <translation>无法启动生成监听</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="47"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="61"></location>
       <source>Feather</source>
       <translation>羽化</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="667"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="666"></location>
       <source>Fetching Danbooru wiki content...</source>
       <translation>正在获取 Danbooru Wiki 内容...</translation>
     </message>
@@ -2743,12 +2773,12 @@ Install these nodes now?</source>
       <translation>修复已保存的设置，使 Substitute 可以再次打开。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="54"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="68"></location>
       <source>Flip horizontal</source>
       <translation>水平翻转</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="59"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="73"></location>
       <source>Flip vertical</source>
       <translation>垂直翻转</translation>
     </message>
@@ -2763,7 +2793,7 @@ Install these nodes now?</source>
       <translation>文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_preset_menu_source.py" line="95"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="82"></location>
       <source>For %1</source>
       <translation>用于 %1</translation>
     </message>
@@ -2773,7 +2803,7 @@ Install these nodes now?</source>
       <translation>强制使用 CPU 模式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="527"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="526"></location>
       <source>Forward</source>
       <translation>前进</translation>
     </message>
@@ -2833,7 +2863,7 @@ Install these nodes now?</source>
       <translation>无法生成，因为每个立方体都有运行时错误。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1093"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1097"></location>
       <source>Generation dispatch failed.</source>
       <translation>生成任务派发失败。</translation>
     </message>
@@ -2903,7 +2933,7 @@ Install these nodes now?</source>
       <translation>需要 GitHub URL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_preset_menu_source.py" line="106"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="92"></location>
       <source>Global</source>
       <translation>全局</translation>
     </message>
@@ -2918,7 +2948,7 @@ Install these nodes now?</source>
       <translation>前往 CivitAI 页面</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="73"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="71"></location>
       <source>Green</source>
       <translation>绿色</translation>
     </message>
@@ -2933,7 +2963,7 @@ Install these nodes now?</source>
       <translation>硬度</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="43"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="203"></location>
       <source>Height</source>
       <translation>高度</translation>
     </message>
@@ -2993,7 +3023,7 @@ Install these nodes now?</source>
       <translation>隐藏生成控件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="358"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
       <source>Hide report</source>
       <translation>隐藏报告</translation>
     </message>
@@ -3043,7 +3073,7 @@ Install these nodes now?</source>
       <translation>忽略重复项</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="416"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="412"></location>
       <source>Ignore selected</source>
       <translation>忽略所选项</translation>
     </message>
@@ -3053,12 +3083,12 @@ Install these nodes now?</source>
       <translation>忽略拼写</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="341"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="337"></location>
       <source>Ignore this startup issue next time</source>
       <translation>下次忽略此启动问题</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="314"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="310"></location>
       <source>Ignored</source>
       <translation>已忽略</translation>
     </message>
@@ -3088,7 +3118,7 @@ Install these nodes now?</source>
       <translation>独立</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="792"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="773"></location>
       <source>Info</source>
       <translation>信息</translation>
     </message>
@@ -3213,7 +3243,7 @@ Install these nodes now?</source>
       <translation>JPEG 大小</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="301"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="297"></location>
       <source>Keep current</source>
       <translation>保留当前版本</translation>
     </message>
@@ -3223,7 +3253,7 @@ Install these nodes now?</source>
       <translation>保留默认值，或将 Substitute 指向您的文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="396"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="392"></location>
       <source>Keep v%1</source>
       <translation>保留 v%1</translation>
     </message>
@@ -3298,7 +3328,7 @@ Install these nodes now?</source>
       <translation>潜空间 RGB</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="180"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="176"></location>
       <source>Later</source>
       <translation>稍后</translation>
     </message>
@@ -3423,12 +3453,12 @@ Install these nodes now?</source>
       <translation>正在加载当前目标的立方体库状态。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="666"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="665"></location>
       <source>Loading definition</source>
       <translation>正在加载定义</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="278"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="275"></location>
       <source>Loading...</source>
       <translation>正在加载...</translation>
     </message>
@@ -3473,7 +3503,7 @@ Install these nodes now?</source>
       <translation>查找和下载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="855"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="854"></location>
       <source>Lookup failed</source>
       <translation>查找失败</translation>
     </message>
@@ -3523,7 +3553,7 @@ Install these nodes now?</source>
       <translation>请确保此计算机可以连接到远程 ComfyUI 服务器。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1110"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1109"></location>
       <source>Malformed Danbooru response</source>
       <translation>Danbooru 响应格式错误</translation>
     </message>
@@ -3573,17 +3603,17 @@ Install these nodes now?</source>
       <translation>手动刷新元数据需要模型类型和值。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="702"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="681"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>无法验证蒙版尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="639"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="618"></location>
       <source>Mask dimensions do not match</source>
       <translation>蒙版尺寸不匹配</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_mask_layer_button.py" line="39"></location>
+      <location filename="../substitute/presentation/canvas/input/input_mask_layer_button.py" line="53"></location>
       <source>Mask layer</source>
       <translation>蒙版图层</translation>
     </message>
@@ -3643,7 +3673,7 @@ Install these nodes now?</source>
       <translation>缺少字段：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="135"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="132"></location>
       <source>Missing model</source>
       <translation>缺失的模型</translation>
     </message>
@@ -3673,7 +3703,7 @@ Install these nodes now?</source>
       <translation>无法下载模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="394"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="391"></location>
       <source>Model file</source>
       <translation>模型文件</translation>
     </message>
@@ -3698,7 +3728,7 @@ Install these nodes now?</source>
       <translation>模型文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_selection_contextual_toolbar.py" line="39"></location>
+      <location filename="../substitute/presentation/canvas/input/input_selection_contextual_toolbar.py" line="53"></location>
       <source>Modify selection</source>
       <translation>修改选区</translation>
     </message>
@@ -3728,7 +3758,7 @@ Install these nodes now?</source>
       <translation>移动</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/drag_handle.py" line="36"></location>
+      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/drag_handle.py" line="50"></location>
       <source>Move Contextual Toolbar</source>
       <translation>移动上下文工具栏</translation>
     </message>
@@ -3743,9 +3773,14 @@ Install these nodes now?</source>
       <translation>上移</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/save_preset_dialog.py" line="74"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="179"></location>
       <source>Name</source>
       <translation>名称</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="305"></location>
+      <source>Nearest Neighbor</source>
+      <translation>最近邻</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/interactions/parenthesis_education_controller.py" line="69"></location>
@@ -3783,6 +3818,11 @@ Install these nodes now?</source>
       <translation>新建自定义列表</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="184"></location>
+      <source>New size</source>
+      <translation>新尺寸</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="340"></location>
       <source>Next</source>
       <translation>下一步</translation>
@@ -3813,7 +3853,7 @@ Install these nodes now?</source>
       <translation>未跟踪任何立方体包</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1120"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1119"></location>
       <source>No Danbooru wiki page was found for "%1".</source>
       <translation>未找到“%1”的 Danbooru 百科页面。</translation>
     </message>
@@ -3833,7 +3873,7 @@ Install these nodes now?</source>
       <translation>没有可用的兼容操作系统凭据存储。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1111"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1110"></location>
       <source>No cubes available</source>
       <translation>没有可用的方块</translation>
     </message>
@@ -3878,7 +3918,7 @@ Install these nodes now?</source>
       <translation>无需关闭托管进程。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1113"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1112"></location>
       <source>No matching cubes</source>
       <translation>没有匹配的方块</translation>
     </message>
@@ -3913,7 +3953,7 @@ Install these nodes now?</source>
       <translation>尚未验证任何仓库。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="487"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="485"></location>
       <source>No selection</source>
       <translation>未选择</translation>
     </message>
@@ -3928,12 +3968,12 @@ Install these nodes now?</source>
       <translation>没有拼写建议</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="255"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="252"></location>
       <source>No thumbnail</source>
       <translation>无缩略图</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="335"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="331"></location>
       <source>Node</source>
       <translation>节点</translation>
     </message>
@@ -3958,7 +3998,7 @@ Install these nodes now?</source>
       <translation>节点上下文</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="344"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="340"></location>
       <source>Node errors</source>
       <translation>节点错误</translation>
     </message>
@@ -4008,7 +4048,7 @@ Install these nodes now?</source>
       <translation>要加入队列的生成任务数</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="47"></location>
+      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="38"></location>
       <source>OK</source>
       <translation>确定</translation>
     </message>
@@ -4028,7 +4068,7 @@ Install these nodes now?</source>
       <translation>提供经验证的模型下载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="578"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="577"></location>
       <source>On Pixiv:</source>
       <translation>在 Pixiv 上：</translation>
     </message>
@@ -4053,7 +4093,7 @@ Install these nodes now?</source>
       <translation>在 Photoshop 中打开全部</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="198"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="195"></location>
       <source>Open CivitAI Settings</source>
       <translation>打开 CivitAI 设置</translation>
     </message>
@@ -4113,7 +4153,7 @@ Install these nodes now?</source>
       <translation>打开设置向导</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="541"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="540"></location>
       <source>Open tag wiki article in browser</source>
       <translation>在浏览器中打开标签百科文章</translation>
     </message>
@@ -4283,7 +4323,7 @@ Install these nodes now?</source>
       <translation>选择符合当前情况的设置方式。如果工作流发生变化，之后可以更改。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="78"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="92"></location>
       <source>Pixels</source>
       <translation>像素</translation>
     </message>
@@ -4353,7 +4393,7 @@ Install these nodes now?</source>
       <translation>可能存在拼写问题：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="762"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="761"></location>
       <source>Posts</source>
       <translation>帖子</translation>
     </message>
@@ -4403,6 +4443,16 @@ Install these nodes now?</source>
       <translation>正在准备您现有的 ComfyUI 环境。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="306"></location>
+      <source>Preserves hard mask edges by copying the nearest pixel without blending.</source>
+      <translation>通过复制最近的像素而不进行混合，保留清晰的蒙版边缘。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="212"></location>
+      <source>Preset</source>
+      <translation>预设</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/controls_page.py" line="401"></location>
       <source>Press a key combination...</source>
       <translation>请按下一个组合键...</translation>
@@ -4443,7 +4493,7 @@ Install these nodes now?</source>
       <translation>项目</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="329"></location>
       <source>Prompt</source>
       <translation>提示词</translation>
     </message>
@@ -4541,6 +4591,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/about/about_info_service.py" line="102"></location>
       <source>QPane</source>
       <translation>QPane</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="310"></location>
+      <source>Qt Smooth</source>
+      <translation>Qt 平滑</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/comfy_runtime_actions.py" line="92"></location>
@@ -4648,7 +4703,7 @@ Install these nodes now?</source>
       <translation>矩形选区</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="72"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="70"></location>
       <source>Red</source>
       <translation>红色</translation>
     </message>
@@ -4663,7 +4718,7 @@ Install these nodes now?</source>
       <translation>重新停靠画布</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="200"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="222"></location>
       <source>Referenced local image file does not exist.</source>
       <translation>引用的本地图像文件不存在。</translation>
     </message>
@@ -4683,7 +4738,7 @@ Install these nodes now?</source>
       <translation>在后台刷新缓存内容</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="525"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="524"></location>
       <source>Refresh catalog</source>
       <translation>刷新目录</translation>
     </message>
@@ -4698,7 +4753,7 @@ Install these nodes now?</source>
       <translation>重启请求发出后，正在刷新 Cube Library。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1544"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1543"></location>
       <source>Refreshing...</source>
       <translation>正在刷新...</translation>
     </message>
@@ -4793,7 +4848,7 @@ Install these nodes now?</source>
       <translation>正在移除计划的更改。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="642"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="178"></location>
       <source>Rename</source>
       <translation>重命名</translation>
     </message>
@@ -4838,12 +4893,12 @@ Install these nodes now?</source>
       <translation>修复过程将重新安装 ComfyUI，并使用与检测到的加速器匹配的后端。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="888"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="869"></location>
       <source>Report issue</source>
       <translation>报告问题</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="877"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="858"></location>
       <source>Repository</source>
       <translation>仓库</translation>
     </message>
@@ -4907,7 +4962,7 @@ No known extension claimant.</source>
       <translation>所需的自定义节点均已安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="172"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="194"></location>
       <source>Required image input has no selected image.</source>
       <translation>必需的图像输入尚未选择图像。</translation>
     </message>
@@ -4917,9 +4972,19 @@ No known extension claimant.</source>
       <translation>已安装所需节点</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="704"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="703"></location>
       <source>Reset</source>
       <translation>重置</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="69"></location>
+      <source>Resize canvas</source>
+      <translation>调整画布尺寸</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="173"></location>
+      <source>Resize canvas only</source>
+      <translation>仅调整画布大小</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="298"></location>
@@ -4962,7 +5027,7 @@ No known extension claimant.</source>
       <translation>此服务器不支持重启。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="191"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="187"></location>
       <source>Restart now</source>
       <translation>立即重启</translation>
     </message>
@@ -4972,7 +5037,7 @@ No known extension claimant.</source>
       <translation>已请求重启。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="122"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="118"></location>
       <source>Restart required</source>
       <translation>需要重启</translation>
     </message>
@@ -5067,7 +5132,7 @@ No known extension claimant.</source>
       <translation>请查看启动日志，然后更新或禁用超时前最后加载的组件。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="814"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="795"></location>
       <source>Review the startup report.</source>
       <translation>查看启动报告。</translation>
     </message>
@@ -5077,12 +5142,12 @@ No known extension claimant.</source>
       <translation>富文本提示词渲染</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="44"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="58"></location>
       <source>Rotate left</source>
       <translation>向左旋转</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="49"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="63"></location>
       <source>Rotate right</source>
       <translation>向右旋转</translation>
     </message>
@@ -5182,7 +5247,7 @@ No known extension claimant.</source>
       <translation>保存并继续</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="302"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="300"></location>
       <source>Save changes</source>
       <translation>保存更改</translation>
     </message>
@@ -5202,7 +5267,7 @@ No known extension claimant.</source>
       <translation>保存每个立方体的输出，或仅保存最后一个活动立方体的输出。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="421"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="450"></location>
       <source>Save for %1</source>
       <translation>为 %1 保存</translation>
     </message>
@@ -5210,6 +5275,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
       <source>Save globally</source>
       <translation>全局保存</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="191"></location>
+      <source>Save or Load preset</source>
+      <translation>保存或加载预设</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/workflows/cube_item.py" line="273"></location>
@@ -5257,6 +5327,16 @@ No known extension claimant.</source>
       <translation>正在保存您的设置选项。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="229"></location>
+      <source>Scale canvas and masks</source>
+      <translation>缩放画布和蒙版</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="292"></location>
+      <source>Scaling quality</source>
+      <translation>缩放质量</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="455"></location>
       <source>Scene</source>
       <translation>场景</translation>
@@ -5287,7 +5367,7 @@ No known extension claimant.</source>
       <translation>搜索 %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="585"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="584"></location>
       <source>Search cubes</source>
       <translation>搜索立方体</translation>
     </message>
@@ -5542,7 +5622,7 @@ No known extension claimant.</source>
       <translation>在百科查看器中显示图像</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="358"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
       <source>Show report</source>
       <translation>显示报告</translation>
     </message>
@@ -5552,7 +5632,7 @@ No known extension claimant.</source>
       <translation>ComfyUI 生成时显示采样器预览帧。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1566"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1565"></location>
       <source>Showing stale catalog</source>
       <translation>正在显示旧版目录</translation>
     </message>
@@ -5622,7 +5702,7 @@ No known extension claimant.</source>
       <translation>智能选择</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="167"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="164"></location>
       <source>Some CivitAI downloads require an API key. Paste it here to use it for this download and save it for next time.</source>
       <translation>部分 CivitAI 下载需要 API 密钥。请在此粘贴密钥，以用于本次下载并保存供下次使用。</translation>
     </message>
@@ -5667,7 +5747,7 @@ No known extension claimant.</source>
       <translation>拼写检查</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="325"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="321"></location>
       <source>Stage</source>
       <translation>阶段</translation>
     </message>
@@ -6182,7 +6262,7 @@ No known extension claimant.</source>
       <translation>Substitute 已保存的文件夹设置需要修复</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2854"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2859"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6372,6 +6452,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>交换宽度和高度</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="217"></location>
+      <source>Swap width and height</source>
+      <translation>交换宽度和高度</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/controls_page.py" line="97"></location>
       <source>Switches the primary Generate control and updates its visible mode.</source>
       <translation>切换主要的生成控件并更新其可见模式。</translation>
@@ -6532,6 +6617,16 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>已连接的 ComfyUI 环境不满足更新后的要求。请先修复该环境再继续。%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="381"></location>
+      <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
+      <translation>此对话框打开期间画布已发生变化。请检查当前尺寸后重试。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="391"></location>
+      <source>The canvas could not be resized. Nothing was changed.</source>
+      <translation>无法调整画布尺寸。未进行任何更改。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="175"></location>
       <source>The defaults usually work well for first-time setup.</source>
       <translation>这些默认值通常很适合首次设置。</translation>
@@ -6632,7 +6727,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>配方已加载，但立方体库报告了警告。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1128"></location>
+      <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1127"></location>
       <source>The requested definition is not available.</source>
       <translation>请求的定义不可用。</translation>
     </message>
@@ -6682,12 +6777,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>所选文件夹不是完整的 ComfyUI 安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="704"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="683"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>无法根据已加载的输入图像验证所选蒙版尺寸。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="641"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="620"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>所选蒙版尺寸与已加载的输入图像不匹配。</translation>
     </message>
@@ -6742,6 +6837,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法将工作流加入队列。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="399"></location>
+      <source>The workflow dimensions could not be updated, so the canvas change was undone.</source>
+      <translation>无法更新工作流尺寸，因此已撤销画布更改。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/appearance/appearance_restart_coordinator.py" line="86"></location>
       <source>Theme mode</source>
       <translation>主题模式</translation>
@@ -6757,7 +6857,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="125"></location>
+      <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="121"></location>
       <source>These changes will apply after restart.</source>
       <translation>这些更改将在重启后应用。</translation>
     </message>
@@ -6777,7 +6877,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>首次执行可能需要一些时间。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="414"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="411"></location>
       <source>This cube</source>
       <translation>此立方体</translation>
     </message>
@@ -6807,17 +6907,17 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>Substitute 会将 ComfyUI 放在这里。大多数用户可以保留默认位置。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="359"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="356"></location>
       <source>This recipe uses a model that is not available in your current ComfyUI model folders. Turn on CivitAI model lookup in Settings to search for it.</source>
       <translation>此配方使用的模型不在当前 ComfyUI 模型文件夹中。请在“设置”中开启 CivitAI 模型查找以搜索该模型。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="369"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="366"></location>
       <source>This recipe uses a model that is not available in your current ComfyUI model folders. We could not find an automatic download that is safe to offer.</source>
       <translation>此配方使用的模型不在当前 ComfyUI 模型文件夹中。我们未找到可安全提供的自动下载项。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="364"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="361"></location>
       <source>This recipe uses a model that is not in your current ComfyUI model folders. We found a matching file on CivitAI and can download it for you, then open the recipe.</source>
       <translation>此配方使用的模型不在当前 ComfyUI 模型文件夹中。我们在 CivitAI 上找到了匹配文件，可以替您下载后打开配方。</translation>
     </message>
@@ -6902,7 +7002,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>变换</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="37"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="51"></location>
       <source>Transform selection</source>
       <translation>变换选区</translation>
     </message>
@@ -6922,7 +7022,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>重试</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="579"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="577"></location>
       <source>Unable to apply changes</source>
       <translation>无法应用更改</translation>
     </message>
@@ -6932,37 +7032,42 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法复制输出图像。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="608"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="606"></location>
       <source>Unable to create asset</source>
       <translation>无法创建资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="724"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="722"></location>
       <source>Unable to delete asset</source>
       <translation>无法删除资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="202"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="200"></location>
       <source>Unable to load assets</source>
       <translation>无法加载资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="466"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="464"></location>
       <source>Unable to read asset</source>
       <translation>无法读取资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1553"></location>
+      <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1552"></location>
       <source>Unable to refresh catalog</source>
       <translation>无法刷新目录</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="679"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="677"></location>
       <source>Unable to rename asset</source>
       <translation>无法重命名资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="544"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="186"></location>
+      <source>Unable to resize canvas</source>
+      <translation>无法调整画布尺寸</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="542"></location>
       <source>Unable to save asset</source>
       <translation>无法保存资源</translation>
     </message>
@@ -6972,7 +7077,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法传输输出图像。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="702"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="700"></location>
       <source>Unable to update asset</source>
       <translation>无法更新资源</translation>
     </message>
@@ -7042,7 +7147,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>请更新 ComfyUI 依赖项并重新启动应用程序。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="400"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="396"></location>
       <source>Update all v%1 instances</source>
       <translation>更新所有 v%1 实例</translation>
     </message>
@@ -7052,7 +7157,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>有可用更新</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="309"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="305"></location>
       <source>Update selected</source>
       <translation>更新所选项</translation>
     </message>
@@ -7067,17 +7172,17 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>请先更新此扩展。如果仍然失败，请向维护者报告。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="248"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="244"></location>
       <source>Update this workflow cube to the latest version</source>
       <translation>将此工作流立方体更新到最新版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="389"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="385"></location>
       <source>Update to v%1</source>
       <translation>更新到 v%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="228"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="224"></location>
       <source>Updated versions are available for loaded cubes.</source>
       <translation>已加载的立方体有新版本可用。</translation>
     </message>
@@ -7232,6 +7337,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>用于验证失败和错误突出显示。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="311"></location>
+      <source>Uses Qt smooth scaling to blend neighboring pixels for softer resized masks.</source>
+      <translation>使用 Qt 平滑缩放混合相邻像素，使调整大小后的蒙版更加柔和。</translation>
+    </message>
+    <message>
       <location filename="../substitute/infrastructure/comfy/attached_install.py" line="101"></location>
       <source>Using ComfyUI Python %1 (%2) at %3.</source>
       <translation>正在使用位于 %3 的 ComfyUI Python %1（%2）。</translation>
@@ -7287,7 +7397,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>视觉自定义。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="72"></location>
+      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="86"></location>
       <source>Visual opacity</source>
       <translation>视觉不透明度</translation>
     </message>
@@ -7317,7 +7427,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>正在等待下载开始...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="790"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="771"></location>
       <source>Warning</source>
       <translation>警告</translation>
     </message>
@@ -7327,7 +7437,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>警告颜色</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="310"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="306"></location>
       <source>Warnings</source>
       <translation>警告</translation>
     </message>
@@ -7372,7 +7482,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>设置为何在此暂停</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="42"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="199"></location>
       <source>Width</source>
       <translation>宽度</translation>
     </message>
@@ -7412,7 +7522,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>Windows 将每个文件或文件夹名称限制为 255 个字符。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="327"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="323"></location>
       <source>Workflow</source>
       <translation>工作流</translation>
     </message>
@@ -7547,12 +7657,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>[验证] PyTorch=%1 后端=%2 频道=%3 设备=%4</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="422"></location>
+      <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="419"></location>
       <source>a model</source>
       <translation>模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="85"></location>
       <source>by</source>
       <translation>幅度</translation>
     </message>
@@ -7632,17 +7742,17 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>源代码检出版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="329"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="325"></location>
       <source>unknown</source>
       <translation>未知</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="474"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="470"></location>
       <source>v%1  Current</source>
       <translation>v%1  当前</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="472"></location>
+      <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="468"></location>
       <source>v%1  Newest</source>
       <translation>v%1  最新</translation>
     </message>

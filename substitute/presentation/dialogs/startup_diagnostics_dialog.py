@@ -46,7 +46,6 @@ from typing import Protocol, cast
 from PySide6.QtCore import QRectF, Qt, QPropertyAnimation, QUrl
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QPainter, QPaintEvent
 from PySide6.QtWidgets import (
-    QApplication,
     QCheckBox,
     QFrame,
     QGridLayout,
@@ -61,14 +60,13 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon as FIF,
     InfoBarIcon,
-    MessageBoxBase,
     PlainTextEdit,
     PushButton,
     StrongBodyLabel,
     Theme,
     drawIcon,
 )
-from shiboken6 import isValid
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
 from substitute.presentation.motion import (
     ENTER_EASING_CURVE,
@@ -99,7 +97,6 @@ _CLOSE_BUTTON_MINIMUM_WIDTH = 88
 _ACTION_BUTTON_MINIMUM_WIDTH = 108
 _HEADER_ICON_TEXT_SPACING = 12
 _REPORT_TOGGLE_DURATION_MS = 160
-_FALLBACK_PARENT: QWidget | None = None
 _LOG = logging.getLogger(__name__)
 
 
@@ -143,7 +140,7 @@ class StartupDiagnosticsIncidentView(Protocol):
         """Return structured incident metadata."""
 
 
-class StartupDiagnosticsDialog(MessageBoxBase):  # type: ignore[misc]
+class StartupDiagnosticsDialog(FullWindowModalBase):
     """Show recoverable Comfy startup incidents with per-incident ignore choices."""
 
     def __init__(
@@ -157,8 +154,7 @@ class StartupDiagnosticsDialog(MessageBoxBase):  # type: ignore[misc]
     ) -> None:
         """Build the startup diagnostics summary dialog."""
 
-        parent_widget = _resolve_parent(parent)
-        super().__init__(parent_widget)
+        super().__init__(parent)
         self._incidents = tuple(incidents)
         self._report_text = report_text
         self._ignored_count = ignored_count
@@ -166,7 +162,7 @@ class StartupDiagnosticsDialog(MessageBoxBase):  # type: ignore[misc]
         self._checkboxes: dict[str, QCheckBox] = {}
         self._details_visible = False
         self._details_animation_target_visible = False
-        self._dialog_max_height = _dialog_max_height(parent_widget)
+        self._dialog_max_height = _dialog_max_height(self.modal_owner)
 
         self.setClosableOnMaskClicked(False)
         self.setModal(True)
@@ -689,21 +685,6 @@ class StartupDiagnosticsSummaryTileIconWidget(QWidget):
         if not callable(path):
             return None
         return cast("str", path(Theme.LIGHT))
-
-
-def _resolve_parent(parent: object | None) -> QWidget:
-    """Return a QWidget parent because qfluent mask dialogs require one."""
-
-    if isinstance(parent, QWidget) and isValid(parent):
-        return parent
-    active_window = QApplication.activeWindow()
-    if isinstance(active_window, QWidget) and isValid(active_window):
-        return active_window
-    global _FALLBACK_PARENT
-    if _FALLBACK_PARENT is None or not isValid(_FALLBACK_PARENT):
-        _FALLBACK_PARENT = QWidget()
-        _FALLBACK_PARENT.resize(1024, 768)
-    return _FALLBACK_PARENT
 
 
 def _dialog_max_height(parent: QWidget) -> int:

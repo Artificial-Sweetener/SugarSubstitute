@@ -166,6 +166,7 @@ from ..interactions.reorder_preview_publication import (
     PromptReorderPreviewPublicationOwner,
 )
 from ..interactions.region_pointer_controller import PromptRegionPointerController
+from ..interactions.region_inline_editor import PromptRegionInlineEditor
 from ..lora_thumbnail_cache import PromptLoraThumbnailCache
 from ..overlays import (
     PromptAutocompleteLoraWall,
@@ -469,12 +470,19 @@ class PromptEditorCompositionFactory:
         surface.set_defer_source_rebuilds_until_prompt_state(True)
         edit_execution = surface.edit_execution
         source_commands = surface.source_commands
+        region_inline_editor = PromptRegionInlineEditor(
+            viewport=surface.viewport(),
+            target_provider=surface.region_edit_target,
+            scroll_offset=surface.projection_scroll_offset,
+            active_region_sink=surface.set_region_editing,
+            draft_sink=surface.set_region_editing_draft,
+        )
         region_pointer_controller = PromptRegionPointerController(
-            parent=context.editor,
             document_view=surface.prompt_document_view,
             source_commands=source_commands,
             scroll_offset=surface.projection_scroll_offset,
             cursor_position=lambda: surface.cursor_position,
+            inline_editor=region_inline_editor,
             hover_sink=lambda index: _publish_region_hover(
                 context.editor,
                 surface,

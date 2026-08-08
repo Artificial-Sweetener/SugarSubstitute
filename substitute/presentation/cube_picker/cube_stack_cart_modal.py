@@ -61,12 +61,12 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (  # type: ignore[import-untyped]
     CaptionLabel,
     FluentIcon,
-    MessageBoxBase,
     ScrollArea,
     SearchLineEdit,
     StrongBodyLabel,
     ToolButton,
 )
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
 from substitute.application.cubes import (
     CubePickerClassification,
@@ -104,7 +104,6 @@ from substitute.shared.logging.logger import (
 )
 
 _LOGGER = get_logger("presentation.cube_picker.stack_cart_modal")
-_FALLBACK_PARENT: QWidget | None = None
 _MODAL_MINIMUM_HEIGHT = 360
 _MODAL_OWNER_HEIGHT_FRACTION = 0.88
 _PANE_MARGIN = 0
@@ -156,7 +155,7 @@ CubePickerClassifyCallback = Callable[
 ]
 
 
-class CubeStackCartModal(MessageBoxBase):  # type: ignore[misc]
+class CubeStackCartModal(FullWindowModalBase):
     """Edit the current cube stack as a QFluent cart-style modal."""
 
     def __init__(
@@ -190,7 +189,7 @@ class CubeStackCartModal(MessageBoxBase):  # type: ignore[misc]
             has_classify_records=classify_records is not None,
         )
         phase_started_at = perf_counter()
-        super().__init__(parent or _fallback_parent())
+        super().__init__(parent)
         log_timing(
             _LOGGER,
             "Cube cart modal super init completed",
@@ -1647,19 +1646,6 @@ def _elapsed_ms(started_at: float) -> float:
     """Return elapsed milliseconds for cube cart performance logs."""
 
     return max(0.0, (perf_counter() - started_at) * 1000.0)
-
-
-def _fallback_parent() -> QWidget:
-    """Return a safe parent for QFluent dialogs opened without a caller."""
-
-    global _FALLBACK_PARENT
-    active_window = QApplication.activeWindow()
-    if active_window is not None:
-        return active_window
-    if _FALLBACK_PARENT is None:
-        _FALLBACK_PARENT = QWidget()
-        _FALLBACK_PARENT.resize(1200, 800)
-    return _FALLBACK_PARENT
 
 
 def _event_global_pos(event: QMouseEvent) -> QPoint:

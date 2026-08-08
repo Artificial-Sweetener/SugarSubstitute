@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtCore import QCoreApplication, QPoint, QRect, QSize, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QRect, QSize, Qt
 from PySide6.QtGui import QColor, QImage, QPainter
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
@@ -72,6 +72,17 @@ def test_input_document_uses_application_identity_for_persisted_compositions() -
     assert document.current_image_id() == first_image_id
     assert set(document.canvas.compositionIDs())
     assert first_image_id in document.canvas.compositionIDs()
+
+
+def test_input_document_close_is_idempotent() -> None:
+    """Repeated host teardown should close one Input document only once."""
+
+    _app()
+    document = InputCanvasDocument(features=("mask",))
+
+    document.close()
+    document.close()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 def test_input_document_exports_inactive_mask_without_route_mutation() -> None:

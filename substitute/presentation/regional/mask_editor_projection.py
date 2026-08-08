@@ -22,6 +22,9 @@ from dataclasses import dataclass
 
 from PySide6.QtWidgets import QWidget
 
+from substitute.application.workflows.regional_prompt_label_service import (
+    RegionalPromptLabelService,
+)
 from substitute.domain.common import MaskAssociationKey
 from substitute.domain.workflow import WorkflowState, workflow_asset_ref_authoring_value
 from substitute.presentation.editor.panel.widgets.fields.regional_mask_batch import (
@@ -34,11 +37,20 @@ class RegionalMaskEditorSnapshot:
     """Describe ordered values and selection rendered by one editor."""
 
     values: tuple[str, ...]
+    labels: tuple[str | None, ...]
     selected_index: int | None
 
 
 class RegionalMaskEditorProjector:
     """Own durable collection projection into regional mask editor surfaces."""
+
+    def __init__(
+        self,
+        labels: RegionalPromptLabelService | None = None,
+    ) -> None:
+        """Store the topology-owned regional label resolver."""
+
+        self._labels = labels or RegionalPromptLabelService()
 
     def snapshot(
         self,
@@ -65,6 +77,11 @@ class RegionalMaskEditorProjector:
                 else workflow_asset_ref_authoring_value(entry.asset_ref)
                 for entry in collection.entries
             ),
+            labels=self._labels.labels_for_mask(
+                workflow,
+                association_key,
+                region_count=len(collection.entries),
+            ),
             selected_index=selected_index,
         )
 
@@ -81,6 +98,7 @@ class RegionalMaskEditorProjector:
             return False
         editor.set_regions(
             list(snapshot.values),
+            labels=list(snapshot.labels),
             selected_index=snapshot.selected_index,
         )
         return True

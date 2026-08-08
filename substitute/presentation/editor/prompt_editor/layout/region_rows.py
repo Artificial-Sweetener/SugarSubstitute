@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Build half-height separator rows with caret geometry hosted outside them."""
+"""Build full-height separator rows with caret geometry hosted outside them."""
 
 from __future__ import annotations
 
@@ -50,9 +50,9 @@ class PromptRegionStructuralRowLayoutBuilder:
         leading_caret_rect: QRectF,
         metrics: PromptProjectionMetrics,
     ) -> PromptRegionStructuralRowLayout:
-        """Build a half row whose edge carets live on adjacent text lines."""
+        """Build a normal row whose edge carets live on adjacent text lines."""
 
-        row_height = metrics.initial_row_height() * 0.5
+        row_height = metrics.initial_row_height()
         trailing_caret_rect = metrics.caret_rect(
             x_left=content_left,
             row_top=top + row_height,

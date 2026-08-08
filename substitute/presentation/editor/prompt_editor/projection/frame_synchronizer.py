@@ -21,6 +21,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 
+from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QAbstractScrollArea
 
 from .applicator import PromptProjectionApplicator
@@ -103,6 +104,7 @@ class PromptProjectionFrameSynchronizer:
             if preview_frame is None
             else preview_frame.output,
             semantic_palette=semantic_palette,
+            text_color=self._host.palette().color(QPalette.ColorRole.Text),
         )
         self._source_document.sync_default_font(self._host.font())
         self._source_document.sync_text_width(layout_width)

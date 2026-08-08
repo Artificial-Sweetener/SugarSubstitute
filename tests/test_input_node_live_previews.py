@@ -24,15 +24,17 @@ from typing import Callable
 from uuid import UUID, uuid4
 
 from cutecanvas import (
+    CanvasRenderVariant,
     CanvasViewportInteraction,
     PixelSelectionMode,
     VectorShapeKind,
 )
-from PySide6.QtCore import QCoreApplication, QRect, QRectF, QSize, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QRect, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QImage, QPainter
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 import pytest
+from shiboken6 import isValid
 
 from substitute.application.workflows.input_canvas_models import (
     InputCanvasMaterializationResult,
@@ -48,12 +50,36 @@ from substitute.presentation.canvas.input.input_node_preview_widget import (
 )
 from substitute.presentation.editor.panel.widgets.fields.load_image import ImagePicker
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
+from substitute.presentation.editor.panel.widgets.fields.regional_mask_batch import (
+    RegionalMaskBatchEditor,
+)
 
 
 def _image(color: str, width: int = 160, height: int = 120) -> QImage:
     """Return one opaque image fixture."""
     image = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
     image.fill(QColor(color))
+    return image
+
+
+def _quadrant_image(width: int, height: int) -> QImage:
+    """Return four distinct corner regions for rendered-fit assertions."""
+
+    image = QImage(width, height, QImage.Format.Format_ARGB32_Premultiplied)
+    painter = QPainter(image)
+    half_width = width // 2
+    half_height = height // 2
+    painter.fillRect(0, 0, half_width, half_height, QColor("red"))
+    painter.fillRect(half_width, 0, width - half_width, half_height, QColor("lime"))
+    painter.fillRect(0, half_height, half_width, height - half_height, QColor("blue"))
+    painter.fillRect(
+        half_width,
+        half_height,
+        width - half_width,
+        height - half_height,
+        QColor("white"),
+    )
+    painter.end()
     return image
 
 
@@ -127,6 +153,102 @@ def _wait_until(predicate: Callable[[], bool], *, timeout: float = 2.0) -> None:
         if predicate():
             return
     raise AssertionError("timed out waiting for live preview pixels")
+
+
+def test_document_close_waits_for_main_and_preview_view_destruction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep the shared runtime open until every mounted CuteCanvas is destroyed."""
+
+    app = _app()
+    document = InputCanvasDocument(features=("mask",))
+    image_id = uuid4()
+    assert document.ensure_image_cached(image_id, _image("navy"), None)
+    binding = document.preview_bindings.image(image_id)
+    assert binding is not None
+    preview = InputNodePreviewWidget(binding)
+    main_canvas = document.canvas
+    preview_canvas = preview.canvas
+    runtime_close_calls: list[str] = []
+    original_runtime_close = document.runtime.close
+
+    def close_runtime() -> None:
+        """Record the runtime close after all registered views are gone."""
+
+        runtime_close_calls.append("close")
+        original_runtime_close()
+
+    monkeypatch.setattr(document.runtime, "close", close_runtime)
+
+    document.close()
+
+    assert runtime_close_calls == []
+    assert isValid(main_canvas)
+    assert isValid(preview_canvas)
+
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.processEvents()
+
+    assert not isValid(main_canvas)
+    assert not isValid(preview_canvas)
+    assert runtime_close_calls == ["close"]
+
+    preview.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def test_preview_compact_fit_preserves_portrait_source_aspect() -> None:
+    """Compact hosts should resize their fit-only renderer instead of clipping it."""
+
+    app = _app()
+    document = InputCanvasDocument(features=("mask",))
+    image_id = uuid4()
+    try:
+        assert document.ensure_image_cached(
+            image_id,
+            _quadrant_image(960, 1344),
+            None,
+        )
+        binding = document.preview_bindings.image(image_id)
+        assert binding is not None
+        preview = InputNodePreviewWidget(binding)
+
+        compact_size = preview.aspect_fit_size(
+            maximum_width=44,
+            maximum_height=44,
+        )
+        preview.set_preferred_width(compact_size.width())
+        preview.show()
+        app.processEvents()
+
+        assert compact_size == QSize(31, 43)
+        assert preview.sizeHint() == QSize(31, 43)
+        assert preview.canvas.size() == QSize(31, 43)
+        assert preview.canvas.minimumSizeHint() == QSize(1, 1)
+        viewport_spec = preview.canvas.viewportSpec()
+        assert viewport_spec is not None
+        assert viewport_spec.interaction is CanvasViewportInteraction.FIT_ONLY
+        rendered = preview.grab().toImage()
+        top_left = rendered.pixelColor(rendered.width() // 4, rendered.height() // 4)
+        top_right = rendered.pixelColor(
+            rendered.width() * 3 // 4,
+            rendered.height() // 4,
+        )
+        bottom_left = rendered.pixelColor(
+            rendered.width() // 4,
+            rendered.height() * 3 // 4,
+        )
+        bottom_right = rendered.pixelColor(
+            rendered.width() * 3 // 4,
+            rendered.height() * 3 // 4,
+        )
+        assert top_left.red() > 200 and top_left.green() < 50
+        assert top_right.green() > 200 and top_right.red() < 50
+        assert bottom_left.blue() > 200 and bottom_left.red() < 50
+        assert bottom_right.value() > 200 and bottom_right.saturation() < 50
+        preview.close()
+    finally:
+        document.close()
 
 
 def test_live_node_previews_share_authority_and_survive_erratic_rebinding(
@@ -418,6 +540,97 @@ def test_live_picker_content_uses_shared_rounded_highlight_surface() -> None:
                 child.graphicsEffect() is None
                 for child in surface.findChildren(QWidget)
             )
+    finally:
+        panel.close()
+        document.close()
+
+
+def test_regional_mask_rows_share_cutecanvas_previews_at_selected_and_compact_sizes() -> (
+    None
+):
+    """Each batch row should reuse live mask coverage with selection-owned sizing."""
+
+    app = _app()
+    document = InputCanvasDocument(features=("mask",))
+    panel = QWidget()
+    layout = QVBoxLayout(panel)
+    editor = RegionalMaskBatchEditor(
+        cube_alias="Region",
+        node_name="masks",
+        values=["first.png", "second.png"],
+        parent=panel,
+    )
+    layout.addWidget(editor)
+    panel.resize(460, 900)
+    panel.show()
+    image_id = uuid4()
+    workflow = WorkflowState()
+    try:
+        assert document.ensure_image_cached(image_id, _image("black"), None)
+        first_mask_id = document.create_blank_mask(image_id, QSize(160, 120))
+        second_mask_id = document.create_blank_mask(image_id, QSize(160, 120))
+        assert first_mask_id is not None
+        assert second_mask_id is not None
+        collection = workflow.canvas.ensure_regional_mask_collection(
+            ("Region", "masks")
+        )
+        first = collection.add_region(image_id, mask_id=first_mask_id)
+        collection.add_region(image_id, mask_id=second_mask_id)
+        collection.select(first.region_id)
+        coordinator = InputNodePreviewCoordinator(
+            bindings=document.preview_bindings,
+            active_panel=lambda: panel,
+        )
+
+        assert coordinator.bind_workflow(workflow) == frozenset({("Region", "masks")})
+        app.processEvents()
+        first_preview = editor.live_preview(0)
+        second_preview = editor.live_preview(1)
+
+        assert isinstance(first_preview, InputNodePreviewWidget)
+        assert isinstance(second_preview, InputNodePreviewWidget)
+        assert first_preview.binding.render_variant is CanvasRenderVariant.MASK_COVERAGE
+        assert (
+            second_preview.binding.render_variant is CanvasRenderVariant.MASK_COVERAGE
+        )
+        assert first_preview.canvas.documentRuntime() is document.runtime
+        assert second_preview.canvas.documentRuntime() is document.runtime
+        assert first_preview.sizeHint() == QSize(288, 216)
+        assert second_preview.sizeHint() == QSize(44, 33)
+        assert first_preview.canvas.size() == first_preview.sizeHint()
+        assert second_preview.canvas.size() == second_preview.sizeHint()
+        rows = {
+            row.property("region_index"): row
+            for row in editor.findChildren(QWidget)
+            if row.property("region_index") is not None
+        }
+        assert rows[0].sizeHint().height() > first_preview.sizeHint().height()
+        assert rows[1].sizeHint().height() >= second_preview.sizeHint().height()
+
+        editor.set_region_names(["Subject", "Background"])
+
+        assert editor.live_preview(0) is first_preview
+        assert editor.live_preview(1) is second_preview
+
+        animation_finished = QSignalSpy(editor.selectionAnimationFinished)
+        editor.select_region(1)
+
+        assert editor.selection_animation_running
+        _wait_until(
+            lambda: (
+                44 < first_preview.sizeHint().width() < 288
+                and 44 < second_preview.sizeHint().width() < 288
+            )
+        )
+        assert animation_finished.wait(1000)
+
+        assert not editor.selection_animation_running
+        assert first_preview.sizeHint() == QSize(44, 33)
+        assert second_preview.sizeHint() == QSize(288, 216)
+        assert first_preview.canvas.size() == first_preview.sizeHint()
+        assert second_preview.canvas.size() == second_preview.sizeHint()
+        assert rows[0].sizeHint().height() >= first_preview.sizeHint().height()
+        assert rows[1].sizeHint().height() > second_preview.sizeHint().height()
     finally:
         panel.close()
         document.close()

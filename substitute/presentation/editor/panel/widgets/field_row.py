@@ -38,10 +38,11 @@ from substitute.application.node_behavior import (
     LabelMode,
     RowMode,
 )
-from substitute.presentation.editor.panel.menus.dimension_preset_models import (
-    DimensionPresetMenuSource,
+from substitute.presentation.editor.panel.dimension_presets import (
+    DimensionPresetCatalogSource,
 )
 from substitute.presentation.editor.panel.menus.dimension_row_actions import (
+    DimensionRowActions,
     bind_dimension_row_actions,
 )
 from substitute.presentation.editor.panel.node_card.body_layout import (
@@ -137,6 +138,22 @@ def apply_editor_control_height(widget: QWidget) -> None:
     widget.setFixedHeight(EDITOR_ROW_HEIGHT)
 
 
+def make_grouped_field_divider(
+    parent: QWidget,
+    *,
+    field_key: Any = None,
+) -> QWidget:
+    """Create one standard themed divider for adjacent grouped-row items."""
+
+    divider = QWidget(parent)
+    divider.setFixedSize(GROUPED_FIELD_DIVIDER_WIDTH, EDITOR_ROW_HEIGHT)
+    divider.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+    _apply_field_row_divider_style(divider)
+    if field_key is not None:
+        divider.setProperty("vertical_divider_for_field", field_key)
+    return divider
+
+
 class _FieldRowDividerStyleSheet(StyleSheetBase):  # type: ignore[misc]
     """Provide an empty QFluent-managed base source for custom divider QSS."""
 
@@ -190,6 +207,7 @@ class BuiltFieldRow:
     field_key: Any
     row: QWidget
     text_targets: tuple[FieldRowTextTarget, ...] = ()
+    dimension_actions: DimensionRowActions | None = None
 
 
 class FieldRowBuilder:
@@ -200,7 +218,7 @@ class FieldRowBuilder:
         panel: Any,
         icon_builder: Callable[[Any], QWidget],
         icon_resolver: Callable[[str, str, int | None], Any],
-        dimension_preset_source: DimensionPresetMenuSource | None = None,
+        dimension_preset_source: DimensionPresetCatalogSource | None = None,
     ) -> None:
         """Store panel collaborators used to build stable field-row widgets."""
 
@@ -482,16 +500,14 @@ class FieldRowBuilder:
             row_layout.addWidget(col, 1)
 
             if index < len(fields) - 1:
-                divider = QWidget(panel)
-                divider.setFixedSize(GROUPED_FIELD_DIVIDER_WIDTH, EDITOR_ROW_HEIGHT)
-                divider.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-                _apply_field_row_divider_style(divider)
-                if field_key is not None:
-                    divider.setProperty("vertical_divider_for_field", field_key)
+                divider = make_grouped_field_divider(
+                    panel,
+                    field_key=field_key,
+                )
                 row_layout.addWidget(divider, 0, Qt.AlignmentFlag.AlignVCenter)
 
         row_layout.addSpacing(EDITOR_ROW_ICON_SIZE)
-        bind_dimension_row_actions(
+        dimension_actions = bind_dimension_row_actions(
             row_container=row_container,
             fields=fields,
             column_widgets=column_widgets,
@@ -508,6 +524,7 @@ class FieldRowBuilder:
             field_key=first_field_key,
             row=row_container,
             text_targets=tuple(text_targets),
+            dimension_actions=dimension_actions,
         )
 
     @staticmethod

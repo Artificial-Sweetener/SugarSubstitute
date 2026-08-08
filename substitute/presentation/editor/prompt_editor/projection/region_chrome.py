@@ -21,8 +21,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from PySide6.QtCore import QLineF, QPointF, Qt
-from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPen
+from PySide6.QtCore import QLineF, Qt
+from PySide6.QtGui import QColor, QPen
 
 from substitute.application.appearance import SemanticPalette
 from substitute.application.prompt_editor.document.views import (
@@ -39,7 +39,12 @@ from substitute.presentation.editor.prompt_editor.core.projection.document impor
 from ..layout.contracts import PromptLayoutOutput
 from ..layout.models import PromptProjectionLineSnapshot
 from .theme import qcolor_from_rgb
+from .region_separator_geometry import (
+    prepare_separator_draft_geometry,
+    prepare_separator_paint_geometry,
+)
 from .region_chrome_state import (
+    PromptRegionChromeEditTarget,
     PromptRegionChromeLabel,
     PromptRegionChromeSnapshot,
     PromptRegionChromeStroke,
@@ -49,9 +54,6 @@ _DIVIDER_MAX_WIDTH = 36.0
 _DIVIDER_CONTENT_WIDTH_RATIO = 0.2
 _STROKE_WIDTH = 2.0
 _RAIL_CONTENT_GAP = 3.0
-_NAMED_DIVIDER_MAX_WIDTH = 240.0
-_NAMED_DIVIDER_CONTENT_WIDTH_RATIO = 0.72
-_LABEL_RULE_GAP = 8.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +64,7 @@ class _RegionChromeCacheEntry:
     metrics: PromptProjectionMetrics
     line_snapshots: Sequence[PromptProjectionLineSnapshot]
     accent: RgbColor
+    text_color: QColor
     snapshot: PromptRegionChromeSnapshot
 
 
@@ -94,6 +97,8 @@ class PromptRegionChrome:
         self._entries_by_snapshot_id: dict[int, _RegionChromeCacheEntry] = {}
         self._prepare_count = 0
         self._hovered_region_index: int | None = None
+        self._editing_region_index: int | None = None
+        self._editing_region_draft: str | None = None
         self._active_base_snapshot: PromptRegionChromeSnapshot | None = None
         self._active_snapshot: PromptRegionChromeSnapshot | None = None
 
@@ -114,6 +119,7 @@ class PromptRegionChrome:
         output: PromptLayoutOutput,
         *,
         semantic_palette: SemanticPalette,
+        text_color: QColor,
     ) -> PromptRegionChromeSnapshot:
         """Build immutable divider and rail geometry in one visual-line pass."""
 
@@ -122,6 +128,7 @@ class PromptRegionChrome:
         cached_snapshot = self._matching_snapshot(
             output,
             semantic_palette=semantic_palette,
+            text_color=text_color,
         )
         if cached_snapshot is not None:
             return cached_snapshot
@@ -129,6 +136,7 @@ class PromptRegionChrome:
             return self._empty_snapshot(
                 output,
                 semantic_palette=semantic_palette,
+                text_color=text_color,
                 count_preparation=False,
             )
         structure = projection_document.region_structure
@@ -136,6 +144,7 @@ class PromptRegionChrome:
             return self._empty_snapshot(
                 output,
                 semantic_palette=semantic_palette,
+                text_color=text_color,
                 count_preparation=True,
             )
         self._prepare_count += 1
@@ -146,6 +155,7 @@ class PromptRegionChrome:
         divider_lines: list[QLineF] = []
         paint_lines: list[QLineF] = []
         labels: list[PromptRegionChromeLabel] = []
+        edit_targets: list[PromptRegionChromeEditTarget] = []
         strokes: list[PromptRegionChromeStroke] = []
         divider_width = min(
             _DIVIDER_MAX_WIDTH,
@@ -182,18 +192,21 @@ class PromptRegionChrome:
                 divider_y,
             )
             divider_lines.append(conceptual_divider)
-            region_lines, label = _separator_paint_geometry(
+            region_lines, label, edit_target = prepare_separator_paint_geometry(
+                region_index=index,
                 separator_name=separator.name,
                 divider_y=divider_y,
+                row_height=line.height,
                 metrics=metrics,
                 base_font=output.configuration.base_font,
-                color=region_pens[index].color(),
+                color=text_color,
                 plain_divider=conceptual_divider,
             )
             separator_stroke_lines.append(region_lines)
             paint_lines.extend(region_lines)
             if label is not None:
                 labels.append(label)
+            edit_targets.append(edit_target)
 
         rail_x = max(1.0, metrics.content_left - _RAIL_CONTENT_GAP)
         rail_lines_list: list[QLineF] = []
@@ -231,12 +244,14 @@ class PromptRegionChrome:
             pen=pen,
             strokes=tuple(strokes),
             labels=tuple(labels),
+            edit_targets=tuple(edit_targets),
             visited_line_count=line_probe.visited_line_count,
         )
         self._store_snapshot(
             output,
             snapshot,
             semantic_palette=semantic_palette,
+            text_color=text_color,
         )
         return snapshot
 
@@ -245,6 +260,7 @@ class PromptRegionChrome:
         output: PromptLayoutOutput,
         *,
         semantic_palette: SemanticPalette,
+        text_color: QColor,
         count_preparation: bool,
     ) -> PromptRegionChromeSnapshot:
         """Return cached empty chrome without walking any layout lines."""
@@ -260,12 +276,14 @@ class PromptRegionChrome:
             pen=_accent_pen(semantic_palette),
             strokes=(),
             labels=(),
+            edit_targets=(),
             visited_line_count=0,
         )
         self._store_snapshot(
             output,
             snapshot,
             semantic_palette=semantic_palette,
+            text_color=text_color,
         )
         return snapshot
 
@@ -275,6 +293,7 @@ class PromptRegionChrome:
         snapshot: PromptRegionChromeSnapshot,
         *,
         semantic_palette: SemanticPalette,
+        text_color: QColor,
     ) -> None:
         """Store a bounded set of live and preview layout snapshots."""
 
@@ -284,6 +303,7 @@ class PromptRegionChrome:
             metrics=output.configuration.metrics,
             line_snapshots=output.snapshot.lines,
             accent=semantic_palette.accent,
+            text_color=QColor(text_color),
             snapshot=snapshot,
         )
         while len(self._entries_by_snapshot_id) > 4:
@@ -295,6 +315,7 @@ class PromptRegionChrome:
         output: PromptLayoutOutput,
         *,
         semantic_palette: SemanticPalette,
+        text_color: QColor,
     ) -> PromptRegionChromeSnapshot | None:
         """Return cached geometry only for the exact immutable layout owners."""
 
@@ -306,6 +327,7 @@ class PromptRegionChrome:
             or entry.metrics is not output.configuration.metrics
             or entry.line_snapshots is not output.snapshot.lines
             or entry.accent != semantic_palette.accent
+            or entry.text_color != text_color
         ):
             return None
         return entry.snapshot
@@ -332,6 +354,7 @@ class PromptRegionChrome:
         output: PromptLayoutOutput,
         *,
         semantic_palette: SemanticPalette,
+        text_color: QColor,
     ) -> None:
         """Prepare only regional output and publish it as the active layer."""
 
@@ -346,10 +369,13 @@ class PromptRegionChrome:
         self._active_base_snapshot = self.prepare(
             output,
             semantic_palette=semantic_palette,
+            text_color=text_color,
         )
-        self._active_snapshot = _snapshot_with_hover(
+        self._active_snapshot = _snapshot_with_transients(
             self._active_base_snapshot,
-            self._hovered_region_index,
+            hovered_region_index=self._hovered_region_index,
+            editing_region_index=self._editing_region_index,
+            editing_region_draft=self._editing_region_draft,
         )
 
     def set_hovered_region(self, region_index: int | None) -> bool:
@@ -360,24 +386,87 @@ class PromptRegionChrome:
         self._hovered_region_index = region_index
         if self._active_base_snapshot is None:
             return False
-        self._active_snapshot = _snapshot_with_hover(
+        self._active_snapshot = _snapshot_with_transients(
             self._active_base_snapshot,
-            region_index,
+            hovered_region_index=region_index,
+            editing_region_index=self._editing_region_index,
+            editing_region_draft=self._editing_region_draft,
         )
         return True
 
+    def set_editing_region(self, region_index: int | None) -> bool:
+        """Hide a painted label while its in-place editor owns the row."""
 
-def _snapshot_with_hover(
+        if region_index == self._editing_region_index:
+            return False
+        self._editing_region_index = region_index
+        self._editing_region_draft = None
+        if self._active_base_snapshot is None:
+            return False
+        self._active_snapshot = _snapshot_with_transients(
+            self._active_base_snapshot,
+            hovered_region_index=self._hovered_region_index,
+            editing_region_index=region_index,
+            editing_region_draft=None,
+        )
+        return True
+
+    def set_editing_region_draft(self, region_index: int, text: str) -> bool:
+        """Reflow active separator framing around an uncommitted authored name."""
+
+        if region_index != self._editing_region_index:
+            return False
+        if text == self._editing_region_draft:
+            return False
+        self._editing_region_draft = text
+        if self._active_base_snapshot is None:
+            return False
+        self._active_snapshot = _snapshot_with_transients(
+            self._active_base_snapshot,
+            hovered_region_index=self._hovered_region_index,
+            editing_region_index=region_index,
+            editing_region_draft=text,
+        )
+        return True
+
+    def edit_target(self, region_index: int) -> PromptRegionChromeEditTarget | None:
+        """Return prepared in-place edit geometry for one regional separator."""
+
+        snapshot = self._active_snapshot or self._active_base_snapshot
+        if snapshot is None:
+            return None
+        return next(
+            (
+                target
+                for target in snapshot.edit_targets
+                if target.region_index == region_index
+            ),
+            None,
+        )
+
+
+def _snapshot_with_transients(
     snapshot: PromptRegionChromeSnapshot,
-    region_index: int | None,
+    *,
+    hovered_region_index: int | None,
+    editing_region_index: int | None,
+    editing_region_draft: str | None,
 ) -> PromptRegionChromeSnapshot:
-    """Return paint-ready hover emphasis while reusing prepared geometry."""
+    """Apply hover and inline-edit presentation without recomputing geometry."""
 
-    if region_index is None:
+    if hovered_region_index is None and editing_region_index is None:
         return snapshot
+    edit_targets = snapshot.edit_targets
+    transient_strokes = snapshot.strokes
+    if editing_region_index is not None and editing_region_draft is not None:
+        edit_targets, transient_strokes = _chrome_with_editing_draft(
+            snapshot,
+            region_index=editing_region_index,
+            draft=editing_region_draft,
+        )
     strokes: list[PromptRegionChromeStroke] = []
-    for stroke in snapshot.strokes:
-        if stroke.region_index != region_index:
+    for stroke in transient_strokes:
+        if stroke.region_index != hovered_region_index:
             strokes.append(stroke)
             continue
         pen = QPen(stroke.pen)
@@ -395,11 +484,74 @@ def _snapshot_with_hover(
         accent=snapshot.accent,
         divider_lines=snapshot.divider_lines,
         rail_lines=snapshot.rail_lines,
-        paint_lines=snapshot.paint_lines,
+        paint_lines=tuple(line for stroke in strokes for line in stroke.lines),
         pen=snapshot.pen,
         strokes=tuple(strokes),
-        labels=snapshot.labels,
+        labels=tuple(
+            label
+            for label in snapshot.labels
+            if label.region_index != editing_region_index
+        ),
+        edit_targets=edit_targets,
         visited_line_count=snapshot.visited_line_count,
+    )
+
+
+def _chrome_with_editing_draft(
+    snapshot: PromptRegionChromeSnapshot,
+    *,
+    region_index: int,
+    draft: str,
+) -> tuple[
+    tuple[PromptRegionChromeEditTarget, ...],
+    tuple[PromptRegionChromeStroke, ...],
+]:
+    """Return editor width and framing rules derived from one transient draft."""
+
+    base_target = next(
+        (
+            target
+            for target in snapshot.edit_targets
+            if target.region_index == region_index
+        ),
+        None,
+    )
+    if base_target is None:
+        return snapshot.edit_targets, snapshot.strokes
+    draft_target, separator_lines = prepare_separator_draft_geometry(
+        base_target,
+        draft,
+    )
+    edit_targets = tuple(
+        draft_target if target.region_index == region_index else target
+        for target in snapshot.edit_targets
+    )
+    strokes = tuple(
+        _stroke_with_separator_lines(
+            stroke,
+            base_line_count=base_target.separator_line_count,
+            separator_lines=separator_lines,
+        )
+        if stroke.region_index == region_index
+        else stroke
+        for stroke in snapshot.strokes
+    )
+    return edit_targets, strokes
+
+
+def _stroke_with_separator_lines(
+    stroke: PromptRegionChromeStroke,
+    *,
+    base_line_count: int,
+    separator_lines: tuple[QLineF, ...],
+) -> PromptRegionChromeStroke:
+    """Replace the separator-line suffix while preserving its regional rail."""
+
+    retained_count = max(0, len(stroke.lines) - base_line_count)
+    return PromptRegionChromeStroke(
+        region_index=stroke.region_index,
+        lines=(*stroke.lines[:retained_count], *separator_lines),
+        pen=stroke.pen,
     )
 
 
@@ -518,55 +670,6 @@ def _region_pen(color: QColor) -> QPen:
     pen.setStyle(Qt.PenStyle.SolidLine)
     pen.setCapStyle(Qt.PenCapStyle.FlatCap)
     return pen
-
-
-def _separator_paint_geometry(
-    *,
-    separator_name: str | None,
-    divider_y: float,
-    metrics: PromptProjectionMetrics,
-    base_font: QFont,
-    color: QColor,
-    plain_divider: QLineF,
-) -> tuple[tuple[QLineF, ...], PromptRegionChromeLabel | None]:
-    """Prepare a plain rule or a centered named rule without changing source."""
-
-    if separator_name is None:
-        return (plain_divider,), None
-    label_font = QFont(base_font)
-    label_font.setBold(True)
-    font_metrics = QFontMetricsF(label_font)
-    available_width = min(
-        _NAMED_DIVIDER_MAX_WIDTH,
-        metrics.content_width * _NAMED_DIVIDER_CONTENT_WIDTH_RATIO,
-    )
-    maximum_label_width = max(1.0, available_width - (2.0 * _LABEL_RULE_GAP))
-    label_text = font_metrics.elidedText(
-        separator_name,
-        Qt.TextElideMode.ElideRight,
-        int(maximum_label_width),
-    )
-    label_width = font_metrics.horizontalAdvance(label_text)
-    content_center = metrics.content_left + metrics.content_width / 2.0
-    label_left = content_center - label_width / 2.0
-    label_right = content_center + label_width / 2.0
-    rule_left = content_center - available_width / 2.0
-    rule_right = content_center + available_width / 2.0
-    lines = tuple(
-        line
-        for line in (
-            QLineF(rule_left, divider_y, label_left - _LABEL_RULE_GAP, divider_y),
-            QLineF(label_right + _LABEL_RULE_GAP, divider_y, rule_right, divider_y),
-        )
-        if line.length() > 0.0
-    )
-    baseline_y = divider_y + (font_metrics.ascent() - font_metrics.descent()) / 2.0
-    return lines, PromptRegionChromeLabel(
-        text=label_text,
-        baseline=QPointF(label_left, baseline_y),
-        color=QColor(color),
-        font=label_font,
-    )
 
 
 __all__ = [

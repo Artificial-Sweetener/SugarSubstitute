@@ -78,6 +78,40 @@ class InputCanvasStateServicePort(Protocol):
     ) -> bool:
         """Persist and project one active Input mask layer."""
 
+    def set_mask_visual_opacity(
+        self,
+        workflow_id: str,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+        opacity: float,
+    ) -> bool:
+        """Apply one node-level visual opacity to all associated masks."""
+
+    def mask_ids_for_association(
+        self,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+    ) -> tuple[UUID, ...]:
+        """Return every materialized mask owned by one graph mask node."""
+
+    def synchronize_mask_visual_opacity_state(
+        self,
+        workflow_id: str,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+        opacity: float,
+    ) -> bool:
+        """Adopt one opacity already restored by document history."""
+
+    def apply_materialized_mask_visual_opacity(
+        self,
+        workflow_id: str,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+        mask_id: UUID,
+    ) -> bool:
+        """Apply an explicit node value to one newly materialized mask."""
+
     def claim_loaded_input_image(
         self,
         workflow_id: str,

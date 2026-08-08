@@ -66,6 +66,10 @@ def test_create_editor_panel_passes_shell_dependencies_and_wires_panel(
         fake_panel.kwargs["editor_panel_execution_factories"]
         is shell.editor_panel_execution_factories
     )
+    contributors = cast(
+        tuple[object, ...], fake_panel.kwargs["node_card_body_contributors"]
+    )
+    assert len(contributors) == 1
     assert fake_panel.mainwindow is shell
     assert fake_panel.minimum_widths == [412]
     assert shell.connected_editor_panels == [fake_panel]
@@ -353,6 +357,10 @@ def _workflow_shell() -> SimpleNamespace:
         "_error_presenter": object(),
         "workflow_issue_state": object(),
         "editor_panel_execution_factories": object(),
+        "synthetic_canvas_resolution_role_service": object(),
+        "synthetic_canvas_resolution_controller": SimpleNamespace(
+            open_for_role=lambda _workflow_id, _role: None
+        ),
         "pinned_override_service": object(),
         "override_dropdown_btn": object(),
         "_global_override_menu": object(),

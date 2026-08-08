@@ -27,6 +27,9 @@ from PySide6.QtWidgets import QWidget
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.editor.panel.widgets.fields.load_image import ImagePicker
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
+from substitute.presentation.editor.panel.widgets.fields.regional_mask_batch import (
+    RegionalMaskBatchEditor,
+)
 
 from .input_node_preview_widget import InputNodePreviewWidget
 from .input_preview_binding import InputDocumentPreviewBindings, InputPreviewBinding
@@ -119,7 +122,57 @@ class InputNodePreviewCoordinator:
             )
             if binding is not None and self._bind_mask(*identity, binding):
                 bound_masks.add(identity)
+        for editor in panel.findChildren(RegionalMaskBatchEditor):
+            association_key = (editor.cube_alias, editor.node_name)
+            if self.bind_regional_collection(workflow, association_key):
+                bound_masks.add(association_key)
         return frozenset(bound_masks)
+
+    def bind_regional_collection(
+        self,
+        workflow: WorkflowState,
+        association_key: tuple[str, str],
+    ) -> bool:
+        """Bind every materialized ordered mask to its matching batch row."""
+
+        panel = self._active_panel()
+        if panel is None:
+            return False
+        collection = workflow.canvas.regional_mask_collection(association_key)
+        if collection is None:
+            return False
+        editors = tuple(
+            editor
+            for editor in panel.findChildren(RegionalMaskBatchEditor)
+            if (editor.cube_alias, editor.node_name) == association_key
+        )
+        if not editors:
+            return False
+        bound_any = False
+        for index, entry in enumerate(collection.entries):
+            if entry.mask_id is None:
+                continue
+            binding = self._bindings.mask(entry.image_id, entry.mask_id)
+            if binding is None:
+                continue
+            for editor in editors:
+                current = editor.live_preview(index)
+                if (
+                    isinstance(current, InputNodePreviewWidget)
+                    and current.binding.identity == binding.identity
+                ):
+                    bound_any = True
+                    continue
+                preview = InputNodePreviewWidget(
+                    binding,
+                    editor,
+                )
+                if editor.set_live_preview(index, preview):
+                    bound_any = True
+                else:
+                    preview.close()
+                    preview.deleteLater()
+        return bound_any
 
     def _bind_image(
         self,

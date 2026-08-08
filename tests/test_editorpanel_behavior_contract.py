@@ -70,6 +70,7 @@ class _StrictNodeCardBuilder:
         dimension_preset_source=None,
         node_input_preset_source=None,
         prompt_segment_preset_source=None,
+        body_contributors=(),
     ) -> None:
         """Record constructor inputs and reject unexpected keyword arguments."""
 
@@ -89,6 +90,7 @@ class _StrictNodeCardBuilder:
         self.dimension_preset_source = dimension_preset_source
         self.node_input_preset_source = node_input_preset_source
         self.prompt_segment_preset_source = prompt_segment_preset_source
+        self.body_contributors = body_contributors
         self.calls: list[dict[str, object]] = []
 
     def build_node_card(self, **kwargs):
@@ -106,7 +108,7 @@ class _DimensionPresetSourceDouble:
 
         self.prepare_calls: list[str] = []
 
-    def prepare_dimension_preset_menu_model(self, *, reason: str) -> None:
+    def prepare_dimension_preset_catalog(self, *, reason: str) -> None:
         """Record one explicit preparation reason."""
 
         self.prepare_calls.append(reason)
@@ -1527,6 +1529,7 @@ def test_editor_panel_build_node_card_uses_node_card_builder_constructor_surface
         dimension_preset_source=object(),
         node_input_preset_source=object(),
         prompt_segment_preset_source=object(),
+        _node_card_body_contributors=(),
         _preset_context_refresh=_PresetContextRefreshDouble(),
     )
     fake._services = mod.EditorPanelServiceBundle(
@@ -1631,6 +1634,7 @@ def test_editor_panel_prepares_node_card_prompt_inputs(monkeypatch) -> None:
         dimension_preset_source=object(),
         node_input_preset_source=object(),
         prompt_segment_preset_source=object(),
+        _node_card_body_contributors=(),
         _preset_context_refresh=_PresetContextRefreshDouble(),
         scheduled_lora_resolver_for_prompt=scheduled_lora_resolver_for_prompt,
         prompt_field_profile_for_prompt=prompt_field_profile_for_prompt,

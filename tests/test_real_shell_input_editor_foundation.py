@@ -489,7 +489,7 @@ def test_real_widgets_stage_exact_input_products_without_losing_live_preview(
         harness.close()
 
 
-def test_real_picker_interactions_activate_input_focus_mask_and_brush(
+def test_real_picker_interactions_select_masks_without_changing_held_tool(
     tmp_path: Path,
 ) -> None:
     """Production picker signals must route editing to their authoritative subject."""
@@ -514,6 +514,9 @@ def test_real_picker_interactions_activate_input_focus_mask_and_brush(
         assert harness.workflow.canvas.input_image_uuid == harness.image_id
         assert _focus_belongs_to(harness.input_canvas)
 
+        assert harness.shell.input_canvas_tool_controller.request_tool(
+            InputCanvasToolId.MASK_RECTANGLE
+        )
         harness.shell.editor_panel.setFocus()
         QTest.mouseClick(harness.mask_picker.preview_surface, Qt.MouseButton.LeftButton)
         harness.process_events(4)
@@ -521,7 +524,7 @@ def test_real_picker_interactions_activate_input_focus_mask_and_brush(
         assert harness.workflow.canvas.active_input_mask_uuid == harness.mask_id
         assert (
             harness.shell.input_canvas_tool_controller.palette.active_tool_id
-            == InputCanvasToolId.BRUSH
+            == InputCanvasToolId.MASK_RECTANGLE
         )
         assert _focus_belongs_to(harness.input_canvas)
         assert image_preview.binding.source != mask_preview.binding.source
@@ -621,13 +624,16 @@ def test_two_real_picker_pairs_route_exact_image_and_mask_identity(
         assert workflow.canvas.active_input_mask_uuid == first_mask_id
         assert _focus_belongs_to(harness.input_canvas)
 
+        assert harness.shell.input_canvas_tool_controller.request_tool(
+            InputCanvasToolId.MOVE
+        )
         QTest.mouseClick(second_mask_picker.preview_surface, Qt.MouseButton.LeftButton)
         harness.process_events(4)
         assert workflow.canvas.input_image_uuid == second_image_id
         assert workflow.canvas.active_input_mask_uuid == second_mask_id
         assert (
             harness.shell.input_canvas_tool_controller.palette.active_tool_id
-            == InputCanvasToolId.BRUSH
+            == InputCanvasToolId.MOVE
         )
         assert _focus_belongs_to(harness.input_canvas)
     finally:

@@ -28,6 +28,7 @@ from sugarsubstitute_shared.presentation.localization import translate_applicati
 
 from substitute.shared.logging.logger import get_logger, log_warning
 
+from .mask_visual_opacity import MaskVisualOpacityControl
 from .thumbnail_picker_base import ThumbnailPickerBase
 
 _LOGGER = get_logger("presentation.editor.panel.widgets.fields.load_mask")
@@ -38,6 +39,8 @@ class MaskPicker(ThumbnailPickerBase):
 
     maskSelected = Signal(str, str, str)
     clicked = Signal(str, str)
+    visualOpacityChanged = Signal(str, str, float)
+    visualOpacityCommitted = Signal(str, str, float, float)
 
     def __init__(
         self,
@@ -62,7 +65,33 @@ class MaskPicker(ThumbnailPickerBase):
         )
         self.cube_alias = cube_alias
         self.node_name = node_name
+        self.opacity_control = MaskVisualOpacityControl(self)
+        self._preview_layout.addWidget(self.opacity_control)
+        self.opacity_control.opacityChanged.connect(self._publish_visual_opacity)
+        self.opacity_control.opacityCommitted.connect(
+            self._publish_visual_opacity_commit
+        )
         self.button.clicked.connect(self.pick_mask)
+
+    def set_visual_opacity(self, opacity: float) -> None:
+        """Project the workflow-owned visual opacity into this node card."""
+
+        self.opacity_control.set_opacity(opacity)
+
+    def _publish_visual_opacity(self, opacity: float) -> None:
+        """Publish node identity with one user-authored presentation value."""
+
+        self.visualOpacityChanged.emit(self.cube_alias, self.node_name, opacity)
+
+    def _publish_visual_opacity_commit(self, before: float, after: float) -> None:
+        """Publish one completed node-level opacity gesture."""
+
+        self.visualOpacityCommitted.emit(
+            self.cube_alias,
+            self.node_name,
+            before,
+            after,
+        )
 
     def handle_thumbnail_click(self) -> None:
         """Emit the cube/node payload when the thumbnail is clicked."""

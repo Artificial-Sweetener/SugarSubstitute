@@ -292,6 +292,7 @@ class PromptReorderRenderedLayoutSnapshot:
     ]
     region_divider_lines: tuple[tuple[float, float, float, float], ...]
     region_rail_lines: tuple[tuple[float, float, float, float], ...]
+    region_stroke_lines: tuple[tuple[float, float, float, float], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -1423,6 +1424,15 @@ class RealShellPromptEditorHarness:
                 ()
                 if region_layer is None
                 else tuple(_qlinef_tuple(line) for line in region_layer.rail_lines)
+            ),
+            region_stroke_lines=(
+                ()
+                if region_layer is None
+                else tuple(
+                    _qlinef_tuple(line)
+                    for stroke in region_layer.strokes
+                    for line in stroke.lines
+                )
             ),
         )
 
@@ -3796,6 +3806,10 @@ class _HarnessShell(QMainWindow):
             handle_mask_changed=lambda *_args, **_kwargs: None,
             handle_mask_clicked=lambda *_args, **_kwargs: None,
         )
+        self.input_mask_visual_opacity_controller = SimpleNamespace(
+            handle=lambda *_args, **_kwargs: None,
+            handle_commit=lambda *_args, **_kwargs: None,
+        )
         self.workspace_scene_generation_actions = SimpleNamespace(
             enqueue_prompt_scene=lambda *_args, **_kwargs: None
         )
@@ -3876,6 +3890,12 @@ class _HarnessShell(QMainWindow):
             position_search_box=self.search_overlay_controller.position_search_box,
             request_autosave=self.request_session_autosave,
             parent=self,
+        )
+        self.synthetic_canvas_resolution_role_service = SimpleNamespace(
+            resolve_for_node=lambda **_kwargs: None,
+        )
+        self.synthetic_canvas_resolution_controller = SimpleNamespace(
+            open_for_role=lambda *_args, **_kwargs: None,
         )
         self.workflow_ui_factory = WorkflowUiFactory(self)
         self.workflow_workspace = WorkflowWorkspaceCoordinator(
@@ -5300,7 +5320,7 @@ def _expected_row_height(
     if text_line_height is None:
         return None
     if is_structural:
-        return text_line_height * 0.5
+        return text_line_height
     expected_height = text_line_height
     fragments = getattr(line, "fragments", ())
     if isinstance(fragments, Sequence):

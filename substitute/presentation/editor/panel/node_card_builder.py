@@ -58,8 +58,13 @@ from .node_card.accordion_motion import (
     set_accordion_surface_attachment,
 )
 from .node_card.accordion_section_layout import AccordionSectionLayoutBinding
-from substitute.presentation.editor.panel.menus.dimension_preset_models import (
-    DimensionPresetMenuSource,
+from .node_card.body_composer import NodeCardBodyComposer
+from .node_card.body_contribution import (
+    NodeCardBodyContributionContext,
+    NodeCardBodyContributor,
+)
+from substitute.presentation.editor.panel.dimension_presets import (
+    DimensionPresetCatalogSource,
 )
 from .factories.meta_factories import build_enabled_switch
 from .node_card.mode_controller import (
@@ -129,7 +134,6 @@ from substitute.presentation.editor.panel.widgets.node_card import (
     _NodeCardHeaderSurface,
     _NodeCardSurface,
     NodeCardWidget,
-    reconcile_node_card_body_separators,
 )
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetSource,
@@ -286,100 +290,6 @@ def _apply_node_activation_change(
     panel.refresh_node_behavior_state(reason="node_activation_changed")
 
 
-class NodeCardBodyComposer:
-    """Own node-card body ordering, separators, and row visibility registration."""
-
-    def __init__(self, *, panel: Any, field_rows: FieldRowBuilder) -> None:
-        """Store the collaborators used to build rows and separator widgets."""
-
-        self._panel = panel
-        self._field_rows = field_rows
-
-    def add_input_row(
-        self,
-        *,
-        label: str,
-        widget: QWidget,
-        field_behavior: FieldBehavior,
-        content_layout: QVBoxLayout,
-    ) -> BuiltFieldRow:
-        """Build and append one single-field row with body-owned separators."""
-
-        built_row = self._field_rows.build_input_row(
-            label=label,
-            widget=widget,
-            field_behavior=field_behavior,
-        )
-        self._append_row(content_layout, built_row)
-        return built_row
-
-    def add_n_column_row(
-        self,
-        *,
-        fields: list[tuple[str, QWidget]],
-        field_behaviors: Mapping[str, FieldBehavior],
-        content_layout: QVBoxLayout,
-        node_name: str = "",
-        field_labels: Mapping[str, str] | None = None,
-    ) -> BuiltFieldRow:
-        """Build and append one grouped row with body-owned separators."""
-
-        built_row = self._field_rows.build_n_column_row(
-            fields=fields,
-            field_behaviors=field_behaviors,
-            node_name=node_name,
-            field_labels=field_labels,
-        )
-        self._append_row(content_layout, built_row)
-        return built_row
-
-    def _append_row(
-        self,
-        content_layout: QVBoxLayout,
-        built_row: BuiltFieldRow,
-    ) -> None:
-        """Append a row and insert a separator only between body rows."""
-
-        separator = self._create_separator(content_layout, built_row)
-        content_layout.addWidget(built_row.row)
-        self._register_row_widgets(built_row, separator)
-
-    def _create_separator(
-        self,
-        content_layout: QVBoxLayout,
-        built_row: BuiltFieldRow,
-    ) -> QWidget | None:
-        """Create the separator before a row when a previous body row exists."""
-
-        if content_layout.count() == 0:
-            return None
-        parent = content_layout.parentWidget() or self._panel
-        separator = self._field_rows.make_horizontal_divider(parent)
-        if built_row.field_key is not None:
-            separator.setProperty("divider_for_field", built_row.field_key)
-        separator.setVisible(False)
-        content_layout.addWidget(separator)
-        return separator
-
-    def reconcile_separator_visibility(self) -> None:
-        """Show separators only between adjacent visible body rows."""
-
-        row_widgets = getattr(self._panel, "row_widgets", {})
-        if isinstance(row_widgets, Mapping):
-            reconcile_node_card_body_separators(row_widgets)
-
-    def _register_row_widgets(
-        self,
-        built_row: BuiltFieldRow,
-        separator: QWidget | None,
-    ) -> None:
-        """Register row widgets with the panel for hidden-field controllers."""
-
-        if built_row.field_key is None or not hasattr(self._panel, "row_widgets"):
-            return
-        self._panel.row_widgets[built_row.field_key] = (separator, built_row.row)
-
-
 class NodeCardBuilder:
     """Compose node cards from resolved behavior and explicit collaborators."""
 
@@ -399,9 +309,10 @@ class NodeCardBuilder:
         services: EditorPanelServiceBundle,
         model_choice_snapshot_controller: PanelModelChoiceSnapshotController
         | None = None,
-        dimension_preset_source: DimensionPresetMenuSource | None = None,
+        dimension_preset_source: DimensionPresetCatalogSource | None = None,
         node_input_preset_source: NodeInputPresetSource | None = None,
         prompt_segment_preset_source: PromptSegmentPresetSource | None = None,
+        body_contributors: tuple[NodeCardBodyContributor, ...] = (),
     ) -> None:
         """Initialize card builder with its owning panel and live definition gateway."""
 
@@ -411,6 +322,7 @@ class NodeCardBuilder:
         self._dimension_preset_source = dimension_preset_source
         self._node_input_preset_source = node_input_preset_source
         self._prompt_segment_preset_source = prompt_segment_preset_source
+        self._body_contributors = body_contributors
         self._field_rows = FieldRowBuilder(
             panel=panel,
             icon_builder=self.build_icon_widget,
@@ -575,11 +487,31 @@ class NodeCardBuilder:
         node_card, node_card_layout, content_body, content_layout = (
             self._create_node_card_container(parent=wrapper)
         )
+        contribution_context = NodeCardBodyContributionContext(
+            section_key=alias or "",
+            node_name=node_name,
+            node_type=node_type,
+            inputs=inputs,
+            graph=self._cube_buffer(cube_state),
+        )
+        contributions = tuple(
+            contribution
+            for contributor in self._body_contributors
+            if (
+                contribution := contributor.build(
+                    contribution_context,
+                )
+            )
+            is not None
+        )
         input_keys = list(field_specs.keys())
         visible_keys = self._gather_visible_keys(
             input_keys=input_keys,
             resolved_behavior=resolved_behavior,
             skip_keys=set(),
+            preferred_field_groups=tuple(
+                contribution.field_keys for contribution in contributions
+            ),
         )
         allow_unbounded_content_height = (
             resolved_behavior.card.collapse_mode == CollapseMode.EXEMPT
@@ -676,6 +608,15 @@ class NodeCardBuilder:
                         widgets.append((key, field))
                         field_behaviors[key] = field_behavior
                     if widgets:
+                        widget_keys = frozenset(key for key, _widget in widgets)
+                        contribution = next(
+                            (
+                                candidate
+                                for candidate in contributions
+                                if candidate.claimed_field_keys == widget_keys
+                            ),
+                            None,
+                        )
                         built_row = self._body_composer.add_n_column_row(
                             fields=widgets,
                             field_behaviors=field_behaviors,
@@ -685,6 +626,7 @@ class NodeCardBuilder:
                                 key: node_presentation.fields[key].label
                                 for key, _widget in widgets
                             },
+                            contribution=contribution,
                         )
                         presentation_binding.add_field_targets(built_row.text_targets)
                     continue
@@ -993,12 +935,13 @@ class NodeCardBuilder:
         input_keys: list[str],
         resolved_behavior: ResolvedNodeBehavior,
         skip_keys: set[str],
+        preferred_field_groups: tuple[tuple[str, ...], ...] = (),
     ) -> list[list[str]]:
         """Delegate visible-field grouping rules to the row-builder collaborator."""
 
         return self._field_rows.gather_visible_keys(
             input_keys=input_keys,
-            field_groups=resolved_behavior.field_groups,
+            field_groups=preferred_field_groups + resolved_behavior.field_groups,
             skip_keys=skip_keys,
         )
 

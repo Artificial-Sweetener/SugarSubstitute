@@ -28,7 +28,6 @@ from substitute.presentation.localization import (
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication,
     QDialog,
     QFrame,
     QLayout,
@@ -40,9 +39,8 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (  # type: ignore[import-untyped]
     BodyLabel,
     CaptionLabel,
-    MessageBoxBase,
 )
-from shiboken6 import isValid
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
 from substitute.application.restart_requirements import RestartRequirementSnapshot
 from substitute.presentation.shell.chrome_style import (
@@ -51,7 +49,6 @@ from substitute.presentation.shell.chrome_style import (
     winui_card_fill_color,
 )
 
-_FALLBACK_PARENT: QWidget | None = None
 _DIALOG_WIDTH = 640
 _DIALOG_MAX_HEIGHT_MARGIN = 48
 _CONTENT_TOP_MARGIN = 24
@@ -62,7 +59,7 @@ _ACTION_BUTTON_HEIGHT = 32
 _ACTION_BUTTON_MINIMUM_WIDTH = 128
 
 
-class RestartRequiredDialog(MessageBoxBase):  # type: ignore[misc]
+class RestartRequiredDialog(FullWindowModalBase):
     """Show the restart cart and return whether the user wants to restart now."""
 
     def __init__(
@@ -73,11 +70,10 @@ class RestartRequiredDialog(MessageBoxBase):  # type: ignore[misc]
     ) -> None:
         """Build the pending restart requirements modal."""
 
-        parent_widget = _resolve_parent(parent)
-        super().__init__(parent_widget)
+        super().__init__(parent)
         self._snapshot = snapshot
         self._restart_now_selected = False
-        self._dialog_max_height = _dialog_max_height(parent_widget)
+        self._dialog_max_height = _dialog_max_height(self.modal_owner)
         self.setClosableOnMaskClicked(False)
         self.setModal(True)
         self.widget.setMinimumWidth(_DIALOG_WIDTH)
@@ -278,21 +274,6 @@ class RestartRequiredDialog(MessageBoxBase):  # type: ignore[misc]
 
         self._restart_now_selected = False
         QDialog.reject(self)
-
-
-def _resolve_parent(parent: object | None) -> QWidget:
-    """Return a QWidget parent because qfluent mask dialogs require one."""
-
-    if isinstance(parent, QWidget) and isValid(parent):
-        return parent
-    active_window = QApplication.activeWindow()
-    if isinstance(active_window, QWidget) and isValid(active_window):
-        return active_window
-    global _FALLBACK_PARENT
-    if _FALLBACK_PARENT is None or not isValid(_FALLBACK_PARENT):
-        _FALLBACK_PARENT = QWidget()
-        _FALLBACK_PARENT.resize(1024, 768)
-    return _FALLBACK_PARENT
 
 
 def _dialog_max_height(parent: QWidget) -> int:

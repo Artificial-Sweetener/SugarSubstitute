@@ -25,9 +25,6 @@ from uuid import UUID
 from PySide6.QtCore import QTimer
 
 from substitute.domain.workflow import WorkflowState
-from substitute.presentation.canvas.input.input_canvas_tool_controller import (
-    InputCanvasToolController,
-)
 from substitute.presentation.regional.mask_editor_actions import (
     RegionalMaskActionOutcome,
 )
@@ -93,7 +90,6 @@ class InputNodeInteractionController:
         ],
         activate_input_canvas: Callable[[], bool],
         refresh_mask_pickers: Callable[[], None],
-        tool_controller: InputCanvasToolController,
     ) -> None:
         """Store the single owners participating in Input-node interactions."""
 
@@ -106,7 +102,6 @@ class InputNodeInteractionController:
         self._handle_ordered_mask_action = handle_ordered_mask_action
         self._activate_input_canvas = activate_input_canvas
         self._refresh_mask_pickers = refresh_mask_pickers
-        self._tool_controller = tool_controller
 
     def handle_image_changed(
         self,
@@ -188,8 +183,6 @@ class InputNodeInteractionController:
         if regional_outcome.handled:
             if regional_outcome.activate_canvas:
                 self._activate_input_canvas()
-            if regional_outcome.request_brush:
-                self._tool_controller.request_brush_after_mask_activation()
             return
 
         workflow = self._active_workflow()
@@ -246,7 +239,6 @@ class InputNodeInteractionController:
         ):
             return
         self._activate_input_canvas()
-        self._tool_controller.request_brush_after_mask_activation()
 
     @staticmethod
     def _log_rejection(

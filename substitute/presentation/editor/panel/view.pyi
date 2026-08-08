@@ -85,7 +85,7 @@ from .context.active_model_context import PanelActiveModelContextController
 from .context.active_model_snapshot import (
     PanelActiveModelSnapshotController,
 )
-from .menus.dimension_preset_menu_source import EditorDimensionPresetMenuSource
+from .dimension_presets import EditorDimensionPresetCatalogSource
 from .model_choice_snapshot_controller import PanelModelChoiceSnapshotController
 from .choice_field_surface_reconciler import ChoiceFieldSurfaceReconciliationResult
 from .projection_preparation import BehaviorRefreshReason
@@ -94,6 +94,7 @@ from .prompt.context import EditorPanelPromptContextController
 from .prompt.profile_policy import PanelPromptFieldProfileDecision
 from .prompt.scene_diagnostics import EditorPanelPromptSceneDiagnosticsController
 from .service_bundle import EditorPanelExecutionFactories
+from .node_card.body_contribution import NodeCardBodyContributor
 
 class EditorPanel(QWidget):
     CUBE_SPACING: int
@@ -102,13 +103,15 @@ class EditorPanel(QWidget):
     inputImageClicked: Any
     inputMaskChanged: Any
     inputMaskClicked: Any
+    inputMaskOpacityChanged: Any
+    inputMaskOpacityCommitted: Any
     mainwindow: Any
     scheduled_lora_provider: ScheduledLoraProvider | None
     prompt_feature_profile_service: PromptFeatureProfileService | None
     model_choice_snapshot_controller: PanelModelChoiceSnapshotController
     active_model_context_controller: PanelActiveModelContextController
     active_model_snapshot_controller: PanelActiveModelSnapshotController
-    dimension_preset_source: EditorDimensionPresetMenuSource | None
+    dimension_preset_source: EditorDimensionPresetCatalogSource | None
     _cube_states: Mapping[str, Any] | None
     _stack_order: list[str] | None
     _prompt_context_controller: EditorPanelPromptContextController
@@ -141,6 +144,7 @@ class EditorPanel(QWidget):
         workflow_id: str | None = ...,
         wheel_adjustment_mode: PromptWheelAdjustmentMode = ...,
         editor_panel_execution_factories: EditorPanelExecutionFactories | None = ...,
+        node_card_body_contributors: tuple[NodeCardBodyContributor, ...] = ...,
     ) -> None: ...
     def set_cube_stack_unavailable_progress(self, progress: float) -> None: ...
     def content_horizontal_gutters(self) -> tuple[int, int]: ...

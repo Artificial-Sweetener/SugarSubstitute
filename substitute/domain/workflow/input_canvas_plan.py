@@ -65,6 +65,14 @@ class CanvasDimensionAuthority:
     structural_fingerprint: str
     dimension_fingerprint: str
 
+    def __post_init__(self) -> None:
+        """Require one width/height field pair for every authority node."""
+
+        if len(self.node_names) != len(self.field_pairs):
+            raise ValueError(
+                "Canvas dimension authority nodes and field pairs must align."
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class CanvasDimensionResolution:

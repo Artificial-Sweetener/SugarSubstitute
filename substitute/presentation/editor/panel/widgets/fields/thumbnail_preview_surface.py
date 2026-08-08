@@ -187,6 +187,19 @@ class ThumbnailPreviewSurface(QWidget):
 
         return self._live_content
 
+    def refresh_live_content_size(self) -> QSize | None:
+        """Adopt a mounted live preview's latest authoritative size hint."""
+
+        content = self._live_content
+        if content is None:
+            return None
+        content_size = content.sizeHint().expandedTo(QSize(1, 1))
+        content.setFixedSize(content_size)
+        self._set_live_size(content_size)
+        self.updateGeometry()
+        self.update()
+        return content_size
+
     def remove_live_content(self) -> QWidget | None:
         """Detach and return live content so its lifecycle owner can retire it."""
 

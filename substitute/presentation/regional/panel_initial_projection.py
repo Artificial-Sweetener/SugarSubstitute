@@ -18,10 +18,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any
 
-from substitute.domain.workflow import WorkflowState
+from substitute.presentation.editor.panel.panel_workflow_projection import (
+    workflow_for_panel,
+)
 from substitute.presentation.editor.panel.widgets.fields.regional_mask_batch import (
     RegionalMaskBatchEditor,
 )
@@ -41,7 +42,7 @@ def project_regional_panel_widget(
 
     if not isinstance(widget, RegionalMaskBatchEditor) or cube_alias is None:
         return False
-    workflow = _panel_workflow(panel)
+    workflow = workflow_for_panel(panel)
     if workflow is None:
         return False
     return RegionalMaskEditorProjector().project_editor(
@@ -49,27 +50,6 @@ def project_regional_panel_widget(
         workflow,
         (cube_alias, node_name),
     )
-
-
-def _panel_workflow(panel: object) -> WorkflowState | None:
-    """Resolve the workflow owning a panel without relying on active routing."""
-
-    mainwindow = getattr(panel, "mainwindow", None)
-    editor_panels = getattr(mainwindow, "editor_panels", None)
-    session_service = getattr(mainwindow, "workflow_session_service", None)
-    workflows = getattr(session_service, "workflows", None)
-    if not isinstance(editor_panels, Mapping) or not isinstance(workflows, Mapping):
-        return None
-    workflow_id = next(
-        (
-            str(candidate_id)
-            for candidate_id, candidate_panel in editor_panels.items()
-            if candidate_panel is panel
-        ),
-        None,
-    )
-    workflow = workflows.get(workflow_id) if workflow_id is not None else None
-    return workflow if isinstance(workflow, WorkflowState) else None
 
 
 __all__ = ["project_regional_panel_widget"]

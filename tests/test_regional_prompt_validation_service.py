@@ -26,6 +26,9 @@ from substitute.application.workflows.regional_prompt_validation_service import 
 from substitute.application.workflows.regional_prompt_topology_service import (
     RegionalPromptTopologyService,
 )
+from substitute.application.workflows.regional_prompt_label_service import (
+    RegionalPromptLabelService,
+)
 from substitute.domain.workflow import CubeState, ProjectMaskAssetRef, WorkflowState
 
 
@@ -118,3 +121,37 @@ def test_regional_prompt_topology_resolves_prompt_nodes_to_mask_endpoint() -> No
     assert topology.association_key == ("Region", "masks")
     assert topology.prompt_node_names == ("positive", "negative")
     assert service.topology_for_mask(workflow, ("Region", "masks")) == topology
+
+
+def test_regional_prompt_labels_follow_authored_sep_names_in_mask_order() -> None:
+    """Mask labels should prefer the first authored name across related prompts."""
+
+    workflow = _workflow(
+        "global\n[SEP|Character]\nfirst\n[SEP]\nsecond",
+        mask_count=3,
+    )
+
+    labels = RegionalPromptLabelService().labels_for_mask(
+        workflow,
+        ("Region", "masks"),
+        region_count=3,
+    )
+
+    assert labels == ("Character", None, None)
+
+
+def test_regional_prompt_labels_accept_current_editor_text_before_graph_commit() -> (
+    None
+):
+    """Live panel projection should use the changed prompt's current source snapshot."""
+
+    workflow = _workflow("global\n[SEP|Old]\nfirst", mask_count=1)
+
+    labels = RegionalPromptLabelService().labels_for_mask(
+        workflow,
+        ("Region", "masks"),
+        region_count=1,
+        prompt_text_overrides={"positive": "global\n[SEP|New]\nfirst"},
+    )
+
+    assert labels == ("New",)

@@ -25,7 +25,6 @@ from PySide6.QtWidgets import QLabel, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     ColorDialog,
     ColorPickerButton,
-    MessageBoxBase,
 )
 
 from sugarsubstitute_shared.localization import ApplicationMessage, app_text
@@ -35,17 +34,16 @@ from sugarsubstitute_shared.presentation.localization import (
     set_localized_text,
     set_localized_tooltip,
 )
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
 
-class LocalizedMessageBoxBase(MessageBoxBase):  # type: ignore[misc]
+class LocalizedMessageBoxBase(FullWindowModalBase):
     """Own SugarSubstitute translations for QFluent message-box chrome."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Bind standard actions without replacing QFluent's dialog structure."""
 
         super().__init__(parent)
-        set_localized_text(self.yesButton, "OK")
-        set_localized_text(self.cancelButton, "Cancel")
 
 
 class LocalizedColorDialog(ColorDialog):  # type: ignore[misc]

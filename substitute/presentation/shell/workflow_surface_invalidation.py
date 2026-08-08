@@ -189,10 +189,12 @@ CANVAS_AND_GENERATION_SURFACES = frozenset(
         WorkflowSurface.GENERATION_AVAILABILITY,
     }
 )
+CANVAS_PRESENTATION_SURFACES = frozenset({WorkflowSurface.CANVAS})
 
 __all__ = [
     "ALL_WORKFLOW_SURFACES",
     "CANVAS_AND_GENERATION_SURFACES",
+    "CANVAS_PRESENTATION_SURFACES",
     "CUBE_STRUCTURE_SURFACES",
     "WorkflowInvalidationReason",
     "WorkflowSurface",

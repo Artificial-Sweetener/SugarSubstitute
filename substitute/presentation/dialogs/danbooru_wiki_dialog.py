@@ -42,7 +42,7 @@ from typing import Generic, Protocol, TypeVar, cast
 from urllib.parse import quote, unquote
 
 from PySide6.QtCore import QEvent, QObject, QSize, Qt, QUrl, Signal, Slot
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QShowEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QSizePolicy,
@@ -53,9 +53,9 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (  # type: ignore[import-untyped]
     CaptionLabel,
     FluentIcon as FIF,
-    MessageBoxBase,
     ToolButton,
 )
+from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 from sugarsubstitute_shared.presentation.fluent_tooltips import (
     FluentToolTipFilter,
     ToolTipPosition,
@@ -117,7 +117,6 @@ _PIXIV_URL_PATTERN = re.compile(
     r"^(?:https?://)?(?:www\.)?pixiv\.net/\S+$",
     re.IGNORECASE,
 )
-_FALLBACK_PARENT: QWidget | None = None
 _DARK_DIALOG_TOP_FILL = "#2b2b2b"
 _DARK_DIALOG_BODY_FILL = "#202020"
 _LIGHT_DIALOG_TOP_FILL = "#fbfbfb"
@@ -419,7 +418,7 @@ class _DialogLoadResult:
     image_previews_by_post_id: dict[tuple[str, int], DanbooruWikiImagePreview]
 
 
-class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
+class DanbooruWikiDialog(FullWindowModalBase):
     """Browse Danbooru wiki pages inside a native app-styled modal."""
 
     def __init__(
@@ -436,7 +435,7 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
         """Build the native Danbooru wiki browser dialog."""
 
         self._sizing_parent_window: QWidget | None = None
-        super().__init__(_resolve_parent(parent))
+        super().__init__(parent)
         self._wiki_service = wiki_service
         self._image_preview_service = image_preview_service
         self._recent_posts_service = recent_posts_service
@@ -471,7 +470,7 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
         connect_theme_refresh(self, self._apply_theme)
         self._navigate_to(selection_text, by_title=False, push_history=True)
 
-    def showEvent(self, event: QEvent) -> None:
+    def showEvent(self, event: QShowEvent) -> None:
         """Apply responsive sizing from the owning window when the dialog opens."""
 
         super().showEvent(event)
@@ -1030,7 +1029,7 @@ class DanbooruWikiDialog(MessageBoxBase):  # type: ignore[misc]
     def _sync_responsive_parent_window(self) -> None:
         """Track the real top-level owner that controls responsive sizing."""
 
-        resolved_parent_window = _responsive_sizing_parent_window(self.parentWidget())
+        resolved_parent_window = _responsive_sizing_parent_window(self.modal_owner)
         if resolved_parent_window is self._sizing_parent_window:
             return
         self._clear_responsive_parent_window()
@@ -1144,21 +1143,6 @@ def _embedded_references(
     return tuple(references)
 
 
-def _resolve_parent(parent: QWidget | None) -> QWidget:
-    """Return a QWidget parent because qfluent mask dialogs require one."""
-
-    if isinstance(parent, QWidget) and isValid(parent):
-        top_level_parent = _responsive_sizing_parent_window(parent)
-        if top_level_parent is not None:
-            return top_level_parent
-        return parent
-    global _FALLBACK_PARENT
-    if _FALLBACK_PARENT is None or not isValid(_FALLBACK_PARENT):
-        _FALLBACK_PARENT = QWidget()
-        _FALLBACK_PARENT.resize(1200, 800)
-    return _FALLBACK_PARENT
-
-
 def _responsive_sizing_parent_window(parent: QWidget | None) -> QWidget | None:
     """Return the real top-level owner used for responsive dialog sizing."""
 
@@ -1166,8 +1150,6 @@ def _responsive_sizing_parent_window(parent: QWidget | None) -> QWidget | None:
         return None
     top_level_window = parent.window()
     if not isinstance(top_level_window, QWidget) or not isValid(top_level_window):
-        return None
-    if _FALLBACK_PARENT is not None and top_level_window is _FALLBACK_PARENT:
         return None
     return top_level_window
 
