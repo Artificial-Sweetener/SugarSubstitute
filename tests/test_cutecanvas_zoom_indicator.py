@@ -49,6 +49,9 @@ from cutecanvas import (
 from substitute.presentation.canvas.host.floating_canvas_window import (
     FloatingCanvasWindow,
 )
+from substitute.presentation.canvas.output.output_canvas_zoom_indicators import (
+    OutputCanvasZoomIndicators,
+)
 from substitute.presentation.canvas.shared.canvas_comparison_zoom_indicator import (
     CanvasComparisonZoomIndicator,
 )
@@ -210,6 +213,33 @@ def test_real_detail_double_click_shows_feedback() -> None:
     finally:
         indicator.close()
         canvas.close()
+        document.close()
+        app.processEvents()
+
+
+def test_output_indicator_releases_canvas_after_native_canvas_destruction() -> None:
+    """Drop the registry reference without touching an already-deleted canvas."""
+
+    app = _application()
+    document = CanvasDocument()
+    composition_id = document.create_composition_from_image(_image(QSize(200, 120)))
+    workspace = CanvasWorkspace(document=document, features=())
+    indicators = OutputCanvasZoomIndicators(workspace)
+    try:
+        workspace.setSinglePresentation(composition_id)
+        app.processEvents()
+        canvas = workspace.currentCanvas()
+        assert canvas is not None
+        assert canvas in indicators._indicators
+
+        canvas.destroyed.disconnect()
+        canvas.deleteLater()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        indicators._release_canvas(canvas)
+
+        assert canvas not in indicators._indicators
+    finally:
+        workspace.close()
         document.close()
         app.processEvents()
 
