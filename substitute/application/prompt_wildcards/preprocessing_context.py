@@ -23,11 +23,9 @@ from dataclasses import dataclass, field
 from substitute.application.prompt_wildcards.resolver import (
     PromptWildcardResolutionContext,
 )
-from substitute.application.prompt_wildcards.seed_policy import (
-    PromptWildcardSeedSelection,
-)
 from substitute.domain.prompt.wildcards.models import PromptWildcardResolution
 from substitute.domain.prompt.wildcards.syntax import PromptWildcardSyntaxProfile
+from substitute.domain.workflow import WorkflowSeedSelection
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +67,7 @@ class PromptWildcardPreprocessingContext:
     )
     seed_selection_by_field: dict[
         WildcardPromptFieldSeedKey,
-        PromptWildcardSeedSelection,
+        WorkflowSeedSelection,
     ] = field(default_factory=dict)
     exact_resolution_by_text: dict[
         WildcardExactResolutionCacheKey,

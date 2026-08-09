@@ -26,7 +26,6 @@ from substitute.application.prompt_wildcards import (
     PromptWildcardPreprocessingContext,
     PromptWildcardPreprocessingService,
     PromptWildcardResolutionContext,
-    PromptWildcardSeedSelection,
 )
 from substitute.application.prompt_wildcards.resolver import PromptWildcardResolver
 from substitute.domain.links import PromptEndpoint, PromptEndpointIndex
@@ -34,6 +33,10 @@ from substitute.domain.node_behavior import PromptRole
 from substitute.domain.prompt.wildcards.models import (
     PromptWildcardCsvSource,
     PromptWildcardTextSource,
+)
+from substitute.domain.workflow import (
+    WorkflowSeedSelection,
+    WorkflowSeedState,
 )
 from substitute.infrastructure.persistence.file_prompt_wildcard_catalog_gateway import (
     FilePromptWildcardCatalogGateway,
@@ -186,28 +189,20 @@ class _CountingSourceProvider:
         return None
 
 
-class _CountingSeedPolicy:
+class _CountingSeedAuthority:
     """Return a fixed seed while recording selection calls."""
 
     def __init__(self) -> None:
         """Initialize seed selection counters."""
 
-        self.calls: list[tuple[str, str, str]] = []
+        self.calls = 0
 
-    def select_seed(
-        self,
-        *,
-        workflow: object,
-        prompt_cube_alias: str,
-        workflow_id: str,
-        prompt_node_name: str,
-        prompt_field_key: str,
-    ) -> PromptWildcardSeedSelection:
-        """Return a deterministic seed for the requested prompt field."""
+    def select(self, workflow: WorkflowSeedState) -> WorkflowSeedSelection:
+        """Return a deterministic seed while recording the workflow request."""
 
-        _ = workflow, workflow_id
-        self.calls.append((prompt_cube_alias, prompt_node_name, prompt_field_key))
-        return PromptWildcardSeedSelection(seed=1)
+        _ = workflow
+        self.calls += 1
+        return WorkflowSeedSelection(seed=1)
 
 
 def test_preprocessing_resolves_prompt_copy_without_mutating_live_workflow(
@@ -334,10 +329,10 @@ def test_preprocessing_context_caches_exact_prompt_resolution(
     """Repeated exact prompt text should resolve once per request context."""
 
     source_provider = _CountingSourceProvider()
-    seed_policy = _CountingSeedPolicy()
+    seed_authority = _CountingSeedAuthority()
     service = PromptWildcardPreprocessingService(
         source_provider=source_provider,
-        seed_policy=seed_policy,  # type: ignore[arg-type]
+        seed_authority=seed_authority,
     )
     preprocessing_context = PromptWildcardPreprocessingContext()
     original_resolve = PromptWildcardResolver.resolve
@@ -377,7 +372,7 @@ def test_preprocessing_context_caches_exact_prompt_resolution(
     assert first_prompt == second_prompt
     assert resolve_calls == ["A {animal}"]
     assert source_provider.text_calls == ["animal"]
-    assert seed_policy.calls == [("Text", "positive_prompt", "prompt_template")]
+    assert seed_authority.calls == 1
 
 
 def test_resolver_records_wildcard_replacement_provenance() -> None:
