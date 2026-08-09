@@ -25,6 +25,12 @@ from typing import Any, Protocol, TypeVar, cast
 from substitute.domain.links import PromptEndpointIndex
 from substitute.domain.prompt.document.parser import parse_prompt_document
 from substitute.domain.prompt.wildcards.syntax import PromptWildcardSyntaxProfile
+from substitute.domain.workflow import (
+    WorkflowSeedAuthority,
+    WorkflowSeedSelection,
+    WorkflowSeedSelector,
+    WorkflowSeedState,
+)
 from substitute.shared.logging.logger import get_logger, log_debug
 
 from .resolver import (
@@ -39,11 +45,6 @@ from .preprocessing_context import (
     WildcardShouldResolveCacheKey,
 )
 from .preferences import PromptWildcardPreferenceService
-from .seed_policy import (
-    PromptWildcardSeedPolicy,
-    PromptWildcardSeedSelection,
-    PromptWildcardSeedWorkflow,
-)
 
 _LOGGER = get_logger("application.prompt_wildcards.preprocessing_service")
 _WILDCARD_PROMPT_CLASS_TYPES = frozenset(
@@ -59,10 +60,8 @@ _PromptEndpointFieldsByCube = dict[str, frozenset[tuple[str, str]]]
 _PromptFieldOverrides = Mapping[tuple[str, str, str], str]
 
 
-class PromptWildcardWorkflow(PromptWildcardSeedWorkflow, Protocol):
+class PromptWildcardWorkflow(WorkflowSeedState, Protocol):
     """Describe mutable workflow state used by wildcard preprocessing."""
-
-    global_overrides: Any
 
 
 _WorkflowT = TypeVar("_WorkflowT")
@@ -75,7 +74,7 @@ class PromptWildcardPreprocessingService:
         self,
         *,
         source_provider: PromptWildcardSourceProvider,
-        seed_policy: PromptWildcardSeedPolicy | None = None,
+        seed_authority: WorkflowSeedSelector | None = None,
         syntax_profile: PromptWildcardSyntaxProfile | None = None,
         preference_service: PromptWildcardPreferenceService | None = None,
         resolve_on_generation: bool = True,
@@ -83,7 +82,7 @@ class PromptWildcardPreprocessingService:
         """Store preprocessing collaborators and settings."""
 
         self._source_provider = source_provider
-        self._seed_policy = seed_policy or PromptWildcardSeedPolicy()
+        self._seed_authority = seed_authority or WorkflowSeedAuthority()
         self._syntax_profile = syntax_profile or PromptWildcardSyntaxProfile.default()
         self._preference_service = preference_service
         self._resolve_on_generation = resolve_on_generation
@@ -442,7 +441,7 @@ class PromptWildcardPreprocessingService:
         prompt_node_name: str,
         prompt_field_key: str,
         preprocessing_context: PromptWildcardPreprocessingContext,
-    ) -> PromptWildcardSeedSelection:
+    ) -> WorkflowSeedSelection:
         """Return request-cached seed selection for one prompt field."""
 
         cache_key = WildcardPromptFieldSeedKey(
@@ -452,14 +451,20 @@ class PromptWildcardPreprocessingService:
             prompt_field_key=prompt_field_key,
         )
         if cache_key not in preprocessing_context.seed_selection_by_field:
-            preprocessing_context.seed_selection_by_field[cache_key] = (
-                self._seed_policy.select_seed(
-                    workflow=workflow,
-                    prompt_cube_alias=prompt_cube_alias,
-                    workflow_id=workflow_id,
-                    prompt_node_name=prompt_node_name,
-                    prompt_field_key=prompt_field_key,
-                )
+            selection = self._seed_authority.select(workflow)
+            preprocessing_context.seed_selection_by_field[cache_key] = selection
+            log_debug(
+                _LOGGER,
+                "Selected effective workflow seed for wildcard prompt field.",
+                workflow_id=workflow_id,
+                cube_alias=prompt_cube_alias,
+                prompt_node_name=prompt_node_name,
+                prompt_field_key=prompt_field_key,
+                seed_source=selection.source,
+                selected_seed_override_key=selection.override_key,
+                selected_seed_cube_alias=selection.cube_alias,
+                selected_seed_control_id=selection.control_id,
+                seed_value=selection.seed,
             )
         return preprocessing_context.seed_selection_by_field[cache_key]
 

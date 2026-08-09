@@ -28,13 +28,17 @@ from substitute.domain.generation.seed_control import (
     SeedControlState,
     SeedMode,
 )
-from substitute.domain.workflow import WorkflowState
+from substitute.domain.workflow import (
+    SEED_OVERRIDE_KEY,
+    WorkflowSeedAuthority,
+    WorkflowState,
+)
 from substitute.domain.workflow.override_keys import canonicalize_global_override_key
 from substitute.shared.logging.logger import get_logger, log_debug, log_warning
 
 _LOGGER = get_logger("application.generation.seed_randomization_service")
 DEFAULT_RANDOM_SEED_MAX = 18_446_744_073_709_551_615
-SEED_FIELD_KEY = "seed"
+SEED_FIELD_KEY = SEED_OVERRIDE_KEY
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +102,9 @@ class SeedRandomizationService:
         if behavior_snapshot is None:
             return ()
         changes: list[SeedValueChange] = []
-        override_seed_active = _active_seed_override_key(workflow)
+        override_seed_active = WorkflowSeedAuthority.active_global_override_key(
+            workflow
+        )
         for cube_alias in workflow.stack_order:
             cube = workflow.cubes.get(cube_alias)
             if cube is None:
@@ -234,16 +240,6 @@ class SeedRandomizationService:
                 if spec is not None:
                     return cast(Mapping[str, object], spec.constraints)
         return {}
-
-
-def _active_seed_override_key(workflow: WorkflowState) -> str | None:
-    """Return the active canonical seed override key when one exists."""
-
-    for override_key, override in workflow.global_overrides.items():
-        canonical_key = canonicalize_global_override_key(str(override_key))
-        if canonical_key == SEED_FIELD_KEY and isinstance(override, dict):
-            return canonical_key
-    return None
 
 
 def _spec_uses_seed_override(spec: object) -> bool:
