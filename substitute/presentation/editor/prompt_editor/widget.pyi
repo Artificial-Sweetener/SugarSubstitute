@@ -40,6 +40,7 @@ from substitute.application.danbooru import (
 from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
 )
+from substitute.application.prompt_editor.conditioning import PromptConditioningContext
 from substitute.application.prompt_editor.document.semantics import (
     PromptDocumentSemantics,
 )
@@ -158,6 +159,7 @@ class PromptEditor(QWidget):
         prompt_autocomplete_gateway: PromptAutocompleteGateway,
         prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
         prompt_document_semantics: PromptDocumentSemantics | None = ...,
+        prompt_conditioning_context: PromptConditioningContext | None = ...,
         danbooru_url_import_service: DanbooruUrlImportService | None = ...,
         danbooru_wiki_service: DanbooruWikiContentService | None = ...,
         danbooru_image_preview_service: DanbooruImagePreviewService | None = ...,
@@ -216,6 +218,10 @@ class PromptEditor(QWidget):
         text: str,
         document_semantics: PromptDocumentSemantics,
     ) -> None: ...
+    def replaceConditioningContext(
+        self,
+        conditioning_context: PromptConditioningContext,
+    ) -> bool: ...
     def preloadVisibleLoraBanners(
         self,
         *,

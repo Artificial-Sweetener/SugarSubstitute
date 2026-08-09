@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Detect repeated prompt segments in scene-effective prompt scopes."""
+"""Detect repeated prompt segments in effective prompt conditioning scopes."""
 
 from __future__ import annotations
 
@@ -44,6 +44,12 @@ from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
 )
 from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.conditioning import (
+    PromptConditioningContext,
+    PromptConditioningTopology,
+    PromptConditioningTopologyService,
+    unbound_prompt_conditioning_context,
+)
 from substitute.application.prompt_editor.scenes.projection import (
     parse_prompt_scene_projection_document,
 )
@@ -69,12 +75,20 @@ class PromptDuplicateSegmentDiagnosticProvider:
         *,
         document_projector: PromptDocumentProjector | None = None,
         document_semantics: PromptDocumentSemantics | None = None,
+        conditioning_context: PromptConditioningContext | None = None,
+        conditioning_topology: PromptConditioningTopologyService | None = None,
     ) -> None:
         """Store prompt parsing collaborators."""
 
         self._document_projector = document_projector or PromptDocumentProjector()
         self._document_semantics = (
             document_semantics or OrdinaryPromptDocumentSemantics()
+        )
+        self._conditioning_context = (
+            conditioning_context or unbound_prompt_conditioning_context()
+        )
+        self._conditioning_topology = (
+            conditioning_topology or PromptConditioningTopologyService()
         )
 
     def diagnostics_for_text(self, text: str) -> PromptDiagnosticProviderResult:
@@ -87,9 +101,10 @@ class PromptDuplicateSegmentDiagnosticProvider:
             )
         scene_document = parse_prompt_scene_projection_document(text)
         diagnostics = (
-            self._diagnostics_without_scenes(document_view)
-            if not scene_document.has_scenes
-            else self._diagnostics_for_scene_document(document_view, scene_document)
+            self._diagnostics_for_scene_document(document_view, scene_document)
+            if scene_document.has_scenes
+            and not document_view.region_structure.separators
+            else self._diagnostics_for_conditioning_topology(document_view)
         )
         return PromptDiagnosticProviderResult(diagnostics=diagnostics)
 
@@ -112,17 +127,55 @@ class PromptDuplicateSegmentDiagnosticProvider:
             )
         return tuple(diagnostics)
 
-    def _diagnostics_without_scenes(
+    def _diagnostics_for_conditioning_topology(
         self,
         document_view: PromptDocumentView,
     ) -> tuple[PromptDiagnostic, ...]:
-        """Return duplicate diagnostics for a single ordinary prompt scope."""
+        """Return diagnostics using graph-context partition inheritance."""
 
-        occurrences = self._occurrences_in_range(
-            document_view,
-            SourceRange(0, len(document_view.source_text)),
+        topology = self._conditioning_topology.build(
+            self._conditioning_context,
+            document_view.region_structure,
         )
-        return _diagnostics_for_occurrences(occurrences, first_occurrences={})
+        diagnostics: list[PromptDiagnostic] = []
+        for root_scope in topology.root_scopes:
+            self._collect_scope_diagnostics(
+                document_view,
+                topology=topology,
+                scope_id=root_scope.scope_id,
+                inherited_first_occurrences={},
+                diagnostics=diagnostics,
+            )
+        return tuple(diagnostics)
+
+    def _collect_scope_diagnostics(
+        self,
+        document_view: PromptDocumentView,
+        *,
+        topology: PromptConditioningTopology,
+        scope_id: str,
+        inherited_first_occurrences: dict[str, _DuplicateSegmentOccurrence],
+        diagnostics: list[PromptDiagnostic],
+    ) -> None:
+        """Evaluate one source scope and recursively fork its inherited state."""
+
+        scope = topology.scope(scope_id)
+        first_occurrences = dict(inherited_first_occurrences)
+        occurrences = self._occurrences_in_range(document_view, scope.source_range)
+        diagnostics.extend(
+            _diagnostics_for_occurrences(
+                occurrences,
+                first_occurrences=first_occurrences,
+            )
+        )
+        for child_scope in topology.children_of(scope_id):
+            self._collect_scope_diagnostics(
+                document_view,
+                topology=topology,
+                scope_id=child_scope.scope_id,
+                inherited_first_occurrences=first_occurrences,
+                diagnostics=diagnostics,
+            )
 
     def _diagnostics_for_scene_document(
         self,

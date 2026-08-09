@@ -281,6 +281,7 @@ class _FakePromptEditor:
         prompt_scheduled_lora_service: object | None = None,
         scheduled_lora_resolver: object | None = None,
         prompt_feature_profile: object | None = None,
+        prompt_conditioning_context: object | None = None,
         prompt_segment_preset_source: object | None = None,
         prompt_spellcheck_service: object | None = None,
         thumbnail_asset_repository: object | None = None,
@@ -300,6 +301,7 @@ class _FakePromptEditor:
         self.prompt_scheduled_lora_service = prompt_scheduled_lora_service
         self.scheduled_lora_resolver = scheduled_lora_resolver
         self.prompt_feature_profile = prompt_feature_profile
+        self.prompt_conditioning_context = prompt_conditioning_context
         self.prompt_segment_preset_source = prompt_segment_preset_source
         self.prompt_spellcheck_service = prompt_spellcheck_service
         self.thumbnail_asset_repository = thumbnail_asset_repository

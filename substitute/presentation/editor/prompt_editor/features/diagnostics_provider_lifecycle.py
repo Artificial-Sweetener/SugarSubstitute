@@ -34,6 +34,10 @@ from substitute.application.prompt_editor.diagnostics.spellcheck import (
 from substitute.application.prompt_editor.diagnostics.spellcheck_provider import (
     PromptSpellcheckDiagnosticProvider,
 )
+from substitute.application.prompt_editor.conditioning import (
+    PromptConditioningContext,
+    unbound_prompt_conditioning_context,
+)
 from substitute.application.prompt_editor.document.semantics import (
     OrdinaryPromptDocumentSemantics,
     PromptDocumentSemantics,
@@ -82,6 +86,7 @@ class PromptDiagnosticsProviderLifecycle:
         feature_profile: PromptFeatureProfileController,
         wildcard_feature: PromptWildcardDiagnosticProviderSource,
         document_semantics: PromptDocumentSemantics | None = None,
+        conditioning_context: PromptConditioningContext | None = None,
         spellcheck_service: PromptSpellcheckService | None = None,
         service_factory: PromptDiagnosticsServiceFactory | None = None,
         spellcheck_provider_factory: PromptSpellcheckProviderFactory = (
@@ -94,6 +99,9 @@ class PromptDiagnosticsProviderLifecycle:
         self._wildcard_feature = wildcard_feature
         self._document_semantics = (
             document_semantics or OrdinaryPromptDocumentSemantics()
+        )
+        self._conditioning_context = (
+            conditioning_context or unbound_prompt_conditioning_context()
         )
         self._spellcheck_service = spellcheck_service
         self._service_factory = (
@@ -128,6 +136,12 @@ class PromptDiagnosticsProviderLifecycle:
 
         return self._document_semantics.identity
 
+    @property
+    def conditioning_context_identity(self) -> object:
+        """Return graph context identity used by the active provider topology."""
+
+        return self._conditioning_context.identity
+
     def can_activate(self) -> bool:
         """Return whether the configured feature set exposes any diagnostics."""
 
@@ -158,6 +172,19 @@ class PromptDiagnosticsProviderLifecycle:
         self._rebuild_service()
         return True
 
+    def replace_conditioning_context(
+        self,
+        conditioning_context: PromptConditioningContext,
+    ) -> bool:
+        """Replace graph context and rebuild active providers when identity changed."""
+
+        if conditioning_context.identity == self._conditioning_context.identity:
+            return False
+        self._conditioning_context = conditioning_context
+        if self._active:
+            self._rebuild_service()
+        return True
+
     def _rebuild_service(self) -> None:
         """Construct providers for the current feature and document-semantics state."""
 
@@ -182,7 +209,8 @@ class PromptDiagnosticsProviderLifecycle:
         if self._feature_profile.duplicate_segment_diagnostics_enabled:
             providers.append(
                 PromptDuplicateSegmentDiagnosticProvider(
-                    document_semantics=self._document_semantics
+                    document_semantics=self._document_semantics,
+                    conditioning_context=self._conditioning_context,
                 )
             )
         self._service = self._service_factory(tuple(providers))

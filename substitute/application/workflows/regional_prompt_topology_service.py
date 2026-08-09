@@ -23,8 +23,11 @@ from dataclasses import dataclass
 from substitute.application.workflows.workflow_graph_section_service import (
     WorkflowGraphSectionService,
 )
+from substitute.application.workflows.input_asset_endpoint_service import (
+    InputAssetEndpointService,
+)
 from substitute.domain.common import MaskAssociationKey
-from substitute.domain.workflow import WorkflowState
+from substitute.domain.workflow import InputAssetCardinality, WorkflowState
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,10 +44,12 @@ class RegionalPromptTopologyService:
     def __init__(
         self,
         graph_sections: WorkflowGraphSectionService | None = None,
+        input_endpoints: InputAssetEndpointService | None = None,
     ) -> None:
         """Store the graph-section authority used for relationship discovery."""
 
         self._graph_sections = graph_sections or WorkflowGraphSectionService()
+        self._input_endpoints = input_endpoints or InputAssetEndpointService()
 
     def topologies(
         self,
@@ -100,6 +105,64 @@ class RegionalPromptTopologyService:
             ),
             None,
         )
+
+    def topology_for_prompt_endpoint(
+        self,
+        workflow: WorkflowState,
+        section_key: str,
+        prompt_node_name: str,
+        field_key: str,
+    ) -> RegionalPromptTopology | None:
+        """Return regional topology only for one exact graph-backed prompt field."""
+
+        topology = self.topology_for_prompt(
+            workflow,
+            section_key,
+            prompt_node_name,
+        )
+        if topology is None:
+            topology = self._ordered_endpoint_topology_for_prompt(
+                workflow,
+                section_key,
+                prompt_node_name,
+            )
+        if topology is None:
+            return None
+        graph = self._graph_sections.graph(workflow, section_key)
+        if graph is None:
+            return None
+        node = _nodes(graph).get(prompt_node_name)
+        inputs = node.get("inputs") if node is not None else None
+        if (
+            field_key not in {"value", "text"}
+            or not isinstance(inputs, dict)
+            or not isinstance(inputs.get(field_key), str)
+        ):
+            return None
+        return topology
+
+    def _ordered_endpoint_topology_for_prompt(
+        self,
+        workflow: WorkflowState,
+        section_key: str,
+        prompt_node_name: str,
+    ) -> RegionalPromptTopology | None:
+        """Resolve prompt topology before ordered mask state is materialized."""
+
+        graph = self._graph_sections.graph(workflow, section_key)
+        if graph is None:
+            return None
+        endpoints = self._input_endpoints.build_index(section_key, graph)
+        for endpoint in endpoints.mask_endpoints:
+            if endpoint.cardinality is not InputAssetCardinality.ORDERED:
+                continue
+            prompt_nodes = _prompt_sources_for_mask(graph, endpoint.node_name)
+            if prompt_node_name in prompt_nodes:
+                return RegionalPromptTopology(
+                    association_key=(section_key, endpoint.node_name),
+                    prompt_node_names=prompt_nodes,
+                )
+        return None
 
 
 def prompt_text(graph: dict[str, object], node_name: str) -> str | None:

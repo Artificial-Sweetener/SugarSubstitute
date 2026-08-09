@@ -67,6 +67,7 @@ from substitute.application.ports import (
 from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
 )
+from substitute.application.prompt_editor.conditioning import PromptConditioningContext
 from substitute.application.prompt_editor.document.semantics import (
     OrdinaryPromptDocumentSemantics,
     PromptDocumentSemantics,
@@ -246,6 +247,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
         prompt_autocomplete_gateway: PromptAutocompleteGateway,
         prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway,
         prompt_document_semantics: PromptDocumentSemantics | None = None,
+        prompt_conditioning_context: PromptConditioningContext | None = None,
         danbooru_url_import_service: DanbooruUrlImportService | None = None,
         danbooru_wiki_service: DanbooruWikiContentService | None = None,
         danbooru_image_preview_service: DanbooruImagePreviewService | None = None,
@@ -521,6 +523,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             feature_profile=self._feature_profile_controller,
             wildcard_feature=self._wildcard_diagnostics_presentation,
             document_semantics=self._document_semantics,
+            conditioning_context=prompt_conditioning_context,
             spellcheck_service=prompt_spellcheck_service,
             parent=self,
             request_channel=cast(
@@ -919,6 +922,16 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
             self._interaction_controller.handle_document_semantics_changed()
             self._diagnostics_feature_controller.handle_document_semantics_changed()
             self._lora_trigger_word_controller.handle_source_changed()
+
+    def replaceConditioningContext(  # noqa: N802
+        self,
+        conditioning_context: PromptConditioningContext,
+    ) -> bool:
+        """Replace graph-derived conditioning semantics and invalidate old diagnostics."""
+
+        return self._diagnostics_feature_controller.replace_conditioning_context(
+            conditioning_context
+        )
 
     def preloadVisibleLoraBanners(  # noqa: N802
         self,

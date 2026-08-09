@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial
 from typing import Any
@@ -41,7 +41,6 @@ except ImportError:  # pragma: no cover - test-stub fallback only
 from substitute.application.node_behavior import (
     CollapseMode,
     FieldBehavior,
-    FieldPresentation,
     NodeDisplayDecision,
     ResolvedFieldSpec,
     ResolvedNodeBehavior,
@@ -106,8 +105,11 @@ from substitute.presentation.editor.panel.model_choice_snapshot_controller impor
 from substitute.presentation.editor.panel.node_card_build_transaction import (
     NodeCardBuildTransaction,
 )
-from substitute.presentation.editor.panel.prompt.profile_policy import (
-    PanelPromptFieldProfileDecision,
+from substitute.presentation.editor.panel.prompt.field_build_arguments import (
+    prompt_field_build_arguments,
+)
+from substitute.presentation.editor.panel.prompt.field_inputs import (
+    NodeCardPromptFieldInputs,
 )
 from substitute.presentation.editor.panel.projection_observability import (
     log_panel_projection_timing,
@@ -178,14 +180,6 @@ class NodePanelSnapshot:
                 ):
                     return alias
         return None
-
-
-@dataclass(frozen=True)
-class NodeCardPromptFieldInputs:
-    """Carry prompt-context values prepared by Phase 13 owners for one field."""
-
-    scheduled_lora_resolver: Callable[[str], object] | None = None
-    prompt_field_profile: PanelPromptFieldProfileDecision | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -1015,9 +1009,6 @@ class NodeCardBuilder:
         if isinstance(node_data, dict):
             extended_meta["node_data"] = node_data
         factory_started_at = panel_projection_observability_started_at()
-        is_prompt_field = (
-            field_spec.field_behavior.presentation == FieldPresentation.PROMPT_BOX
-        )
         log_context = _NodeCardFieldLogContext(
             cube_alias=alias or "",
             node_name=node_name,
@@ -1026,28 +1017,7 @@ class NodeCardBuilder:
             field_type=field_spec.field_type or "",
             presentation=field_spec.field_behavior.presentation.value,
         )
-        prepared_prompt_inputs = (
-            prompt_field_inputs.get(key)
-            if is_prompt_field and prompt_field_inputs is not None
-            else None
-        )
-        scheduled_lora_resolver = (
-            prepared_prompt_inputs.scheduled_lora_resolver
-            if prepared_prompt_inputs is not None
-            else None
-        )
-        prompt_feature_profile = (
-            prepared_prompt_inputs.prompt_field_profile.feature_profile
-            if prepared_prompt_inputs is not None
-            and prepared_prompt_inputs.prompt_field_profile is not None
-            else None
-        )
-        prompt_syntax_profile = (
-            prepared_prompt_inputs.prompt_field_profile.syntax_profile
-            if prepared_prompt_inputs is not None
-            and prepared_prompt_inputs.prompt_field_profile is not None
-            else None
-        )
+        prompt_arguments = prompt_field_build_arguments(field_spec, prompt_field_inputs)
         prompt_services = self._services.prompt
         prompt_runtime = prompt_services.runtime
 
@@ -1091,9 +1061,10 @@ class NodeCardBuilder:
                 prompt_scheduled_lora_service=(
                     prompt_runtime.scheduled_lora_service_or_default()
                 ),
-                scheduled_lora_resolver=scheduled_lora_resolver,
-                prompt_feature_profile=prompt_feature_profile,
-                prompt_syntax_profile=prompt_syntax_profile,
+                scheduled_lora_resolver=prompt_arguments.scheduled_lora_resolver,
+                prompt_feature_profile=prompt_arguments.feature_profile,
+                prompt_syntax_profile=prompt_arguments.syntax_profile,
+                prompt_conditioning_context=prompt_arguments.conditioning_context,
                 prompt_segment_preset_source=self._prompt_segment_preset_source,
                 prompt_spellcheck_service=prompt_runtime.spellcheck_service,
                 model_choice_snapshot_controller=self._model_choice_snapshot_controller,
@@ -1105,9 +1076,7 @@ class NodeCardBuilder:
                     or prompt_runtime.model_metadata_action_handler
                 ),
                 node_definition_gateway=self._services.node_definition_gateway,
-                prompt_task_executor_factory=(
-                    prompt_runtime.prompt_task_executor_factory
-                ),
+                prompt_task_executor_factory=prompt_runtime.prompt_task_executor_factory,
                 danbooru_lookup_dispatcher_factory=(
                     prompt_runtime.danbooru_lookup_dispatcher_factory
                 ),
@@ -1571,6 +1540,5 @@ class NodeCardBuilder:
 __all__ = [
     "NodeCardBodyComposer",
     "NodeCardBuilder",
-    "NodeCardPromptFieldInputs",
     "NodePanelSnapshot",
 ]

@@ -26,6 +26,12 @@ from substitute.application.prompt_editor.diagnostics.models import (
     PromptDiagnosticKind,
     PromptDuplicateSegmentDiagnosticPayload,
 )
+from substitute.application.prompt_editor.conditioning import (
+    PromptConditioningContext,
+    PromptConditioningMode,
+)
+from substitute.domain.links.prompt_endpoints import PromptEndpoint
+from substitute.domain.node_behavior.models import PromptRole
 
 
 def test_duplicate_provider_flags_second_segment_occurrence() -> None:
@@ -155,8 +161,82 @@ def test_duplicate_provider_flags_duplicates_within_one_scene_only() -> None:
     assert [diagnostic.source_start for diagnostic in diagnostics] == [22]
 
 
-def _diagnostics_for(text: str) -> tuple[PromptDiagnostic, ...]:
+def test_detailer_sep_partitions_reset_duplicate_detection() -> None:
+    """Independent conditioning batches should not compare across separators."""
+
+    diagnostics = _diagnostics_for(
+        "1girl, red hair\n[SEP]\n1girl, red hair",
+        mode=PromptConditioningMode.INDEPENDENT,
+    )
+
+    assert diagnostics == ()
+
+
+def test_detailer_duplicates_remain_visible_within_one_sep_partition() -> None:
+    """A duplicate inside one independent condition should still be reported."""
+
+    diagnostics = _diagnostics_for(
+        "1girl, red hair, red hair\n[SEP]\n1girl, red hair",
+        mode=PromptConditioningMode.INDEPENDENT,
+    )
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].source_start == 17
+
+
+def test_regional_global_segments_are_compared_with_each_region() -> None:
+    """Each regional condition should inherit duplicate state from global source."""
+
+    diagnostics = _diagnostics_for(
+        "2girls, red hair\n[SEP]\n1girl, red hair\n[SEP]\n1girl, blue hair",
+        mode=PromptConditioningMode.REGIONAL,
+    )
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].source_start == 30
+    assert isinstance(diagnostics[0].payload, PromptDuplicateSegmentDiagnosticPayload)
+    assert diagnostics[0].payload.first_source_start == 8
+
+
+def test_regional_sibling_regions_do_not_share_duplicate_state() -> None:
+    """Repeated text in separate regional conditions should not be a duplicate."""
+
+    diagnostics = _diagnostics_for(
+        "2girls, twins\n[SEP]\n1girl, red hair\n[SEP]\n1girl, red hair",
+        mode=PromptConditioningMode.REGIONAL,
+    )
+
+    assert diagnostics == ()
+
+
+def test_regional_duplicate_within_one_region_remains_visible() -> None:
+    """A region should compare its own segments after inheriting global state."""
+
+    diagnostics = _diagnostics_for(
+        "2girls, twins\n[SEP]\n1girl, red hair, red hair\n[SEP]\n1girl, blue hair",
+        mode=PromptConditioningMode.REGIONAL,
+    )
+
+    assert len(diagnostics) == 1
+    assert diagnostics[0].source_start == 37
+
+
+def _diagnostics_for(
+    text: str,
+    *,
+    mode: PromptConditioningMode = PromptConditioningMode.INDEPENDENT,
+) -> tuple[PromptDiagnostic, ...]:
     """Return duplicate segment diagnostics for one prompt source string."""
 
-    provider = PromptDuplicateSegmentDiagnosticProvider()
+    provider = PromptDuplicateSegmentDiagnosticProvider(
+        conditioning_context=PromptConditioningContext(
+            mode=mode,
+            endpoint=PromptEndpoint(
+                cube_alias="cube",
+                role=PromptRole.POSITIVE,
+                node_name="prompt",
+                field_key="value",
+            ),
+        )
+    )
     return provider.diagnostics_for_text(text).diagnostics

@@ -56,6 +56,7 @@ _TARGET_DOMAIN_PACKAGES = frozenset(
 _TARGET_APPLICATION_PACKAGES = frozenset(
     {
         "autocomplete",
+        "conditioning",
         "diagnostics",
         "document",
         "editing",

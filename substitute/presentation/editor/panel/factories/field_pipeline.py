@@ -55,6 +55,7 @@ from substitute.application.prompt_editor.diagnostics.spellcheck import (
 from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
+from substitute.application.prompt_editor.conditioning import PromptConditioningContext
 from substitute.application.prompt_editor.lora.catalog_models import (
     PromptLoraCatalogLookup,
 )
@@ -88,9 +89,9 @@ from substitute.presentation.editor.panel.factories.numeric_factory import (
 from substitute.presentation.editor.panel.factories.native_comfy_widget_factory import (
     NativeComfyWidgetFactory,
 )
-from substitute.presentation.editor.panel.prompt.factory import (
-    PromptEditorFieldBuildRequest,
-    PromptEditorFieldFactory,
+from substitute.presentation.editor.panel.prompt.field_route import (
+    PromptFieldRouteRequest,
+    build_prompt_field_widget,
 )
 from substitute.presentation.editor.panel.factories.registry import (
     EditorFieldFactoryRegistry,
@@ -98,9 +99,6 @@ from substitute.presentation.editor.panel.factories.registry import (
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotController,
     PanelModelChoiceSnapshotRequest,
-)
-from substitute.presentation.editor.panel.prompt.profile_policy import (
-    PanelPromptProfilePolicy,
 )
 from substitute.presentation.editor.panel.service_bundle import (
     DanbooruWikiLookupDispatcherFactory,
@@ -112,12 +110,10 @@ from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset
 )
 
 FIELD_FACTORY_REGISTRY = EditorFieldFactoryRegistry()
-PROMPT_EDITOR_FIELD_FACTORY = PromptEditorFieldFactory()
 CHOICE_FIELD_FACTORY = ChoiceFieldFactory()
 NUMERIC_FIELD_FACTORY = NumericFieldFactory()
 IMAGE_MASK_FIELD_FACTORY = ImageMaskFieldFactory()
 NATIVE_COMFY_WIDGET_FACTORY = NativeComfyWidgetFactory()
-PROMPT_PROFILE_POLICY = PanelPromptProfilePolicy()
 LAYOUT_HANDLED = object()
 
 
@@ -153,6 +149,7 @@ def build_widget_for_field_behavior(
     | None = None,
     prompt_feature_profile: PromptEditorFeatureProfile | None = None,
     prompt_syntax_profile: PromptSyntaxProfile | None = None,
+    prompt_conditioning_context: PromptConditioningContext | None = None,
     prompt_segment_preset_source: PromptSegmentPresetSource | None = None,
     prompt_spellcheck_service: PromptSpellcheckService | None = None,
     model_choice_snapshot_controller: PanelModelChoiceSnapshotController | None = None,
@@ -171,13 +168,8 @@ def build_widget_for_field_behavior(
     """Build one widget using resolved field behavior plus generic type factories."""
 
     if field_behavior.presentation == FieldPresentation.PROMPT_BOX:
-        prompt_profile_decision = PROMPT_PROFILE_POLICY.prepare_prompt_field_profile(
-            field_style=field_behavior.style,
-            feature_profile=prompt_feature_profile,
-            syntax_profile=prompt_syntax_profile,
-        )
-        return PROMPT_EDITOR_FIELD_FACTORY.build_field_widget(
-            PromptEditorFieldBuildRequest(
+        return build_prompt_field_widget(
+            PromptFieldRouteRequest(
                 parent=parent,
                 field_behavior=field_behavior,
                 node_name=node_name,
@@ -194,8 +186,9 @@ def build_widget_for_field_behavior(
                 prompt_lora_catalog_service=prompt_lora_catalog_service,
                 prompt_scheduled_lora_service=prompt_scheduled_lora_service,
                 scheduled_lora_resolver=scheduled_lora_resolver,
-                prompt_feature_profile=prompt_profile_decision.feature_profile,
-                prompt_syntax_profile=prompt_profile_decision.syntax_profile,
+                prompt_feature_profile=prompt_feature_profile,
+                prompt_syntax_profile=prompt_syntax_profile,
+                prompt_conditioning_context=prompt_conditioning_context,
                 prompt_segment_preset_source=prompt_segment_preset_source,
                 prompt_spellcheck_service=prompt_spellcheck_service,
                 thumbnail_asset_repository=thumbnail_asset_repository,
@@ -347,6 +340,7 @@ def build_widget_for_field_spec(
     | None = None,
     prompt_feature_profile: PromptEditorFeatureProfile | None = None,
     prompt_syntax_profile: PromptSyntaxProfile | None = None,
+    prompt_conditioning_context: PromptConditioningContext | None = None,
     prompt_segment_preset_source: PromptSegmentPresetSource | None = None,
     prompt_spellcheck_service: PromptSpellcheckService | None = None,
     model_choice_snapshot_controller: PanelModelChoiceSnapshotController | None = None,
@@ -385,6 +379,7 @@ def build_widget_for_field_spec(
         scheduled_lora_resolver=scheduled_lora_resolver,
         prompt_feature_profile=prompt_feature_profile,
         prompt_syntax_profile=prompt_syntax_profile,
+        prompt_conditioning_context=prompt_conditioning_context,
         prompt_segment_preset_source=prompt_segment_preset_source,
         prompt_spellcheck_service=prompt_spellcheck_service,
         model_choice_snapshot_controller=model_choice_snapshot_controller,
