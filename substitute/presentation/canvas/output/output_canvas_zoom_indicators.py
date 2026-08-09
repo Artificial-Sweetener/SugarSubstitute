@@ -83,12 +83,9 @@ class OutputCanvasZoomIndicators(QObject):
         )
 
     def _release_canvas(self, canvas: CuteCanvas) -> None:
-        """Close one overlay after its public canvas is destroyed."""
+        """Forget an indicator after Qt destroys its owning canvas."""
 
-        indicator = self._indicators.pop(canvas, None)
-        if indicator is not None:
-            indicator.close()
-            indicator.deleteLater()
+        self._indicators.pop(canvas, None)
 
 
 __all__ = ["OutputCanvasZoomIndicators"]
