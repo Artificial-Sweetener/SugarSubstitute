@@ -32,13 +32,11 @@ from substitute.domain.common import (
 from substitute.domain.generation.seed_control import SeedControlState
 from substitute.domain.generation.seed_control import SeedMode
 from substitute.domain.cube_library import CubeUpdatePolicy
+from substitute.domain.recipes.authored_inputs import AuthoredRecipeInputsByAlias
 from substitute.domain.recipes.recipe_buffers import recipe_buffer_update_policy
 from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
 from substitute.domain.recipes.sugar_literal_codec import SugarLiteralCodec
-from substitute.domain.recipes.sugar_links import (
-    is_symbolic_node_output_reference,
-    node_reference,
-)
+from substitute.domain.recipes.sugar_links import node_reference
 from substitute.domain.recipes.sugar_path_codec import SugarPathCodec
 from substitute.domain.workflow.override_keys import canonicalize_global_override_key
 
@@ -89,6 +87,7 @@ class SugarScriptSerializationRequest:
 
     buffers: Mapping[str, Mapping[str, JsonValue]]
     ordered_aliases: tuple[str, ...]
+    authored_inputs_by_alias: AuthoredRecipeInputsByAlias
     global_overrides: GlobalOverrideMap = field(default_factory=dict)
     global_override_selections: GlobalOverrideSelectionMap = field(default_factory=dict)
     enabled_node_keys_by_alias: Mapping[str, Iterable[str]] | None = None
@@ -407,6 +406,11 @@ class SugarScriptSerializer:
             nodes = request.buffers[alias].get("nodes", {})
             if not isinstance(nodes, dict):
                 continue
+            authored_inputs_by_node: dict[str, list[tuple[str, JsonValue]]] = {}
+            for assignment in request.authored_inputs_by_alias.get(alias, ()):
+                authored_inputs_by_node.setdefault(assignment.node_key, []).append(
+                    (assignment.input_key, assignment.value)
+                )
             set_lines: list[str] = []
             enabled_names = _enabled_node_names_for_alias(
                 alias=alias,
@@ -442,10 +446,11 @@ class SugarScriptSerializer:
                         f"{_PATH_CODEC.encode_segment(node_label)} = "
                         f"{_node_reference_for_script(request.label_resolver, node_link)}"
                     )
-                inputs = node.get("inputs", {})
-                if not isinstance(inputs, dict):
-                    continue
-                for input_key, value in _ordered_script_input_items(inputs):
+                authored_entries = authored_inputs_by_node.get(node_key)
+                authored_inputs: dict[str, JsonValue] = dict(
+                    authored_entries if authored_entries is not None else []
+                )
+                for input_key, value in _ordered_script_input_items(authored_inputs):
                     self._write_input_statement(
                         request=request,
                         state=state,
@@ -454,7 +459,7 @@ class SugarScriptSerializer:
                         node=node,
                         node_key=node_key,
                         node_label=node_label,
-                        input_key=str(input_key),
+                        input_key=input_key,
                         value=value,
                     )
             if set_lines:
@@ -546,7 +551,7 @@ class SugarScriptSerializer:
             )
             return
 
-        if isinstance(value, dict) or is_symbolic_node_output_reference(value):
+        if isinstance(value, dict):
             return
         self._append_literal_assignment(
             request=request,
@@ -876,8 +881,8 @@ def _ordered_script_node_items(
 
 
 def _ordered_script_input_items(
-    inputs: Mapping[object, JsonValue],
-) -> list[tuple[object, JsonValue]]:
+    inputs: Mapping[str, JsonValue],
+) -> list[tuple[str, JsonValue]]:
     """Return input entries with positive prompt fields before negative prompt fields."""
 
     return _positive_prompt_before_negative_prompt(

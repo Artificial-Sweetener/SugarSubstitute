@@ -24,6 +24,7 @@ from typing import cast
 
 import pytest
 
+from substitute.domain.recipes.authored_inputs import AuthoredRecipeInput
 from substitute.domain.recipes.sugar_script_parser import (
     parse_sugar_script_document,
 )
@@ -47,6 +48,15 @@ def test_serializer_emits_backend_safe_terminal_quote_prompt() -> None:
                 )
             },
             ordered_aliases=("A",),
+            authored_inputs_by_alias={
+                "A": (
+                    AuthoredRecipeInput(
+                        node_key="positive_prompt",
+                        input_key="prompt_template",
+                        value=prompt,
+                    ),
+                )
+            },
         )
     )
 
@@ -74,6 +84,15 @@ def test_serializer_emits_ordered_literal_list_inputs() -> None:
                 )
             },
             ordered_aliases=("A",),
+            authored_inputs_by_alias={
+                "A": (
+                    AuthoredRecipeInput(
+                        node_key="load_mask_batch",
+                        input_key="image",
+                        value=["first.png", "second.png"],
+                    ),
+                )
+            },
         )
     )
 
@@ -104,6 +123,15 @@ def test_serializer_omits_cube_internal_node_output_references() -> None:
                 )
             },
             ordered_aliases=("A",),
+            authored_inputs_by_alias={
+                "A": (
+                    AuthoredRecipeInput(
+                        node_key="sampler",
+                        input_key="steps",
+                        value=20,
+                    ),
+                )
+            },
         )
     )
 
@@ -115,13 +143,18 @@ def test_serializer_omits_cube_internal_node_output_references() -> None:
     ("serialization_request", "message"),
     [
         (
-            SugarScriptSerializationRequest(buffers={}, ordered_aliases=("A",)),
+            SugarScriptSerializationRequest(
+                buffers={},
+                ordered_aliases=("A",),
+                authored_inputs_by_alias={},
+            ),
             "missing buffer for alias 'A'",
         ),
         (
             SugarScriptSerializationRequest(
                 buffers={"A": {"cube_id": "demo"}},
                 ordered_aliases=("A", "A"),
+                authored_inputs_by_alias={"A": ()},
             ),
             "duplicate alias 'A'",
         ),
@@ -129,6 +162,7 @@ def test_serializer_omits_cube_internal_node_output_references() -> None:
             SugarScriptSerializationRequest(
                 buffers={"A": {"cube_id": ""}},
                 ordered_aliases=("A",),
+                authored_inputs_by_alias={"A": ()},
             ),
             "alias 'A' has no cube ID",
         ),

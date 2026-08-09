@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -172,56 +173,67 @@ def _build_real_inpaint_workflow(
 ) -> WorkflowState:
     """Build a real inpaint workflow and associate the selected image path."""
 
+    cube_graph: dict[str, Any] = {
+        "cube_id": "Artificial-Sweetener/Base-Cubes/Inpaint.cube",
+        "version": "1.0.0",
+        "nodes": {
+            "load_image": {
+                "class_type": "LoadImage",
+                "inputs": {"image": "00282-3430329909-ad-before.png"},
+            },
+            "load_image_as_mask": {
+                "class_type": "LoadImageMask",
+                "inputs": {
+                    "image": "00282-3430329909-ad-before.png",
+                    "channel": "red",
+                },
+            },
+            "consumer": {
+                "class_type": "VAEEncodeForInpaint",
+                "inputs": {
+                    "pixels": ["load_image", 0],
+                    "mask": ["load_image_as_mask", 0],
+                },
+            },
+        },
+        "inputs": {},
+        "outputs": {},
+        "surface": {
+            "default_flavor_id": "default",
+            "controls": [
+                {
+                    "control_id": "load_image.image",
+                    "symbol": "load_image",
+                    "input_name": "image",
+                    "label": "image",
+                    "class_type": "LoadImage",
+                    "value_type": "string",
+                },
+                {
+                    "control_id": "load_image_as_mask.image",
+                    "symbol": "load_image_as_mask",
+                    "input_name": "image",
+                    "label": "image",
+                    "class_type": "LoadImageMask",
+                    "value_type": "string",
+                },
+                {
+                    "control_id": "load_image_as_mask.channel",
+                    "symbol": "load_image_as_mask",
+                    "input_name": "channel",
+                    "label": "channel",
+                    "class_type": "LoadImageMask",
+                    "value_type": "string",
+                },
+            ],
+        },
+    }
     cube_state = CubeState(
         cube_id="Artificial-Sweetener/Base-Cubes/Inpaint.cube",
         version="1.0.0",
         alias="Inpaint",
-        original_cube={
-            "cube_id": "Artificial-Sweetener/Base-Cubes/Inpaint.cube",
-            "version": "1.0.0",
-            "nodes": {
-                "load_image": {
-                    "class_type": "LoadImage",
-                    "inputs": {"image": "00282-3430329909-ad-before.png"},
-                },
-                "load_image_as_mask": {
-                    "class_type": "LoadImageMask",
-                    "inputs": {
-                        "image": "00282-3430329909-ad-before.png",
-                        "channel": "red",
-                    },
-                },
-                "consumer": {
-                    "class_type": "VAEEncodeForInpaint",
-                    "inputs": {
-                        "pixels": ["load_image", 0],
-                        "mask": ["load_image_as_mask", 0],
-                    },
-                },
-            },
-        },
-        buffer={
-            "nodes": {
-                "load_image": {
-                    "class_type": "LoadImage",
-                    "inputs": {"image": "00282-3430329909-ad-before.png"},
-                },
-                "load_image_as_mask": {
-                    "class_type": "LoadImageMask",
-                    "inputs": {
-                        "image": "00282-3430329909-ad-before.png",
-                        "channel": "red",
-                    },
-                },
-                "consumer": {
-                    "class_type": "VAEEncodeForInpaint",
-                    "inputs": {
-                        "pixels": ["load_image", 0],
-                        "mask": ["load_image_as_mask", 0],
-                    },
-                },
-            }
-        },
+        original_cube=copy.deepcopy(cube_graph),
+        buffer=cube_graph,
     )
     workflow = WorkflowState(
         cubes={"Inpaint": cube_state},

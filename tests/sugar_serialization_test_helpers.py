@@ -26,6 +26,7 @@ from substitute.domain.common import (
     JsonValue,
 )
 from substitute.domain.generation.seed_control import SeedControlState
+from substitute.domain.recipes.authored_inputs import AuthoredRecipeInput
 from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
 from substitute.domain.recipes.sugar_script_serializer import (
     SugarScriptLabelResolver,
@@ -60,6 +61,7 @@ def serialize_sugar_script(
         SugarScriptSerializationRequest(
             buffers=buffers,
             ordered_aliases=tuple(ordered_aliases),
+            authored_inputs_by_alias=_all_test_authored_inputs(buffers),
             global_overrides=global_overrides or {},
             global_override_selections=global_override_selections or {},
             enabled_node_keys_by_alias=enabled_node_keys_by_alias,
@@ -72,6 +74,35 @@ def serialize_sugar_script(
             override_control_states=override_control_states,
         )
     )
+
+
+def _all_test_authored_inputs(
+    buffers: Mapping[str, Mapping[str, JsonValue]],
+) -> dict[str, tuple[AuthoredRecipeInput, ...]]:
+    """Declare every synthetic test input as authored unless a test specifies less."""
+
+    projected: dict[str, tuple[AuthoredRecipeInput, ...]] = {}
+    for alias, buffer in buffers.items():
+        assignments: list[AuthoredRecipeInput] = []
+        nodes = buffer.get("nodes")
+        if isinstance(nodes, Mapping):
+            for node_key, node in nodes.items():
+                if not isinstance(node_key, str) or not isinstance(node, Mapping):
+                    continue
+                inputs = node.get("inputs")
+                if not isinstance(inputs, Mapping):
+                    continue
+                assignments.extend(
+                    AuthoredRecipeInput(
+                        node_key=node_key,
+                        input_key=input_key,
+                        value=value,
+                    )
+                    for input_key, value in inputs.items()
+                    if isinstance(input_key, str)
+                )
+        projected[alias] = tuple(assignments)
+    return projected
 
 
 __all__ = ["serialize_sugar_script"]

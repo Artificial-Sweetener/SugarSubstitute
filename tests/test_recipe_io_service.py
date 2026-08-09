@@ -170,6 +170,46 @@ class _FakePromptLoraHashLookup:
         return prompt_name if prompt_name in self._hashes else None
 
 
+def _canonical_test_cube_state(**kwargs: Any) -> CubeState:
+    """Declare every synthetic fixture input through a canonical cube surface."""
+
+    buffer = cast(dict[str, Any], kwargs["buffer"])
+    buffer.setdefault("inputs", {})
+    if "surface" not in buffer:
+        controls: list[dict[str, str]] = []
+        nodes = buffer.get("nodes")
+        if isinstance(nodes, dict):
+            for node_key, node in nodes.items():
+                if not isinstance(node_key, str) or not isinstance(node, dict):
+                    continue
+                inputs = node.get("inputs")
+                if not isinstance(inputs, dict):
+                    continue
+                class_type = node.get("class_type")
+                for input_key in inputs:
+                    if not isinstance(input_key, str):
+                        continue
+                    controls.append(
+                        {
+                            "control_id": f"{node_key}.{input_key}",
+                            "symbol": node_key,
+                            "input_name": input_key,
+                            "label": input_key,
+                            "class_type": (
+                                class_type
+                                if isinstance(class_type, str)
+                                else "SyntheticTestNode"
+                            ),
+                            "value_type": "object",
+                        }
+                    )
+        buffer["surface"] = {
+            "default_flavor_id": "default",
+            "controls": controls,
+        }
+    return CubeState(**kwargs)
+
+
 def _labeled_upscale_graph() -> dict[str, object]:
     """Return a runtime graph with a labeled wrapper input."""
 
@@ -225,7 +265,7 @@ def test_recipe_io_service_serializes_and_saves_workflow() -> None:
 
     repository = _FakeRecipeRepository()
     service = RecipeIoService(recipe_repository=repository)
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -269,7 +309,7 @@ def test_recipe_io_service_serializes_known_model_hash_comment() -> None:
     repository = _FakeRecipeRepository()
     lookup = _FakeModelHashLookup({("checkpoints", "base.safetensors"): "A" * 64})
     service = RecipeIoService(recipe_repository=repository, model_hash_lookup=lookup)
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -310,7 +350,7 @@ def test_recipe_io_service_serializes_anima_diffusion_model_hash_comment() -> No
     repository = _FakeRecipeRepository()
     lookup = _FakeModelHashLookup({("diffusion_models", model_value): "B" * 64})
     service = RecipeIoService(recipe_repository=repository, model_hash_lookup=lookup)
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Anima Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -359,7 +399,7 @@ def test_recipe_io_service_serializes_inline_prompt_lora_hash_comments() -> None
         recipe_repository=repository,
         prompt_lora_hash_lookup=lookup,
     )
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -416,7 +456,7 @@ def test_recipe_io_service_serializes_canonical_inline_prompt_lora_names() -> No
         recipe_repository=repository,
         prompt_lora_hash_lookup=lookup,
     )
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -467,7 +507,7 @@ def test_recipe_io_service_deduplicates_inline_prompt_lora_hash_comments() -> No
         recipe_repository=repository,
         prompt_lora_hash_lookup=lookup,
     )
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -513,7 +553,7 @@ def test_recipe_io_service_skips_unknown_inline_prompt_lora_hashes() -> None:
         recipe_repository=repository,
         prompt_lora_hash_lookup=lookup,
     )
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -554,7 +594,7 @@ def test_recipe_serialization_context_reuses_prompt_lora_text_hashes() -> None:
         prompt_lora_hash_lookup=lookup,
     )
     prompt_text = "<lora:characters/midna:1.00>"
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -598,7 +638,7 @@ def test_recipe_serialization_plan_matches_direct_serialization() -> None:
     """Plan rendering should preserve direct serializer output byte-for-byte."""
 
     service = RecipeIoService(recipe_repository=_FakeRecipeRepository())
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -641,7 +681,7 @@ def test_recipe_serialization_plan_renders_prompt_overrides_without_mutating_bas
     """Prompt overlays should affect one render without changing plan buffers."""
 
     service = RecipeIoService(recipe_repository=_FakeRecipeRepository())
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -694,8 +734,12 @@ def test_recipe_serialization_plan_reuses_strip_and_label_work(
 
     strip_calls: list[int] = []
     label_calls: list[int] = []
-    original_strip_recipe_buffers = recipe_io_module.strip_recipe_buffers
-    original_from_cube_graphs = recipe_io_module.SugarScriptLabelIndex.from_cube_graphs
+    original_strip_recipe_buffers = cast(
+        Any,
+        getattr(recipe_io_module, "strip_recipe_buffers"),
+    )
+    label_index_class = cast(Any, getattr(recipe_io_module, "SugarScriptLabelIndex"))
+    original_from_cube_graphs = cast(Any, label_index_class.from_cube_graphs)
 
     def _counting_strip_recipe_buffers(
         ordered_aliases: object,
@@ -704,7 +748,7 @@ def test_recipe_serialization_plan_reuses_strip_and_label_work(
         """Count strip calls while delegating to the real implementation."""
 
         strip_calls.append(1)
-        return original_strip_recipe_buffers(ordered_aliases, cube_states)  # type: ignore[arg-type]
+        return original_strip_recipe_buffers(ordered_aliases, cube_states)
 
     def _counting_from_cube_graphs(
         cls: type[object],
@@ -714,7 +758,7 @@ def test_recipe_serialization_plan_reuses_strip_and_label_work(
 
         _ = cls
         label_calls.append(1)
-        return original_from_cube_graphs(cube_graphs_by_alias)  # type: ignore[arg-type]
+        return original_from_cube_graphs(cube_graphs_by_alias)
 
     monkeypatch.setattr(
         recipe_io_module,
@@ -722,12 +766,12 @@ def test_recipe_serialization_plan_reuses_strip_and_label_work(
         _counting_strip_recipe_buffers,
     )
     monkeypatch.setattr(
-        recipe_io_module.SugarScriptLabelIndex,
+        label_index_class,
         "from_cube_graphs",
         classmethod(_counting_from_cube_graphs),
     )
     service = RecipeIoService(recipe_repository=_FakeRecipeRepository())
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="cube",
         version="1.0.0",
         alias="A",
@@ -765,7 +809,7 @@ def test_recipe_io_service_preserves_escaped_prompt_source_in_recipe_text() -> N
 
     repository = _FakeRecipeRepository()
     service = RecipeIoService(recipe_repository=repository)
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Text to Image.cube",
         version="1.0.0",
         alias="A",
@@ -804,7 +848,7 @@ def test_recipe_io_service_serializes_with_policy_disabled_nodes() -> None:
 
     repository = _FakeRecipeRepository()
     service = RecipeIoService(recipe_repository=repository)
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Diffusion Upscale.cube",
         version="1.0.0",
         alias="Upscale",
@@ -844,7 +888,7 @@ def test_recipe_io_service_serializes_selected_inpaint_image_path(
 
     repository = _FakeRecipeRepository()
     service = RecipeIoService(recipe_repository=repository)
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="Artificial-Sweetener/Base-Cubes/Inpaint.cube",
         version="2.0.0",
         alias="Inpaint",
@@ -881,7 +925,7 @@ def test_recipe_io_service_forwards_global_override_scopes() -> None:
 
     repository = _FakeRecipeRepository()
     service = RecipeIoService(recipe_repository=repository)
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="X",
         version="1.0.0",
         alias="A",
@@ -915,7 +959,7 @@ def test_recipe_io_service_omits_blank_model_global_override() -> None:
     """Blank model overrides should remain unset in portable recipes."""
 
     service = RecipeIoService(recipe_repository=_FakeRecipeRepository())
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="X",
         version="1.0.0",
         alias="A",
@@ -944,7 +988,7 @@ def test_recipe_io_service_omits_blank_model_override_scope() -> None:
     """Blank scoped model overrides should not serialize local assignments."""
 
     service = RecipeIoService(recipe_repository=_FakeRecipeRepository())
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="X",
         version="1.0.0",
         alias="A",
@@ -988,7 +1032,7 @@ def test_recipe_io_service_serializes_and_parses_visible_cube_labels() -> None:
         recipe_repository=_FakeRecipeRepository(),
         cube_definition_provider=_FakeCubeDefinitionProvider({"upscale": graph}),
     )
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="upscale",
         version="1.0.0",
         alias="A",
@@ -1014,7 +1058,7 @@ def test_recipe_io_service_serializes_seed_control_state() -> None:
     """Workflow-owned seed control state should be included in saved recipes."""
 
     service = RecipeIoService(recipe_repository=_FakeRecipeRepository())
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="sampler",
         version="1.0.0",
         alias="A",
@@ -1075,7 +1119,7 @@ def test_serialize_workflow_omits_blank_model_picker_with_live_default() -> None
             }
         ),
     )
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="cube",
         version="1.0.0",
         alias="SDXL/Text to Image",
@@ -1132,7 +1176,7 @@ def test_recipe_serialization_context_reuses_required_node_definitions() -> None
         recipe_repository=_FakeRecipeRepository(),
         node_definition_gateway=gateway,
     )
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="cube",
         version="1.0.0",
         alias="A",
@@ -1182,7 +1226,7 @@ def test_serialize_workflow_omits_blank_model_picker_with_only_one_option() -> N
             }
         ),
     )
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="cube",
         version="1.0.0",
         alias="SDXL/Text to Image",
@@ -1235,7 +1279,7 @@ def test_serialize_workflow_preserves_explicit_amanatsu_checkpoint() -> None:
             }
         ),
     )
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="cube",
         version="1.0.0",
         alias="SDXL/Text to Image",
@@ -1281,7 +1325,7 @@ def test_serialize_workflow_preserves_optional_blank_picker_values() -> None:
             }
         ),
     )
-    cube = CubeState(
+    cube = _canonical_test_cube_state(
         cube_id="cube",
         version="1.0.0",
         alias="A",

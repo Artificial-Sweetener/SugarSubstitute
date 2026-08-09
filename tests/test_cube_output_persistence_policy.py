@@ -50,6 +50,7 @@ def test_cube_output_mute_changes_persistence_only_and_round_trips_recipe() -> N
         SugarScriptSerializationRequest(
             buffers=buffers,
             ordered_aliases=tuple(workflow.stack_order),
+            authored_inputs_by_alias={alias: () for alias in workflow.stack_order},
         )
     )
     parsed = parse_sugar_script_document(script)

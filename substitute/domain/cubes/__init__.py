@@ -18,6 +18,11 @@
 
 from __future__ import annotations
 
+from substitute.domain.cubes.authoring_contract import (
+    CubeAuthoringContract,
+    CubeAuthoringContractError,
+    CubeInputField,
+)
 from substitute.domain.cubes.canonical_document import (
     CanonicalCubeDocument,
     CanonicalCubeError,
@@ -31,8 +36,11 @@ from substitute.domain.cubes.subgraph_wrappers import (
 )
 
 __all__ = [
+    "CubeAuthoringContract",
+    "CubeAuthoringContractError",
     "CanonicalCubeDocument",
     "CanonicalCubeError",
+    "CubeInputField",
     "SubgraphWrapperDefinitionIndex",
     "UUID_CLASS_PATTERN",
     "is_subgraph_wrapper_class_type",
