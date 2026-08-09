@@ -41,6 +41,12 @@ from substitute.application.prompt_editor.diagnostics.models import (
 from substitute.application.prompt_editor.diagnostics.spellcheck_models import (
     PromptSpellingSuggestionSet,
 )
+from substitute.application.prompt_editor.conditioning import (
+    PromptConditioningContext,
+    PromptConditioningMode,
+)
+from substitute.domain.links.prompt_endpoints import PromptEndpoint
+from substitute.domain.node_behavior.models import PromptRole
 from substitute.application.prompt_editor.editing.source_normalization import (
     PromptSourceNormalizationService,
 )
@@ -355,6 +361,69 @@ class _ImmediateRequestChannel(Generic[TResult]):
         self.cancelled_reasons.append(reason)
 
 
+class _DeferredTaskHandle(Generic[TResult]):
+    """Hold one request outcome until a test explicitly completes it."""
+
+    def __init__(self, request: PromptAsyncRequest[TResult]) -> None:
+        """Store the request and initialize its completion callback list."""
+
+        self.request = request
+        self._callbacks: list[Callable[[PromptAsyncTaskOutcome[TResult]], None]] = []
+
+    def add_done_callback(
+        self,
+        callback: Callable[[PromptAsyncTaskOutcome[TResult]], None],
+        *,
+        reason: str,
+    ) -> None:
+        """Queue one callback until explicit completion."""
+
+        _ = reason
+        self._callbacks.append(callback)
+
+    def cancel(self, *, reason: str) -> None:
+        """Accept cancellation without suppressing a deliberately late outcome."""
+
+        _ = reason
+
+    def complete(self) -> None:
+        """Execute and publish this request as a late asynchronous outcome."""
+
+        result = self.request.work(_Token())
+        outcome = PromptAsyncTaskOutcome(
+            identity=self.request.identity,
+            context=self.request.context,
+            result=result,
+        )
+        for callback in self._callbacks:
+            callback(outcome)
+
+
+class _DeferredRequestChannel(Generic[TResult]):
+    """Capture latest-wins requests for explicit out-of-order completion."""
+
+    def __init__(self) -> None:
+        """Initialize an empty handle list and cancellation log."""
+
+        self.handles: list[_DeferredTaskHandle[TResult]] = []
+        self.cancelled_reasons: list[str] = []
+
+    def submit_latest(
+        self,
+        request: PromptAsyncRequest[TResult],
+    ) -> _DeferredTaskHandle[TResult]:
+        """Capture one request without executing it."""
+
+        handle = _DeferredTaskHandle(request)
+        self.handles.append(handle)
+        return handle
+
+    def cancel_pending(self, *, reason: str) -> None:
+        """Record cancellation while allowing late-result guard verification."""
+
+        self.cancelled_reasons.append(reason)
+
+
 class _Token:
     """Provide a never-cancelled token for immediate diagnostics tests."""
 
@@ -470,7 +539,7 @@ def _diagnostics_controller(
     surface: _FakeSurface,
     service: object,
     *,
-    request_channel: _ImmediateRequestChannel[PromptDiagnosticSnapshot] | None = None,
+    request_channel: Any | None = None,
     debouncer: _FakeDebouncer | None = None,
     spellcheck_service: object | None = None,
 ) -> PromptDiagnosticsFeatureController:
@@ -508,6 +577,25 @@ def _diagnostics_controller(
     return controller
 
 
+def _conditioning_context(
+    mode: PromptConditioningMode,
+    *,
+    topology_key: tuple[object, ...] = (),
+) -> PromptConditioningContext:
+    """Return one stable diagnostics conditioning context."""
+
+    return PromptConditioningContext(
+        mode=mode,
+        endpoint=PromptEndpoint(
+            cube_alias="cube",
+            role=PromptRole.POSITIVE,
+            node_name="prompt",
+            field_key="value",
+        ),
+        topology_key=topology_key,
+    )
+
+
 def test_controller_dispatches_refresh_through_request_channel() -> None:
     """Diagnostics refresh should use the async channel before updating surface."""
 
@@ -532,6 +620,40 @@ def test_controller_dispatches_refresh_through_request_channel() -> None:
     assert (
         controller.presentation.visible_diagnostic_at_source_position(2) == diagnostic
     )
+
+
+def test_controller_context_change_invalidates_old_async_identity() -> None:
+    """Late diagnostics from an earlier conditioning topology must not publish."""
+
+    diagnostic = _spelling_diagnostic(0, 4, "typo")
+    service = _FakeService(diagnostic)
+    surface = _FakeSurface()
+    editor = _FakeEditor("typo")
+    request_channel: _DeferredRequestChannel[PromptDiagnosticSnapshot] = (
+        _DeferredRequestChannel()
+    )
+    controller = _diagnostics_controller(
+        editor,
+        surface,
+        service,
+        request_channel=request_channel,
+    )
+    controller.refresh_now()
+    first_handle = request_channel.handles[0]
+
+    assert controller.replace_conditioning_context(
+        _conditioning_context(PromptConditioningMode.REGIONAL, topology_key=("mask",))
+    )
+    second_handle = request_channel.handles[1]
+
+    assert (
+        first_handle.request.identity.feature_profile_id
+        != second_handle.request.identity.feature_profile_id
+    )
+    first_handle.complete()
+    assert not surface.diagnostics
+    second_handle.complete()
+    assert surface.diagnostics == (diagnostic,)
 
 
 def test_controller_debounces_text_changes_to_latest_snapshot() -> None:

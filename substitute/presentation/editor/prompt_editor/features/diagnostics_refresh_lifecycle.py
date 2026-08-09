@@ -187,7 +187,10 @@ class PromptDiagnosticsRefreshLifecycle:
                 if source_identity is not None
                 else None
             ),
-            feature_profile_id=self._feature_profile_id,
+            feature_profile_id=(
+                self._feature_profile_id,
+                self._providers.conditioning_context_identity,
+            ),
         )
 
 

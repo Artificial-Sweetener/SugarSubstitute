@@ -57,6 +57,13 @@ from substitute.domain.workflow import CubeState
 from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
+from substitute.application.prompt_editor.conditioning import (
+    PromptConditioningContext,
+    PromptConditioningMode,
+)
+from substitute.application.prompt_editor.lora.scheduled import PromptScheduledLora
+from substitute.domain.links.prompt_endpoints import PromptEndpoint
+from substitute.domain.node_behavior.models import PromptRole
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.application.display_labels import beautify_label
 from substitute.presentation.editor.panel.node_card.accordion_motion import (
@@ -74,7 +81,7 @@ from substitute.presentation.editor.panel.field_sync_controller import (
 from substitute.presentation.editor.panel.prompt.profile_policy import (
     PanelPromptFieldProfileDecision,
 )
-from substitute.presentation.editor.panel.node_card_builder import (
+from substitute.presentation.editor.panel.prompt.field_inputs import (
     NodeCardPromptFieldInputs,
 )
 from sugarsubstitute_shared.presentation.fluent_tooltips import FluentToolTipFilter
@@ -1174,13 +1181,22 @@ def test_prompt_field_receives_prompt_only_dependencies(monkeypatch) -> None:
         feature_profile=prompt_feature_profile,
         syntax_profile=prompt_syntax_profile,
     )
+    conditioning_context = PromptConditioningContext(
+        mode=PromptConditioningMode.REGIONAL,
+        endpoint=PromptEndpoint(
+            cube_alias="A",
+            role=PromptRole.POSITIVE,
+            node_name="node",
+            field_key="text",
+        ),
+    )
     build_transaction = NodeCardBuildTransaction(
         panel=panel,
         cube_alias="A",
         node_name="node",
     )
 
-    def scheduled_lora_resolver(_text: str) -> tuple[object, ...]:
+    def scheduled_lora_resolver(_text: str) -> tuple[PromptScheduledLora, ...]:
         """Return no scheduled LoRAs for the prepared resolver sentinel."""
 
         return ()
@@ -1208,6 +1224,7 @@ def test_prompt_field_receives_prompt_only_dependencies(monkeypatch) -> None:
                 "text": NodeCardPromptFieldInputs(
                     scheduled_lora_resolver=scheduled_lora_resolver,
                     prompt_field_profile=prompt_field_profile,
+                    conditioning_context=conditioning_context,
                 )
             },
         )
@@ -1218,6 +1235,7 @@ def test_prompt_field_receives_prompt_only_dependencies(monkeypatch) -> None:
         assert captured["scheduled_lora_resolver"] is scheduled_lora_resolver
         assert captured["prompt_feature_profile"] is prompt_feature_profile
         assert captured["prompt_syntax_profile"] is prompt_syntax_profile
+        assert captured["prompt_conditioning_context"] is conditioning_context
     finally:
         build_transaction.rollback()
         if result is not None:

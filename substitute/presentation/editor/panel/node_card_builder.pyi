@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
 from PySide6.QtWidgets import QWidget
@@ -27,6 +27,9 @@ from substitute.application.node_behavior import (
     ResolvedNodeBehavior,
 )
 from substitute.presentation.editor.panel.service_bundle import EditorPanelServiceBundle
+from substitute.presentation.editor.panel.prompt.field_inputs import (
+    NodeCardPromptFieldInputs,
+)
 
 class NodePanelSnapshot:
     cube_id: str | None
@@ -41,15 +44,6 @@ class NodePanelSnapshot:
         stack_order: Sequence[str],
     ) -> None: ...
     def first_alias_for_class_type(self, node_type: str) -> str | None: ...
-
-class NodeCardPromptFieldInputs:
-    scheduled_lora_resolver: Callable[[str], object] | None
-    prompt_field_profile: Any | None
-    def __init__(
-        self,
-        scheduled_lora_resolver: Callable[[str], object] | None = ...,
-        prompt_field_profile: Any | None = ...,
-    ) -> None: ...
 
 class NodeCardBodyComposer:
     def __init__(self, *, panel: Any, field_rows: Any) -> None: ...

@@ -31,6 +31,12 @@ from substitute.application.ports import (
 from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
+from substitute.application.prompt_editor.conditioning import (
+    PromptConditioningContext,
+    PromptConditioningMode,
+)
+from substitute.domain.links.prompt_endpoints import PromptEndpoint
+from substitute.domain.node_behavior.models import PromptRole
 from substitute.domain.prompt.features.models import (
     PromptEditorFeature,
     PromptEditorFeatureProfile,
@@ -64,6 +70,7 @@ class _FakePromptEditor:
         prompt_scheduled_lora_service: object = None,
         scheduled_lora_resolver: object = None,
         prompt_feature_profile: object = None,
+        prompt_conditioning_context: object = None,
         prompt_segment_preset_source: object = None,
         prompt_spellcheck_service: object = None,
         thumbnail_asset_repository: object = None,
@@ -87,6 +94,7 @@ class _FakePromptEditor:
         self.prompt_scheduled_lora_service = prompt_scheduled_lora_service
         self.scheduled_lora_resolver = scheduled_lora_resolver
         self.prompt_feature_profile = prompt_feature_profile
+        self.prompt_conditioning_context = prompt_conditioning_context
         self.prompt_segment_preset_source = prompt_segment_preset_source
         self.prompt_spellcheck_service = prompt_spellcheck_service
         self.thumbnail_asset_repository = thumbnail_asset_repository
@@ -169,6 +177,15 @@ def test_prompt_editor_field_factory_uses_prepared_feature_profile(
         )
     )
     syntax_profile = PromptSyntaxProfile(enabled_syntaxes=("emphasis",))
+    conditioning_context = PromptConditioningContext(
+        mode=PromptConditioningMode.REGIONAL,
+        endpoint=PromptEndpoint(
+            cube_alias="cube-a",
+            role=PromptRole.POSITIVE,
+            node_name="CLIPTextEncode",
+            field_key="text",
+        ),
+    )
 
     widget = PromptEditorFieldFactory().build_field_widget(
         PromptEditorFieldBuildRequest(
@@ -191,12 +208,14 @@ def test_prompt_editor_field_factory_uses_prepared_feature_profile(
             ),
             prompt_feature_profile=feature_profile,
             prompt_syntax_profile=syntax_profile,
+            prompt_conditioning_context=conditioning_context,
         )
     )
 
     assert isinstance(widget, _FakePromptEditor)
     assert widget.prompt_feature_profile is feature_profile
     assert widget.prompt_syntax_profile is syntax_profile
+    assert widget.prompt_conditioning_context is conditioning_context
 
 
 def test_prompt_editor_field_factory_requires_prepared_profiles(

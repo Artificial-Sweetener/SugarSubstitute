@@ -575,6 +575,8 @@ class PromptDiagnosticsPresentation:
             query_identity=(
                 "document_semantics",
                 self._providers.document_semantics_identity,
+                "conditioning_context",
+                self._providers.conditioning_context_identity,
             ),
         )
 

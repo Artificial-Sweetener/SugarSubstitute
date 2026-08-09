@@ -42,6 +42,7 @@ from substitute.application.ports import (
 from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
 )
+from substitute.application.prompt_editor.conditioning import PromptConditioningContext
 from substitute.application.prompt_editor.features.syntax_profile import (
     PromptSyntaxProfile,
 )
@@ -84,6 +85,7 @@ class PromptEditorFieldBuildRequest:
     prompt_wildcard_catalog_gateway: PromptWildcardCatalogGateway
     prompt_feature_profile: PromptEditorFeatureProfile
     prompt_syntax_profile: PromptSyntaxProfile
+    prompt_conditioning_context: PromptConditioningContext | None = None
     node_type: object = ""
     danbooru_url_import_service: DanbooruUrlImportService | None = None
     danbooru_wiki_service: DanbooruWikiContentService | None = None
@@ -143,6 +145,7 @@ class PromptEditorFieldFactory:
             ),
             prompt_syntax_profile=request.prompt_syntax_profile,
             prompt_feature_profile=request.prompt_feature_profile,
+            prompt_conditioning_context=request.prompt_conditioning_context,
         )
 
 
@@ -166,6 +169,7 @@ def build_prompt_editor_widget(
     scheduled_lora_resolver: Callable[[str], tuple[PromptScheduledLora, ...]]
     | None = None,
     prompt_feature_profile: PromptEditorFeatureProfile,
+    prompt_conditioning_context: PromptConditioningContext | None = None,
     prompt_segment_preset_source: PromptSegmentPresetSource | None = None,
     prompt_spellcheck_service: PromptSpellcheckService | None = None,
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
@@ -196,6 +200,7 @@ def build_prompt_editor_widget(
         danbooru_image_preview_service=danbooru_image_preview_service,
         danbooru_recent_posts_service=danbooru_recent_posts_service,
         prompt_feature_profile=prompt_feature_profile,
+        prompt_conditioning_context=prompt_conditioning_context,
         prompt_syntax_profile=prompt_syntax_profile,
         prompt_lora_catalog_service=prompt_lora_catalog_service,
         prompt_scheduled_lora_service=prompt_scheduled_lora_service,

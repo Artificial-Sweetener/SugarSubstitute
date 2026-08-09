@@ -39,7 +39,6 @@ from shiboken6 import isValid as _qt_is_valid
 from substitute.application.node_behavior import (
     EditorBehaviorSnapshot,
     EditorNodeDefinitionHydrationService,
-    FieldPresentation,
     LiveNodeDefinitionError,
     NodeBehaviorService,
     ResolvedFieldSpec,
@@ -195,7 +194,8 @@ from .node_card.body_contribution import NodeCardBodyContributor
 from .prompt.preset_adapter import (
     PanelPromptSegmentPresetAdapter,
 )
-from .node_card_builder import NodeCardBuilder, NodeCardPromptFieldInputs
+from .node_card_builder import NodeCardBuilder
+from .prompt.field_inputs import build_node_card_prompt_field_inputs
 from .widgets.cube_section import cube_section_builder_for_panel
 
 _LOGGER = get_logger("presentation.editor.panel.view")
@@ -2099,35 +2099,6 @@ class EditorPanel(QWidget):
             return True
         return False
 
-    def _node_card_prompt_field_inputs(
-        self,
-        *,
-        node_name: str,
-        field_specs: Mapping[str, ResolvedFieldSpec],
-        alias: str | None,
-    ) -> dict[str, NodeCardPromptFieldInputs]:
-        """Prepare Phase 13 prompt-context inputs for one node-card build."""
-
-        prompt_inputs: dict[str, NodeCardPromptFieldInputs] = {}
-        for field_key, field_spec in field_specs.items():
-            field_behavior = field_spec.field_behavior
-            if field_behavior.presentation != FieldPresentation.PROMPT_BOX:
-                continue
-            prompt_inputs[field_key] = NodeCardPromptFieldInputs(
-                scheduled_lora_resolver=self.scheduled_lora_resolver_for_prompt(
-                    alias,
-                    node_name,
-                    field_key,
-                ),
-                prompt_field_profile=self.prompt_field_profile_for_prompt(
-                    alias,
-                    node_name,
-                    field_key,
-                    field_behavior.style,
-                ),
-            )
-        return prompt_inputs
-
     def build_node_card(
         self,
         node_name: str,
@@ -2164,7 +2135,7 @@ class EditorPanel(QWidget):
             display_decision=display_decision,
             alias=alias,
             parent=parent,
-            prompt_field_inputs=EditorPanel._node_card_prompt_field_inputs(
+            prompt_field_inputs=build_node_card_prompt_field_inputs(
                 self,
                 node_name=node_name,
                 field_specs=field_specs,

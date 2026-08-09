@@ -31,6 +31,10 @@ from substitute.application.prompt_editor.diagnostics.models import (
 from substitute.application.prompt_editor.diagnostics.spellcheck import (
     PromptSpellcheckService,
 )
+from substitute.application.prompt_editor.conditioning import (
+    PromptConditioningContext,
+    unbound_prompt_conditioning_context,
+)
 from substitute.application.prompt_editor.diagnostics.spellcheck_provider import (
     PromptSpellcheckDiagnosticProvider,
 )
@@ -80,6 +84,7 @@ class PromptDiagnosticsFeatureController:
         feature_profile: PromptFeatureProfileController,
         wildcard_feature: PromptWildcardDiagnosticsPresentation,
         document_semantics: PromptDocumentSemantics | None = None,
+        conditioning_context: PromptConditioningContext | None = None,
         spellcheck_service: PromptSpellcheckService | None = None,
         parent: object | None = None,
         bind_signals: Callable[["PromptDiagnosticsFeatureController"], None]
@@ -99,10 +104,14 @@ class PromptDiagnosticsFeatureController:
 
         if request_channel is None:
             raise TypeError("request_channel is required for prompt diagnostics.")
+        resolved_conditioning_context = (
+            conditioning_context or unbound_prompt_conditioning_context()
+        )
         self._providers = PromptDiagnosticsProviderLifecycle(
             feature_profile=feature_profile,
             wildcard_feature=wildcard_feature,
             document_semantics=document_semantics,
+            conditioning_context=resolved_conditioning_context,
             spellcheck_service=spellcheck_service,
             service_factory=diagnostics_service_factory,
             spellcheck_provider_factory=spellcheck_provider_factory,
@@ -159,6 +168,19 @@ class PromptDiagnosticsFeatureController:
         """Return whether any prompt diagnostics provider can be enabled."""
 
         return self._providers.can_activate()
+
+    def replace_conditioning_context(
+        self,
+        conditioning_context: PromptConditioningContext,
+    ) -> bool:
+        """Replace conditioning semantics and invalidate work from the old topology."""
+
+        if not self._providers.replace_conditioning_context(conditioning_context):
+            return False
+        self.clear()
+        if self._activated:
+            self._refresh_lifecycle.refresh_now()
+        return True
 
     def schedule_activation(self) -> None:
         """Schedule optional diagnostics activation after construction settles."""
