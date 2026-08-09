@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol, cast
@@ -49,6 +49,9 @@ from substitute.domain.recipes.sugar_script_serializer import (
 )
 from substitute.application.recipes.required_picker_preflight import (
     prepare_required_picker_buffers,
+)
+from substitute.application.recipes.authored_input_projection import (
+    RecipeAuthoredInputProjector,
 )
 from substitute.application.recipes.sugar_label_resolution import (
     SugarScriptLabelIndex,
@@ -84,20 +87,47 @@ _LOAD_IMAGE_CLASSES = frozenset({"LoadImage", "LoadImageMask"})
 class WorkflowLike(Protocol):
     """Describe workflow state required to serialize/save recipe scripts."""
 
-    stack_order: list[str]
-    cubes: Mapping[str, "CubeStateLike"]
-    global_overrides: GlobalOverrideMap
-    global_override_selections: GlobalOverrideSelectionMap
-    override_control_states: Mapping[str, SeedControlState]
+    @property
+    def stack_order(self) -> Sequence[str]:
+        """Return cube aliases in serialization order."""
+
+    @property
+    def cubes(self) -> Mapping[str, CubeStateLike]:
+        """Return recipe cube state by alias through a read-only view."""
+
+    @property
+    def global_overrides(self) -> GlobalOverrideMap:
+        """Return active workflow override values."""
+
+    @property
+    def global_override_selections(self) -> GlobalOverrideSelectionMap:
+        """Return explicit workflow override selections."""
+
+    @property
+    def override_control_states(self) -> Mapping[str, SeedControlState]:
+        """Return workflow override control state through a read-only view."""
 
 
 class CubeStateLike(Protocol):
     """Describe cube state shape required by recipe serialization helpers."""
 
-    cube_id: str
-    version: str
-    buffer: Mapping[str, JsonValue]
-    field_control_states: Mapping[str, Mapping[str, SeedControlState]]
+    @property
+    def cube_id(self) -> str:
+        """Return stable cube identity."""
+
+    @property
+    def version(self) -> str:
+        """Return the selected cube version."""
+
+    @property
+    def buffer(self) -> Mapping[str, JsonValue]:
+        """Return runtime cube content through a read-only view."""
+
+    @property
+    def field_control_states(
+        self,
+    ) -> Mapping[str, Mapping[str, SeedControlState]]:
+        """Return field control state through a read-only view."""
 
 
 class CubeDefinitionProvider(Protocol):
@@ -158,6 +188,7 @@ class RecipeIoService:
         model_hash_lookup: RecipeModelHashLookup | None = None,
         prompt_lora_hash_lookup: PromptLoraHashLookup | None = None,
         sugar_script_serializer: SugarScriptSerializer | None = None,
+        authored_input_projector: RecipeAuthoredInputProjector | None = None,
     ) -> None:
         """Create service with an injected recipe repository port implementation."""
 
@@ -168,6 +199,9 @@ class RecipeIoService:
         self._prompt_lora_hash_lookup = prompt_lora_hash_lookup
         self._sugar_script_serializer = (
             sugar_script_serializer or SugarScriptSerializer()
+        )
+        self._authored_input_projector = (
+            authored_input_projector or RecipeAuthoredInputProjector()
         )
 
     def serialize_workflow_to_sugar_script(
@@ -213,6 +247,10 @@ class RecipeIoService:
             SugarScriptSerializationRequest(
                 buffers=prepared_buffers,
                 ordered_aliases=tuple(ordered_aliases),
+                authored_inputs_by_alias=self._authored_input_projector.project(
+                    buffers=prepared_buffers,
+                    ordered_aliases=ordered_aliases,
+                ),
                 global_overrides=_without_blank_model_global_overrides(
                     workflow.global_overrides
                 ),

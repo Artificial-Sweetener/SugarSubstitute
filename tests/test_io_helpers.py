@@ -23,7 +23,8 @@ from pathlib import Path
 from PIL import Image, PngImagePlugin
 
 from substitute.application.recipes import RecipeIoService
-from substitute.domain.workflow import CubeState
+from substitute.domain.common import JsonObject
+from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.infrastructure.persistence.image_naming import (
     get_next_bucket_run_number,
     get_next_image_counter,
@@ -53,33 +54,44 @@ def test_get_next_bucket_run_number(tmp_path: Path) -> None:
     assert get_next_bucket_run_number(str(output_dir)) == 6
 
 
-class DummyWorkflow:
-    """Minimal workflow shape consumed by `RecipeIoService` serialization."""
-
-    def __init__(self, cubes: dict, stack_order: list[str], global_overrides=None):
-        self.cubes = cubes
-        self.stack_order = stack_order
-        self.global_overrides = global_overrides or {}
-
-
 def test_recipe_io_service_save_writes_and_creates_backups(tmp_path: Path) -> None:
     """Recipe save should persist headered script and rotate versions on rewrites."""
 
     file_path = tmp_path / "recipe.sugar"
-    cube_buffer = {
+    cube_buffer: JsonObject = {
         "cube_id": "Text To Image",
-        "nodes": {"positive_prompt": {"inputs": {"prompt_template": "hello world"}}},
+        "version": "1.0.0",
+        "nodes": {
+            "positive_prompt": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {"prompt_template": "hello world"},
+            }
+        },
+        "inputs": {},
+        "surface": {
+            "default_flavor_id": "default",
+            "controls": [
+                {
+                    "control_id": "positive_prompt.prompt_template",
+                    "symbol": "positive_prompt",
+                    "input_name": "prompt_template",
+                    "label": "Prompt",
+                    "class_type": "CLIPTextEncode",
+                    "value_type": "string",
+                }
+            ],
+        },
     }
     cube_state = CubeState(
         cube_id="Text To Image",
         version="1.0.0",
         alias="A",
-        original_cube={},
+        original_cube=cube_buffer,
         buffer=cube_buffer,
     )
-    workflow = DummyWorkflow(
-        {"A": cube_state},
-        ["A"],
+    workflow = WorkflowState(
+        cubes={"A": cube_state},
+        stack_order=["A"],
         global_overrides={"seed": {"value": 1, "mode": "global"}},
     )
     service = RecipeIoService(recipe_repository=FileRecipeRepository())
