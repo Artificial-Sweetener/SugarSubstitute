@@ -316,7 +316,18 @@ def test_real_shell_double_click_edits_named_separator_in_place(
         Qt.KeyboardModifier.NoModifier,
         divider_center,
     )
-    harness.process_events(cycles=4)
+    harness.wait_until(
+        lambda: (
+            (
+                candidate := field.editor.viewport().findChild(
+                    QLineEdit,
+                    REGION_NAME_INLINE_EDITOR_OBJECT_NAME,
+                )
+            )
+            is not None
+            and candidate.isVisible()
+        )
+    )
     inline_editor = field.editor.viewport().findChild(
         QLineEdit,
         REGION_NAME_INLINE_EDITOR_OBJECT_NAME,

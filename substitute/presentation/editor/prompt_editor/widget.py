@@ -114,7 +114,6 @@ from .commands.autocomplete_commands import PromptAutocompleteAcceptance
 from .commands.context_insertion import PromptContextInsertionService
 from .commands.contracts import (
     PromptCommandResult,
-    PromptCommandSourceRange,
     PromptCommandTextReplacement,
 )
 from .commands.diagnostic_commands import (
@@ -145,7 +144,6 @@ from .composition.context_menu_preparation_factory import (
     build_context_menu_preparation,
 )
 from .core.state.revisions import PromptSourceIdentity
-from .core.editing.source_commands import PromptSourceEditOrigin
 from .features import (
     PromptContextMenuSnapshotAssembler,
     PromptDanbooruPasteImportController,
@@ -1610,20 +1608,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
 
         if viewport_position is not None:
             self.setTextCursor(self.cursorForPosition(viewport_position))
-        cursor = self.textCursor()
-        self._source_commands.execute_source_replacement(
-            PromptCommandTextReplacement(
-                source_range=PromptCommandSourceRange(
-                    start=cursor.selectionStart(),
-                    end=cursor.selectionEnd(),
-                ),
-                replacement_text=text,
-                origin=PromptSourceEditOrigin.PASTE,
-                exact_source=False,
-                record_undo=True,
-            ),
-            command_name="drop_plain_text",
-        )
+        self._surface.insert_external_text(text, command_name="drop_plain_text")
         self._clipboard_paste_completion.complete("drop_plain_text")
 
     def _viewport_position_for_host_drop(self, event: QDropEvent) -> QPoint:

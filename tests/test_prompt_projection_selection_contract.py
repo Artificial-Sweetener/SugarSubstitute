@@ -836,6 +836,34 @@ def test_projection_selection_ctrl_down_adjusts_existing_emphasis_when_surface_r
     )
 
 
+def test_projection_selection_ctrl_down_crosses_zero_into_negative_emphasis(
+    widgets: list[QWidget],
+) -> None:
+    """Ctrl+Down should move zero emphasis to the next negative step."""
+
+    app = ensure_qapp()
+    box = show_prompt_editor(
+        widgets,
+        text="(cat:0.00), dog",
+        width=220,
+    )
+    cursor = box.textCursor()
+    cursor.setPosition(1, QTextCursor.MoveMode.MoveAnchor)
+    cursor.setPosition(4, QTextCursor.MoveMode.KeepAnchor)
+    box.setTextCursor(cursor)
+    process_events(app)
+
+    QTest.keyClick(
+        surface_for(box),
+        Qt.Key.Key_Down,
+        Qt.KeyboardModifier.ControlModifier,
+    )
+    process_events(app)
+
+    assert box.toPlainText() == "(cat:-0.05), dog"
+    assert _first_emphasis_token(box).value_text == "-0.05"
+
+
 def test_projection_selection_ctrl_down_can_continue_below_transient_neutral_emphasis(
     widgets: list[QWidget],
 ) -> None:

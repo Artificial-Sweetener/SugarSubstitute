@@ -56,6 +56,9 @@ def test_literal_parenthesis_normalizer_preserves_plausible_weighted_emphasis() 
     assert normalize_literal_parentheses_for_storage("alpha, (painting:1.2)") == (
         "alpha, (painting:1.2)"
     )
+    assert normalize_literal_parentheses_for_storage("(painting:-1.2)") == (
+        "(painting:-1.2)"
+    )
 
 
 def test_literal_parenthesis_normalizer_typed_edit_uses_same_canonical_shape() -> None:

@@ -31,9 +31,9 @@ from PySide6.QtGui import (
 
 from substitute.presentation.text_coordinates import TextCoordinateMap
 
-from ..commands.source_service import PromptSourceCommandService
 from ..core.editing.ime import PromptImePreedit, PromptImeSession
 from ..core.editing.source_commands import PromptSourceEditOrigin
+from ..interactions.text_mutation_controller import PromptTextMutationActions
 from .input_method_layer_preparer import PromptInputMethodRenderLayerPreparer
 from .input_method_render_state import (
     EMPTY_INPUT_METHOD_RENDER_LAYER,
@@ -78,12 +78,12 @@ class PromptInputMethodController(Generic[TPayload]):
         self,
         host: PromptInputMethodHost,
         *,
-        source_commands: PromptSourceCommandService[TPayload],
+        text_mutations: PromptTextMutationActions,
     ) -> None:
         """Store the host while keeping preedit state transient and bounded."""
 
         self._host = host
-        self._source_commands = source_commands
+        self._text_mutations = text_mutations
         self._ime_session = PromptImeSession()
         self._cursor_color: QColor | None = None
         self._formats: tuple[PromptPreeditFormat, ...] = ()
@@ -301,7 +301,7 @@ class PromptInputMethodController(Generic[TPayload]):
         if edit_start != edit_end or edit_text:
             self._ime_session.begin_commit()
             try:
-                self._source_commands.replace_source_range(
+                self._text_mutations.replace_text(
                     start=edit_start,
                     end=edit_end,
                     replacement_text=edit_text,

@@ -82,14 +82,16 @@ from tests.prompt_projection_surface_test_helpers import (
     install_lora_wildcard_prompt_state,
     lora_catalog_item_with_banner,
     PositionEvent,
-    new_projection_surface,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
     RecordingThumbnailAssetRepository,
     render_surface_viewport,
     set_surface_prompt_state,
     StaticPromptLoraCatalog,
-    surface_source_commands,
     valid_transient_insertion_overlay,
+)
+from tests.support.prompt_editor.projection_surface_factory import (
+    new_projection_surface,
+    surface_source_commands,
 )
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
@@ -437,7 +439,7 @@ def test_projection_surface_lora_suffix_prefix_defers_without_rebuild(
 
     monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
 
-    cast(Any, surface)._insert_viewport_text("<")
+    surface.textCursor().insertText("<")
 
     overlay = valid_transient_insertion_overlay(surface)
     assert surface.toPlainText() == f"{text}<"

@@ -33,7 +33,9 @@ from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
     PromptSourceEditOrigin,
 )
-from tests.prompt_projection_surface_test_helpers import surface_source_commands
+from tests.support.prompt_editor.projection_surface_factory import (
+    surface_source_commands,
+)
 from tests.prompt_projection_invariants import (
     validate_prompt_projection_document,
 )

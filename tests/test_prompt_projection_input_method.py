@@ -38,9 +38,11 @@ from substitute.presentation.editor.prompt_editor.projection.input_method_layer_
 import substitute.presentation.text_coordinates as text_coordinates_module
 from substitute.presentation.text_coordinates import TextCoordinateMap
 from tests.prompt_projection_surface_test_helpers import (
-    new_projection_surface,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
     render_surface_viewport,
+)
+from tests.support.prompt_editor.projection_surface_factory import (
+    new_projection_surface,
     surface_edit_execution,
     surface_source_commands,
 )

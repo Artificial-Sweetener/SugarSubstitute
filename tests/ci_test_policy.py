@@ -137,6 +137,8 @@ SERIAL_TEST_MODULES = frozenset(
         # Real workflow-route transitions exercise native Qt animation timing.
         "tests/test_real_shell_direct_workflow_scenarios.py",
         "tests/test_real_shell_prompt_editor_autocomplete_scenarios.py",
+        # Decoration probes mount the same native real-shell prompt editor.
+        "tests/test_real_shell_prompt_editor_decoration_boundaries.py",
         "tests/test_real_shell_prompt_editor_harness.py",
         "tests/test_reorderable_tabs_base_contract.py",
         "tests/test_restart_required_dialog.py",

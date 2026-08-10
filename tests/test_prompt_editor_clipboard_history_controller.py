@@ -150,6 +150,51 @@ class _DanbooruScheduler:
         return self.scheduled
 
 
+@dataclass(slots=True)
+class _TextMutations:
+    """Record boundary-owned paste requests and commit them to the real session."""
+
+    source_commands: PromptSourceCommandService[str]
+    replacements: list[tuple[int, int, str, PromptSourceEditOrigin, str]] = field(
+        default_factory=list
+    )
+
+    def insert_text(
+        self,
+        text: str,
+        *,
+        origin: PromptSourceEditOrigin = PromptSourceEditOrigin.TYPED,
+        command_name: str = "insert_viewport_text",
+    ) -> None:
+        """Reject insertion because clipboard tests supply an explicit paste range."""
+
+        raise AssertionError(
+            f"unexpected insertion request {text!r} from {origin.value}:{command_name}"
+        )
+
+    def replace_text(
+        self,
+        *,
+        start: int,
+        end: int,
+        replacement_text: str,
+        origin: PromptSourceEditOrigin,
+        command_name: str,
+        record_undo: bool = True,
+    ) -> None:
+        """Record and commit one range already planned by clipboard ownership."""
+
+        self.replacements.append((start, end, replacement_text, origin, command_name))
+        self.source_commands.replace_source_range(
+            start=start,
+            end=end,
+            replacement_text=replacement_text,
+            origin=origin,
+            command_name=command_name,
+            record_undo=record_undo,
+        )
+
+
 def _session(
     source_text: str,
     *,
@@ -182,6 +227,7 @@ class _Harness:
     controller: PromptClipboardHistoryController[str]
     edit_execution: PromptEditExecution[str]
     source_commands: PromptSourceCommandService[str]
+    text_mutations: _TextMutations
     clipboard: _Clipboard
     sink: _Sink
     scheduler: _DanbooruScheduler
@@ -219,6 +265,7 @@ def _harness(
         normalizer=PromptSourceNormalizationService(),
         exact_source_enabled=lambda: True,
     )
+    text_mutations = _TextMutations(source_commands)
     clipboard = _Clipboard(value=clipboard_text)
     scheduler = _DanbooruScheduler(scheduled=danbooru_scheduled)
     paste_completions: list[str] = []
@@ -227,6 +274,7 @@ def _harness(
         clipboard=clipboard,
         cursor_sink=sink,
         source_commands=source_commands,
+        text_mutations=text_mutations,
         danbooru_paste_scheduler=scheduler,
         editing_enabled=lambda: editing_enabled,
         paste_completed=paste_completions.append,
@@ -235,6 +283,7 @@ def _harness(
         controller=controller,
         edit_execution=edit_execution,
         source_commands=source_commands,
+        text_mutations=text_mutations,
         clipboard=clipboard,
         sink=sink,
         scheduler=scheduler,

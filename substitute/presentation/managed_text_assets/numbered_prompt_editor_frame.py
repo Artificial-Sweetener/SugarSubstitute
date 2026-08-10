@@ -223,8 +223,8 @@ class NumberedPromptEditorFrame(QWidget):
         """Return the editor content inset reserved for line numbers."""
 
         digits = max(2, len(str(self.line_count())))
-        return _GUTTER_LEFT_PADDING + self._editor.fontMetrics().horizontalAdvance(
-            "0" * digits
+        return _GUTTER_LEFT_PADDING + int(
+            self._editor.fontMetrics().horizontalAdvance("0" * digits)
         )
 
     def gutter_paint_width(self) -> int:

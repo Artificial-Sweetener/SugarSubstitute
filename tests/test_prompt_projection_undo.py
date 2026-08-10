@@ -38,8 +38,10 @@ from tests.prompt_projection_surface_test_helpers import (
     delay_projection_update_scheduler,
     first_emphasis_token,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
-    surface_edit_execution,
     valid_transient_insertion_overlay,
+)
+from tests.support.prompt_editor.projection_surface_factory import (
+    surface_edit_execution,
 )
 
 if os.environ.get("PYTEST_XDIST_WORKER"):

@@ -135,10 +135,10 @@ def test_projection_surface_reclassifies_edited_literal_group_as_existing_emphas
     )
 
 
-def test_projection_surface_space_after_auto_weight_moves_after_emphasis_token(
+def test_projection_surface_space_after_inline_weight_stays_at_content_boundary(
     widgets: list[QWidget],
 ) -> None:
-    """Space after an auto-created weight should exit the token and insert after it."""
+    """Direct Space should remain inside a weighted emphasis content boundary."""
 
     app = ensure_qapp()
     box = show_prompt_editor(
@@ -156,10 +156,10 @@ def test_projection_surface_space_after_auto_weight_moves_after_emphasis_token(
     process_events(app)
 
     token = first_emphasis_token(box)
-    assert box.toPlainText() == "(test:1.20) "
+    assert box.toPlainText() == "(test :1.20)"
     assert token.value_text == "1.20"
     assert token.editing_value_text is None
-    assert box.textCursor().position() == len("(test:1.20) ")
+    assert box.textCursor().position() == len("(test ")
 
 
 def test_projection_surface_space_commits_active_auto_exact_weight_edit(

@@ -78,12 +78,14 @@ from tests.prompt_projection_surface_test_helpers import (
     flush_projection_update_scheduler,
     flush_semantic_refresh,
     install_lora_wildcard_prompt_state,
-    new_projection_surface,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
     projection_token_kinds,
     render_surface_viewport,
     StaticPromptLoraCatalog,
     valid_transient_insertion_overlay,
+)
+from tests.support.prompt_editor.projection_surface_factory import (
+    new_projection_surface,
 )
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
 
@@ -264,7 +266,7 @@ def test_projection_surface_middle_insert_before_blank_line_reflows_immediately(
     surface.set_cursor_positions(cursor_position=5, anchor_position=5)
     before_rect = surface._current_caret_document_rect()  # noqa: SLF001
 
-    cast(Any, surface)._insert_viewport_text("x")
+    surface.textCursor().insertText("x")
 
     after_rect = surface._current_caret_document_rect()  # noqa: SLF001
     assert surface.toPlainText() == "alphax\n\nomega"

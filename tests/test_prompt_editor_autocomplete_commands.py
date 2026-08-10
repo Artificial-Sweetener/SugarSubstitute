@@ -214,6 +214,36 @@ def test_tag_autocomplete_command_preserves_unrelated_right_text() -> None:
     assert session.source_text == "long hairx"
 
 
+def test_tag_autocomplete_keeps_completion_before_emphasis_weight() -> None:
+    """Keep an accepted tag and separator inside weighted emphasis content."""
+
+    source_text = "(1girl, blue ha:1.2)"
+    content_end = source_text.index(":1.2)")
+    word_start = source_text.index("blue ha")
+    session = _session(source_text, cursor_position=content_end)
+    result = execute_prompt_command(
+        session,
+        PromptAcceptTagAutocompleteCommand(
+            acceptance=PromptTagAutocompleteAcceptance(
+                tag="blue hair",
+                prefix="blue ha",
+                word_start=word_start,
+                word_end=content_end,
+                active_tag_end=content_end,
+                add_comma=True,
+                source_identity=_source_identity(session),
+            ),
+            normalizer=PromptSourceNormalizationService(),
+            exact_source=False,
+            undo_snapshot=_undo_snapshot(session),
+        ),
+    )
+
+    assert result.status == "applied"
+    assert session.source_text == "(1girl, blue hair, :1.2)"
+    assert session.cursor_state.cursor_position == len("(1girl, blue hair, ")
+
+
 def test_wildcard_autocomplete_command_replaces_placeholder_range() -> None:
     """Wildcard acceptance should wrap the accepted name in braces."""
 

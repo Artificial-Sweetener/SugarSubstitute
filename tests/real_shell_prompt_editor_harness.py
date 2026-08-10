@@ -1998,6 +1998,7 @@ class RealShellPromptEditorHarness:
             "_caret_movement_controller",
             None,
         )
+        text_mutations = getattr(surface, "_text_mutations", None)
         observed_targets = (
             (
                 editor,
@@ -2056,8 +2057,6 @@ class RealShellPromptEditorHarness:
                 "projection source and caret owner",
                 (
                     "set_autocomplete_preview_state",
-                    "_insert_viewport_text",
-                    "_replace_viewport_range",
                     "_backspace",
                     "_delete",
                     "_flush_pending_projection_update",
@@ -2065,6 +2064,11 @@ class RealShellPromptEditorHarness:
                     "clear_autocomplete_preview_state",
                     "invalidate_autocomplete_preview_paint",
                 ),
+            ),
+            (
+                text_mutations,
+                "projection text mutation owner",
+                ("insert_text", "replace_text", "_commit"),
             ),
             (
                 autocomplete_preview_projection,
@@ -4353,7 +4357,8 @@ def _viewport_position_for_source_text(editor: PromptEditor, text: str) -> QPoin
     )
     if not fragments:
         raise AssertionError(f"no visible source fragment for {text!r}")
-    return cast(QPoint, fragments[0].center().toPoint())
+    point = fragments[0].center().toPoint()
+    return QPoint(int(point.x()), int(point.y()))
 
 
 def _prepared_lora_action_snapshot(editor: PromptEditor, prompt_text: str) -> object:

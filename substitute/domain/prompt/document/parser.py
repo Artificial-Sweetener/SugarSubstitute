@@ -45,7 +45,7 @@ from substitute.domain.prompt.wildcards.syntax import (
 from substitute.domain.prompt.document.structural_scan import is_structural_quote
 from substitute.domain.prompt.regions.parser import PromptRegionStructureBuilder
 
-_VALID_WEIGHT_RE = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)")
+_VALID_WEIGHT_RE = re.compile(r"-?(?:\d+(?:\.\d*)?|\.\d+)")
 _VALID_LORA_WEIGHT_RE = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)")
 _LORA_PREFIX = "lora:"
 

@@ -24,6 +24,9 @@ from typing import Generic, Protocol, TypeVar
 from ..commands.execution import PromptEditExecution
 from ..commands.source_service import PromptSourceCommandService
 from ..interactions.clipboard_history_controller import PromptClipboardHistoryActions
+from ..interactions.text_mutation_controller import (
+    PromptProjectionTextMutationController,
+)
 from ..interactions.undo_coalescing import PromptUndoCoalescingController
 
 THost_contra = TypeVar("THost_contra", contravariant=True)
@@ -36,6 +39,7 @@ class PromptProjectionEditingRuntime(Generic[TPayload]):
 
     execution: PromptEditExecution[TPayload]
     source_commands: PromptSourceCommandService[TPayload]
+    text_mutations: PromptProjectionTextMutationController[TPayload]
     clipboard_history: PromptClipboardHistoryActions
     undo_coalescing: PromptUndoCoalescingController[TPayload]
 

@@ -84,6 +84,22 @@ def test_reorder_segments_splits_multi_tag_emphasis_shell_when_one_chip_moves() 
     assert result.selection_range.slice(result.text) == "solo"
 
 
+def test_reorder_segments_preserves_negative_emphasis_shells() -> None:
+    """Reordering emphasized chips should retain their signed shell weights."""
+
+    document = parse_prompt_document("(1girl, solo:-0.05), blush")
+
+    result = reorder_segments(
+        document,
+        dragged_segment_index=1,
+        drop_target=PromptLineDropTarget(row_index=0, insertion_index=2),
+    )
+
+    assert result.text == "(1girl:-0.05), blush, (solo:-0.05)"
+    assert result.selection_range is not None
+    assert result.selection_range.slice(result.text) == "solo"
+
+
 def test_reorder_segments_preserves_base_multiline_separator_structure_under_line_drop() -> (
     None
 ):
@@ -787,6 +803,30 @@ def test_decrease_emphasis_updates_existing_weight_in_place() -> None:
     assert result.selection_range == document.emphasis_spans[0].content_range
 
 
+def test_decrease_emphasis_crosses_zero_into_negative_weight() -> None:
+    """Decreasing zero emphasis should produce the next signed weight step."""
+
+    document = parse_prompt_document("(cat:0.00)")
+
+    result = decrease_emphasis(document, document.emphasis_spans[0].content_range)
+
+    assert result.text == "(cat:-0.05)"
+    assert result.document.emphasis_spans[0].weight == Decimal("-0.05")
+    assert result.selection_range == document.emphasis_spans[0].content_range
+
+
+def test_increase_emphasis_crosses_negative_weight_back_to_zero() -> None:
+    """Increasing negative emphasis should cross back through zero exactly."""
+
+    document = parse_prompt_document("(cat:-0.05)")
+
+    result = increase_emphasis(document, document.emphasis_spans[0].content_range)
+
+    assert result.text == "(cat:0.00)"
+    assert result.document.emphasis_spans[0].weight == Decimal("0.00")
+    assert result.selection_range == document.emphasis_spans[0].content_range
+
+
 def test_decrease_emphasis_unwraps_when_weight_returns_to_neutral() -> None:
     """Neutral emphasis should remove the wrapping shell entirely."""
 
@@ -894,18 +934,19 @@ def test_set_emphasis_weight_wraps_plain_selection_at_exact_weight() -> None:
     assert (result.selection_range.start, result.selection_range.end) == (1, 4)
 
 
-def test_set_emphasis_weight_clamps_values_below_the_supported_floor() -> None:
-    """Exact-weight setting should clamp sub-floor values to the minimum emphasis."""
+def test_set_emphasis_weight_preserves_negative_exact_value() -> None:
+    """Exact-weight setting should preserve signed emphasis values."""
 
     document = parse_prompt_document("(cat:1.20)")
 
     result = set_emphasis_weight(
         document,
         document.emphasis_spans[0].content_range,
-        weight=Decimal("0.01"),
+        weight=Decimal("-1.234"),
     )
 
-    assert result.text == "(cat:0.05)"
+    assert result.text == "(cat:-1.23)"
+    assert result.document.emphasis_spans[0].weight == Decimal("-1.23")
     assert result.selection_range == document.emphasis_spans[0].content_range
 
 
