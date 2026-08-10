@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
-from typing import cast
+from typing import Never, cast
 
 from substitute.app.bootstrap.ready_shell_controller import ReadyShellLaunchController
 from substitute.app.bootstrap.managed_recovery_adapters import (
@@ -67,6 +67,12 @@ FORBIDDEN_STARTUP_READY_SHELL_LAUNCH_IMPORT_PREFIXES = (
     "substitute.infrastructure",
     "subprocess",
 )
+
+
+def _unexpected_session_finalization(_main_window: object) -> Never:
+    """Fail if this construction-only test unexpectedly finalizes a session."""
+
+    raise AssertionError("session finalization was not expected")
 
 
 def test_create_startup_ready_shell_launch_controller_returns_controller() -> None:
@@ -121,6 +127,7 @@ def test_create_startup_ready_shell_launch_graph_returns_controller() -> None:
         startup_timer=StartupTimer(clock=_Clock()),
         runtime_services=object(),
         managed_comfy_lease=shutdown_runtime.managed_comfy_lease,
+        begin_session_finalization=_unexpected_session_finalization,
         restart_launch_command=("substitute",),
     )
 

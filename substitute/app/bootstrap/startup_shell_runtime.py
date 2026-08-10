@@ -23,6 +23,9 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from substitute.app.bootstrap.ready_shell_state import ReadyShellRuntimeState
+from substitute.app.bootstrap.shell_session_finalization_adapter import (
+    ShellSessionFinalizationAdapter,
+)
 from substitute.app.bootstrap.shell_reload_adapter import (
     ComfyRuntimeRestartActions,
     ShellReloadAdapter,
@@ -37,6 +40,11 @@ from substitute.app.bootstrap.startup_shutdown_adapter import (
 from substitute.app.bootstrap.startup_shutdown_coordinator import (
     create_startup_shutdown_request_ports,
 )
+from substitute.app.bootstrap.shutdown_finalization_operation import (
+    ShutdownFinalizationOperation,
+)
+from substitute.application.execution import TaskSubmitter
+from substitute.application.workspace_state import SessionFinalizationService
 
 
 class StartupShellRuntimeAppProtocol(Protocol):
@@ -52,6 +60,14 @@ class StartupShellRuntimeServicesProtocol(Protocol):
     @property
     def execution_runtime(self) -> object:
         """Return the process-lifetime execution runtime."""
+
+    @property
+    def session_finalization_service(self) -> SessionFinalizationService:
+        """Return terminal session persistence orchestration."""
+
+    @property
+    def session_persistence_submitter(self) -> TaskSubmitter:
+        """Return the serialized session persistence execution lane."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,12 +95,22 @@ def create_startup_shell_runtime_graph(
 
     shutdown_runtime = create_process_manager_startup_shutdown_runtime(
         comfy_state_getter=lambda: ready_shell_runtime_state.comfy_state,
-        save_session_before_cleanup=shell_reload_state.save_session_before_cleanup,
+    )
+    session_finalization_adapter = ShellSessionFinalizationAdapter(
+        current_shell=lambda: shell_reload_state.shell_frame,
+        main_window_for_shell=shell_ports.main_window_for_shell,
+    )
+    shutdown_finalization = ShutdownFinalizationOperation(
+        prepare_session=session_finalization_adapter.prepare_shutdown,
+        persist_session=runtime_services.session_finalization_service.persist,
+        cleanup_managed_comfy=shutdown_runtime.cleanup,
     )
     shutdown_request_ports = create_startup_shutdown_request_ports(
         app=app,
-        shutdown_runtime=shutdown_runtime,
-        execution_runtime=runtime_services.execution_runtime,
+        cleanup=shutdown_finalization.run,
+        before_cleanup=shutdown_finalization.prepare,
+        cleanup_bypass=shutdown_runtime.cleanup_bypass,
+        cleanup_submitter=runtime_services.session_persistence_submitter,
     )
     request_shell_shutdown = shutdown_request_ports.request_shell_shutdown
     shell_reload_adapter = create_bound_shell_reload_adapter(
@@ -99,6 +125,7 @@ def create_startup_shell_runtime_graph(
         startup_timer=startup_timer,
         runtime_services=runtime_services,
         managed_comfy_lease=shutdown_runtime.managed_comfy_lease,
+        begin_session_finalization=session_finalization_adapter.begin_gui_reload,
         restart_launch_command=restart_launch_command,
     )
     return StartupShellRuntimeGraph(

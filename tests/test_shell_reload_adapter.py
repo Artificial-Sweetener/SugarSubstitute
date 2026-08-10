@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
+from typing import NoReturn
 
 from substitute.app.bootstrap.shell_reload_adapter import (
     ComfyRuntimeRestartActions,
@@ -41,6 +42,12 @@ STARTUP_SOURCE = PROJECT_ROOT / "substitute" / "app" / "bootstrap" / "startup.py
 SUPPORT_GRAPH_SOURCE = (
     PROJECT_ROOT / "substitute" / "app" / "bootstrap" / "startup_support_graph.py"
 )
+
+
+def _unexpected_session_finalization(_main_window: object) -> NoReturn:
+    """Fail when a wiring-only test unexpectedly begins persistence."""
+
+    raise AssertionError("session finalization was not expected")
 
 
 def test_shell_reload_adapter_attaches_reload_and_restart_commands() -> None:
@@ -109,15 +116,11 @@ def test_shell_reload_adapter_builds_hydrates_and_shows_reloaded_shell() -> None
 
 
 def test_shell_reload_adapter_reads_current_shell_state() -> None:
-    """Adapter should expose current shell, session-save, and cancellable-job ports."""
+    """Adapter should expose current shell and cancellable-job ports."""
 
     state = _AdapterState()
     shell = object()
-    save_calls: list[str] = []
     main_window = SimpleNamespace(
-        session_autosave_controller=SimpleNamespace(
-            force_save_session_snapshot=lambda: save_calls.append("save")
-        ),
         generation_job_queue_service=SimpleNamespace(has_cancellable_jobs=lambda: True),
     )
     state.main_windows[shell] = main_window
@@ -126,11 +129,8 @@ def test_shell_reload_adapter_reads_current_shell_state() -> None:
     assert adapter.current_shell() is None
     adapter.set_current_shell(shell)
 
-    adapter.save_session_before_cleanup()
-
     assert adapter.current_shell() is shell
     assert state.current_shell_changes == [shell]
-    assert save_calls == ["save"]
     assert adapter.has_cancellable_generation_jobs() is True
 
 
@@ -181,23 +181,17 @@ def test_shell_reload_adapter_does_not_project_state_on_initial_shell() -> None:
     assert backend_states == []
 
 
-def test_startup_shell_reload_state_tracks_shell_and_delegates_session_save() -> None:
-    """Startup shell reload state should own shell reference and cleanup save handoff."""
+def test_startup_shell_reload_state_tracks_shell_and_binds_adapter() -> None:
+    """Startup shell reload state should own shell reference and adapter binding."""
 
-    save_calls: list[str] = []
     state = StartupShellReloadState()
-    adapter = SimpleNamespace(
-        save_session_before_cleanup=lambda: save_calls.append("save")
-    )
+    adapter = SimpleNamespace()
     shell = object()
 
-    state.save_session_before_cleanup()
     state.set_shell_frame(shell)
     state.bind_adapter(adapter)  # type: ignore[arg-type]
-    state.save_session_before_cleanup()
 
     assert state.shell_frame is shell
-    assert save_calls == ["save"]
 
 
 def test_create_startup_shell_reload_state_returns_empty_state() -> None:
@@ -224,6 +218,7 @@ def test_create_shell_reload_adapter_returns_adapter() -> None:
         startup_timer=object(),
         runtime_services=object(),
         managed_comfy_lease=ManagedComfyLease(_cleanup_result),
+        begin_session_finalization=_unexpected_session_finalization,
         restart_launch_command=state.restart_launch_command,
         current_shell_changed=state.current_shell_changes.append,
     )
@@ -251,12 +246,11 @@ def test_create_bound_shell_reload_adapter_binds_state() -> None:
         startup_timer=object(),
         runtime_services=object(),
         managed_comfy_lease=ManagedComfyLease(_cleanup_result),
+        begin_session_finalization=_unexpected_session_finalization,
         restart_launch_command=state.restart_launch_command,
     )
 
     adapter.set_current_shell(shell)
-    reload_state.save_session_before_cleanup()
-
     assert reload_state.shell_frame is shell
     assert isinstance(adapter, ShellReloadAdapter)
 
@@ -330,6 +324,7 @@ class _AdapterState:
             startup_timer=object(),
             runtime_services=self.runtime_services,
             managed_comfy_lease=ManagedComfyLease(_cleanup_result),
+            begin_session_finalization=_unexpected_session_finalization,
             restart_launch_command=self.restart_launch_command,
             current_shell_changed=self.current_shell_changes.append,
         )

@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
+import sys
 import time
 from typing import Any
 
@@ -28,6 +30,31 @@ from sugarsubstitute_shared.launch_splash import (
     splash_cancel_signal_path,
     splash_session_args,
 )
+
+
+def test_early_launch_splash_import_excludes_canvas_runtime() -> None:
+    """Keep CuteCanvas and QPane out of the path preceding splash visibility."""
+
+    repository_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(  # noqa: S603
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; "
+                "import substitute.app.bootstrap.early_launch_splash; "
+                "print('cutecanvas' in sys.modules); "
+                "print('qpane' in sys.modules)"
+            ),
+        ],
+        cwd=repository_root,
+        capture_output=True,
+        text=True,
+        timeout=10.0,
+        check=True,
+    )
+
+    assert result.stdout.splitlines() == ["False", "False"]
 
 
 class _Splash:

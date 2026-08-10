@@ -42,6 +42,8 @@ from substitute.application.ports import SessionSnapshotRepository
 from substitute.application.workspace_state import (
     RestoreProjectionCacheRepository,
     SessionAutosaveService,
+    SessionFinalizationService,
+    SessionSaveService,
     SnapshotCaptureService,
 )
 from substitute.domain.onboarding import InstallationContext
@@ -69,6 +71,8 @@ class ApplicationRuntimeServices:
     session_snapshot_repository: SessionSnapshotRepository
     restore_projection_cache_repository: RestoreProjectionCacheRepository
     session_autosave_service: SessionAutosaveService
+    session_finalization_service: SessionFinalizationService
+    session_persistence_submitter: TaskSubmitter
     execution_runtime: ExecutionRuntime
 
 
@@ -105,11 +109,15 @@ def build_application_runtime_services(
     autosave_scheduler = QtUiScheduler(qt_owner)
     session_autosave_submitter = execution_runtime.submitter(
         "disk_io_low_priority",
-        owner_id="session_autosave",
+        owner_id="session_persistence",
         dispatcher=QtOwnerThreadDispatcher(qt_owner),
     )
     session_autosave_persistence = _SessionAutosavePersistenceScheduler(
         session_autosave_submitter
+    )
+    session_save_service = SessionSaveService(
+        capture_service=SnapshotCaptureService(),
+        repository=session_snapshot_repository,
     )
     return ApplicationRuntimeServices(
         context=context,
@@ -123,8 +131,7 @@ def build_application_runtime_services(
         session_snapshot_repository=session_snapshot_repository,
         restore_projection_cache_repository=restore_projection_cache_repository,
         session_autosave_service=SessionAutosaveService(
-            capture_service=SnapshotCaptureService(),
-            repository=session_snapshot_repository,
+            save_service=session_save_service,
             schedule_debounced=lambda callback: autosave_scheduler.schedule(
                 500,
                 callback,
@@ -132,6 +139,11 @@ def build_application_runtime_services(
             ),
             schedule_persistence=session_autosave_persistence.schedule,
         ),
+        session_finalization_service=SessionFinalizationService(
+            save_service=session_save_service,
+            submitter=session_autosave_submitter,
+        ),
+        session_persistence_submitter=session_autosave_submitter,
         execution_runtime=execution_runtime,
     )
 

@@ -27,11 +27,27 @@ from substitute.app.bootstrap.gui_reload_coordinator import (
     GuiReloadCoordinator,
     ShellFrameProtocol,
 )
+from substitute.app.bootstrap.gui_reload_session_finalizer import (
+    GuiReloadSessionFinalizer,
+)
 from substitute.app.bootstrap.lifecycle import (
     ManagedComfyCleanupOutcome,
     ManagedComfyCleanupResult,
 )
 from substitute.app.bootstrap.startup_shutdown import ManagedComfyLease
+from substitute.application.execution import (
+    CancellationToken,
+    ExecutionContext,
+    TaskHandle,
+    TaskIdentity,
+    TaskRequest,
+)
+from substitute.application.workspace_state import SessionSaveResult
+from tests.execution_testing import (
+    ImmediateTaskSubmitter,
+    QueuedTaskSubmitter,
+    never_cancelled,
+)
 
 
 def test_gui_reload_rebuilds_shell_without_managed_comfy_cleanup() -> None:
@@ -141,7 +157,7 @@ def test_gui_reload_keeps_old_shell_when_session_save_fails() -> None:
         main_window_for_shell=lambda _shell: main_window,
     )
 
-    assert coordinator.reload_shell() is False
+    assert coordinator.reload_shell() is True
 
     assert state.current_shell is shell
     assert main_window.save_calls == 1
@@ -160,7 +176,7 @@ def test_gui_reload_fails_closed_when_rebuild_fails_after_disposal() -> None:
         build_shell=lambda: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
-    assert coordinator.reload_shell() is False
+    assert coordinator.reload_shell() is True
 
     assert state.current_shell is None
     assert state.shutdown_requests == [None]
@@ -183,7 +199,7 @@ def test_gui_reload_fails_closed_when_old_resources_cannot_be_released() -> None
         main_window_for_shell=lambda _shell: main_window,
     )
 
-    assert coordinator.reload_shell() is False
+    assert coordinator.reload_shell() is True
 
     assert state.current_shell is shell
     assert state.shutdown_requests == [shell]
@@ -207,10 +223,48 @@ def test_gui_reload_fails_closed_when_hydration_fails() -> None:
         hydrate_shell=lambda _shell: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
-    assert coordinator.reload_shell() is False
+    assert coordinator.reload_shell() is True
 
     assert state.current_shell is new_shell
     assert state.shutdown_requests == [new_shell]
+
+
+def test_gui_reload_keeps_old_shell_usable_while_finalization_is_pending() -> None:
+    """Do not dispose GUI state before detached persistence has completed."""
+
+    state = _CoordinatorState()
+    old_shell = _FakeShell("old", state.events)
+    new_shell = _FakeShell("new", state.events)
+    main_window = _FakeMainWindow()
+    submitter = QueuedTaskSubmitter()
+    state.current_shell = old_shell
+
+    def begin_session_finalization(
+        _main_window: object,
+    ) -> TaskHandle[SessionSaveResult]:
+        """Queue terminal persistence without running it on the caller."""
+
+        main_window.save_calls += 1
+        return submitter.submit(
+            _finalization_request(),
+            cancellation=never_cancelled(),
+        )
+
+    coordinator = state.build_coordinator(
+        main_window_for_shell=lambda _shell: main_window,
+        build_shell=lambda: new_shell,
+        begin_session_finalization=begin_session_finalization,
+    )
+
+    assert coordinator.reload_shell() is True
+    assert state.current_shell is old_shell
+    assert state.events == []
+    assert coordinator.reload_shell() is False
+
+    submitter.handles[0].complete_success(_save_result())
+
+    assert state.current_shell is new_shell
+    assert main_window.detach_calls == 1
 
 
 class _CoordinatorState:
@@ -234,10 +288,21 @@ class _CoordinatorState:
         show_shell: Callable[[_FakeShell], _FakeShell] | None = None,
         hydrate_shell: Callable[[ShellFrameProtocol], None] | None = None,
         managed_comfy_lease: ManagedComfyLease | None = None,
+        begin_session_finalization: (
+            Callable[[object], TaskHandle[SessionSaveResult]] | None
+        ) = None,
     ) -> GuiReloadCoordinator:
         """Build one coordinator from fake collaborators."""
 
         resolved_show_shell = show_shell or (lambda shell: shell)
+        session_finalizer = GuiReloadSessionFinalizer(
+            managed_comfy_lease=(
+                managed_comfy_lease or ManagedComfyLease(self.cleanup)
+            ),
+            begin_session_finalization=(
+                begin_session_finalization or self.begin_session_finalization
+            ),
+        )
         return GuiReloadCoordinator(
             current_shell=lambda: self.current_shell,
             set_current_shell=self.set_current_shell,
@@ -248,10 +313,43 @@ class _CoordinatorState:
                 resolved_show_shell,
             ),
             hydrate_shell=hydrate_shell or (lambda _shell: None),
-            managed_comfy_lease=managed_comfy_lease or ManagedComfyLease(self.cleanup),
+            session_finalizer=session_finalizer,
             request_shutdown=lambda shell: self.shutdown_requests.append(shell),
             has_cancellable_jobs=lambda: self._has_cancellable_jobs,
             message_sink=self.messages.append,
+        )
+
+    def begin_session_finalization(
+        self,
+        main_window: object,
+    ) -> TaskHandle[SessionSaveResult]:
+        """Run a deterministic terminal save through the task contract."""
+
+        fake_window = cast(_FakeMainWindow, main_window)
+        fake_window.save_calls += 1
+
+        def persist(_token: CancellationToken) -> SessionSaveResult:
+            """Return or fail the configured persistence result."""
+
+            if not fake_window.save_result:
+                raise OSError("fixture session save failed")
+            return _save_result()
+
+        return ImmediateTaskSubmitter().submit(
+            TaskRequest(
+                identity=TaskIdentity(
+                    request_id=1,
+                    domain="session_finalization",
+                    parts=(("reason", "gui_reload"),),
+                ),
+                context=ExecutionContext(
+                    operation="session_finalization",
+                    reason="gui_reload",
+                    lane="disk_io_low_priority",
+                ),
+                work=persist,
+            ),
+            cancellation=never_cancelled(),
         )
 
     def cleanup(self) -> ManagedComfyCleanupResult:
@@ -320,22 +418,13 @@ class _FakeMainWindow:
     ) -> None:
         """Initialize the fake save result."""
 
-        self._save_result = save_result
+        self.save_result = save_result
         self._detach_error = detach_error
         self.save_calls = 0
         self.detach_calls = 0
-        self.session_autosave_controller = SimpleNamespace(
-            force_save_session_snapshot=self._force_save_session_snapshot,
-        )
         self.shell_reload_lifecycle_controller = SimpleNamespace(
             detach_for_gui_reload=self._detach_for_gui_reload,
         )
-
-    def _force_save_session_snapshot(self) -> bool:
-        """Record one forced session save."""
-
-        self.save_calls += 1
-        return self._save_result
 
     def _detach_for_gui_reload(self) -> None:
         """Record one shell detach request."""
@@ -367,4 +456,35 @@ def _cleanup_result() -> ManagedComfyCleanupResult:
         user_detail="done",
         technical_detail="done",
         diagnostic_detail="done",
+    )
+
+
+def _finalization_request() -> TaskRequest[SessionSaveResult]:
+    """Build one queued finalization request."""
+
+    return TaskRequest(
+        identity=TaskIdentity(
+            request_id=1,
+            domain="session_finalization",
+            parts=(("reason", "gui_reload"),),
+        ),
+        context=ExecutionContext(
+            operation="session_finalization",
+            reason="gui_reload",
+            lane="disk_io_low_priority",
+        ),
+        work=lambda _token: _save_result(),
+    )
+
+
+def _save_result() -> SessionSaveResult:
+    """Build one successful terminal save result."""
+
+    return SessionSaveResult(
+        reason="gui_reload",
+        elapsed_ms=1.0,
+        prerequisite_count=1,
+        workflow_count=1,
+        persisted=True,
+        sequence=1,
     )

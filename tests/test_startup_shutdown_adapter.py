@@ -48,7 +48,6 @@ def test_process_manager_shutdown_adapter_supplies_cleanup_ports(
 
     runtime = object()
     managed_state = {"pid": 123}
-    save_calls: list[str] = []
     factory_calls: list[dict[str, Any]] = []
 
     def fake_kill_process(_state: object | None) -> object:
@@ -75,7 +74,6 @@ def test_process_manager_shutdown_adapter_supplies_cleanup_ports(
 
     result = startup_shutdown_adapter.create_process_manager_startup_shutdown_runtime(
         comfy_state_getter=lambda: managed_state,
-        save_session_before_cleanup=lambda: save_calls.append("save"),
     )
 
     assert result is runtime
@@ -83,8 +81,6 @@ def test_process_manager_shutdown_adapter_supplies_cleanup_ports(
     call = factory_calls[0]
     assert call["comfy_state_getter"]() is managed_state
     assert call["kill_process"] is fake_kill_process
-    call["save_session_before_cleanup"]()
-    assert save_calls == ["save"]
 
 
 def test_startup_shutdown_adapter_imports_no_forbidden_boundaries() -> None:

@@ -31,7 +31,6 @@ from substitute.infrastructure.comfy import process_manager
 def create_process_manager_startup_shutdown_runtime(
     *,
     comfy_state_getter: Callable[[], object | None],
-    save_session_before_cleanup: Callable[[], None] | None = None,
 ) -> StartupShutdownRuntime:
     """Build startup shutdown runtime with the process-manager cleanup adapter."""
 
@@ -43,7 +42,6 @@ def create_process_manager_startup_shutdown_runtime(
     return create_startup_shutdown_runtime(
         comfy_state_getter=typed_comfy_state_getter,
         kill_process=process_manager.kill_comfyui_state,
-        save_session_before_cleanup=save_session_before_cleanup,
     )
 
 

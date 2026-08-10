@@ -14,38 +14,30 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Coordinate debounced and forced session snapshot persistence."""
+"""Coordinate debounced session snapshot persistence."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from threading import Lock
-from typing import Protocol
 
-from substitute.application.ports import SessionSnapshotRepository
 from substitute.application.workspace_state.session_persistence import (
-    PreparedSessionPersistence,
     SessionPersistenceParticipant,
+)
+from substitute.application.workspace_state.session_save_service import (
+    PreparedSessionSave,
+    SessionSaveService,
 )
 from substitute.application.workspace_state.snapshot_capture_service import (
     SnapshotCapturePort,
 )
-from substitute.domain.session import SessionSnapshot
 from substitute.shared.logging.logger import (
     get_logger,
     log_debug,
     log_exception,
-    log_info,
 )
 
 _LOGGER = get_logger("application.workspace_state.session_autosave_service")
-
-
-class SessionCaptureServiceProtocol(Protocol):
-    """Describe the capture surface consumed by autosave."""
-
-    def capture(self, port: SnapshotCapturePort) -> SessionSnapshot:
-        """Capture one session snapshot from a live port."""
 
 
 class SessionAutosaveService:
@@ -54,15 +46,13 @@ class SessionAutosaveService:
     def __init__(
         self,
         *,
-        capture_service: SessionCaptureServiceProtocol,
-        repository: SessionSnapshotRepository,
+        save_service: SessionSaveService,
         schedule_debounced: Callable[[Callable[[], None]], None] | None = None,
         schedule_persistence: Callable[[Callable[[], None]], None] | None = None,
     ) -> None:
         """Store capture and persistence dependencies."""
 
-        self._capture_service = capture_service
-        self._repository = repository
+        self._save_service = save_service
         self._schedule_debounced = schedule_debounced or (lambda callback: callback())
         self._schedule_persistence = schedule_persistence or (
             lambda callback: callback()
@@ -79,6 +69,10 @@ class SessionAutosaveService:
         participants: tuple[SessionPersistenceParticipant, ...] = (),
     ) -> None:
         """Schedule a debounced save when no save is already pending."""
+
+        if not self._save_service.accepts_autosave:
+            log_debug(_LOGGER, "session autosave ignored during finalization")
+            return
 
         with self._state_lock:
             self._request_generation += 1
@@ -104,26 +98,6 @@ class SessionAutosaveService:
             )
         )
 
-    def force_save(
-        self,
-        port: SnapshotCapturePort,
-        *,
-        participants: tuple[SessionPersistenceParticipant, ...] = (),
-    ) -> bool:
-        """Capture and persist immediately, returning whether save succeeded."""
-
-        with self._state_lock:
-            save_pending = self._save_pending
-            save_running = self._save_running
-        log_info(
-            _LOGGER,
-            "session autosave force save requested",
-            save_pending=save_pending,
-            save_running=save_running,
-            port_type=type(port).__name__,
-        )
-        return self._save_now(port, participants=participants, forced=True)
-
     def _run_scheduled_save(
         self,
         port: SnapshotCapturePort,
@@ -148,16 +122,21 @@ class SessionAutosaveService:
                 )
             )
             return
-        self._save_now(port, participants=participants, forced=False)
+        self._save_now(port, participants=participants)
 
     def _save_now(
         self,
         port: SnapshotCapturePort,
         *,
         participants: tuple[SessionPersistenceParticipant, ...],
-        forced: bool,
     ) -> bool:
         """Capture and save once while suppressing overlapping writes."""
+
+        if not self._save_service.accepts_autosave:
+            with self._state_lock:
+                self._save_pending = False
+            log_debug(_LOGGER, "session autosave skipped during finalization")
+            return False
 
         with self._state_lock:
             save_running = self._save_running
@@ -167,26 +146,24 @@ class SessionAutosaveService:
             log_debug(
                 _LOGGER,
                 "session autosave skipped overlapping save",
-                forced=forced,
             )
             return False
         try:
-            prepared = tuple(
-                participant.prepare_session_persistence()
-                for participant in participants
-            )
             log_debug(
                 _LOGGER,
                 "session autosave capture starting",
-                forced=forced,
                 port_type=type(port).__name__,
             )
-            snapshot = self._capture_service.capture(port)
+            prepared = self._save_service.prepare(
+                port,
+                participants=participants,
+                reason="autosave",
+            )
+            snapshot = prepared.snapshot
             shell_layout = snapshot.workspace.shell_layout
             log_debug(
                 _LOGGER,
                 "session autosave captured shell layout",
-                forced=forced,
                 active_route=snapshot.workspace.active_route,
                 active_workflow_id=snapshot.workspace.active_workflow_id,
                 shell_layout_present=shell_layout is not None,
@@ -214,7 +191,6 @@ class SessionAutosaveService:
             log_debug(
                 _LOGGER,
                 "session autosave captured snapshot",
-                forced=forced,
                 active_route=snapshot.workspace.active_route,
                 active_workflow_id=snapshot.workspace.active_workflow_id,
                 tab_order=snapshot.workspace.tab_order,
@@ -223,40 +199,25 @@ class SessionAutosaveService:
             log_debug(
                 _LOGGER,
                 "session autosave repository save starting",
-                forced=forced,
             )
-            if forced:
-                if not self._persist_snapshot(
-                    snapshot,
-                    prepared=prepared,
-                    forced=forced,
-                ):
-                    return False
-            else:
 
-                def persist_captured_snapshot() -> None:
-                    """Persist the captured snapshot outside the UI-critical path."""
+            def persist_captured_snapshot() -> None:
+                """Persist the captured snapshot outside the UI-critical path."""
 
-                    self._persist_snapshot(
-                        snapshot,
-                        prepared=prepared,
-                        forced=forced,
-                    )
+                self._persist_snapshot(prepared)
 
-                self._schedule_persistence(persist_captured_snapshot)
+            self._schedule_persistence(persist_captured_snapshot)
         except Exception as error:
             self._finish_save()
             log_exception(
                 _LOGGER,
                 "Failed to save session snapshot",
-                forced=forced,
                 error=error,
             )
             return False
         log_debug(
             _LOGGER,
             "Queued session snapshot persistence",
-            forced=forced,
             captured_at=snapshot.captured_at.isoformat(),
             workflow_count=len(snapshot.workspace.workflows),
         )
@@ -264,46 +225,44 @@ class SessionAutosaveService:
 
     def _persist_snapshot(
         self,
-        snapshot: SessionSnapshot,
-        *,
-        prepared: tuple[PreparedSessionPersistence, ...],
-        forced: bool,
+        prepared: PreparedSessionSave,
     ) -> bool:
         """Persist a captured snapshot and report complete write success."""
 
-        persistence_name = "session_snapshot"
         succeeded = False
         try:
-            for item in prepared:
-                persistence_name = item.name
-                item.persist()
-            persistence_name = "session_snapshot"
-            self._repository.save(snapshot)
+            result = self._save_service.persist(prepared)
             succeeded = True
             log_debug(
                 _LOGGER,
                 "session autosave repository save completed",
-                forced=forced,
+                elapsed_ms=result.elapsed_ms,
             )
         except Exception as error:
             log_exception(
                 _LOGGER,
                 "Failed to persist session snapshot",
-                forced=forced,
-                persistence_name=persistence_name,
+                reason=prepared.reason,
                 error=error,
             )
         finally:
             self._finish_save()
         if not succeeded:
             return False
-        log_debug(
-            _LOGGER,
-            "Saved session snapshot",
-            forced=forced,
-            captured_at=snapshot.captured_at.isoformat(),
-            workflow_count=len(snapshot.workspace.workflows),
-        )
+        if result.persisted:
+            log_debug(
+                _LOGGER,
+                "Saved session snapshot",
+                captured_at=prepared.snapshot.captured_at.isoformat(),
+                workflow_count=len(prepared.snapshot.workspace.workflows),
+                sequence=result.sequence,
+            )
+        else:
+            log_debug(
+                _LOGGER,
+                "Skipped stale session autosave",
+                sequence=result.sequence,
+            )
         return True
 
     def _finish_save(self) -> None:

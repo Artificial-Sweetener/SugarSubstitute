@@ -25,6 +25,14 @@ from PySide6.QtCore import QObject, QTimer
 from substitute.application.workspace_state.session_persistence import (
     SessionPersistenceParticipant,
 )
+from substitute.application.execution import TaskHandle
+from substitute.application.workspace_state.session_finalization_service import (
+    SessionFinalizationReason,
+)
+from substitute.application.workspace_state.session_save_service import (
+    PreparedSessionSave,
+    SessionSaveResult,
+)
 from substitute.presentation.shell.main_window_startup_trace import (
     mark_startup_milestone,
 )
@@ -63,12 +71,16 @@ class SessionAutosaveController:
 
         self._shell = shell
 
-    def force_save_session_snapshot(self) -> bool:
-        """Capture and persist the current session immediately."""
+    def prepare_session_finalization(
+        self,
+        reason: SessionFinalizationReason,
+    ) -> PreparedSessionSave:
+        """Capture terminal session authority without performing file I/O."""
 
         workflow_session_service = self._shell.workflow_session_service
         trace_mark(
-            "main_window.force_save_session_snapshot.start",
+            "main_window.session_finalization.prepare.start",
+            reason=reason.value,
             active_route=getattr(self._shell, "_active_workspace_route", ""),
             active_workflow_id=workflow_session_service.active_workflow_id,
             workflow_count=len(workflow_session_service.workflows),
@@ -76,7 +88,8 @@ class SessionAutosaveController:
         self._log_editor_width_trace("force save session snapshot requested")
         log_info(
             _LOGGER,
-            "mainwindow force save session snapshot",
+            "mainwindow session finalization preparation",
+            reason=reason.value,
             active_route=getattr(self._shell, "_active_workspace_route", ""),
             active_workflow_id=workflow_session_service.active_workflow_id,
             workflow_ids=tuple(workflow_session_service.workflows),
@@ -84,7 +97,8 @@ class SessionAutosaveController:
         if self.session_autosave_muted():
             lifecycle = getattr(self._shell, "_shell_restore_lifecycle", "")
             trace_mark(
-                "main_window.force_save_session_snapshot.skipped",
+                "main_window.session_finalization.prepare.rejected",
+                finalization_reason=reason.value,
                 reason="restore_lifecycle_muted",
                 shell_restore_lifecycle=lifecycle,
             )
@@ -96,26 +110,52 @@ class SessionAutosaveController:
                 shell_restore_lifecycle=lifecycle,
                 workflow_ids=tuple(workflow_session_service.workflows),
             )
-            return False
+            raise RuntimeError(
+                f"session finalization is unavailable during {lifecycle}"
+            )
         capture_port = snapshot_capture_adapter_for(self._shell)
-        with trace_span("main_window.force_save_session_snapshot.persist"):
-            result = self._shell.session_autosave_service.force_save(
+        with trace_span("main_window.session_finalization.prepare"):
+            prepared = self._shell.session_finalization_service.prepare(
                 capture_port,
                 participants=self._session_persistence_participants(),
+                reason=reason,
             )
         self._log_editor_width_trace(
-            "force save session snapshot completed",
-            save_result=result,
+            "session finalization prepared",
+            finalization_reason=reason.value,
         )
         log_info(
             _LOGGER,
-            "mainwindow force save session snapshot completed",
-            result=result,
+            "mainwindow session finalization prepared",
+            finalization_reason=reason.value,
             active_route=getattr(self._shell, "_active_workspace_route", ""),
             active_workflow_id=workflow_session_service.active_workflow_id,
         )
-        trace_mark("main_window.force_save_session_snapshot.end", result=result)
-        return bool(result)
+        trace_mark(
+            "main_window.session_finalization.prepare.end",
+            reason=reason.value,
+        )
+        return cast(PreparedSessionSave, prepared)
+
+    def begin_session_finalization(
+        self,
+        reason: SessionFinalizationReason,
+    ) -> TaskHandle[SessionSaveResult]:
+        """Prepare and submit terminal session persistence."""
+
+        if self.session_autosave_muted():
+            lifecycle = getattr(self._shell, "_shell_restore_lifecycle", "")
+            raise RuntimeError(
+                f"session finalization is unavailable during {lifecycle}"
+            )
+        return cast(
+            TaskHandle[SessionSaveResult],
+            self._shell.session_finalization_service.begin(
+                snapshot_capture_adapter_for(self._shell),
+                participants=self._session_persistence_participants(),
+                reason=reason,
+            ),
+        )
 
     def request_session_autosave(self) -> None:
         """Schedule a debounced save of the current session snapshot."""

@@ -90,23 +90,21 @@ def test_cleanup_result_rejects_missing_or_failed_cleanup() -> None:
     )
 
 
-def test_startup_shutdown_runtime_saves_session_and_tracks_cleanup() -> None:
-    """Startup shutdown runtime should own pre-cleanup save and cleanup state."""
+def test_startup_shutdown_runtime_tracks_managed_cleanup() -> None:
+    """Startup shutdown runtime should own managed cleanup state."""
 
     events: list[str] = []
     cleanup_handler = _CleanupHandler(events)
     runtime = StartupShutdownRuntime(
         cleanup_handler=cleanup_handler,
-        save_session_before_cleanup=lambda: events.append("save_session"),
     )
 
-    runtime.save_session_before_cleanup()
     result = runtime.cleanup()
 
     assert result.outcome is ManagedComfyCleanupOutcome.CONFIRMED_SUCCESS
     assert runtime.last_cleanup_result is result
     assert runtime.cleanup_bypass == cleanup_handler.skip_future_cleanup
-    assert events == ["save_session", "cleanup"]
+    assert events == ["cleanup"]
 
 
 def test_startup_shutdown_runtime_relaunches_only_after_requested_success() -> None:

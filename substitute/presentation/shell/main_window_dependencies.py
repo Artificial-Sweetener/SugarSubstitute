@@ -132,7 +132,10 @@ if TYPE_CHECKING:
     from substitute.presentation.shell.shell_resource_lifecycle import (
         ShellResourceLifecycle,
     )
-    from substitute.application.workspace_state import SessionAutosaveService
+    from substitute.application.workspace_state import (
+        SessionAutosaveService,
+        SessionFinalizationService,
+    )
     from substitute.application.workspace_state.restore_projection_models import (
         RestoreProjectionCacheRepository,
     )
@@ -273,6 +276,7 @@ class MainWindowDependencies:
     prompt_editor_preference_service: PromptEditorPreferenceService
     session_snapshot_repository: SessionSnapshotRepository
     session_autosave_service: SessionAutosaveService
+    session_finalization_service: SessionFinalizationService
     execution_runtime: Any
     settings_task_runner_factory: SettingsAsyncTaskRunnerFactory
     editor_panel_execution_factories: EditorPanelExecutionFactories
