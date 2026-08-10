@@ -5,6 +5,7 @@ license_file = "third_party/licenses/fluentui-system-icons.LICENSE.txt"
 source = "https://github.com/microsoft/fluentui-system-icons"
 revision = "a6931cf6ad3541975b132762c8cad67b2f54fd7a"
 source_paths = [
+  "assets/Arrow Autofit Width/SVG/ic_fluent_arrow_autofit_width_20_regular.svg",
   "assets/Arrow Move/SVG/ic_fluent_arrow_move_20_regular.svg",
   "assets/Circle/SVG/ic_fluent_circle_20_regular.svg",
   "assets/Circle Half Fill/SVG/ic_fluent_circle_half_fill_20_regular.svg",
@@ -23,6 +24,8 @@ source_paths = [
   "assets/Flip Vertical/SVG/ic_fluent_flip_vertical_20_regular.svg",
 ]
 vendored_files = [
+  "substitute/presentation/resources/icons/ArrowAutofitWidth20Regular_black.svg",
+  "substitute/presentation/resources/icons/ArrowAutofitWidth20Regular_white.svg",
   "substitute/presentation/resources/icons/RotateLeft20Regular_black.svg",
   "substitute/presentation/resources/icons/RotateLeft20Regular_white.svg",
   "substitute/presentation/resources/icons/RotateRight20Regular_black.svg",

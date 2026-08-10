@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from typing import Protocol, cast
 
 from PySide6.QtCore import QTimer
@@ -28,7 +28,12 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSceneGroup,
     OutputCanvasSourceGroup,
 )
-from substitute.application.workflows.output_compare_state import OutputCompareState
+from substitute.presentation.canvas.output.output_compare_navigation_chrome import (
+    update_output_compare_nav_containers,
+)
+from substitute.presentation.canvas.output.output_compare_controller import (
+    visible_output_compare_state,
+)
 from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
     scene_selector_current_width,
     source_selector_current_width,
@@ -37,20 +42,13 @@ from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
 from substitute.presentation.canvas.output.output_canvas_navigation_controller import (
     OutputCanvasNavigationController,
 )
+from substitute.presentation.canvas.output.output_canvas_navigation_visibility import (
+    OutputCanvasNavigationVisibilityPolicy,
+)
 from substitute.presentation.canvas.output.output_canvas_route_model import (
     OutputCanvasRouteModel,
 )
-from substitute.presentation.canvas.shared.output_nav_layout import (
-    OutputNavBarGeometry,
-    compare_navigation_geometry,
-)
-
-
-class _CompareNavigationController(Protocol):
-    """Expose compare counts needed for navigation geometry."""
-
-    def compare_set_count(self, side: str) -> int:
-        """Return the available set count for one compare side."""
+from substitute.presentation.canvas.shared.output_nav_layout import OutputNavBarGeometry
 
 
 _SCENE_SELECTOR_MIN_WIDTH = 58
@@ -82,7 +80,7 @@ def update_output_tabbar_container(
 ) -> None:
     """Resize, position, or hide the Output canvas floating navigation chrome."""
 
-    compare_state = _visible_output_compare_state(host)
+    compare_state = visible_output_compare_state(host)
     if compare_state.enabled:
         update_output_compare_nav_containers(host)
         return
@@ -93,13 +91,15 @@ def update_output_tabbar_container(
     active_scene_overview = bool(getattr(host, "active_scene_overview", False))
     source_selector = getattr(host, "source_selector_button", None)
     scene_groups = _scene_groups_by_key(host)
-    show_scene_selector = _scenes_have_batch_navigation(scene_groups.values()) and (
-        hasattr(host, "scene_selector_button")
+    visibility = OutputCanvasNavigationVisibilityPolicy.normal(
+        scene_count=int(getattr(host, "scene_count", 0)),
+        source_count=source_tab_count,
+        set_count=int(getattr(host, "set_count", 0)),
+        active_scene_overview=active_scene_overview,
     )
-    show_source_navigation = source_tab_count > 1 and not active_scene_overview
-    show_set_selector = (
-        not active_scene_overview and int(getattr(host, "set_count", 0)) > 1
-    )
+    show_scene_selector = visibility.show_scene_selector
+    show_source_navigation = visibility.show_source_navigation
+    show_set_selector = visibility.show_set_selector
     padding_left = 12
     padding_bottom = 8
     extra_pad = 4
@@ -128,7 +128,7 @@ def update_output_tabbar_container(
         gap=gap,
         extra_pad=extra_pad,
     )
-    source_display = OutputCanvasNavigationController.source_navigation_display(
+    source_display = OutputCanvasNavigationVisibilityPolicy.source_display(
         show_source_navigation=show_source_navigation,
         has_source_selector=source_selector is not None,
         expanded_width=expanded_width,
@@ -187,125 +187,6 @@ def update_output_tabbar_container(
     )
 
 
-def update_output_compare_nav_containers(host: object) -> None:
-    """Resize and position base/comparison navigation bars in compare mode."""
-
-    state = _visible_output_compare_state(host)
-    if not state.enabled or state.base is None or state.comparison is None:
-        OutputCanvasNavigationController.hide_compare_navigation_containers(
-            base_container=getattr(host, "tabbar_container"),
-            comparison_container=getattr(host, "comparison_nav_container"),
-        )
-        return
-    padding_left = 8
-    padding_right = 8
-    padding_bottom = 8
-    extra_pad = 4
-    gap = 4
-    min_gap = 12
-    control_h = 28
-    bg_h = control_h + 2 * extra_pad
-    show_scene_selector = _scenes_have_batch_navigation(
-        _scene_groups_by_key(host).values()
-    )
-    compare_controller = _compare_controller(host)
-    base_set_count = compare_controller.compare_set_count("base")
-    visibility = OutputCanvasNavigationController.compare_navigation_visibility(
-        scene_count=2 if show_scene_selector else 0,
-        set_count=base_set_count,
-    )
-    setattr(host, "_source_tabs_collapsed", visibility.source_tabs_collapsed)
-    OutputCanvasNavigationController.apply_compare_navigation_visibility(
-        tabbar=getattr(host, "tabbar"),
-        scene_selector=getattr(host, "scene_selector_button"),
-        set_selector=getattr(host, "set_selector_button"),
-        source_selector=getattr(host, "source_selector_button"),
-        visibility=visibility,
-    )
-    _sync_output_comparison_navigation_buttons(host)
-    base_scene_w = (
-        OutputCanvasNavigationController.button_width(
-            getattr(host, "scene_selector_button"),
-        )
-        if show_scene_selector
-        else 0
-    )
-    set_selector = getattr(host, "set_selector_button")
-    base_set_w = (
-        OutputCanvasNavigationController.button_width(set_selector)
-        if base_set_count > 1
-        else 0
-    )
-    base_source_w = OutputCanvasNavigationController.button_width(
-        getattr(host, "source_selector_button"),
-    )
-    comparison_scene_w = (
-        OutputCanvasNavigationController.button_width(
-            getattr(host, "comparison_scene_selector_button"),
-        )
-        if show_scene_selector
-        else 0
-    )
-    comparison_set_w = (
-        OutputCanvasNavigationController.button_width(
-            getattr(host, "comparison_set_selector_button"),
-        )
-        if compare_controller.compare_set_count("comparison") > 1
-        else 0
-    )
-    comparison_source_w = OutputCanvasNavigationController.button_width(
-        getattr(host, "comparison_source_selector_button"),
-    )
-    base_width = OutputCanvasNavigationController.navigation_bar_width(
-        (base_scene_w, base_set_w, base_source_w),
-        gap=gap,
-        extra_pad=extra_pad,
-    )
-    comparison_width = OutputCanvasNavigationController.navigation_bar_width(
-        (comparison_scene_w, comparison_set_w, comparison_source_w),
-        gap=gap,
-        extra_pad=extra_pad,
-    )
-    geometry = compare_navigation_geometry(
-        canvas_width=int(getattr(host, "width")()),
-        canvas_height=int(getattr(host, "height")()),
-        base_width=base_width,
-        comparison_width=comparison_width,
-        bar_height=bg_h,
-        padding_left=padding_left,
-        padding_right=padding_right,
-        padding_bottom=padding_bottom,
-        min_gap=min_gap,
-    )
-    navigation_controller = _navigation_controller(host)
-    navigation_controller.place_compare_bar(
-        container=getattr(host, "tabbar_container"),
-        background=getattr(host, "tabbar_bg"),
-        geometry=geometry.base,
-        controls=(
-            (getattr(host, "scene_selector_button"), base_scene_w),
-            (set_selector, base_set_w),
-            (getattr(host, "source_selector_button"), base_source_w),
-        ),
-        control_h=control_h,
-        extra_pad=extra_pad,
-        gap=gap,
-    )
-    navigation_controller.place_compare_bar(
-        container=getattr(host, "comparison_nav_container"),
-        background=getattr(host, "comparison_nav_bg"),
-        geometry=geometry.comparison,
-        controls=(
-            (getattr(host, "comparison_scene_selector_button"), comparison_scene_w),
-            (getattr(host, "comparison_set_selector_button"), comparison_set_w),
-            (getattr(host, "comparison_source_selector_button"), comparison_source_w),
-        ),
-        control_h=control_h,
-        extra_pad=extra_pad,
-        gap=gap,
-    )
-
-
 def _apply_deferred_source_navigation_geometry(
     host: object,
     *,
@@ -333,7 +214,7 @@ def _apply_deferred_source_navigation_geometry(
         gap=gap,
         extra_pad=extra_pad,
     )
-    settled_source_display = OutputCanvasNavigationController.source_navigation_display(
+    settled_source_display = OutputCanvasNavigationVisibilityPolicy.source_display(
         show_source_navigation=show_source_navigation,
         has_source_selector=source_selector is not None,
         expanded_width=settled_expanded_width,
@@ -441,28 +322,6 @@ def _navigation_controller(host: object) -> OutputCanvasNavigationController:
     return controller
 
 
-def _compare_controller(host: object) -> _CompareNavigationController:
-    """Return runtime-owned compare state controller for chrome geometry."""
-
-    runtime = getattr(host, "_runtime", None)
-    controller = getattr(getattr(runtime, "compare", None), "controller", None)
-    if controller is None:
-        controller = getattr(host, "_compare_controller")
-    return cast(_CompareNavigationController, controller)
-
-
-def _visible_output_compare_state(host: object) -> OutputCompareState:
-    """Return compare state used only for current control rendering."""
-
-    state = getattr(host, "_visible_compare_state", None)
-    if isinstance(state, OutputCompareState):
-        return state
-    candidate = getattr(host, "output_compare_state", OutputCompareState())
-    return (
-        candidate if isinstance(candidate, OutputCompareState) else OutputCompareState()
-    )
-
-
 def _scene_groups_by_key(host: object) -> dict[str, OutputCanvasSceneGroup]:
     """Return host projection scenes with revision-scoped preview overlays."""
 
@@ -474,17 +333,6 @@ def _scene_groups_by_key(host: object) -> dict[str, OutputCanvasSceneGroup]:
             "preview_scene_groups_by_key",
             {},
         ),
-    )
-
-
-def _scenes_have_batch_navigation(
-    scene_groups: Iterable[OutputCanvasSceneGroup],
-) -> bool:
-    """Return whether multiple scenes contain any real batch alternatives."""
-
-    groups = tuple(scene_groups)
-    return len(groups) > 1 and any(
-        len(source.images_by_set) > 1 for scene in groups for source in scene.sources
     )
 
 
@@ -503,17 +351,6 @@ def _visible_source_groups_by_key(
     )
 
 
-def _sync_output_comparison_navigation_buttons(host: object) -> None:
-    """Refresh compare navigation labels without importing projection wiring eagerly."""
-
-    from substitute.presentation.canvas.output.output_compare_navigation_chrome import (  # noqa: PLC0415
-        sync_output_comparison_navigation_buttons,
-    )
-
-    sync_output_comparison_navigation_buttons(host)
-
-
 __all__ = [
-    "update_output_compare_nav_containers",
     "update_output_tabbar_container",
 ]

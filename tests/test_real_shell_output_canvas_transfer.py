@@ -116,8 +116,10 @@ def test_grid_context_copy_materializes_the_clicked_output_mime(
         assert tuple(action.action_id for action in actions) == (
             "output_canvas.copy",
             "output_canvas.open_current_external",
+            "output_canvas.reveal_current_asset",
             "output_canvas.dock_action",
         )
+        assert actions[2].enabled is True
         assert actions[0].callback is not None
         actions[0].callback()
 

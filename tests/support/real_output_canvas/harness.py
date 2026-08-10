@@ -173,13 +173,22 @@ class RealShellOutputCanvasHarness:
         self.shell.canvas_host.activate_canvas(label, keyboard_focus=False)
         self.process_events()
 
-    def start_run(self, alias: str, run_index: int = 1) -> GenerationRunHandle:
+    def start_run(
+        self,
+        alias: str,
+        run_index: int = 1,
+        *,
+        output_session_id: str | None = None,
+    ) -> GenerationRunHandle:
         """Register an authorized generation run through dispatcher ingress."""
 
         workflow = self.workflows[alias]
         run = GenerationRunHandle(
             workflow=workflow,
             generation_run_id=f"{workflow.workflow_id}-run-{run_index}",
+            output_session_id=(
+                output_session_id or f"{workflow.workflow_id}-run-{run_index}"
+            ),
             prompt_id=f"{workflow.workflow_id}-prompt-{run_index}",
             client_id=f"{workflow.workflow_id}-client-{run_index}",
         )
@@ -187,6 +196,7 @@ class RealShellOutputCanvasHarness:
             GenerationRunStarted(
                 workflow_id=workflow.workflow_id,
                 generation_run_id=run.generation_run_id,
+                output_session_id=run.output_session_id,
                 prompt_id=run.prompt_id,
                 client_id=run.client_id,
             )
@@ -602,7 +612,10 @@ class RealShellOutputCanvasHarness:
         workflow_id = self.workflows[alias].workflow_id
         workflow = self.shell.workflow_session_service.workflows[workflow_id]
         self.wait_until(
-            lambda: self.fingerprint().active_image_id == workflow.active_output_uuid
+            lambda: (
+                workflow.active_output_uuid is not None
+                and self.fingerprint().active_image_id == workflow.active_output_uuid
+            )
         )
         state = self.fingerprint()
         assert workflow.active_output_uuid is not None, state

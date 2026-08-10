@@ -32,11 +32,15 @@ from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     BRUSH_OPTIONS_ID,
     INPUT_IMAGE_CAPABILITY,
     INPUT_CANVAS_CONTEXT_TAGS,
+    INPUT_RASTER_ANALYSIS_CONTEXT,
     InputCanvasToolId,
     create_input_canvas_tool_system,
 )
 from substitute.presentation.canvas.input.input_canvas_tool_controller import (
     InputCanvasToolController,
+)
+from substitute.presentation.canvas.input.input_canvas_tool_context import (
+    InputCanvasToolContextSnapshot,
 )
 from substitute.presentation.canvas.tools.model import (
     CanvasToolContext,
@@ -45,6 +49,9 @@ from substitute.presentation.canvas.tools.model import (
     CanvasToolSurface,
 )
 from substitute.presentation.resources.fluent_app_icon import AppIcon
+from tests.support.input_canvas.tool_context_projection import (
+    project_authored_input_tool_context,
+)
 
 
 @dataclass
@@ -59,38 +66,21 @@ class _ToolDocument:
     clear_available: bool = False
     current_operation_id: str | None = CuteCanvas.CONTROL_MODE_PANZOOM
     transform_target: EditorTransformTarget | None = None
+    image_id: UUID | None = None
 
-    def active_image_has_mask_target(self, _image_id: UUID | None) -> bool:
-        """Return current active-mask availability."""
+    @property
+    def snapshot(self) -> InputCanvasToolContextSnapshot:
+        """Return current semantic capability state."""
 
-        return self.has_mask
-
-    def smart_segmentation_ready(self) -> bool:
-        """Return current Smart segmentation readiness."""
-
-        return self.sam_ready
-
-    def has_pixel_selection(self) -> bool:
-        """Return current selected-pixel availability."""
-        return self.has_selection
-
-    def selection_transform_available(self) -> bool:
-        """Return current selected-pixel transform availability."""
-        return self.transform_available
-
-    def selection_clear_available(self) -> bool:
-        """Return current selected-pixel clearing availability."""
-        return self.clear_available
-
-    def layer_transform_available(self) -> bool:
-        """Return current whole-layer content availability."""
-
-        return self.layer_content_available
-
-    def current_canvas_operation(self) -> str | None:
-        """Return the actual CuteCanvas operation."""
-
-        return self.current_operation_id
+        return InputCanvasToolContextSnapshot(
+            image_id=self.image_id,
+            has_active_mask=self.has_mask,
+            smart_segmentation_ready=self.sam_ready,
+            has_pixel_selection=self.has_selection,
+            selection_transform_available=self.transform_available,
+            layer_transform_available=self.layer_content_available,
+            selection_clear_available=self.clear_available,
+        )
 
     def activate_transform(self, target: EditorTransformTarget) -> bool:
         """Record explicit affine target activation."""
@@ -115,6 +105,7 @@ def _controller(
 
     runtime = create_input_canvas_tool_system()
     applied: list[str] = []
+    document.image_id = image_id
 
     def apply(operation_id: str) -> bool:
         """Record an accepted mode and update the fake native state."""
@@ -126,9 +117,9 @@ def _controller(
 
     return (
         InputCanvasToolController(
-            input_document=document,
+            transform_activator=document.activate_transform,
             operation_setter=apply,
-            current_image_id_provider=lambda: image_id,
+            current_operation_provider=lambda: document.current_operation_id,
             runtime=runtime,
         ),
         applied,
@@ -136,15 +127,20 @@ def _controller(
 
 
 def test_input_catalog_has_expected_editor_order_and_tool_kinds() -> None:
-    """The first palette should establish the durable editor ordering."""
+    """The built-in palette should establish the current editor ordering."""
 
     palette = create_input_canvas_tool_system().palette
-    palette.set_context(CanvasToolContext(tags=INPUT_CANVAS_CONTEXT_TAGS))
+    palette.set_context(
+        CanvasToolContext(
+            tags=INPUT_CANVAS_CONTEXT_TAGS.union({INPUT_RASTER_ANALYSIS_CONTEXT})
+        )
+    )
 
     assert tuple(
         item.tool_id for item in palette.snapshot(CanvasToolSurface.TOOL_STRIP)
     ) == (
         InputCanvasToolId.MOVE,
+        InputCanvasToolId.SHARED_EDGE_RESIZE,
         InputCanvasToolId.TRANSFORM_LAYER,
         InputCanvasToolId.SELECT_RECTANGLE,
         InputCanvasToolId.SELECT_ELLIPSE,
@@ -171,13 +167,13 @@ def test_transform_routes_choose_explicit_targets() -> None:
         transform_available=True,
     )
     controller, _applied = _controller(document, image_id=uuid4())
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
 
     assert controller.request_tool(InputCanvasToolId.TRANSFORM_SELECTION)
     assert _transform_target(document) is EditorTransformTarget.SELECTION_CONTENT
 
     document.current_operation_id = CuteCanvas.CONTROL_MODE_PANZOOM
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     assert controller.request_tool(InputCanvasToolId.TRANSFORM_LAYER)
     assert _transform_target(document) is EditorTransformTarget.LAYER_CONTENT
 
@@ -201,7 +197,11 @@ def test_transform_surfaces_share_a_distinct_transform_icon() -> None:
     """Transform must not reuse the Move tool's four-direction arrow glyph."""
 
     palette = create_input_canvas_tool_system().palette
-    palette.set_context(CanvasToolContext(tags=INPUT_CANVAS_CONTEXT_TAGS))
+    palette.set_context(
+        CanvasToolContext(
+            tags=INPUT_CANVAS_CONTEXT_TAGS.union({INPUT_RASTER_ANALYSIS_CONTEXT})
+        )
+    )
     move = palette.presentation_for(InputCanvasToolId.MOVE)
     layer_transform = palette.presentation_for(InputCanvasToolId.TRANSFORM_LAYER)
     selection_transform = palette.presentation_for(
@@ -216,11 +216,29 @@ def test_transform_surfaces_share_a_distinct_transform_icon() -> None:
     assert selection_transform.icon is AppIcon.SELECT_OBJECT_SKEW_20_REGULAR
 
 
+def test_shared_edge_resize_uses_fluent_resize_icon_and_public_native_mode() -> None:
+    """The built-in should present and activate the public CuteCanvas operation."""
+
+    document = _ToolDocument(has_mask=True)
+    controller, applied = _controller(document, image_id=uuid4())
+    project_authored_input_tool_context(controller, document)
+    resize = controller.palette.presentation_for(InputCanvasToolId.SHARED_EDGE_RESIZE)
+
+    assert resize is not None and resize.enabled
+    assert resize.icon is AppIcon.ARROW_AUTOFIT_WIDTH_20_REGULAR
+    assert controller.request_tool(InputCanvasToolId.SHARED_EDGE_RESIZE)
+    assert applied == [CuteCanvas.CONTROL_MODE_SHARED_EDGE_RESIZE]
+
+
 def test_selection_and_mask_shape_families_use_distinct_icons() -> None:
     """Different authoring semantics must remain recognizable in grouped slots."""
 
     palette = create_input_canvas_tool_system().palette
-    palette.set_context(CanvasToolContext(tags=INPUT_CANVAS_CONTEXT_TAGS))
+    palette.set_context(
+        CanvasToolContext(
+            tags=INPUT_CANVAS_CONTEXT_TAGS.union({INPUT_RASTER_ANALYSIS_CONTEXT})
+        )
+    )
     icons = {
         item.tool_id: item.icon
         for item in palette.snapshot(CanvasToolSurface.TOOL_STRIP)
@@ -252,21 +270,21 @@ def test_selection_transform_capabilities_derive_from_document_state() -> None:
     document = _ToolDocument()
     controller, _applied = _controller(document, image_id=image_id)
 
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     transform = controller.palette.presentation_for(
         InputCanvasToolId.TRANSFORM_SELECTION
     )
     assert transform is not None and not transform.enabled
 
     document.has_selection = True
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     transform = controller.palette.presentation_for(
         InputCanvasToolId.TRANSFORM_SELECTION
     )
     assert transform is not None and not transform.enabled
 
     document.transform_available = True
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     transform = controller.palette.presentation_for(
         InputCanvasToolId.TRANSFORM_SELECTION
     )
@@ -278,7 +296,7 @@ def test_empty_layer_disables_transform_with_an_owned_explanation() -> None:
     document = _ToolDocument(has_mask=True, layer_content_available=False)
     controller, _applied = _controller(document, image_id=uuid4())
 
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
 
     transform = controller.palette.presentation_for(InputCanvasToolId.TRANSFORM_LAYER)
     assert transform is not None and not transform.enabled
@@ -288,7 +306,7 @@ def test_empty_layer_disables_transform_with_an_owned_explanation() -> None:
     )
 
     document.layer_content_available = True
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     transform = controller.palette.presentation_for(InputCanvasToolId.TRANSFORM_LAYER)
     assert transform is not None and transform.enabled
     assert transform.unavailable_reason is None
@@ -301,7 +319,7 @@ def test_input_context_enables_navigation_then_mask_and_smart_tools() -> None:
     document = _ToolDocument()
     controller, _applied = _controller(document, image_id=image_id)
 
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     states = {item.tool_id: item for item in controller.palette.snapshot()}
     assert states[InputCanvasToolId.PAN_ZOOM].enabled is True
     assert states[InputCanvasToolId.SELECT_RECTANGLE].enabled is True
@@ -314,14 +332,14 @@ def test_input_context_enables_navigation_then_mask_and_smart_tools() -> None:
     assert states[InputCanvasToolId.SMART_MASK].enabled is False
 
     document.sam_ready = True
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     states = {item.tool_id: item for item in controller.palette.snapshot()}
     assert states[InputCanvasToolId.SMART_SELECT].enabled is True
     assert states[InputCanvasToolId.SMART_MASK].enabled is False
 
     document.sam_ready = False
     document.has_mask = True
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     states = {item.tool_id: item for item in controller.palette.snapshot()}
     assert states[InputCanvasToolId.MOVE].enabled is True
     assert states[InputCanvasToolId.MASK_RECTANGLE].enabled is True
@@ -333,7 +351,7 @@ def test_input_context_enables_navigation_then_mask_and_smart_tools() -> None:
     assert states[InputCanvasToolId.SMART_MASK].enabled is False
 
     document.sam_ready = True
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     smart_select = controller.palette.presentation_for(InputCanvasToolId.SMART_SELECT)
     assert smart_select is not None and smart_select.enabled
     smart_mask = controller.palette.presentation_for(InputCanvasToolId.SMART_MASK)
@@ -346,7 +364,7 @@ def test_input_controller_rejects_disabled_unknown_and_failed_native_modes() -> 
     image_id = uuid4()
     document = _ToolDocument()
     controller, applied = _controller(document, image_id=image_id, accepted=False)
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
 
     assert controller.request_tool(InputCanvasToolId.BRUSH) is False
     assert controller.request_tool("not-registered") is False
@@ -361,7 +379,7 @@ def test_input_controller_synchronizes_external_native_mode_changes() -> None:
     image_id = uuid4()
     document = _ToolDocument(has_mask=True, sam_ready=True)
     controller, _applied = _controller(document, image_id=image_id)
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
 
     controller.synchronize_native_tool(CuteCanvas.CONTROL_MODE_DRAW_BRUSH)
     assert controller.palette.active_tool_id == InputCanvasToolId.BRUSH
@@ -370,7 +388,7 @@ def test_input_controller_synchronizes_external_native_mode_changes() -> None:
     assert controller.palette.active_tool_id == InputCanvasToolId.ERASER
 
     document.has_mask = False
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     assert controller.palette.active_tool_id == InputCanvasToolId.PAN_ZOOM
 
 
@@ -380,15 +398,15 @@ def test_input_controller_restores_held_tool_after_transient_mask_loss() -> None
     image_id = uuid4()
     document = _ToolDocument(has_mask=True)
     controller, applied = _controller(document, image_id=image_id)
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     assert controller.request_tool(InputCanvasToolId.MOVE)
 
     document.has_mask = False
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     assert controller.palette.active_tool_id == InputCanvasToolId.PAN_ZOOM
 
     document.has_mask = True
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
 
     assert controller.palette.active_tool_id == InputCanvasToolId.MOVE
     assert applied == [
@@ -404,7 +422,7 @@ def test_runtime_native_mode_registration_uses_the_ordinary_input_route() -> Non
     image_id = uuid4()
     document = _ToolDocument()
     controller, applied = _controller(document, image_id=image_id)
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     controller.tool_registry.register(
         CanvasToolContribution(
             tool_id="extension.workflow-tool",
@@ -430,7 +448,7 @@ def test_runtime_workflow_action_executes_without_changing_native_mode() -> None
     image_id = uuid4()
     document = _ToolDocument()
     controller, applied = _controller(document, image_id=image_id)
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, document)
     actions: list[str] = []
 
     def execute() -> bool:

@@ -30,7 +30,6 @@ from substitute.presentation.canvas.shared.contextual_toolbar import (
 )
 
 from .input_canvas_tool_chrome import InputCanvasToolChrome
-from .input_layer_control import InputLayerControl
 from .input_layer_coverage_edit_session import InputLayerCoverageEditSession
 from .input_layer_coverage_editor import InputLayerCoverageEditor
 from .input_tool_options_contracts import InputToolOptionsDocumentPort
@@ -72,7 +71,6 @@ class InputLayerCoverageEditMode(QObject):
         input_root: QWidget,
         canvas: QWidget,
         tool_chrome: InputCanvasToolChrome,
-        layer_control: InputLayerControl,
         contextual_toolbar: CanvasContextualToolbar,
         parent: QObject,
     ) -> None:
@@ -82,7 +80,6 @@ class InputLayerCoverageEditMode(QObject):
         self._input_root = input_root
         self._canvas = canvas
         self._tool_chrome = tool_chrome
-        self._layer_control = layer_control
         self._contextual_toolbar = contextual_toolbar
         self._mask_id: UUID | None = None
         self._filter_installed = False
@@ -92,7 +89,7 @@ class InputLayerCoverageEditMode(QObject):
         self.editor.applyRequested.connect(self.apply)
         self.editor.cancelRequested.connect(self.cancel)
         self._session.finished.connect(self._completed)
-        document.toolContextChanged.connect(self._synchronize_target)
+        document.maskLayersChanged.connect(self._synchronize_target)
 
     @property
     def active(self) -> bool:
@@ -114,7 +111,6 @@ class InputLayerCoverageEditMode(QObject):
             return False
         self._mask_id = mask_id
         self._tool_chrome.set_suppressed(True)
-        self._layer_control.set_suppressed(True)
         self._contextual_toolbar.set_suppressed(True)
         self.editor.prepare()
         self.position_editor()
@@ -209,7 +205,6 @@ class InputLayerCoverageEditMode(QObject):
         self.editor.hide()
         self.editor.set_applying(False)
         self._tool_chrome.set_suppressed(False)
-        self._layer_control.set_suppressed(False)
         self._contextual_toolbar.set_suppressed(False)
 
     def _install_filter(self) -> None:

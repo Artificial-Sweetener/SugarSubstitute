@@ -23,7 +23,7 @@ from typing import Any
 from PySide6.QtWidgets import QWidget
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
-from substitute.application.generation import GenerationFailure
+from substitute.application.generation import GenerationFailure, GenerationRunStarted
 from substitute.application.generation.failure_summary import (
     format_generation_failure_line,
 )
@@ -48,6 +48,16 @@ class GenerationFeedbackPresenter:
         """Store the shell whose feedback surfaces should be updated."""
 
         self._shell = shell
+
+    def apply_generation_run_started(self, event: GenerationRunStarted) -> None:
+        """Begin Output navigation for one accepted generation session."""
+
+        shell = self._shell
+        shell.output_navigation_session_service.begin_session(
+            shell.workflow_session_service.workflows,
+            event.workflow_id,
+            event.output_session_id,
+        )
 
     def clear_output_for_workflow(self, workflow_id: str) -> None:
         """Clear output images for a workflow before queueing a fresh generation."""
@@ -183,7 +193,7 @@ class GenerationFeedbackPresenter:
             if timing.cube_alias
         }
         timing_result = (
-            self._shell.output_canvas_state_service.apply_output_source_timing(
+            self._shell.output_canvas_timing_service.apply_output_source_timing(
                 self._shell.workflow_session_service.workflows,
                 workflow_id=timing_update.workflow_id,
                 active_workflow_id=(

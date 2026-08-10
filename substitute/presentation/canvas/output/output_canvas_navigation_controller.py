@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Coordinate Output canvas navigation policy, adapters, and measurement."""
+"""Coordinate Output canvas navigation adapters and measurement."""
 
 from __future__ import annotations
 
@@ -46,6 +46,11 @@ from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
 )
 from substitute.presentation.canvas.output.output_canvas_navigation_policy import (
     OutputCanvasNavigationPolicy,
+)
+from substitute.presentation.canvas.output.output_canvas_navigation_visibility import (
+    CompareNavigationVisibility,
+    OutputCanvasNavigationVisibilityPolicy,
+    OutputNavigationVisibility,
 )
 from substitute.presentation.canvas.shared.output_nav_layout import (
     OutputNavBarGeometry,
@@ -218,42 +223,6 @@ class OutputCanvasNavigationController:
         width += max(0, len(visible_widths) - 1) * gap
         width += 2 * extra_pad
         return max(width, 1)
-
-    @staticmethod
-    def source_navigation_display(
-        *,
-        show_source_navigation: bool,
-        has_source_selector: bool,
-        expanded_width: int,
-        available_width: int,
-    ) -> SourceNavigationDisplay:
-        """Return whether source navigation should render tabs or selector."""
-
-        collapsed = bool(
-            show_source_navigation
-            and has_source_selector
-            and expanded_width > available_width
-        )
-        return SourceNavigationDisplay(
-            source_tabs_collapsed=collapsed,
-            show_source_tabs=show_source_navigation and not collapsed,
-            show_source_selector=show_source_navigation and collapsed,
-        )
-
-    @staticmethod
-    def compare_navigation_visibility(
-        *,
-        scene_count: int,
-        set_count: int,
-    ) -> CompareNavigationVisibility:
-        """Return base-control visibility required for active compare mode."""
-
-        return CompareNavigationVisibility(
-            source_tabs_collapsed=True,
-            show_scene_selector=scene_count > 1,
-            show_set_selector=set_count > 1,
-            show_source_selector=True,
-        )
 
     @classmethod
     def hide_compare_navigation_containers(
@@ -966,7 +935,7 @@ def sync_output_scene_selector_button(host: object) -> None:
             maximum_width=_SCENE_SELECTOR_MAX_WIDTH,
             horizontal_padding=_SCENE_SELECTOR_HORIZONTAL_PADDING,
         ),
-        scene_count=int(getattr(host, "scene_count", 0)),
+        visible=_normal_visibility_for_host(host).show_scene_selector,
     )
 
 
@@ -977,25 +946,7 @@ def sync_output_set_selector_button(host: object) -> None:
     apply_set_selector_button_state(
         button,
         active_set_index=int(getattr(host, "active_set_index", 0)),
-        active_scene_overview=bool(getattr(host, "active_scene_overview", False)),
-        set_count=int(getattr(host, "set_count", 0)),
-        grid_available=(
-            int(getattr(host, "active_set_index", 1)) == 0
-            or _active_source_has_batch_overview(host)
-        ),
-    )
-
-
-def _active_source_has_batch_overview(host: object) -> bool:
-    """Return whether the visible source provides more than one batch tile."""
-
-    source_key = getattr(host, "active_source_key", None)
-    if not isinstance(source_key, str):
-        return False
-    source = _visible_source_groups_for_host(host).get(source_key)
-    return bool(
-        source is not None
-        and OutputCanvasRouteModel.batch_overview_available_for_source(source)
+        visible=_normal_visibility_for_host(host).show_set_selector,
     )
 
 
@@ -1029,8 +980,20 @@ def sync_output_source_selector_button(host: object) -> None:
             maximum_width=_SOURCE_SELECTOR_MAX_WIDTH,
             horizontal_padding=_SOURCE_SELECTOR_HORIZONTAL_PADDING,
         ),
-        source_tabs_collapsed=bool(getattr(host, "_source_tabs_collapsed", False)),
-        tab_count=len(getattr(getattr(host, "tabbar", None), "items", {})),
+        visible=(
+            bool(getattr(host, "_source_tabs_collapsed", False))
+            and _normal_visibility_for_host(host).show_source_navigation
+        ),
+    )
+
+
+def _normal_visibility_for_host(host: object) -> OutputNavigationVisibility:
+    """Return authoritative normal navigation visibility for an opaque host."""
+
+    return OutputCanvasNavigationVisibilityPolicy.normal(
+        scene_count=int(getattr(host, "scene_count", 0)),
+        source_count=len(getattr(getattr(host, "tabbar", None), "items", {})),
+        set_count=int(getattr(host, "set_count", 0)),
         active_scene_overview=bool(getattr(host, "active_scene_overview", False)),
     )
 
@@ -1087,29 +1050,8 @@ def _emit_signal(signal: object, *args: object) -> None:
         emit(*args)
 
 
-@dataclass(frozen=True, slots=True)
-class SourceNavigationDisplay:
-    """Describe the selected normal source-navigation render mode."""
-
-    source_tabs_collapsed: bool
-    show_source_tabs: bool
-    show_source_selector: bool
-
-
-@dataclass(frozen=True, slots=True)
-class CompareNavigationVisibility:
-    """Describe base-control visibility required for active compare navigation."""
-
-    source_tabs_collapsed: bool
-    show_scene_selector: bool
-    show_set_selector: bool
-    show_source_selector: bool
-
-
 __all__ = [
-    "CompareNavigationVisibility",
     "OutputCanvasNavigationController",
-    "SourceNavigationDisplay",
     "activate_output_grid_for_source",
     "activate_output_item",
     "activate_output_scene",

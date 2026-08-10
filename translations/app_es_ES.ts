@@ -460,7 +460,7 @@ Vista previa del prompt:
       <translation>Activando el destino de Comfy %1 en %2:%3.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="102"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="398"></location>
       <source>Add</source>
       <translation>Añadir</translation>
     </message>
@@ -580,7 +580,7 @@ Vista previa del prompt:
       <translation>Ambiguo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="249"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="262"></location>
       <source>Anchor point</source>
       <translation>Punto de anclaje</translation>
     </message>
@@ -775,7 +775,7 @@ Vista previa del prompt:
       <translation>Examinar...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="182"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="194"></location>
       <source>Brush</source>
       <translation>Pincel</translation>
     </message>
@@ -860,7 +860,7 @@ Vista previa del prompt:
       <translation>Cancelando la descarga del modelo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="171"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="184"></location>
       <source>Change canvas resolution</source>
       <translation>Cambiar la resolución del lienzo</translation>
     </message>
@@ -1000,7 +1000,7 @@ Vista previa del prompt:
       <translation>Elegir la carpeta administrada de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/load_mask.py" line="77"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/load_mask.py" line="106"></location>
       <source>Choose Mask</source>
       <translation>Elegir máscara</translation>
     </message>
@@ -1030,7 +1030,7 @@ Vista previa del prompt:
       <translation>Elige una carpeta y conecta Substitute a ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="120"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="142"></location>
       <source>Choose a new size for the Input canvas and its masks</source>
       <translation>Elige un tamaño nuevo para el lienzo de Entrada y sus máscaras</translation>
     </message>
@@ -1090,12 +1090,12 @@ Vista previa del prompt:
       <translation>Elige cómo presenta el texto SugarSubstitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="295"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="308"></location>
       <source>Choose how regional mask pixels are resampled.</source>
       <translation>Elige cómo se remuestrean los píxeles de las máscaras regionales.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="174"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="187"></location>
       <source>Choose how the Input canvas and its regional masks should fit the new size.</source>
       <translation>Elige cómo deben adaptarse el lienzo de Entrada y sus máscaras regionales al nuevo tamaño.</translation>
     </message>
@@ -1180,7 +1180,7 @@ Vista previa del prompt:
       <translation>Elige el idioma que usa SugarSubstitute. Los cambios se aplican de inmediato.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="251"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="264"></location>
       <source>Choose the point that stays fixed while the canvas changes.</source>
       <translation>Elige el punto que permanece fijo mientras cambia el lienzo.</translation>
     </message>
@@ -1345,7 +1345,7 @@ Vista previa del prompt:
       <translation>Se omitió la limpieza porque se seleccionó el cierre forzado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="264"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="279"></location>
       <source>Clear</source>
       <translation>Borrar</translation>
     </message>
@@ -2293,7 +2293,7 @@ Install these nodes now?</source>
       <translation>Versiones de las dependencias</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="249"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="264"></location>
       <source>Deselect</source>
       <translation>Deseleccionar</translation>
     </message>
@@ -2423,7 +2423,7 @@ Install these nodes now?</source>
       <translation>Duplicar</translation>
     </message>
     <message>
-      <location filename="../substitute/application/prompt_editor/diagnostics/duplicate_segments.py" line="276"></location>
+      <location filename="../substitute/application/prompt_editor/diagnostics/duplicate_segments.py" line="329"></location>
       <source>Duplicate prompt segment: %1</source>
       <translation>Segmento de prompt duplicado: %1</translation>
     </message>
@@ -2443,7 +2443,7 @@ Install these nodes now?</source>
       <translation>Editar curva (%1 puntos)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_context_menu.py" line="68"></location>
       <source>Edit layer coverage</source>
       <translation>Editar cobertura de capa</translation>
     </message>
@@ -2458,12 +2458,12 @@ Install these nodes now?</source>
       <translation>Funciones del editor</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="155"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="166"></location>
       <source>Ellipse Mask</source>
       <translation>Máscara elíptica</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="117"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="127"></location>
       <source>Ellipse selection</source>
       <translation>Selección elíptica</translation>
     </message>
@@ -2488,7 +2488,7 @@ Install these nodes now?</source>
       <translation>Vacía la carpeta en %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="426"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="421"></location>
       <source>Enable</source>
       <translation>Activar</translation>
     </message>
@@ -2518,7 +2518,7 @@ Install these nodes now?</source>
       <translation>Comprobación de seguridad del entorno</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="191"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="203"></location>
       <source>Eraser</source>
       <translation>Borrador</translation>
     </message>
@@ -2793,7 +2793,7 @@ Install these nodes now?</source>
       <translation>Carpetas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="82"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="95"></location>
       <source>For %1</source>
       <translation>Para %1</translation>
     </message>
@@ -2823,7 +2823,7 @@ Install these nodes now?</source>
       <translation>Licencia Pública General de GNU v3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="436"></location>
+      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="442"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>El reinicio de la interfaz no está disponible en esta sesión.</translation>
     </message>
@@ -2933,7 +2933,7 @@ Install these nodes now?</source>
       <translation>Se necesita una URL de GitHub</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="92"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="105"></location>
       <source>Global</source>
       <translation>Preajustes globales</translation>
     </message>
@@ -2963,7 +2963,7 @@ Install these nodes now?</source>
       <translation>Dureza</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="203"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="216"></location>
       <source>Height</source>
       <translation>Altura</translation>
     </message>
@@ -3293,12 +3293,12 @@ Install these nodes now?</source>
       <translation>Idioma y región</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="163"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="174"></location>
       <source>Lasso Mask</source>
       <translation>Máscara de lazo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="126"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="136"></location>
       <source>Lasso selection</source>
       <translation>Selección con lazo</translation>
     </message>
@@ -3613,11 +3613,6 @@ Install these nodes now?</source>
       <translation>Las dimensiones de la máscara no coinciden</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_mask_layer_button.py" line="53"></location>
-      <source>Mask layer</source>
-      <translation>Capa de máscara</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="78"></location>
       <source>Message: %1</source>
       <translation>Mensaje: %1</translation>
@@ -3753,7 +3748,7 @@ Install these nodes now?</source>
       <translation>La mayoría de los usuarios deberían empezar con la primera opción.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="75"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="77"></location>
       <source>Move</source>
       <translation>Mover</translation>
     </message>
@@ -3773,12 +3768,12 @@ Install these nodes now?</source>
       <translation>Subir</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="179"></location>
+      <location filename="../substitute/presentation/widgets/save_preset_dialog.py" line="74"></location>
       <source>Name</source>
       <translation>Nombre</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="305"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="318"></location>
       <source>Nearest Neighbor</source>
       <translation>Vecino más cercano</translation>
     </message>
@@ -3818,7 +3813,7 @@ Install these nodes now?</source>
       <translation>Nueva lista personalizada</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="184"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="197"></location>
       <source>New size</source>
       <translation>Nuevo tamaño</translation>
     </message>
@@ -3883,7 +3878,7 @@ Install these nodes now?</source>
       <translation>No se encontraron cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="188"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="189"></location>
       <source>No input canvas nodes</source>
       <translation>No hay nodos de lienzo de entrada</translation>
     </message>
@@ -4038,7 +4033,7 @@ Install these nodes now?</source>
       <translation>Sin asignar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_controller.py" line="144"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_context_projection.py" line="68"></location>
       <source>Nothing to transform!</source>
       <translation>¡No hay nada que transformar!</translation>
     </message>
@@ -4048,7 +4043,7 @@ Install these nodes now?</source>
       <translation>Número de generaciones que se añadirán a la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="38"></location>
+      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="46"></location>
       <source>OK</source>
       <translation>Aceptar</translation>
     </message>
@@ -4248,7 +4243,7 @@ Install these nodes now?</source>
       <translation>Paquetes no cargados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="200"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="212"></location>
       <source>Pan &amp; Zoom</source>
       <translation>Desplazar y ampliar</translation>
     </message>
@@ -4443,12 +4438,12 @@ Install these nodes now?</source>
       <translation>Preparando tu configuración existente de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="306"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="319"></location>
       <source>Preserves hard mask edges by copying the nearest pixel without blending.</source>
       <translation>Conserva los bordes definidos de la máscara copiando el píxel más cercano sin mezclarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="212"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="225"></location>
       <source>Preset</source>
       <translation>Preajuste</translation>
     </message>
@@ -4593,7 +4588,7 @@ Install these nodes now?</source>
       <translation>QPane</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="310"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="323"></location>
       <source>Qt Smooth</source>
       <translation>Suavizado de Qt</translation>
     </message>
@@ -4693,12 +4688,12 @@ Install these nodes now?</source>
       <translation>Grabando…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="147"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="158"></location>
       <source>Rectangle Mask</source>
       <translation>Máscara rectangular</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="108"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="118"></location>
       <source>Rectangle selection</source>
       <translation>Selección rectangular</translation>
     </message>
@@ -4713,7 +4708,7 @@ Install these nodes now?</source>
       <translation>Rehacer</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_context_menu.py" line="75"></location>
       <source>Redock canvas</source>
       <translation>Volver a acoplar el lienzo</translation>
     </message>
@@ -4848,7 +4843,7 @@ Install these nodes now?</source>
       <translation>Eliminando el cambio previsto.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="178"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="640"></location>
       <source>Rename</source>
       <translation>Cambiar nombre</translation>
     </message>
@@ -4977,14 +4972,19 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Restablecer</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="69"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
       <source>Resize canvas</source>
       <translation>Cambiar tamaño del lienzo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="173"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="186"></location>
       <source>Resize canvas only</source>
       <translation>Cambiar solo el tamaño del lienzo</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="85"></location>
+      <source>Resize shared edges</source>
+      <translation>Redimensionar bordes compartidos</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="298"></location>
@@ -5267,7 +5267,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guarda las salidas de todos los cubos o solo la del último cubo activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="450"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="472"></location>
       <source>Save for %1</source>
       <translation>Guardar para %1</translation>
     </message>
@@ -5277,7 +5277,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar globalmente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="191"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="204"></location>
       <source>Save or Load preset</source>
       <translation>Guardar o cargar preajuste</translation>
     </message>
@@ -5327,12 +5327,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardando tus opciones de instalación.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="229"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="242"></location>
       <source>Scale canvas and masks</source>
       <translation>Escalar lienzo y máscaras</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="292"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="305"></location>
       <source>Scaling quality</source>
       <translation>Calidad de escalado</translation>
     </message>
@@ -5692,12 +5692,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Omite la generación activa en cola cuando está disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="171"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="182"></location>
       <source>Smart Mask</source>
       <translation>Máscara inteligente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="135"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="145"></location>
       <source>Smart Select</source>
       <translation>Selección inteligente</translation>
     </message>
@@ -6452,7 +6452,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Intercambiar anchura y altura</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="217"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="230"></location>
       <source>Swap width and height</source>
       <translation>Intercambiar anchura y altura</translation>
     </message>
@@ -6617,12 +6617,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>El entorno de ComfyUI conectado no cumple los requisitos actualizados. Repara ese entorno antes de continuar. %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="381"></location>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="394"></location>
       <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
       <translation>El lienzo cambió mientras este diálogo estaba abierto. Revisa el tamaño actual e inténtalo de nuevo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="391"></location>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="404"></location>
       <source>The canvas could not be resized. Nothing was changed.</source>
       <translation>No se pudo cambiar el tamaño del lienzo. No se modificó nada.</translation>
     </message>
@@ -6837,7 +6837,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudo añadir el flujo de trabajo a la cola.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="399"></location>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="412"></location>
       <source>The workflow dimensions could not be updated, so the canvas change was undone.</source>
       <translation>No se pudieron actualizar las dimensiones del flujo de trabajo, por lo que se deshizo el cambio del lienzo.</translation>
     </message>
@@ -6997,7 +6997,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Paquetes de cubos registrados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="83"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="93"></location>
       <source>Transform</source>
       <translation>Transformar</translation>
     </message>
@@ -7062,7 +7062,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudo cambiar el nombre del recurso</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="186"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="199"></location>
       <source>Unable to resize canvas</source>
       <translation>No se puede cambiar el tamaño del lienzo</translation>
     </message>
@@ -7102,7 +7102,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Deshacer</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_context_menu.py" line="75"></location>
       <source>Undock canvas</source>
       <translation>Desacoplar el lienzo</translation>
     </message>
@@ -7337,7 +7337,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Se usa para los errores de validación y los elementos resaltados de error.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="311"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="324"></location>
       <source>Uses Qt smooth scaling to blend neighboring pixels for softer resized masks.</source>
       <translation>Usa el escalado suave de Qt para mezclar píxeles adyacentes y suavizar las máscaras redimensionadas.</translation>
     </message>
@@ -7397,7 +7397,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Personalización visual.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="86"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/mask_visual_opacity.py" line="44"></location>
       <source>Visual opacity</source>
       <translation>Opacidad visual</translation>
     </message>
@@ -7482,7 +7482,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Por qué se detiene aquí la instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="199"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="212"></location>
       <source>Width</source>
       <translation>Anchura</translation>
     </message>

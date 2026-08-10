@@ -324,6 +324,7 @@ def _run_started(
     return GenerationRunStarted(
         workflow_id=workflow_id,
         generation_run_id=generation_run_id,
+        output_session_id=generation_run_id,
         prompt_id=prompt_id,
         client_id=client_id,
     )

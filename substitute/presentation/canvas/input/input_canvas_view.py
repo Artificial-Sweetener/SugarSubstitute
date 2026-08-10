@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Render the input canvas widget and mask-layer interaction controls."""
+"""Render the Input canvas widget and its focused interaction controllers."""
 
 from __future__ import annotations
 
@@ -41,6 +41,9 @@ from substitute.application.workflows.canvas_route_projector_port import (
 from substitute.presentation.canvas.input.input_document import (
     InputCanvasDocument,
 )
+from substitute.presentation.canvas.input.input_canvas_context_menu import (
+    InputCanvasContextMenuController,
+)
 from substitute.presentation.canvas.input.input_contextual_toolbar_controller import (
     InputContextualToolbarController,
 )
@@ -50,7 +53,6 @@ from substitute.presentation.canvas.input.input_canvas_tool_chrome import (
 from substitute.presentation.canvas.input.input_canvas_cursor_theme import (
     InputCanvasCursorTheme,
 )
-from substitute.presentation.canvas.input.input_layer_control import InputLayerControl
 from substitute.presentation.canvas.input.input_layer_coverage_edit_mode import (
     InputLayerCoverageEditMode,
 )
@@ -98,7 +100,6 @@ class InputCanvas(QWidget):
     """Host CuteCanvas Input image/mask editing interactions for the active workflow."""
 
     inputImageLoaded = Signal(object, str)  # image_id, path
-    toolContextRefreshRequested = Signal()
     toolRequested = Signal(str)
     dockActionRequested = Signal()
 
@@ -142,15 +143,7 @@ class InputCanvas(QWidget):
         self._tool_chrome = InputCanvasToolChrome(
             canvas=self.canvas,
             tool_requested=self.toolRequested.emit,
-            context_refresh_requested=self.toolContextRefreshRequested.emit,
-            dock_requested=self.dockActionRequested.emit,
-            detached_provider=lambda: self._canvas_detached,
         )
-        self.layer_control = InputLayerControl(
-            self.document.tool_options,
-            self.canvas,
-        )
-        self.layer_control.geometryChanged.connect(self._position_layer_control)
         self.contextual_toolbar = CanvasContextualToolbar(self.canvas)
         self._selection_authoring = InputSelectionAuthoringObserver(
             canvas=self.canvas,
@@ -161,7 +154,6 @@ class InputCanvas(QWidget):
             document=self.document.tool_options,
             toolbar=self.contextual_toolbar,
             tool_chrome=self._tool_chrome,
-            layer_control=self.layer_control,
             selection_authoring=self._selection_authoring,
             request_tool=self.toolRequested.emit,
             parent=self,
@@ -171,16 +163,21 @@ class InputCanvas(QWidget):
             input_root=self,
             canvas=self.canvas,
             tool_chrome=self._tool_chrome,
-            layer_control=self.layer_control,
             contextual_toolbar=self.contextual_toolbar,
             parent=self,
         )
-        self.layer_control.coverageEditRequested.connect(self._coverage_edit_mode.begin)
-        self._position_layer_control()
+        self._context_menu_controller = InputCanvasContextMenuController(
+            canvas=self.canvas,
+            active_mask_id_provider=self.document.tool_options.active_mask_id,
+            mask_layers_provider=self.document.tool_options.mask_layers,
+            coverage_edit_requested=self._coverage_edit_mode.begin,
+            detached_provider=lambda: self._canvas_detached,
+            dock_requested=self.dockActionRequested.emit,
+        )
 
         self.canvas.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.canvas.customContextMenuRequested.connect(
-            self._tool_chrome.show_context_menu
+            self._context_menu_controller.show_context_menu
         )
         self.document.imageMaterialized.connect(self._on_image_materialized)
 
@@ -218,7 +215,6 @@ class InputCanvas(QWidget):
 
         self._resize_availability_overlay()
         self._tool_chrome.sync_geometry()
-        self._position_layer_control()
         self._contextual_toolbar_controller.refresh_placement()
         self._coverage_edit_mode.position_editor()
         super().resizeEvent(event)
@@ -236,7 +232,6 @@ class InputCanvas(QWidget):
             self._contextual_toolbar_controller.cancel_active_transform()
         self.canvas.setEnabled(available)
         self._tool_chrome.set_enabled(available)
-        self.layer_control.setEnabled(available)
         self.contextual_toolbar.setEnabled(available)
         overlay = self._availability_overlay
         if available:
@@ -335,15 +330,6 @@ class InputCanvas(QWidget):
         """Resize the unavailable overlay to cover the full input canvas."""
 
         self._availability_overlay.setGeometry(self.rect())
-
-    def _position_layer_control(self) -> None:
-        """Anchor mask-layer controls inside the canvas's lower-right corner."""
-        inset = 8
-        self.layer_control.move(
-            max(inset, self.canvas.width() - self.layer_control.width() - inset),
-            max(inset, self.canvas.height() - self.layer_control.height() - inset),
-        )
-        self.layer_control.raise_()
 
     def _apply_theme_styles(self) -> None:
         """Reapply the canvas availability overlay after theme changes."""

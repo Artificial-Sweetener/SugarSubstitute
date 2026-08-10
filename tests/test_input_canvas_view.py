@@ -54,6 +54,9 @@ from substitute.presentation.canvas.tools import CanvasToolContext
 from substitute.presentation.canvas.shared.contextual_toolbar import (
     ContextualToolbarPage,
 )
+from tests.support.input_canvas.tool_context_projection import (
+    project_authored_input_tool_context,
+)
 
 _input_canvas_cutecanvas_features = cast(
     Callable[[], tuple[str, ...]],
@@ -131,9 +134,6 @@ def test_set_available_false_disables_canvas_tool_chrome_and_shows_overlay() -> 
         _tool_chrome=SimpleNamespace(
             set_enabled=lambda value: enabled_calls.append(("chrome", value))
         ),
-        layer_control=SimpleNamespace(
-            setEnabled=lambda value: enabled_calls.append(("layers", value))
-        ),
         contextual_toolbar=SimpleNamespace(
             setEnabled=lambda value: enabled_calls.append(("contextual", value))
         ),
@@ -156,7 +156,6 @@ def test_set_available_false_disables_canvas_tool_chrome_and_shows_overlay() -> 
     assert enabled_calls == [
         ("canvas", False),
         ("chrome", False),
-        ("layers", False),
         ("contextual", False),
     ]
     assert overlay_calls == [
@@ -179,9 +178,6 @@ def test_set_available_true_enables_canvas_tool_chrome_and_hides_overlay() -> No
         _tool_chrome=SimpleNamespace(
             set_enabled=lambda value: enabled_calls.append(("chrome", value))
         ),
-        layer_control=SimpleNamespace(
-            setEnabled=lambda value: enabled_calls.append(("layers", value))
-        ),
         contextual_toolbar=SimpleNamespace(
             setEnabled=lambda value: enabled_calls.append(("contextual", value))
         ),
@@ -196,7 +192,6 @@ def test_set_available_true_enables_canvas_tool_chrome_and_hides_overlay() -> No
     assert enabled_calls == [
         ("canvas", True),
         ("chrome", True),
-        ("layers", True),
         ("contextual", True),
     ]
     assert overlay_calls == ["hide"]
@@ -405,13 +400,18 @@ def test_brush_activation_keeps_mounted_tool_strip_alive_and_full_sized(
     canvas = input_mod.InputCanvas()
     runtime = create_input_canvas_tool_system()
     controller = InputCanvasToolController(
-        input_document=canvas.document,
+        transform_activator=canvas.document.tool_context.activate_transform,
         operation_setter=canvas.document.set_canvas_operation,
-        current_image_id_provider=canvas.document.current_image_id,
+        current_operation_provider=canvas.document.current_canvas_operation,
         runtime=runtime,
     )
     canvas.bind_tool_runtime(runtime)
-    canvas.document.toolContextChanged.connect(controller.refresh_tool_context)
+    canvas.document.tool_context.changed.connect(
+        lambda: project_authored_input_tool_context(
+            controller,
+            canvas.document.tool_context,
+        )
+    )
     canvas.document.canvasToolChanged.connect(controller.synchronize_native_tool)
     canvas.toolRequested.connect(controller.request_tool)
     image_id = uuid4()
@@ -422,7 +422,7 @@ def test_brush_activation_keeps_mounted_tool_strip_alive_and_full_sized(
     mask_id = canvas.document.create_blank_mask(image_id, QSize(64, 64))
     assert mask_id is not None
     assert canvas.document.set_active_mask_id(mask_id)
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, canvas.document.tool_context)
     canvas.resize(500, 400)
     canvas.show()
     app.processEvents()
@@ -450,7 +450,6 @@ def test_brush_activation_keeps_mounted_tool_strip_alive_and_full_sized(
         assert canvas.canvas_top_bar.cursor().shape() is Qt.CursorShape.ArrowCursor
         assert canvas.tool_options_host.cursor().shape() is Qt.CursorShape.ArrowCursor
         assert canvas.contextual_toolbar.cursor().shape() is Qt.CursorShape.ArrowCursor
-        assert canvas.layer_control.cursor().shape() is Qt.CursorShape.ArrowCursor
         assert all(
             button.cursor().shape() is Qt.CursorShape.ArrowCursor
             for button in strip.tool_buttons()

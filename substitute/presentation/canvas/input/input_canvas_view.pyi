@@ -40,7 +40,6 @@ from substitute.presentation.canvas.tools import (
     CanvasToolStrip,
 )
 from substitute.presentation.canvas.input.input_document import InputCanvasDocument
-from substitute.presentation.canvas.input.input_layer_control import InputLayerControl
 from substitute.presentation.canvas.input.input_layer_coverage_editor import (
     InputLayerCoverageEditor,
 )
@@ -49,13 +48,11 @@ class InputCanvas(QWidget):
     """Expose host-facing Input canvas widget controls and intent signals."""
 
     inputImageLoaded: Signal
-    toolContextRefreshRequested: Signal
     toolRequested: Signal
     dockActionRequested: Signal
     document: InputCanvasDocument
     canvas: CuteCanvas
     contextual_toolbar: CanvasContextualToolbar
-    layer_control: InputLayerControl
 
     def __init__(
         self,

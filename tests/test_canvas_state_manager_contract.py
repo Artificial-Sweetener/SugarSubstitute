@@ -35,9 +35,21 @@ from substitute.application.workflows.input_canvas_state_service import (
 from substitute.application.workflows.output_canvas_projection_coordinator import (
     OutputCanvasProjectionCoordinator,
 )
+from substitute.application.workflows.output_canvas_focus_service import (
+    OutputCanvasFocusService,
+)
+from substitute.application.workflows.output_generated_result_service import (
+    OutputGeneratedResultService,
+)
+from substitute.application.workflows.output_navigation_session_service import (
+    OutputNavigationSessionService,
+)
 from substitute.application.workflows.output_canvas_session import OutputCanvasSession
 from substitute.application.workflows.output_canvas_state_service import (
     OutputCanvasStateService,
+)
+from substitute.application.workflows.output_canvas_timing_service import (
+    OutputCanvasTimingService,
 )
 from substitute.application.workflows.output_scene_navigation_selection import (
     OutputSceneNavigationSelection,
@@ -341,12 +353,20 @@ class _CanvasProjectionHarness:
         image_registry: CanvasImageRegistry,
         canvas_session_boundary: CanvasSessionBoundary,
         output_canvas_state_service: OutputCanvasStateService,
+        output_canvas_focus_service: OutputCanvasFocusService,
+        output_navigation_session_service: OutputNavigationSessionService,
+        output_generated_result_service: OutputGeneratedResultService,
+        output_canvas_timing_service: OutputCanvasTimingService,
         input_canvas_state_service: InputCanvasStateService,
         output_canvas_projection_coordinator: OutputCanvasProjectionCoordinator,
     ) -> None:
         self.image_registry = image_registry
         self.canvas_session_boundary = canvas_session_boundary
         self.output_canvas_state_service = output_canvas_state_service
+        self.output_canvas_focus_service = output_canvas_focus_service
+        self.output_navigation_session_service = output_navigation_session_service
+        self.output_generated_result_service = output_generated_result_service
+        self.output_canvas_timing_service = output_canvas_timing_service
         self._input_canvas_state_service = input_canvas_state_service
         self._output_canvas_projection_coordinator = (
             output_canvas_projection_coordinator
@@ -426,9 +446,23 @@ def _build_services() -> tuple[
     output_canvas_state_service = OutputCanvasStateService(
         image_registry=image_registry,
     )
+    output_canvas_focus_service = OutputCanvasFocusService(
+        image_registry=image_registry,
+    )
+    output_navigation_session_service = OutputNavigationSessionService()
+    output_generated_result_service = OutputGeneratedResultService(
+        image_registry=image_registry,
+        output_state_service=output_canvas_state_service,
+        navigation_session_service=output_navigation_session_service,
+    )
+    output_canvas_timing_service = OutputCanvasTimingService(
+        image_registry=image_registry,
+    )
     output_canvas_projection_coordinator = OutputCanvasProjectionCoordinator(
         image_registry=image_registry,
         output_canvas_state_service=output_canvas_state_service,
+        output_canvas_focus_service=output_canvas_focus_service,
+        output_navigation_session_service=output_navigation_session_service,
         canvas_session_boundary=canvas_session_boundary,
         content_synchronizer=_FakeOutputContentSynchronizer(
             image_registry,
@@ -440,6 +474,10 @@ def _build_services() -> tuple[
         image_registry=image_registry,
         canvas_session_boundary=canvas_session_boundary,
         output_canvas_state_service=output_canvas_state_service,
+        output_canvas_focus_service=output_canvas_focus_service,
+        output_navigation_session_service=output_navigation_session_service,
+        output_generated_result_service=output_generated_result_service,
+        output_canvas_timing_service=output_canvas_timing_service,
         input_canvas_state_service=input_canvas_state_service,
         output_canvas_projection_coordinator=output_canvas_projection_coordinator,
     )
@@ -632,7 +670,7 @@ def test_apply_output_source_timing_updates_existing_output_metadata() -> None:
         image_meta=image_meta,
     )
 
-    changed = service.output_canvas_state_service.apply_output_source_timing(
+    changed = service.output_canvas_timing_service.apply_output_source_timing(
         workflows,
         workflow_id="wf",
         active_workflow_id="wf",
@@ -1272,8 +1310,8 @@ def test_project_workflow_resyncs_same_workflow_after_metadata_changes() -> None
     assert output_canvas.sync_calls
 
 
-def test_add_output_image_keeps_multi_scene_automatic_projection_on_all() -> None:
-    """Scene outputs from the same source should not auto-open the last scene grid."""
+def test_add_output_image_promotes_to_all_after_second_scene_is_populated() -> None:
+    """Automatic routing should expose All only after two scenes have output."""
 
     service, _input_pane, _output_pane, output_canvas = _build_service()
     workflow = WorkflowState()
@@ -1325,8 +1363,10 @@ def test_add_output_image_keeps_multi_scene_automatic_projection_on_all() -> Non
     first_projection = output_canvas.sync_calls[-2]
     final_projection = output_canvas.sync_calls[-1]
 
-    assert first_projection.active_scene_overview is True
-    assert first_projection.scene_count == 2
+    assert first_projection.active_scene_overview is False
+    assert first_projection.scene_count == 1
+    assert first_projection.active_set_index == 1
+    assert first_projection.active_uuid is not None
     assert final_projection.active_scene_overview is True
     assert final_projection.scene_count == 2
     assert final_projection.active_set_index == 1
@@ -1337,8 +1377,8 @@ def test_add_output_image_keeps_multi_scene_automatic_projection_on_all() -> Non
     assert workflow.active_output_scene_overview is True
 
 
-def test_begin_output_generation_clears_stale_manual_focus_for_scene_run() -> None:
-    """A new multi-scene run should start from automatic scene overview intent."""
+def test_begin_output_generation_resets_follow_mode_without_selecting_all() -> None:
+    """A new scene run should resume automatic follow without premature overview."""
 
     service, _input_pane, _output_pane, _output_canvas = _build_service()
     workflow = WorkflowState()
@@ -1350,23 +1390,25 @@ def test_begin_output_generation_clears_stale_manual_focus_for_scene_run() -> No
     workflow.active_output_scene_key = "old-scene"
     workflow.active_output_scene_overview = False
 
-    service.output_canvas_state_service.begin_output_generation(
+    state = service.output_navigation_session_service.begin_session(
         {"wf": workflow},
         "wf",
-        scene_run_id="run-2",
-        scene_count=2,
+        "run-2",
     )
 
-    assert workflow.output_focus_mode is OutputFocusMode.AUTOMATIC
-    assert workflow.active_output_uuid is None
-    assert workflow.active_output_source_key is None
+    assert state is not None
+    assert state.focus_mode is OutputFocusMode.AUTOMATIC
+    assert state.content_presented is False
+    assert workflow.output_focus_mode is OutputFocusMode.MANUAL
+    assert workflow.active_output_uuid == selected_id
+    assert workflow.active_output_source_key == "wf:old"
     assert workflow.active_output_set_index == 1
-    assert workflow.active_output_scene_key is None
-    assert workflow.active_output_scene_overview is True
+    assert workflow.active_output_scene_key == "old-scene"
+    assert workflow.active_output_scene_overview is False
 
 
-def test_project_workflow_does_not_deselect_legacy_output_for_scene_overview() -> None:
-    """Scene overview projection should let OutputCanvas own the visible target."""
+def test_project_workflow_keeps_single_populated_scene_on_concrete_output() -> None:
+    """One populated scene should remain on its concrete presentable output."""
 
     service, _input_pane, output_pane, output_canvas = _build_service()
     workflow = WorkflowState()
@@ -1394,7 +1436,7 @@ def test_project_workflow_does_not_deselect_legacy_output_for_scene_overview() -
         ),
     )
 
-    assert output_canvas.sync_calls[-1].active_scene_overview is True
+    assert output_canvas.sync_calls[-1].active_scene_overview is False
     assert None not in output_pane.selection_calls
 
 
@@ -1621,7 +1663,7 @@ def test_register_generated_output_rejects_missing_workflow(caplog) -> None:
         logger="sugarsubstitute.application.workflows.output_canvas_state_service",
     )
 
-    result = service.output_canvas_state_service.register_generated_output(
+    result = service.output_generated_result_service.commit_generated_output(
         {},
         active_workflow_id="wf",
         event=_live_final_event(),
@@ -1663,7 +1705,7 @@ def test_register_generated_output_rejects_metadata_identity_mismatch(caplog) ->
         logger="sugarsubstitute.application.workflows.output_canvas_state_service",
     )
 
-    result = service.output_canvas_state_service.register_generated_output(
+    result = service.output_generated_result_service.commit_generated_output(
         {"wf": workflow},
         active_workflow_id="wf",
         event=_live_final_event(),
@@ -1721,7 +1763,7 @@ def test_register_generated_output_rejects_dimension_or_scene_drift(caplog) -> N
         logger="sugarsubstitute.application.workflows.output_canvas_state_service",
     )
 
-    result = service.output_canvas_state_service.register_generated_output(
+    result = service.output_generated_result_service.commit_generated_output(
         {"wf": workflow},
         active_workflow_id="wf",
         event=event,
@@ -2470,7 +2512,8 @@ def test_set_active_output_uuid_records_manual_source_and_set() -> None:
         ),
     )
 
-    service.output_canvas_state_service.set_active_output_uuid(workflow, str(second_id))
+    service.output_navigation_session_service.mark_user_navigation("wf", workflow)
+    service.output_canvas_focus_service.set_active_output_uuid(workflow, str(second_id))
 
     assert workflow.output_focus_mode is OutputFocusMode.MANUAL
     assert workflow.active_output_uuid == second_id
@@ -2508,7 +2551,8 @@ def test_set_active_output_uuid_records_manual_scene_and_scene_local_set() -> No
             ),
         )
 
-    service.output_canvas_state_service.set_active_output_uuid(
+    service.output_navigation_session_service.mark_user_navigation("wf", workflow)
+    service.output_canvas_focus_service.set_active_output_uuid(
         workflow, str(scene2_first)
     )
 
@@ -2527,7 +2571,8 @@ def test_set_active_output_grid_records_manual_grid_intent() -> None:
     workflow = WorkflowState()
     workflow.active_output_uuid = uuid.uuid4()
 
-    service.output_canvas_state_service.set_active_output_grid(workflow, "wf:node")
+    service.output_navigation_session_service.mark_user_navigation("wf", workflow)
+    service.output_canvas_focus_service.set_active_output_grid(workflow, "wf:node")
 
     assert workflow.output_focus_mode is OutputFocusMode.MANUAL
     assert workflow.active_output_uuid is None
@@ -2546,7 +2591,8 @@ def test_set_active_output_scene_records_manual_scene_intent() -> None:
     workflow.active_output_source_key = "wf:node"
     workflow.active_output_set_index = 0
 
-    service.output_canvas_state_service.set_active_output_scene(
+    service.output_navigation_session_service.mark_user_navigation("wf", workflow)
+    service.output_canvas_focus_service.set_active_output_scene(
         workflow,
         OutputSceneNavigationSelection(
             scene_key="scene2",
@@ -2574,7 +2620,8 @@ def test_set_active_output_scene_overview_records_manual_all_intent() -> None:
     workflow.active_output_source_key = "wf:node"
     workflow.active_output_set_index = 0
 
-    service.output_canvas_state_service.set_active_output_scene(
+    service.output_navigation_session_service.mark_user_navigation("wf", workflow)
+    service.output_canvas_focus_service.set_active_output_scene(
         workflow,
         OutputSceneNavigationSelection(
             scene_key=None,
@@ -2604,7 +2651,7 @@ def test_set_output_compare_state_persists_workflow_compare_state() -> None:
         comparison=OutputCompareSelection("scene-b", 2, "source-b"),
     )
 
-    service.output_canvas_state_service.set_output_compare_state(workflow, state)
+    service.output_canvas_focus_service.set_output_compare_state(workflow, state)
 
     assert workflow.output_compare_state == state
 
@@ -2750,7 +2797,7 @@ def test_inactive_scene_output_updates_origin_without_projecting_active_canvas()
     assert inactive_workflow.output_image_uuids
     assert inactive_workflow.active_output_source_key is None
     assert inactive_workflow.active_output_scene_key is None
-    assert inactive_workflow.active_output_scene_overview is True
+    assert inactive_workflow.active_output_scene_overview is False
     assert active_workflow.active_output_source_key is None
     assert active_workflow.active_output_scene_key is None
 

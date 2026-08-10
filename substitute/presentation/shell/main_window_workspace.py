@@ -58,6 +58,18 @@ from substitute.application.workflows.canvas_image_registry import CanvasImageRe
 from substitute.application.workflows.output_canvas_state_service import (
     OutputCanvasStateService,
 )
+from substitute.application.workflows.output_canvas_focus_service import (
+    OutputCanvasFocusService,
+)
+from substitute.application.workflows.output_navigation_session_service import (
+    OutputNavigationSessionService,
+)
+from substitute.application.workflows.output_generated_result_service import (
+    OutputGeneratedResultService,
+)
+from substitute.application.workflows.output_canvas_timing_service import (
+    OutputCanvasTimingService,
+)
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
 )
@@ -125,6 +137,10 @@ class MainWindowWorkspaceWidgets:
     canvas_host: Any
     input_canvas_state_service: InputCanvasStateService
     output_canvas_state_service: OutputCanvasStateService
+    output_canvas_focus_service: OutputCanvasFocusService
+    output_navigation_session_service: OutputNavigationSessionService
+    output_generated_result_service: OutputGeneratedResultService
+    output_canvas_timing_service: OutputCanvasTimingService
     output_canvas_projection_coordinator: OutputCanvasProjectionCoordinator
     workflow_canvas_projection_coordinator: WorkflowCanvasProjectionCoordinator
     canvas_image_registry: CanvasImageRegistry
@@ -260,6 +276,10 @@ def _build_canvas_scaffold(
     Any,
     InputCanvasStateService,
     OutputCanvasStateService,
+    OutputCanvasFocusService,
+    OutputNavigationSessionService,
+    OutputGeneratedResultService,
+    OutputCanvasTimingService,
     OutputCanvasProjectionCoordinator,
     WorkflowCanvasProjectionCoordinator,
     CanvasImageRegistry,
@@ -299,12 +319,26 @@ def _build_canvas_scaffold(
         output_canvas_state_service = OutputCanvasStateService(
             image_registry=canvas_image_registry,
         )
+        output_canvas_focus_service = OutputCanvasFocusService(
+            image_registry=canvas_image_registry,
+        )
+        output_navigation_session_service = OutputNavigationSessionService()
+        output_generated_result_service = OutputGeneratedResultService(
+            image_registry=canvas_image_registry,
+            output_state_service=output_canvas_state_service,
+            navigation_session_service=output_navigation_session_service,
+        )
+        output_canvas_timing_service = OutputCanvasTimingService(
+            image_registry=canvas_image_registry,
+        )
         output_projection_content_synchronizer = (
             output_canvas.create_projection_content_synchronizer(canvas_image_registry)
         )
         output_canvas_projection_coordinator = OutputCanvasProjectionCoordinator(
             image_registry=canvas_image_registry,
             output_canvas_state_service=output_canvas_state_service,
+            output_canvas_focus_service=output_canvas_focus_service,
+            output_navigation_session_service=output_navigation_session_service,
             canvas_session_boundary=canvas_session_boundary,
             content_synchronizer=output_projection_content_synchronizer,
             projection_sink=output_canvas,
@@ -324,6 +358,10 @@ def _build_canvas_scaffold(
         canvas_host,
         input_canvas_state_service,
         output_canvas_state_service,
+        output_canvas_focus_service,
+        output_navigation_session_service,
+        output_generated_result_service,
+        output_canvas_timing_service,
         output_canvas_projection_coordinator,
         workflow_canvas_projection_coordinator,
         canvas_image_registry,
@@ -436,6 +474,10 @@ def build_main_window_workspace(
             canvas_host,
             input_canvas_state_service,
             output_canvas_state_service,
+            output_canvas_focus_service,
+            output_navigation_session_service,
+            output_generated_result_service,
+            output_canvas_timing_service,
             output_canvas_projection_coordinator,
             workflow_canvas_projection_coordinator,
             canvas_image_registry,
@@ -584,6 +626,10 @@ def build_main_window_workspace(
         canvas_host=canvas_host,
         input_canvas_state_service=input_canvas_state_service,
         output_canvas_state_service=output_canvas_state_service,
+        output_canvas_focus_service=output_canvas_focus_service,
+        output_navigation_session_service=output_navigation_session_service,
+        output_generated_result_service=output_generated_result_service,
+        output_canvas_timing_service=output_canvas_timing_service,
         output_canvas_projection_coordinator=output_canvas_projection_coordinator,
         workflow_canvas_projection_coordinator=workflow_canvas_projection_coordinator,
         canvas_image_registry=canvas_image_registry,

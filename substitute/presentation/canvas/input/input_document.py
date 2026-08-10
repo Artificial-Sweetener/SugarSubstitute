@@ -29,9 +29,7 @@ from cutecanvas import (
     CanvasViewSession,
     CuteCanvas,
     EditorCapability,
-    EditorIntent,
     EditorPolicy,
-    EditorTransformTarget,
     ExecutionRuntime,
     LayerPolicy,
     NonEditablePaintPolicy,
@@ -51,6 +49,9 @@ from substitute.presentation.canvas.input.input_document_persistence import (
 )
 from substitute.presentation.canvas.input.input_document_catalog import (
     InputDocumentCatalog,
+)
+from substitute.presentation.canvas.input.input_canvas_tool_context import (
+    InputCanvasToolContext,
 )
 from substitute.presentation.canvas.input.input_document_mask_opacity_history import (
     InputDocumentMaskOpacityHistory,
@@ -96,7 +97,6 @@ class InputCanvasDocument(QObject):
     """Provide one long-lived CuteCanvas Input document to application services."""
 
     imageMaterialized = Signal(object, str)
-    toolContextChanged = Signal()
     canvasToolChanged = Signal(str)
     brushPresetChanged = Signal()
     maskContentChanged = Signal()
@@ -130,6 +130,12 @@ class InputCanvasDocument(QObject):
         self._catalog = InputDocumentCatalog(
             lambda composition_id: self._canvas.listMasksForComposition(composition_id),
         )
+        self._tool_context = InputCanvasToolContext(
+            canvas=self._canvas,
+            catalog=self._catalog,
+            current_image_id=self.current_image_id,
+            parent=self,
+        )
         self._mask_opacity_history = InputDocumentMaskOpacityHistory(
             document=self._document,
             catalog=self._catalog,
@@ -160,19 +166,13 @@ class InputCanvasDocument(QObject):
             canvas=self._canvas,
             brush_preset_changed=self.brushPresetChanged,
             mask_content_changed=self.maskContentChanged,
-            tool_context_changed=self.toolContextChanged,
+            parent=self,
         )
         self._canvas.controlModeChanged.connect(self._on_control_mode_changed)
-        self._canvas.samCheckpointStatusChanged.connect(
-            lambda _status, _path: self.toolContextChanged.emit()
-        )
         self._canvas.compositionSelectionChanged.connect(
-            lambda _composition_id: self.toolContextChanged.emit()
+            self._on_composition_selection_changed
         )
         self._canvas.selectedLayerChanged.connect(self._on_selected_layer_changed)
-        self._canvas.pixelSelectionChanged.connect(
-            lambda _selection: self.toolContextChanged.emit()
-        )
         self._canvas.brushPresetChanged.connect(
             lambda _preset: self.brushPresetChanged.emit()
         )
@@ -188,7 +188,7 @@ class InputCanvasDocument(QObject):
     def _on_selected_layer_changed(self, _selection: object) -> None:
         """Publish the active mask identity after CuteCanvas layer selection."""
 
-        self.toolContextChanged.emit()
+        self._tool_options.publish_active_mask_changed()
         self.activeMaskChanged.emit(self.active_mask_id())
 
     @property
@@ -216,6 +216,12 @@ class InputCanvasDocument(QObject):
     def tool_options(self) -> InputDocumentToolOptions:
         """Return the contextual brush and selection-operation adapter."""
         return self._tool_options
+
+    @property
+    def tool_context(self) -> InputCanvasToolContext:
+        """Return the semantic capability context used by the tool palette."""
+
+        return self._tool_context
 
     def ensure_image_cached(
         self,
@@ -290,7 +296,8 @@ class InputCanvasDocument(QObject):
         if record is None:
             return False
         self._canvas.removeComposition(record.composition_id)
-        self.toolContextChanged.emit()
+        self._tool_context.refresh()
+        self._tool_options.publish_composition_changed()
         log_debug(
             _LOGGER,
             "Input document image retired",
@@ -315,13 +322,11 @@ class InputCanvasDocument(QObject):
 
         if image_id is None:
             self._session.clear_activation()
-            self.toolContextChanged.emit()
             return True
         record = self._catalog.record_for(image_id)
         if record is None:
             return False
         self._canvas.openComposition(record.composition_id)
-        self.toolContextChanged.emit()
         return True
 
     def current_image_id(self) -> UUID | None:
@@ -336,8 +341,6 @@ class InputCanvasDocument(QObject):
         """Activate one mask through the supported CuteCanvas facade."""
 
         accepted = bool(self._canvas.setActiveMaskID(mask_id))
-        if accepted:
-            self.toolContextChanged.emit()
         return accepted
 
     def set_canvas_operation(self, operation_id: str) -> bool:
@@ -357,69 +360,17 @@ class InputCanvasDocument(QObject):
             else None
         )
 
-    def active_image_has_mask_target(self, image_id: UUID | None) -> bool:
-        """Return whether the routed image owns the active editable mask."""
-
-        if image_id is None or image_id != self.current_image_id():
-            return False
-        record = self._catalog.record_for(image_id)
-        active_mask_id = self._canvas.activeMaskID()
-        if record is None or active_mask_id is None:
-            return False
-        return any(
-            mask.mask_id == active_mask_id
-            for mask in self._canvas.listMasksForComposition(record.composition_id)
-        )
-
     def active_mask_id(self) -> UUID | None:
         """Return the authoritative active mask identity."""
 
         return self._canvas.activeMaskID()
-
-    def smart_segmentation_ready(self) -> bool:
-        """Return whether CuteCanvas reports its segmentation model ready."""
-
-        return bool(self._canvas.samCheckpointReady())
-
-    def has_pixel_selection(self) -> bool:
-        """Return whether the active composition owns nonempty pixel selection."""
-        state = self._canvas.pixelSelectionState()
-        return state is not None and state.has_selection
-
-    def selection_transform_available(self) -> bool:
-        """Return whether CuteCanvas authorizes affine selected-pixel editing."""
-        return bool(
-            self.has_pixel_selection()
-            and self._canvas.editorOperationState(EditorIntent.TRANSFORM).allowed
-        )
-
-    def layer_transform_available(self) -> bool:
-        """Return whether the active layer owns meaningful affine content."""
-
-        return bool(
-            self.active_mask_id() is not None
-            and self._canvas.editorTransformState(
-                EditorTransformTarget.LAYER_CONTENT
-            ).allowed
-        )
-
-    def activate_transform(self, target: EditorTransformTarget) -> bool:
-        """Activate the shared CuteCanvas affine session for one explicit target."""
-        return bool(self._canvas.activateEditorTransform(target))
-
-    def selection_clear_available(self) -> bool:
-        """Return whether CuteCanvas authorizes clearing selected layer pixels."""
-        return bool(
-            self.has_pixel_selection()
-            and self._canvas.editorOperationState(EditorIntent.DELETE_PIXELS).allowed
-        )
 
     def set_mask_properties(self, mask_id: UUID, *, color: QColor) -> bool:
         """Apply host-selected presentation color to one mask."""
 
         changed = bool(self._canvas.setMaskProperties(mask_id, color=color))
         if changed:
-            self.toolContextChanged.emit()
+            self._tool_options.publish_mask_properties_changed()
         return changed
 
     def set_mask_visual_opacity(self, mask_id: UUID, opacity: float) -> bool:
@@ -466,7 +417,8 @@ class InputCanvasDocument(QObject):
         mask_id = self._canvas.createBlankMask(size, undoable=False)
         if mask_id is not None:
             self._apply_mask_policy(image_id, mask_id)
-            self.toolContextChanged.emit()
+            self._tool_context.refresh()
+            self._tool_options.publish_mask_inventory_changed()
         return mask_id
 
     def load_mask_from_file(self, image_id: UUID, path: Path) -> UUID | None:
@@ -477,7 +429,8 @@ class InputCanvasDocument(QObject):
         mask_id = self._canvas.loadMaskFromFile(str(path), undoable=False)
         if mask_id is not None:
             self._apply_mask_policy(image_id, mask_id)
-            self.toolContextChanged.emit()
+            self._tool_context.refresh()
+            self._tool_options.publish_mask_inventory_changed()
         return mask_id
 
     def replace_mask_from_file(self, mask_id: UUID, path: Path) -> bool:
@@ -495,7 +448,8 @@ class InputCanvasDocument(QObject):
             self._canvas.removeMaskFromComposition(record.composition_id, mask_id)
         )
         if removed:
-            self.toolContextChanged.emit()
+            self._tool_context.refresh()
+            self._tool_options.publish_mask_inventory_changed()
         return removed
 
     def image_has_masks(self, image_id: UUID | None) -> bool:
@@ -521,7 +475,8 @@ class InputCanvasDocument(QObject):
     ) -> None:
         """Install restored composition identities before file fallback hydration."""
         self._catalog.restore_compositions(composition_ids)
-        self.toolContextChanged.emit()
+        self._tool_context.refresh()
+        self._tool_options.publish_composition_changed()
 
     def close(self) -> None:
         """Release the Input view, document runtime, and durable document."""
@@ -563,11 +518,16 @@ class InputCanvasDocument(QObject):
         if operation_id is not None:
             self.canvasToolChanged.emit(operation_id)
 
+    def _on_composition_selection_changed(self, _composition_id: object) -> None:
+        """Publish presentation concerns derived from the active composition."""
+
+        self._tool_options.publish_composition_changed()
+
     def _on_mask_undo_stack_changed(self, _mask_id: UUID) -> None:
         """Publish durable mask-history changes to Input document consumers."""
 
         self.maskContentChanged.emit()
-        self.toolContextChanged.emit()
+        self._tool_options.publish_mask_content_changed()
 
     def _on_layer_pixels_changed(
         self,
@@ -578,7 +538,7 @@ class InputCanvasDocument(QObject):
         """Publish generic pixel edits only for mask resources owned by Input."""
         if self._catalog.contains_mask_resource(resource_id):
             self.maskContentChanged.emit()
-            self.toolContextChanged.emit()
+            self._tool_options.publish_mask_content_changed()
 
 
 __all__ = ["InputCanvasDocument"]

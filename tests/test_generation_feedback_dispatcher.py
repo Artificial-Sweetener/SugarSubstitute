@@ -50,6 +50,7 @@ class _Sink:
     def __init__(self) -> None:
         """Initialize empty call records."""
 
+        self.run_started: list[GenerationRunStarted] = []
         self.progress: list[ProgressUpdate] = []
         self.progress_states: list[ProgressViewState] = []
         self.model_load: list[ModelLoadProgressUpdate] = []
@@ -60,6 +61,13 @@ class _Sink:
         self.completed: list[ListenerCompleted] = []
         self.events: list[str] = []
         self.thread_ids: list[int] = []
+
+    def apply_generation_run_started(self, event: GenerationRunStarted) -> None:
+        """Record one accepted generation run."""
+
+        self.run_started.append(event)
+        self.events.append("run_started")
+        self.thread_ids.append(threading.get_ident())
 
     def apply_generation_progress(self, update: ProgressUpdate) -> None:
         """Record one progress update."""
@@ -138,7 +146,8 @@ def test_queued_progress_callback_reaches_sink_on_gui_thread() -> None:
     assert sink.progress == [
         _progress_update(workflow_percent=25.0, sampler_percent=None)
     ]
-    assert sink.thread_ids == [gui_thread_id]
+    assert sink.events == ["run_started", "progress"]
+    assert sink.thread_ids == [gui_thread_id, gui_thread_id]
     app = QCoreApplication.instance()
     assert app is not None
     assert dispatcher.thread() == app.thread()
@@ -595,6 +604,7 @@ def _run_started() -> GenerationRunStarted:
     return GenerationRunStarted(
         workflow_id="wf",
         generation_run_id="run-1",
+        output_session_id="run-1",
         prompt_id="pid-1",
         client_id="client-1",
     )

@@ -530,10 +530,11 @@ def _run_cube_output_visual_messages(
         def __exit__(self, exc_type, exc, tb):
             return False
 
-        def save(self, _path: str, pnginfo=None) -> None:
+        def save(self, _path: str | Path, pnginfo=None) -> None:
             _ = pnginfo
+            Path(_path).write_bytes(b"persisted-png")
             if saved_paths is not None:
-                saved_paths.append(_path)
+                saved_paths.append(str(_path))
             return None
 
     class _PngInfo:
@@ -1903,6 +1904,40 @@ def test_run_preserves_cube_output_source_scene_and_list_index(
     assert output_events[0].scene_order == 2
     assert output_events[0].scene_count == 4
     assert output_events[0].list_index == 5
+
+
+def test_run_preserves_every_cube_output_batch_artifact(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A multi-image backend event must publish every artifact in batch order."""
+
+    message = json.loads(_cube_output_message(node_id="output-node"))
+    second_artifact = dict(message["data"]["artifacts"][0])
+    second_artifact["filename"] = "ComfyUI_temp_demo_00002_.png"
+    message["data"]["artifacts"].append(second_artifact)
+    fetched_artifacts: list[object] = []
+    saved_paths: list[str] = []
+
+    output_events, failures, completed = _run_cube_output_visual_messages(
+        monkeypatch,
+        tmp_path,
+        messages=[
+            json.dumps(message),
+            json.dumps(
+                {"type": "executing", "data": {"node": None, "prompt_id": "pid-1"}}
+            ),
+        ],
+        fetched_artifacts=fetched_artifacts,
+        saved_paths=saved_paths,
+    )
+
+    assert failures == []
+    assert len(completed) == 1
+    assert [event.batch_index for event in output_events] == [0, 1]
+    assert len(fetched_artifacts) == 2
+    assert len(saved_paths) == 2
+    assert saved_paths[0] != saved_paths[1]
 
 
 @pytest.mark.parametrize(

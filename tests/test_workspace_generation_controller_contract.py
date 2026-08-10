@@ -272,9 +272,6 @@ def _build_bindings(recorder: _BindingRecorder) -> GenerationUiBindings:
     return GenerationUiBindings(
         build_generation_request=_build_request,
         randomize_seeds=_randomize,
-        clear_output_for_workflow=lambda workflow_id: (
-            recorder.clear_output_calls.append(workflow_id)
-        ),
         on_progress=lambda event: recorder.progress.append(event),
         on_model_load_progress=lambda _event: None,
         on_preview=lambda event: recorder.previews.append(event),
@@ -333,7 +330,6 @@ def _bindings_with_snapshots(
     return GenerationUiBindings(
         build_generation_request=bindings.build_generation_request,
         randomize_seeds=bindings.randomize_seeds,
-        clear_output_for_workflow=bindings.clear_output_for_workflow,
         on_progress=bindings.on_progress,
         on_model_load_progress=bindings.on_model_load_progress,
         on_preview=bindings.on_preview,
@@ -389,7 +385,6 @@ def test_handle_generate_clicked_ignores_batch_count_in_continuous_mode() -> Non
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -456,7 +451,6 @@ def test_handle_generate_clicked_ignores_batch_without_queue_service() -> None:
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -493,7 +487,6 @@ def test_handle_generate_clicked_enqueues_snapshot_when_queue_is_available() -> 
     bindings = GenerationUiBindings(
         build_generation_request=bindings.build_generation_request,
         randomize_seeds=bindings.randomize_seeds,
-        clear_output_for_workflow=bindings.clear_output_for_workflow,
         on_progress=bindings.on_progress,
         on_model_load_progress=bindings.on_model_load_progress,
         on_preview=bindings.on_preview,
@@ -558,7 +551,6 @@ def test_handle_generate_clicked_submits_captured_preparation_without_blocking()
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -625,7 +617,6 @@ def test_captured_preparation_enqueues_multi_scene_result_as_one_batch() -> None
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -670,7 +661,6 @@ def test_handle_generate_clicked_enqueues_independent_batch_snapshots() -> None:
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -717,7 +707,6 @@ def test_handle_generate_clicked_multiplies_scene_snapshots_by_batch_count() -> 
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -778,7 +767,6 @@ def test_handle_generate_clicked_enqueues_queued_snapshots_in_order() -> None:
     bindings = GenerationUiBindings(
         build_generation_request=bindings.build_generation_request,
         randomize_seeds=bindings.randomize_seeds,
-        clear_output_for_workflow=bindings.clear_output_for_workflow,
         on_progress=bindings.on_progress,
         on_model_load_progress=bindings.on_model_load_progress,
         on_preview=bindings.on_preview,
@@ -844,7 +832,6 @@ def test_handle_generate_clicked_reports_queued_snapshot_preflight_failure() -> 
     bindings = GenerationUiBindings(
         build_generation_request=bindings.build_generation_request,
         randomize_seeds=bindings.randomize_seeds,
-        clear_output_for_workflow=bindings.clear_output_for_workflow,
         on_progress=bindings.on_progress,
         on_model_load_progress=bindings.on_model_load_progress,
         on_preview=bindings.on_preview,
@@ -902,7 +889,6 @@ def test_handle_generate_clicked_stops_batch_after_snapshot_preflight_failure() 
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -1004,7 +990,6 @@ def test_handle_generate_clicked_reports_preflight_failure_without_dispatch() ->
     bindings = GenerationUiBindings(
         build_generation_request=_raise_preflight,
         randomize_seeds=lambda: None,
-        clear_output_for_workflow=lambda _workflow_id: None,
         on_progress=lambda event: recorder.progress.append(event),
         on_model_load_progress=lambda _event: None,
         on_preview=lambda event: recorder.previews.append(event),
@@ -1054,7 +1039,6 @@ def test_handle_generate_clicked_reports_snapshot_preflight_failure_without_enqu
             workflow=cast(Any, object()),
         ),
         randomize_seeds=lambda: None,
-        clear_output_for_workflow=lambda _workflow_id: None,
         on_progress=lambda event: recorder.progress.append(event),
         on_model_load_progress=lambda _event: None,
         on_preview=lambda event: recorder.previews.append(event),
@@ -1100,7 +1084,6 @@ def test_continuous_completion_enqueues_next_snapshot_after_ui_completion() -> N
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -1149,7 +1132,6 @@ def test_continuous_scene_cycle_requeues_only_after_last_scene_snapshot() -> Non
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -1286,7 +1268,6 @@ def test_continuous_next_snapshot_preflight_failure_stops_loop() -> None:
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -1347,7 +1328,6 @@ def test_continuous_callbacks_route_generation_events() -> None:
     controller.handle_generate_clicked(current_mode="continuous", bindings=bindings)
     callbacks = cast(GenerationCallbacks, fake_queue.enqueue_calls[0]["callbacks"])
     assert callbacks.randomize_seeds is None
-    callbacks.clear_output("wf-1")
     callbacks.on_progress(_progress_update(workflow_percent=50.0, sampler_percent=25.0))
     callbacks.on_preview(PreviewImageUpdate(workflow_id="wf-1", image=object()))
     callbacks.on_output_image(
@@ -1362,7 +1342,7 @@ def test_continuous_callbacks_route_generation_events() -> None:
         GenerationFailure(stage="queue", workflow_id="wf-1", message="failed")
     )
 
-    assert recorder.clear_output_calls == ["wf-1"]
+    assert recorder.clear_output_calls == []
     assert recorder.progress == [
         _progress_update(workflow_percent=50.0, sampler_percent=25.0)
     ]
@@ -1417,7 +1397,6 @@ def test_continuous_skip_requeues_when_cycle_is_empty() -> None:
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,
@@ -1802,7 +1781,6 @@ def test_workspace_stop_click_reprojects_active_continuous_as_inactive() -> None
     bindings = GenerationUiBindings(
         build_generation_request=base_bindings.build_generation_request,
         randomize_seeds=base_bindings.randomize_seeds,
-        clear_output_for_workflow=base_bindings.clear_output_for_workflow,
         on_progress=base_bindings.on_progress,
         on_model_load_progress=base_bindings.on_model_load_progress,
         on_preview=base_bindings.on_preview,

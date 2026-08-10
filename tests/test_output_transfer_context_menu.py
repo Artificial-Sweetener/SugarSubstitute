@@ -42,6 +42,7 @@ def test_context_menu_binds_actions_to_the_captured_subject(
     captured_models: list[object] = []
     copy_requests: list[CanvasContentReference] = []
     external_requests: list[tuple[object, OutputImageMeta]] = []
+    reveal_requests: list[OutputImageMeta] = []
     dock_requests: list[None] = []
     menu = SimpleNamespace(exec=lambda position, **kwargs: None)
 
@@ -66,7 +67,7 @@ def test_context_menu_binds_actions_to_the_captured_subject(
     subject = _reference()
     image_id = uuid4()
     payload = object()
-    metadata = cast(OutputImageMeta, SimpleNamespace(path=""))
+    metadata = cast(OutputImageMeta, SimpleNamespace(path="E:/outputs/result.png"))
 
     def open_external(image: object, image_metadata: OutputImageMeta) -> bool:
         """Record the exact target supplied to the external editor action."""
@@ -79,6 +80,12 @@ def test_context_menu_binds_actions_to_the_captured_subject(
 
         dock_requests.append(None)
 
+    def reveal_asset(image_metadata: OutputImageMeta) -> bool:
+        """Record the asset supplied to the reveal action."""
+
+        reveal_requests.append(image_metadata)
+        return True
+
     presenter = _presenter(
         copy_requests=copy_requests,
         image_id_for_reference=lambda candidate: (
@@ -87,6 +94,7 @@ def test_context_menu_binds_actions_to_the_captured_subject(
         image_payload=lambda candidate: payload if candidate == image_id else None,
         image_metadata=lambda candidate: metadata if candidate == image_id else None,
         open_single_editor=open_external,
+        reveal_asset=reveal_asset,
         request_dock_action=request_dock_action,
     )
 
@@ -101,6 +109,7 @@ def test_context_menu_binds_actions_to_the_captured_subject(
     assert tuple(action.action_id for action in actions) == (
         "output_canvas.copy",
         "output_canvas.open_current_external",
+        "output_canvas.reveal_current_asset",
         "output_canvas.dock_action",
     )
     for action in actions:
@@ -108,6 +117,7 @@ def test_context_menu_binds_actions_to_the_captured_subject(
         action.callback()
     assert copy_requests == [subject]
     assert external_requests == [(payload, metadata)]
+    assert reveal_requests == [metadata]
     assert dock_requests == [None]
 
 
@@ -167,6 +177,7 @@ def _presenter(
     image_payload: Callable[[UUID], object | None] = lambda _image_id: None,
     image_metadata: Callable[[UUID], OutputImageMeta | None] = lambda _image_id: None,
     open_single_editor: Callable[[object, OutputImageMeta], bool] | None = None,
+    reveal_asset: Callable[[OutputImageMeta], bool] | None = None,
     request_dock_action: Callable[[], None] = lambda: None,
 ) -> OutputGridContextMenu:
     """Build one target-addressed grid menu with deterministic dependencies."""
@@ -179,6 +190,7 @@ def _presenter(
         image_metadata=image_metadata,
         image_is_authorized=lambda _image_id: True,
         open_single_editor=open_single_editor,
+        reveal_asset=reveal_asset,
         canvas_detached=lambda: False,
         request_dock_action=request_dock_action,
     )

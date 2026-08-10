@@ -42,16 +42,17 @@ from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRejectionReason,
 )
 from substitute.application.workflows.output_visual_events import (
-    LiveFinalOutputEvent,
     LivePreviewEvent,
     OutputSceneIdentity,
 )
 from substitute.application.workflows.output_canvas_state_service import (
-    OutputFocusMutationResult,
-    OutputFocusSnapshot,
     OutputImageRegistrationResult,
     OutputPreviewCloseIdentity,
     OutputProjectionSchedulingIntent,
+)
+from substitute.application.workflows.output_canvas_focus_service import (
+    OutputFocusMutationResult,
+    OutputFocusSnapshot,
 )
 from substitute.application.workflows.output_canvas_session import OutputCanvasSession
 from substitute.application.workflows.output_scene_navigation_selection import (
@@ -200,7 +201,7 @@ class CanvasIoServiceProtocol(Protocol):
         *,
         workflow_name: str,
         node_meta_title: str,
-        file_path: Path,
+        file_path: Path | None,
         source_key: str = "",
         source_label: str = "",
         node_id: str = "",
@@ -270,16 +271,71 @@ class OutputCanvasStateServiceProtocol(Protocol):
     ) -> OutputImageRegistrationResult:
         """Register one output image without visible projection."""
 
-    def register_generated_output(
+
+class OutputCanvasFocusServiceProtocol(Protocol):
+    """Persist user-authored Output route intent."""
+
+    def set_active_output_uuid(
+        self,
+        workflow: "WorkflowStateProtocol",
+        uuid_str: str,
+    ) -> object:
+        """Persist one concrete Output selection."""
+
+    def set_active_output_grid(
+        self,
+        workflow: "WorkflowStateProtocol",
+        source_key: str | None,
+        scene_key: str | None = None,
+    ) -> object:
+        """Persist one Output grid selection."""
+
+    def set_active_output_scene(
+        self,
+        workflow: "WorkflowStateProtocol",
+        selection: OutputSceneNavigationSelection,
+    ) -> object:
+        """Persist one scene-level Output selection."""
+
+    def set_output_compare_state(
+        self,
+        workflow: "WorkflowStateProtocol",
+        state: object,
+    ) -> None:
+        """Persist Output comparison state."""
+
+
+class OutputNavigationSessionServiceProtocol(Protocol):
+    """Own automatic and manual navigation mode for live generation sessions."""
+
+    def mark_user_navigation(
+        self,
+        workflow_id: str,
+        workflow: "WorkflowStateProtocol",
+    ) -> object:
+        """Make user-selected navigation sticky for the current session."""
+
+
+class OutputGeneratedResultServiceProtocol(Protocol):
+    """Commit one validated presentable generated Output result."""
+
+    def commit_generated_output(
         self,
         workflows: dict[str, "WorkflowStateProtocol"],
         active_workflow_id: str,
         *,
-        event: LiveFinalOutputEvent,
+        event: object,
         image: object,
         image_meta: object,
     ) -> OutputImageRegistrationResult:
-        """Register one strict live generated output without visible projection."""
+        """Commit one live generated result."""
+
+
+class OutputProjectionCoordinatorProtocol(Protocol):
+    """Retire document payloads released by result replacement."""
+
+    def retire_replaced_output_images(self, image_ids: tuple[uuid.UUID, ...]) -> None:
+        """Retire replaced Output document content."""
 
 
 class CubeStateProtocol(Protocol):
@@ -352,6 +408,10 @@ class WorkspaceCanvasActionView(Protocol):
     canvas_host: CanvasHostProtocol
     canvas_io_service: CanvasIoServiceProtocol
     output_canvas_state_service: OutputCanvasStateServiceProtocol
+    output_canvas_focus_service: OutputCanvasFocusServiceProtocol
+    output_navigation_session_service: OutputNavigationSessionServiceProtocol
+    output_generated_result_service: OutputGeneratedResultServiceProtocol
+    output_canvas_projection_coordinator: OutputProjectionCoordinatorProtocol
     output_image_pipeline: OutputImagePipelineProtocol
     add_output_image_signal: OutputImageSignalProtocol
     path_bundle: WorkspacePathBundleProtocol
@@ -387,7 +447,11 @@ class WorkspaceCanvasActions:
         view = self._view
         active_workflow = view.get_active_workflow()
         if active_workflow is not None:
-            view.output_canvas_state_service.set_active_output_uuid(
+            view.output_navigation_session_service.mark_user_navigation(
+                view.workflow_session_service.active_workflow_id,
+                active_workflow,
+            )
+            view.output_canvas_focus_service.set_active_output_uuid(
                 active_workflow,
                 uuid_str,
             )
@@ -399,7 +463,11 @@ class WorkspaceCanvasActions:
         view = self._view
         active_workflow = view.get_active_workflow()
         if active_workflow is not None:
-            view.output_canvas_state_service.set_active_output_grid(
+            view.output_navigation_session_service.mark_user_navigation(
+                view.workflow_session_service.active_workflow_id,
+                active_workflow,
+            )
+            view.output_canvas_focus_service.set_active_output_grid(
                 active_workflow,
                 source_key,
             )
@@ -414,7 +482,11 @@ class WorkspaceCanvasActions:
         view = self._view
         active_workflow = view.get_active_workflow()
         if active_workflow is not None:
-            view.output_canvas_state_service.set_active_output_scene(
+            view.output_navigation_session_service.mark_user_navigation(
+                view.workflow_session_service.active_workflow_id,
+                active_workflow,
+            )
+            view.output_canvas_focus_service.set_active_output_scene(
                 active_workflow,
                 selection,
             )
@@ -426,7 +498,11 @@ class WorkspaceCanvasActions:
         view = self._view
         active_workflow = view.get_active_workflow()
         if active_workflow is not None:
-            view.output_canvas_state_service.set_output_compare_state(
+            view.output_navigation_session_service.mark_user_navigation(
+                view.workflow_session_service.active_workflow_id,
+                active_workflow,
+            )
+            view.output_canvas_focus_service.set_output_compare_state(
                 active_workflow,
                 state,
             )
@@ -673,7 +749,7 @@ class WorkspaceCanvasActions:
             node_id=request.node_id,
         )
         if request.live_event is not None:
-            result = view.output_canvas_state_service.register_generated_output(
+            result = view.output_generated_result_service.commit_generated_output(
                 view.workflow_session_service.workflows,
                 view.workflow_session_service.active_workflow_id,
                 event=request.live_event,
@@ -690,6 +766,10 @@ class WorkspaceCanvasActions:
             )
         if not result.registered or result.image_id is None:
             return result
+        if result.retired_image_ids:
+            view.output_canvas_projection_coordinator.retire_replaced_output_images(
+                result.retired_image_ids
+            )
         self._close_registered_output_preview_lane(result)
         self._record_workflow_output_activity(request.workflow_id)
         _mark_canvas_surfaces_dirty(

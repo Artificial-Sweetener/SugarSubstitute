@@ -26,6 +26,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.application.errors import ErrorReport, ErrorReportKind
 from substitute.application.generation import GenerationFailure
+from substitute.application.generation import GenerationRunStarted
 from substitute.application.ports import (
     CubeExecutionTiming,
     GenerationExecutionTiming,
@@ -265,7 +266,7 @@ def test_generation_timing_updates_output_state_and_schedules_projection() -> No
             workflows={"wf-1": object()},
             active_workflow_id="wf-1",
         ),
-        output_canvas_state_service=SimpleNamespace(
+        output_canvas_timing_service=SimpleNamespace(
             apply_output_source_timing=apply_output_source_timing
         ),
         output_image_pipeline=SimpleNamespace(
@@ -291,6 +292,36 @@ def test_generation_timing_updates_output_state_and_schedules_projection() -> No
     assert timing_kwargs["source_durations_ms"] == {"wf-1:N1": 25.0}
     assert timing_kwargs["cube_durations_ms"] == {"Sampler": 25.0}
     assert scheduled == [projection_intent]
+
+
+def test_generation_run_start_begins_output_navigation_session() -> None:
+    """Route accepted run identity into the Output navigation session owner."""
+
+    calls: list[tuple[object, str, str]] = []
+    workflows = {"wf-1": object()}
+    shell = _feedback_shell(
+        workflow_session_service=SimpleNamespace(
+            workflows=workflows,
+            active_workflow_id="wf-1",
+        ),
+        output_navigation_session_service=SimpleNamespace(
+            begin_session=lambda owned, workflow_id, session_id: calls.append(
+                (owned, workflow_id, session_id)
+            )
+        ),
+    )
+
+    GenerationFeedbackPresenter(shell).apply_generation_run_started(
+        GenerationRunStarted(
+            workflow_id="wf-1",
+            generation_run_id="generation-2",
+            output_session_id="scene-run-2",
+            prompt_id="prompt-2",
+            client_id="client-2",
+        )
+    )
+
+    assert calls == [(workflows, "wf-1", "scene-run-2")]
 
 
 def test_sampler_progress_model_field_clear_is_idempotent() -> None:
@@ -387,10 +418,13 @@ def _feedback_shell(**overrides: object) -> SimpleNamespace:
             submit_live_output_event=lambda _event: None,
             schedule_output_projection=lambda _intent: None,
         ),
-        "output_canvas_state_service": SimpleNamespace(
+        "output_canvas_timing_service": SimpleNamespace(
             apply_output_source_timing=lambda *_args, **_kwargs: SimpleNamespace(
                 projection_intent=SimpleNamespace(should_schedule=False)
             )
+        ),
+        "output_navigation_session_service": SimpleNamespace(
+            begin_session=lambda *_args: None
         ),
         "progress_service": SimpleNamespace(
             build_model_load_view_state=lambda **_kwargs: SimpleNamespace(

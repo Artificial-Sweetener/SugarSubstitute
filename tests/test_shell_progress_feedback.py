@@ -157,6 +157,7 @@ def _progress_surface_fake(**kwargs: object) -> SimpleNamespace:
         GenerationRunStarted(
             workflow_id="wf-1",
             generation_run_id="run-1",
+            output_session_id="run-1",
             prompt_id="pid-1",
             client_id="client-1",
         )
@@ -367,6 +368,7 @@ def test_inactive_workflow_progress_is_stored_without_showing_overlay() -> None:
         GenerationRunStarted(
             workflow_id="wf-2",
             generation_run_id="run-2",
+            output_session_id="run-2",
             prompt_id="pid-2",
             client_id="client-2",
         )
@@ -397,6 +399,7 @@ def test_project_active_workflow_progress_replays_selected_workflow_state() -> N
         GenerationRunStarted(
             workflow_id="wf-2",
             generation_run_id="run-2",
+            output_session_id="run-2",
             prompt_id="pid-2",
             client_id="client-2",
         )

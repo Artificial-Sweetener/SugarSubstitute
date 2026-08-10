@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from substitute.application.generation import GenerationFailure
+from substitute.application.generation import GenerationFailure, GenerationRunStarted
 from substitute.application.generation.progress_service import ProgressViewState
 from substitute.application.ports import (
     GenerationExecutionTiming,
@@ -44,6 +44,13 @@ class ShellGenerationFeedbackSink:
         """Store the shell whose composed controllers should receive feedback."""
 
         self._shell = shell
+
+    def apply_generation_run_started(self, event: GenerationRunStarted) -> None:
+        """Begin one Output navigation session through the feedback presenter."""
+
+        generation_feedback_presenter_for(self._shell).apply_generation_run_started(
+            event
+        )
 
     def apply_generation_progress(self, update: ProgressUpdate) -> None:
         """Apply one progress update through the generation action owner."""

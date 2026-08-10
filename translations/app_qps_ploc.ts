@@ -2850,10 +2850,6 @@ Install these nodes now?</source>
       <translation>⟦Màsk dïmënsïöns dö nöt màtch ···⟧</translation>
     </message>
     <message>
-      <source>Mask layer</source>
-      <translation>⟦Màsk làyër ···⟧</translation>
-    </message>
-    <message>
       <source>Message: %1</source>
       <translation>⟦Mëssàgë: %1 ···⟧</translation>
     </message>
@@ -3948,6 +3944,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Resize canvas only</source>
       <translation>⟦Rësïzë cànvàs önly ···⟧</translation>
+    </message>
+    <message>
+      <source>Resize shared edges</source>
+      <translation>⟦Rësïzë shàrëd ëdgës ···⟧</translation>
     </message>
     <message>
       <source>Resolve wildcards on generation</source>

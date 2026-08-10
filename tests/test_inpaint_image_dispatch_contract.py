@@ -417,7 +417,6 @@ def test_real_inpaint_generation_queues_selected_load_image_instead_of_default(
             workflow=cast(Any, workflow),
         ),
         callbacks=GenerationCallbacks(
-            clear_output=lambda _workflow_id: None,
             on_progress=lambda _event: None,
             on_model_load_progress=lambda _event: None,
             on_preview=lambda _event: None,

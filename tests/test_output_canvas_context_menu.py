@@ -45,6 +45,7 @@ from substitute.presentation.canvas.output.output_grid_context_menu import (
     OutputGridContextMenu,
 )
 from substitute.presentation.canvas.shared.types import OutputImageMeta
+from substitute.presentation.resources.fluent_app_icon import AppIcon
 from substitute.presentation.widgets.menu_model import MenuItem
 
 
@@ -137,6 +138,7 @@ def test_grid_menu_preserves_the_original_icon_assignments() -> None:
         image_metadata=lambda _image_id: None,
         image_is_authorized=lambda _image_id: False,
         open_single_editor=None,
+        reveal_asset=None,
         canvas_detached=lambda: False,
         request_dock_action=lambda: None,
     )
@@ -148,6 +150,10 @@ def test_grid_menu_preserves_the_original_icon_assignments() -> None:
     }
     assert actions["output_canvas.copy"].icon is FIF.COPY
     assert actions["output_canvas.open_current_external"].icon is FIF.PHOTO
+    assert (
+        actions["output_canvas.reveal_current_asset"].icon
+        is AppIcon.FOLDER_OPEN_20_REGULAR
+    )
     assert actions["output_canvas.dock_action"].icon is FIF.FULL_SCREEN
 
 

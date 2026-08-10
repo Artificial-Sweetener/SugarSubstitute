@@ -101,7 +101,7 @@ class InputBrushSettingsSection(QObject):
         self.hardness_slider.valueChanged.connect(self._apply_values)
         self.opacity_slider.valueChanged.connect(self._apply_values)
         document.brushPresetChanged.connect(self.synchronize)
-        document.toolContextChanged.connect(self.synchronize)
+        document.brushContextChanged.connect(self.synchronize)
         document.canvasOperationChanged.connect(self.synchronize)
         self.synchronize()
 

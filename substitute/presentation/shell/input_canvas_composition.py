@@ -31,6 +31,9 @@ from substitute.application.workflows.generation_input_image_selection_service i
 from substitute.application.workflows.input_canvas_capability_service import (
     InputCanvasCapabilityService,
 )
+from substitute.application.workflows.input_canvas_interaction_profile_service import (
+    InputCanvasInteractionProfileService,
+)
 from substitute.application.workflows.ordered_mask_graph_value_service import (
     OrderedMaskGraphValueService,
 )
@@ -58,11 +61,17 @@ from substitute.presentation.canvas.input.input_canvas_tool_controller import (
 from substitute.presentation.canvas.input.input_canvas_tool_layout import (
     create_input_canvas_tool_layout,
 )
+from substitute.presentation.canvas.input.input_canvas_tool_profile_controller import (
+    InputCanvasToolProfileController,
+)
 from substitute.presentation.canvas.input.input_contextual_toolbar_installation import (
     install_input_contextual_toolbar,
 )
 from substitute.presentation.canvas.input.input_document_change_observer import (
     InputDocumentChangeObserver,
+)
+from substitute.presentation.canvas.input.input_editable_document_change_tracker import (
+    InputEditableDocumentChangeTracker,
 )
 from substitute.presentation.canvas.input.input_editable_document_lifecycle import (
     InputEditableDocumentLifecycle,
@@ -81,6 +90,12 @@ from substitute.presentation.canvas.input.input_node_interaction_controller impo
 )
 from substitute.presentation.canvas.input.input_mask_visual_opacity_controller import (
     InputMaskVisualOpacityController,
+)
+from substitute.presentation.canvas.input.input_scene_mapping_changes import (
+    InputSceneMappingChanges,
+)
+from substitute.presentation.canvas.input.input_shared_edge_resize_policy import (
+    InputSharedEdgeResizePolicy,
 )
 from substitute.presentation.canvas.input.input_node_preview_coordinator import (
     InputNodePreviewCoordinator,
@@ -124,11 +139,15 @@ class MainWindowInputCanvasComposition:
 
     workflow_input_canvas_service: Any
     input_canvas_tool_controller: Any
+    input_canvas_tool_profile_controller: Any
+    input_shared_edge_resize_policy: InputSharedEdgeResizePolicy
+    input_scene_mapping_changes: InputSceneMappingChanges
     input_canvas_shell_adapter: Any
     input_canvas_presenter: Any
     input_node_interaction_controller: Any
     input_mask_visual_opacity_controller: Any
     input_document_change_observer: Any
+    input_editable_document_change_tracker: InputEditableDocumentChangeTracker
     input_generation_snapshot_service: Any
     input_editable_document_lifecycle: Any
     input_canvas_capability_service: Any
@@ -171,24 +190,43 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         input_canvas.document.tool_options,
     )
     input_canvas.bind_tool_runtime(input_tool_runtime, input_tool_layout)
+    input_shared_edge_resize_policy = InputSharedEdgeResizePolicy(
+        input_canvas.document.canvas,
+        parent=input_canvas.document.canvas,
+    )
+    input_scene_mapping_changes = InputSceneMappingChanges(
+        input_canvas.document.canvas,
+        parent=input_canvas.document.canvas,
+    )
     input_canvas_tool_controller = InputCanvasToolController(
-        input_document=input_canvas.document,
+        transform_activator=input_canvas.document.tool_context.activate_transform,
         operation_setter=input_canvas.document.set_canvas_operation,
-        current_image_id_provider=input_canvas.current_image_id_for_event,
+        current_operation_provider=input_canvas.document.current_canvas_operation,
         runtime=input_tool_runtime,
         layout=input_tool_layout,
     )
-    input_canvas.document.toolContextChanged.connect(
-        input_canvas_tool_controller.refresh_tool_context
+    input_canvas_interaction_profiles = InputCanvasInteractionProfileService(
+        input_canvas_plan_service=shell.input_canvas_plan_service,
+        graph_section_service=shell.graph_section_service,
+    )
+    input_canvas_tool_profile_controller = InputCanvasToolProfileController(
+        document_context=input_canvas.document.tool_context,
+        active_workflow=lambda: shell.workflow_session_service.workflows.get(
+            shell.workflow_session_service.active_workflow_id
+        ),
+        interaction_profile=input_canvas_interaction_profiles.profile_for,
+        palette=input_tool_runtime.palette,
+        activation=input_canvas_tool_controller,
+    )
+    input_canvas.document.tool_context.changed.connect(
+        input_canvas_tool_profile_controller.refresh_document_context
     )
     input_canvas.document.canvasToolChanged.connect(
         input_canvas_tool_controller.synchronize_native_tool
     )
-    input_canvas.toolContextRefreshRequested.connect(
-        input_canvas_tool_controller.refresh_tool_context
-    )
+    input_canvas.destroyed.connect(input_canvas_tool_profile_controller.close)
     input_canvas.toolRequested.connect(input_canvas_tool_controller.request_tool)
-    input_canvas_tool_controller.refresh_tool_context()
+    input_canvas_tool_profile_controller.refresh_workflow_profile()
     input_canvas_shell_adapter = InputCanvasShellAdapter(shell)
     input_node_preview_coordinator = InputNodePreviewCoordinator(
         bindings=input_canvas.document.preview_bindings,
@@ -273,8 +311,25 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     input_canvas.document.canvas.sceneEditHistoryChanged.connect(
         input_mask_visual_opacity_controller.reconcile_history
     )
+    input_editable_document_lifecycle = InputEditableDocumentLifecycle(
+        document=input_canvas.document.editable_persistence,
+        archive_path=(
+            Path(shell.path_bundle.session_dir) / "input-editable-document.ccanvas"
+        ),
+    )
+    input_editable_document_change_tracker = InputEditableDocumentChangeTracker(
+        changes=(
+            input_canvas.document.canvas.compositionChanged,
+            input_canvas.document.maskContentChanged,
+            input_scene_mapping_changes.changed,
+        ),
+        mark_changed=input_editable_document_lifecycle.mark_changed,
+    )
     input_document_change_observer = InputDocumentChangeObserver(
-        changed=input_canvas.document.maskContentChanged,
+        changes=(
+            input_canvas.document.maskContentChanged,
+            input_scene_mapping_changes.changed,
+        ),
         active_workflow_id=lambda: shell.workflow_session_service.active_workflow_id,
         mark_workflow_changed=input_canvas_shell_adapter.mark_input_canvas_changed,
         request_autosave=shell.request_session_autosave,
@@ -305,12 +360,6 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         select_generation_images=image_selection_service.select,
         image_materializer=input_generation_image_materializer,
         mask_materializer=input_generation_mask_materializer,
-    )
-    input_editable_document_lifecycle = InputEditableDocumentLifecycle(
-        document=input_canvas.document.editable_persistence,
-        archive_path=(
-            Path(shell.path_bundle.session_dir) / "input-editable-document.ccanvas"
-        ),
     )
     input_canvas_capability_service = InputCanvasCapabilityService(
         shell.input_canvas_plan_service,
@@ -346,11 +395,15 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     composition = MainWindowInputCanvasComposition(
         workflow_input_canvas_service=workflow_input_canvas_service,
         input_canvas_tool_controller=input_canvas_tool_controller,
+        input_canvas_tool_profile_controller=input_canvas_tool_profile_controller,
+        input_shared_edge_resize_policy=input_shared_edge_resize_policy,
+        input_scene_mapping_changes=input_scene_mapping_changes,
         input_canvas_shell_adapter=input_canvas_shell_adapter,
         input_canvas_presenter=input_canvas_presenter,
         input_node_interaction_controller=input_node_interaction_controller,
         input_mask_visual_opacity_controller=input_mask_visual_opacity_controller,
         input_document_change_observer=input_document_change_observer,
+        input_editable_document_change_tracker=(input_editable_document_change_tracker),
         input_generation_snapshot_service=input_generation_snapshot_service,
         input_editable_document_lifecycle=input_editable_document_lifecycle,
         input_canvas_capability_service=input_canvas_capability_service,
@@ -365,6 +418,11 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     )
     shell.workflow_input_canvas_service = composition.workflow_input_canvas_service
     shell.input_canvas_tool_controller = composition.input_canvas_tool_controller
+    shell.input_canvas_tool_profile_controller = (
+        composition.input_canvas_tool_profile_controller
+    )
+    shell.input_shared_edge_resize_policy = composition.input_shared_edge_resize_policy
+    shell.input_scene_mapping_changes = composition.input_scene_mapping_changes
     shell.input_canvas_shell_adapter = composition.input_canvas_shell_adapter
     shell.input_canvas_presenter = composition.input_canvas_presenter
     shell.input_node_interaction_controller = (
@@ -374,6 +432,9 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         composition.input_mask_visual_opacity_controller
     )
     shell.input_document_change_observer = composition.input_document_change_observer
+    shell.input_editable_document_change_tracker = (
+        composition.input_editable_document_change_tracker
+    )
     shell.input_generation_snapshot_service = (
         composition.input_generation_snapshot_service
     )

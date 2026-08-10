@@ -26,10 +26,12 @@ from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication
 
 from substitute.application.workflows.output_canvas_state_service import (
-    OutputFocusMutationResult,
-    OutputFocusSnapshot,
     OutputImageRegistrationResult,
     OutputProjectionSchedulingIntent,
+)
+from substitute.application.workflows.output_canvas_focus_service import (
+    OutputFocusMutationResult,
+    OutputFocusSnapshot,
 )
 from substitute.domain.workflow import OutputFocusMode
 from substitute.presentation.shell.canvas_projection_scheduler import (

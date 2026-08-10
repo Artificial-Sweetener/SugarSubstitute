@@ -267,12 +267,6 @@ class WorkspaceController:
             behavior_snapshot=behavior_snapshot,
             preparation_service=self._generation_preparation_service(),
             on_scene_run_prepared=SceneRunBookkeeping(
-                workflows=getattr(view.workflow_session_service, "workflows", None),
-                output_canvas_state_service=getattr(
-                    view,
-                    "output_canvas_state_service",
-                    None,
-                ),
                 output_scene_run_service=getattr(
                     view,
                     "output_scene_run_service",
@@ -320,8 +314,6 @@ class WorkspaceController:
             preparation_service=self._generation_preparation_service(),
             randomize_request_seeds=self._collaborators.generation_seed_randomizer,
             scene_run_bookkeeping=SceneRunBookkeeping(
-                workflows=view.workflow_session_service.workflows,
-                output_canvas_state_service=view.output_canvas_state_service,
                 output_scene_run_service=getattr(
                     view,
                     "output_scene_run_service",

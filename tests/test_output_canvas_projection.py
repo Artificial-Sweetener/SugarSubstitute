@@ -1002,8 +1002,8 @@ def test_projection_manual_concrete_scene_scopes_focus_to_scene_sources() -> Non
     assert projection.active_uuid is None
 
 
-def test_projection_uses_declared_scene_count_before_all_scenes_finish() -> None:
-    """Scene navigation should know a multi-scene run before every scene has output."""
+def test_projection_waits_for_multiple_populated_scenes_before_overview() -> None:
+    """Scene overview should remain unavailable until two scenes have output."""
 
     workflow = WorkflowState()
     image_id = uuid4()
@@ -1024,6 +1024,9 @@ def test_projection_uses_declared_scene_count_before_all_scenes_finish() -> None
         },
     )
 
-    assert projection.scene_count == 3
-    assert projection.active_scene_overview is True
+    assert projection.scene_count == 1
+    assert projection.active_scene_overview is False
     assert projection.active_scene_key == "portrait"
+    assert projection.active_source_key == "wf:text"
+    assert projection.active_set_index == 1
+    assert projection.active_uuid == image_id

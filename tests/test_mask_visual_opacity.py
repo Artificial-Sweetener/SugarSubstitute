@@ -25,7 +25,7 @@ from uuid import uuid4
 from PySide6.QtCore import QCoreApplication, QPoint, QSize, Qt
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QPushButton, QSpinBox, QWidget
+from PySide6.QtWidgets import QApplication, QSpinBox, QWidget
 import pytest
 
 from substitute.application.workflows.input_canvas_state_service import (
@@ -38,9 +38,6 @@ from substitute.domain.workflow import WorkflowState
 from substitute.domain.workspace_snapshot.codecs import (
     workflow_state_from_json,
     workflow_state_to_json,
-)
-from substitute.presentation.canvas.input.input_layer_settings import (
-    InputMaskLayerSettings,
 )
 from substitute.presentation.canvas.input.input_document import InputCanvasDocument
 from substitute.presentation.canvas.input.input_mask_visual_opacity_controller import (
@@ -108,25 +105,6 @@ def test_mask_node_widgets_publish_one_spinner_slider_opacity(batch: bool) -> No
     assert changes == [(expected_alias, expected_node, 0.37)]
     assert commits == [(expected_alias, expected_node, 0.5, 0.37)]
     widget.deleteLater()
-    app.processEvents()
-
-
-def test_input_layer_settings_retains_coverage_edit_without_opacity_controls() -> None:
-    """Keep per-layer coverage editing while removing per-layer opacity ownership."""
-
-    app = _app()
-    parent = QWidget()
-    settings = InputMaskLayerSettings(parent)
-
-    assert settings.findChild(QWidget, "InputLayerVisualOpacity") is None
-    assert (
-        settings.findChild(
-            QPushButton,
-            "InputEditLayerCoverageButton",
-        )
-        is not None
-    )
-    parent.deleteLater()
     app.processEvents()
 
 

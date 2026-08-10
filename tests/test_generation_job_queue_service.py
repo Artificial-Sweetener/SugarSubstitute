@@ -254,7 +254,6 @@ def _callbacks(recorder: _CallbackRecorder | None = None) -> GenerationCallbacks
 
     sink = recorder or _CallbackRecorder()
     return GenerationCallbacks(
-        clear_output=lambda workflow_id: sink.cleared.append(workflow_id),
         on_run_started=lambda event: sink.run_started.append(event),
         on_progress=lambda event: sink.progress.append(event),
         on_model_load_progress=lambda _event: None,
@@ -1129,7 +1128,6 @@ def test_timing_event_updates_running_job_before_completion_callback() -> None:
     observed_on_completion: list[float | None] = []
     callbacks = _callbacks(recorder)
     callbacks = GenerationCallbacks(
-        clear_output=callbacks.clear_output,
         randomize_seeds=callbacks.randomize_seeds,
         on_run_started=callbacks.on_run_started,
         on_progress=callbacks.on_progress,
@@ -1197,62 +1195,6 @@ def test_late_timing_event_updates_completed_job() -> None:
     job = service.jobs()[0]
     assert job.status == "completed"
     assert job.execution_duration_ms == 1200.0
-
-
-def test_scene_run_jobs_clear_output_once_across_scene_visuals() -> None:
-    """Scene jobs sharing one run should not clear each other's accumulated output."""
-
-    dispatcher = _FakeDispatcher()
-    service = _service(dispatcher)
-    recorder = _CallbackRecorder()
-
-    service.enqueue_snapshot(
-        _snapshot(
-            "First",
-            scene_run_id="run-1",
-            scene_key="first",
-            scene_title="First",
-            scene_order=0,
-            scene_count=2,
-        ),
-        _callbacks(recorder),
-    )
-    service.enqueue_snapshot(
-        _snapshot(
-            "Second",
-            scene_run_id="run-1",
-            scene_key="second",
-            scene_title="Second",
-            scene_order=1,
-            scene_count=2,
-        ),
-        _callbacks(recorder),
-    )
-
-    dispatcher.callbacks[0].clear_output("wf-first")
-    assert dispatcher.callbacks[0].on_completed is not None
-    dispatcher.callbacks[0].on_completed(_completed("wf-first"))
-    dispatcher.callbacks[1].clear_output("wf-second")
-
-    assert recorder.cleared == ["wf-first"]
-
-
-def test_normal_queued_jobs_keep_per_job_clear_behavior() -> None:
-    """Non-scene jobs should retain existing clear-on-first-visual semantics."""
-
-    dispatcher = _FakeDispatcher()
-    service = _service(dispatcher)
-    recorder = _CallbackRecorder()
-
-    service.enqueue_snapshot(_snapshot("First"), _callbacks(recorder))
-    service.enqueue_snapshot(_snapshot("Second"), _callbacks(recorder))
-
-    dispatcher.callbacks[0].clear_output("wf-first")
-    assert dispatcher.callbacks[0].on_completed is not None
-    dispatcher.callbacks[0].on_completed(_completed("wf-first"))
-    dispatcher.callbacks[1].clear_output("wf-second")
-
-    assert recorder.cleared == ["wf-first", "wf-second"]
 
 
 def test_listener_completion_dispatches_next_job_through_scheduler() -> None:

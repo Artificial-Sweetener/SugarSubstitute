@@ -42,9 +42,6 @@ class EditableInputDocumentPort(Protocol):
     def has_editable_content(self) -> bool:
         """Return whether the document has content requiring an archive."""
 
-    def save_editable_document(self, path: Path) -> tuple[UUID, ...]:
-        """Persist every editable composition beneath one archive path."""
-
     def restore_editable_document(self, path: Path) -> tuple[UUID, ...]:
         """Restore every editable composition from one archive path."""
 
@@ -56,7 +53,7 @@ class EditableInputDocumentPort(Protocol):
 
 
 class InputEditableDocumentLifecycle:
-    """Keep one complete CuteCanvas document aligned with session persistence."""
+    """Align one CuteCanvas document through serial session persistence callbacks."""
 
     def __init__(
         self,
@@ -70,6 +67,8 @@ class InputEditableDocumentLifecycle:
         self._archive_path = Path(archive_path)
         self._restore_attempted = False
         self._restored_composition_ids: tuple[UUID, ...] = ()
+        self._document_revision = 0
+        self._persisted_revision = 0 if self._archive_path.is_file() else -1
 
     @property
     def archive_path(self) -> Path:
@@ -83,34 +82,38 @@ class InputEditableDocumentLifecycle:
 
         return self._restored_composition_ids
 
-    def save_before_session_snapshot(self) -> bool:
-        """Persist current editable authority before its referencing session JSON."""
+    def mark_changed(self) -> None:
+        """Advance the authoritative revision after one durable document edit."""
 
-        if not self._document.has_editable_content():
-            return self._remove_stale_archive()
-        try:
-            composition_ids = self._document.save_editable_document(self._archive_path)
-        except (OSError, RuntimeError, TypeError, ValueError) as error:
-            log_exception(
-                _LOGGER,
-                "Failed to persist editable Input document",
-                archive_path=str(self._archive_path),
-                error=error,
-            )
-            return False
-        log_debug(
-            _LOGGER,
-            "Persisted editable Input document",
-            archive_path=str(self._archive_path),
-            composition_ids=tuple(str(value) for value in composition_ids),
-        )
-        return True
+        self._document_revision += 1
 
     def prepare_session_persistence(self) -> PreparedSessionPersistence:
         """Capture current authority and return background-safe persistence."""
 
         if self._document.has_editable_content():
-            return self._document.prepare_editable_document_save(self._archive_path)
+            captured_revision = self._document_revision
+            prepared = self._document.prepare_editable_document_save(self._archive_path)
+
+            def persist_captured_document() -> None:
+                """Write one capture unless an earlier queued save made it current."""
+
+                already_persisted = (
+                    self._persisted_revision >= captured_revision
+                    and self._archive_path.is_file()
+                )
+                if already_persisted:
+                    self._log_current_archive_skip()
+                    return
+                prepared.persist()
+                self._persisted_revision = max(
+                    self._persisted_revision,
+                    captured_revision,
+                )
+
+            return PreparedSessionPersistence(
+                "editable_input_document",
+                persist_captured_document,
+            )
 
         def remove_stale_archive() -> None:
             """Remove obsolete persisted authority in the background phase."""
@@ -151,6 +154,7 @@ class InputEditableDocumentLifecycle:
             )
             return False
         self._restored_composition_ids = composition_ids
+        self._persisted_revision = self._document_revision
         log_info(
             _LOGGER,
             "Restored editable Input document",
@@ -158,6 +162,15 @@ class InputEditableDocumentLifecycle:
             composition_ids=tuple(str(value) for value in composition_ids),
         )
         return True
+
+    def _log_current_archive_skip(self) -> None:
+        """Record that durable editable authority already matches the archive."""
+
+        log_debug(
+            _LOGGER,
+            "Skipped current editable Input document archive",
+            archive_path=str(self._archive_path),
+        )
 
     def _invalidate_rejected_archive(self, error: Exception) -> None:
         """Discard structurally rejected cache state before file-backed rebuild."""
@@ -173,6 +186,7 @@ class InputEditableDocumentLifecycle:
                 rejection_reason=str(error),
             )
             return
+        self._persisted_revision = -1
         log_warning(
             _LOGGER,
             "Invalidated rejected editable Input document cache; file assets remain available",
@@ -185,6 +199,7 @@ class InputEditableDocumentLifecycle:
         """Remove prior document state when the current session has no Input content."""
 
         if not self._archive_path.exists():
+            self._persisted_revision = self._document_revision
             return True
         try:
             self._archive_path.unlink()
@@ -196,6 +211,7 @@ class InputEditableDocumentLifecycle:
                 error=error,
             )
             return False
+        self._persisted_revision = self._document_revision
         log_debug(
             _LOGGER,
             "Removed stale editable Input document",

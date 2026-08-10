@@ -623,9 +623,7 @@ def test_source_selector_button_state_sets_tooltip_for_elided_text() -> None:
         full_text="Very long source label",
         display_text="Very long...",
         width=260,
-        source_tabs_collapsed=True,
-        tab_count=2,
-        active_scene_overview=False,
+        visible=True,
     ) == SourceSelectorButtonState(
         text="Very long...",
         tooltip="Very long source label",
@@ -634,39 +632,15 @@ def test_source_selector_button_state_sets_tooltip_for_elided_text() -> None:
     )
 
 
-def test_source_selector_button_state_hides_when_expanded_or_single_tab() -> None:
-    """Collapsed source selector state should hide outside compact multi-tab mode."""
+def test_source_selector_button_state_preserves_authoritative_visibility() -> None:
+    """Collapsed source selector state should preserve prepared visibility."""
 
     assert (
         source_selector_button_state(
             full_text="Text",
             display_text="Text",
             width=58,
-            source_tabs_collapsed=False,
-            tab_count=2,
-            active_scene_overview=False,
-        ).visible
-        is False
-    )
-    assert (
-        source_selector_button_state(
-            full_text="Text",
-            display_text="Text",
-            width=58,
-            source_tabs_collapsed=True,
-            tab_count=1,
-            active_scene_overview=False,
-        ).visible
-        is False
-    )
-    assert (
-        source_selector_button_state(
-            full_text="Text",
-            display_text="Text",
-            width=58,
-            source_tabs_collapsed=True,
-            tab_count=2,
-            active_scene_overview=True,
+            visible=False,
         ).visible
         is False
     )
@@ -679,6 +653,7 @@ def test_compare_source_button_state_sets_tooltip_for_elided_text() -> None:
         full_text="Very long comparison source",
         display_text="Very long...",
         width=260,
+        visible=True,
     ) == SourceSelectorButtonState(
         text="Very long...",
         tooltip="Very long comparison source",
@@ -687,18 +662,19 @@ def test_compare_source_button_state_sets_tooltip_for_elided_text() -> None:
     )
 
 
-def test_compare_source_button_state_stays_visible_without_tooltip() -> None:
-    """Compare source selector state should always keep the compare source visible."""
+def test_compare_source_button_state_preserves_hidden_visibility() -> None:
+    """Compare source selector state should preserve prepared visibility."""
 
     assert compare_source_button_state(
         full_text="Text",
         display_text="Text",
         width=58,
+        visible=False,
     ) == SourceSelectorButtonState(
         text="Text",
         tooltip="",
         width=58,
-        visible=True,
+        visible=False,
     )
 
 
@@ -712,9 +688,7 @@ def test_apply_source_selector_button_state_updates_button() -> None:
         full_text="Primary Source",
         display_text="Primary...",
         width=96,
-        source_tabs_collapsed=True,
-        tab_count=3,
-        active_scene_overview=False,
+        visible=True,
     )
 
     assert button_state == SourceSelectorButtonState(
@@ -739,6 +713,7 @@ def test_apply_compare_source_button_state_updates_button() -> None:
         full_text="Comparison Source",
         display_text="Comparison...",
         width=124,
+        visible=True,
     )
 
     assert button_state == SourceSelectorButtonState(
@@ -753,14 +728,12 @@ def test_apply_compare_source_button_state_updates_button() -> None:
     assert button.visible is True
 
 
-def test_set_selector_button_state_shows_active_set_for_multi_set_outputs() -> None:
-    """Set selector state should show the active set when multiple sets exist."""
+def test_set_selector_button_state_preserves_visible_state() -> None:
+    """Set selector state should preserve prepared visible state."""
 
     assert set_selector_button_state(
         active_set_index=3,
-        active_scene_overview=False,
-        set_count=4,
-        grid_available=False,
+        visible=True,
     ) == SetSelectorButtonState(text="3", visible=True)
 
 
@@ -772,9 +745,7 @@ def test_apply_set_selector_button_state_updates_button() -> None:
     button_state = apply_set_selector_button_state(
         button,
         active_set_index=2,
-        active_scene_overview=False,
-        set_count=3,
-        grid_available=False,
+        visible=True,
     )
 
     assert button_state == SetSelectorButtonState(text="2", visible=True)
@@ -792,7 +763,7 @@ def test_apply_scene_selector_button_state_updates_button() -> None:
         full_text="Wide Scene",
         display_text="Wide...",
         width=84,
-        scene_count=2,
+        visible=True,
     )
 
     assert button_state == SceneSelectorButtonState(
@@ -807,44 +778,33 @@ def test_apply_scene_selector_button_state_updates_button() -> None:
     assert button.visible is True
 
 
-def test_set_selector_button_state_shows_for_grid_available_single_set() -> None:
-    """Set selector state should show set zero access when a source grid exists."""
+def test_set_selector_button_state_preserves_visibility_for_set_one() -> None:
+    """Set selector state should preserve prepared visibility for any label."""
 
     assert set_selector_button_state(
         active_set_index=1,
-        active_scene_overview=False,
-        set_count=1,
-        grid_available=True,
+        visible=True,
     ) == SetSelectorButtonState(text="1", visible=True)
 
 
-def test_set_selector_button_state_hides_for_scene_overview_or_single_output() -> None:
-    """Set selector state should hide outside set or grid navigation contexts."""
+def test_set_selector_button_state_preserves_hidden_state() -> None:
+    """Set selector state should preserve prepared hidden state."""
 
     assert (
         set_selector_button_state(
             active_set_index=2,
-            active_scene_overview=True,
-            set_count=3,
-            grid_available=True,
-        ).visible
-        is False
-    )
-    assert (
-        set_selector_button_state(
-            active_set_index=1,
-            active_scene_overview=False,
-            set_count=1,
-            grid_available=False,
+            visible=False,
         ).visible
         is False
     )
 
 
-def test_compare_set_button_state_shows_set_when_multiple_sets_exist() -> None:
-    """Compare set selector state should show when comparison has multiple sets."""
+def test_compare_set_button_state_preserves_visible_state() -> None:
+    """Compare set selector state should preserve prepared visible state."""
 
-    assert compare_set_button_state(set_index=4, set_count=5) == SetSelectorButtonState(
+    assert compare_set_button_state(
+        set_index=4, visible=True
+    ) == SetSelectorButtonState(
         text="4",
         visible=True,
     )
@@ -858,7 +818,7 @@ def test_apply_compare_set_button_state_updates_button() -> None:
     button_state = apply_compare_set_button_state(
         button,
         set_index=3,
-        set_count=4,
+        visible=True,
     )
 
     assert button_state == SetSelectorButtonState(text="3", visible=True)
@@ -957,10 +917,12 @@ def test_sync_comparison_navigation_buttons_refreshes_each_selector() -> None:
     ]
 
 
-def test_compare_set_button_state_hides_for_single_set() -> None:
-    """Compare set selector state should hide without an alternate set choice."""
+def test_compare_set_button_state_preserves_hidden_state() -> None:
+    """Compare set selector state should preserve prepared hidden state."""
 
-    assert compare_set_button_state(set_index=1, set_count=1) == SetSelectorButtonState(
+    assert compare_set_button_state(
+        set_index=1, visible=False
+    ) == SetSelectorButtonState(
         text="1",
         visible=False,
     )
@@ -996,7 +958,7 @@ def test_compare_scene_button_state_sets_tooltip_for_elided_text() -> None:
         full_text="Very long comparison scene",
         display_text="Very long...",
         width=260,
-        scene_count=2,
+        visible=True,
     ) == SceneSelectorButtonState(
         text="Very long...",
         tooltip="Very long comparison scene",
@@ -1015,7 +977,7 @@ def test_apply_compare_scene_button_state_updates_button() -> None:
         full_text="Comparison Scene",
         display_text="Comparison...",
         width=112,
-        scene_count=3,
+        visible=True,
     )
 
     assert button_state == SceneSelectorButtonState(
@@ -1030,14 +992,14 @@ def test_apply_compare_scene_button_state_updates_button() -> None:
     assert button.visible is True
 
 
-def test_compare_scene_button_state_hides_for_single_scene() -> None:
-    """Compare scene selector state should hide without multiple scenes."""
+def test_compare_scene_button_state_preserves_hidden_visibility() -> None:
+    """Compare scene selector state should preserve prepared visibility."""
 
     assert compare_scene_button_state(
         full_text="All",
         display_text="All",
         width=58,
-        scene_count=1,
+        visible=False,
     ) == SceneSelectorButtonState(
         text="All",
         tooltip="",
@@ -1094,7 +1056,7 @@ def test_scene_selector_button_state_sets_tooltip_for_elided_text() -> None:
         full_text="Very long scene title",
         display_text="Very long...",
         width=260,
-        scene_count=3,
+        visible=True,
     ) == SceneSelectorButtonState(
         text="Very long...",
         tooltip="Very long scene title",
@@ -1103,14 +1065,14 @@ def test_scene_selector_button_state_sets_tooltip_for_elided_text() -> None:
     )
 
 
-def test_scene_selector_button_state_hides_for_single_scene_without_tooltip() -> None:
-    """Scene selector state should hide when there is no scene choice."""
+def test_scene_selector_button_state_preserves_hidden_visibility() -> None:
+    """Scene selector state should preserve prepared visibility."""
 
     assert scene_selector_button_state(
         full_text="Portrait",
         display_text="Portrait",
         width=92,
-        scene_count=1,
+        visible=False,
     ) == SceneSelectorButtonState(
         text="Portrait",
         tooltip="",

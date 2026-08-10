@@ -253,24 +253,16 @@ def test_refresh_tabbar_container_visibility_and_geometry() -> None:
     assert container.shown == 2
 
 
-def test_scene_chrome_requires_real_batch_alternatives() -> None:
-    """Scene and batch controls should hide when every scene has one result set."""
+def test_scene_chrome_depends_on_scene_count_independently_of_batches() -> None:
+    """Multiple scenes should expose scene navigation without requiring batches."""
 
     batchless = _scene_chrome_host(batch_count=1)
 
     _refresh_tabbar_container(batchless)
 
-    assert batchless.scene_selector_button.visible is False
+    assert batchless.scene_selector_button.visible is True
     assert batchless.set_selector_button.visible is False
-    assert batchless.tabbar_container.visible is False
-
-    batched = _scene_chrome_host(batch_count=2)
-
-    _refresh_tabbar_container(batched)
-
-    assert batched.scene_selector_button.visible is True
-    assert batched.set_selector_button.visible is False
-    assert batched.tabbar_container.visible is True
+    assert batchless.tabbar_container.visible is True
 
 
 def test_one_tile_grid_route_hides_batch_selector() -> None:

@@ -211,6 +211,7 @@ def test_progress_for_old_lifecycle_is_ignored_after_replacement() -> None:
         GenerationRunStarted(
             workflow_id="wf",
             generation_run_id="run-2",
+            output_session_id="run-2",
             prompt_id="pid-2",
             client_id="client-2",
         )
@@ -494,6 +495,7 @@ def test_completions_are_not_coalesced() -> None:
         GenerationRunStarted(
             workflow_id="wf-2",
             generation_run_id="run-2",
+            output_session_id="run-2",
             prompt_id="pid-2",
             client_id="client-2",
         )
@@ -559,6 +561,7 @@ def test_failure_discards_stale_preview_for_failed_workflow() -> None:
         GenerationRunStarted(
             workflow_id="other",
             generation_run_id="other-run",
+            output_session_id="other-run",
             prompt_id="other-pid",
             client_id="other-client",
         )
@@ -673,6 +676,7 @@ def test_requeue_stale_preview_is_dropped() -> None:
         GenerationRunStarted(
             workflow_id="wf",
             generation_run_id="run-2",
+            output_session_id="run-2",
             prompt_id="pid-2",
             client_id="client-2",
         )
@@ -951,6 +955,7 @@ def _run_started(
     return GenerationRunStarted(
         workflow_id=workflow_id,
         generation_run_id=generation_run_id,
+        output_session_id=generation_run_id,
         prompt_id=prompt_id,
         client_id=client_id,
     )

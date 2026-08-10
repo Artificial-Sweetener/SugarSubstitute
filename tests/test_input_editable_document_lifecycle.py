@@ -79,7 +79,7 @@ class _Document:
         )
 
 
-def test_lifecycle_persists_before_session_and_restores_only_once(
+def test_lifecycle_skips_current_archive_and_restores_only_once(
     tmp_path: Path,
 ) -> None:
     """Repeated erratic restore requests should install an archive exactly once."""
@@ -92,10 +92,12 @@ def test_lifecycle_persists_before_session_and_restores_only_once(
         archive_path=archive,
     )
 
-    assert lifecycle.save_before_session_snapshot()
+    prepared = lifecycle.prepare_session_persistence()
+    prepared.persist()
     assert lifecycle.restore_before_workspace_assets()
     assert lifecycle.restore_before_workspace_assets()
-    assert document.saved == [archive]
+    assert document.prepared == [archive]
+    assert document.saved == []
     assert document.restored == [archive]
     assert lifecycle.restored_composition_ids == document.composition_ids
 
@@ -113,7 +115,14 @@ def test_lifecycle_fails_closed_and_removes_stale_empty_state(
         document=document,
         archive_path=archive,
     )
-    assert lifecycle.save_before_session_snapshot() is False
+    lifecycle.mark_changed()
+    failed_save = lifecycle.prepare_session_persistence()
+    try:
+        failed_save.persist()
+    except OSError as error:
+        assert str(error) == "disk full"
+    else:
+        raise AssertionError("expected the fixture archive write to fail")
     assert archive.exists()
 
     empty_document = _Document(content=False)
@@ -121,7 +130,7 @@ def test_lifecycle_fails_closed_and_removes_stale_empty_state(
         document=empty_document,
         archive_path=archive,
     )
-    assert empty_lifecycle.save_before_session_snapshot()
+    empty_lifecycle.prepare_session_persistence().persist()
     assert not archive.exists()
 
 
@@ -142,6 +151,78 @@ def test_lifecycle_prepares_document_without_writing_until_background_phase(
     assert document.prepared == [archive]
     assert document.saved == []
     prepared.persist()
+    assert document.saved == [archive]
+
+
+def test_lifecycle_skips_redundant_archive_after_successful_persistence(
+    tmp_path: Path,
+) -> None:
+    """Do not rewrite an unchanged large archive at autosave or shutdown."""
+
+    archive = tmp_path / "input.ccanvas"
+    document = _Document()
+    lifecycle = InputEditableDocumentLifecycle(
+        document=document,
+        archive_path=archive,
+    )
+
+    lifecycle.mark_changed()
+    lifecycle.prepare_session_persistence().persist()
+    archive.write_bytes(b"persisted archive")
+    lifecycle.prepare_session_persistence().persist()
+
+    assert document.prepared == [archive, archive]
+    assert document.saved == [archive]
+
+
+def test_lifecycle_retry_remains_dirty_after_failed_archive_persistence(
+    tmp_path: Path,
+) -> None:
+    """Retry the same document revision when its first archive write fails."""
+
+    archive = tmp_path / "input.ccanvas"
+    document = _Document()
+    lifecycle = InputEditableDocumentLifecycle(
+        document=document,
+        archive_path=archive,
+    )
+    lifecycle.mark_changed()
+    document.save_error = OSError("disk full")
+
+    with_error = lifecycle.prepare_session_persistence()
+    try:
+        with_error.persist()
+    except OSError:
+        pass
+    else:
+        raise AssertionError("expected the fixture archive write to fail")
+    document.save_error = None
+    lifecycle.prepare_session_persistence().persist()
+
+    assert document.prepared == [archive, archive]
+    assert document.saved == [archive, archive]
+
+
+def test_lifecycle_coalesces_two_prepared_saves_for_one_revision(
+    tmp_path: Path,
+) -> None:
+    """Let the first queued archive make an equivalent second capture redundant."""
+
+    archive = tmp_path / "input.ccanvas"
+    document = _Document()
+    lifecycle = InputEditableDocumentLifecycle(
+        document=document,
+        archive_path=archive,
+    )
+    lifecycle.mark_changed()
+
+    first = lifecycle.prepare_session_persistence()
+    second = lifecycle.prepare_session_persistence()
+    first.persist()
+    archive.write_bytes(b"persisted archive")
+    second.persist()
+
+    assert document.prepared == [archive, archive]
     assert document.saved == [archive]
 
 

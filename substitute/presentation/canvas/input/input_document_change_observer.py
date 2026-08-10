@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Protocol
 
 
@@ -30,21 +30,22 @@ class SignalPort(Protocol):
 
 
 class InputDocumentChangeObserver:
-    """Observe durable mask edits without flattening the in-memory document."""
+    """Observe durable Input edits without flattening the in-memory document."""
 
     def __init__(
         self,
         *,
-        changed: SignalPort,
+        changes: Iterable[SignalPort],
         active_workflow_id: Callable[[], str],
         mark_workflow_changed: Callable[[str], None],
         request_autosave: Callable[[], None],
     ) -> None:
-        """Bind one document signal to workflow invalidation and persistence."""
+        """Bind durable document signals to invalidation and persistence."""
         self._active_workflow_id = active_workflow_id
         self._mark_workflow_changed = mark_workflow_changed
         self._request_autosave = request_autosave
-        changed.connect(self._document_changed)
+        for changed in changes:
+            changed.connect(self._document_changed)
 
     def _document_changed(self, *_args: object) -> None:
         """Persist the authoritative document after one durable edit."""

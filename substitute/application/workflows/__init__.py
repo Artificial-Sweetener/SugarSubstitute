@@ -66,6 +66,9 @@ if TYPE_CHECKING:
     from substitute.application.workflows.input_canvas_capability_service import (
         InputCanvasCapabilityService,
     )
+    from substitute.application.workflows.input_canvas_interaction_profile_service import (
+        InputCanvasInteractionProfileService,
+    )
     from substitute.application.workflows.input_asset_endpoint_service import (
         InputAssetEndpointService,
     )
@@ -93,6 +96,18 @@ if TYPE_CHECKING:
         OutputCanvasProjectionCoordinator,
         OutputProjectionContentSynchronizer,
     )
+    from substitute.application.workflows.output_canvas_focus_service import (
+        OutputCanvasFocusService,
+        OutputFocusMutationResult,
+        OutputFocusSnapshot,
+    )
+    from substitute.application.workflows.output_generated_result_service import (
+        OutputGeneratedResultService,
+    )
+    from substitute.application.workflows.output_navigation_session_service import (
+        OutputNavigationSessionService,
+        OutputNavigationSessionState,
+    )
     from substitute.application.workflows.output_canvas_session import (
         OutputCanvasSession,
         OutputCanvasSessionBoundary,
@@ -106,12 +121,13 @@ if TYPE_CHECKING:
     )
     from substitute.application.workflows.output_canvas_state_service import (
         OutputCanvasStateService,
-        OutputFocusMutationResult,
-        OutputFocusSnapshot,
         OutputImageRegistrationResult,
         OutputPreviewCloseIdentity,
         OutputProjectionSchedulingIntent,
         OutputPruneResult,
+    )
+    from substitute.application.workflows.output_canvas_timing_service import (
+        OutputCanvasTimingService,
         OutputTimingUpdateResult,
     )
     from substitute.application.workflows.output_compare_resolution import (
@@ -278,6 +294,9 @@ _EXPORT_MODULES = {
     "InputCanvasCapabilityService": (
         "substitute.application.workflows.input_canvas_capability_service"
     ),
+    "InputCanvasInteractionProfileService": (
+        "substitute.application.workflows.input_canvas_interaction_profile_service"
+    ),
     "InputCanvasStateService": (
         "substitute.application.workflows.input_canvas_state_service"
     ),
@@ -329,6 +348,9 @@ _EXPORT_MODULES = {
     "OutputCanvasStateService": (
         "substitute.application.workflows.output_canvas_state_service"
     ),
+    "OutputCanvasTimingService": (
+        "substitute.application.workflows.output_canvas_timing_service"
+    ),
     "OutputSceneNavigationSelection": (
         "substitute.application.workflows.output_scene_navigation_selection"
     ),
@@ -347,10 +369,22 @@ _EXPORT_MODULES = {
     "OutputCompareSelection": ("substitute.application.workflows.output_compare_state"),
     "OutputCompareState": "substitute.application.workflows.output_compare_state",
     "OutputFocusMutationResult": (
-        "substitute.application.workflows.output_canvas_state_service"
+        "substitute.application.workflows.output_canvas_focus_service"
     ),
     "OutputFocusSnapshot": (
-        "substitute.application.workflows.output_canvas_state_service"
+        "substitute.application.workflows.output_canvas_focus_service"
+    ),
+    "OutputCanvasFocusService": (
+        "substitute.application.workflows.output_canvas_focus_service"
+    ),
+    "OutputGeneratedResultService": (
+        "substitute.application.workflows.output_generated_result_service"
+    ),
+    "OutputNavigationSessionService": (
+        "substitute.application.workflows.output_navigation_session_service"
+    ),
+    "OutputNavigationSessionState": (
+        "substitute.application.workflows.output_navigation_session_service"
     ),
     "OutputImageRegistrationResult": (
         "substitute.application.workflows.output_canvas_state_service"
@@ -391,7 +425,7 @@ _EXPORT_MODULES = {
         "substitute.application.workflows.output_scene_run_service"
     ),
     "OutputTimingUpdateResult": (
-        "substitute.application.workflows.output_canvas_state_service"
+        "substitute.application.workflows.output_canvas_timing_service"
     ),
     "OutputVisualIdentity": "substitute.application.workflows.output_visual_events",
     "PreviewNodeIdentity": "substitute.application.workflows.output_visual_events",
@@ -539,6 +573,7 @@ __all__ = [
     "InputAssetEndpointService",
     "InputCanvasMaterializationResult",
     "InputCanvasCapabilityService",
+    "InputCanvasInteractionProfileService",
     "InputCanvasPlanService",
     "InputCanvasStateService",
     "LoadedInputCanvasImageIdentityResolution",
@@ -558,11 +593,16 @@ __all__ = [
     "OutputCanvasImageItem",
     "OutputCanvasProjection",
     "OutputCanvasProjectionCoordinator",
+    "OutputCanvasFocusService",
     "OutputCanvasSceneGroup",
     "OutputCanvasSession",
     "OutputCanvasSessionBoundary",
     "OutputCanvasSourceGroup",
     "OutputCanvasStateService",
+    "OutputCanvasTimingService",
+    "OutputGeneratedResultService",
+    "OutputNavigationSessionService",
+    "OutputNavigationSessionState",
     "OutputSceneNavigationSelection",
     "allowed_output_composition_ids",
     "allowed_output_image_ids",

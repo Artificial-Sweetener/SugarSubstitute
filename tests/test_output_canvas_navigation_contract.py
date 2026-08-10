@@ -24,8 +24,11 @@ from uuid import uuid4
 import pytest
 
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
-from substitute.application.workflows.output_canvas_state_service import (
-    OutputCanvasStateService,
+from substitute.application.workflows.output_canvas_focus_service import (
+    OutputCanvasFocusService,
+)
+from substitute.application.workflows.output_navigation_session_service import (
+    OutputNavigationSessionService,
 )
 from substitute.application.workflows.output_scene_navigation_selection import (
     OutputSceneNavigationSelection,
@@ -242,7 +245,11 @@ def test_scene_batch_source_drilldown_sequence_preserves_route_contract() -> Non
     registry = CanvasImageRegistry()
     for image_id, metadata in fixture.metadata_by_id.items():
         registry.store(image_id, payload=None, metadata=metadata)
-    state = OutputCanvasStateService(image_registry=registry)
+    focus = OutputCanvasFocusService(image_registry=registry)
+    OutputNavigationSessionService().mark_user_navigation(
+        fixture.workflow_id,
+        fixture.workflow,
+    )
 
     overview = assert_output_navigation_contract(fixture)
     scenes = OutputCanvasRouteModel.scene_groups_by_key(
@@ -258,7 +265,7 @@ def test_scene_batch_source_drilldown_sequence_preserves_route_contract() -> Non
     assert activation is not None
     assert activation.followup == "activate_grid"
     assert activation.active_source_key is not None
-    state.set_active_output_scene(
+    focus.set_active_output_scene(
         fixture.workflow,
         OutputSceneNavigationSelection(
             scene_key="night",
@@ -274,19 +281,19 @@ def test_scene_batch_source_drilldown_sequence_preserves_route_contract() -> Non
     assert scene_grid.projection.active_scene_key == "night"
 
     selected_id = fixture.image_id("night", activation.active_source_key, 2)
-    assert state.set_active_output_uuid(fixture.workflow, str(selected_id)) is not None
+    assert focus.set_active_output_uuid(fixture.workflow, str(selected_id)) is not None
 
     concrete = assert_output_navigation_contract(fixture)
     assert concrete.projection.active_uuid == selected_id
     assert concrete.projection.active_set_index == 2
 
-    state.set_active_output_grid(fixture.workflow, "upscale", "night")
+    focus.set_active_output_grid(fixture.workflow, "upscale", "night")
 
     alternate_grid = assert_output_navigation_contract(fixture)
     assert alternate_grid.projection.active_source_key == "upscale"
     assert alternate_grid.projection.active_set_index == 0
 
-    state.set_active_output_scene(
+    focus.set_active_output_scene(
         fixture.workflow,
         OutputSceneNavigationSelection(
             scene_key=None,

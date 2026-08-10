@@ -98,7 +98,6 @@ def _bindings() -> GenerationUiBindings:
     return GenerationUiBindings(
         build_generation_request=lambda: cast(Any, None),
         randomize_seeds=lambda: None,
-        clear_output_for_workflow=lambda _workflow_id: None,
         on_progress=lambda _progress: None,
         on_model_load_progress=lambda _progress: None,
         on_preview=lambda _preview: None,

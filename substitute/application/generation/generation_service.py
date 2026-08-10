@@ -46,9 +46,7 @@ from substitute.application.ports.comfy_gateway import (
     ListenerOutputSource,
     ListenerSessionConnectRequest,
     ListenerStartRequest,
-    OutputImageUpdate,
     OutputSavePlan,
-    PreviewImageUpdate,
 )
 from substitute.application.recipes.recipe_io_service import (
     RecipeIoService,
@@ -557,11 +555,6 @@ class GenerationService:
         )
 
         handle_box: dict[str, ListenerHandle | None] = {"value": None}
-        visual_callbacks = self._defer_clear_until_first_visual(
-            workflow_id=request.workflow_id,
-            generation_run_id=generation_run_id,
-            callbacks=callbacks,
-        )
 
         def on_listener_failed(event: ListenerFailure) -> None:
             callbacks.on_failure(
@@ -590,8 +583,8 @@ class GenerationService:
         listener_callbacks = ListenerCallbacks(
             on_progress=callbacks.on_progress,
             on_model_load_progress=callbacks.on_model_load_progress,
-            on_preview=visual_callbacks.on_preview,
-            on_output_image=visual_callbacks.on_output_image,
+            on_preview=callbacks.on_preview,
+            on_output_image=callbacks.on_output_image,
             on_failed=on_listener_failed,
             on_timing=callbacks.on_timing,
             on_completed=on_listener_completed,
@@ -601,6 +594,7 @@ class GenerationService:
                 GenerationRunStarted(
                     workflow_id=request.workflow_id,
                     generation_run_id=generation_run_id,
+                    output_session_id=request.scene_run_id or generation_run_id,
                     prompt_id=prompt_id,
                     client_id=run_client_id,
                 )
@@ -688,53 +682,6 @@ class GenerationService:
         """Return the Comfy sid used by the websocket and queue request for a run."""
 
         return f"{self._client_id}:{generation_run_id}"
-
-    @staticmethod
-    def _defer_clear_until_first_visual(
-        *,
-        workflow_id: WorkflowId,
-        generation_run_id: str,
-        callbacks: GenerationCallbacks,
-    ) -> GenerationCallbacks:
-        """Clear prior output only when the new run produces its first visual event."""
-
-        cleared = False
-
-        def clear_once() -> None:
-            nonlocal cleared
-            if cleared:
-                return
-            cleared = True
-            callbacks.clear_output(workflow_id)
-
-        def on_preview(event: PreviewImageUpdate) -> None:
-            if (
-                event.workflow_id == workflow_id
-                and event.generation_run_id == generation_run_id
-            ):
-                clear_once()
-            callbacks.on_preview(event)
-
-        def on_output_image(event: OutputImageUpdate) -> None:
-            if (
-                event.workflow_id == workflow_id
-                and event.generation_run_id == generation_run_id
-            ):
-                clear_once()
-            callbacks.on_output_image(event)
-
-        return GenerationCallbacks(
-            clear_output=callbacks.clear_output,
-            on_run_started=callbacks.on_run_started,
-            on_progress=callbacks.on_progress,
-            on_model_load_progress=callbacks.on_model_load_progress,
-            on_preview=on_preview,
-            on_output_image=on_output_image,
-            on_failure=callbacks.on_failure,
-            on_timing=callbacks.on_timing,
-            randomize_seeds=callbacks.randomize_seeds,
-            on_completed=callbacks.on_completed,
-        )
 
     @staticmethod
     def _notify_failure(

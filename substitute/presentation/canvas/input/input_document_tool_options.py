@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Protocol, cast
 from uuid import UUID
 
-from PySide6.QtCore import QRect, QRectF, QSize
+from PySide6.QtCore import QObject, QRect, QRectF, QSize, Signal
 from PySide6.QtGui import QColor, QImage
 from cutecanvas import (
     BrushPreset,
@@ -45,8 +45,12 @@ class ToolOptionsSignalPort(Protocol):
         """Publish one options-state change."""
 
 
-class InputDocumentToolOptions:
+class InputDocumentToolOptions(QObject):
     """Own the Input toolbar's focused CuteCanvas option operations."""
+
+    maskLayersChanged = Signal()
+    brushContextChanged = Signal()
+    editorContextChanged = Signal()
 
     def __init__(
         self,
@@ -54,9 +58,11 @@ class InputDocumentToolOptions:
         canvas: CuteCanvas,
         brush_preset_changed: ToolOptionsSignalPort,
         mask_content_changed: ToolOptionsSignalPort,
-        tool_context_changed: ToolOptionsSignalPort,
+        parent: QObject,
     ) -> None:
         """Bind the editor surface and host-owned context signals."""
+
+        super().__init__(parent)
         self._canvas = canvas
         self.brushPresetChanged = brush_preset_changed
         self.maskContentChanged = mask_content_changed
@@ -88,7 +94,38 @@ class InputDocumentToolOptions:
             ToolOptionsSignalPort,
             canvas.layerEdgeModificationCompleted,
         )
-        self.toolContextChanged = tool_context_changed
+
+    def publish_composition_changed(self) -> None:
+        """Publish every presentation concern affected by active composition."""
+
+        self.maskLayersChanged.emit()
+        self.brushContextChanged.emit()
+        self.editorContextChanged.emit()
+
+    def publish_active_mask_changed(self) -> None:
+        """Publish presentation state derived from the active mask."""
+
+        self.maskLayersChanged.emit()
+        self.brushContextChanged.emit()
+        self.editorContextChanged.emit()
+
+    def publish_mask_inventory_changed(self) -> None:
+        """Publish a changed mask collection and dependent editor state."""
+
+        self.maskLayersChanged.emit()
+        self.brushContextChanged.emit()
+        self.editorContextChanged.emit()
+
+    def publish_mask_properties_changed(self) -> None:
+        """Publish changed mask presentation without implying new inventory."""
+
+        self.maskLayersChanged.emit()
+        self.brushContextChanged.emit()
+
+    def publish_mask_content_changed(self) -> None:
+        """Publish editor policy affected by changed active-layer pixels."""
+
+        self.editorContextChanged.emit()
 
     def active_mask_id(self) -> UUID | None:
         """Return the authoritative active mask identity."""
@@ -266,8 +303,6 @@ class InputDocumentToolOptions:
     def set_active_mask_id(self, mask_id: UUID) -> bool:
         """Activate one mask and notify contextual canvas consumers."""
         changed = bool(self._canvas.setActiveMaskID(mask_id))
-        if changed:
-            self.toolContextChanged.emit()
         return changed
 
     def begin_mask_edge_preview(self, mask_id: UUID) -> UUID | None:

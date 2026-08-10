@@ -219,8 +219,11 @@ class RealShellInputEditorHarness:
     def save_editable_document(self) -> Path:
         """Persist the complete editable Input document through shell lifecycle."""
         lifecycle = self.shell.input_editable_document_lifecycle
-        if not lifecycle.save_before_session_snapshot():
-            raise RuntimeError("Production Input document persistence failed")
+        lifecycle.prepare_session_persistence().persist()
+        if not lifecycle.archive_path.is_file():
+            raise RuntimeError(
+                "Production Input document persistence produced no archive"
+            )
         return cast(Path, lifecycle.archive_path)
 
     def process_events(self, cycles: int = 4) -> None:
