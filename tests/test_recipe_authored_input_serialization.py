@@ -176,3 +176,89 @@ def test_recipe_serialization_preserves_declared_ordered_mask_lists() -> None:
     ).serialize_workflow_to_sugar_script(workflow)
 
     assert 'set Region.load_mask_batch.image = ["first.png", "second.png"]' in script
+
+
+def test_recipe_serialization_preserves_widget_backed_subgraph_inputs() -> None:
+    """A visible subgraph widget must reach Sugar even without a surface entry."""
+
+    sampler: JsonObject = {
+        "cube_id": "test/text-to-image.cube",
+        "version": "1.0.0",
+        "nodes": {
+            "ksampler": {
+                "class_type": "subgraph-ksampler",
+                "label": "KSampler",
+                "inputs": {
+                    "model": ["checkpoint", 0],
+                    "batch_size": 2,
+                },
+            },
+            "checkpoint": {
+                "class_type": "TestCheckpoint",
+                "inputs": {},
+            },
+        },
+        "inputs": {},
+        "outputs": {"output.image": "ksampler"},
+        "surface": {"default_flavor_id": "default", "controls": []},
+        "subgraphs": [
+            {
+                "id": "subgraph-ksampler",
+                "inputs": [
+                    {"name": "model", "linkIds": [10], "type": "MODEL"},
+                    {"name": "batch_size", "linkIds": [11], "type": "INT"},
+                ],
+                "links": [
+                    {
+                        "id": 10,
+                        "origin_id": -10,
+                        "origin_slot": 0,
+                        "target_id": 2,
+                        "target_slot": 0,
+                        "type": "MODEL",
+                    },
+                    {
+                        "id": 11,
+                        "origin_id": -10,
+                        "origin_slot": 1,
+                        "target_id": 3,
+                        "target_slot": 0,
+                        "type": "INT",
+                    },
+                ],
+                "nodes": [
+                    {
+                        "id": 2,
+                        "inputs": [
+                            {"name": "model", "link": 10, "type": "MODEL"},
+                        ],
+                    },
+                    {
+                        "id": 3,
+                        "inputs": [
+                            {
+                                "name": "batch_size",
+                                "link": 11,
+                                "type": "INT",
+                                "widget": {"name": "batch_size"},
+                            },
+                        ],
+                    },
+                ],
+            }
+        ],
+    }
+    workflow = SimpleNamespace(
+        stack_order=["Image"],
+        cubes={"Image": _cube_state("Image", sampler)},
+        global_overrides={},
+        global_override_selections={},
+        override_control_states={},
+    )
+
+    script = RecipeIoService(
+        recipe_repository=_UnusedRecipeRepository()
+    ).serialize_workflow_to_sugar_script(workflow)
+
+    assert "set Image.KSampler.batch_size = 2" in script
+    assert "set Image.KSampler.model" not in script

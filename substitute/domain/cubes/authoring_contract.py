@@ -22,6 +22,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TypeGuard
 
+from .subgraph_authoring_fields import widget_backed_subgraph_fields
+
 
 class CubeAuthoringContractError(ValueError):
     """Reject cube graphs whose authored-input ownership is ambiguous."""
@@ -85,6 +87,12 @@ class CubeAuthoringContract:
                 "Cube inputs cannot be both surface-authored and boundary-owned: "
                 f"{formatted}."
             )
+        for node_key, input_key in widget_backed_subgraph_fields(graph):
+            field = CubeInputField(node_key=node_key, input_key=input_key)
+            if field in seen_fields or field in boundary_fields:
+                continue
+            seen_fields.add(field)
+            authored_fields.append(field)
         return cls(authored_fields=tuple(authored_fields))
 
 
