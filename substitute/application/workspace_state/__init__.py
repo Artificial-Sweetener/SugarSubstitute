@@ -28,12 +28,21 @@ from substitute.application.workspace_state.initial_restore_plan import (
     InitialWorkspaceRestorePlanService,
 )
 from substitute.application.workspace_state.session_autosave_service import (
-    SessionCaptureServiceProtocol,
     SessionAutosaveService,
+)
+from substitute.application.workspace_state.session_finalization_service import (
+    SessionFinalizationReason,
+    SessionFinalizationService,
 )
 from substitute.application.workspace_state.session_persistence import (
     PreparedSessionPersistence,
     SessionPersistenceParticipant,
+)
+from substitute.application.workspace_state.session_save_service import (
+    PreparedSessionSave,
+    SessionCaptureServiceProtocol,
+    SessionSaveResult,
+    SessionSaveService,
 )
 from substitute.application.workspace_state.snapshot_capture_service import (
     SnapshotCapturePort,
@@ -134,7 +143,12 @@ __all__ = [
     "SnapshotRestoreResult",
     "SessionCaptureServiceProtocol",
     "SessionAutosaveService",
+    "SessionFinalizationReason",
+    "SessionFinalizationService",
     "PreparedSessionPersistence",
+    "PreparedSessionSave",
+    "SessionSaveResult",
+    "SessionSaveService",
     "SessionPersistenceParticipant",
     "SnapshotCapturePort",
     "SnapshotCaptureService",

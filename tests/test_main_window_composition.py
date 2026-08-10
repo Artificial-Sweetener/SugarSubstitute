@@ -281,18 +281,12 @@ class _FakeSignal(_Signal):
 
 
 class _FakeInputCanvasToolController:
-    """Capture contextual canvas-tool controller wiring inputs."""
+    """Capture canvas-tool activation controller wiring inputs."""
 
     def __init__(self, **kwargs: object) -> None:
         """Store constructor keyword arguments for assertions."""
 
         self.kwargs = kwargs
-        self.refresh_calls = 0
-
-    def refresh_tool_context(self) -> None:
-        """Record one context refresh."""
-
-        self.refresh_calls += 1
 
     def synchronize_native_tool(self, _tool_id: str) -> None:
         """Accept native mode synchronization wiring."""
@@ -301,6 +295,45 @@ class _FakeInputCanvasToolController:
         """Accept requested tool wiring."""
 
         return True
+
+
+class _FakeInputCanvasInteractionProfileService:
+    """Capture workflow interaction-profile service wiring."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store constructor dependencies for assertions."""
+
+        self.kwargs = kwargs
+
+    def profile_for(self, _workflow: object, _image_id: object) -> object:
+        """Return an inert profile value for captured controller wiring."""
+
+        return object()
+
+
+class _FakeInputCanvasToolProfileController:
+    """Capture workflow-aware Input tool projection wiring."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store constructor dependencies and initialize refresh history."""
+
+        self.kwargs = kwargs
+        self.refresh_calls = 0
+
+    def refresh_document_context(self) -> bool:
+        """Record one document-context projection refresh."""
+
+        self.refresh_calls += 1
+        return True
+
+    def refresh_workflow_profile(self) -> bool:
+        """Record one workflow-profile projection refresh."""
+
+        self.refresh_calls += 1
+        return True
+
+    def close(self) -> None:
+        """Accept Input surface teardown wiring."""
 
 
 class _FakeInputCanvasShellAdapter:
@@ -613,6 +646,7 @@ def _dependencies() -> SimpleNamespace:
         "output_preference_service",
         "session_snapshot_repository",
         "session_autosave_service",
+        "session_finalization_service",
         "execution_runtime",
         "settings_task_runner_factory",
         "editor_panel_execution_factories",
@@ -908,6 +942,29 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     )
     monkeypatch.setattr(
         input_canvas_composition,
+        "InputCanvasInteractionProfileService",
+        _FakeInputCanvasInteractionProfileService,
+    )
+    monkeypatch.setattr(
+        input_canvas_composition,
+        "InputCanvasToolProfileController",
+        _FakeInputCanvasToolProfileController,
+    )
+    monkeypatch.setattr(
+        input_canvas_composition,
+        "InputSharedEdgeResizePolicy",
+        lambda _canvas, *, parent: SimpleNamespace(parent=parent),
+    )
+    monkeypatch.setattr(
+        input_canvas_composition,
+        "InputSceneMappingChanges",
+        lambda _canvas, *, parent: SimpleNamespace(
+            parent=parent,
+            changed=_FakeSignal(),
+        ),
+    )
+    monkeypatch.setattr(
+        input_canvas_composition,
         "InputCanvasShellAdapter",
         _FakeInputCanvasShellAdapter,
     )
@@ -959,8 +1016,16 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         "create_input_canvas_tool_system",
         lambda: runtime,
     )
+    tool_context_changed = _FakeSignal()
+    activate_transform = object()
+    tool_context = SimpleNamespace(
+        changed=tool_context_changed,
+        activate_transform=activate_transform,
+    )
+    current_canvas_operation = object()
     document = SimpleNamespace(
         set_canvas_operation=object(),
+        current_canvas_operation=current_canvas_operation,
         export_mask_image=object(),
         generation_capture=SimpleNamespace(capture=object()),
         editable_persistence=object(),
@@ -969,12 +1034,15 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
             clear_selected_pixels=lambda: True,
         ),
         preview_bindings=object(),
-        toolContextChanged=_FakeSignal(),
+        tool_context=tool_context,
         canvasToolChanged=_FakeSignal(),
         maskContentChanged=_FakeSignal(),
         activeMaskChanged=_FakeSignal(),
     )
-    document.canvas = SimpleNamespace(sceneEditHistoryChanged=_FakeSignal())
+    document.canvas = SimpleNamespace(
+        sceneEditHistoryChanged=_FakeSignal(),
+        compositionChanged=_FakeSignal(),
+    )
     current_image_id_for_event = object()
     bound_runtimes: list[tuple[object, object]] = []
     input_canvas = SimpleNamespace(
@@ -984,8 +1052,8 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         bind_tool_runtime=lambda runtime, layout: bound_runtimes.append(
             (runtime, layout)
         ),
-        toolContextRefreshRequested=_FakeSignal(),
         toolRequested=_FakeSignal(),
+        destroyed=_FakeSignal(),
     )
     shell = SimpleNamespace(
         canvas_host=SimpleNamespace(
@@ -997,7 +1065,10 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         input_canvas_state_service=object(),
         canvas_io_service=object(),
         workflow_asset_service=object(),
-        workflow_session_service=SimpleNamespace(active_workflow_id="workflow-a"),
+        workflow_session_service=SimpleNamespace(
+            active_workflow_id="workflow-a",
+            workflows={"workflow-a": object()},
+        ),
         path_bundle=SimpleNamespace(
             projects_dir="E:\\projects",
             session_dir="E:\\session",
@@ -1034,12 +1105,25 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         "graph_section_service": shell.graph_section_service,
     }
     assert shell.input_canvas_tool_controller.kwargs == {
-        "input_document": document,
+        "transform_activator": activate_transform,
         "operation_setter": document.set_canvas_operation,
-        "current_image_id_provider": current_image_id_for_event,
+        "current_operation_provider": current_canvas_operation,
         "runtime": runtime,
         "layout": bound_runtimes[0][1],
     }
+    profile_kwargs = shell.input_canvas_tool_profile_controller.kwargs
+    assert profile_kwargs["document_context"] is tool_context
+    assert (
+        profile_kwargs["active_workflow"]()
+        is (shell.workflow_session_service.workflows["workflow-a"])
+    )
+    profile_callback = profile_kwargs["interaction_profile"]
+    assert isinstance(
+        getattr(profile_callback, "__self__", None),
+        _FakeInputCanvasInteractionProfileService,
+    )
+    assert profile_kwargs["palette"] is palette
+    assert profile_kwargs["activation"] is shell.input_canvas_tool_controller
     assert bound_runtimes[0][0] is runtime
     assert [
         getattr(contribution, "tool_id")
@@ -1048,19 +1132,19 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         InputCanvasToolId.DESELECT,
         InputCanvasToolId.CLEAR_SELECTION_PIXELS,
     ]
-    assert document.toolContextChanged.connected == [
-        shell.input_canvas_tool_controller.refresh_tool_context
+    assert tool_context_changed.connected == [
+        shell.input_canvas_tool_profile_controller.refresh_document_context
     ]
     assert document.canvasToolChanged.connected == [
         shell.input_canvas_tool_controller.synchronize_native_tool
     ]
-    assert input_canvas.toolContextRefreshRequested.connected == [
-        shell.input_canvas_tool_controller.refresh_tool_context
+    assert input_canvas.destroyed.connected == [
+        shell.input_canvas_tool_profile_controller.close
     ]
     assert input_canvas.toolRequested.connected == [
         shell.input_canvas_tool_controller.request_tool
     ]
-    assert shell.input_canvas_tool_controller.refresh_calls == 1
+    assert shell.input_canvas_tool_profile_controller.refresh_calls == 1
     assert shell.input_canvas_shell_adapter.shell is shell
     assert shell.input_canvas_presenter.kwargs["input_document"] is document
     assert (
@@ -1076,7 +1160,10 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         is shell.input_canvas_shell_adapter.mark_input_canvas_changed
     )
     assert shell.input_document_change_observer.kwargs == {
-        "changed": document.maskContentChanged,
+        "changes": (
+            document.maskContentChanged,
+            composition.input_scene_mapping_changes.changed,
+        ),
         "active_workflow_id": (
             shell.input_document_change_observer.kwargs["active_workflow_id"]
         ),

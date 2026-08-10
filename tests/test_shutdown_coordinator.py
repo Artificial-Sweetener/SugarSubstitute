@@ -22,9 +22,11 @@ from dataclasses import dataclass
 import threading
 from time import monotonic, sleep
 from collections.abc import Callable, Iterator
-from typing import Protocol, TypeVar
+from types import SimpleNamespace
+from typing import Protocol, TypeVar, cast
 
 import pytest
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.app.bootstrap.execution_runtime import (
@@ -37,7 +39,14 @@ from substitute.app.bootstrap.lifecycle import (
 )
 from substitute.app.bootstrap import shutdown_coordinator as shutdown_module
 from substitute.app.bootstrap.shutdown_coordinator import ShutdownCoordinator
+from substitute.app.bootstrap.shutdown_finalization_operation import (
+    ShutdownFinalizationOperation,
+)
 from substitute.application.execution import TaskSubmitter
+from substitute.application.workspace_state import (
+    PreparedSessionSave,
+    SessionSaveResult,
+)
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
 
 TDialog = TypeVar("TDialog")
@@ -289,7 +298,7 @@ def test_shutdown_coordinator_runs_before_cleanup_hook_before_task(
         app=app,
         cleanup=cleanup,
         cleanup_submitter=cleanup_submitter,
-        before_cleanup=lambda: events.append("before_cleanup"),
+        before_cleanup=lambda _parent: events.append("before_cleanup"),
         progress_dialog_factory=lambda _parent: _FakeProgressDialog([]),
         recovery_dialog_factory=lambda _parent: _FakeRecoveryDialog([]),
     )
@@ -298,6 +307,82 @@ def test_shutdown_coordinator_runs_before_cleanup_hook_before_task(
     _wait_for(lambda: app.quit_calls == 1, qt_app)
 
     assert events == ["before_cleanup", "cleanup"]
+
+
+def test_shutdown_keeps_qt_responsive_while_terminal_persistence_blocks(
+    cleanup_submitter: TaskSubmitter,
+) -> None:
+    """Move slow terminal persistence off the Qt owner thread."""
+
+    qt_app = QApplication.instance() or QApplication([])
+    app = _FakeApp()
+    source_shell = QWidget()
+    persistence_started = threading.Event()
+    release_persistence = threading.Event()
+    heartbeat: list[str] = []
+    events: list[str] = []
+    prepared = cast(
+        PreparedSessionSave,
+        SimpleNamespace(
+            snapshot=SimpleNamespace(workspace=SimpleNamespace(workflows=())),
+            prerequisites=(),
+        ),
+    )
+
+    def prepare(source: object | None) -> PreparedSessionSave:
+        """Capture from the exact shell without file I/O."""
+
+        assert source is source_shell
+        events.append("prepare")
+        return prepared
+
+    def persist(value: PreparedSessionSave) -> SessionSaveResult:
+        """Block the worker lane until the event-loop assertion completes."""
+
+        assert value is prepared
+        events.append("persist_start")
+        persistence_started.set()
+        assert release_persistence.wait(timeout=2.0)
+        events.append("persist_end")
+        return SessionSaveResult(
+            reason="shutdown",
+            elapsed_ms=1.0,
+            prerequisite_count=1,
+            workflow_count=1,
+            persisted=True,
+            sequence=1,
+        )
+
+    operation = ShutdownFinalizationOperation(
+        prepare_session=prepare,
+        persist_session=persist,
+        cleanup_managed_comfy=lambda: _cleanup_result(
+            ManagedComfyCleanupOutcome.CONFIRMED_SUCCESS
+        ),
+    )
+    coordinator = ShutdownCoordinator(
+        app=app,
+        cleanup=operation.run,
+        cleanup_submitter=cleanup_submitter,
+        before_cleanup=operation.prepare,
+        progress_dialog_factory=lambda _parent: _FakeProgressDialog([]),
+        recovery_dialog_factory=lambda _parent: _FakeRecoveryDialog([]),
+    )
+
+    started_at = monotonic()
+    coordinator.request_shutdown(source_shell)
+    request_elapsed_ms = (monotonic() - started_at) * 1000.0
+    assert persistence_started.wait(timeout=1.0)
+    QTimer.singleShot(0, lambda: heartbeat.append("tick"))
+    _wait_for(lambda: heartbeat == ["tick"], qt_app)
+
+    assert request_elapsed_ms < 250.0
+    assert app.quit_calls == 0
+    assert events == ["prepare", "persist_start"]
+
+    release_persistence.set()
+    _wait_for(lambda: app.quit_calls == 1, qt_app)
+    assert events == ["prepare", "persist_start", "persist_end"]
 
 
 def test_shutdown_coordinator_continues_cleanup_when_before_hook_fails(
@@ -309,7 +394,7 @@ def test_shutdown_coordinator_continues_cleanup_when_before_hook_fails(
     app = _FakeApp()
     events: list[str] = []
 
-    def before_cleanup() -> None:
+    def before_cleanup(_parent: object | None) -> None:
         events.append("before_cleanup")
         raise RuntimeError("save failed")
 
@@ -598,6 +683,7 @@ def test_shutdown_coordinator_retry_starts_one_fresh_cleanup_attempt(
     app = _FakeApp()
     recovery_dialogs: list[_FakeRecoveryDialog] = []
     cleanup_calls: list[int] = []
+    preparation_calls: list[object | None] = []
     cleanup_results = [
         _cleanup_result(ManagedComfyCleanupOutcome.UNCERTAIN_SUCCESS),
         _cleanup_result(ManagedComfyCleanupOutcome.CONFIRMED_SUCCESS),
@@ -611,6 +697,7 @@ def test_shutdown_coordinator_retry_starts_one_fresh_cleanup_attempt(
         app=app,
         cleanup=cleanup,
         cleanup_submitter=cleanup_submitter,
+        before_cleanup=preparation_calls.append,
         progress_dialog_factory=lambda _parent: _FakeProgressDialog([]),
         recovery_dialog_factory=lambda _parent: _record_dialog(
             recovery_dialogs,
@@ -624,6 +711,7 @@ def test_shutdown_coordinator_retry_starts_one_fresh_cleanup_attempt(
     _wait_for(lambda: app.quit_calls == 1, qt_app)
 
     assert len(cleanup_calls) == 2
+    assert preparation_calls == [None, None]
     assert "recovery.close" in recovery_dialogs[0].actions
 
 

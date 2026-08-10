@@ -26,8 +26,8 @@ from substitute.app.bootstrap.shutdown_coordinator import (
     AppQuitProtocol,
     ShutdownCoordinator,
 )
-from substitute.app.bootstrap.startup_shutdown import StartupShutdownRuntime
-from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
+from substitute.app.bootstrap.lifecycle import CleanupBypassFn, CleanupFn
+from substitute.application.execution import TaskSubmitter
 
 
 @dataclass(frozen=True)
@@ -40,22 +40,20 @@ class StartupShutdownRequestPorts:
 def create_startup_shutdown_coordinator(
     *,
     app: AppQuitProtocol,
-    shutdown_runtime: StartupShutdownRuntime,
-    execution_runtime: Any,
+    cleanup: CleanupFn,
+    before_cleanup: Callable[[object | None], None],
+    cleanup_bypass: CleanupBypassFn | None,
+    cleanup_submitter: TaskSubmitter,
 ) -> ShutdownCoordinator:
     """Create the shell shutdown coordinator for one startup runtime."""
 
-    cleanup_submitter = execution_runtime.submitter(
-        "shutdown",
-        owner_id="managed_comfy_shutdown",
-        dispatcher=QtOwnerThreadDispatcher(),
-    )
     return ShutdownCoordinator(
         app=app,
-        cleanup=shutdown_runtime.cleanup,
+        cleanup=cleanup,
         cleanup_submitter=cleanup_submitter,
-        before_cleanup=shutdown_runtime.save_session_before_cleanup,
-        skip_cleanup_on_force_close=shutdown_runtime.cleanup_bypass,
+        cleanup_lane="disk_io_low_priority",
+        before_cleanup=before_cleanup,
+        skip_cleanup_on_force_close=cleanup_bypass,
     )
 
 
@@ -75,15 +73,19 @@ def shell_shutdown_request(
 def create_startup_shutdown_request_ports(
     *,
     app: AppQuitProtocol,
-    shutdown_runtime: StartupShutdownRuntime,
-    execution_runtime: Any,
+    cleanup: CleanupFn,
+    before_cleanup: Callable[[object | None], None],
+    cleanup_bypass: CleanupBypassFn | None,
+    cleanup_submitter: TaskSubmitter,
 ) -> StartupShutdownRequestPorts:
     """Create the object-level shutdown request ports used by startup."""
 
     coordinator = create_startup_shutdown_coordinator(
         app=app,
-        shutdown_runtime=shutdown_runtime,
-        execution_runtime=execution_runtime,
+        cleanup=cleanup,
+        before_cleanup=before_cleanup,
+        cleanup_bypass=cleanup_bypass,
+        cleanup_submitter=cleanup_submitter,
     )
     return StartupShutdownRequestPorts(
         request_shell_shutdown=shell_shutdown_request(coordinator),

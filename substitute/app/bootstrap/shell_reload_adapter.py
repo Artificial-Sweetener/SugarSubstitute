@@ -28,6 +28,10 @@ from substitute.app.bootstrap.gui_reload_coordinator import (
     GuiReloadCoordinator,
     ShellFrameProtocol,
 )
+from substitute.app.bootstrap.gui_reload_session_finalizer import (
+    GuiReloadSessionFinalizer,
+    SessionFinalizationStarter,
+)
 from substitute.app.bootstrap.startup_shutdown import ManagedComfyLease
 from substitute.shared.logging.logger import get_logger, log_exception, log_info
 
@@ -68,6 +72,7 @@ class ShellReloadAdapter:
         startup_timer: object,
         runtime_services: object,
         managed_comfy_lease: ManagedComfyLease,
+        begin_session_finalization: SessionFinalizationStarter,
         restart_launch_command: Sequence[str],
         current_shell_changed: Callable[[object | None], None] | None = None,
     ) -> None:
@@ -89,6 +94,10 @@ class ShellReloadAdapter:
             _ShellGenerationActionSnapshot | None
         ) = None
         self._restart_after_cleanup_requested = False
+        session_finalizer = GuiReloadSessionFinalizer(
+            managed_comfy_lease=managed_comfy_lease,
+            begin_session_finalization=begin_session_finalization,
+        )
         self._gui_reload_coordinator = GuiReloadCoordinator(
             current_shell=cast(
                 Callable[[], ShellFrameProtocol | None],
@@ -113,7 +122,7 @@ class ShellReloadAdapter:
                 Callable[[ShellFrameProtocol], None],
                 self.hydrate_shell,
             ),
-            managed_comfy_lease=managed_comfy_lease,
+            session_finalizer=session_finalizer,
             request_shutdown=cast(
                 Callable[[ShellFrameProtocol | None], None],
                 self._shutdown_request,
@@ -214,26 +223,6 @@ class ShellReloadAdapter:
             backend_state=snapshot.backend_state,
             selected_mode=snapshot.selected_mode,
         )
-
-    def save_session_before_cleanup(self) -> None:
-        """Persist the live shell session before managed Comfy cleanup starts."""
-
-        shell_frame = self.current_shell()
-        if shell_frame is None:
-            return
-        main_window = self._main_window_for_shell(shell_frame)
-        session_autosave_controller = getattr(
-            main_window,
-            "session_autosave_controller",
-            None,
-        )
-        force_save = getattr(
-            session_autosave_controller,
-            "force_save_session_snapshot",
-            None,
-        )
-        if callable(force_save):
-            force_save()
 
     def has_cancellable_generation_jobs(self) -> bool:
         """Return whether the current shell has queue work unsafe for reload."""
@@ -398,12 +387,6 @@ class StartupShellReloadState:
 
         self.shell_frame = frame
 
-    def save_session_before_cleanup(self) -> None:
-        """Persist the current shell session before managed Comfy cleanup."""
-
-        if self._adapter is not None:
-            self._adapter.save_session_before_cleanup()
-
 
 def create_shell_reload_adapter(
     *,
@@ -417,6 +400,7 @@ def create_shell_reload_adapter(
     startup_timer: object,
     runtime_services: object,
     managed_comfy_lease: ManagedComfyLease,
+    begin_session_finalization: SessionFinalizationStarter,
     restart_launch_command: Sequence[str],
     current_shell_changed: Callable[[object | None], None] | None = None,
 ) -> ShellReloadAdapter:
@@ -433,6 +417,7 @@ def create_shell_reload_adapter(
         startup_timer=startup_timer,
         runtime_services=runtime_services,
         managed_comfy_lease=managed_comfy_lease,
+        begin_session_finalization=begin_session_finalization,
         restart_launch_command=restart_launch_command,
         current_shell_changed=current_shell_changed,
     )
@@ -457,6 +442,7 @@ def create_bound_shell_reload_adapter(
     startup_timer: object,
     runtime_services: object,
     managed_comfy_lease: ManagedComfyLease,
+    begin_session_finalization: SessionFinalizationStarter,
     restart_launch_command: Sequence[str],
 ) -> ShellReloadAdapter:
     """Create and bind the shell reload adapter to startup shell state."""
@@ -472,6 +458,7 @@ def create_bound_shell_reload_adapter(
         startup_timer=startup_timer,
         runtime_services=runtime_services,
         managed_comfy_lease=managed_comfy_lease,
+        begin_session_finalization=begin_session_finalization,
         restart_launch_command=restart_launch_command,
         current_shell_changed=state.set_shell_frame,
     )

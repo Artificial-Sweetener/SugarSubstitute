@@ -2667,6 +2667,7 @@ def _build_main_window_dependencies(
         control_binding_service=control_binding_service,
         session_snapshot_repository=(runtime_services.session_snapshot_repository),
         session_autosave_service=runtime_services.session_autosave_service,
+        session_finalization_service=runtime_services.session_finalization_service,
         execution_runtime=runtime_services.execution_runtime,
         settings_task_runner_factory=create_settings_task_runner_factory(
             runtime_services.execution_runtime,

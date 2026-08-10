@@ -21,6 +21,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from types import SimpleNamespace
 
+import pytest
+
+from substitute.application.workspace_state import SessionFinalizationReason
+
 from substitute.presentation.shell.session_autosave_controller import (
     SessionAutosaveController,
 )
@@ -29,16 +33,16 @@ from substitute.presentation.shell.session_autosave_coordinator import (
 )
 
 
-def test_force_save_is_muted_during_restore_lifecycle() -> None:
-    """Forced session saves should not persist placeholder restore state."""
+def test_session_finalization_is_muted_during_restore_lifecycle() -> None:
+    """Terminal saves should not persist placeholder restore state."""
 
     calls: list[str] = []
 
-    def force_save(_port: object) -> bool:
-        """Record an unexpected forced save."""
+    def prepare(*_args: object, **_kwargs: object) -> object:
+        """Record an unexpected finalization capture."""
 
-        calls.append("force_save")
-        return True
+        calls.append("prepare")
+        return object()
 
     shell = SimpleNamespace(
         _active_workspace_route="wf-a",
@@ -47,13 +51,13 @@ def test_force_save_is_muted_during_restore_lifecycle() -> None:
             active_workflow_id="wf-a",
             workflows={"wf-a": object()},
         ),
-        session_autosave_service=SimpleNamespace(force_save=force_save),
+        session_finalization_service=SimpleNamespace(prepare=prepare),
     )
     controller = SessionAutosaveController(shell)
 
-    result = controller.force_save_session_snapshot()
+    with pytest.raises(RuntimeError, match="prehydrating"):
+        controller.prepare_session_finalization(SessionFinalizationReason.SHUTDOWN)
 
-    assert result is False
     assert calls == []
 
 

@@ -118,6 +118,7 @@ def test_application_runtime_services_schedule_session_autosave_on_disk_lane(
     single_shots.pop()[1]()
 
     assert services.comfy_node_localization is comfy_node_localization
+    assert services.session_persistence_submitter is submitter
     assert execution_runtime.submitter_calls == [
         {
             "name": "node_definition",
@@ -125,7 +126,7 @@ def test_application_runtime_services_schedule_session_autosave_on_disk_lane(
         },
         {
             "name": "disk_io_low_priority",
-            "owner_id": "session_autosave",
+            "owner_id": "session_persistence",
         },
     ]
     assert len(execution_runtime.dispatchers) == 2

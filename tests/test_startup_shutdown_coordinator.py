@@ -25,6 +25,7 @@ from typing import Any, cast
 import pytest
 
 from substitute.app.bootstrap import startup_shutdown_coordinator
+from substitute.app.bootstrap.lifecycle import ManagedComfyCleanupResult
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -52,7 +53,6 @@ def test_create_startup_shutdown_coordinator_forwards_runtime_ports(
     app = _App()
     runtime = _ShutdownRuntime()
     cleanup_submitter = object()
-    execution_runtime = _ExecutionRuntime(cleanup_submitter)
     calls: list[dict[str, object]] = []
     coordinator = object()
 
@@ -70,23 +70,20 @@ def test_create_startup_shutdown_coordinator_forwards_runtime_ports(
 
     result = startup_shutdown_coordinator.create_startup_shutdown_coordinator(
         app=app,
-        shutdown_runtime=cast(Any, runtime),
-        execution_runtime=execution_runtime,
+        cleanup=runtime.cleanup,
+        before_cleanup=runtime.before_cleanup,
+        cleanup_bypass=cast(Any, runtime.cleanup_bypass),
+        cleanup_submitter=cast(Any, cleanup_submitter),
     )
 
     assert result is coordinator
-    assert execution_runtime.submitter_calls == [
-        {
-            "name": "shutdown",
-            "owner_id": "managed_comfy_shutdown",
-        }
-    ]
     assert calls == [
         {
             "app": app,
             "cleanup": runtime.cleanup,
             "cleanup_submitter": cleanup_submitter,
-            "before_cleanup": runtime.save_session_before_cleanup,
+            "cleanup_lane": "disk_io_low_priority",
+            "before_cleanup": runtime.before_cleanup,
             "skip_cleanup_on_force_close": runtime.cleanup_bypass,
         }
     ]
@@ -115,7 +112,7 @@ def test_create_startup_shutdown_request_ports_groups_request_adapter(
 
     app = _App()
     runtime = _ShutdownRuntime()
-    execution_runtime = object()
+    cleanup_submitter = object()
     coordinator = _ShutdownCoordinator()
     created_ports: list[dict[str, object]] = []
 
@@ -133,8 +130,10 @@ def test_create_startup_shutdown_request_ports_groups_request_adapter(
 
     ports = startup_shutdown_coordinator.create_startup_shutdown_request_ports(
         app=app,
-        shutdown_runtime=cast(Any, runtime),
-        execution_runtime=execution_runtime,
+        cleanup=runtime.cleanup,
+        before_cleanup=runtime.before_cleanup,
+        cleanup_bypass=cast(Any, runtime.cleanup_bypass),
+        cleanup_submitter=cast(Any, cleanup_submitter),
     )
     parent = object()
 
@@ -143,8 +142,10 @@ def test_create_startup_shutdown_request_ports_groups_request_adapter(
     assert created_ports == [
         {
             "app": app,
-            "shutdown_runtime": runtime,
-            "execution_runtime": execution_runtime,
+            "cleanup": runtime.cleanup,
+            "before_cleanup": runtime.before_cleanup,
+            "cleanup_bypass": runtime.cleanup_bypass,
+            "cleanup_submitter": cleanup_submitter,
         }
     ]
     assert coordinator.parents == [parent]
@@ -207,35 +208,13 @@ class _ShutdownRuntime:
 
     cleanup_bypass = object()
 
-    def cleanup(self) -> None:
-        """Accept cleanup requests."""
+    def cleanup(self) -> ManagedComfyCleanupResult:
+        """Return one fake cleanup result."""
 
-    def save_session_before_cleanup(self) -> None:
-        """Accept pre-cleanup session save requests."""
+        return cast(ManagedComfyCleanupResult, object())
 
-
-class _ExecutionRuntime:
-    """Record shutdown execution submitter construction."""
-
-    def __init__(self, cleanup_submitter: object) -> None:
-        """Store the submitter returned to the coordinator factory."""
-
-        self._cleanup_submitter = cleanup_submitter
-        self.submitter_calls: list[dict[str, str]] = []
-        self.dispatchers: list[object] = []
-
-    def submitter(
-        self,
-        name: str,
-        *,
-        owner_id: str,
-        dispatcher: object,
-    ) -> object:
-        """Record one submitter request and return the configured submitter."""
-
-        self.submitter_calls.append({"name": name, "owner_id": owner_id})
-        self.dispatchers.append(dispatcher)
-        return self._cleanup_submitter
+    def before_cleanup(self, _source_shell: object | None) -> None:
+        """Accept pre-cleanup preparation requests."""
 
 
 class _ShutdownCoordinator:

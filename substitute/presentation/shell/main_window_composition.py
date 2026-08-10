@@ -375,6 +375,7 @@ def capture_dependencies(
     shell.output_preference_service = dependencies.output_preference_service
     shell.session_snapshot_repository = dependencies.session_snapshot_repository
     shell.session_autosave_service = dependencies.session_autosave_service
+    shell.session_finalization_service = dependencies.session_finalization_service
     shell.execution_runtime = dependencies.execution_runtime
     shell.settings_task_runner_factory = dependencies.settings_task_runner_factory
     shell.editor_panel_execution_factories = (

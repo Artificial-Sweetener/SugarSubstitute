@@ -153,7 +153,8 @@ class ShutdownCoordinator(QObject):
         app: AppQuitProtocol,
         cleanup: CleanupFn,
         cleanup_submitter: TaskSubmitter,
-        before_cleanup: Callable[[], None] | None = None,
+        cleanup_lane: str = "shutdown",
+        before_cleanup: Callable[[QWidget | None], None] | None = None,
         skip_cleanup_on_force_close: CleanupBypassFn | None = None,
         progress_dialog_factory: ShutdownProgressDialogFactory | None = None,
         recovery_dialog_factory: ShutdownRecoveryDialogFactory | None = None,
@@ -164,6 +165,7 @@ class ShutdownCoordinator(QObject):
         self._app = app
         self._cleanup = cleanup
         self._cleanup_submitter = cleanup_submitter
+        self._cleanup_lane = cleanup_lane
         self._cleanup_scope = TaskScope(
             submitter=cleanup_submitter,
             scope_id=f"managed_comfy_shutdown_cleanup_{id(self):x}",
@@ -223,17 +225,17 @@ class ShutdownCoordinator(QObject):
             shutdown_ui_state=self._ui_state.value,
             shutdown_ui_shown=False,
         )
-        self._run_before_cleanup_hook()
+        self._run_before_cleanup_hook(parent_window)
         self._slow_path_timer.start()
         self._start_cleanup_task()
 
-    def _run_before_cleanup_hook(self) -> None:
-        """Run synchronous UI-thread work before managed cleanup starts."""
+    def _run_before_cleanup_hook(self, parent_window: QWidget | None) -> None:
+        """Prepare cleanup from the exact shell that requested shutdown."""
 
         if self._before_cleanup is None:
             return
         try:
-            self._before_cleanup()
+            self._before_cleanup(parent_window)
         except Exception as error:
             log_exception(
                 _LOGGER,
@@ -252,7 +254,7 @@ class ShutdownCoordinator(QObject):
             context=ExecutionContext(
                 operation="managed_comfy_shutdown_cleanup",
                 reason="app_shutdown",
-                lane="shutdown",
+                lane=self._cleanup_lane,
             ),
             work=lambda _token: self._cleanup(),
         )
@@ -505,6 +507,7 @@ class ShutdownCoordinator(QObject):
         )
         self._close_recovery_dialog()
         self._transition_to(ShutdownUiState.RUNNING_HIDDEN)
+        self._run_before_cleanup_hook(self._active_parent_window)
         self._slow_path_timer.start()
         self._start_cleanup_task()
 

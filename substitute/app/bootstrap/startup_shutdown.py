@@ -146,12 +146,10 @@ class StartupShutdownRuntime:
         self,
         *,
         cleanup_handler: CleanupFn,
-        save_session_before_cleanup: Callable[[], None] | None = None,
     ) -> None:
         """Store shutdown collaborators and initialize managed cleanup state."""
 
         self._cleanup_handler = cleanup_handler
-        self._save_session_before_cleanup = save_session_before_cleanup
         self._managed_comfy_lease = ManagedComfyLease(cleanup_handler)
         self._last_cleanup_result: ManagedComfyCleanupResult | None = None
 
@@ -173,12 +171,6 @@ class StartupShutdownRuntime:
         """Return the latest managed cleanup result observed by startup shutdown."""
 
         return self._last_cleanup_result
-
-    def save_session_before_cleanup(self) -> None:
-        """Persist the live shell session before managed Comfy cleanup starts."""
-
-        if self._save_session_before_cleanup is not None:
-            self._save_session_before_cleanup()
 
     def cleanup(self) -> ManagedComfyCleanupResult:
         """Run managed cleanup through the lease and remember its result."""
@@ -223,15 +215,11 @@ def create_startup_shutdown_runtime(
     *,
     comfy_state_getter: ManagedComfyStateGetter,
     kill_process: KillProcessFn,
-    save_session_before_cleanup: Callable[[], None] | None = None,
 ) -> StartupShutdownRuntime:
     """Build startup shutdown runtime state around managed Comfy cleanup."""
 
     cleanup_handler = lifecycle.create_cleanup_handler(comfy_state_getter, kill_process)
-    return StartupShutdownRuntime(
-        cleanup_handler=cleanup_handler,
-        save_session_before_cleanup=save_session_before_cleanup,
-    )
+    return StartupShutdownRuntime(cleanup_handler=cleanup_handler)
 
 
 def cleanup_result_allows_terminal_lease_close(

@@ -68,10 +68,46 @@ def test_create_startup_shell_runtime_graph_wires_shutdown_and_reload(
 
     shell_reload_adapter = object()
     execution_runtime = object()
-    runtime_services = SimpleNamespace(execution_runtime=execution_runtime)
+    finalization_service = SimpleNamespace(persist=lambda _prepared: object())
+    session_persistence_submitter = object()
+    runtime_services = SimpleNamespace(
+        execution_runtime=execution_runtime,
+        session_finalization_service=finalization_service,
+        session_persistence_submitter=session_persistence_submitter,
+    )
     shutdown_calls: list[dict[str, object]] = []
     request_port_calls: list[dict[str, object]] = []
     reload_calls: list[dict[str, object]] = []
+    session_adapter_calls: list[dict[str, object]] = []
+    operation_calls: list[dict[str, object]] = []
+
+    class _SessionAdapter:
+        """Expose terminal session ports for graph wiring."""
+
+        def prepare_shutdown(self, _source_shell: object | None) -> object:
+            """Prepare one fake shutdown save."""
+
+            return object()
+
+        def begin_gui_reload(self, _main_window: object) -> object:
+            """Begin one fake GUI reload save."""
+
+            return object()
+
+    session_adapter = _SessionAdapter()
+
+    class _ShutdownOperation:
+        """Expose composed shutdown preparation and work ports."""
+
+        def prepare(self) -> None:
+            """Accept preparation."""
+
+        def run(self) -> object:
+            """Accept detached cleanup."""
+
+            return object()
+
+    shutdown_operation = _ShutdownOperation()
 
     def fake_shutdown_runtime(**kwargs: object) -> StartupShutdownRuntime:
         """Record process-manager shutdown runtime construction."""
@@ -91,6 +127,18 @@ def test_create_startup_shell_runtime_graph_wires_shutdown_and_reload(
         reload_calls.append(kwargs)
         return shell_reload_adapter
 
+    def fake_session_adapter(**kwargs: object) -> object:
+        """Record active-shell finalization adapter construction."""
+
+        session_adapter_calls.append(kwargs)
+        return session_adapter
+
+    def fake_shutdown_operation(**kwargs: object) -> object:
+        """Record composed shutdown operation construction."""
+
+        operation_calls.append(kwargs)
+        return shutdown_operation
+
     monkeypatch.setattr(
         startup_shell_runtime,
         "create_process_manager_startup_shutdown_runtime",
@@ -105,6 +153,16 @@ def test_create_startup_shell_runtime_graph_wires_shutdown_and_reload(
         startup_shell_runtime,
         "create_bound_shell_reload_adapter",
         fake_reload_adapter,
+    )
+    monkeypatch.setattr(
+        startup_shell_runtime,
+        "ShellSessionFinalizationAdapter",
+        fake_session_adapter,
+    )
+    monkeypatch.setattr(
+        startup_shell_runtime,
+        "ShutdownFinalizationOperation",
+        fake_shutdown_operation,
     )
 
     graph = startup_shell_runtime.create_startup_shell_runtime_graph(
@@ -126,18 +184,27 @@ def test_create_startup_shell_runtime_graph_wires_shutdown_and_reload(
     comfy_state_getter = cast(
         Callable[[], object], shutdown_calls[0]["comfy_state_getter"]
     )
-    save_session_before_cleanup = cast(
-        Callable[[], None],
-        shutdown_calls[0]["save_session_before_cleanup"],
-    )
     assert comfy_state_getter() == "managed"
-    save_session_before_cleanup()
-    assert shell_reload_state.save_calls == 1
+    assert session_adapter_calls == [
+        {
+            "current_shell": session_adapter_calls[0]["current_shell"],
+            "main_window_for_shell": shell_ports.main_window_for_shell,
+        }
+    ]
+    assert operation_calls == [
+        {
+            "prepare_session": session_adapter.prepare_shutdown,
+            "persist_session": finalization_service.persist,
+            "cleanup_managed_comfy": shutdown_runtime_obj.cleanup,
+        }
+    ]
     assert request_port_calls == [
         {
             "app": app,
-            "shutdown_runtime": shutdown_runtime,
-            "execution_runtime": execution_runtime,
+            "cleanup": shutdown_operation.run,
+            "before_cleanup": shutdown_operation.prepare,
+            "cleanup_bypass": shutdown_runtime_obj.cleanup_bypass,
+            "cleanup_submitter": session_persistence_submitter,
         }
     ]
     assert reload_calls == [
@@ -153,6 +220,7 @@ def test_create_startup_shell_runtime_graph_wires_shutdown_and_reload(
             "startup_timer": "timer",
             "runtime_services": runtime_services,
             "managed_comfy_lease": managed_lease,
+            "begin_session_finalization": session_adapter.begin_gui_reload,
             "restart_launch_command": ("python", "main.py"),
         }
     ]
@@ -206,6 +274,12 @@ class _ShutdownRuntime:
         """Store the fake managed lease."""
 
         self.managed_comfy_lease = managed_lease
+        self.cleanup_bypass = None
+
+    def cleanup(self) -> object:
+        """Return one fake managed cleanup result."""
+
+        return object()
 
 
 class _App:
@@ -233,9 +307,4 @@ class _ShellReloadState:
     def __init__(self) -> None:
         """Initialize callback counters."""
 
-        self.save_calls = 0
-
-    def save_session_before_cleanup(self) -> None:
-        """Accept pre-cleanup save requests."""
-
-        self.save_calls += 1
+        self.shell_frame = object()

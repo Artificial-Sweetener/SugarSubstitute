@@ -21,9 +21,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Protocol
 
-from substitute.app.bootstrap.startup_shutdown import (
-    ManagedComfyLease,
-    ManagedComfyLeaseError,
+from substitute.app.bootstrap.gui_reload_session_finalizer import (
+    GuiReloadFinalizationStart,
+    GuiReloadSessionFinalizer,
 )
 from substitute.shared.logging.logger import (
     get_logger,
@@ -67,7 +67,7 @@ class GuiReloadCoordinator:
         build_shell: Callable[[], ShellFrameProtocol],
         show_shell: Callable[[ShellFrameProtocol], ShellFrameProtocol],
         hydrate_shell: Callable[[ShellFrameProtocol], None],
-        managed_comfy_lease: ManagedComfyLease,
+        session_finalizer: GuiReloadSessionFinalizer,
         request_shutdown: Callable[[ShellFrameProtocol | None], None],
         has_cancellable_jobs: Callable[[], bool],
         message_sink: ReloadMessageSink | None = None,
@@ -80,7 +80,7 @@ class GuiReloadCoordinator:
         self._build_shell = build_shell
         self._show_shell = show_shell
         self._hydrate_shell = hydrate_shell
-        self._managed_comfy_lease = managed_comfy_lease
+        self._session_finalizer = session_finalizer
         self._request_shutdown = request_shutdown
         self._has_cancellable_jobs = has_cancellable_jobs
         self._message_sink = message_sink
@@ -94,7 +94,7 @@ class GuiReloadCoordinator:
             _LOGGER,
             "gui reload entry",
             old_shell_present=old_shell is not None,
-            cleanup_finished=self._managed_comfy_lease.cleanup_finished,
+            cleanup_finished=self._session_finalizer.cleanup_finished,
             has_cancellable_jobs=has_cancellable_jobs,
         )
         if old_shell is None:
@@ -107,7 +107,7 @@ class GuiReloadCoordinator:
                 "Wait for the generation queue to finish before reloading the GUI."
             )
             return False
-        if self._managed_comfy_lease.cleanup_finished:
+        if self._session_finalizer.cleanup_finished:
             log_warning(
                 _LOGGER,
                 "GUI reload rejected because managed ComfyUI cleanup is finished",
@@ -127,100 +127,79 @@ class GuiReloadCoordinator:
             log_warning(_LOGGER, "GUI reload rejected because shell has no MainWindow")
             self._show_message("Substitute cannot reload this GUI shell.")
             return False
-        if not self._force_save_session(main_window):
-            log_warning(_LOGGER, "GUI reload rejected because session save failed")
-            self._show_message("Substitute could not save the current session.")
-            return False
-
-        log_info(_LOGGER, "GUI reload requested")
-        try:
-            gui_reload_lease = self._managed_comfy_lease.begin_gui_reload()
-        except ManagedComfyLeaseError as error:
+        finalization_start = self._session_finalizer.begin(
+            main_window,
+            on_success=lambda: self._reload_after_finalization(
+                old_shell,
+                main_window,
+            ),
+            on_failure=self._session_finalization_failed,
+        )
+        if finalization_start is GuiReloadFinalizationStart.ACCEPTED:
+            return True
+        if finalization_start is GuiReloadFinalizationStart.LEASE_CLOSED:
             log_warning(
                 _LOGGER,
                 "GUI reload rejected because managed ComfyUI lease is closed",
-                error=repr(error),
             )
             self._show_message("Substitute cannot reload the GUI while closing.")
-            return False
+        elif finalization_start is GuiReloadFinalizationStart.PREPARATION_FAILED:
+            self._show_message("Substitute could not save the current session.")
+        return False
 
-        with gui_reload_lease:
-            log_info(_LOGGER, "gui reload lease entered")
-            try:
-                self._detach_old_shell(main_window)
-            except Exception as error:
-                log_exception(
-                    _LOGGER,
-                    "GUI reload could not release old shell resources; failing closed",
-                    error=error,
-                )
-                self._show_message(
-                    "Substitute could not release the current GUI and will close safely."
-                )
-                self._request_shutdown(old_shell)
-                return False
-            self._dispose_old_shell(old_shell)
-            try:
-                log_info(_LOGGER, "gui reload building new shell")
-                new_shell = self._build_shell()
-                log_info(
-                    _LOGGER,
-                    "gui reload built new shell",
-                    new_shell_type=type(new_shell).__name__,
-                )
-                self._set_current_shell(new_shell)
-                log_info(_LOGGER, "gui reload hydrating new shell")
-                self._hydrate_shell(new_shell)
-                log_info(_LOGGER, "gui reload showing new shell")
-                shown_shell = self._show_shell(new_shell)
-                self._set_current_shell(shown_shell)
-            except Exception as error:
-                log_exception(
-                    _LOGGER,
-                    "GUI reload failed after old shell disposal; failing closed",
-                    error=error,
-                )
-                self._show_message(
-                    "Substitute could not reload the GUI and will close safely."
-                )
-                self._request_shutdown(self._current_shell())
-                return False
-        log_info(_LOGGER, "GUI reload completed")
-        return True
+    def _session_finalization_failed(self) -> None:
+        """Report that durable session finalization blocked GUI reload."""
 
-    def _force_save_session(self, main_window: object) -> bool:
-        """Force-save the current session through the live shell controller."""
+        self._show_message("Substitute could not save the current session.")
 
-        session_autosave_controller = getattr(
-            main_window,
-            "session_autosave_controller",
-            None,
-        )
-        force_save = getattr(
-            session_autosave_controller,
-            "force_save_session_snapshot",
-            None,
-        )
-        if not callable(force_save):
+    def _reload_after_finalization(
+        self,
+        old_shell: ShellFrameProtocol,
+        main_window: object,
+    ) -> None:
+        """Dispose and rebuild one shell after durable session finalization."""
+
+        log_info(_LOGGER, "gui reload lease entered")
+        try:
+            self._detach_old_shell(main_window)
+        except Exception as error:
+            log_exception(
+                _LOGGER,
+                "GUI reload could not release old shell resources; failing closed",
+                error=error,
+            )
+            self._show_message(
+                "Substitute could not release the current GUI and will close safely."
+            )
+            self._request_shutdown(old_shell)
+            return
+        self._dispose_old_shell(old_shell)
+        try:
+            log_info(_LOGGER, "gui reload building new shell")
+            new_shell = self._build_shell()
             log_info(
                 _LOGGER,
-                "gui reload force save unavailable",
-                main_window_type=type(main_window).__name__,
+                "gui reload built new shell",
+                new_shell_type=type(new_shell).__name__,
             )
-            return False
-        log_info(
-            _LOGGER,
-            "gui reload force save starting",
-            main_window_type=type(main_window).__name__,
-        )
-        result = bool(force_save())
-        log_info(
-            _LOGGER,
-            "gui reload force save completed",
-            main_window_type=type(main_window).__name__,
-            force_save_result=result,
-        )
-        return result
+            self._set_current_shell(new_shell)
+            log_info(_LOGGER, "gui reload hydrating new shell")
+            self._hydrate_shell(new_shell)
+            log_info(_LOGGER, "gui reload showing new shell")
+            shown_shell = self._show_shell(new_shell)
+            self._set_current_shell(shown_shell)
+        except Exception as error:
+            log_exception(
+                _LOGGER,
+                "GUI reload failed after old shell disposal; failing closed",
+                error=error,
+            )
+            self._show_message(
+                "Substitute could not reload the GUI and will close safely."
+            )
+            self._request_shutdown(self._current_shell())
+            return
+        log_info(_LOGGER, "GUI reload completed")
 
     def _dispose_old_shell(self, shell: ShellFrameProtocol) -> None:
         """Dispose the old shell without requesting full application quit."""
@@ -258,4 +237,8 @@ class GuiReloadCoordinator:
             self._message_sink(message)
 
 
-__all__ = ["GuiReloadCoordinator", "ReloadMessageSink", "ShellFrameProtocol"]
+__all__ = [
+    "GuiReloadCoordinator",
+    "ReloadMessageSink",
+    "ShellFrameProtocol",
+]
