@@ -31,6 +31,7 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
 from sugarsubstitute_shared.presentation.localization import app_text
 
 from substitute.presentation.canvas.shared.types import OutputImageMeta
+from substitute.presentation.resources.fluent_app_icon import AppIcon
 from substitute.presentation.widgets.menu_model import (
     MenuItem,
     MenuModel,
@@ -50,6 +51,7 @@ class OutputGridContextMenu:
     image_metadata: Callable[[UUID], OutputImageMeta | None]
     image_is_authorized: Callable[[UUID], bool]
     open_single_editor: Callable[[object, OutputImageMeta], bool] | None
+    reveal_asset: Callable[[OutputImageMeta], bool] | None
     canvas_detached: Callable[[], bool]
     request_dock_action: Callable[[], None]
 
@@ -81,6 +83,13 @@ class OutputGridContextMenu:
                     callback=lambda: self.open_external(reference),
                     icon=FIF.PHOTO,
                 ),
+                MenuItem(
+                    "output_canvas.reveal_current_asset",
+                    app_text("Reveal in File Manager"),
+                    callback=lambda: self.reveal(reference),
+                    enabled=self._asset_has_path(reference),
+                    icon=AppIcon.FOLDER_OPEN_20_REGULAR,
+                ),
                 MenuSeparator(),
                 MenuItem(
                     "output_canvas.dock_action",
@@ -108,6 +117,30 @@ class OutputGridContextMenu:
         metadata = self.image_metadata(image_id)
         if image is not None and metadata is not None:
             opener(image, metadata)
+
+    def reveal(self, reference: CanvasContentReference) -> None:
+        """Reveal exactly the authorized grid target when it has a local path."""
+
+        revealer = self.reveal_asset
+        image_id = self.image_id_for_reference(reference)
+        if (
+            revealer is None
+            or image_id is None
+            or not self.image_is_authorized(image_id)
+        ):
+            return
+        metadata = self.image_metadata(image_id)
+        if metadata is not None and metadata.path.strip():
+            revealer(metadata)
+
+    def _asset_has_path(self, reference: CanvasContentReference) -> bool:
+        """Return whether the authorized grid target has a local asset path."""
+
+        image_id = self.image_id_for_reference(reference)
+        if image_id is None or not self.image_is_authorized(image_id):
+            return False
+        metadata = self.image_metadata(image_id)
+        return metadata is not None and bool(metadata.path.strip())
 
     @staticmethod
     def _content_reference(subject: object) -> CanvasContentReference | None:

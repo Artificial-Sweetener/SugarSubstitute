@@ -77,6 +77,7 @@ def compose_output_context_menu(
             image_metadata=host.final_output_metadata,
             image_is_authorized=route_projector.is_image_allowed_for_transfer,
             open_single_editor=host.single_external_editor,
+            reveal_asset=host.output_asset_revealer,
             canvas_detached=lambda: host.canvas_detached,
             request_dock_action=host.dockActionRequested.emit,
         ),

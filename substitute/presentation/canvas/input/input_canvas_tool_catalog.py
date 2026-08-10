@@ -33,6 +33,7 @@ from substitute.presentation.resources.fluent_app_icon import AppIcon
 
 INPUT_CANVAS_CONTEXT = "canvas.input"
 INPUT_CANVAS_CONTEXT_TAGS = frozenset({INPUT_CANVAS_CONTEXT})
+INPUT_RASTER_ANALYSIS_CONTEXT = "canvas.input.raster_analysis"
 INPUT_IMAGE_CAPABILITY = "input.image"
 ACTIVE_MASK_CAPABILITY = "input.active_mask"
 LAYER_TRANSFORM_CAPABILITY = "input.active_mask.transform"
@@ -47,6 +48,7 @@ class InputCanvasToolId:
     """Own stable product identities for built-in Input canvas tools."""
 
     MOVE = "input.move"
+    SHARED_EDGE_RESIZE = "input.layer.shared_edge_resize"
     TRANSFORM_SELECTION = "input.selection.transform"
     TRANSFORM_LAYER = "input.layer.transform"
     CLEAR_SELECTION_PIXELS = "input.selection.clear_pixels"
@@ -77,6 +79,14 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                 order=100,
                 required_capabilities={ACTIVE_MASK_CAPABILITY},
                 operation_id=CuteCanvas.CONTROL_MODE_MOVE,
+            ),
+            _mode(
+                InputCanvasToolId.SHARED_EDGE_RESIZE,
+                app_text("Resize shared edges"),
+                AppIcon.ARROW_AUTOFIT_WIDTH_20_REGULAR,
+                order=125,
+                required_capabilities={ACTIVE_MASK_CAPABILITY},
+                operation_id=CuteCanvas.CONTROL_MODE_SHARED_EDGE_RESIZE,
             ),
             _mode(
                 InputCanvasToolId.TRANSFORM_SELECTION,
@@ -140,6 +150,7 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                     INPUT_IMAGE_CAPABILITY,
                     SMART_SEGMENTATION_CAPABILITY,
                 },
+                required_context_tags={INPUT_RASTER_ANALYSIS_CONTEXT},
                 operation_id=CuteCanvas.CONTROL_MODE_SMART_SELECT,
             ),
             _mode(
@@ -175,6 +186,7 @@ def create_input_canvas_tool_system() -> CanvasToolRuntime:
                     ACTIVE_MASK_CAPABILITY,
                     SMART_SEGMENTATION_CAPABILITY,
                 },
+                required_context_tags={INPUT_RASTER_ANALYSIS_CONTEXT},
                 operation_id=CuteCanvas.CONTROL_MODE_SMART_MASK,
             ),
             _mode(
@@ -216,6 +228,7 @@ def _mode(
     *,
     order: int,
     required_capabilities: set[str],
+    required_context_tags: set[str] | None = None,
     section: str = "mask",
     operation_id: str,
     options_id: str | None = None,
@@ -230,7 +243,9 @@ def _mode(
         kind=CanvasToolKind.MODE,
         section=section,
         order=order,
-        required_context_tags=INPUT_CANVAS_CONTEXT_TAGS,
+        required_context_tags=INPUT_CANVAS_CONTEXT_TAGS.union(
+            required_context_tags or ()
+        ),
         required_capabilities=frozenset(required_capabilities),
         document_operation_id=operation_id,
         options_id=options_id,
@@ -279,6 +294,7 @@ __all__ = [
     "BRUSH_OPTIONS_ID",
     "INPUT_CANVAS_CONTEXT_TAGS",
     "INPUT_IMAGE_CAPABILITY",
+    "INPUT_RASTER_ANALYSIS_CONTEXT",
     "LAYER_TRANSFORM_CAPABILITY",
     "PIXEL_SELECTION_CAPABILITY",
     "SELECTION_CLEAR_CAPABILITY",

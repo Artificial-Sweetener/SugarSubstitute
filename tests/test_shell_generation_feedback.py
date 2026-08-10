@@ -286,6 +286,7 @@ def _progress_surface_fake(**kwargs: object) -> SimpleNamespace:
         GenerationRunStarted(
             workflow_id="wf-1",
             generation_run_id="run-1",
+            output_session_id="run-1",
             prompt_id="pid-1",
             client_id="client-1",
         )

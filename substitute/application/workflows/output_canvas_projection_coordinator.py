@@ -33,6 +33,12 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasSourceGroup,
     build_output_canvas_projection,
 )
+from substitute.application.workflows.output_canvas_focus_service import (
+    OutputCanvasFocusService,
+)
+from substitute.application.workflows.output_navigation_session_service import (
+    OutputNavigationSessionService,
+)
 from substitute.application.workflows.output_canvas_session import (
     OutputCanvasSession,
     bind_output_canvas_session,
@@ -87,6 +93,8 @@ class OutputCanvasProjectionCoordinator:
         *,
         image_registry: CanvasImageRegistry,
         output_canvas_state_service: OutputCanvasStateService,
+        output_canvas_focus_service: OutputCanvasFocusService,
+        output_navigation_session_service: OutputNavigationSessionService,
         canvas_session_boundary: CanvasRouteSessionBoundaryPort,
         content_synchronizer: OutputProjectionContentSynchronizer,
         projection_sink: OutputProjectionSessionSink | None = None,
@@ -95,6 +103,8 @@ class OutputCanvasProjectionCoordinator:
 
         self._image_registry = image_registry
         self._output_canvas_state_service = output_canvas_state_service
+        self._output_canvas_focus_service = output_canvas_focus_service
+        self._output_navigation_session_service = output_navigation_session_service
         self._canvas_session_boundary = canvas_session_boundary
         self._content_synchronizer = content_synchronizer
         self._projection_sink = projection_sink
@@ -158,7 +168,7 @@ class OutputCanvasProjectionCoordinator:
             image_metadata_lookup=output_metadata,
         )
         if active_workflow.output_image_uuids:
-            self._output_canvas_state_service.remember_projected_focus(
+            self._output_canvas_focus_service.remember_projected_focus(
                 active_workflow,
                 output_projection,
             )
@@ -182,7 +192,13 @@ class OutputCanvasProjectionCoordinator:
         """Clear one workflow's Output aggregate and visible Output route."""
 
         active_workflow = workflows.get(workflow_id)
-        if active_workflow is None or not active_workflow.output_image_uuids:
+        if active_workflow is None:
+            return
+        self._output_navigation_session_service.reset_workflow(
+            workflow_id,
+            active_workflow,
+        )
+        if not active_workflow.output_image_uuids:
             return
         prune_result = self._output_canvas_state_service.clear_output_for_workflow(
             workflows,
@@ -207,6 +223,11 @@ class OutputCanvasProjectionCoordinator:
         self._last_sync_signature = None
         self._sync_projection(output_session)
 
+    def retire_replaced_output_images(self, image_ids: tuple[UUID, ...]) -> None:
+        """Retire document content released by an atomic result replacement."""
+
+        self._content_synchronizer.retire_unreferenced(image_ids)
+
     def prune_closed_workflow_images(
         self,
         closed_workflow_id: str,
@@ -215,6 +236,7 @@ class OutputCanvasProjectionCoordinator:
     ) -> None:
         """Prune unreferenced Output catalog images after workflow close."""
 
+        self._output_navigation_session_service.discard_workflow(closed_workflow_id)
         output_prune_result = (
             self._output_canvas_state_service.prune_closed_workflow_images(
                 closed_workflow_id,

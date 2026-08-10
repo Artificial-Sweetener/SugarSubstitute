@@ -46,6 +46,10 @@ from substitute.domain.workflow.input_canvas_plan import (
     InputCanvasSurface,
     InputCanvasSurfaceKind,
 )
+from substitute.domain.workflow.input_canvas_interaction_profile import (
+    InputCanvasInteractionCapability,
+    InputCanvasInteractionProfile,
+)
 from substitute.domain.workflow.synthetic_canvas_resize import (
     SyntheticCanvasAnchor,
     SyntheticCanvasResamplingMode,
@@ -133,6 +137,8 @@ __all__ = [
     "InputAssetEndpointIndex",
     "InputAssetRole",
     "InputCanvasImageEntry",
+    "InputCanvasInteractionCapability",
+    "InputCanvasInteractionProfile",
     "InputCanvasMaskEntry",
     "InputCanvasMaskBinding",
     "InputCanvasPlan",

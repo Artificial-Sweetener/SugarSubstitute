@@ -41,7 +41,15 @@ from PySide6.QtCore import (
     Qt,
     qInstallMessageHandler,
 )
-from PySide6.QtGui import QColor, QImage, QMouseEvent, QPainter, QRegion, QWheelEvent
+from PySide6.QtGui import (
+    QColor,
+    QContextMenuEvent,
+    QImage,
+    QMouseEvent,
+    QPainter,
+    QRegion,
+    QWheelEvent,
+)
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import (
     QApplication,
@@ -75,8 +83,9 @@ from substitute.presentation.canvas.input.input_tool_options import (
     InputBrushSettingsControl,
     install_input_tool_options,
 )
-from substitute.presentation.canvas.input.input_mask_layer_button import (
-    InputMaskLayerButton,
+import substitute.presentation.canvas.input.input_canvas_context_menu as input_canvas_context_menu
+from tests.support.input_canvas.tool_context_projection import (
+    project_authored_input_tool_context,
 )
 from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
     CANVAS_CHROME_CONTROL_HEIGHT,
@@ -88,6 +97,7 @@ from substitute.presentation.canvas.shared.floating_canvas_surface import (
     floating_canvas_surface_stylesheet,
 )
 from substitute.presentation.widgets import SpinBox
+from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
 from substitute.presentation.resources.fluent_app_icon import AppIcon
 
 
@@ -96,6 +106,52 @@ def _app() -> QApplication:
 
     instance = QCoreApplication.instance()
     return instance if isinstance(instance, QApplication) else QApplication([])
+
+
+def _request_coverage_from_context_menu(
+    monkeypatch: pytest.MonkeyPatch,
+    canvas: InputCanvas,
+) -> MenuModel:
+    """Open the mounted canvas menu and invoke its coverage command."""
+
+    rendered_models: list[MenuModel] = []
+
+    class _RenderedMenu:
+        """Capture menu execution without starting a nested Qt event loop."""
+
+        def exec(self, *_args: object, **_kwargs: object) -> None:
+            """Accept the rendered menu position without blocking the test."""
+
+    class _Renderer:
+        """Capture the production model at the renderer boundary."""
+
+        def __init__(self, *, parent: QWidget) -> None:
+            """Retain the expected parent for construction parity."""
+
+            self.parent = parent
+
+        def render(self, model: MenuModel) -> _RenderedMenu:
+            """Record one model and return a nonblocking menu surface."""
+
+            rendered_models.append(model)
+            return _RenderedMenu()
+
+    monkeypatch.setattr(
+        input_canvas_context_menu,
+        "QFluentMenuRenderer",
+        _Renderer,
+    )
+    canvas.canvas.customContextMenuRequested.emit(QPoint(12, 12))
+    _app().processEvents()
+
+    assert len(rendered_models) == 1
+    coverage_action = cast(MenuItem, rendered_models[0].entries[0])
+    assert coverage_action.action_id == "input_canvas.edit_layer_coverage"
+    assert coverage_action.enabled
+    assert coverage_action.callback is not None
+    coverage_action.callback()
+    _app().processEvents()
+    return rendered_models[0]
 
 
 class _LayoutRequestCounter(QObject):
@@ -184,13 +240,18 @@ def _mounted_input() -> tuple[InputCanvas, InputCanvasToolController]:
     install_input_tool_options(runtime, canvas.document.tool_options)
     install_input_contextual_toolbar(runtime, canvas.document.tool_options)
     controller = InputCanvasToolController(
-        input_document=canvas.document,
+        transform_activator=canvas.document.tool_context.activate_transform,
         operation_setter=canvas.document.set_canvas_operation,
-        current_image_id_provider=canvas.document.current_image_id,
+        current_operation_provider=canvas.document.current_canvas_operation,
         runtime=runtime,
     )
     canvas.bind_tool_runtime(runtime)
-    canvas.document.toolContextChanged.connect(controller.refresh_tool_context)
+    canvas.document.tool_context.changed.connect(
+        lambda: project_authored_input_tool_context(
+            controller,
+            canvas.document.tool_context,
+        )
+    )
     canvas.document.canvasToolChanged.connect(controller.synchronize_native_tool)
     canvas.toolRequested.connect(controller.request_tool)
     image = QImage(96, 64, QImage.Format.Format_ARGB32)
@@ -201,7 +262,7 @@ def _mounted_input() -> tuple[InputCanvas, InputCanvasToolController]:
     mask_id = canvas.document.create_blank_mask(image_id, QSize(96, 64))
     assert mask_id is not None
     canvas.document.set_active_mask_id(mask_id)
-    controller.refresh_tool_context()
+    project_authored_input_tool_context(controller, canvas.document.tool_context)
     canvas.resize(900, 600)
     canvas.show()
     _app().processEvents()
@@ -225,7 +286,7 @@ def test_empty_mask_disables_layer_transform_until_content_exists(
     try:
         transform = canvas.tool_strip.button_for(InputCanvasToolId.TRANSFORM_LAYER)
         assert transform is not None
-        assert not canvas.document.layer_transform_available()
+        assert not canvas.document.tool_context.snapshot.layer_transform_available
         assert not transform.isEnabled()
         assert transform.toolTip() == "Nothing to transform!"
 
@@ -238,7 +299,7 @@ def test_empty_mask_disables_layer_transform_until_content_exists(
         app.processEvents()
 
         transform = canvas.tool_strip.button_for(InputCanvasToolId.TRANSFORM_LAYER)
-        assert canvas.document.layer_transform_available()
+        assert canvas.document.tool_context.snapshot.layer_transform_available
         assert transform is not None and transform.isEnabled()
         assert transform.toolTip() == "Transform"
 
@@ -848,12 +909,12 @@ def test_contextual_toolbar_clear_erases_selected_mask_pixels_without_deselectin
             selection,
             QRect(24, 12, 40, 32),
         )
-        controller.refresh_tool_context()
+        project_authored_input_tool_context(controller, canvas.document.tool_context)
         app.processEvents()
         before = canvas.document.export_mask_image(mask_id)
         assert before is not None
         assert before.pixelColor(36, 24).red() == 255
-        assert canvas.document.selection_clear_available()
+        assert canvas.document.tool_context.snapshot.selection_clear_available
         content_changes = QSignalSpy(canvas.document.maskContentChanged)
         assert canvas.document.tool_options.clear_selected_pixels()
         app.processEvents()
@@ -885,7 +946,7 @@ def test_contextual_toolbar_clear_erases_selected_mask_pixels_without_deselectin
         after = canvas.document.export_mask_image(mask_id)
         assert after is not None
         assert after.pixelColor(36, 24).red() == 0
-        assert canvas.document.has_pixel_selection()
+        assert canvas.document.tool_context.snapshot.has_pixel_selection
         assert canvas.contextual_toolbar.isVisible()
     finally:
         canvas.close()
@@ -924,7 +985,7 @@ def test_delete_key_clears_selection_pixels_from_any_active_tool(
         assert cleared is not None
         assert cleared.pixelColor(36, 24).red() == 0
         assert content_changes.count() == 1
-        assert canvas.document.has_pixel_selection()
+        assert canvas.document.tool_context.snapshot.has_pixel_selection
 
         assert canvas.document.canvas.undoSceneEdit()
         app.processEvents()
@@ -1060,7 +1121,7 @@ def test_contextual_transform_requires_explicit_apply_or_cancel(
             selection,
             QRect(34, 22, 12, 12),
         )
-        controller.refresh_tool_context()
+        project_authored_input_tool_context(controller, canvas.document.tool_context)
         app.processEvents()
 
         page = canvas.contextual_toolbar.page
@@ -1090,7 +1151,6 @@ def test_contextual_transform_requires_explicit_apply_or_cancel(
         )
         assert not canvas.tool_strip.isVisible()
         assert not canvas.canvas_top_bar.isVisible()
-        assert not canvas.layer_control.isVisible()
 
         start_rect = canvas.document.canvas.sceneToPanelRect(
             QRectF(40.0, 28.0, 1.0, 1.0)
@@ -1194,7 +1254,7 @@ def test_move_drag_hides_then_reanchors_aligned_toolbar_to_floating_bounds(
             selection,
             QRect(14, 8, 16, 12),
         )
-        controller.refresh_tool_context()
+        project_authored_input_tool_context(controller, canvas.document.tool_context)
         assert controller.request_tool(InputCanvasToolId.MOVE)
         app.processEvents()
         assert isinstance(
@@ -1260,9 +1320,9 @@ def test_layer_transform_uses_tight_content_frame_and_contextual_settlement(
         assert canvas.document.canvas.replaceMaskImage(mask_id, coverage)
         before = canvas.document.export_mask_image(mask_id)
         assert before is not None
-        assert not canvas.document.has_pixel_selection()
+        assert not canvas.document.tool_context.snapshot.has_pixel_selection
 
-        controller.refresh_tool_context()
+        project_authored_input_tool_context(controller, canvas.document.tool_context)
         presentation = controller.palette.presentation_for(
             InputCanvasToolId.TRANSFORM_LAYER
         )
@@ -1287,7 +1347,6 @@ def test_layer_transform_uses_tight_content_frame_and_contextual_settlement(
         assert canvas.contextual_toolbar.geometry().top() > panel_bounds.bottom()
         assert not canvas.tool_strip.isVisible()
         assert not canvas.canvas_top_bar.isVisible()
-        assert not canvas.layer_control.isVisible()
 
         QTest.mouseClick(page.rotate_right_button, Qt.MouseButton.LeftButton)
         app.processEvents()
@@ -1333,10 +1392,10 @@ def test_contextual_transform_rejects_selection_without_active_mask_pixels(
             QRect(68, 40, 12, 12),
         )
 
-        controller.refresh_tool_context()
+        project_authored_input_tool_context(controller, canvas.document.tool_context)
         app.processEvents()
 
-        assert not canvas.document.selection_transform_available()
+        assert not canvas.document.tool_context.snapshot.selection_transform_available
         state = canvas.document.canvas.editorOperationState(EditorIntent.TRANSFORM)
         assert not state.allowed
         assert state.denial == "no-selected-pixels"
@@ -1402,39 +1461,22 @@ def test_layer_coverage_editor_previews_exclusively_and_commits_only_on_apply(
         before = canvas.document.export_mask_image(mask_id)
         assert before is not None
         canvas.document.canvas.setCursor(Qt.CursorShape.CrossCursor)
-        canvas.layer_control.refresh()
-        app.processEvents()
-
-        button = canvas.layer_control.findChild(InputMaskLayerButton)
-        assert button is not None
-        assert canvas.layer_control.cursor().shape() is Qt.CursorShape.ArrowCursor
-        assert button.cursor().shape() is Qt.CursorShape.ArrowCursor
-        assert button.size() == QSize(36, 36)
-        assert canvas.layer_control.width() >= 44
-        assert canvas.layer_control.height() >= 44
-        QTest.mouseClick(button, Qt.MouseButton.LeftButton)
-        app.processEvents()
-        assert canvas.layer_control.settings.isVisible()
-        assert (
-            canvas.layer_control.settings.cursor().shape() is Qt.CursorShape.ArrowCursor
-        )
-
         completed = QSignalSpy(canvas.document.canvas.layerEdgeModificationCompleted)
         rendered_before = _render_without_children(canvas.document.canvas)
         press_counter = _MousePressCounter()
         canvas.document.canvas.installEventFilter(press_counter)
-        QTest.mouseClick(
-            canvas.layer_control.settings.edit_coverage_button,
-            Qt.MouseButton.LeftButton,
+        menu_model = _request_coverage_from_context_menu(monkeypatch, canvas)
+        assert all(
+            not entry.action_id.startswith("canvas.tool.")
+            for entry in menu_model.entries
+            if isinstance(entry, MenuItem)
         )
-        app.processEvents()
 
         editor = canvas.coverage_editor
         assert canvas.coverage_edit_active
         assert editor.isVisible()
         assert not canvas.tool_strip.isVisible()
         assert not canvas.canvas_top_bar.isVisible()
-        assert not canvas.layer_control.isVisible()
         assert (
             abs(editor.geometry().center().x() - canvas.canvas.rect().center().x()) <= 1
         )
@@ -1443,6 +1485,18 @@ def test_layer_coverage_editor_previews_exclusively_and_commits_only_on_apply(
         assert editor.controls.operation_selector.itemText(1) == "Contract"
         assert editor.controls.operation_selector.itemText(2) == "Feather"
         assert editor.controls.pixel_amount.value() == 4
+
+        context_menu_requests = QSignalSpy(
+            canvas.document.canvas.customContextMenuRequested
+        )
+        blocked_context_menu = QContextMenuEvent(
+            QContextMenuEvent.Reason.Mouse,
+            QPoint(20, 20),
+            canvas.document.canvas.mapToGlobal(QPoint(20, 20)),
+        )
+        QApplication.sendEvent(canvas.document.canvas, blocked_context_menu)
+        assert blocked_context_menu.isAccepted()
+        assert context_menu_requests.count() == 0
 
         blocked_press = QMouseEvent(
             QEvent.Type.MouseButtonPress,
@@ -1470,21 +1524,21 @@ def test_layer_coverage_editor_previews_exclusively_and_commits_only_on_apply(
         assert not canvas.coverage_edit_active
         assert not editor.isVisible()
         assert canvas.tool_strip.isVisible()
-        assert canvas.layer_control.isVisible()
         assert canvas.document.canvas.undoMaskEdit()
         assert canvas.document.export_mask_image(mask_id) == before
 
-        button = canvas.layer_control.findChild(InputMaskLayerButton)
-        assert button is not None
-        QTest.mouseClick(button, Qt.MouseButton.LeftButton)
-        QTest.mouseClick(
-            canvas.layer_control.settings.edit_coverage_button,
-            Qt.MouseButton.LeftButton,
-        )
-        app.processEvents()
+        _request_coverage_from_context_menu(monkeypatch, canvas)
         assert canvas.coverage_edit_active
         editor.controls.pixel_amount.setValue(3)
         QTest.mouseClick(editor.close_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert not canvas.coverage_edit_active
+        assert canvas.document.export_mask_image(mask_id) == before
+
+        _request_coverage_from_context_menu(monkeypatch, canvas)
+        assert canvas.coverage_edit_active
+        editor.controls.pixel_amount.setValue(2)
+        canvas.close()
         app.processEvents()
         assert not canvas.coverage_edit_active
         assert canvas.document.export_mask_image(mask_id) == before

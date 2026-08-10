@@ -44,11 +44,16 @@ from substitute.application.workflows.output_canvas_session import (
     bind_output_canvas_session,
 )
 from substitute.application.workflows.output_canvas_state_service import (
-    OutputFocusMutationResult,
-    OutputFocusSnapshot,
     OutputImageRegistrationResult,
     OutputPreviewCloseIdentity,
     OutputProjectionSchedulingIntent,
+)
+from substitute.application.workflows.output_canvas_focus_service import (
+    OutputFocusMutationResult,
+    OutputFocusSnapshot,
+)
+from substitute.application.workflows.output_navigation_session_service import (
+    OutputNavigationSessionService,
 )
 from substitute.application.workflows.output_scene_navigation_selection import (
     OutputSceneNavigationSelection,
@@ -272,7 +277,9 @@ def test_active_output_selection_records_manual_uuid() -> None:
     calls: list[tuple[object, str]] = []
     view = SimpleNamespace(
         get_active_workflow=lambda: workflow,
-        output_canvas_state_service=SimpleNamespace(
+        workflow_session_service=SimpleNamespace(active_workflow_id="wf"),
+        output_navigation_session_service=OutputNavigationSessionService(),
+        output_canvas_focus_service=SimpleNamespace(
             set_active_output_uuid=lambda active_workflow, uuid_str: calls.append(
                 (active_workflow, uuid_str)
             )
@@ -282,6 +289,7 @@ def test_active_output_selection_records_manual_uuid() -> None:
     mod.WorkspaceCanvasActions(view).on_active_output_changed("out-1")
 
     assert calls == [(workflow, "out-1")]
+    assert workflow.output_focus_mode is OutputFocusMode.MANUAL
 
 
 def test_active_output_grid_selection_records_manual_grid() -> None:
@@ -292,7 +300,9 @@ def test_active_output_grid_selection_records_manual_grid() -> None:
     calls: list[tuple[object, str, object]] = []
     view = SimpleNamespace(
         get_active_workflow=lambda: workflow,
-        output_canvas_state_service=SimpleNamespace(
+        workflow_session_service=SimpleNamespace(active_workflow_id="wf"),
+        output_navigation_session_service=OutputNavigationSessionService(),
+        output_canvas_focus_service=SimpleNamespace(
             set_active_output_grid=lambda active_workflow, source_key, scene_key=None: (
                 calls.append((active_workflow, source_key, scene_key))
             )
@@ -302,6 +312,7 @@ def test_active_output_grid_selection_records_manual_grid() -> None:
     mod.WorkspaceCanvasActions(view).on_active_output_grid_changed("wf:node")
 
     assert calls == [(workflow, "wf:node", None)]
+    assert workflow.output_focus_mode is OutputFocusMode.MANUAL
 
 
 def test_active_output_scene_selection_records_manual_scene() -> None:
@@ -312,7 +323,9 @@ def test_active_output_scene_selection_records_manual_scene() -> None:
     calls: list[tuple[object, OutputSceneNavigationSelection]] = []
     view = SimpleNamespace(
         get_active_workflow=lambda: workflow,
-        output_canvas_state_service=SimpleNamespace(
+        workflow_session_service=SimpleNamespace(active_workflow_id="wf"),
+        output_navigation_session_service=OutputNavigationSessionService(),
+        output_canvas_focus_service=SimpleNamespace(
             set_active_output_scene=lambda active_workflow, selection: calls.append(
                 (active_workflow, selection)
             )
@@ -338,6 +351,7 @@ def test_active_output_scene_selection_records_manual_scene() -> None:
     actions.on_active_output_scene_changed(overview_selection)
 
     assert calls == [(workflow, scene_selection), (workflow, overview_selection)]
+    assert workflow.output_focus_mode is OutputFocusMode.MANUAL
 
 
 def test_output_compare_selection_records_compare_state() -> None:
@@ -348,7 +362,9 @@ def test_output_compare_selection_records_compare_state() -> None:
     calls: list[tuple[WorkflowState, OutputCompareState]] = []
     view = SimpleNamespace(
         get_active_workflow=lambda: workflow,
-        output_canvas_state_service=SimpleNamespace(
+        workflow_session_service=SimpleNamespace(active_workflow_id="wf"),
+        output_navigation_session_service=OutputNavigationSessionService(),
+        output_canvas_focus_service=SimpleNamespace(
             set_output_compare_state=lambda active_workflow, state: calls.append(
                 (active_workflow, state)
             )
@@ -363,6 +379,7 @@ def test_output_compare_selection_records_compare_state() -> None:
     mod.WorkspaceCanvasActions(view).on_output_compare_changed(state)
 
     assert calls == [(workflow, state)]
+    assert workflow.output_focus_mode is OutputFocusMode.MANUAL
 
 
 def test_output_selection_intents_schedule_active_projection() -> None:
@@ -374,7 +391,8 @@ def test_output_selection_intents_schedule_active_projection() -> None:
     view = SimpleNamespace(
         get_active_workflow=lambda: workflow,
         workflow_session_service=SimpleNamespace(active_workflow_id="wf"),
-        output_canvas_state_service=SimpleNamespace(
+        output_navigation_session_service=OutputNavigationSessionService(),
+        output_canvas_focus_service=SimpleNamespace(
             set_active_output_uuid=lambda *_args: None,
             set_active_output_grid=lambda *_args, **_kwargs: None,
             set_active_output_scene=lambda *_args, **_kwargs: None,
@@ -892,8 +910,8 @@ def test_commit_prepared_live_output_uses_generated_registration() -> None:
                 image_meta,
             )[1]
         ),
-        output_canvas_state_service=SimpleNamespace(
-            register_generated_output=lambda *args, **kwargs: (
+        output_generated_result_service=SimpleNamespace(
+            commit_generated_output=lambda *args, **kwargs: (
                 calls.append(("generated", (args, kwargs))),
                 _registration_result(
                     workflow_id="wf-a",
@@ -901,6 +919,8 @@ def test_commit_prepared_live_output_uses_generated_registration() -> None:
                     should_schedule=True,
                 ),
             )[1],
+        ),
+        output_canvas_state_service=SimpleNamespace(
             register_output_image=lambda *args: calls.append(("legacy", args)),
         ),
         canvas_host=SimpleNamespace(canvas_for={}.get),
@@ -996,8 +1016,8 @@ def test_commit_prepared_live_output_rejection_skips_routes_and_activity() -> No
         canvas_io_service=SimpleNamespace(
             build_output_image_metadata=lambda **_kwargs: image_meta,
         ),
-        output_canvas_state_service=SimpleNamespace(
-            register_generated_output=lambda *args, **kwargs: (
+        output_generated_result_service=SimpleNamespace(
+            commit_generated_output=lambda *args, **kwargs: (
                 calls.append(("generated", (args, kwargs))),
                 _registration_result(
                     workflow_id="wf-a",
@@ -1006,6 +1026,8 @@ def test_commit_prepared_live_output_rejection_skips_routes_and_activity() -> No
                     should_schedule=False,
                 ),
             )[1],
+        ),
+        output_canvas_state_service=SimpleNamespace(
             register_output_image=lambda *args: calls.append(("legacy", args)),
         ),
         canvas_host=SimpleNamespace(canvas_for={}.get),

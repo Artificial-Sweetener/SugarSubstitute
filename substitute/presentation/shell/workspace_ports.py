@@ -103,20 +103,6 @@ class WorkflowSessionState(Protocol):
     workflows: Mapping[str, object]
 
 
-class OutputCanvasStateGenerationProtocol(Protocol):
-    """Describe run-start output focus APIs used by generation orchestration."""
-
-    def begin_output_generation(
-        self,
-        workflows: Mapping[str, object],
-        workflow_id: str,
-        *,
-        scene_run_id: str | None = None,
-        scene_count: int | None = None,
-    ) -> None:
-        """Prepare output focus for a generation run."""
-
-
 class GenerationFeedbackDispatcherProtocol(Protocol):
     """Describe generation feedback callbacks exposed to orchestration."""
 
@@ -239,7 +225,6 @@ class WorkspaceGenerationView(Protocol):
     """Describe the shell surface consumed by generation-button orchestration."""
 
     workflow_session_service: WorkflowSessionState
-    output_canvas_state_service: OutputCanvasStateGenerationProtocol
     input_generation_snapshot_service: InputGenerationSnapshotProtocol
     workspace_generation_controller: WorkspaceGenerationControllerProtocol
     generation_feedback_dispatcher: GenerationFeedbackDispatcherProtocol
@@ -268,7 +253,6 @@ __all__ = [
     "InputCanvasPresenterProtocol",
     "InputNodeInteractionControllerProtocol",
     "InputGenerationSnapshotProtocol",
-    "OutputCanvasStateGenerationProtocol",
     "WorkflowNameResolverProtocol",
     "WorkflowSessionState",
     "WorkspaceGenerationControllerProtocol",

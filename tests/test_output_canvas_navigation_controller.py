@@ -45,6 +45,9 @@ from substitute.presentation.canvas.output.output_canvas_navigation_controller i
 from substitute.presentation.canvas.output.output_canvas_navigation_policy import (
     OutputCanvasNavigationPolicy,
 )
+from substitute.presentation.canvas.output.output_canvas_navigation_visibility import (
+    OutputCanvasNavigationVisibilityPolicy,
+)
 from substitute.presentation.canvas.shared.output_nav_layout import OutputNavBarGeometry
 
 
@@ -118,80 +121,6 @@ def test_navigation_bar_width_supports_more_than_three_controls() -> None:
     assert width == 20 + 30 + 40 + (2 * 4) + (2 * 3)
 
 
-def test_source_navigation_display_expands_when_width_fits() -> None:
-    """Source navigation should render tabs when expanded tabs fit available space."""
-
-    display = OutputCanvasNavigationController.source_navigation_display(
-        show_source_navigation=True,
-        has_source_selector=True,
-        expanded_width=120,
-        available_width=160,
-    )
-
-    assert display.source_tabs_collapsed is False
-    assert display.show_source_tabs is True
-    assert display.show_source_selector is False
-
-
-def test_source_navigation_display_collapses_when_width_overflows() -> None:
-    """Source navigation should use the compact selector when tabs overflow."""
-
-    display = OutputCanvasNavigationController.source_navigation_display(
-        show_source_navigation=True,
-        has_source_selector=True,
-        expanded_width=200,
-        available_width=160,
-    )
-
-    assert display.source_tabs_collapsed is True
-    assert display.show_source_tabs is False
-    assert display.show_source_selector is True
-
-
-def test_source_navigation_display_requires_selector_to_collapse() -> None:
-    """Missing compact selector should keep tab rendering when navigation is shown."""
-
-    display = OutputCanvasNavigationController.source_navigation_display(
-        show_source_navigation=True,
-        has_source_selector=False,
-        expanded_width=200,
-        available_width=160,
-    )
-
-    assert display.source_tabs_collapsed is False
-    assert display.show_source_tabs is True
-    assert display.show_source_selector is False
-
-
-def test_source_navigation_display_hides_all_source_modes_when_disabled() -> None:
-    """Disabled source navigation should hide expanded and collapsed source controls."""
-
-    display = OutputCanvasNavigationController.source_navigation_display(
-        show_source_navigation=False,
-        has_source_selector=True,
-        expanded_width=200,
-        available_width=160,
-    )
-
-    assert display.source_tabs_collapsed is False
-    assert display.show_source_tabs is False
-    assert display.show_source_selector is False
-
-
-def test_compare_navigation_visibility_sets_base_control_modes() -> None:
-    """Active compare mode should collapse source tabs and expose base selectors."""
-
-    visibility = OutputCanvasNavigationController.compare_navigation_visibility(
-        scene_count=2,
-        set_count=1,
-    )
-
-    assert visibility.source_tabs_collapsed is True
-    assert visibility.show_scene_selector is True
-    assert visibility.show_set_selector is False
-    assert visibility.show_source_selector is True
-
-
 def test_hide_compare_navigation_containers_hides_both_bars() -> None:
     """Invalid compare state should hide base and comparison navigation bars."""
 
@@ -220,7 +149,7 @@ def test_apply_compare_navigation_visibility_hides_tabs_and_sets_controls() -> N
         scene_selector=scene_selector,
         set_selector=set_selector,
         source_selector=source_selector,
-        visibility=OutputCanvasNavigationController.compare_navigation_visibility(
+        visibility=OutputCanvasNavigationVisibilityPolicy.compare(
             scene_count=1,
             set_count=3,
         ),

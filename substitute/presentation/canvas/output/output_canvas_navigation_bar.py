@@ -396,17 +396,15 @@ def source_selector_button_state(
     full_text: str,
     display_text: str,
     width: int,
-    source_tabs_collapsed: bool,
-    tab_count: int,
-    active_scene_overview: bool,
+    visible: bool,
 ) -> SourceSelectorButtonState:
-    """Return collapsed source selector text, tooltip, width, and visibility."""
+    """Return prepared collapsed-source selector presentation state."""
 
     return SourceSelectorButtonState(
         text=display_text,
         tooltip=full_text if display_text != full_text else "",
         width=width,
-        visible=source_tabs_collapsed and tab_count > 1 and not active_scene_overview,
+        visible=visible,
     )
 
 
@@ -416,19 +414,15 @@ def apply_source_selector_button_state(
     full_text: str,
     display_text: str,
     width: int,
-    source_tabs_collapsed: bool,
-    tab_count: int,
-    active_scene_overview: bool,
+    visible: bool,
 ) -> SourceSelectorButtonState:
-    """Apply collapsed source selector text, tooltip, width, and visibility."""
+    """Apply prepared collapsed-source selector presentation state."""
 
     button_state = source_selector_button_state(
         full_text=full_text,
         display_text=display_text,
         width=width,
-        source_tabs_collapsed=source_tabs_collapsed,
-        tab_count=tab_count,
-        active_scene_overview=active_scene_overview,
+        visible=visible,
     )
     apply_source_button_state(button, button_state)
     return button_state
@@ -439,14 +433,15 @@ def compare_source_button_state(
     full_text: str,
     display_text: str,
     width: int,
+    visible: bool,
 ) -> SourceSelectorButtonState:
-    """Return compare source selector text, tooltip, width, and visibility."""
+    """Return prepared comparison source-selector presentation state."""
 
     return SourceSelectorButtonState(
         text=display_text,
         tooltip=full_text if display_text != full_text else "",
         width=width,
-        visible=True,
+        visible=visible,
     )
 
 
@@ -456,13 +451,15 @@ def apply_compare_source_button_state(
     full_text: str,
     display_text: str,
     width: int,
+    visible: bool,
 ) -> SourceSelectorButtonState:
-    """Apply compare source selector text, tooltip, width, and visibility."""
+    """Apply prepared comparison source-selector presentation state."""
 
     button_state = compare_source_button_state(
         full_text=full_text,
         display_text=display_text,
         width=width,
+        visible=visible,
     )
     apply_source_button_state(button, button_state)
     return button_state
@@ -490,15 +487,13 @@ def apply_source_button_state(
 def set_selector_button_state(
     *,
     active_set_index: int,
-    active_scene_overview: bool,
-    set_count: int,
-    grid_available: bool,
+    visible: bool,
 ) -> SetSelectorButtonState:
-    """Return set selector text and visibility."""
+    """Return prepared normal set-selector presentation state."""
 
     return SetSelectorButtonState(
         text=str(active_set_index),
-        visible=not active_scene_overview and (set_count > 1 or grid_available),
+        visible=visible,
     )
 
 
@@ -506,17 +501,13 @@ def apply_set_selector_button_state(
     button: object,
     *,
     active_set_index: int,
-    active_scene_overview: bool,
-    set_count: int,
-    grid_available: bool,
+    visible: bool,
 ) -> SetSelectorButtonState:
-    """Apply set selector text and visibility to an opaque host button."""
+    """Apply prepared normal set-selector state to an opaque button."""
 
     button_state = set_selector_button_state(
         active_set_index=active_set_index,
-        active_scene_overview=active_scene_overview,
-        set_count=set_count,
-        grid_available=grid_available,
+        visible=visible,
     )
     set_text = getattr(button, "setText", None)
     if callable(set_text):
@@ -530,13 +521,13 @@ def apply_set_selector_button_state(
 def compare_set_button_state(
     *,
     set_index: int,
-    set_count: int,
+    visible: bool,
 ) -> SetSelectorButtonState:
-    """Return compare set selector text and visibility."""
+    """Return prepared comparison set-selector presentation state."""
 
     return SetSelectorButtonState(
         text=str(set_index),
-        visible=set_count > 1,
+        visible=visible,
     )
 
 
@@ -544,13 +535,13 @@ def apply_compare_set_button_state(
     button: object,
     *,
     set_index: int,
-    set_count: int,
+    visible: bool,
 ) -> SetSelectorButtonState:
-    """Apply compare set selector text and visibility to an opaque host button."""
+    """Apply prepared comparison set-selector state to an opaque button."""
 
     button_state = compare_set_button_state(
         set_index=set_index,
-        set_count=set_count,
+        visible=visible,
     )
     set_text = getattr(button, "setText", None)
     if callable(set_text):
@@ -630,15 +621,15 @@ def scene_selector_button_state(
     full_text: str,
     display_text: str,
     width: int,
-    scene_count: int,
+    visible: bool,
 ) -> SceneSelectorButtonState:
-    """Return scene selector text, tooltip, width, and visibility."""
+    """Return prepared normal scene-selector presentation state."""
 
     return SceneSelectorButtonState(
         text=display_text,
         tooltip=full_text if display_text != full_text else "",
         width=width,
-        visible=scene_count > 1,
+        visible=visible,
     )
 
 
@@ -648,15 +639,15 @@ def apply_scene_selector_button_state(
     full_text: str,
     display_text: str,
     width: int,
-    scene_count: int,
+    visible: bool,
 ) -> SceneSelectorButtonState:
-    """Apply normal scene selector text, tooltip, width, and visibility."""
+    """Apply prepared normal scene-selector presentation state."""
 
     button_state = scene_selector_button_state(
         full_text=full_text,
         display_text=display_text,
         width=width,
-        scene_count=scene_count,
+        visible=visible,
     )
     apply_scene_button_state(button, button_state)
     return button_state
@@ -683,15 +674,15 @@ def compare_scene_button_state(
     full_text: str,
     display_text: str,
     width: int,
-    scene_count: int,
+    visible: bool,
 ) -> SceneSelectorButtonState:
-    """Return compare scene selector text, tooltip, width, and visibility."""
+    """Return prepared comparison scene-selector presentation state."""
 
     return SceneSelectorButtonState(
         text=display_text,
         tooltip=full_text if display_text != full_text else "",
         width=width,
-        visible=scene_count > 1,
+        visible=visible,
     )
 
 
@@ -701,15 +692,15 @@ def apply_compare_scene_button_state(
     full_text: str,
     display_text: str,
     width: int,
-    scene_count: int,
+    visible: bool,
 ) -> SceneSelectorButtonState:
-    """Apply compare scene selector text, tooltip, width, and visibility."""
+    """Apply prepared comparison scene-selector presentation state."""
 
     button_state = compare_scene_button_state(
         full_text=full_text,
         display_text=display_text,
         width=width,
-        scene_count=scene_count,
+        visible=visible,
     )
     apply_scene_button_state(button, button_state)
     return button_state

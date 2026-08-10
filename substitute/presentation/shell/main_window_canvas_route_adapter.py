@@ -85,6 +85,7 @@ class MainWindowCanvasRouteAdapter:
             )
         try:
             project_workflow(workflows, workflow_id)
+            self._refresh_input_tool_profile()
         except Exception as error:
             log_exception(
                 _LOGGER,
@@ -144,6 +145,7 @@ class MainWindowCanvasRouteAdapter:
             )
         try:
             refresh_input_canvas_availability()
+            self._refresh_input_tool_profile()
         except Exception as error:
             log_exception(
                 _LOGGER,
@@ -175,3 +177,15 @@ class MainWindowCanvasRouteAdapter:
 
         session = getattr(self._shell, "workflow_session_service", None)
         return str(getattr(session, "active_workflow_id", ""))
+
+    def _refresh_input_tool_profile(self) -> None:
+        """Project workflow applicability after an authoritative canvas refresh."""
+
+        profile_controller = getattr(
+            self._shell,
+            "input_canvas_tool_profile_controller",
+            None,
+        )
+        refresh = getattr(profile_controller, "refresh_workflow_profile", None)
+        if callable(refresh):
+            refresh()

@@ -1737,7 +1737,7 @@ def test_output_comparison_right_click_forwards_the_established_output_context()
 def test_composed_output_context_router_connects_to_workspace_signal(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Compose the grid Copy route through the real CuteCanvas context signal."""
+    """Compose addressed grid actions through the real CuteCanvas context signal."""
 
     app = _app()
     canvas = OutputCanvas(
@@ -1786,6 +1786,7 @@ def test_composed_output_context_router_connects_to_workspace_signal(
         assert tuple(entry.action_id for entry in entries) == (
             "output_canvas.copy",
             "output_canvas.open_current_external",
+            "output_canvas.reveal_current_asset",
             "output_canvas.dock_action",
         )
         assert entries[0].callback is not None

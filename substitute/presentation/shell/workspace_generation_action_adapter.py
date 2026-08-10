@@ -164,9 +164,6 @@ def build_generation_action_bindings(
     return GenerationUiBindings(
         build_generation_request=build_generation_request_with_randomized_seeds,
         randomize_seeds=lambda: None,
-        clear_output_for_workflow=(
-            generation_feedback_presenter_for(view).request_clear_output_for_workflow
-        ),
         on_run_started=feedback.on_run_started,
         on_progress=feedback.on_progress,
         on_model_load_progress=feedback.on_model_load_progress,

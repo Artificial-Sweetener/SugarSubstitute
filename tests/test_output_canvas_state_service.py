@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 import uuid
+from dataclasses import replace
 from pathlib import Path
 
 from substitute.application.workflows.canvas_image_registry import CanvasImageRegistry
@@ -28,6 +29,18 @@ from substitute.application.workflows.output_canvas_projection import (
 )
 from substitute.application.workflows.output_canvas_state_service import (
     OutputCanvasStateService,
+)
+from substitute.application.workflows.output_canvas_timing_service import (
+    OutputCanvasTimingService,
+)
+from substitute.application.workflows.output_canvas_focus_service import (
+    OutputCanvasFocusService,
+)
+from substitute.application.workflows.output_generated_result_service import (
+    OutputGeneratedResultService,
+)
+from substitute.application.workflows.output_navigation_session_service import (
+    OutputNavigationSessionService,
 )
 from substitute.application.workflows.output_visual_events import (
     LiveFinalOutputEvent,
@@ -51,16 +64,21 @@ def test_register_generated_output_preserves_backend_metadata_and_result_identit
 
     image_id = uuid.uuid4()
     registry = CanvasImageRegistry()
-    service = OutputCanvasStateService(
+    state_service = OutputCanvasStateService(
         image_registry=registry,
         uuid_factory=lambda: image_id,
+    )
+    service = OutputGeneratedResultService(
+        image_registry=registry,
+        output_state_service=state_service,
+        navigation_session_service=OutputNavigationSessionService(),
     )
     workflow = WorkflowState()
     image = object()
     event = _live_final_event()
     image_meta = _live_image_meta()
 
-    result = service.register_generated_output(
+    result = service.commit_generated_output(
         {"wf": workflow},
         active_workflow_id="wf",
         event=event,
@@ -71,7 +89,7 @@ def test_register_generated_output_preserves_backend_metadata_and_result_identit
     assert result.registered is True
     assert result.workflow_id == "wf"
     assert result.image_id == image_id
-    assert result.focus_change.changed is True
+    assert result.focus_change.changed is False
     assert result.projection_intent.workflow_id == "wf"
     assert result.projection_intent.registered_image_id == image_id
     assert result.projection_intent.should_schedule is True
@@ -116,15 +134,35 @@ def test_register_generated_output_preserves_manual_focus() -> None:
     second_id = uuid.uuid4()
     registry = CanvasImageRegistry()
     registry.store(first_id, payload=object(), metadata=_live_image_meta())
-    service = OutputCanvasStateService(
+    state_service = OutputCanvasStateService(
         image_registry=registry,
         uuid_factory=lambda: second_id,
     )
+    focus_service = OutputCanvasFocusService(image_registry=registry)
+    navigation_session_service = OutputNavigationSessionService()
+    service = OutputGeneratedResultService(
+        image_registry=registry,
+        output_state_service=state_service,
+        navigation_session_service=navigation_session_service,
+    )
     workflow = WorkflowState()
     workflow.output_image_uuids = [first_id]
-    service.set_active_output_uuid(workflow, str(first_id))
+    output_session_id = _live_image_meta().scene_run_id
+    assert output_session_id is not None
+    navigation_session_service.begin_session(
+        {"wf": workflow},
+        "wf",
+        output_session_id,
+    )
+    navigation_session_service.present_session_content(
+        {"wf": workflow},
+        "wf",
+        output_session_id,
+    )
+    navigation_session_service.mark_user_navigation("wf", workflow)
+    focus_service.set_active_output_uuid(workflow, str(first_id))
 
-    result = service.register_generated_output(
+    result = service.commit_generated_output(
         {"wf": workflow},
         active_workflow_id="wf",
         event=_live_final_event(),
@@ -142,11 +180,16 @@ def test_register_generated_output_rejects_node_mismatch() -> None:
     """Live final registration should fail closed when node identity drifts."""
 
     registry = CanvasImageRegistry()
-    service = OutputCanvasStateService(image_registry=registry)
+    state_service = OutputCanvasStateService(image_registry=registry)
+    service = OutputGeneratedResultService(
+        image_registry=registry,
+        output_state_service=state_service,
+        navigation_session_service=OutputNavigationSessionService(),
+    )
     workflow = WorkflowState()
     image_meta = _live_image_meta(node_id="other-node")
 
-    result = service.register_generated_output(
+    result = service.commit_generated_output(
         {"wf": workflow},
         active_workflow_id="wf",
         event=_live_final_event(),
@@ -158,6 +201,45 @@ def test_register_generated_output_rejects_node_mismatch() -> None:
     assert result.image_id is None
     assert workflow.output_image_uuids == []
     assert registry.metadata_mapping() == {}
+
+
+def test_generated_result_replaces_prior_group_only_during_successful_commit() -> None:
+    """A validated presentable final should atomically replace the prior result group."""
+
+    old_id = uuid.uuid4()
+    new_id = uuid.uuid4()
+    registry = CanvasImageRegistry()
+    old_meta = replace(
+        _live_image_meta(),
+        generation_run_id="old-run",
+        scene_run_id="old-scene-run",
+    )
+    registry.store(old_id, payload=object(), metadata=old_meta)
+    workflow = WorkflowState(output_image_uuids=[old_id])
+    state_service = OutputCanvasStateService(
+        image_registry=registry,
+        uuid_factory=lambda: new_id,
+    )
+    service = OutputGeneratedResultService(
+        image_registry=registry,
+        output_state_service=state_service,
+        navigation_session_service=OutputNavigationSessionService(),
+    )
+
+    result = service.commit_generated_output(
+        {"wf": workflow},
+        active_workflow_id="wf",
+        event=_live_final_event(),
+        image=object(),
+        image_meta=_live_image_meta(),
+    )
+
+    assert result.registered is True
+    assert result.image_id == new_id
+    assert result.retired_image_ids == (old_id,)
+    assert workflow.output_image_uuids == [new_id]
+    assert registry.metadata_for(old_id) is None
+    assert registry.metadata_for(new_id) is not None
 
 
 def test_restore_output_image_writes_registry_without_membership_or_widgets() -> None:
@@ -185,11 +267,14 @@ def test_restore_output_image_writes_registry_without_membership_or_widgets() ->
     assert registry.metadata_for(image_id) == image_meta
 
 
-def test_timing_focus_compare_and_pruning_are_owned_by_output_state_service() -> None:
-    """The service should own durable Output timing, focus, compare, and pruning."""
+def test_timing_focus_compare_and_pruning_use_their_authoritative_owners() -> None:
+    """Durable Output metadata and focus should use separate cohesive owners."""
 
     registry = CanvasImageRegistry()
     service = OutputCanvasStateService(image_registry=registry)
+    focus_service = OutputCanvasFocusService(image_registry=registry)
+    navigation_session_service = OutputNavigationSessionService()
+    timing_service = OutputCanvasTimingService(image_registry=registry)
     workflow = WorkflowState()
     image_id = uuid.uuid4()
     workflow.output_image_uuids = [image_id]
@@ -208,19 +293,20 @@ def test_timing_focus_compare_and_pruning_are_owned_by_output_state_service() ->
         ),
     )
 
-    timing = service.apply_output_source_timing(
+    timing = timing_service.apply_output_source_timing(
         {"wf": workflow},
         workflow_id="wf",
         active_workflow_id="wf",
         source_durations_ms={"wf:save": 55.0},
         cube_durations_ms={},
     )
-    service.set_active_output_uuid(workflow, str(image_id))
+    navigation_session_service.mark_user_navigation("wf", workflow)
+    focus_service.set_active_output_uuid(workflow, str(image_id))
     compare_state = OutputCompareState(
         enabled=True,
         base=OutputCompareSelection("scene-a", 1, "wf:save"),
     )
-    service.set_output_compare_state(workflow, compare_state)
+    focus_service.set_output_compare_state(workflow, compare_state)
 
     assert timing.changed is True
     assert timing.projection_intent.should_schedule is True
@@ -239,12 +325,12 @@ def test_timing_focus_compare_and_pruning_are_owned_by_output_state_service() ->
     assert prune.removed_image_ids == (image_id,)
     assert workflow.output_image_uuids == []
     assert workflow.active_output_uuid is None
-    assert workflow.output_focus_mode is OutputFocusMode.AUTOMATIC
+    assert workflow.output_focus_mode is OutputFocusMode.MANUAL
     assert registry.metadata_for(image_id) is None
 
 
 def test_output_canvas_state_service_has_no_widget_or_display_dependencies() -> None:
-    """The Output state owner must stay pure application state."""
+    """Keep durable Output registration cohesive and below the structural ceiling."""
 
     module_path = (
         Path(__file__).resolve().parents[1]
@@ -295,12 +381,54 @@ def test_output_canvas_state_service_has_no_widget_or_display_dependencies() -> 
             "CanvasProjectionScheduler",
             "ProjectionReason",
             "websocket",
+            "begin_output_generation",
+            "apply_output_source_timing",
+            "commit_generated_output",
+            "build_output_canvas_projection",
         )
         if token in source
     }
+    nonblank_noncomment_lines = sum(
+        bool(line.strip()) and not line.lstrip().startswith("#")
+        for line in source.splitlines()
+    )
 
     assert forbidden_imports == set()
     assert forbidden_tokens == set()
+    assert nonblank_noncomment_lines <= 350
+
+
+def test_output_canvas_owners_respect_structural_soft_ceiling() -> None:
+    """Keep each extracted Output owner below the reviewed QPane soft ceiling."""
+
+    workflows_path = (
+        Path(__file__).resolve().parents[1] / "substitute" / "application" / "workflows"
+    )
+    owner_modules = (
+        "output_canvas_projection.py",
+        "output_canvas_route_projection.py",
+        "output_canvas_focus_service.py",
+        "output_generated_result_service.py",
+        "output_navigation_session_service.py",
+        "output_canvas_timing_service.py",
+        "output_canvas_state_service.py",
+    )
+
+    oversized_modules = {
+        module_name: nonblank_noncomment_lines
+        for module_name in owner_modules
+        if (
+            nonblank_noncomment_lines := sum(
+                bool(line.strip()) and not line.lstrip().startswith("#")
+                for line in (workflows_path / module_name)
+                .read_text(encoding="utf-8")
+                .splitlines()
+            )
+        )
+        > 350
+    }
+
+    assert oversized_modules == {}
 
 
 def _live_final_event() -> LiveFinalOutputEvent:

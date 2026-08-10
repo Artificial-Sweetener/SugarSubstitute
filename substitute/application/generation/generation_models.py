@@ -81,6 +81,7 @@ class GenerationRunStarted:
 
     workflow_id: WorkflowId
     generation_run_id: str
+    output_session_id: str
     prompt_id: str
     client_id: str
 
@@ -100,7 +101,6 @@ class GenerationStartResult:
 class GenerationCallbacks:
     """Define application-facing callbacks for generation event propagation."""
 
-    clear_output: Callable[[WorkflowId], None]
     on_progress: Callable[[ProgressUpdate], None]
     on_model_load_progress: Callable[[ModelLoadProgressUpdate], None]
     on_preview: Callable[[PreviewImageUpdate], None]

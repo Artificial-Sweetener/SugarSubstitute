@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Define the product default grouping of normal Input canvas tools."""
+"""Define the runtime arrangement of normal Input canvas tools."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from substitute.presentation.canvas.tools import (
 
 
 def create_input_canvas_tool_layout() -> CanvasToolLayout:
-    """Create the configurable default layout for the Input tool strip."""
+    """Create the current product layout for the Input tool strip."""
 
     return create_canvas_tool_layout(
         (
@@ -57,7 +57,14 @@ def create_input_canvas_tool_layout() -> CanvasToolLayout:
                 selected_tool_id=InputCanvasToolId.MASK_RECTANGLE,
             ),
             _single("input.slot.smart_mask", InputCanvasToolId.SMART_MASK),
-            _single("input.slot.transform", InputCanvasToolId.TRANSFORM_LAYER),
+            CanvasToolGroupSlot(
+                slot_id="input.slot.transform",
+                tool_ids=(
+                    InputCanvasToolId.TRANSFORM_LAYER,
+                    InputCanvasToolId.SHARED_EDGE_RESIZE,
+                ),
+                selected_tool_id=InputCanvasToolId.TRANSFORM_LAYER,
+            ),
         )
     )
 

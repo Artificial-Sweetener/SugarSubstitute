@@ -96,7 +96,6 @@ class GenerationUiBindings:
 
     build_generation_request: Callable[[], GenerationRequest]
     randomize_seeds: Callable[[], None]
-    clear_output_for_workflow: Callable[[WorkflowId], None]
     on_progress: Callable[[ProgressUpdate], None]
     on_model_load_progress: Callable[[ModelLoadProgressUpdate], None]
     on_preview: Callable[[PreviewImageUpdate], None]
@@ -401,7 +400,6 @@ class WorkspaceGenerationController:
 
         return GenerationCallbacks(
             randomize_seeds=bindings.randomize_seeds,
-            clear_output=bindings.clear_output_for_workflow,
             on_run_started=bindings.on_run_started,
             on_progress=bindings.on_progress,
             on_model_load_progress=bindings.on_model_load_progress,
@@ -729,7 +727,6 @@ class WorkspaceGenerationController:
 
         return GenerationCallbacks(
             randomize_seeds=None,
-            clear_output=bindings.clear_output_for_workflow,
             on_run_started=bindings.on_run_started,
             on_progress=bindings.on_progress,
             on_model_load_progress=bindings.on_model_load_progress,

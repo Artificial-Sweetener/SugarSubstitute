@@ -175,6 +175,45 @@ def test_active_output_generated_while_output_canvas_hidden_projects_when_resele
     harness.assert_showing_workflow("alpha", color=(150, 90, 25))
 
 
+def test_batch_navigation_is_visible_when_output_opens_after_hidden_generation(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Reveal batch navigation after a multi-batch projection completed offscreen."""
+
+    harness.add_workflow("alpha", activate=True)
+    harness.show_canvas("Input")
+    run = harness.start_run("alpha")
+    harness.emit_output(
+        run,
+        OutputSpec(
+            "alpha-batch",
+            "Alpha Batch",
+            (150, 90, 25),
+            list_index=0,
+            batch_index=0,
+        ),
+    )
+    harness.emit_output(
+        run,
+        OutputSpec(
+            "alpha-batch",
+            "Alpha Batch",
+            (25, 90, 150),
+            list_index=0,
+            batch_index=1,
+        ),
+    )
+    harness.wait_for_output_count("alpha", 2)
+
+    harness.show_canvas("Output")
+    canvas = harness.shell.output_canvas
+    harness.wait_until(lambda: canvas.set_selector_button.isVisibleTo(canvas))
+
+    assert canvas.set_count == 2
+    assert canvas.set_selector_button.isVisibleTo(canvas)
+    assert not canvas.set_selector_button.visibleRegion().isEmpty()
+
+
 def test_scene_batch_outputs_project_as_scene_composition(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
@@ -212,6 +251,267 @@ def test_scene_batch_outputs_project_as_scene_composition(
     harness.assert_scene_composition_for_workflow("alpha")
 
 
+def test_automatic_scene_follow_promotes_only_populated_views_and_honors_drilldown(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Follow the least-specific populated route until the user chooses a result."""
+
+    harness.add_workflow("alpha", activate=True)
+    harness.show_canvas("Output")
+    first_scene = SceneSpec(
+        run_id="scene-run-alpha",
+        key="scene-1",
+        title="Scene 1",
+        order=0,
+        count=2,
+    )
+    first_run = harness.start_run("alpha", run_index=1)
+    first_colors = ((210, 40, 40), (40, 210, 40), (40, 40, 210))
+    for batch_index, color in enumerate(first_colors):
+        harness.emit_output(
+            first_run,
+            OutputSpec(
+                "alpha:text",
+                "Text to Image",
+                color,
+                batch_index=batch_index,
+                scene=first_scene,
+            ),
+        )
+    harness.wait_for_output_count("alpha", 3)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 3)
+
+    canvas = harness.shell.output_canvas
+    first_only = harness.fingerprint()
+    assert first_only.scene_selector_hidden is True
+    assert first_only.set_selector_hidden is False
+    assert not canvas.scene_selector_button.isVisibleTo(canvas)
+    assert canvas.set_selector_button.isVisibleTo(canvas)
+    assert {item[1] for item in first_only.grid_target_frames} == set(
+        harness.output_ids("alpha")
+    )
+
+    second_scene = SceneSpec(
+        run_id="scene-run-alpha",
+        key="scene-2",
+        title="Scene 2",
+        order=1,
+        count=2,
+    )
+    second_run = harness.start_run("alpha", run_index=2)
+    harness.emit_output(
+        second_run,
+        OutputSpec(
+            "alpha:text",
+            "Text to Image",
+            (190, 120, 30),
+            batch_index=0,
+            scene=second_scene,
+        ),
+    )
+    harness.wait_for_output_count("alpha", 4)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 2)
+
+    overview = harness.fingerprint()
+    assert overview.scene_selector_hidden is False
+    assert overview.set_selector_hidden is True
+    assert canvas.scene_selector_button.isVisibleTo(canvas)
+    assert not canvas.set_selector_button.isVisibleTo(canvas)
+    first_scene_ids = harness.output_ids_for_scene_source(
+        scene_key="scene-1",
+        source_key="alpha:text",
+    )
+    harness.click_canvas_image(harness.output_representative_id_for_scene("scene-1"))
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 3)
+    harness.click_canvas_image(first_scene_ids[1])
+    harness.wait_until(
+        lambda: harness.fingerprint().active_image_id == first_scene_ids[1]
+    )
+    selected = harness.fingerprint()
+    assert selected.workflow_output_focus_modes["workflow-alpha"] == "manual"
+
+    harness.emit_output(
+        second_run,
+        OutputSpec(
+            "alpha:text",
+            "Text to Image",
+            (30, 120, 190),
+            batch_index=1,
+            scene=second_scene,
+        ),
+    )
+    harness.wait_for_output_count("alpha", 5)
+    harness.wait_until(
+        lambda: (
+            len(
+                harness.output_ids_for_scene_source(
+                    scene_key="scene-2",
+                    source_key="alpha:text",
+                )
+            )
+            == 2
+        )
+    )
+
+    settled = harness.fingerprint()
+    assert settled.active_image_id == first_scene_ids[1]
+    assert settled.workflow_output_focus_modes["workflow-alpha"] == "manual"
+    projection = canvas._output_projection
+    assert projection is not None
+    assert len(projection.scene_groups) == 2
+    assert (
+        len(
+            harness.output_ids_for_scene_source(
+                scene_key="scene-2",
+                source_key="alpha:text",
+            )
+        )
+        == 2
+    )
+
+
+def test_generation_session_follows_terminal_cube_then_honors_manual_navigation(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Follow terminal cube detail automatically until the user navigates."""
+
+    harness.add_workflow("alpha", activate=True)
+    harness.show_canvas("Output")
+    baseline_run = harness.start_run("alpha", run_index=1)
+    harness.emit_output(
+        baseline_run,
+        OutputSpec(
+            "alpha:baseline",
+            "Baseline",
+            (80, 140, 200),
+            batch_index=0,
+        ),
+    )
+    harness.emit_output(
+        baseline_run,
+        OutputSpec(
+            "alpha:baseline",
+            "Baseline",
+            (60, 120, 180),
+            batch_index=1,
+        ),
+    )
+    harness.wait_for_output_count("alpha", 2)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 2)
+    baseline_id = harness.output_ids("alpha")[1]
+    harness.click_canvas_image(baseline_id)
+    harness.wait_until(
+        lambda: (
+            harness.fingerprint().workflow_output_focus_modes["workflow-alpha"]
+            == "manual"
+        )
+    )
+
+    automatic_run = harness.start_run("alpha", run_index=2)
+    harness.emit_output(
+        automatic_run,
+        OutputSpec(
+            "alpha:draft",
+            "Draft",
+            (200, 70, 70),
+            batch_index=0,
+        ),
+    )
+    harness.emit_output(
+        automatic_run,
+        OutputSpec(
+            "alpha:draft",
+            "Draft",
+            (170, 50, 50),
+            batch_index=1,
+        ),
+    )
+    harness.wait_for_output_count("alpha", 2)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 2)
+    draft_grid = harness.fingerprint()
+    assert draft_grid.active_source_tab_key == "alpha:draft"
+    assert draft_grid.workflow_output_focus_modes["workflow-alpha"] == "automatic"
+
+    harness.emit_output(
+        automatic_run,
+        OutputSpec("alpha:upscale", "Upscale", (65, 185, 105)),
+    )
+    harness.wait_for_output_count("alpha", 3)
+    harness.wait_until(
+        lambda: harness.fingerprint().active_source_tab_key == "alpha:upscale"
+    )
+    harness.assert_showing_workflow("alpha", color=(65, 185, 105))
+
+    harness.select_output_source("alpha:draft")
+    harness.wait_until(
+        lambda: harness.fingerprint().active_source_tab_key == "alpha:draft"
+    )
+    selected_draft = harness.fingerprint()
+    assert selected_draft.workflow_output_focus_modes["workflow-alpha"] == "manual"
+    harness.emit_output(
+        automatic_run,
+        OutputSpec("alpha:final", "Final", (70, 105, 220)),
+    )
+    harness.wait_for_output_count("alpha", 4)
+    settled = harness.fingerprint()
+    assert settled.active_source_tab_key == "alpha:draft"
+    assert (
+        settled.workflow_output_routes["workflow-alpha"]
+        == (selected_draft.workflow_output_routes["workflow-alpha"])
+    )
+
+    next_run = harness.start_run("alpha", run_index=3)
+    before_presentable = harness.fingerprint()
+    assert before_presentable.active_source_tab_key == "alpha:draft"
+    assert (
+        before_presentable.workflow_output_routes["workflow-alpha"]
+        == (selected_draft.workflow_output_routes["workflow-alpha"])
+    )
+    harness.emit_unloadable_output(
+        next_run,
+        OutputSpec("alpha:new-draft", "New Draft", (210, 90, 130)),
+    )
+    harness.drain_events_for(300)
+    after_failure = harness.fingerprint()
+    assert after_failure.active_source_tab_key == "alpha:draft"
+    assert (
+        after_failure.workflow_output_routes["workflow-alpha"]
+        == (selected_draft.workflow_output_routes["workflow-alpha"])
+    )
+
+    harness.emit_output(
+        next_run,
+        OutputSpec("alpha:new-draft", "New Draft", (210, 130, 90)),
+    )
+    harness.wait_for_output_count("alpha", 1)
+    harness.wait_until(
+        lambda: harness.fingerprint().active_source_tab_key == "alpha:new-draft"
+    )
+    harness.emit_output(
+        next_run,
+        OutputSpec(
+            "alpha:new-final",
+            "New Final",
+            (90, 170, 220),
+            batch_index=0,
+        ),
+    )
+    harness.emit_output(
+        next_run,
+        OutputSpec(
+            "alpha:new-final",
+            "New Final",
+            (70, 145, 200),
+            batch_index=1,
+        ),
+    )
+    harness.wait_for_output_count("alpha", 3)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 2)
+    final_grid = harness.fingerprint()
+    assert final_grid.active_source_tab_key == "alpha:new-final"
+    assert final_grid.workflow_output_focus_modes["workflow-alpha"] == "automatic"
+
+
 def test_stale_final_after_newer_run_does_not_register_or_display(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
@@ -245,6 +545,7 @@ def test_preview_final_interleaving_retires_preview_and_displays_final(
         OutputSpec("alpha-save", "Alpha", (30, 30, 30)),
     )
     harness.wait_for_output_count("alpha", 1)
+    baseline_id = harness.output_ids("alpha")[0]
     run = harness.start_run("alpha", run_index=2)
 
     harness.emit_preview(
@@ -258,7 +559,12 @@ def test_preview_final_interleaving_retires_preview_and_displays_final(
         run,
         OutputSpec("alpha-save", "Alpha", (210, 130, 60)),
     )
-    harness.wait_for_output_count("alpha", 2)
+    harness.wait_until(
+        lambda: (
+            len(harness.output_ids("alpha")) == 1
+            and harness.output_ids("alpha")[0] != baseline_id
+        )
+    )
     harness.wait_until(lambda: harness.preview_count() == 0)
 
     harness.assert_no_previews()
@@ -449,6 +755,7 @@ def test_nonmatching_final_does_not_retire_source_preview_lane(
         OutputSpec("alpha-save", "Alpha", (30, 30, 30)),
     )
     harness.wait_for_output_count("alpha", 1)
+    baseline_id = harness.output_ids("alpha")[0]
     run = harness.start_run("alpha", run_index=2)
     harness.emit_preview(
         run,
@@ -461,7 +768,12 @@ def test_nonmatching_final_does_not_retire_source_preview_lane(
         run,
         OutputSpec("alpha-other", "Alpha Other", (210, 60, 130)),
     )
-    harness.wait_for_output_count("alpha", 2)
+    harness.wait_until(
+        lambda: (
+            len(harness.output_ids("alpha")) == 1
+            and harness.output_ids("alpha")[0] != baseline_id
+        )
+    )
 
     harness.wait_for_preview_count(1)
     harness.assert_showing_workflow("alpha", color=(210, 60, 130))
@@ -561,26 +873,24 @@ def test_manual_output_selection_survives_new_final_arrival(
     """A user-selected older output should not be overwritten by new finals."""
 
     harness.add_workflow("alpha", activate=True)
-    first_run = harness.start_run("alpha", run_index=1)
+    run = harness.start_run("alpha", run_index=1)
     harness.emit_output(
-        first_run,
-        OutputSpec("alpha-save", "Alpha", (40, 120, 200), list_index=0),
+        run,
+        OutputSpec("alpha-save", "Alpha", (40, 120, 200), batch_index=0),
     )
     harness.wait_for_output_count("alpha", 1)
-    second_run = harness.start_run("alpha", run_index=2)
     harness.emit_output(
-        second_run,
-        OutputSpec("alpha-save", "Alpha", (200, 120, 40), list_index=1),
+        run,
+        OutputSpec("alpha-save", "Alpha", (200, 120, 40), batch_index=1),
     )
     harness.wait_for_output_count("alpha", 2)
     first_output_id = harness.output_ids("alpha")[0]
 
     harness.select_output_id(first_output_id)
     harness.assert_showing_workflow("alpha", color=(40, 120, 200))
-    third_run = harness.start_run("alpha", run_index=3)
     harness.emit_output(
-        third_run,
-        OutputSpec("alpha-save", "Alpha", (120, 200, 40), list_index=2),
+        run,
+        OutputSpec("alpha-save", "Alpha", (120, 200, 40), batch_index=2),
     )
     harness.wait_for_output_count("alpha", 3)
 
@@ -593,25 +903,29 @@ def test_pending_final_does_not_override_manual_reselection(
     """A pending generated projection should not beat immediate user selection."""
 
     harness.add_workflow("alpha", activate=True)
-    first_run = harness.start_run("alpha", run_index=1)
+    run = harness.start_run("alpha", run_index=1)
     harness.emit_output(
-        first_run,
-        OutputSpec("alpha-save", "Alpha", (45, 125, 205)),
+        run,
+        OutputSpec("alpha-save", "Alpha", (45, 125, 205), batch_index=0),
     )
     harness.wait_for_output_count("alpha", 1)
+    harness.emit_output(
+        run,
+        OutputSpec("alpha-save", "Alpha", (125, 205, 45), batch_index=1),
+    )
+    harness.wait_for_output_count("alpha", 2)
     first_output_id = harness.output_ids("alpha")[0]
-    second_run = harness.start_run("alpha", run_index=2)
 
     harness.emit_output(
-        second_run,
-        OutputSpec("alpha-save", "Alpha", (205, 125, 45)),
+        run,
+        OutputSpec("alpha-save", "Alpha", (205, 125, 45), batch_index=2),
     )
     harness.select_output_id(first_output_id)
     workflow_id = harness.workflows["alpha"].workflow_id
     selected = harness.fingerprint()
     assert selected.workflow_output_focus_modes[workflow_id] == "manual", selected
     assert selected.workflow_output_routes[workflow_id][4] == first_output_id, selected
-    harness.wait_for_output_count("alpha", 2)
+    harness.wait_for_output_count("alpha", 3)
 
     settled = harness.fingerprint()
     assert settled.workflow_output_focus_modes[workflow_id] == "manual", settled
@@ -765,6 +1079,11 @@ def test_unequal_scene_sources_navigate_exact_batches_and_grid(
     assert scene3_upscale_id in {
         placement[1] for placement in scene_overview.grid_target_frames
     }
+    assert scene_overview.scene_selector_hidden is False
+    canvas = harness.shell.output_canvas
+    assert canvas.tabbar_container.isVisibleTo(canvas)
+    assert canvas.scene_selector_button.isVisibleTo(canvas)
+    assert not canvas.scene_selector_button.visibleRegion().isEmpty()
 
     harness.click_canvas_image(scene3_upscale_id)
     harness.wait_until(
@@ -781,6 +1100,12 @@ def test_unequal_scene_sources_navigate_exact_batches_and_grid(
     assert workflow.active_output_set_index == 0
     assert workflow.active_output_uuid is None
     assert batch_grid.active_composition_id is not None
+    assert batch_grid.scene_selector_hidden is False
+    assert batch_grid.set_selector_hidden is False
+    assert canvas.scene_selector_button.isVisibleTo(canvas)
+    assert canvas.set_selector_button.isVisibleTo(canvas)
+    assert not canvas.scene_selector_button.visibleRegion().isEmpty()
+    assert not canvas.set_selector_button.visibleRegion().isEmpty()
 
     harness.click_canvas_image(scene3_text_ids[1])
     harness.wait_until(
@@ -1137,6 +1462,8 @@ def test_restored_comparison_chrome_identifies_each_rendered_side(
         comparison_rgb=(40, 40, 210),
         base_labels=("scene 1", "1", "Text to Image"),
         comparison_labels=("scene 1", "1", "Diffusion Upscale"),
+        base_batch_visible=True,
+        comparison_batch_visible=True,
     )
 
     workflow.output_compare_state = OutputCompareState(
@@ -1153,7 +1480,54 @@ def test_restored_comparison_chrome_identifies_each_rendered_side(
         comparison_rgb=(40, 60, 210),
         base_labels=("scene 1", "2", "Text to Image"),
         comparison_labels=("scene 2", "1", "Diffusion Upscale"),
+        base_batch_visible=True,
+        comparison_batch_visible=False,
     )
+
+
+def test_batchless_comparison_exposes_scene_navigation_on_both_sides(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Comparison chrome should expose multiple scenes without requiring batches."""
+
+    harness.add_workflow("alpha", activate=True)
+    harness.show_canvas("Output")
+    run = harness.start_run("alpha")
+    for scene_index, color in enumerate(((190, 50, 40), (40, 50, 190)), start=1):
+        harness.emit_output(
+            run,
+            OutputSpec(
+                "alpha:text",
+                "Text to Image",
+                color,
+                scene=SceneSpec(
+                    run_id="scene-run-alpha",
+                    key=f"scene{scene_index}",
+                    title=f"scene {scene_index}",
+                    order=scene_index - 1,
+                    count=2,
+                ),
+            ),
+        )
+    harness.wait_for_output_count("alpha", 2)
+    harness.complete_run(run)
+    workflow = harness.shell.workflow_session_service.workflows["workflow-alpha"]
+    workflow.output_compare_state = OutputCompareState(
+        enabled=True,
+        base=OutputCompareSelection("scene1", 1, "alpha:text"),
+        comparison=OutputCompareSelection("scene2", 1, "alpha:text"),
+    )
+
+    harness.project_workflow_directly("alpha")
+    canvas = harness.shell.output_canvas
+    harness.wait_until(lambda: canvas.comparison_nav_container.isVisibleTo(canvas))
+
+    assert canvas.scene_selector_button.isVisibleTo(canvas)
+    assert canvas.comparison_scene_selector_button.isVisibleTo(canvas)
+    assert not canvas.scene_selector_button.visibleRegion().isEmpty()
+    assert not canvas.comparison_scene_selector_button.visibleRegion().isEmpty()
+    assert not canvas.set_selector_button.isVisibleTo(canvas)
+    assert not canvas.comparison_set_selector_button.isVisibleTo(canvas)
 
 
 def _assert_comparison_side_identity(
@@ -1165,6 +1539,8 @@ def _assert_comparison_side_identity(
     comparison_rgb: tuple[int, int, int],
     base_labels: tuple[str, str, str],
     comparison_labels: tuple[str, str, str],
+    base_batch_visible: bool,
+    comparison_batch_visible: bool,
 ) -> None:
     """Assert that pixels, targets, and chrome identify the same two sides."""
 
@@ -1208,6 +1584,15 @@ def _assert_comparison_side_identity(
         canvas.comparison_set_selector_button.text(),
         canvas.comparison_source_selector_button.text(),
     ) == comparison_labels
+    assert canvas.scene_selector_button.isVisibleTo(canvas)
+    assert canvas.comparison_scene_selector_button.isVisibleTo(canvas)
+    assert canvas.set_selector_button.isVisibleTo(canvas) is base_batch_visible
+    assert (
+        canvas.comparison_set_selector_button.isVisibleTo(canvas)
+        is comparison_batch_visible
+    )
+    assert canvas.source_selector_button.isVisibleTo(canvas)
+    assert canvas.comparison_source_selector_button.isVisibleTo(canvas)
 
 
 def test_scene_preview_to_final_during_resize_keeps_final_grid_content(
@@ -1312,6 +1697,12 @@ def test_multi_scene_overview_survives_unrelated_workflow_output(
     )
     harness.wait_for_output_count("alpha", 2)
     harness.assert_scene_composition_for_workflow("alpha")
+    canvas = harness.shell.output_canvas
+    projection = canvas._output_projection
+    assert projection is not None
+    assert projection.scene_count == 2
+    assert len(projection.scene_groups) == 2
+    assert canvas.scene_selector_button.isVisibleTo(canvas)
 
     beta_run = harness.start_run("beta")
     harness.emit_output(
@@ -1527,6 +1918,43 @@ def test_unloadable_final_output_does_not_clear_existing_active_canvas(
     harness.assert_showing_workflow("alpha", color=(80, 160, 220))
 
 
+def test_successful_new_result_replaces_previous_only_after_preparation(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Keep the old result through failure, then atomically replace it on success."""
+
+    harness.add_workflow("alpha", activate=True)
+    baseline_run = harness.start_run("alpha", run_index=1)
+    harness.emit_output(
+        baseline_run,
+        OutputSpec("alpha-save", "Alpha", (75, 155, 215)),
+    )
+    harness.wait_for_output_count("alpha", 1)
+    baseline_id = harness.output_ids("alpha")[0]
+    replacement_run = harness.start_run("alpha", run_index=2)
+
+    harness.emit_unloadable_output(
+        replacement_run,
+        OutputSpec("alpha-save", "Alpha", (215, 75, 155)),
+    )
+    harness.drain_events_for(300)
+    assert harness.output_ids("alpha") == (baseline_id,)
+    harness.assert_showing_workflow("alpha", color=(75, 155, 215))
+
+    harness.emit_output(
+        replacement_run,
+        OutputSpec("alpha-save", "Alpha", (215, 155, 75)),
+    )
+    harness.wait_until(
+        lambda: (
+            len(harness.output_ids("alpha")) == 1
+            and harness.output_ids("alpha")[0] != baseline_id
+        )
+    )
+
+    harness.assert_showing_workflow("alpha", color=(215, 155, 75))
+
+
 def test_invalid_live_final_identity_does_not_clear_existing_active_canvas(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
@@ -1597,13 +2025,19 @@ def test_hidden_pending_projection_for_cleared_workflow_is_pruned(
         OutputSpec("alpha-save", "Alpha", (70, 150, 210)),
     )
     harness.wait_for_output_count("alpha", 1)
+    baseline_id = harness.output_ids("alpha")[0]
     harness.show_canvas("Input")
     generated_run = harness.start_run("alpha", run_index=2)
     harness.emit_output(
         generated_run,
         OutputSpec("alpha-save", "Alpha", (210, 90, 70)),
     )
-    harness.wait_for_output_count("alpha", 2)
+    harness.wait_until(
+        lambda: (
+            len(harness.output_ids("alpha")) == 1
+            and harness.output_ids("alpha")[0] != baseline_id
+        )
+    )
     hidden_state = harness.fingerprint()
     assert "workflow-alpha" in hidden_state.pending_projection_workflows, hidden_state
 

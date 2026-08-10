@@ -43,10 +43,10 @@ from substitute.presentation.shell.workspace_scene_generation_controller import 
     SceneGenerationFeedbackDispatcher,
     SceneGenerationPreflightFailureFactory,
     WorkspaceSceneGenerationActions,
-    begin_output_generation_for_scene_run,
     build_scene_generation_snapshot_from_context,
     build_scene_generation_snapshots_from_context,
     enqueue_prompt_scene_generation,
+    register_output_scene_run,
     scene_for_key,
     scene_generation_context,
     scene_run_entries_from_snapshots,
@@ -156,7 +156,6 @@ def _scene_bindings(failures: list[GenerationFailure]) -> SceneGenerationBinding
         SceneGenerationBindings,
         SimpleNamespace(
             randomize_seeds=lambda: None,
-            clear_output_for_workflow=lambda _workflow_id: None,
             on_run_started=lambda _event: None,
             on_progress=lambda _progress: None,
             on_model_load_progress=lambda _progress: None,
@@ -865,10 +864,9 @@ def test_scene_run_entries_from_snapshots_orders_scene_metadata() -> None:
     )
 
 
-def test_begin_output_generation_for_scene_run_updates_scene_services() -> None:
-    """Scene-run bookkeeping should update scene navigation before canvas state."""
+def test_register_output_scene_run_updates_scene_metadata() -> None:
+    """Scene-run bookkeeping should register prepared scene navigation metadata."""
 
-    workflows = {"workflow-a": object()}
     calls: list[tuple[str, object]] = []
     snapshots = (
         GenerationJobSnapshot(
@@ -907,34 +905,7 @@ def test_begin_output_generation_for_scene_run_updates_scene_services() -> None:
                 )
             )
 
-    class _OutputCanvasStateService:
-        """Record output canvas generation state."""
-
-        def begin_output_generation(
-            self,
-            workflows_arg: object,
-            workflow_id: str,
-            *,
-            scene_run_id: str | None = None,
-            scene_count: int | None = None,
-        ) -> None:
-            """Record output generation arguments."""
-
-            calls.append(
-                (
-                    "output_canvas",
-                    {
-                        "workflows": workflows_arg,
-                        "workflow_id": workflow_id,
-                        "scene_run_id": scene_run_id,
-                        "scene_count": scene_count,
-                    },
-                )
-            )
-
-    begin_output_generation_for_scene_run(
-        workflows=workflows,
-        output_canvas_state_service=_OutputCanvasStateService(),
+    register_output_scene_run(
         output_scene_run_service=_SceneRunService(),
         workflow_id="workflow-a",
         workflow_name="Recipe A",
@@ -953,52 +924,19 @@ def test_begin_output_generation_for_scene_run_updates_scene_services() -> None:
                 "scenes": (("portrait", "Portrait", 0),),
             },
         ),
-        (
-            "output_canvas",
-            {
-                "workflows": workflows,
-                "workflow_id": "workflow-a",
-                "scene_run_id": "scene-run-a",
-                "scene_count": 1,
-            },
-        ),
     ]
 
 
-def test_begin_output_generation_for_scene_run_tolerates_missing_scene_service() -> (
-    None
-):
-    """Output canvas generation state should update without scene-run navigation."""
+def test_register_output_scene_run_tolerates_missing_scene_service() -> None:
+    """Scene-run metadata registration should tolerate absent navigation chrome."""
 
-    calls: list[tuple[object, str, str | None, int | None]] = []
-
-    class _OutputCanvasStateService:
-        """Record output canvas generation state."""
-
-        def begin_output_generation(
-            self,
-            workflows: object,
-            workflow_id: str,
-            *,
-            scene_run_id: str | None = None,
-            scene_count: int | None = None,
-        ) -> None:
-            """Record output generation arguments."""
-
-            calls.append((workflows, workflow_id, scene_run_id, scene_count))
-
-    workflows = {"workflow-a": object()}
-    begin_output_generation_for_scene_run(
-        workflows=workflows,
-        output_canvas_state_service=_OutputCanvasStateService(),
+    register_output_scene_run(
         output_scene_run_service=None,
         workflow_id="workflow-a",
         workflow_name="Recipe A",
         scene_run_id="scene-run-a",
         scene_count=2,
     )
-
-    assert calls == [(workflows, "workflow-a", "scene-run-a", 2)]
 
 
 def test_workspace_scene_generation_controller_imports_no_concrete_boundaries() -> None:

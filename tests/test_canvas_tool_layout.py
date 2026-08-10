@@ -236,3 +236,8 @@ def test_input_default_layout_groups_like_tools_without_hiding_extensibility() -
         InputCanvasToolId.MASK_ELLIPSE,
         InputCanvasToolId.MASK_LASSO,
     )
+    assert snapshot.slots[-1].tool_ids == (
+        InputCanvasToolId.TRANSFORM_LAYER,
+        InputCanvasToolId.SHARED_EDGE_RESIZE,
+    )
+    assert snapshot.slots[-1].selected_tool_id == InputCanvasToolId.TRANSFORM_LAYER

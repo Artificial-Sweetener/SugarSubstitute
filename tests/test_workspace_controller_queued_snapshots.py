@@ -95,7 +95,7 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
         ),
     )
     serialized_prompts: list[tuple[str, str]] = []
-    focus_resets: list[tuple[object, str, str | None, int | None]] = []
+    registered_scene_runs: list[dict[str, object]] = []
 
     def _serialize_workflow_to_sugar_script(
         candidate: object,
@@ -143,14 +143,8 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
         _log_interrupt_failure=lambda _result: None,
         canvas_host=SimpleNamespace(canvas_for={}.get),
         canvas_io_service=SimpleNamespace(),
-        output_canvas_state_service=SimpleNamespace(
-            begin_output_generation=(
-                lambda workflows, workflow_id, *, scene_run_id=None, scene_count=None: (
-                    focus_resets.append(
-                        (workflows, workflow_id, scene_run_id, scene_count)
-                    )
-                )
-            )
+        output_scene_run_service=SimpleNamespace(
+            start_scene_run=lambda **kwargs: registered_scene_runs.append(kwargs)
         ),
         workflow_input_canvas_service=SimpleNamespace(),
         workflow_asset_service=SimpleNamespace(),
@@ -199,13 +193,13 @@ def test_build_queued_generation_snapshots_materializes_authority_order(
     ]
     assert len({snapshot.scene_run_id for snapshot in snapshots}) == 1
     assert snapshots[0].scene_run_id is not None
-    assert focus_resets == [
-        (
-            view.workflow_session_service.workflows,
-            "wf-a",
-            snapshots[0].scene_run_id,
-            2,
-        )
+    assert registered_scene_runs == [
+        {
+            "scene_run_id": snapshots[0].scene_run_id,
+            "workflow_id": "wf-a",
+            "workflow_name": "Recipe",
+            "scenes": (("portrait", "portrait", 0), ("cafe", "cafe", 1)),
+        }
     ]
     assert [
         (

@@ -56,7 +56,18 @@ class InputToolOptionsDocumentPort(Protocol):
     canvasViewChanged: OptionsSignalPort
     selectionModificationCompleted: OptionsSignalPort
     layerEdgeModificationCompleted: OptionsSignalPort
-    toolContextChanged: OptionsSignalPort
+
+    @property
+    def maskLayersChanged(self) -> OptionsSignalPort:
+        """Return mask-inventory change publication."""
+
+    @property
+    def brushContextChanged(self) -> OptionsSignalPort:
+        """Return brush-presentation context publication."""
+
+    @property
+    def editorContextChanged(self) -> OptionsSignalPort:
+        """Return non-selection editor-context publication."""
 
     def brush_preset(self) -> BrushPreset:
         """Return the active immutable brush definition."""

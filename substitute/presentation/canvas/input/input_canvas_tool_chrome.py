@@ -22,11 +22,6 @@ from collections.abc import Callable
 
 from PySide6.QtCore import QPoint, QRect
 from PySide6.QtWidgets import QWidget
-from qfluentwidgets import MenuAnimationType  # type: ignore[import-untyped]
-
-from substitute.presentation.canvas.input.input_canvas_tool_menu import (
-    create_input_canvas_tool_menu,
-)
 from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
     CANVAS_CHROME_GAP,
     CANVAS_CHROME_OVERLAY_INSET,
@@ -36,40 +31,29 @@ from substitute.presentation.canvas.tools import (
     CanvasToolLayout,
     CanvasToolOptionsHost,
     CanvasToolRuntime,
-    CanvasToolSurface,
     CanvasToolStrip,
 )
-from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
 
 
 class InputCanvasToolChrome:
-    """Coordinate Input tool strip and context menu from one palette."""
+    """Coordinate the Input tool strip and contextual option surface."""
 
     def __init__(
         self,
         *,
         canvas: QWidget,
         tool_requested: Callable[[str], None],
-        context_refresh_requested: Callable[[], None],
-        dock_requested: Callable[[], None],
-        detached_provider: Callable[[], bool],
     ) -> None:
         """Create a content-sized strip parented directly over the canvas."""
 
-        self._canvas = canvas
-        self._tool_requested = tool_requested
-        self._context_refresh_requested = context_refresh_requested
-        self._dock_requested = dock_requested
-        self._detached_provider = detached_provider
         self._host_obstacles: tuple[QRect, ...] = ()
-        self._runtime: CanvasToolRuntime | None = None
         self._suppressed = False
         self.tool_strip = CanvasToolStrip(canvas)
         self.tool_strip.move(
             CANVAS_CHROME_OVERLAY_INSET,
             CANVAS_CHROME_OVERLAY_INSET,
         )
-        self.tool_strip.toolRequested.connect(self._tool_requested)
+        self.tool_strip.toolRequested.connect(tool_requested)
         self.top_bar = CanvasTopBar(canvas)
         self.options_host = CanvasToolOptionsHost(self.top_bar)
         self.top_bar.append_control(self.options_host)
@@ -83,7 +67,6 @@ class InputCanvasToolChrome:
     ) -> None:
         """Bind one live runtime to tool buttons and contextual options."""
 
-        self._runtime = runtime
         self.tool_strip.bind_palette(runtime.palette, layout)
         self.options_host.bind_runtime(runtime)
         self._synchronize_chrome()
@@ -170,25 +153,6 @@ class InputCanvasToolChrome:
             if candidate.intersects(obstacle):
                 candidate.moveTop(obstacle.bottom() + 1 + CANVAS_CHROME_GAP)
         return candidate.topLeft()
-
-    def show_context_menu(self, position: QPoint) -> None:
-        """Refresh context and show a menu from the strip's palette snapshot."""
-
-        self._context_refresh_requested()
-        runtime = self._runtime
-        if runtime is None:
-            return
-        model = create_input_canvas_tool_menu(
-            runtime.palette.snapshot(CanvasToolSurface.TOOL_STRIP),
-            tool_requested=self._tool_requested,
-            detached=self._detached_provider(),
-            dock_requested=self._dock_requested,
-        )
-        menu = QFluentMenuRenderer(parent=self._canvas).render(model)
-        menu.exec(
-            self._canvas.mapToGlobal(position),
-            aniType=MenuAnimationType.DROP_DOWN,
-        )
 
 
 __all__ = ["InputCanvasToolChrome"]

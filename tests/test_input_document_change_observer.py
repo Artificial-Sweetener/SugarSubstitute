@@ -47,7 +47,7 @@ def test_document_edits_mark_active_workflow_and_request_archive_autosave() -> N
     invalidated: list[str] = []
     autosaves: list[None] = []
     observer = InputDocumentChangeObserver(
-        changed=changed,
+        changes=(changed,),
         active_workflow_id=lambda: "workflow-a",
         mark_workflow_changed=invalidated.append,
         request_autosave=lambda: autosaves.append(None),
@@ -67,7 +67,7 @@ def test_document_edit_without_active_workflow_still_saves_shared_document() -> 
     invalidated: list[str] = []
     autosaves: list[None] = []
     InputDocumentChangeObserver(
-        changed=changed,
+        changes=(changed,),
         active_workflow_id=lambda: "",
         mark_workflow_changed=invalidated.append,
         request_autosave=lambda: autosaves.append(None),

@@ -460,7 +460,7 @@ Prompt preview:
       <translation>正在激活位于 %2:%3 的 %1 Comfy 目标。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="102"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="398"></location>
       <source>Add</source>
       <translation>添加</translation>
     </message>
@@ -580,7 +580,7 @@ Prompt preview:
       <translation>匹配不明确</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="249"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="262"></location>
       <source>Anchor point</source>
       <translation>锚点</translation>
     </message>
@@ -775,7 +775,7 @@ Prompt preview:
       <translation>浏览...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="182"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="194"></location>
       <source>Brush</source>
       <translation>画笔</translation>
     </message>
@@ -860,7 +860,7 @@ Prompt preview:
       <translation>正在取消模型下载。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="171"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="184"></location>
       <source>Change canvas resolution</source>
       <translation>更改画布分辨率</translation>
     </message>
@@ -1000,7 +1000,7 @@ Prompt preview:
       <translation>选择托管的 ComfyUI 文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/load_mask.py" line="77"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/load_mask.py" line="106"></location>
       <source>Choose Mask</source>
       <translation>选择蒙版</translation>
     </message>
@@ -1030,7 +1030,7 @@ Prompt preview:
       <translation>选择文件夹并将 Substitute 连接到 ComfyUI。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="120"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="142"></location>
       <source>Choose a new size for the Input canvas and its masks</source>
       <translation>为输入画布及其遮罩选择新尺寸</translation>
     </message>
@@ -1090,12 +1090,12 @@ Prompt preview:
       <translation>选择 SugarSubstitute 显示文本的方式。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="295"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="308"></location>
       <source>Choose how regional mask pixels are resampled.</source>
       <translation>选择区域蒙版像素的重采样方式。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="174"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="187"></location>
       <source>Choose how the Input canvas and its regional masks should fit the new size.</source>
       <translation>选择输入画布及其区域遮罩适应新尺寸的方式。</translation>
     </message>
@@ -1180,7 +1180,7 @@ Prompt preview:
       <translation>选择 SugarSubstitute 使用的语言。更改会立即生效。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="251"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="264"></location>
       <source>Choose the point that stays fixed while the canvas changes.</source>
       <translation>选择画布变化时保持固定的点。</translation>
     </message>
@@ -1345,7 +1345,7 @@ Prompt preview:
       <translation>由于选择了强制关闭，已跳过清理。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="264"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="279"></location>
       <source>Clear</source>
       <translation>清除</translation>
     </message>
@@ -2293,7 +2293,7 @@ Install these nodes now?</source>
       <translation>依赖项版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="249"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="264"></location>
       <source>Deselect</source>
       <translation>取消选择</translation>
     </message>
@@ -2423,7 +2423,7 @@ Install these nodes now?</source>
       <translation>复制</translation>
     </message>
     <message>
-      <location filename="../substitute/application/prompt_editor/diagnostics/duplicate_segments.py" line="276"></location>
+      <location filename="../substitute/application/prompt_editor/diagnostics/duplicate_segments.py" line="329"></location>
       <source>Duplicate prompt segment: %1</source>
       <translation>重复的提示词片段：%1</translation>
     </message>
@@ -2443,7 +2443,7 @@ Install these nodes now?</source>
       <translation>编辑曲线（%1 个点）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_context_menu.py" line="68"></location>
       <source>Edit layer coverage</source>
       <translation>编辑图层覆盖范围</translation>
     </message>
@@ -2458,12 +2458,12 @@ Install these nodes now?</source>
       <translation>编辑器功能</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="155"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="166"></location>
       <source>Ellipse Mask</source>
       <translation>椭圆蒙版</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="117"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="127"></location>
       <source>Ellipse selection</source>
       <translation>椭圆选区</translation>
     </message>
@@ -2488,7 +2488,7 @@ Install these nodes now?</source>
       <translation>请清空 %1 处的文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="426"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="421"></location>
       <source>Enable</source>
       <translation>启用</translation>
     </message>
@@ -2518,7 +2518,7 @@ Install these nodes now?</source>
       <translation>环境安全检查</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="191"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="203"></location>
       <source>Eraser</source>
       <translation>橡皮擦</translation>
     </message>
@@ -2793,7 +2793,7 @@ Install these nodes now?</source>
       <translation>文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="82"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="95"></location>
       <source>For %1</source>
       <translation>用于 %1</translation>
     </message>
@@ -2823,7 +2823,7 @@ Install these nodes now?</source>
       <translation>GNU 通用公共许可证 v3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="436"></location>
+      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="442"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>此会话中无法重启 GUI。</translation>
     </message>
@@ -2933,7 +2933,7 @@ Install these nodes now?</source>
       <translation>需要 GitHub URL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="92"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="105"></location>
       <source>Global</source>
       <translation>全局</translation>
     </message>
@@ -2963,7 +2963,7 @@ Install these nodes now?</source>
       <translation>硬度</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="203"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="216"></location>
       <source>Height</source>
       <translation>高度</translation>
     </message>
@@ -3293,12 +3293,12 @@ Install these nodes now?</source>
       <translation>语言和区域</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="163"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="174"></location>
       <source>Lasso Mask</source>
       <translation>套索蒙版</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="126"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="136"></location>
       <source>Lasso selection</source>
       <translation>套索选区</translation>
     </message>
@@ -3613,11 +3613,6 @@ Install these nodes now?</source>
       <translation>蒙版尺寸不匹配</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_mask_layer_button.py" line="53"></location>
-      <source>Mask layer</source>
-      <translation>蒙版图层</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="78"></location>
       <source>Message: %1</source>
       <translation>消息：%1</translation>
@@ -3753,7 +3748,7 @@ Install these nodes now?</source>
       <translation>大多数用户应从第一个选项开始。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="75"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="77"></location>
       <source>Move</source>
       <translation>移动</translation>
     </message>
@@ -3773,12 +3768,12 @@ Install these nodes now?</source>
       <translation>上移</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="179"></location>
+      <location filename="../substitute/presentation/widgets/save_preset_dialog.py" line="74"></location>
       <source>Name</source>
       <translation>名称</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="305"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="318"></location>
       <source>Nearest Neighbor</source>
       <translation>最近邻</translation>
     </message>
@@ -3818,7 +3813,7 @@ Install these nodes now?</source>
       <translation>新建自定义列表</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="184"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="197"></location>
       <source>New size</source>
       <translation>新尺寸</translation>
     </message>
@@ -3883,7 +3878,7 @@ Install these nodes now?</source>
       <translation>未找到立方体</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="188"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="189"></location>
       <source>No input canvas nodes</source>
       <translation>没有输入画布节点</translation>
     </message>
@@ -4038,7 +4033,7 @@ Install these nodes now?</source>
       <translation>未设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_controller.py" line="144"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_context_projection.py" line="68"></location>
       <source>Nothing to transform!</source>
       <translation>没有可变换的内容！</translation>
     </message>
@@ -4048,7 +4043,7 @@ Install these nodes now?</source>
       <translation>要加入队列的生成任务数</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="38"></location>
+      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="46"></location>
       <source>OK</source>
       <translation>确定</translation>
     </message>
@@ -4248,7 +4243,7 @@ Install these nodes now?</source>
       <translation>软件包未加载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="200"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="212"></location>
       <source>Pan &amp; Zoom</source>
       <translation>平移和缩放</translation>
     </message>
@@ -4443,12 +4438,12 @@ Install these nodes now?</source>
       <translation>正在准备您现有的 ComfyUI 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="306"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="319"></location>
       <source>Preserves hard mask edges by copying the nearest pixel without blending.</source>
       <translation>通过复制最近的像素而不进行混合，保留清晰的蒙版边缘。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="212"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="225"></location>
       <source>Preset</source>
       <translation>预设</translation>
     </message>
@@ -4593,7 +4588,7 @@ Install these nodes now?</source>
       <translation>QPane</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="310"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="323"></location>
       <source>Qt Smooth</source>
       <translation>Qt 平滑</translation>
     </message>
@@ -4693,12 +4688,12 @@ Install these nodes now?</source>
       <translation>正在录音…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="147"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="158"></location>
       <source>Rectangle Mask</source>
       <translation>矩形蒙版</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="108"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="118"></location>
       <source>Rectangle selection</source>
       <translation>矩形选区</translation>
     </message>
@@ -4713,7 +4708,7 @@ Install these nodes now?</source>
       <translation>重做</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_context_menu.py" line="75"></location>
       <source>Redock canvas</source>
       <translation>重新停靠画布</translation>
     </message>
@@ -4848,7 +4843,7 @@ Install these nodes now?</source>
       <translation>正在移除计划的更改。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="178"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="640"></location>
       <source>Rename</source>
       <translation>重命名</translation>
     </message>
@@ -4977,14 +4972,19 @@ No known extension claimant.</source>
       <translation>重置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="69"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
       <source>Resize canvas</source>
       <translation>调整画布尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="173"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="186"></location>
       <source>Resize canvas only</source>
       <translation>仅调整画布大小</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="85"></location>
+      <source>Resize shared edges</source>
+      <translation>调整共享边缘大小</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="298"></location>
@@ -5267,7 +5267,7 @@ No known extension claimant.</source>
       <translation>保存每个立方体的输出，或仅保存最后一个活动立方体的输出。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="450"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="472"></location>
       <source>Save for %1</source>
       <translation>为 %1 保存</translation>
     </message>
@@ -5277,7 +5277,7 @@ No known extension claimant.</source>
       <translation>全局保存</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="191"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="204"></location>
       <source>Save or Load preset</source>
       <translation>保存或加载预设</translation>
     </message>
@@ -5327,12 +5327,12 @@ No known extension claimant.</source>
       <translation>正在保存您的设置选项。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="229"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="242"></location>
       <source>Scale canvas and masks</source>
       <translation>缩放画布和蒙版</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="292"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="305"></location>
       <source>Scaling quality</source>
       <translation>缩放质量</translation>
     </message>
@@ -5692,12 +5692,12 @@ No known extension claimant.</source>
       <translation>可用时跳过活动的排队生成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="171"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="182"></location>
       <source>Smart Mask</source>
       <translation>智能蒙版</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="135"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="145"></location>
       <source>Smart Select</source>
       <translation>智能选择</translation>
     </message>
@@ -6452,7 +6452,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>交换宽度和高度</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="217"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="230"></location>
       <source>Swap width and height</source>
       <translation>交换宽度和高度</translation>
     </message>
@@ -6617,12 +6617,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>已连接的 ComfyUI 环境不满足更新后的要求。请先修复该环境再继续。%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="381"></location>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="394"></location>
       <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
       <translation>此对话框打开期间画布已发生变化。请检查当前尺寸后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="391"></location>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="404"></location>
       <source>The canvas could not be resized. Nothing was changed.</source>
       <translation>无法调整画布尺寸。未进行任何更改。</translation>
     </message>
@@ -6837,7 +6837,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法将工作流加入队列。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="399"></location>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="412"></location>
       <source>The workflow dimensions could not be updated, so the canvas change was undone.</source>
       <translation>无法更新工作流尺寸，因此已撤销画布更改。</translation>
     </message>
@@ -6997,7 +6997,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>已跟踪的立方体包</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="83"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="93"></location>
       <source>Transform</source>
       <translation>变换</translation>
     </message>
@@ -7062,7 +7062,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法重命名资源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="186"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="199"></location>
       <source>Unable to resize canvas</source>
       <translation>无法调整画布尺寸</translation>
     </message>
@@ -7102,7 +7102,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>撤销</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_context_menu.py" line="75"></location>
       <source>Undock canvas</source>
       <translation>取消停靠画布</translation>
     </message>
@@ -7337,7 +7337,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>用于验证失败和错误突出显示。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="311"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="324"></location>
       <source>Uses Qt smooth scaling to blend neighboring pixels for softer resized masks.</source>
       <translation>使用 Qt 平滑缩放混合相邻像素，使调整大小后的蒙版更加柔和。</translation>
     </message>
@@ -7397,7 +7397,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>视觉自定义。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="86"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/mask_visual_opacity.py" line="44"></location>
       <source>Visual opacity</source>
       <translation>视觉不透明度</translation>
     </message>
@@ -7482,7 +7482,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>设置为何在此暂停</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="199"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="212"></location>
       <source>Width</source>
       <translation>宽度</translation>
     </message>

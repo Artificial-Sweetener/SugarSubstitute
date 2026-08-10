@@ -27,7 +27,7 @@ from substitute.application.workspace_state import (
     InitialWorkspaceRestorePlan,
     InitialWorkspaceRestorePlanService,
     RestoredEditorProjectionCacheExtractor,
-    SessionAutosaveService,
+    SessionSaveService,
     SnapshotCaptureService,
     SnapshotNormalizationService,
     WorkspaceMaterializationService,
@@ -74,10 +74,13 @@ class HeadlessWorkspaceRestoreHarness:
     def force_save(self) -> bool:
         """Persist the live mixed workspace through production capture and autosave."""
 
-        return SessionAutosaveService(
+        service = SessionSaveService(
             capture_service=SnapshotCaptureService(),
             repository=self.session_repository,
-        ).force_save(self.capture_port)
+        )
+        prepared = service.prepare(self.capture_port, reason="restore_harness")
+        service.persist(prepared)
+        return True
 
     def build_restore_plan(self) -> InitialWorkspaceRestorePlan:
         """Load, normalize, and prevalidate the persisted session and cache."""

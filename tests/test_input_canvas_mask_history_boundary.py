@@ -66,7 +66,7 @@ def test_input_mask_survives_undo_beyond_every_user_edit() -> None:
             assert document.canvas.editor.history.undo() is False
 
         assert document.contains_mask(image_id, mask_id)
-        assert document.active_image_has_mask_target(image_id)
+        assert document.tool_context.snapshot.has_active_mask
         assert document.canvas.editor.history.can_undo is False
         assert (
             document.canvas.editor.coverage.rectangle(QRectF(24.0, 24.0, 48.0, 48.0))
@@ -74,7 +74,7 @@ def test_input_mask_survives_undo_beyond_every_user_edit() -> None:
         )
         assert document.canvas.editor.history.undo()
         assert document.contains_mask(image_id, mask_id)
-        assert document.active_image_has_mask_target(image_id)
+        assert document.tool_context.snapshot.has_active_mask
     finally:
         document.close()
 

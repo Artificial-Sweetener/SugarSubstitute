@@ -191,6 +191,14 @@ class MainWindow(QMainWindow):
         self.canvas_host = workspace_parts.canvas_host
         self.input_canvas_state_service = workspace_parts.input_canvas_state_service
         self.output_canvas_state_service = workspace_parts.output_canvas_state_service
+        self.output_canvas_focus_service = workspace_parts.output_canvas_focus_service
+        self.output_navigation_session_service = (
+            workspace_parts.output_navigation_session_service
+        )
+        self.output_generated_result_service = (
+            workspace_parts.output_generated_result_service
+        )
+        self.output_canvas_timing_service = workspace_parts.output_canvas_timing_service
         self.output_canvas_projection_coordinator = (
             workspace_parts.output_canvas_projection_coordinator
         )

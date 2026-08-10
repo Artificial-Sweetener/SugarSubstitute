@@ -405,7 +405,7 @@ Prompt preview:
       <translation>%2:%3에서 %1 Comfy 대상을 활성화하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="102"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="398"></location>
       <source>Add</source>
       <translation>추가</translation>
     </message>
@@ -525,7 +525,7 @@ Prompt preview:
       <translation>모호함</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="249"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="262"></location>
       <source>Anchor point</source>
       <translation>기준점</translation>
     </message>
@@ -720,7 +720,7 @@ Prompt preview:
       <translation>찾아보기...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="182"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="194"></location>
       <source>Brush</source>
       <translation>브러시</translation>
     </message>
@@ -805,7 +805,7 @@ Prompt preview:
       <translation>모델 다운로드를 취소하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="171"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="184"></location>
       <source>Change canvas resolution</source>
       <translation>캔버스 해상도 변경</translation>
     </message>
@@ -945,7 +945,7 @@ Prompt preview:
       <translation>관리형 ComfyUI 폴더 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/fields/load_mask.py" line="77"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/load_mask.py" line="106"></location>
       <source>Choose Mask</source>
       <translation>마스크 선택</translation>
     </message>
@@ -975,7 +975,7 @@ Prompt preview:
       <translation>폴더를 선택하고 Substitute를 ComfyUI에 연결합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="120"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="142"></location>
       <source>Choose a new size for the Input canvas and its masks</source>
       <translation>입력 캔버스와 마스크의 새 크기 선택</translation>
     </message>
@@ -1035,12 +1035,12 @@ Prompt preview:
       <translation>SugarSubstitute에서 텍스트를 표시할 방법을 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="295"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="308"></location>
       <source>Choose how regional mask pixels are resampled.</source>
       <translation>영역 마스크 픽셀의 리샘플링 방식을 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="174"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="187"></location>
       <source>Choose how the Input canvas and its regional masks should fit the new size.</source>
       <translation>입력 캔버스와 영역 마스크를 새 크기에 맞추는 방법을 선택하세요.</translation>
     </message>
@@ -1125,7 +1125,7 @@ Prompt preview:
       <translation>SugarSubstitute에서 사용할 언어를 선택하세요. 변경 사항은 즉시 적용됩니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="251"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="264"></location>
       <source>Choose the point that stays fixed while the canvas changes.</source>
       <translation>캔버스가 변경될 때 고정할 지점을 선택하세요.</translation>
     </message>
@@ -1290,7 +1290,7 @@ Prompt preview:
       <translation>강제 종료를 선택했기 때문에 정리를 건너뛰었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="264"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="279"></location>
       <source>Clear</source>
       <translation>지우기</translation>
     </message>
@@ -2238,7 +2238,7 @@ Install these nodes now?</source>
       <translation>종속성 버전</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="249"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="264"></location>
       <source>Deselect</source>
       <translation>선택 해제</translation>
     </message>
@@ -2368,7 +2368,7 @@ Install these nodes now?</source>
       <translation>복제</translation>
     </message>
     <message>
-      <location filename="../substitute/application/prompt_editor/diagnostics/duplicate_segments.py" line="276"></location>
+      <location filename="../substitute/application/prompt_editor/diagnostics/duplicate_segments.py" line="329"></location>
       <source>Duplicate prompt segment: %1</source>
       <translation>중복 프롬프트 구간: %1</translation>
     </message>
@@ -2388,7 +2388,7 @@ Install these nodes now?</source>
       <translation>곡선 편집(점 %1개)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_context_menu.py" line="68"></location>
       <source>Edit layer coverage</source>
       <translation>레이어 커버리지 편집</translation>
     </message>
@@ -2403,12 +2403,12 @@ Install these nodes now?</source>
       <translation>편집기 기능</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="155"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="166"></location>
       <source>Ellipse Mask</source>
       <translation>타원형 마스크</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="117"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="127"></location>
       <source>Ellipse selection</source>
       <translation>타원 선택</translation>
     </message>
@@ -2433,7 +2433,7 @@ Install these nodes now?</source>
       <translation>%1의 폴더를 비우세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="426"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="421"></location>
       <source>Enable</source>
       <translation>활성화</translation>
     </message>
@@ -2463,7 +2463,7 @@ Install these nodes now?</source>
       <translation>환경 안전성 확인</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="191"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="203"></location>
       <source>Eraser</source>
       <translation>지우개</translation>
     </message>
@@ -2738,7 +2738,7 @@ Install these nodes now?</source>
       <translation>폴더</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="82"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="95"></location>
       <source>For %1</source>
       <translation>%1용</translation>
     </message>
@@ -2768,7 +2768,7 @@ Install these nodes now?</source>
       <translation>GNU 일반 공중 사용 허가서 v3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="436"></location>
+      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="442"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>이 세션에서는 GUI를 다시 시작할 수 없습니다.</translation>
     </message>
@@ -2878,7 +2878,7 @@ Install these nodes now?</source>
       <translation>GitHub URL 필요</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="92"></location>
+      <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="105"></location>
       <source>Global</source>
       <translation>전역</translation>
     </message>
@@ -2908,7 +2908,7 @@ Install these nodes now?</source>
       <translation>경도</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="203"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="216"></location>
       <source>Height</source>
       <translation>높이</translation>
     </message>
@@ -3238,12 +3238,12 @@ Install these nodes now?</source>
       <translation>언어 및 지역</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="163"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="174"></location>
       <source>Lasso Mask</source>
       <translation>올가미 마스크</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="126"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="136"></location>
       <source>Lasso selection</source>
       <translation>올가미 선택</translation>
     </message>
@@ -3558,11 +3558,6 @@ Install these nodes now?</source>
       <translation>마스크 크기가 일치하지 않습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_mask_layer_button.py" line="53"></location>
-      <source>Mask layer</source>
-      <translation>마스크 레이어</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="78"></location>
       <source>Message: %1</source>
       <translation>메시지: %1</translation>
@@ -3698,7 +3693,7 @@ Install these nodes now?</source>
       <translation>대부분의 사용자는 첫 번째 옵션으로 시작하는 것이 좋습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="75"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="77"></location>
       <source>Move</source>
       <translation>이동</translation>
     </message>
@@ -3718,12 +3713,12 @@ Install these nodes now?</source>
       <translation>위로 이동</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="179"></location>
+      <location filename="../substitute/presentation/widgets/save_preset_dialog.py" line="74"></location>
       <source>Name</source>
       <translation>이름</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="305"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="318"></location>
       <source>Nearest Neighbor</source>
       <translation>최근접 이웃</translation>
     </message>
@@ -3763,7 +3758,7 @@ Install these nodes now?</source>
       <translation>새 사용자 지정 목록</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="184"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="197"></location>
       <source>New size</source>
       <translation>새 크기</translation>
     </message>
@@ -3828,7 +3823,7 @@ Install these nodes now?</source>
       <translation>큐브를 찾을 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="188"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="189"></location>
       <source>No input canvas nodes</source>
       <translation>입력 캔버스 노드 없음</translation>
     </message>
@@ -3983,7 +3978,7 @@ Install these nodes now?</source>
       <translation>설정 안 됨</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_controller.py" line="144"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_context_projection.py" line="68"></location>
       <source>Nothing to transform!</source>
       <translation>변형할 항목이 없습니다!</translation>
     </message>
@@ -3993,7 +3988,7 @@ Install these nodes now?</source>
       <translation>대기열에 추가할 생성 횟수</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="38"></location>
+      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="46"></location>
       <source>OK</source>
       <translation>확인</translation>
     </message>
@@ -4193,7 +4188,7 @@ Install these nodes now?</source>
       <translation>패키지를 불러오지 않음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="200"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="212"></location>
       <source>Pan &amp; Zoom</source>
       <translation>이동 및 확대/축소</translation>
     </message>
@@ -4388,12 +4383,12 @@ Install these nodes now?</source>
       <translation>기존 ComfyUI 설정을 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="306"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="319"></location>
       <source>Preserves hard mask edges by copying the nearest pixel without blending.</source>
       <translation>가장 가까운 픽셀을 혼합 없이 복사하여 마스크의 선명한 가장자리를 유지합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="212"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="225"></location>
       <source>Preset</source>
       <translation>프리셋</translation>
     </message>
@@ -4538,7 +4533,7 @@ Install these nodes now?</source>
       <translation>QPane</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="310"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="323"></location>
       <source>Qt Smooth</source>
       <translation>Qt 부드럽게</translation>
     </message>
@@ -4638,12 +4633,12 @@ Install these nodes now?</source>
       <translation>녹음 중�</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="147"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="158"></location>
       <source>Rectangle Mask</source>
       <translation>사각형 마스크</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="108"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="118"></location>
       <source>Rectangle selection</source>
       <translation>사각형 선택</translation>
     </message>
@@ -4658,7 +4653,7 @@ Install these nodes now?</source>
       <translation>다시 실행</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_context_menu.py" line="75"></location>
       <source>Redock canvas</source>
       <translation>캔버스 도킹</translation>
     </message>
@@ -4793,7 +4788,7 @@ Install these nodes now?</source>
       <translation>예정된 변경 사항을 제거하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/interactions/region_pointer_controller.py" line="178"></location>
+      <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="640"></location>
       <source>Rename</source>
       <translation>이름 바꾸기</translation>
     </message>
@@ -4922,14 +4917,19 @@ No known extension claimant.</source>
       <translation>초기화</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="69"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="82"></location>
       <source>Resize canvas</source>
       <translation>캔버스 크기 변경</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="173"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="186"></location>
       <source>Resize canvas only</source>
       <translation>캔버스만 크기 조정</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="85"></location>
+      <source>Resize shared edges</source>
+      <translation>공유 가장자리 크기 조정</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="298"></location>
@@ -5212,7 +5212,7 @@ No known extension claimant.</source>
       <translation>모든 큐브 출력 또는 마지막 활성 큐브만 저장합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="450"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="472"></location>
       <source>Save for %1</source>
       <translation>%1에 저장</translation>
     </message>
@@ -5222,7 +5222,7 @@ No known extension claimant.</source>
       <translation>전역으로 저장</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="191"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="204"></location>
       <source>Save or Load preset</source>
       <translation>프리셋 저장 또는 불러오기</translation>
     </message>
@@ -5272,12 +5272,12 @@ No known extension claimant.</source>
       <translation>설정 선택 사항을 저장하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="229"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="242"></location>
       <source>Scale canvas and masks</source>
       <translation>캔버스 및 마스크 크기 조정</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="292"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="305"></location>
       <source>Scaling quality</source>
       <translation>크기 조정 품질</translation>
     </message>
@@ -5637,12 +5637,12 @@ No known extension claimant.</source>
       <translation>사용 가능한 경우 활성 대기열 생성 작업을 건너뜁니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="171"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="182"></location>
       <source>Smart Mask</source>
       <translation>스마트 마스크</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="135"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="145"></location>
       <source>Smart Select</source>
       <translation>스마트 선택</translation>
     </message>
@@ -6397,7 +6397,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>너비와 높이 바꾸기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="217"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="230"></location>
       <source>Swap width and height</source>
       <translation>너비와 높이 바꾸기</translation>
     </message>
@@ -6562,12 +6562,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>연결된 ComfyUI 환경이 업데이트된 요구 사항을 충족하지 않습니다. 계속하기 전에 해당 환경을 복구하세요. %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="381"></location>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="394"></location>
       <source>The canvas changed while this dialog was open. Review the current size and try again.</source>
       <translation>이 대화 상자가 열려 있는 동안 캔버스가 변경되었습니다. 현재 크기를 확인하고 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="391"></location>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="404"></location>
       <source>The canvas could not be resized. Nothing was changed.</source>
       <translation>캔버스 크기를 변경할 수 없습니다. 아무것도 변경되지 않았습니다.</translation>
     </message>
@@ -6782,7 +6782,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>워크플로를 대기열에 추가하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="399"></location>
+      <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="412"></location>
       <source>The workflow dimensions could not be updated, so the canvas change was undone.</source>
       <translation>워크플로 크기를 업데이트할 수 없어 캔버스 변경을 되돌렸습니다.</translation>
     </message>
@@ -6942,7 +6942,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>추적 중인 큐브 팩</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="83"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_catalog.py" line="93"></location>
       <source>Transform</source>
       <translation>변형</translation>
     </message>
@@ -7007,7 +7007,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>자산의 이름을 바꿀 수 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="186"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_dialog.py" line="199"></location>
       <source>Unable to resize canvas</source>
       <translation>캔버스 크기를 변경할 수 없음</translation>
     </message>
@@ -7047,7 +7047,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>실행 취소</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_menu.py" line="71"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_context_menu.py" line="75"></location>
       <source>Undock canvas</source>
       <translation>캔버스 도킹 해제</translation>
     </message>
@@ -7282,7 +7282,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>검증 실패와 오류 강조 표시에 사용됩니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="311"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="324"></location>
       <source>Uses Qt smooth scaling to blend neighboring pixels for softer resized masks.</source>
       <translation>Qt의 부드러운 크기 조정을 사용해 인접 픽셀을 혼합하여 크기가 변경된 마스크를 더 부드럽게 만듭니다.</translation>
     </message>
@@ -7342,7 +7342,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>시각적 사용자 지정입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_layer_settings.py" line="86"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/mask_visual_opacity.py" line="44"></location>
       <source>Visual opacity</source>
       <translation>시각적 불투명도</translation>
     </message>
@@ -7427,7 +7427,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>여기에서 설정이 일시 중지되는 이유</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="199"></location>
+      <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="212"></location>
       <source>Width</source>
       <translation>너비</translation>
     </message>

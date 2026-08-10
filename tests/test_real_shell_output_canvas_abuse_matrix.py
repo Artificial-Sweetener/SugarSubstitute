@@ -307,18 +307,18 @@ def test_single_scene_set_picker_projects_all_batches_grid(
     )
 
 
-def test_batchless_scenes_hide_scene_and_batch_navigation(
+def test_batchless_scenes_show_scene_navigation_without_batch_navigation(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
-    """Scenes with no batch alternatives should not expose hierarchy controls."""
+    """Multiple scenes should expose scene navigation without a batch control."""
 
     source_ids = _seed_sources(harness, "alpha", {"text": 1})
 
     overview = harness.fingerprint()
     assert overview.workflow_output_routes[harness.workflows["alpha"].workflow_id][1]
-    assert overview.scene_selector_hidden, overview
+    assert not overview.scene_selector_hidden, overview
     assert overview.set_selector_hidden, overview
-    assert overview.navigation_container_hidden, overview
+    assert not overview.navigation_container_hidden, overview
 
     harness.click_canvas_image(harness.output_representative_id_for_scene("scene3"))
     harness.wait_until(
@@ -331,9 +331,9 @@ def test_batchless_scenes_hide_scene_and_batch_navigation(
     )
 
     scene = harness.fingerprint()
-    assert scene.scene_selector_hidden, scene
+    assert not scene.scene_selector_hidden, scene
     assert scene.set_selector_hidden, scene
-    assert scene.navigation_container_hidden, scene
+    assert not scene.navigation_container_hidden, scene
     assert set(scene.presented_image_ids) == set(source_ids["alpha:text"]), scene
 
 
@@ -526,7 +526,18 @@ def test_manual_source_grid_survives_new_output_arrival(
     run = harness.start_run("alpha", run_index=2)
     harness.emit_output(
         run,
-        OutputSpec("alpha:other", "Other", (80, 90, 100)),
+        OutputSpec(
+            "alpha:other",
+            "Other",
+            (80, 90, 100),
+            scene=SceneSpec(
+                run_id="scene-run-alpha",
+                key="scene3",
+                title="scene3",
+                order=2,
+                count=3,
+            ),
+        ),
     )
     harness.wait_for_output_count("alpha", 13)
 

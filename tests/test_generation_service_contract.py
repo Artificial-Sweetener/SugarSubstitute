@@ -254,7 +254,6 @@ def _build_generation_callbacks(recorder: _CallbackRecorder) -> GenerationCallba
     """Create callback wiring that appends events into recorder lists."""
     return GenerationCallbacks(
         randomize_seeds=lambda: None,
-        clear_output=lambda workflow_id: recorder.cleared.append(workflow_id),
         on_run_started=lambda event: recorder.run_started.append(event),
         on_progress=lambda event: recorder.progress.append(event),
         on_model_load_progress=lambda _event: None,
@@ -338,6 +337,9 @@ def test_run_single_generation_happy_path_queues_and_starts_listener() -> None:
     assert len(recorder.run_started) == 1
     assert getattr(recorder.run_started[0], "client_id") == run_client_id
     assert getattr(recorder.run_started[0], "prompt_id") == "pid-1"
+    assert getattr(recorder.run_started[0], "output_session_id") == (
+        listener_request.generation_run_id
+    )
     assert workflow_export_service.calls[0]["output_dir"] == (
         Path.cwd() / "user" / "projects"
     )
@@ -352,7 +354,7 @@ def test_run_single_generation_happy_path_queues_and_starts_listener() -> None:
         )
     )
 
-    assert recorder.cleared == ["wf-1"]
+    assert recorder.cleared == []
     assert len(recorder.previews) == 1
 
 
@@ -861,6 +863,8 @@ def test_run_prepared_generation_passes_scene_metadata_to_listener() -> None:
     assert listener_request.scene_title == "Portrait"
     assert listener_request.scene_order == 0
     assert listener_request.scene_count == 2
+    assert len(recorder.run_started) == 1
+    assert getattr(recorder.run_started[0], "output_session_id") == "run-1"
 
 
 def test_run_single_generation_queue_failure_calls_failure_callback() -> None:
@@ -1279,14 +1283,14 @@ def test_output_callback_preserves_origin_workflow_id_after_listener_emit() -> N
         )
     )
 
-    assert recorder.cleared == ["wf-origin"]
+    assert recorder.cleared == []
     assert len(recorder.outputs) == 1
     assert recorder.outputs[0].workflow_id == "wf-origin"
     assert recorder.outputs[0].node_id == "N1"
 
 
-def test_first_visual_clears_output_only_once() -> None:
-    """Preview and output events should clear old output once per generation run."""
+def test_visual_callbacks_forward_without_clearing_durable_output() -> None:
+    """Listener visuals should leave replacement to successful image commit."""
 
     recorder = _CallbackRecorder([], [], [], [], [], [])
     fake_gateway = _FakeGateway(
@@ -1338,7 +1342,7 @@ def test_first_visual_clears_output_only_once() -> None:
         )
     )
 
-    assert recorder.cleared == ["wf-origin"]
+    assert recorder.cleared == []
     assert [event.workflow_id for event in recorder.previews] == [
         "wf-other",
         "wf-origin",

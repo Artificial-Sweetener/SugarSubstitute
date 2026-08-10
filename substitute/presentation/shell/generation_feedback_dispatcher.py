@@ -54,6 +54,9 @@ _DEFAULT_FLUSH_INTERVAL_MS = 33
 class GenerationFeedbackSink(Protocol):
     """Describe UI operations used by the generation feedback dispatcher."""
 
+    def apply_generation_run_started(self, event: GenerationRunStarted) -> None:
+        """Apply one accepted generation session on the GUI thread."""
+
     def apply_generation_progress(self, update: ProgressUpdate) -> None:
         """Apply one progress update on the GUI thread."""
 
@@ -239,6 +242,7 @@ class GenerationFeedbackDispatcher(QObject):
         """Receive run-start registration on the GUI thread."""
 
         typed_event = cast(GenerationRunStarted, event)
+        self._sink.apply_generation_run_started(typed_event)
         self._handle_intent(self._coalescer.submit_run_started(typed_event))
 
     @Slot(object)

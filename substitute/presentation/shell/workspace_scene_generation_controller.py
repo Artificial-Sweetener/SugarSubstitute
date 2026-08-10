@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from sugarsubstitute_shared.presentation.localization import app_text
 
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, cast
 from uuid import uuid4
@@ -117,7 +117,6 @@ class SceneGenerationBindings(Protocol):
     """Expose shell callbacks needed to queue one prompt-scene snapshot."""
 
     randomize_seeds: Callable[[], None]
-    clear_output_for_workflow: Callable[[str], None]
     on_progress: Callable[[ProgressUpdate], None]
     on_model_load_progress: Callable[[ModelLoadProgressUpdate], None]
     on_preview: Callable[[PreviewImageUpdate], None]
@@ -164,20 +163,6 @@ class OutputSceneRunService(Protocol):
         """Start tracking one scene output run."""
 
 
-class SceneOutputCanvasStateService(Protocol):
-    """Record output generation state for scene-aware output canvases."""
-
-    def begin_output_generation(
-        self,
-        workflows: Mapping[str, object],
-        workflow_id: str,
-        *,
-        scene_run_id: str | None = None,
-        scene_count: int | None = None,
-    ) -> None:
-        """Record that output generation began for a workflow."""
-
-
 class SceneGenerationQueueService(Protocol):
     """Queue prepared prompt-scene snapshots for generation."""
 
@@ -207,10 +192,8 @@ class SceneGenerationContext:
 
 @dataclass(frozen=True, slots=True)
 class SceneRunBookkeeping:
-    """Apply scene-run bookkeeping through injected shell services."""
+    """Register prepared scene metadata through its authoritative owner."""
 
-    workflows: Mapping[str, object] | None
-    output_canvas_state_service: SceneOutputCanvasStateService | None
     output_scene_run_service: OutputSceneRunService | None
 
     def __call__(
@@ -224,14 +207,7 @@ class SceneRunBookkeeping:
     ) -> None:
         """Apply bookkeeping for a prepared scene generation run."""
 
-        if self.workflows is None or self.output_canvas_state_service is None:
-            raise AttributeError(
-                "Scene output generation requires workflow and output canvas state "
-                "services."
-            )
-        begin_output_generation_for_scene_run(
-            workflows=self.workflows,
-            output_canvas_state_service=self.output_canvas_state_service,
+        register_output_scene_run(
             output_scene_run_service=self.output_scene_run_service,
             workflow_id=workflow_id,
             workflow_name=workflow_name,
@@ -304,10 +280,8 @@ def scene_run_entries_from_snapshots(
     )
 
 
-def begin_output_generation_for_scene_run(
+def register_output_scene_run(
     *,
-    workflows: Mapping[str, object],
-    output_canvas_state_service: SceneOutputCanvasStateService,
     output_scene_run_service: OutputSceneRunService | None,
     workflow_id: str,
     workflow_name: str,
@@ -315,7 +289,7 @@ def begin_output_generation_for_scene_run(
     scene_count: int,
     snapshots: tuple[GenerationJobSnapshot, ...] = (),
 ) -> None:
-    """Apply shell scene-run bookkeeping for a prepared scene generation run."""
+    """Register prepared scene metadata without owning navigation lifecycle."""
 
     scenes = scene_run_entries_from_snapshots(
         snapshots=snapshots,
@@ -328,12 +302,6 @@ def begin_output_generation_for_scene_run(
             workflow_name=workflow_name,
             scenes=scenes,
         )
-    output_canvas_state_service.begin_output_generation(
-        workflows,
-        workflow_id,
-        scene_run_id=scene_run_id,
-        scene_count=scene_count,
-    )
 
 
 def build_scene_generation_snapshots_from_context(
@@ -455,7 +423,6 @@ def generation_callbacks_from_scene_bindings(
 
     return GenerationCallbacks(
         randomize_seeds=bindings.randomize_seeds,
-        clear_output=bindings.clear_output_for_workflow,
         on_run_started=bindings.on_run_started,
         on_progress=bindings.on_progress,
         on_model_load_progress=bindings.on_model_load_progress,
@@ -533,14 +500,13 @@ def _default_scene_run_id() -> str:
 
 
 __all__ = [
-    "begin_output_generation_for_scene_run",
+    "register_output_scene_run",
     "build_scene_generation_snapshot_from_context",
     "build_scene_generation_snapshots_from_context",
     "enqueue_prompt_scene_generation",
     "generation_callbacks_from_scene_bindings",
     "OutputSceneRunService",
     "SceneGenerationBindings",
-    "SceneOutputCanvasStateService",
     "SceneGenerationContext",
     "SceneGenerationFeedbackDispatcher",
     "SceneGenerationPreparationService",

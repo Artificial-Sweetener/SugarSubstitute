@@ -34,7 +34,6 @@ from cutecanvas import (
 from substitute.presentation.canvas.input.input_canvas_tool_chrome import (
     InputCanvasToolChrome,
 )
-from substitute.presentation.canvas.input.input_layer_control import InputLayerControl
 from substitute.presentation.canvas.input.input_selection_authoring_observer import (
     InputSelectionAuthoringObserver,
 )
@@ -53,6 +52,7 @@ from .input_contextual_toolbar_gestures import (
     InputContextualToolbarGestureObserver,
     InputContextualToolbarGestureUpdate,
 )
+from .input_contextual_toolbar_placement import InputContextualToolbarPlacement
 from .input_selection_modification_contextual_toolbar import (
     InputSelectionModificationContextualToolbarPage,
 )
@@ -76,7 +76,6 @@ class InputContextualToolbarController(QObject):
         document: InputToolOptionsDocumentPort,
         toolbar: CanvasContextualToolbar,
         tool_chrome: InputCanvasToolChrome,
-        layer_control: InputLayerControl,
         selection_authoring: InputSelectionAuthoringObserver,
         request_tool: Callable[[str], object],
         parent: QObject,
@@ -86,7 +85,6 @@ class InputContextualToolbarController(QObject):
         self._document = document
         self._toolbar = toolbar
         self._tool_chrome = tool_chrome
-        self._layer_control = layer_control
         self._request_tool = request_tool
         self._runtime: CanvasToolRuntime | None = None
         self._transform_active = False
@@ -96,11 +94,15 @@ class InputContextualToolbarController(QObject):
         self._selection_modification_request_id: UUID | None = None
         self._selection_modification_previous_operation: str | None = None
         self._last_non_transform_operation = document.current_canvas_operation()
+        self._placement = InputContextualToolbarPlacement(
+            document=document,
+            toolbar=toolbar,
+        )
 
         document.pixelSelectionChanged.connect(self._selection_changed)
         document.canvasOperationChanged.connect(self.synchronize)
         document.canvasViewChanged.connect(self._view_changed)
-        document.toolContextChanged.connect(self.synchronize)
+        document.editorContextChanged.connect(self.synchronize)
         document.selectionModificationCompleted.connect(
             self._selection_modification_completed
         )
@@ -125,7 +127,7 @@ class InputContextualToolbarController(QObject):
     def bind_runtime(self, runtime: CanvasToolRuntime) -> None:
         """Bind the shared contribution runtime used by selection content."""
         self._runtime = runtime
-        self._update_selection_anchor(ContextualToolbarPlacementUpdate.RESET)
+        self._placement.update_selection(ContextualToolbarPlacementUpdate.RESET)
         self.synchronize()
 
     def synchronize(self, *_args: object) -> None:
@@ -143,7 +145,10 @@ class InputContextualToolbarController(QObject):
             and self._transform_target is not None
         ):
             self._enter_transform()
-            self._update_transform_anchor(ContextualToolbarPlacementUpdate.COMMAND)
+            self._placement.update_transform(
+                self._transform_target,
+                ContextualToolbarPlacementUpdate.COMMAND,
+            )
             self._show_transform_page()
             return
         if not self._document.has_pixel_selection():
@@ -247,7 +252,7 @@ class InputContextualToolbarController(QObject):
 
     def refresh_placement(self) -> None:
         """Reproject selection-relative placement after host geometry changes."""
-        self._update_selection_anchor(ContextualToolbarPlacementUpdate.VIEW)
+        self._placement.update_selection(ContextualToolbarPlacementUpdate.VIEW)
 
     def _show_selection_page(self) -> None:
         """Mount the default selection entry and contributed actions."""
@@ -326,19 +331,28 @@ class InputContextualToolbarController(QObject):
 
     def _selection_changed(self, *_args: object) -> None:
         """Classify durable and preview selection geometry changes."""
-        self._update_selection_anchor(
+
+        if self._gesture_active:
+            return
+        self._placement.update_selection(
             ContextualToolbarPlacementUpdate.COMMAND
             if self.selection_modification_active
-            else ContextualToolbarPlacementUpdate.RESET
+            else ContextualToolbarPlacementUpdate.RESET,
+            retain_when_missing=self.selection_modification_active,
         )
         self.synchronize()
 
     def _view_changed(self, *_args: object) -> None:
         """Intentionally follow projected selection bounds through navigation."""
         if self._transform_active:
-            self._update_transform_anchor(ContextualToolbarPlacementUpdate.VIEW)
+            target = self._transform_target
+            if target is not None:
+                self._placement.update_transform(
+                    target,
+                    ContextualToolbarPlacementUpdate.VIEW,
+                )
         else:
-            self._update_selection_anchor(ContextualToolbarPlacementUpdate.VIEW)
+            self._placement.update_selection(ContextualToolbarPlacementUpdate.VIEW)
 
     def _gesture_changed(self, value: object) -> None:
         """Apply authoritative gesture suppression before publishing settlement."""
@@ -351,7 +365,7 @@ class InputContextualToolbarController(QObject):
         elif value.kind is InputContextualToolbarGestureKind.FLOATING_PIXELS:
             self._handle_floating_gesture(value)
         elif value.settled:
-            self._update_selection_anchor(ContextualToolbarPlacementUpdate.RESET)
+            self._placement.update_selection(ContextualToolbarPlacementUpdate.RESET)
         self._toolbar.set_suppressed(value.active)
         if not value.active:
             self.synchronize()
@@ -367,10 +381,11 @@ class InputContextualToolbarController(QObject):
             return
         self._transform_target = state.target
         if not update.source_active:
-            self._update_transform_anchor(
+            self._placement.update_transform(
+                state.target,
                 ContextualToolbarPlacementUpdate.RESET
                 if update.settled
-                else ContextualToolbarPlacementUpdate.COMMAND
+                else ContextualToolbarPlacementUpdate.COMMAND,
             )
 
     def _handle_floating_gesture(
@@ -382,49 +397,12 @@ class InputContextualToolbarController(QObject):
         state = update.floating
         if update.source_active:
             return
-        bounds = (
-            None if state is None else self._document.floating_pixel_panel_bounds(state)
+        self._placement.update_floating(
+            state,
+            ContextualToolbarPlacementUpdate.RESET
+            if update.settled
+            else ContextualToolbarPlacementUpdate.COMMAND,
         )
-        if bounds is None:
-            self._update_selection_anchor(
-                ContextualToolbarPlacementUpdate.RESET
-                if update.settled
-                else ContextualToolbarPlacementUpdate.COMMAND
-            )
-            return
-        self._toolbar.set_context_rect(
-            bounds,
-            update=(
-                ContextualToolbarPlacementUpdate.RESET
-                if update.settled
-                else ContextualToolbarPlacementUpdate.COMMAND
-            ),
-        )
-
-    def _update_selection_anchor(
-        self,
-        update: ContextualToolbarPlacementUpdate,
-    ) -> None:
-        """Map authoritative selection bounds into toolbar placement context."""
-        bounds = self._document.pixel_selection_panel_bounds()
-        if bounds is None and self.selection_modification_active:
-            return
-        self._toolbar.set_context_rect(
-            bounds,
-            update=update,
-        )
-
-    def _update_transform_anchor(
-        self,
-        update: ContextualToolbarPlacementUpdate,
-    ) -> None:
-        """Place the toolbar beneath the current live affine frame."""
-        target = self._transform_target
-        if target is None:
-            return
-        bounds = self._document.transform_panel_bounds(target)
-        if bounds is not None:
-            self._toolbar.set_context_rect(bounds, update=update)
 
     def _preview_selection_modification(
         self,
@@ -534,7 +512,6 @@ class InputContextualToolbarController(QObject):
         """Apply one shared exclusivity policy to normal Input controls."""
 
         self._tool_chrome.set_suppressed(suppressed)
-        self._layer_control.set_suppressed(suppressed)
 
 
 __all__ = ["InputContextualToolbarController"]

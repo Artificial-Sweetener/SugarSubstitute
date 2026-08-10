@@ -240,7 +240,6 @@ class GenerationJobQueueService:
         self._observers: list[QueueObserver] = []
         self._lifecycle_observers: list[GenerationJobLifecycleObserver] = []
         self._active_job_id: str | None = None
-        self._cleared_scene_run_ids: set[str] = set()
         self._dispatch_tokens_by_job_id: dict[str, str] = {}
         self._dispatch_request_id = 0
         self._is_shutdown = False
@@ -1183,18 +1182,8 @@ class GenerationJobQueueService:
                 )
             )
 
-        def clear_output(workflow_id: str) -> None:
-            self._transition_scheduler(
-                lambda: self._clear_output_for_job_visual_profiled(
-                    job_id=job_id,
-                    workflow_id=workflow_id,
-                    callbacks=callbacks,
-                )
-            )
-
         return GenerationCallbacks(
             randomize_seeds=None,
-            clear_output=clear_output,
             on_run_started=on_run_started,
             on_progress=on_progress,
             on_model_load_progress=on_model_load_progress,
@@ -1204,43 +1193,6 @@ class GenerationJobQueueService:
             on_timing=on_timing,
             on_completed=on_completed,
         )
-
-    def _clear_output_for_job_visual_profiled(
-        self,
-        *,
-        job_id: str,
-        workflow_id: str,
-        callbacks: GenerationCallbacks,
-    ) -> None:
-        """Clear queued output visual state."""
-
-        self._clear_output_for_job_visual(
-            job_id=job_id,
-            workflow_id=workflow_id,
-            callbacks=callbacks,
-        )
-
-    def _clear_output_for_job_visual(
-        self,
-        *,
-        job_id: str,
-        workflow_id: str,
-        callbacks: GenerationCallbacks,
-    ) -> None:
-        """Clear output once per scene run or once per normal queued job visual."""
-
-        job = self._job_by_id(job_id)
-        if job is None:
-            callbacks.clear_output(workflow_id)
-            return
-        scene_run_id = job.snapshot.scene_run_id
-        if scene_run_id is None:
-            callbacks.clear_output(workflow_id)
-            return
-        if scene_run_id in self._cleared_scene_run_ids:
-            return
-        self._cleared_scene_run_ids.add(scene_run_id)
-        callbacks.clear_output(workflow_id)
 
     def _handle_generation_output(
         self,

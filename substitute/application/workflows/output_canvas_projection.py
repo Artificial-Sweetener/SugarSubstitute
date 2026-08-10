@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Mapping
-from dataclasses import dataclass
 from uuid import UUID
 
 from sugarsubstitute_shared.localization import (
@@ -33,100 +32,18 @@ from sugarsubstitute_shared.localization import (
 from substitute.domain.generation import OutputResultPosition
 from substitute.domain.workflow import (
     ImageMeta,
-    OutputCompareState,
     OutputFocusMode,
     WorkflowState,
 )
-
-
-@dataclass(frozen=True)
-class OutputCanvasImageItem:
-    """Describe one selectable output image in a source/set grid."""
-
-    image_id: UUID
-    image_meta: ImageMeta
-    set_index: int
-    position: OutputResultPosition | None = None
-
-
-@dataclass(frozen=True)
-class OutputCanvasSourceGroup:
-    """Describe one output-producing source rendered as an output tab."""
-
-    source_key: str
-    label: str
-    images_by_set: Mapping[int, OutputCanvasImageItem]
-    label_is_default: bool = False
-
-    def first_item(self) -> OutputCanvasImageItem | None:
-        """Return the first concrete item owned by this CubeOutput source."""
-
-        if not self.images_by_set:
-            return None
-        return self.images_by_set[min(self.images_by_set)]
-
-
-@dataclass(frozen=True)
-class OutputCanvasSceneGroup:
-    """Describe one prompt scene grouping rendered above source and batch."""
-
-    scene_run_id: str
-    scene_key: str
-    title: str
-    order: int
-    sources: tuple[OutputCanvasSourceGroup, ...]
-    preview_image_id: UUID | None = None
-    primary_image_id: UUID | None = None
-    representative_source_key: str | None = None
-    representative_set_index: int | None = None
-    status: str = "completed"
-    title_is_default: bool = False
-
-
-@dataclass(frozen=True)
-class OutputCanvasProjection:
-    """Describe the output canvas selector state for one workflow."""
-
-    sources: tuple[OutputCanvasSourceGroup, ...]
-    active_source_key: str | None
-    active_set_index: int
-    active_uuid: UUID | None
-    set_count: int
-    scene_groups: tuple[OutputCanvasSceneGroup, ...] = ()
-    active_scene_key: str | None = None
-    active_scene_overview: bool = False
-    scene_count: int = 0
-    compare_state: OutputCompareState = OutputCompareState()
-
-    def source_for_key(self, source_key: str) -> OutputCanvasSourceGroup | None:
-        """Return source group for a stable source key when available."""
-
-        for source in self.sources:
-            if source.source_key == source_key:
-                return source
-        return None
-
-    def item_for(
-        self,
-        *,
-        source_key: str,
-        set_index: int,
-    ) -> OutputCanvasImageItem | None:
-        """Return the exact item for a CubeOutput source/set selection."""
-
-        source = self.source_for_key(source_key)
-        if source is None:
-            return None
-        return source.images_by_set.get(set_index)
-
-    def first_item_for_set(self, set_index: int) -> OutputCanvasImageItem | None:
-        """Return the first source item for one set index when available."""
-
-        for source in self.sources:
-            item = source.images_by_set.get(set_index)
-            if item is not None:
-                return item
-        return None
+from substitute.application.workflows.output_canvas_projection_model import (
+    OutputCanvasImageItem,
+    OutputCanvasProjection,
+    OutputCanvasSceneGroup,
+    OutputCanvasSourceGroup,
+)
+from substitute.application.workflows.output_canvas_route_projection import (
+    resolve_output_canvas_route,
+)
 
 
 def build_output_canvas_projection(
@@ -137,7 +54,7 @@ def build_output_canvas_projection(
 
     projection_items = _projection_items(workflow, image_meta_map)
     preferred_image_id = _manually_selected_image_id(workflow, image_meta_map)
-    sources, set_count, items_by_uuid = _source_groups_for_items(
+    sources, set_count, _items_by_uuid = _source_groups_for_items(
         projection_items,
         preferred_image_id=preferred_image_id,
     )
@@ -145,43 +62,23 @@ def build_output_canvas_projection(
         projection_items,
         preferred_image_id=preferred_image_id,
     )
-    scene_count = _scene_count_for_items(projection_items, scene_groups)
-    active_scene_key = _active_scene_key_for_workflow(
+    route = resolve_output_canvas_route(
         workflow,
-        scene_groups,
-        image_meta_map,
+        sources=sources,
+        scene_groups=scene_groups,
+        image_meta_map=image_meta_map,
     )
-    active_scene_overview = _active_scene_overview_for_workflow(
-        workflow,
-        scene_count=scene_count,
-    )
-    if active_scene_overview:
-        active_source_key, active_set_index, active_uuid = None, 1, None
-    elif scene_count > 1 and active_scene_key is not None:
-        scene = _scene_for_key(scene_groups, active_scene_key)
-        focus_sources = scene.sources if scene is not None else ()
-        active_source_key, active_set_index, active_uuid = _active_projection_focus(
-            workflow=workflow,
-            sources=focus_sources,
-            items_by_uuid=_items_by_uuid_for_sources(focus_sources),
-        )
-    else:
-        active_source_key, active_set_index, active_uuid = _active_projection_focus(
-            workflow=workflow,
-            sources=sources,
-            items_by_uuid=items_by_uuid,
-        )
 
     projection = OutputCanvasProjection(
         sources=sources,
-        active_source_key=active_source_key,
-        active_set_index=active_set_index,
-        active_uuid=active_uuid,
+        active_source_key=route.active_source_key,
+        active_set_index=route.active_set_index,
+        active_uuid=route.active_uuid,
         set_count=set_count,
         scene_groups=scene_groups,
-        active_scene_key=active_scene_key,
-        active_scene_overview=active_scene_overview,
-        scene_count=scene_count,
+        active_scene_key=route.active_scene_key,
+        active_scene_overview=route.active_scene_overview,
+        scene_count=route.scene_count,
         compare_state=workflow.output_compare_state,
     )
     return projection
@@ -432,248 +329,6 @@ def _scene_representative_for_sources(
     return None, None, None
 
 
-def _scene_count_for_items(
-    image_items: tuple[tuple[UUID, ImageMeta], ...],
-    scene_groups: tuple[OutputCanvasSceneGroup, ...],
-) -> int:
-    """Return declared scene count when available, otherwise visible scene groups."""
-
-    declared_scene_counts = [
-        image_meta.scene_count
-        for _image_id, image_meta in image_items
-        if image_meta.scene_count is not None and image_meta.scene_count > 0
-    ]
-    if declared_scene_counts:
-        return max(declared_scene_counts)
-    return len(scene_groups)
-
-
-def _active_scene_overview_for_workflow(
-    workflow: WorkflowState,
-    *,
-    scene_count: int,
-) -> bool:
-    """Return whether projection should activate the scene overview."""
-
-    if scene_count <= 1:
-        return False
-    if workflow.output_focus_mode == OutputFocusMode.MANUAL:
-        return workflow.active_output_scene_overview
-    return True
-
-
-def _active_scene_key_for_workflow(
-    workflow: WorkflowState,
-    scene_groups: tuple[OutputCanvasSceneGroup, ...],
-    image_meta_map: Mapping[UUID, ImageMeta],
-) -> str | None:
-    """Return the best active scene key for workflow focus state."""
-
-    if workflow.output_focus_mode == OutputFocusMode.MANUAL:
-        scene = _scene_for_key(scene_groups, workflow.active_output_scene_key)
-        if scene is not None:
-            return scene.scene_key
-    uuid_scene_key = _active_scene_key_for_uuid(
-        workflow.active_output_uuid,
-        image_meta_map,
-    )
-    if _scene_for_key(scene_groups, uuid_scene_key) is not None:
-        return uuid_scene_key
-    latest_scene_key = _latest_scene_key_for_workflow(workflow, image_meta_map)
-    if _scene_for_key(scene_groups, latest_scene_key) is not None:
-        return latest_scene_key
-    return scene_groups[0].scene_key if scene_groups else None
-
-
-def _latest_scene_key_for_workflow(
-    workflow: WorkflowState,
-    image_meta_map: Mapping[UUID, ImageMeta],
-) -> str | None:
-    """Return scene key for the newest workflow output with scene metadata."""
-
-    for image_id in reversed(workflow.output_image_uuids):
-        image_meta = image_meta_map.get(image_id)
-        if image_meta is not None and image_meta.scene_key:
-            return image_meta.scene_key
-    return None
-
-
-def _scene_for_key(
-    scene_groups: tuple[OutputCanvasSceneGroup, ...],
-    scene_key: str | None,
-) -> OutputCanvasSceneGroup | None:
-    """Return a scene group by key."""
-
-    if scene_key is None:
-        return None
-    for scene in scene_groups:
-        if scene.scene_key == scene_key:
-            return scene
-    return None
-
-
-def _items_by_uuid_for_sources(
-    sources: tuple[OutputCanvasSourceGroup, ...],
-) -> dict[UUID, tuple[str, OutputCanvasImageItem]]:
-    """Build focus lookup from already scoped source groups."""
-
-    items_by_uuid: dict[UUID, tuple[str, OutputCanvasImageItem]] = {}
-    for source in sources:
-        for item in source.images_by_set.values():
-            items_by_uuid[item.image_id] = (source.source_key, item)
-    return items_by_uuid
-
-
-def _active_projection_focus(
-    *,
-    workflow: WorkflowState,
-    sources: tuple[OutputCanvasSourceGroup, ...],
-    items_by_uuid: Mapping[UUID, tuple[str, OutputCanvasImageItem]],
-) -> tuple[str | None, int, UUID | None]:
-    """Resolve active output focus from workflow intent and available sources."""
-
-    if not sources:
-        return None, 1, None
-    if workflow.output_focus_mode == OutputFocusMode.MANUAL:
-        if workflow.active_output_set_index == 0:
-            focus = _manual_grid_focus(workflow, sources)
-        else:
-            focus = _manual_concrete_focus(workflow, sources, items_by_uuid)
-    else:
-        focus = _automatic_focus(workflow, sources, items_by_uuid)
-    return focus
-
-
-def _automatic_focus(
-    workflow: WorkflowState,
-    sources: tuple[OutputCanvasSourceGroup, ...],
-    items_by_uuid: Mapping[UUID, tuple[str, OutputCanvasImageItem]],
-) -> tuple[str | None, int, UUID | None]:
-    """Resolve automatic focus, promoting multi-output sources to grid mode."""
-
-    source: OutputCanvasSourceGroup | None = None
-    active_uuid = workflow.active_output_uuid
-    item_entry = items_by_uuid.get(active_uuid) if active_uuid is not None else None
-    if item_entry is not None:
-        source_key, _selected_item = item_entry
-        source = _source_for_key(sources, source_key)
-    if source is None and workflow.active_output_source_key:
-        source = _source_for_key(sources, workflow.active_output_source_key)
-    if source is None:
-        source = _latest_source(workflow, sources, items_by_uuid) or sources[0]
-    return _focus_for_source(source)
-
-
-def _manual_concrete_focus(
-    workflow: WorkflowState,
-    sources: tuple[OutputCanvasSourceGroup, ...],
-    items_by_uuid: Mapping[UUID, tuple[str, OutputCanvasImageItem]],
-) -> tuple[str | None, int, UUID | None]:
-    """Resolve user-selected concrete output focus with deterministic fallback."""
-
-    active_uuid = workflow.active_output_uuid
-    item_entry = items_by_uuid.get(active_uuid) if active_uuid is not None else None
-    if item_entry is not None:
-        source_key, selected_item = item_entry
-        return source_key, selected_item.set_index, selected_item.image_id
-    if workflow.active_output_source_key:
-        source = _source_for_key(sources, workflow.active_output_source_key)
-        if source is not None:
-            exact_item = source.images_by_set.get(workflow.active_output_set_index)
-            if exact_item is not None:
-                return source.source_key, exact_item.set_index, exact_item.image_id
-    return _first_concrete_focus(sources)
-
-
-def _manual_grid_focus(
-    workflow: WorkflowState,
-    sources: tuple[OutputCanvasSourceGroup, ...],
-) -> tuple[str | None, int, UUID | None]:
-    """Resolve user-selected grid focus with concrete fallback when unavailable."""
-
-    source = (
-        _source_for_key(sources, workflow.active_output_source_key)
-        if workflow.active_output_source_key
-        else None
-    )
-    if source is not None:
-        if _source_can_render_grid(source):
-            return source.source_key, 0, None
-        item = source.first_item()
-        if item is not None:
-            return source.source_key, item.set_index, item.image_id
-    return _first_concrete_focus(sources)
-
-
-def _focus_for_source(
-    source: OutputCanvasSourceGroup,
-) -> tuple[str | None, int, UUID | None]:
-    """Return grid or concrete focus for one source according to its item count."""
-
-    if _source_has_grid(source):
-        return source.source_key, 0, None
-    item = source.first_item()
-    if item is None:
-        return source.source_key, 1, None
-    return source.source_key, item.set_index, item.image_id
-
-
-def _first_concrete_focus(
-    sources: tuple[OutputCanvasSourceGroup, ...],
-) -> tuple[str | None, int, UUID | None]:
-    """Return the first available concrete output focus."""
-
-    for source in sources:
-        item = source.first_item()
-        if item is not None:
-            return source.source_key, item.set_index, item.image_id
-    return None, 1, None
-
-
-def _latest_source(
-    workflow: WorkflowState,
-    sources: tuple[OutputCanvasSourceGroup, ...],
-    items_by_uuid: Mapping[UUID, tuple[str, OutputCanvasImageItem]],
-) -> OutputCanvasSourceGroup | None:
-    """Return the source for the newest valid output in workflow order."""
-
-    for image_id in reversed(workflow.output_image_uuids):
-        item_entry = items_by_uuid.get(image_id)
-        if item_entry is None:
-            continue
-        source_key, _item = item_entry
-        source = _source_for_key(sources, source_key)
-        if source is not None:
-            return source
-    return None
-
-
-def _source_for_key(
-    sources: tuple[OutputCanvasSourceGroup, ...],
-    source_key: str | None,
-) -> OutputCanvasSourceGroup | None:
-    """Return a source group by key from a projection source tuple."""
-
-    if source_key is None:
-        return None
-    for source in sources:
-        if source.source_key == source_key:
-            return source
-    return None
-
-
-def _source_has_grid(source: OutputCanvasSourceGroup) -> bool:
-    """Return whether automatic focus benefits from a multi-batch grid."""
-
-    return len(source.images_by_set) > 1
-
-
-def _source_can_render_grid(source: OutputCanvasSourceGroup) -> bool:
-    """Return whether manual grid intent has at least one renderable tile."""
-
-    return bool(source.images_by_set)
-
-
 def _source_key_for(image_id: UUID, image_meta: ImageMeta) -> str:
     """Return stable grouping identity for one output image."""
 
@@ -753,20 +408,6 @@ def _scene_order_for(image_meta: ImageMeta) -> int:
     if image_meta.scene_order is not None:
         return image_meta.scene_order
     return 0
-
-
-def _active_scene_key_for_uuid(
-    active_uuid: UUID | None,
-    image_meta_map: Mapping[UUID, ImageMeta],
-) -> str | None:
-    """Return the active scene key for one concrete active image."""
-
-    if active_uuid is None:
-        return None
-    image_meta = image_meta_map.get(active_uuid)
-    if image_meta is None or not image_meta.scene_key:
-        return None
-    return image_meta.scene_key
 
 
 __all__ = [
