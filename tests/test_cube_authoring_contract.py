@@ -68,6 +68,42 @@ def _graph() -> dict[str, object]:
     }
 
 
+def _native_subgraph_graph() -> dict[str, object]:
+    """Return a native wrapper with structural and widget-backed public inputs."""
+
+    return {
+        "nodes": {
+            "sampler": {
+                "class_type": "subgraph-sampler",
+                "inputs": {"model": ["checkpoint", 0], "batch_size": 2},
+            }
+        },
+        "inputs": {},
+        "surface": {"controls": []},
+        "subgraphs": [
+            {
+                "id": "subgraph-sampler",
+                "inputs": [
+                    {"name": "model", "linkIds": [10]},
+                    {"name": "batch_size", "linkIds": [11]},
+                ],
+                "nodes": [
+                    {"inputs": [{"name": "model", "link": 10}]},
+                    {
+                        "inputs": [
+                            {
+                                "name": "batch_size",
+                                "link": 11,
+                                "widget": {"name": "batch_size"},
+                            }
+                        ]
+                    },
+                ],
+            }
+        ],
+    }
+
+
 def test_authoring_contract_uses_surface_fields_in_declared_order() -> None:
     """The surface contract should be the sole ordered authored-field authority."""
 
@@ -77,6 +113,14 @@ def test_authoring_contract_uses_surface_fields_in_declared_order() -> None:
         CubeInputField("node", "strength"),
         CubeInputField("node", "masks"),
     )
+
+
+def test_authoring_contract_includes_only_widget_backed_subgraph_inputs() -> None:
+    """Native wrapper widgets should be authored without claiming structural links."""
+
+    contract = CubeAuthoringContract.from_graph(_native_subgraph_graph())
+
+    assert contract.authored_fields == (CubeInputField("sampler", "batch_size"),)
 
 
 def test_authoring_contract_rejects_boundary_surface_ownership_conflicts() -> None:
