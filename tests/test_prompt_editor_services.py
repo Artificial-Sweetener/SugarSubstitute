@@ -2103,6 +2103,25 @@ def test_prompt_mutation_service_apply_syntax_action_dispatches_emphasis_adjustm
     assert result.document_view.emphasis_spans[0].weight_text == "1.10"
 
 
+def test_prompt_mutation_service_adjustment_crosses_zero_into_negative_weight() -> None:
+    """Application-level emphasis actions should retain negative mutation results."""
+
+    mutation_service = PromptMutationService()
+
+    result = mutation_service.apply_syntax_action(
+        "(cat:0.00)",
+        PromptAdjustEmphasisAction(
+            outer_start=0,
+            outer_end=10,
+            delta=-0.05,
+        ),
+    )
+
+    assert result is not None
+    assert result.text == "(cat:-0.05)"
+    assert result.document_view.emphasis_spans[0].weight_text == "-0.05"
+
+
 def test_prompt_mutation_service_apply_syntax_action_dispatches_exact_weight_for_real_shell() -> (
     None
 ):

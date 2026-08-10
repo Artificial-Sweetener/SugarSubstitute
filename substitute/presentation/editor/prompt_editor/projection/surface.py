@@ -103,6 +103,9 @@ from ..interactions.cursor_adapter import (
 )
 from ..interactions.clipboard_history_controller import PromptClipboardHistoryActions
 from ..interactions.pointer_ports import PromptSurfacePointerInteractions
+from ..interactions.text_mutation_controller import (
+    PromptProjectionTextMutationContext,
+)
 from ..interactions import (
     PromptSurfaceKeyHandler,
     PromptSurfaceKeyHost,
@@ -432,11 +435,14 @@ class PromptProjectionSurface(QAbstractScrollArea):
         editing_runtime = editing_runtime_factory(self)
         self._edit_execution = editing_runtime.execution
         self._source_commands = editing_runtime.source_commands
+        self._text_mutations = editing_runtime.text_mutations
         self._clipboard_history_actions = editing_runtime.clipboard_history
         self._undo_coalescing_actions = editing_runtime.undo_coalescing
-        self._input_method_controller = PromptInputMethodController(
+        self._input_method_controller: PromptInputMethodController[
+            PromptProjectionUndoPayload
+        ] = PromptInputMethodController(
             cast(PromptInputMethodHost, self),
-            source_commands=self._source_commands,
+            text_mutations=self._text_mutations,
         )
         self._deletion_controller = PromptSurfaceDeletionController(
             context_provider=cast(PromptDeletionContextProvider, self),
@@ -446,6 +452,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         self._key_handler = PromptSurfaceKeyHandler(
             cast(PromptSurfaceKeyHost, self),
             deletion_controller=self._deletion_controller,
+            text_mutations=self._text_mutations,
             clipboard_history_actions=lambda: self._clipboard_history_actions,
             undo_coalescing_actions=lambda: self._undo_coalescing_actions,
         )
@@ -1992,9 +1999,10 @@ class PromptProjectionSurface(QAbstractScrollArea):
     ) -> None:
         """Insert text requested by the source cursor adapter."""
 
-        self._insert_viewport_text(
+        self._text_mutations.insert_text(
             text,
             origin=PromptSourceEditOrigin.PROGRAMMATIC,
+            command_name="cursor_insert_text",
         )
 
     def cursorRect(self) -> QRect:  # noqa: N802
@@ -2591,46 +2599,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             anchor_position=cursor_state.anchor_position,
         )
 
-    def _insert_viewport_text(
-        self,
-        text: str,
-        *,
-        origin: PromptSourceEditOrigin = PromptSourceEditOrigin.TYPED,
-    ) -> None:
-        """Replace the current raw selection with plain text."""
-
-        if not self._editing_enabled:
-            return
-        if text == " ":
-            self._move_space_at_emphasis_weight_boundary()
-        selection = self._selection()
-        self._replace_viewport_range(
-            selection.start,
-            selection.end,
-            text,
-            origin=origin,
-        )
-
-    def _move_space_at_emphasis_weight_boundary(self) -> None:
-        """Place Space after an emphasis token when caret sits before its weight."""
-
-        if (
-            not self._selection().is_empty
-            or self.cursor_position != self.anchor_position
-        ):
-            return
-        for token in self._editor_state.projection.document.tokens:
-            if (
-                token.kind is PromptProjectionTokenKind.EMPHASIS
-                and token.content_end == self.cursor_position
-                and token.value_text is not None
-            ):
-                self.set_cursor_positions(
-                    cursor_position=token.source_end,
-                    anchor_position=token.source_end,
-                )
-                return
-
     def _delete_viewport_selection(self) -> None:
         """Delete the currently selected raw prompt source text."""
 
@@ -2640,7 +2608,35 @@ class PromptProjectionSurface(QAbstractScrollArea):
         if selection.is_empty:
             return
         self._finish_pending_key_edit_block(reason="delete_selection")
-        self._replace_viewport_range(selection.start, selection.end, "")
+        self._source_commands.replace_source_range(
+            start=selection.start,
+            end=selection.end,
+            replacement_text="",
+            origin=PromptSourceEditOrigin.TYPED,
+            command_name="cursor_delete_selection",
+        )
+
+    def projection_text_mutation_context(
+        self,
+    ) -> PromptProjectionTextMutationContext:
+        """Return authoritative projection state for a direct text mutation."""
+
+        return PromptProjectionTextMutationContext(
+            selection=self._selection(),
+            cursor_state=self._cursor_state,
+            anchor_state=self._anchor_state,
+            tokens=tuple(self._editor_state.projection.document.tokens),
+            editing_enabled=self._editing_enabled,
+        )
+
+    def insert_external_text(self, text: str, *, command_name: str) -> None:
+        """Insert external plain text through projection boundary ownership."""
+
+        self._text_mutations.insert_text(
+            text,
+            origin=PromptSourceEditOrigin.PASTE,
+            command_name=command_name,
+        )
 
     def deletion_context(self) -> PromptDeletionContext:
         """Capture the immutable state consumed by deletion resolution."""
@@ -3082,7 +3078,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
         text = prompt_plain_text_from_mime_data(source)
         if text is None:
             return
-        self._insert_viewport_text(text, origin=PromptSourceEditOrigin.PASTE)
+        self.insert_external_text(text, command_name="mime_plain_text")
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         """Accept only prompt-safe plain text drag payloads."""
@@ -3129,7 +3125,7 @@ class PromptProjectionSurface(QAbstractScrollArea):
             event.ignore()
             return
         self.cursorForPosition(viewport_position)
-        self._insert_viewport_text(text, origin=PromptSourceEditOrigin.PASTE)
+        self.insert_external_text(text, command_name="drop_plain_text")
         event.acceptProposedAction()
 
     @prompt_editor_work_event(PromptEditorWorkEvent.SURFACE_RESIZE_EVENT)
@@ -3580,57 +3576,6 @@ class PromptProjectionSurface(QAbstractScrollArea):
             self.viewport().update()
         self._update_caret_paint(previous_caret_rect)
         self.cursorPositionChanged.emit()
-
-    def _replace_viewport_range(
-        self,
-        start: int,
-        end: int,
-        replacement_text: str,
-        *,
-        origin: PromptSourceEditOrigin = PromptSourceEditOrigin.TYPED,
-    ) -> None:
-        """Replace one raw source range and keep cursor state undo-safe."""
-
-        self._visible_scroll_bar()
-        syntax_replacement_range = (
-            self._syntax_sensitive_token_selection_replacement_range(
-                start=start,
-                end=end,
-                replacement_text=replacement_text,
-            )
-        )
-        if syntax_replacement_range is not None:
-            start, end = syntax_replacement_range
-        self._source_commands.replace_source_range(
-            start=start,
-            end=end,
-            replacement_text=replacement_text,
-            origin=origin,
-        )
-
-    def _syntax_sensitive_token_selection_replacement_range(
-        self,
-        *,
-        start: int,
-        end: int,
-        replacement_text: str,
-    ) -> tuple[int, int] | None:
-        """Return the outer token range for syntax edits over selected token content."""
-
-        if not replacement_text or not any(
-            character in "(){}<>:\\" for character in replacement_text
-        ):
-            return None
-        token = self.focused_token()
-        if (
-            token is None
-            or token.kind is not PromptProjectionTokenKind.EMPHASIS
-            or token.content_start is None
-            or token.content_end is None
-            or (start, end) != (token.content_start, token.content_end)
-        ):
-            return None
-        return token.source_start, token.source_end
 
     def _selection(self) -> PromptProjectionSelection:
         """Return the current source-backed selection model."""

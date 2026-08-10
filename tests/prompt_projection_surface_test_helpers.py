@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from typing import Any, cast
 
 import pytest
@@ -42,39 +42,14 @@ from substitute.application.prompt_editor.projection.syntax_service import (
 from substitute.application.ports import PromptWildcardResolution
 from substitute.domain.model_metadata import BANNER_THUMBNAIL_ROLE, ThumbnailAsset
 from substitute.presentation.editor.prompt_editor import PromptEditor
-from substitute.presentation.editor.prompt_editor.commands.execution import (
-    PromptEditExecution,
-)
-from substitute.presentation.editor.prompt_editor.commands.source_service import (
-    PromptSourceCommandService,
-)
 from substitute.presentation.editor.prompt_editor.core.editing.commands import (
     PromptReplaceRangeEdit,
-)
-from substitute.presentation.editor.prompt_editor.core.editing.cursor_state import (
-    PromptCursorState,
-)
-from substitute.presentation.editor.prompt_editor.core.editing.session import (
-    PromptEditingSession,
 )
 from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
     PromptSourceEditOrigin,
 )
-from substitute.presentation.editor.prompt_editor.interactions.undo_coalescing import (
-    PromptUndoCoalescingController,
-)
-from substitute.presentation.editor.prompt_editor.lora_thumbnail_cache import (
-    PromptLoraThumbnailCache,
-)
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
-)
-from substitute.presentation.editor.prompt_editor.projection.undo_payload import (
-    PromptProjectionUndoPayload,
-)
-from substitute.presentation.editor.prompt_editor.projection.editing_runtime import (
-    PromptProjectionEditingRuntime,
-    PromptProjectionEditingRuntimeFactory,
 )
 from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
     PromptProjectionToken,
@@ -90,6 +65,9 @@ from tests.prompt_projection_test_helpers import (
     surface_for,
 )
 from tests.prompt_autocomplete_test_helpers import prompt_syntax_profile
+from tests.support.prompt_editor.projection_surface_factory import (
+    surface_source_commands as _surface_source_commands,
+)
 
 
 @pytest.fixture(name="widgets")
@@ -103,136 +81,6 @@ def projection_surface_widgets() -> Iterator[list[QWidget]]:
         widget.close()
         widget.deleteLater()
     process_events(app)
-
-
-class ManualUndoCoalescingTimer:
-    """Provide deterministic timer hooks for directly composed surface tests."""
-
-    def __init__(self) -> None:
-        """Create an idle manual timer."""
-
-        self._handler: Callable[[], None] | None = None
-
-    def set_timeout_handler(self, handler: Callable[[], None]) -> None:
-        """Store the callback that a test may trigger manually."""
-
-        self._handler = handler
-
-    def start(self) -> None:
-        """Record timer start without scheduling real time."""
-
-    def stop(self) -> None:
-        """Record timer stop without scheduling real time."""
-
-
-class NoopClipboardHistoryActions:
-    """Satisfy key handler clipboard shortcuts for directly composed surfaces."""
-
-    def copy(self) -> None:
-        """Ignore copy in bare-surface tests."""
-
-    def cut(self) -> None:
-        """Ignore cut in bare-surface tests."""
-
-    def paste(self) -> None:
-        """Ignore paste in bare-surface tests."""
-
-    def select_all(self) -> None:
-        """Ignore select-all in bare-surface tests."""
-
-    def undo(self) -> None:
-        """Ignore undo in bare-surface tests."""
-
-    def redo(self) -> None:
-        """Ignore redo in bare-surface tests."""
-
-
-class TestProjectionEditingRuntimeFactory(
-    PromptProjectionEditingRuntimeFactory[
-        PromptProjectionSurface,
-        PromptProjectionUndoPayload,
-    ]
-):
-    """Build focused editing services for directly constructed test surfaces."""
-
-    def __init__(
-        self,
-        session: PromptEditingSession[PromptProjectionUndoPayload],
-    ) -> None:
-        """Store the session used by the surface under construction."""
-
-        self._session = session
-
-    def __call__(
-        self,
-        surface: PromptProjectionSurface,
-    ) -> PromptProjectionEditingRuntime[PromptProjectionUndoPayload]:
-        """Return a deterministic editing runtime without external integrations."""
-
-        execution = PromptEditExecution(
-            session=self._session,
-            undo_payload_provider=surface,
-            availability_signal_sink=surface,
-            commit_sink=surface,
-        )
-        source_commands = PromptSourceCommandService(
-            execution=execution,
-            normalizer=PromptSourceNormalizationService(),
-            exact_source_enabled=surface.exact_source_editing_enabled,
-        )
-        coalescing = PromptUndoCoalescingController(
-            edit_execution=execution,
-            typing_timer=ManualUndoCoalescingTimer(),
-            delete_timer=ManualUndoCoalescingTimer(),
-            cursor_position=lambda: surface.cursor_position,
-            selection_empty=lambda: not surface.textCursor().hasSelection(),
-        )
-        execution.set_pending_key_flusher(coalescing)
-        return PromptProjectionEditingRuntime(
-            execution=execution,
-            source_commands=source_commands,
-            clipboard_history=NoopClipboardHistoryActions(),
-            undo_coalescing=coalescing,
-        )
-
-
-def new_projection_surface(
-    parent: QWidget | None = None,
-    *,
-    lora_thumbnail_cache: PromptLoraThumbnailCache | None = None,
-) -> PromptProjectionSurface:
-    """Create a surface with composition-owned mutation collaborators."""
-
-    session = PromptEditingSession[PromptProjectionUndoPayload](
-        source_text="",
-        source_revision=0,
-        cursor_state=PromptCursorState(cursor_position=0, anchor_position=0),
-        max_undo_states=100,
-        max_redo_states=100,
-    )
-    surface = PromptProjectionSurface(
-        parent,
-        editing_session=session,
-        editing_runtime_factory=TestProjectionEditingRuntimeFactory(session),
-        lora_thumbnail_cache=lora_thumbnail_cache,
-    )
-    return surface
-
-
-def surface_source_commands(
-    surface: PromptProjectionSurface,
-) -> PromptSourceCommandService[PromptProjectionUndoPayload]:
-    """Return the source command owner composed with one surface."""
-
-    return surface.source_commands
-
-
-def surface_edit_execution(
-    surface: PromptProjectionSurface,
-) -> PromptEditExecution[PromptProjectionUndoPayload]:
-    """Return the editing execution owner composed with one surface."""
-
-    return surface.edit_execution
 
 
 def first_emphasis_token(box: PromptEditor) -> PromptProjectionToken:
@@ -366,7 +214,7 @@ def install_lora_wildcard_prompt_state(
         document_view,
         prompt_syntax_profile("emphasis", "wildcard", "lora"),
     )
-    surface_source_commands(surface).set_source_text(text)
+    _surface_source_commands(surface).set_source_text(text)
     set_surface_prompt_state(surface, document_view, render_plan)
     surface.flush_pending_projection_update(reason="test")
 
@@ -379,7 +227,7 @@ def set_surface_prompt_state(
     """Publish semantic state through the surface revision authority."""
 
     if surface.toPlainText() != document_view.source_text:
-        surface_source_commands(surface).set_source_text(document_view.source_text)
+        _surface_source_commands(surface).set_source_text(document_view.source_text)
         process_events(ensure_qapp())
     surface.set_prompt_state(
         surface.editor_state.prepare_semantic(

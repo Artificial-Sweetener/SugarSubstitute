@@ -39,7 +39,6 @@ from substitute.domain.prompt.emphasis.semantics import (
 
 _DEFAULT_INCREASE_STEP = EDITOR_EMPHASIS_ADJUSTMENT_STEP
 _DEFAULT_DECREASE_STEP = EDITOR_EMPHASIS_ADJUSTMENT_STEP
-_MINIMUM_EMPHASIS_WEIGHT = Decimal("0.05")
 _NEUTRAL_EMPHASIS_WEIGHT = Decimal("1.00")
 _DEFAULT_POSITIVE_WEIGHT = EDITOR_DEFAULT_POSITIVE_EMPHASIS
 _DEFAULT_NEGATIVE_WEIGHT = Decimal("0.95")
@@ -81,7 +80,7 @@ def set_emphasis_weight(
         normalized_range = shell_span.content_range
 
     matched_span = document.emphasis_with_content_range(normalized_range)
-    normalized_weight = _normalized_emphasis_weight(weight)
+    normalized_weight = _quantized_emphasis_weight(weight)
     if matched_span is not None:
         return _set_existing_emphasis_weight(
             document,
@@ -214,7 +213,7 @@ def _adjust_existing_emphasis(
 ) -> PromptMutationResult:
     """Adjust the numeric weight on one already-weighted emphasis span."""
 
-    adjusted_weight = _normalized_emphasis_weight(span.weight + delta)
+    adjusted_weight = _quantized_emphasis_weight(span.weight + delta)
     if adjusted_weight == _NEUTRAL_EMPHASIS_WEIGHT:
         return unwrap_neutral_emphasis(document, span)
 
@@ -347,11 +346,9 @@ def _wrap_plain_selection_with_exact_weight(
     )
 
 
-def _normalized_emphasis_weight(weight: Decimal) -> Decimal:
-    """Clamp one emphasis weight to the supported floor while preserving neutral unwrap."""
+def _quantized_emphasis_weight(weight: Decimal) -> Decimal:
+    """Quantize one unrestricted emphasis weight to source precision."""
 
-    if weight < _MINIMUM_EMPHASIS_WEIGHT:
-        return _MINIMUM_EMPHASIS_WEIGHT
     return weight.quantize(PROMPT_WEIGHT_PRECISION)
 
 

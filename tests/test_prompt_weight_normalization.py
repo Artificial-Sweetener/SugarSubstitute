@@ -27,6 +27,7 @@ def test_normalize_prompt_weights_formats_emphasis_weights() -> None:
     assert normalize_prompt_weights("(cat:1)").text == "(cat:1.00)"
     assert normalize_prompt_weights("(cat:0.9)").text == "(cat:0.90)"
     assert normalize_prompt_weights("(cat:0.90)").text == "(cat:0.90)"
+    assert normalize_prompt_weights("(cat:-.9)").text == "(cat:-0.90)"
 
 
 def test_normalize_prompt_weights_formats_lora_weights() -> None:

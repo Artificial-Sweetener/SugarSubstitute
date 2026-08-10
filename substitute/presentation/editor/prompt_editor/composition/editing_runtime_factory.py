@@ -37,6 +37,9 @@ from ..features.paste_import_controller import PromptDanbooruPasteImportControll
 from ..interactions.clipboard_history_controller import (
     PromptClipboardHistoryController,
 )
+from ..interactions.text_mutation_controller import (
+    PromptProjectionTextMutationController,
+)
 from ..interactions.undo_coalescing import (
     DELETE_UNDO_COALESCE_IDLE_MS,
     TYPING_UNDO_COALESCE_IDLE_MS,
@@ -102,6 +105,10 @@ class PromptProjectionEditingRuntimeBuilder(
             normalizer=self.normalizer,
             exact_source_enabled=surface.exact_source_editing_enabled,
         )
+        text_mutations = PromptProjectionTextMutationController(
+            context_provider=surface,
+            source_commands=source_commands,
+        )
         undo_coalescing = PromptUndoCoalescingController(
             edit_execution=execution,
             typing_timer=PromptQtUndoCoalescingTimer(
@@ -133,6 +140,7 @@ class PromptProjectionEditingRuntimeBuilder(
             clipboard=QtPromptTextClipboard(),
             cursor_sink=surface,
             source_commands=source_commands,
+            text_mutations=text_mutations,
             danbooru_paste_scheduler=danbooru_controller,
             editing_enabled=surface.editing_enabled,
             paste_completed=self.paste_completed,
@@ -141,6 +149,7 @@ class PromptProjectionEditingRuntimeBuilder(
         return PromptProjectionEditingRuntime(
             execution=execution,
             source_commands=source_commands,
+            text_mutations=text_mutations,
             clipboard_history=clipboard_history,
             undo_coalescing=undo_coalescing,
         )

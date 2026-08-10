@@ -107,6 +107,30 @@ def test_parse_prompt_document_tracks_nested_emphasis_ranges_and_depths() -> Non
     ) == (1, 10, 2, 5, 6, 9, Decimal("1.2"), 1)
 
 
+@pytest.mark.parametrize(
+    ("source_text", "weight_text", "weight"),
+    (
+        ("(cat:-0.05)", "-0.05", Decimal("-0.05")),
+        ("(cat:-1)", "-1", Decimal("-1")),
+        ("(cat:-.5)", "-.5", Decimal("-0.5")),
+    ),
+)
+def test_parse_prompt_document_tracks_negative_emphasis_weights(
+    source_text: str,
+    weight_text: str,
+    weight: Decimal,
+) -> None:
+    """Parse signed emphasis weights without losing their source ranges."""
+
+    document = parse_prompt_document(source_text)
+
+    assert len(document.emphasis_spans) == 1
+    span = document.emphasis_spans[0]
+    assert span.weight == weight
+    assert span.weight_range.slice(source_text) == weight_text
+    assert span.content_range.slice(source_text) == "cat"
+
+
 def test_parse_prompt_document_tracks_simple_wildcard_spans() -> None:
     """Simple wildcard placeholders should produce normalized wildcard spans and syntax spans."""
 

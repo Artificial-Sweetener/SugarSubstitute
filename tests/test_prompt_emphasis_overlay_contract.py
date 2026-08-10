@@ -931,6 +931,28 @@ def test_exact_weight_edit_commits_exact_value_and_hides_step_controls(
     assert exact_weight_edit_token(box) is None
 
 
+def test_exact_weight_edit_commits_negative_emphasis_value(
+    widgets: list[QWidget],
+) -> None:
+    """Exact weight editing should preserve a user-entered negative value."""
+
+    box = show_prompt_editor(
+        widgets,
+        text="(cat:0.00)",
+        width=180,
+    )
+    token = emphasis_token_for(box)
+    start_exact_weight_edit(box, token)
+
+    QTest.keyClicks(box, "-0.25")
+    QTest.keyClick(box, Qt.Key.Key_Return)
+    process_events(ensure_qapp(), cycles=4)
+
+    assert box.toPlainText() == "(cat:-0.25)"
+    assert emphasis_token_for(box).value_text == "-0.25"
+    assert exact_weight_edit_token(box) is None
+
+
 def test_exact_weight_edit_committing_one_unwraps_to_plain_text(
     widgets: list[QWidget],
 ) -> None:
@@ -1155,6 +1177,37 @@ def test_inline_decrease_click_can_continue_below_transient_neutral_emphasis(
     process_events(ensure_qapp())
 
     assert box.toPlainText() == "(cat:0.95)"
+
+
+def test_inline_decrease_click_crosses_zero_into_negative_emphasis(
+    widgets: list[QWidget],
+) -> None:
+    """The inline decrease control should step from zero to negative emphasis."""
+
+    box = show_prompt_editor(
+        widgets,
+        text="(cat:0.00)",
+        width=180,
+    )
+    controls = emphasis_controls_for(box)
+    token = emphasis_token_for(box)
+    reveal_emphasis_controls(box, token)
+    assert controls.decrease_rect is not None
+
+    click_control_rect(controls, controls.decrease_rect)
+    process_events(ensure_qapp())
+
+    assert box.toPlainText() == "(cat:-0.05)"
+    assert emphasis_token_for(box).value_text == "-0.05"
+
+    controls = emphasis_controls_for(box)
+    reveal_emphasis_controls(box, emphasis_token_for(box))
+    assert controls.increase_rect is not None
+    click_control_rect(controls, controls.increase_rect)
+    process_events(ensure_qapp())
+
+    assert box.toPlainText() == "(cat:0.00)"
+    assert emphasis_token_for(box).value_text == "0.00"
 
 
 def test_inline_increase_click_can_restore_emphasis_from_transient_neutral_step(
@@ -1396,6 +1449,32 @@ def test_visible_emphasis_controls_accept_mouse_wheel_like_a_spinbox(
     process_events(ensure_qapp())
     assert box.toPlainText() == "(cat:0.95)"
     assert controls._gestures.weight_preview_text == "0.95"  # noqa: SLF001
+
+
+def test_visible_emphasis_controls_wheel_crosses_zero_into_negative_emphasis(
+    widgets: list[QWidget],
+) -> None:
+    """Wheel-down over emphasis controls should step through zero."""
+
+    box = show_prompt_editor(
+        widgets,
+        text="(cat:0.00)",
+        width=180,
+    )
+    controls = emphasis_controls_for(box)
+    token = emphasis_token_for(box)
+    reveal_emphasis_controls(box, token)
+    assert controls.increase_rect is not None
+
+    wheel_widget_at_point(
+        controls,
+        local_point=controls.mapFromParent(controls.increase_rect.center().toPoint()),
+        angle_delta_y=-120,
+    )
+    process_events(ensure_qapp())
+
+    assert box.toPlainText() == "(cat:-0.05)"
+    assert emphasis_token_for(box).value_text == "-0.05"
 
 
 def test_wheel_outside_emphasis_token_does_not_adjust_when_caret_is_inside_token(

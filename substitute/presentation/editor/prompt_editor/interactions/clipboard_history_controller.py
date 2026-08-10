@@ -28,6 +28,7 @@ from ..core.editing.cursor_state import PromptCursorState
 from ..core.editing.source_commands import (
     PromptSourceEditOrigin,
 )
+from .text_mutation_controller import PromptTextMutationActions
 
 TPayload = TypeVar("TPayload")
 
@@ -95,6 +96,7 @@ class PromptClipboardHistoryController(Generic[TPayload]):
     clipboard: PromptTextClipboard
     cursor_sink: PromptClipboardHistoryCursorSink
     source_commands: PromptSourceCommandService[TPayload]
+    text_mutations: PromptTextMutationActions
     danbooru_paste_scheduler: PromptDanbooruPasteScheduler
     editing_enabled: Callable[[], bool]
     paste_completed: Callable[[str], None] = _ignore_paste_completion
@@ -135,7 +137,7 @@ class PromptClipboardHistoryController(Generic[TPayload]):
             self.paste_completed("paste")
             return
         result = self.edit_execution.session.paste(clipboard_text)
-        self.source_commands.replace_source_range(
+        self.text_mutations.replace_text(
             start=result.start,
             end=result.end,
             replacement_text=result.text,

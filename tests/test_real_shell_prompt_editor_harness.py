@@ -108,6 +108,29 @@ def test_real_shell_harness_mounts_prompt_editor_through_editor_panel(
     assert field.editor.isVisible()
 
 
+def test_real_shell_emphasis_shortcut_crosses_zero_and_undoes(
+    harness: RealShellPromptEditorHarness,
+) -> None:
+    """Prove signed emphasis stepping and undo through the production shell route."""
+
+    field = harness.add_prompt_workflow(initial_text="(cat:0.00), dog")
+    harness.set_source_cursor_position(field, 2)
+
+    route = harness.press_key(
+        field,
+        Qt.Key.Key_Down,
+        modifiers=Qt.KeyboardModifier.ControlModifier,
+    )
+
+    assert route.source_after == "(cat:-0.05), dog"
+    stepped = harness.capture_state_snapshot(field, label="negative-emphasis-step")
+    assert not harness.invariant_violations(stepped)
+
+    harness.undo(field)
+
+    assert field.editor.toPlainText() == "(cat:0.00), dog"
+
+
 @pytest.mark.parametrize(
     ("initial_text", "cursor_text", "movement_key"),
     (

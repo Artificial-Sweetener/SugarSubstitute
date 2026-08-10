@@ -35,6 +35,7 @@ from ..models import PromptEditorInteractionMode
 from .clipboard_history_controller import PromptClipboardHistoryActions
 from .deletion_controller import PromptDeletionActions
 from .pointer_ports import PromptSurfacePointerInteractions
+from .text_mutation_controller import PromptTextMutationActions
 
 TPayload = TypeVar("TPayload")
 
@@ -64,12 +65,6 @@ class PromptSurfaceKeyHost(Protocol):
     def toPlainText(self) -> str:
         """Return the current prompt source text."""
 
-    def _insert_viewport_text(
-        self,
-        text: str,
-    ) -> None:
-        """Insert source text through the existing command/editing boundary."""
-
     def set_cursor_positions(
         self,
         *,
@@ -96,6 +91,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
         host: PromptSurfaceKeyHost,
         *,
         deletion_controller: PromptDeletionActions,
+        text_mutations: PromptTextMutationActions,
         clipboard_history_actions: Callable[
             [],
             PromptClipboardHistoryActions | None,
@@ -109,6 +105,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
 
         self._host = host
         self._deletion_controller = deletion_controller
+        self._text_mutations = text_mutations
         self._clipboard_history_actions = clipboard_history_actions
         self._undo_coalescing_actions = undo_coalescing_actions
 
@@ -257,7 +254,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
                 event.accept()
                 return True
             undo_coalescing.finish_typing_group(reason="newline")
-            host._insert_viewport_text("\n")
+            self._text_mutations.insert_text("\n")
             event.accept()
             return True
         if event.key() == Qt.Key.Key_Tab:
@@ -282,7 +279,7 @@ class PromptSurfaceKeyHandler(Generic[TPayload]):
                 undo_coalescing.begin_or_extend_typing_group(text)
             else:
                 undo_coalescing.finish_typing_group(reason="typing_boundary")
-            host._insert_viewport_text(text)
+            self._text_mutations.insert_text(text)
             event.accept()
             return True
         if text and not _is_plain_text_insertion_event(event):

@@ -63,7 +63,6 @@ from .emphasis_controller import (
 
 
 _EXACT_WEIGHT_EDIT_PATTERN = re.compile(r"-?\d*(?:\.\d{0,2})?")
-_MINIMUM_EXACT_WEIGHT = Decimal("0.05")
 
 
 def is_weight_syntax_action(
@@ -311,7 +310,7 @@ class PromptExactWeightController:
             self.cancel_exact_weight_edit()
             return
         buffer_text, _, _ = buffer_state
-        weight = self._parsed_exact_weight(token, buffer_text)
+        weight = self._parsed_exact_weight(buffer_text)
         if weight is None:
             self.cancel_exact_weight_edit()
             return
@@ -534,10 +533,9 @@ class PromptExactWeightController:
 
     @staticmethod
     def _parsed_exact_weight(
-        token: PromptProjectionToken,
         text: str,
     ) -> Decimal | None:
-        """Parse and normalize one exact edit buffer into the committed weight."""
+        """Parse and quantize one exact edit buffer into the committed weight."""
 
         if not text or text in {"-", ".", "-."}:
             return None
@@ -545,11 +543,6 @@ class PromptExactWeightController:
             weight = Decimal(text)
         except InvalidOperation:
             return None
-        if (
-            token.kind is not PromptProjectionTokenKind.LORA
-            and weight < _MINIMUM_EXACT_WEIGHT
-        ):
-            weight = _MINIMUM_EXACT_WEIGHT
         return weight.quantize(Decimal("0.00"))
 
     @staticmethod

@@ -46,6 +46,8 @@ from tests.prompt_projection_test_helpers import (
 from tests.prompt_projection_surface_test_helpers import (
     first_emphasis_token,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
+)
+from tests.support.prompt_editor.projection_surface_factory import (
     surface_source_commands,
 )
 
