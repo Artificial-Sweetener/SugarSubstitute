@@ -38,12 +38,13 @@ def initialize_pygit2_repository(repository_path: Path, *, branch: str) -> None:
     """Initialize one repository without exposing its final path to libgit2."""
 
     workspace: RepositoryPathWorkspace | None = None
+    repository: pygit2.Repository | None = None
     try:
         workspace = RepositoryPathWorkspace.reserve(
             repository_path,
             create_target=True,
         )
-        pygit2.init_repository(workspace.access_path, initial_head=branch)
+        repository = pygit2.init_repository(workspace.access_path, initial_head=branch)
     except (OSError, ValueError, pygit2.GitError) as error:
         compatibility_error = external_long_path_error(
             component="pygit2",
@@ -56,6 +57,8 @@ def initialize_pygit2_repository(repository_path: Path, *, branch: str) -> None:
             f"Could not initialize repository at {operational_path(repository_path)}."
         ) from error
     finally:
+        if repository is not None:
+            repository.free()
         if workspace is not None:
             workspace.cleanup()
 
@@ -65,6 +68,7 @@ def open_pygit2_repository(repository_path: Path) -> Iterator[pygit2.Repository]
     """Yield one repository opened through a short component-safe path."""
 
     workspace: RepositoryPathWorkspace | None = None
+    repository: pygit2.Repository | None = None
     try:
         try:
             workspace = RepositoryPathWorkspace.reserve(repository_path)
@@ -82,6 +86,8 @@ def open_pygit2_repository(repository_path: Path) -> Iterator[pygit2.Repository]
             ) from error
         yield repository
     finally:
+        if repository is not None:
+            repository.free()
         if workspace is not None:
             workspace.cleanup()
 
