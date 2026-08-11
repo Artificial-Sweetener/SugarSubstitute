@@ -51,9 +51,12 @@ class WindowsLongPath(WindowsPath):
     """Keep paths readable while giving Windows APIs an extended-length name."""
 
     def __fspath__(self) -> str:
-        """Return the extended-length path consumed by filesystem APIs."""
+        """Return the appropriate filesystem spelling for this path."""
 
-        return extended_length_path(str(self))
+        logical = str(self)
+        if not self.is_absolute():
+            return logical
+        return extended_length_path(logical)
 
     def resolve(self, strict: bool = False) -> Self:
         """Resolve the path without retaining the transport-only prefix."""

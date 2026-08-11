@@ -115,6 +115,7 @@ from substitute.infrastructure.onboarding.file_setup_transaction_repository impo
 from substitute.shared.logging.logger import (
     get_logger,
     log_error,
+    log_exception,
     log_info,
     log_warning_exception,
 )
@@ -571,7 +572,11 @@ def start_managed_comfy_background(
                 detail=str(error).strip() or type(error).__name__,
             )
             emit_log(on_log, f"[ERROR] {error}")
-            log_error(_LOGGER, "Managed ComfyUI startup failed", error=error)
+            log_exception(
+                _LOGGER,
+                "Managed ComfyUI startup failed",
+                error_type=type(error).__name__,
+            )
 
     state.set_launch_task(
         launch_task_factory(

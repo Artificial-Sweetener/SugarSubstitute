@@ -105,6 +105,20 @@ def test_operational_path_preserves_logical_text_across_child_paths(
 
 
 @pytest.mark.platforms("windows")
+def test_operational_path_relative_derivatives_remain_filesystem_safe(
+    tmp_path: Path,
+) -> None:
+    """Derived relative paths should not enter the absolute-only namespace."""
+
+    root = operational_path(tmp_path / "nodepack")
+    relative = (root / "package" / "module.py").relative_to(root)
+
+    assert isinstance(relative, WindowsLongPath)
+    assert relative.is_absolute() is False
+    assert os.fspath(relative) == str(Path("package") / "module.py")
+
+
+@pytest.mark.platforms("windows")
 def test_operational_path_supports_owned_files_beyond_max_path(
     tmp_path: Path,
 ) -> None:
