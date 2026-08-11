@@ -533,7 +533,10 @@ def test_projection_layout_wraps_long_comma_section_normally() -> None:
     """Long comma sections should keep normal prose-style wrapping behavior."""
 
     prompt_text = "a woman walking through a rainy city at night, soft window light"
-    layout, _ = _layout_for(prompt_text, text_width=260.0)
+    layout, _ = _layout_for(
+        prompt_text,
+        text_width=_plain_text_wrap_width("a woman walking through a rainy "),
+    )
 
     first_segment_end = prompt_text.index(",")
     assert (

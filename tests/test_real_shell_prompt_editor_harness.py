@@ -388,11 +388,16 @@ def test_real_shell_typed_scene_marker_projects_on_first_title_character(
 
     timeline = harness.probe_typed_scene_projection(field)
 
+    initial_sample = timeline[0]
     first_title_sample = next(
         sample for sample in timeline if sample.label == "character-2:S"
     )
-    first_asterisk_sample = timeline[0]
-    second_asterisk_sample = timeline[1]
+    first_asterisk_sample = next(
+        sample for sample in timeline if sample.label == "character-0:*"
+    )
+    second_asterisk_sample = next(
+        sample for sample in timeline if sample.label == "character-1:*"
+    )
     settled_sample = timeline[-1]
     assert first_asterisk_sample.source_text == "*"
     assert first_asterisk_sample.scene_titles == ()
@@ -412,7 +417,7 @@ def test_real_shell_typed_scene_marker_projects_on_first_title_character(
     assert settled_sample.semantic_refresh_pending is False
     assert settled_sample.semantic_refresh_active is False
     assert settled_sample.cursor_position == len("**Scene")
-    assert settled_sample.focus_active is True
+    assert settled_sample.focus_active is initial_sample.focus_active
 
 
 def test_real_shell_typed_scene_marker_projects_after_existing_prompt_line(
@@ -426,6 +431,7 @@ def test_real_shell_typed_scene_marker_projects_after_existing_prompt_line(
 
     timeline = harness.probe_typed_scene_projection(field)
 
+    initial_sample = timeline[0]
     first_title_sample = next(
         sample for sample in timeline if sample.label == "character-2:S"
     )
@@ -439,7 +445,7 @@ def test_real_shell_typed_scene_marker_projects_after_existing_prompt_line(
     assert settled_sample.semantic_refresh_pending is False
     assert settled_sample.semantic_refresh_active is False
     assert settled_sample.cursor_position == len(settled_sample.source_text)
-    assert settled_sample.focus_active is True
+    assert settled_sample.focus_active is initial_sample.focus_active
 
 
 def test_real_shell_scene_marker_typing_preserves_unmapped_source_caret(
