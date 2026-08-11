@@ -1,3 +1,43 @@
+# [0.20.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.19.2...v0.20.0) (2026-08-11)
+
+
+### Bug Fixes
+
+* **canvas:** prevent top-bar layout feedback loops ([eb87f65](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/eb87f6549b87d795197942b46872421b0994e45f))
+* **canvas:** rebind previews to active output session ([a9b1d7d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a9b1d7de4c77ae256e2fb928d4e3f130b2a52759))
+* **canvas:** release destroyed zoom indicators safely ([50ff9d9](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/50ff9d97312325c876073bb171de505d88036993))
+* **ci:** stabilize serial canvas verification ([39c22af](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/39c22af6b1fb4f4125e8fbaf93aa0bc489cb9036))
+* **deps:** update js-yaml security patch ([ee5866f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ee5866f5d3611d39f14efaa9fd6070973259af75))
+* **inpaint:** restore local image and mask execution ([7fa67df](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/7fa67df613cb3077ee6f0411a613fa42e9a5003e))
+* **input:** unify canvas entry ownership and previews ([a813957](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a813957d0b559493ced1c9fce71c3e1c61897cd1))
+* **nodepacks:** reconcile registry managed installations ([c2261e0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c2261e071e36345ec5245da6de0dffb4fb0b3945))
+* **output:** reset navigation on first session result ([bb4b44b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/bb4b44b0b99e40f60c7f64369d3baf67418c7929))
+* **prompt-editor:** centralize decorated text mutations ([6d43caf](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6d43cafa0ae034c46435d1ad7f009bcb486daafb))
+* **recipes:** serialize only authored cube inputs ([b1007dd](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b1007dd06539b796556aace5350dc3ff3ff913c7))
+* **startup:** keep SugarCubes maintenance non-blocking ([ef790cc](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ef790ccceee5d4db8b6abb4c2241383b493d4e7f))
+* **wildcards:** honor effective workflow seed ([bb32443](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/bb324430ba87a85be24c0f644f2d1625674b7e55))
+
+
+### Features
+
+* **canvas:** add contextual selection and mask editing ([b54f9a2](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b54f9a20db0e1bef42d0c2a008d8851390f08858))
+* **canvas:** add extensible input tool strip ([0e6a507](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0e6a507219f5265b98abe58c825344672f9f5f70))
+* **canvas:** replace pivot with selector and brush settings ([37f97aa](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/37f97aa0d664e5cca339401497240cc6f33e0470))
+* **cubes:** preserve widget-backed subgraph inputs ([2105e69](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/2105e6977c1bea5064656529bd0e5b14e6f82049))
+* **execution:** add resource-aware canvas admission ([f03c782](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f03c782d270befafa6cbc0193b12b9c71296166c))
+* **input-canvas:** add live editable document workflows ([ef2c0ee](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ef2c0eef6f0b19fde6bc1d39302174d5bfa4da32))
+* **input-canvas:** integrate edit sessions and restore safety ([0e5cd9d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0e5cd9d4e89878b014ac8fb3be521c8ade8cba18))
+* **lifecycle:** finalize session persistence before teardown ([376bcbc](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/376bcbc45e7fe8150eb9f2b8ab2fdceccc18a20b))
+* **output:** add captured image transfer workflows ([6297c17](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6297c17066d0df0838ca5e3802f0e7800e8a11a7))
+* **prompt-editor:** add context-aware sep conditioning ([bbd13da](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/bbd13da31100b8926271a16c989884bbb5e57f13))
+* **regions:** author synthetic regional workflows ([bd3d239](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/bd3d239039a7b5d4d979943bd0388d11fe77b2e9))
+* **regions:** integrate ordered mask workflows ([3f638c6](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3f638c6f52137ca60a3cb666a972bc00210abacf))
+
+
+### Performance Improvements
+
+* **ui:** cache packaged icon paths ([a32ba28](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a32ba28ffc4e80fe4c671f1eb525b68fce62d24a))
+
 ## [0.19.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.19.1...v0.19.2) (2026-08-03)
 
 
