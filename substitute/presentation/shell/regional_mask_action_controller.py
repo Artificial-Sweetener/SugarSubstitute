@@ -51,6 +51,7 @@ class RegionalMaskActionController:
         workflow_service: WorkflowInputCanvasService,
         state_service: InputCanvasStateService,
         presenter: RegionalMaskCollectionPresenter,
+        accept_canvas_selection: Callable[[], bool],
     ) -> None:
         """Capture active session, application, filesystem, and view boundaries."""
 
@@ -61,6 +62,7 @@ class RegionalMaskActionController:
         self._workflow_service = workflow_service
         self._state_service = state_service
         self._presenter = presenter
+        self._accept_canvas_selection = accept_canvas_selection
 
     def handle(
         self,
@@ -116,7 +118,7 @@ class RegionalMaskActionController:
     def select_canvas_mask(self, mask_id: object) -> bool:
         """Synchronize a CuteCanvas-selected mask with durable region selection."""
 
-        if not isinstance(mask_id, UUID):
+        if not self._accept_canvas_selection() or not isinstance(mask_id, UUID):
             return False
         workflow = self._active_workflow()
         if workflow is None:

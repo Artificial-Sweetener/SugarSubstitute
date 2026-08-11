@@ -296,6 +296,11 @@ class _FakeInputCanvasToolController:
 
         return True
 
+    def restore_operation(self, _operation_id: str) -> bool:
+        """Accept persisted operation restoration wiring."""
+
+        return True
+
 
 class _FakeInputCanvasInteractionProfileService:
     """Capture workflow interaction-profile service wiring."""
@@ -1044,14 +1049,23 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
         compositionChanged=_FakeSignal(),
     )
     current_image_id_for_event = object()
-    bound_runtimes: list[tuple[object, object]] = []
+    bound_runtimes: list[tuple[object, object, object]] = []
+
+    def bind_tool_runtime(
+        runtime: object,
+        layout: object,
+        *,
+        restore_operation: object,
+    ) -> None:
+        """Capture runtime wiring, including persisted operation restoration."""
+
+        bound_runtimes.append((runtime, layout, restore_operation))
+
     input_canvas = SimpleNamespace(
         document=document,
         canvas=SimpleNamespace(maskUndoStackChanged=object()),
         current_image_id_for_event=current_image_id_for_event,
-        bind_tool_runtime=lambda runtime, layout: bound_runtimes.append(
-            (runtime, layout)
-        ),
+        bind_tool_runtime=bind_tool_runtime,
         toolRequested=_FakeSignal(),
         destroyed=_FakeSignal(),
     )
@@ -1125,6 +1139,7 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     assert profile_kwargs["palette"] is palette
     assert profile_kwargs["activation"] is shell.input_canvas_tool_controller
     assert bound_runtimes[0][0] is runtime
+    assert bound_runtimes[0][2] == shell.input_canvas_tool_controller.restore_operation
     assert [
         getattr(contribution, "tool_id")
         for contribution, _handler in registered_actions

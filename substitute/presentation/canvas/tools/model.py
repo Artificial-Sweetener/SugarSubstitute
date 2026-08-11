@@ -93,6 +93,7 @@ class CanvasToolContext:
     tags: frozenset[str] = field(default_factory=frozenset)
     capabilities: frozenset[str] = field(default_factory=frozenset)
     capability_denials: tuple[tuple[str, ApplicationText], ...] = ()
+    disabled_tool_ids: frozenset[str] = field(default_factory=frozenset)
 
     def denial_for(self, capability: str) -> ApplicationText | None:
         """Return the contextual explanation for one unavailable capability."""

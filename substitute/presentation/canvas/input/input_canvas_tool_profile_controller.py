@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Protocol
 from uuid import UUID
 
@@ -109,6 +110,16 @@ class InputCanvasToolProfileController:
         ):
             profile = self._interaction_profile(workflow, snapshot.image_id)
         context = InputCanvasToolContextProjection.project(snapshot, profile)
+        if snapshot.edit_session_active:
+            active_tool_id = self.palette.active_tool_id
+            context = replace(
+                context,
+                disabled_tool_ids=frozenset(
+                    presentation.tool_id
+                    for presentation in self.palette.snapshot()
+                    if presentation.tool_id != active_tool_id
+                ),
+            )
         if context == self._context:
             self._profile = profile
             self._profile_workflow = workflow

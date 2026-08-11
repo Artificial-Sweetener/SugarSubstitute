@@ -144,6 +144,14 @@ class InputCanvasToolController:
         if self._layout is not None:
             self._layout.remember_tool(tool_id)
 
+    def restore_operation(self, operation_id: str) -> bool:
+        """Restore a settled edit's prior mode without reviving the held editor tool."""
+
+        self._held_tool_id = None
+        accepted = self._operation_setter(operation_id)
+        self._synchronize_or_recover()
+        return accepted and self._current_operation_provider() == operation_id
+
     def _synchronize_or_recover(self) -> None:
         """Synchronize the native mode or recover to enabled navigation."""
 

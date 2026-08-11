@@ -195,6 +195,15 @@ class InputDocumentToolOptions(QObject):
         panel_bounds = self._canvas.sceneToPanelRect(QRectF(state.bounds))
         return None if panel_bounds is None else panel_bounds.toAlignedRect()
 
+    def canvas_content_panel_bounds(self) -> QRect | None:
+        """Return active scene bounds mapped into logical canvas coordinates."""
+
+        scene = self._canvas.currentScene()
+        if scene is None:
+            return None
+        panel_bounds = self._canvas.sceneToPanelRect(QRectF(scene.bounds))
+        return None if panel_bounds is None else panel_bounds.toAlignedRect()
+
     def current_canvas_operation(self) -> str:
         """Return the active public CuteCanvas interaction mode."""
         return self._canvas.getControlMode()

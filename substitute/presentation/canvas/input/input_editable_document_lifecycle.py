@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Protocol
 from uuid import UUID
 
+from cutecanvas import PreparedDocumentRestore
+
 from substitute.application.workspace_state.session_persistence import (
     PreparedSessionPersistence,
 )
@@ -44,6 +46,12 @@ class EditableInputDocumentPort(Protocol):
 
     def restore_editable_document(self, path: Path) -> tuple[UUID, ...]:
         """Restore every editable composition from one archive path."""
+
+    def restore_prepared_editable_document(
+        self,
+        prepared: PreparedDocumentRestore,
+    ) -> tuple[UUID, ...]:
+        """Install every composition from one decoded archive."""
 
     def prepare_editable_document_save(
         self,
@@ -125,7 +133,10 @@ class InputEditableDocumentLifecycle:
             remove_stale_archive,
         )
 
-    def restore_before_workspace_assets(self) -> bool:
+    def restore_before_workspace_assets(
+        self,
+        prepared: PreparedDocumentRestore | None = None,
+    ) -> bool:
         """Restore editable authority once before file-backed fallback hydration."""
 
         if self._restore_attempted:
@@ -139,8 +150,10 @@ class InputEditableDocumentLifecycle:
             )
             return False
         try:
-            composition_ids = self._document.restore_editable_document(
-                self._archive_path
+            composition_ids = (
+                self._document.restore_editable_document(self._archive_path)
+                if prepared is None
+                else self._document.restore_prepared_editable_document(prepared)
             )
         except (TypeError, ValueError) as error:
             self._invalidate_rejected_archive(error)

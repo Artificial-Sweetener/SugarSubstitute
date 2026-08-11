@@ -315,6 +315,8 @@ class CubeSectionView(QWidget):
     def defer_string_line_edit_width_group_sync(self) -> None:
         """Defer shared string line-edit width sync until layout has settled."""
 
+        if not _is_live_widget(self):
+            return
         if self._string_line_edit_width_sync_pending:
             return
         self._string_line_edit_width_sync_pending = True
@@ -324,6 +326,8 @@ class CubeSectionView(QWidget):
         """Apply one shared width cap to visible single-line string inputs."""
 
         self._string_line_edit_width_sync_pending = False
+        if not _is_live_widget(self):
+            return
         fields = self._string_line_edit_width_group_fields()
         if len(fields) < 2:
             self._release_string_line_edit_width_caps(fields)
@@ -351,6 +355,8 @@ class CubeSectionView(QWidget):
     def _string_line_edit_width_group_fields(self) -> list[QWidget]:
         """Return live node-card single-line string inputs under this cube."""
 
+        if not _is_live_widget(self):
+            return []
         return [
             widget
             for widget in self.findChildren(QWidget)

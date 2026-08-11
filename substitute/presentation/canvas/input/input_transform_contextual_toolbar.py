@@ -27,6 +27,7 @@ from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
     CANVAS_CHROME_GAP,
 )
 from substitute.presentation.canvas.shared.contextual_toolbar import (
+    ContextualToolbarHistoryControls,
     ContextualToolbarPage,
     ContextualToolbarSettlementControls,
 )
@@ -43,6 +44,8 @@ class InputTransformContextualToolbarPage(ContextualToolbarPage):
     applyRequested = Signal()
     cancelRequested = Signal()
     commandRequested = Signal(object)
+    undoRequested = Signal()
+    redoRequested = Signal()
 
     def __init__(self, target: EditorTransformTarget, parent: QWidget) -> None:
         """Build the compact transform transaction surface."""
@@ -73,6 +76,7 @@ class InputTransformContextualToolbarPage(ContextualToolbarPage):
             app_text("Flip vertical"),
             self,
         )
+        self.history_controls = ContextualToolbarHistoryControls(self)
         self.settlement_controls = ContextualToolbarSettlementControls(self)
         self.apply_button = self.settlement_controls.apply_button
         self.cancel_button = self.settlement_controls.cancel_button
@@ -87,8 +91,11 @@ class InputTransformContextualToolbarPage(ContextualToolbarPage):
         layout.addWidget(self.rotate_right_button)
         layout.addWidget(self.flip_horizontal_button)
         layout.addWidget(self.flip_vertical_button)
+        layout.addWidget(self.history_controls)
         layout.addWidget(self.settlement_controls)
 
+        self.history_controls.undoRequested.connect(self.undoRequested.emit)
+        self.history_controls.redoRequested.connect(self.redoRequested.emit)
         self.settlement_controls.applyRequested.connect(self.applyRequested.emit)
         self.settlement_controls.cancelRequested.connect(self.cancelRequested.emit)
         self.rotate_left_button.clicked.connect(
@@ -103,6 +110,20 @@ class InputTransformContextualToolbarPage(ContextualToolbarPage):
         self.flip_vertical_button.clicked.connect(
             lambda: self.commandRequested.emit(EditorTransformCommand.FLIP_VERTICAL)
         )
+
+    def set_session_available(
+        self,
+        *,
+        undo: bool,
+        redo: bool,
+        apply: bool,
+        cancel: bool,
+    ) -> None:
+        """Project unified history and settlement availability."""
+
+        self.history_controls.set_available(undo=undo, redo=redo)
+        self.apply_button.setEnabled(apply)
+        self.cancel_button.setEnabled(cancel)
 
 
 __all__ = ["InputTransformContextualToolbarPage"]

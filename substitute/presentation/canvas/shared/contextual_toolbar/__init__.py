@@ -17,6 +17,7 @@
 """Expose the shared extensible Contextual Toolbar presentation boundary."""
 
 from .action_strip import CanvasContextualToolbarActionStrip
+from .history_controls import ContextualToolbarHistoryControls
 from .page import ContextualToolbarPage
 from .placement import ContextualToolbarPlacementUpdate
 from .settlement_controls import ContextualToolbarSettlementControls
@@ -25,6 +26,7 @@ from .toolbar import CanvasContextualToolbar
 __all__ = [
     "CanvasContextualToolbar",
     "CanvasContextualToolbarActionStrip",
+    "ContextualToolbarHistoryControls",
     "ContextualToolbarPage",
     "ContextualToolbarPlacementUpdate",
     "ContextualToolbarSettlementControls",

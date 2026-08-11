@@ -75,7 +75,10 @@ class HiddenBuildScheduler:
 
         def run_next() -> None:
             current_build: ProjectedCubeBuild | None = None
-            if is_current is not None and not is_current():
+            if (is_current is not None and not is_current()) or (
+                pending_builds
+                and not _build_session_is_alive(pending_builds[0].build_session)
+            ):
                 on_cancel()
                 return
             should_complete = False
@@ -214,7 +217,9 @@ class HiddenBuildScheduler:
 
         def run_next() -> None:
             is_current_result = is_current() if is_current is not None else None
-            if is_current is not None and not is_current_result:
+            if (is_current is not None and not is_current_result) or not (
+                _build_session_is_alive(build_session)
+            ):
                 log_debug(
                     _LOGGER,
                     "Cube load detail",
@@ -278,3 +283,9 @@ class HiddenBuildScheduler:
             _PROJECTED_CUBE_BUILD_STEP_DELAY_MS,
             callback,
         )
+
+
+def _build_session_is_alive(build_session: object) -> bool:
+    """Return whether one scheduled session still has live presentation owners."""
+
+    return bool(getattr(build_session, "is_alive", True))

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from uuid import UUID
 
 from PySide6.QtCore import QRect, Signal
@@ -40,6 +41,9 @@ from substitute.presentation.canvas.tools import (
     CanvasToolStrip,
 )
 from substitute.presentation.canvas.input.input_document import InputCanvasDocument
+from substitute.presentation.canvas.input.input_edit_session_controller import (
+    InputEditSessionController,
+)
 from substitute.presentation.canvas.input.input_layer_coverage_editor import (
     InputLayerCoverageEditor,
 )
@@ -53,6 +57,7 @@ class InputCanvas(QWidget):
     document: InputCanvasDocument
     canvas: CuteCanvas
     contextual_toolbar: CanvasContextualToolbar
+    edit_sessions: InputEditSessionController
 
     def __init__(
         self,
@@ -115,6 +120,8 @@ class InputCanvas(QWidget):
         self,
         runtime: CanvasToolRuntime,
         layout: CanvasToolLayout | None = ...,
+        *,
+        restore_operation: Callable[[str], bool] | None = ...,
     ) -> None:
         """Bind the contextual Input tool runtime."""
         ...

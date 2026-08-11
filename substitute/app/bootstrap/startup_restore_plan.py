@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol
 
 from substitute.app.bootstrap.startup_restore_workspace import (
@@ -157,6 +158,9 @@ def prepare_startup_restore_plan(
     )
     restore_asset_preload = _start_restore_asset_preload(
         workspace=restore_plan.workspace,
+        editable_document_path=(
+            Path(installation_context.session_dir) / "input-editable-document.ccanvas"
+        ),
         execution_runtime=runtime_services.execution_runtime,
         startup_resources=startup_resources,
         preload_handle_factory=preload_handle_factory,
@@ -170,6 +174,7 @@ def prepare_startup_restore_plan(
 def _start_restore_asset_preload(
     *,
     workspace: WorkspaceSnapshot | None,
+    editable_document_path: Path,
     execution_runtime: Any,
     startup_resources: StartupRestoreResourceRegistry,
     preload_handle_factory: Callable[
@@ -192,6 +197,7 @@ def _start_restore_asset_preload(
             workspace,
             submitter=submitter,
             close_submitter=submitter.close,
+            editable_document_path=editable_document_path,
         )
     else:
         restore_asset_preload = preload_handle_factory(workspace)

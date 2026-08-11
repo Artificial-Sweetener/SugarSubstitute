@@ -72,6 +72,7 @@ class _DocumentContext:
     image_id: UUID | None
     has_active_mask: bool = True
     sam_ready: bool = True
+    edit_session_active: bool = False
 
     @property
     def snapshot(self) -> InputCanvasToolContextSnapshot:
@@ -85,6 +86,7 @@ class _DocumentContext:
             selection_transform_available=False,
             layer_transform_available=True,
             selection_clear_available=False,
+            edit_session_active=self.edit_session_active,
         )
 
     def activate_transform(self, _target: EditorTransformTarget) -> bool:
@@ -286,6 +288,31 @@ def test_document_refresh_reuses_profile_and_workflow_refresh_recomputes_it() ->
     assert len(resolutions) == 1
     assert not projection.refresh_workflow_profile()
     assert len(resolutions) == 2
+
+
+def test_active_edit_session_disables_competing_tools_until_resolution() -> None:
+    """An unresolved provisional edit should retain only its active tool."""
+
+    mounted = _MountedProjection()
+    try:
+        assert mounted.activation.request_tool(InputCanvasToolId.SHARED_EDGE_RESIZE)
+
+        mounted.document.edit_session_active = True
+        assert mounted.projection.refresh_document_context()
+
+        edge = mounted.runtime.palette.presentation_for(
+            InputCanvasToolId.SHARED_EDGE_RESIZE
+        )
+        pan = mounted.runtime.palette.presentation_for(InputCanvasToolId.PAN_ZOOM)
+        assert edge is not None and edge.enabled and edge.active
+        assert pan is not None and not pan.enabled
+        assert not mounted.activation.request_tool(InputCanvasToolId.PAN_ZOOM)
+
+        mounted.document.edit_session_active = False
+        assert mounted.projection.refresh_document_context()
+        assert mounted.activation.request_tool(InputCanvasToolId.PAN_ZOOM)
+    finally:
+        mounted.close()
 
 
 def test_active_image_identity_change_recomputes_surface_applicability() -> None:

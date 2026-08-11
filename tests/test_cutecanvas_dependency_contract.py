@@ -21,6 +21,14 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from cutecanvas import (
+    CuteCanvas,
+    EditSessionPolicy,
+    EditSessionSnapshot,
+    EditSessionToolChange,
+    EditSessionUndoBoundary,
+)
+
 _ROOT = Path(__file__).resolve().parents[1]
 _CANVAS_BOUNDARY_PATHS = (
     _ROOT / "substitute" / "presentation" / "canvas",
@@ -49,6 +57,32 @@ def test_runtime_requirements_do_not_pin_qpane_directly() -> None:
     assert not any(
         line.strip().lower().startswith("qpane") for line in requirements.splitlines()
     )
+
+
+def test_cutecanvas_exposes_the_required_edit_session_facade() -> None:
+    """Fail installation validation before Input silently loses session controls."""
+
+    assert (
+        EditSessionPolicy(
+            checkpoint_limit=256,
+            undo_boundary=EditSessionUndoBoundary.SESSION_ONLY,
+            tool_change=EditSessionToolChange.REQUIRE_RESOLUTION,
+        ).checkpoint_limit
+        == 256
+    )
+    assert EditSessionSnapshot.__name__ == "EditSessionSnapshot"
+    for method_name in (
+        "activeEditSession",
+        "setEditSessionPolicy",
+        "editorUndoAvailable",
+        "editorRedoAvailable",
+        "undoEditorEdit",
+        "redoEditorEdit",
+        "applyActiveEditSession",
+        "cancelActiveEditSession",
+    ):
+        assert callable(getattr(CuteCanvas, method_name, None)), method_name
+    assert hasattr(CuteCanvas, "editSessionChanged")
 
 
 def _python_sources() -> tuple[Path, ...]:

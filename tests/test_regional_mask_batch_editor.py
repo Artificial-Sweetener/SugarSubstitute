@@ -481,6 +481,7 @@ def test_node_and_canvas_selection_share_authoritative_region_state() -> None:
             SimpleNamespace(set_active_workflow_mask=activate_mask),
         ),
         presenter=presenter,
+        accept_canvas_selection=lambda: True,
     )
 
     outcome = controller.handle("Region", "load_mask_batch", "@region:select:1")
@@ -498,3 +499,37 @@ def test_node_and_canvas_selection_share_authoritative_region_state() -> None:
     assert editor.selected_index == 1
     panel.deleteLater()
     application.processEvents()
+
+
+def test_canvas_mask_selection_is_ignored_during_restore() -> None:
+    """Programmatic document restoration must not become user navigation intent."""
+
+    workflow = WorkflowState()
+    image_id = uuid4()
+    mask_id = uuid4()
+    workflow.canvas.bind_image("Region:image", image_id)
+    workflow.canvas.bind_mask(("Region", "mask"), mask_id, image_id)
+    activation_calls: list[UUID] = []
+
+    def activate_mask(_workflow_id: str, _workflow: WorkflowState, value: UUID) -> bool:
+        """Record an unexpected mask activation during restore."""
+
+        activation_calls.append(value)
+        return True
+
+    controller = RegionalMaskActionController(
+        active_workflow=lambda: workflow,
+        active_workflow_id=lambda: "workflow",
+        workflow_name=lambda _workflow_id: "Recipe",
+        projects_dir=lambda: Path.cwd(),
+        workflow_service=cast(WorkflowInputCanvasService, SimpleNamespace()),
+        state_service=cast(
+            InputCanvasStateService,
+            SimpleNamespace(set_active_workflow_mask=activate_mask),
+        ),
+        presenter=cast(RegionalMaskCollectionPresenter, SimpleNamespace()),
+        accept_canvas_selection=lambda: False,
+    )
+
+    assert controller.select_canvas_mask(mask_id) is False
+    assert activation_calls == []

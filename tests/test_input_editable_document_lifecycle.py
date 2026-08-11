@@ -19,8 +19,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 from uuid import UUID, uuid4
 
+from cutecanvas import PreparedDocumentRestore
 from substitute.application.workspace_state import PreparedSessionPersistence
 from substitute.presentation.canvas.input.input_editable_document_lifecycle import (
     InputEditableDocumentLifecycle,
@@ -38,6 +40,7 @@ class _Document:
         self.saved: list[Path] = []
         self.prepared: list[Path] = []
         self.restored: list[Path] = []
+        self.restored_prepared: list[PreparedDocumentRestore] = []
         self.save_error: Exception | None = None
         self.restore_error: Exception | None = None
 
@@ -58,6 +61,17 @@ class _Document:
         """Record a restore or raise its configured failure."""
 
         self.restored.append(path)
+        if self.restore_error is not None:
+            raise self.restore_error
+        return self.composition_ids
+
+    def restore_prepared_editable_document(
+        self,
+        prepared: PreparedDocumentRestore,
+    ) -> tuple[UUID, ...]:
+        """Record installation of a worker-prepared archive."""
+
+        self.restored_prepared.append(prepared)
         if self.restore_error is not None:
             raise self.restore_error
         return self.composition_ids
@@ -100,6 +114,26 @@ def test_lifecycle_skips_current_archive_and_restores_only_once(
     assert document.saved == []
     assert document.restored == [archive]
     assert lifecycle.restored_composition_ids == document.composition_ids
+
+
+def test_lifecycle_installs_prepared_archive_without_decoding_it_again(
+    tmp_path: Path,
+) -> None:
+    """Prepared restore authority should bypass synchronous archive loading."""
+
+    archive = tmp_path / "input.ccanvas"
+    archive.write_bytes(b"archive")
+    document = _Document()
+    lifecycle = InputEditableDocumentLifecycle(
+        document=document,
+        archive_path=archive,
+    )
+    prepared = cast(PreparedDocumentRestore, object())
+
+    assert lifecycle.restore_before_workspace_assets(prepared)
+
+    assert document.restored == []
+    assert document.restored_prepared == [prepared]
 
 
 def test_lifecycle_fails_closed_and_removes_stale_empty_state(

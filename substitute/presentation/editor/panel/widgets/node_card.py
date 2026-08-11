@@ -137,6 +137,8 @@ class _NodeCardSurface(QWidget):
     def defer_model_picker_width_group_sync(self) -> None:
         """Defer shared model-picker width sync until card layout has settled."""
 
+        if not _is_live_widget(self):
+            return
         if self._model_picker_width_sync_pending:
             return
         if not self._model_picker_width_group_fields():
@@ -148,6 +150,8 @@ class _NodeCardSurface(QWidget):
         """Apply one shared width cap to visible model pickers in this node card."""
 
         self._model_picker_width_sync_pending = False
+        if not _is_live_widget(self):
+            return
         fields = self._model_picker_width_group_fields()
         if len(fields) < 2:
             self._release_model_picker_width_caps(fields)
@@ -175,6 +179,8 @@ class _NodeCardSurface(QWidget):
     def _model_picker_width_group_fields(self) -> list[ModelPickerField]:
         """Return live model picker fields under this node card."""
 
+        if not _is_live_widget(self):
+            return []
         return [
             widget
             for widget in self.findChildren(ModelPickerField)

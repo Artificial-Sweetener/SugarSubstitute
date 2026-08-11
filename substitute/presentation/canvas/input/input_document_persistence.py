@@ -22,7 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import UUID
 
-from cutecanvas import CanvasDocument, CuteCanvas
+from cutecanvas import CanvasDocument, CuteCanvas, PreparedDocumentRestore
 
 from substitute.application.workspace_state.session_persistence import (
     PreparedSessionPersistence,
@@ -73,6 +73,22 @@ class InputDocumentPersistence:
             raise RuntimeError("Input document restore requires an empty document")
         handles = self._canvas.editor.persistence.load_document(
             path,
+            open_first=False,
+        )
+        composition_ids = tuple(handle.id for handle in handles)
+        self._install_restored_compositions(composition_ids)
+        return composition_ids
+
+    def restore_prepared_editable_document(
+        self,
+        prepared: PreparedDocumentRestore,
+    ) -> tuple[UUID, ...]:
+        """Install a decoded complete document into an empty Input document."""
+
+        if self._document.composition_ids():
+            raise RuntimeError("Input document restore requires an empty document")
+        handles = self._canvas.editor.persistence.restore_document(
+            prepared,
             open_first=False,
         )
         composition_ids = tuple(handle.id for handle in handles)

@@ -185,6 +185,30 @@ def test_palette_active_state_cannot_point_at_unavailable_or_removed_tool() -> N
     assert palette.active_tool_id is None
 
 
+def test_palette_can_disable_specific_tools_without_clearing_active_tool() -> None:
+    """Session policy should lock competing tools while preserving its mode."""
+
+    registry = CanvasToolRegistry()
+    registry.register(_tool("pan"))
+    registry.register(_tool("resize"))
+    palette = CanvasToolPalette(registry)
+    palette.set_context(CanvasToolContext(tags=frozenset({"canvas"})))
+    assert palette.set_active_tool("resize")
+
+    palette.set_context(
+        CanvasToolContext(
+            tags=frozenset({"canvas"}),
+            disabled_tool_ids=frozenset({"pan"}),
+        )
+    )
+
+    pan = palette.presentation_for("pan")
+    resize = palette.presentation_for("resize")
+    assert pan is not None and not pan.enabled
+    assert resize is not None and resize.enabled and resize.active
+    assert not palette.set_active_tool("pan")
+
+
 def test_registry_notification_tolerates_reentrant_runtime_removal() -> None:
     """A subscriber may remove a contribution without corrupting notification order."""
 

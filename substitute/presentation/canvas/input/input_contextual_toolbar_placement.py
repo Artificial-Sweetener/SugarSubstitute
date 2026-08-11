@@ -55,6 +55,14 @@ class InputContextualToolbarPlacement:
             return
         self._toolbar.set_context_rect(bounds, update=update)
 
+    def update_canvas(self, update: ContextualToolbarPlacementUpdate) -> None:
+        """Place a tool session beneath the projected canvas when space permits."""
+
+        self._toolbar.set_context_rect(
+            self._document.canvas_content_panel_bounds(),
+            update=update,
+        )
+
     def update_transform(
         self,
         target: EditorTransformTarget,
