@@ -106,6 +106,7 @@ def test_operational_path_preserves_logical_text_across_child_paths(
 
 @pytest.mark.platforms("windows")
 def test_operational_path_relative_derivatives_remain_filesystem_safe(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """Derived relative paths should not enter the absolute-only namespace."""
@@ -113,8 +114,14 @@ def test_operational_path_relative_derivatives_remain_filesystem_safe(
     root = operational_path(tmp_path / "nodepack")
     relative = (root / "package" / "module.py").relative_to(root)
 
+    def reject_recursive_absolute_check(_path: WindowsLongPath) -> bool:
+        """Prove filesystem conversion does not recurse through pathlib."""
+
+        raise AssertionError("__fspath__ must not call Path.is_absolute()")
+
+    monkeypatch.setattr(WindowsLongPath, "is_absolute", reject_recursive_absolute_check)
+
     assert isinstance(relative, WindowsLongPath)
-    assert relative.is_absolute() is False
     assert os.fspath(relative) == str(Path("package") / "module.py")
 
 
