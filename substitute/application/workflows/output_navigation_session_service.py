@@ -112,6 +112,14 @@ class OutputNavigationSessionService:
         current = self._states.get(workflow_id)
         if current is None:
             return None
+        if not current.content_presented:
+            log_debug(
+                _LOGGER,
+                "Output navigation kept pending session automatic",
+                workflow_id=workflow_id,
+                output_session_id=current.session_id,
+            )
+            return current
         state = replace(current, focus_mode=OutputFocusMode.MANUAL)
         self._states[workflow_id] = state
         log_debug(
