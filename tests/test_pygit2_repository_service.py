@@ -29,6 +29,7 @@ from substitute.infrastructure.version_control import (
     RepositoryOperationError,
 )
 from substitute.infrastructure.version_control.clone_process import Pygit2CloneProcess
+from substitute.infrastructure.filesystem import remove_app_owned_path
 
 
 def test_repository_initialization_does_not_require_system_git(
@@ -105,6 +106,28 @@ def test_repository_status_reports_tracked_and_untracked_changes(
 
     assert "tracked.txt" in status
     assert "?? untracked.txt" in status
+
+
+@pytest.mark.platforms("windows")
+def test_repository_inspection_releases_packed_objects_before_migration(
+    tmp_path: Path,
+) -> None:
+    """Release libgit2 pack handles before Registry ownership removes Git data."""
+
+    origin, _producer = _create_origin(tmp_path)
+    checkout = tmp_path / "checkout"
+    service = Pygit2RepositoryService()
+    service.clone(str(origin), checkout)
+    pack_files = tuple((checkout / ".git" / "objects" / "pack").glob("*.pack"))
+    assert pack_files
+
+    service.status_excerpt(checkout)
+    service.remote_urls(checkout)
+    service.tracked_files(checkout)
+
+    remove_app_owned_path(checkout / ".git")
+
+    assert not (checkout / ".git").exists()
 
 
 def test_clone_process_removes_partial_checkout_after_timeout(
