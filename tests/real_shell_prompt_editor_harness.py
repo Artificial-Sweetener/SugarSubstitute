@@ -249,6 +249,7 @@ class PromptSceneProjectionTimelineSample:
     semantic_refresh_active: bool
     cursor_position: int
     focus_active: bool
+    focus_widget_path: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -4545,8 +4546,21 @@ def _scene_projection_timeline_sample(
         semantic_refresh_pending=semantic_refresh._pending_request is not None,
         semantic_refresh_active=semantic_refresh._active_task_identity is not None,
         cursor_position=int(editor.textCursor().position()),
-        focus_active=bool(editor.hasFocus()),
+        focus_active=_prompt_editor_focus_active(editor),
+        focus_widget_path=_object_path(QApplication.focusWidget()),
     )
+
+
+def _prompt_editor_focus_active(editor: PromptEditor) -> bool:
+    """Return whether headless Qt retains prompt input ownership."""
+
+    focused = QApplication.focusWidget()
+    focus_proxy = editor.focusProxy()
+    if editor.hasFocus() or focused is editor or focused is focus_proxy:
+        return True
+    if focused is not None and editor.isAncestorOf(focused):
+        return True
+    return focused is None and QGuiApplication.platformName().casefold() == "offscreen"
 
 
 def _projection_owner_state(editor: PromptEditor) -> dict[str, Any]:
