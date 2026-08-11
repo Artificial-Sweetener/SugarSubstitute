@@ -397,7 +397,7 @@ def test_project_requirements_pin_cutecanvas_as_the_canvas_boundary() -> None:
 
     requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-    assert "cutecanvas[sam]==0.1.1" in requirements
+    assert "cutecanvas[sam]==1.0.1" in requirements
     assert not any(
         line.strip().lower().startswith("qpane") for line in requirements.splitlines()
     )
