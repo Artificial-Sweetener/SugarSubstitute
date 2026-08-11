@@ -54,7 +54,7 @@ class WindowsLongPath(WindowsPath):
         """Return the appropriate filesystem spelling for this path."""
 
         logical = str(self)
-        if not self.is_absolute():
+        if not ntpath.isabs(logical):
             return logical
         return extended_length_path(logical)
 
