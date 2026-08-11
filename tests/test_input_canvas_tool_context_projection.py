@@ -62,6 +62,7 @@ class _DocumentContext:
             selection_transform_available=False,
             layer_transform_available=False,
             selection_clear_available=False,
+            edit_session_active=False,
         )
 
 

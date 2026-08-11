@@ -137,9 +137,7 @@ def test_set_available_false_disables_canvas_tool_chrome_and_shows_overlay() -> 
         contextual_toolbar=SimpleNamespace(
             setEnabled=lambda value: enabled_calls.append(("contextual", value))
         ),
-        _contextual_toolbar_controller=SimpleNamespace(
-            cancel_active_transform=lambda: None
-        ),
+        _contextual_toolbar_controller=SimpleNamespace(cancel_active_edit=lambda: None),
         _coverage_edit_mode=SimpleNamespace(active=False),
         _availability_overlay=SimpleNamespace(
             setText=lambda text: overlay_calls.append(("text", text)),

@@ -189,7 +189,6 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         input_tool_runtime,
         input_canvas.document.tool_options,
     )
-    input_canvas.bind_tool_runtime(input_tool_runtime, input_tool_layout)
     input_shared_edge_resize_policy = InputSharedEdgeResizePolicy(
         input_canvas.document.canvas,
         parent=input_canvas.document.canvas,
@@ -204,6 +203,11 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         current_operation_provider=input_canvas.document.current_canvas_operation,
         runtime=input_tool_runtime,
         layout=input_tool_layout,
+    )
+    input_canvas.bind_tool_runtime(
+        input_tool_runtime,
+        input_tool_layout,
+        restore_operation=input_canvas_tool_controller.restore_operation,
     )
     input_canvas_interaction_profiles = InputCanvasInteractionProfileService(
         input_canvas_plan_service=shell.input_canvas_plan_service,
@@ -271,6 +275,14 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         workflow_service=workflow_input_canvas_service,
         state_service=shell.input_canvas_state_service,
         presenter=regional_mask_presenter,
+        accept_canvas_selection=lambda: (
+            getattr(
+                shell,
+                "_shell_restore_lifecycle",
+                "running",
+            )
+            == "running"
+        ),
     )
     input_canvas.document.activeMaskChanged.connect(
         regional_mask_actions.select_canvas_mask

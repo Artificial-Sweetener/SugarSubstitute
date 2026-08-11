@@ -66,12 +66,14 @@ class _StepSession:
         step_results: Sequence[bool],
         *,
         first_usable_after: int = 1,
+        alive: bool = True,
     ) -> None:
         """Store scripted step results and first-usable threshold."""
 
         self.step_results = list(step_results)
         self.step_calls = 0
         self._first_usable_after = first_usable_after
+        self.is_alive = alive
 
     def step(self) -> bool:
         """Return the next scripted completion state."""
@@ -327,6 +329,56 @@ def test_schedule_cube_build_session_cancels_before_step(
         on_complete=lambda: calls.append("complete"),
         is_current=lambda: False,
         on_cancel=lambda: calls.append("cancel"),
+    )
+    timer_queue.run_all()
+
+    assert calls == ["cancel"]
+    assert session.step_calls == 0
+
+
+def test_schedule_cube_build_session_cancels_deleted_owner_before_step(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deleted panel owner should cancel queued work before touching Qt state."""
+
+    timer_queue = _TimerQueue()
+    _patch_timer(monkeypatch, timer_queue)
+    session = _StepSession([True], alive=False)
+    calls: list[str] = []
+
+    HiddenBuildScheduler.schedule_cube_build_session(
+        session,
+        on_complete=lambda: calls.append("complete"),
+        is_current=lambda: True,
+        on_cancel=lambda: calls.append("cancel"),
+    )
+    timer_queue.run_all()
+
+    assert calls == ["cancel"]
+    assert session.step_calls == 0
+
+
+def test_schedule_projected_builds_cancel_deleted_owner_before_step(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deleted staged owner should cancel its complete projection batch."""
+
+    timer_queue = _TimerQueue()
+    _patch_timer(monkeypatch, timer_queue)
+    session = _StepSession([True], alive=False)
+    calls: list[str] = []
+    HiddenBuildScheduler(
+        HiddenBuildSchedulerPorts(
+            reveal_projected_cube_builds=lambda _builds, _workflow_id: None,
+            mark_build_complete=lambda _alias, _token: None,
+            mark_build_failed=lambda _alias, _token, _error: None,
+        )
+    ).schedule_projected_cube_builds(
+        [_projected_build("A", session, object())],
+        on_complete=lambda: calls.append("complete"),
+        on_cancel=lambda: calls.append("cancel"),
+        workflow_id="workflow-a",
+        is_current=lambda: True,
     )
     timer_queue.run_all()
 

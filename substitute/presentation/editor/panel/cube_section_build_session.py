@@ -26,6 +26,7 @@ from time import perf_counter
 from typing import cast
 
 from PySide6.QtWidgets import QWidget
+from shiboken6 import isValid
 
 from substitute.application.node_behavior import ResolvedFieldSpec
 from substitute.shared.logging.logger import (
@@ -111,6 +112,12 @@ class CubeSectionBuildSession:
         """Return whether every node in this section has been processed."""
 
         return self._finished
+
+    @property
+    def is_alive(self) -> bool:
+        """Return whether the Qt owners receiving build output still exist."""
+
+        return _is_live_qt_owner(self._panel) and _is_live_qt_owner(self._widget)
 
     @property
     def first_usable_reached(self) -> bool:
@@ -623,3 +630,12 @@ class CubeSectionBuildSession:
             ),
             level="debug",
         )
+
+
+def _is_live_qt_owner(owner: object) -> bool:
+    """Return whether a Qt owner is valid or the value is a non-Qt test port."""
+
+    try:
+        return bool(isValid(owner))
+    except TypeError:
+        return True

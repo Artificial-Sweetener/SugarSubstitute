@@ -39,6 +39,7 @@ class InputCanvasToolContextSnapshot:
     selection_transform_available: bool
     layer_transform_available: bool
     selection_clear_available: bool
+    edit_session_active: bool
 
 
 class InputCanvasToolContext(QObject):
@@ -73,6 +74,7 @@ class InputCanvasToolContext(QObject):
         canvas.layerPixelsChanged.connect(self.refresh)
         canvas.maskUndoStackChanged.connect(self.refresh)
         canvas.editorPolicyChanged.connect(self.refresh)
+        canvas.editSessionChanged.connect(self.refresh)
 
     @property
     def snapshot(self) -> InputCanvasToolContextSnapshot:
@@ -123,6 +125,7 @@ class InputCanvasToolContext(QObject):
                     EditorIntent.DELETE_PIXELS
                 ).allowed
             ),
+            edit_session_active=self._canvas.activeEditSession() is not None,
         )
 
     def _publish_change(self) -> None:

@@ -79,10 +79,10 @@ def test_shell_workspace_prehydration_port_delegates_to_restore_owners() -> None
     input_payload = object()
     output_payload = object()
 
-    def restore_editable() -> bool:
+    def restore_editable(prepared: object | None) -> bool:
         """Record rejected editable-state restore without blocking fallback."""
 
-        calls.append(("restore_editable", ""))
+        calls.append(("restore_editable", prepared))
         return False
 
     def load_input(path: Path) -> object:
@@ -162,7 +162,7 @@ def test_shell_workspace_prehydration_port_delegates_to_restore_owners() -> None
     port.finish_prehydrated_restore(workspace)
 
     assert calls == [
-        ("restore_editable", ""),
+        ("restore_editable", None),
         ("begin", workspace),
         ("reset", ""),
         ("workflow", (workflow, True)),

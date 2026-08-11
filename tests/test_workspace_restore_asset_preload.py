@@ -77,6 +77,39 @@ def test_workspace_restore_asset_preload_reads_unique_image_bytes(
     assert close_recorder.close_calls == 1
 
 
+def test_workspace_restore_asset_preload_prepares_editable_document(
+    tmp_path: Path,
+) -> None:
+    """Restore preloading should expose worker-prepared editable authority."""
+
+    archive_path = tmp_path / "input-editable-document.ccanvas"
+    archive_path.write_bytes(b"editable-document")
+    input_path = tmp_path / "input.png"
+    output_path = tmp_path / "output.png"
+    input_path.write_bytes(b"input-bytes")
+    output_path.write_bytes(b"output-bytes")
+    prepared = object()
+    prepared_paths: list[Path] = []
+
+    def prepare_document(path: Path) -> object:
+        """Record preparation and return its detached authority."""
+
+        prepared_paths.append(path)
+        return prepared
+
+    handle = WorkspaceRestoreAssetPreloadHandle(
+        _workspace(input_path=input_path, output_path=output_path),
+        submitter=ImmediateTaskSubmitter(),
+        editable_document_path=archive_path,
+        prepare_editable_document=prepare_document,
+    )
+
+    handle.start()
+
+    assert prepared_paths == [archive_path]
+    assert handle.prepared_editable_document() is prepared
+
+
 def _workspace(*, input_path: Path, output_path: Path) -> WorkspaceSnapshot:
     """Build a workspace with input and output image references."""
 

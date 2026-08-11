@@ -21,6 +21,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
+from cutecanvas import PreparedDocumentRestore
+
 from substitute.application.workflows import ImageMeta
 from substitute.domain.workspace_snapshot import (
     InputImageReference,
@@ -50,7 +52,10 @@ class ShellWorkspacePrehydrationPort:
         )
         restore = getattr(lifecycle, "restore_before_workspace_assets", None)
         if callable(restore):
-            restore()
+            preload = getattr(self._shell, "_restore_asset_preload", None)
+            prepared_getter = getattr(preload, "prepared_editable_document", None)
+            prepared = prepared_getter() if callable(prepared_getter) else None
+            restore(prepared if isinstance(prepared, PreparedDocumentRestore) else None)
         self._shell.shell_prehydrated_restore_controller.begin_prehydrated_restore(
             snapshot
         )

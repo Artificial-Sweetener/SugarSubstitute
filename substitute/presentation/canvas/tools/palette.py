@@ -187,8 +187,11 @@ class CanvasToolPalette:
             if contribution.required_context_tags.issubset(self._context.tags)
         )
         enabled_by_id = {
-            contribution.tool_id: contribution.required_capabilities.issubset(
-                self._context.capabilities
+            contribution.tool_id: (
+                contribution.tool_id not in self._context.disabled_tool_ids
+                and contribution.required_capabilities.issubset(
+                    self._context.capabilities
+                )
             )
             for contribution in visible
         }

@@ -99,6 +99,9 @@ class InputToolOptionsDocumentPort(Protocol):
     def pixel_selection_panel_bounds(self) -> QRect | None:
         """Return active selection bounds in logical canvas coordinates."""
 
+    def canvas_content_panel_bounds(self) -> QRect | None:
+        """Return active scene bounds in logical canvas coordinates."""
+
     def current_canvas_operation(self) -> str:
         """Return the active CuteCanvas interaction operation."""
 

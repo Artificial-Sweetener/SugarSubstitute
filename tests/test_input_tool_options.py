@@ -245,7 +245,10 @@ def _mounted_input() -> tuple[InputCanvas, InputCanvasToolController]:
         current_operation_provider=canvas.document.current_canvas_operation,
         runtime=runtime,
     )
-    canvas.bind_tool_runtime(runtime)
+    canvas.bind_tool_runtime(
+        runtime,
+        restore_operation=controller.restore_operation,
+    )
     canvas.document.tool_context.changed.connect(
         lambda: project_authored_input_tool_context(
             controller,
@@ -1179,9 +1182,16 @@ def test_contextual_transform_requires_explicit_apply_or_cancel(
         assert transform_bounds is not None
         assert canvas.contextual_toolbar.geometry().top() > transform_bounds.bottom()
         assert canvas.document.export_mask_image(mask_id) == before
+        assert canvas.edit_sessions.snapshot is not None
+        assert canvas.edit_sessions.snapshot.can_cancel
+        transaction = canvas.contextual_toolbar.page
+        assert isinstance(transaction, InputTransformContextualToolbarPage)
 
+        cancelled = QSignalSpy(transaction.cancelRequested)
         QTest.mouseClick(transaction.cancel_button, Qt.MouseButton.LeftButton)
         app.processEvents()
+        assert cancelled.count() == 1
+        assert canvas.edit_sessions.snapshot is None
         assert canvas.document.canvas.floatingPixelEditState() is None
         assert canvas.document.export_mask_image(mask_id) == before
         assert (
@@ -1351,9 +1361,40 @@ def test_layer_transform_uses_tight_content_frame_and_contextual_settlement(
         QTest.mouseClick(page.rotate_right_button, Qt.MouseButton.LeftButton)
         app.processEvents()
         assert canvas.document.export_mask_image(mask_id) == before
+        assert canvas.edit_sessions.snapshot is not None
+        assert canvas.edit_sessions.snapshot.can_cancel
+        assert page is canvas.contextual_toolbar.page
+        assert page.history_controls.undo_button.isEnabled()
+        assert not page.history_controls.redo_button.isEnabled()
 
+        QTest.mouseClick(
+            page.history_controls.undo_button,
+            Qt.MouseButton.LeftButton,
+        )
+        app.processEvents()
+        assert canvas.edit_sessions.snapshot is not None
+        assert canvas.edit_sessions.snapshot.undo_depth == 0
+        assert canvas.edit_sessions.snapshot.redo_depth == 1
+        assert not page.history_controls.undo_button.isEnabled()
+        assert page.history_controls.redo_button.isEnabled()
+        assert canvas.document.export_mask_image(mask_id) == before
+
+        QTest.mouseClick(
+            page.history_controls.redo_button,
+            Qt.MouseButton.LeftButton,
+        )
+        app.processEvents()
+        assert canvas.edit_sessions.snapshot is not None
+        assert canvas.edit_sessions.snapshot.undo_depth == 1
+        assert canvas.edit_sessions.snapshot.redo_depth == 0
+        assert page.history_controls.undo_button.isEnabled()
+        assert not page.history_controls.redo_button.isEnabled()
+
+        cancelled = QSignalSpy(page.cancelRequested)
         QTest.mouseClick(page.cancel_button, Qt.MouseButton.LeftButton)
         app.processEvents()
+        assert cancelled.count() == 1
+        assert canvas.edit_sessions.snapshot is None
         assert canvas.document.export_mask_image(mask_id) == before
         assert (
             canvas.document.current_canvas_operation()

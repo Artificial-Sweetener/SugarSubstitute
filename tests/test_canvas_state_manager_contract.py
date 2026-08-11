@@ -100,6 +100,7 @@ class _FakeInputDocument:
         self.removed_masks: list[tuple[uuid.UUID, uuid.UUID]] = []
         self.updated_masks: list[tuple[uuid.UUID, Path]] = []
         self.archived_masks: set[tuple[uuid.UUID, uuid.UUID]] = set()
+        self.mask_opacity_calls: list[tuple[uuid.UUID | None, uuid.UUID, float]] = []
 
     def ensure_image_cached(self, image_id, image, path):
         """Cache one image under its application UUID."""
@@ -169,6 +170,12 @@ class _FakeInputDocument:
         """Return whether complete document restore already installed a mask."""
 
         return (image_id, mask_id) in self.archived_masks
+
+    def set_mask_visual_opacity(self, mask_id, opacity):
+        """Accept opacity only for a mask in the currently routed composition."""
+
+        self.mask_opacity_calls.append((self.current_id, mask_id, opacity))
+        return (self.current_id, mask_id) in self.archived_masks
 
     def remove_mask_from_image(self, image_id, mask_id):
         """Record mask retirement."""
@@ -2055,6 +2062,36 @@ def test_restore_input_mask_adopts_exact_editable_archive_identity() -> None:
     assert mask_entry is not None
     assert mask_entry.mask_id == mask_id
     assert workflow.canvas.active_input_mask_uuid == mask_id
+
+
+def test_restore_archived_mask_routes_its_composition_before_applying_opacity() -> None:
+    """Inactive restored masks should receive presentation in their own document."""
+
+    _service, input_service, input_pane, _output_pane, _output_canvas = (
+        _build_services()
+    )
+    workflow = WorkflowState()
+    association_key = ("AliasA", "MaskNode")
+    image_id = uuid.uuid4()
+    mask_id = uuid.uuid4()
+    input_pane.archived_masks.add((image_id, mask_id))
+    input_pane.current_id = uuid.uuid4()
+    workflow.canvas.bind_image("AliasA:ImageNode", image_id)
+    workflow.canvas.input_image_uuid = image_id
+    workflow.canvas.bind_mask(association_key, mask_id, image_id)
+    workflow.canvas.mask_visual_opacities[association_key] = 0.8
+
+    restored = input_service.restore_input_mask(
+        "wf",
+        workflow,
+        snapshot_mask_id=mask_id,
+        image_id=image_id,
+        path=Path("missing-flat-mask.png"),
+        association_key=association_key,
+    )
+
+    assert restored == mask_id
+    assert input_pane.mask_opacity_calls == [(image_id, mask_id, 0.8)]
 
 
 def test_restore_input_mask_remaps_ordered_region_without_creating_scalar_entry() -> (

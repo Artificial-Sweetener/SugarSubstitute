@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
@@ -39,11 +40,13 @@ _LOGGER = get_logger("app.bootstrap.workspace_restore_asset_preload")
 
 @dataclass
 class WorkspaceRestoreAssetPreloadHandle:
-    """Read restored image bytes in the background for later GUI-thread decode."""
+    """Prepare restored workspace files outside the GUI thread."""
 
     snapshot: WorkspaceSnapshot
     submitter: TaskSubmitter
     close_submitter: object | None = None
+    editable_document_path: Path | None = None
+    prepare_editable_document: Callable[[Path], object] | None = None
 
     def __post_init__(self) -> None:
         """Initialize cache and execution state."""
@@ -57,6 +60,7 @@ class WorkspaceRestoreAssetPreloadHandle:
         self._lock = RLock()
         self._cache: dict[Path, bytes] = {}
         self._failed_paths: set[Path] = set()
+        self._prepared_editable_document: object | None = None
 
     def start(self) -> None:
         """Start preloading once without blocking startup."""
@@ -106,10 +110,17 @@ class WorkspaceRestoreAssetPreloadHandle:
         )
         return payload
 
+    def prepared_editable_document(self) -> object | None:
+        """Return the decoded editable document when background work completed."""
+
+        with self._lock:
+            return self._prepared_editable_document
+
     def _run_preload(self) -> None:
-        """Read each unique restored image path into memory."""
+        """Prepare editable authority and read unique restored image files."""
 
         paths = _restored_image_paths(self.snapshot)
+        editable_document_prepared = self._prepare_editable_document()
         loaded_count = 0
         failed_count = 0
         trace_mark(
@@ -156,7 +167,41 @@ class WorkspaceRestoreAssetPreloadHandle:
             requested_count=len(paths),
             loaded_count=loaded_count,
             failed_count=failed_count,
+            editable_document_prepared=editable_document_prepared,
         )
+
+    def _prepare_editable_document(self) -> bool:
+        """Decode the editable document when the startup plan supplied its loader."""
+
+        path = self.editable_document_path
+        if path is None or not path.is_file():
+            return False
+        prepare = self.prepare_editable_document or _prepare_cutecanvas_document
+        try:
+            with trace_span(
+                "workspace_restore_asset_preload.prepare_editable_document",
+                byte_count=path.stat().st_size,
+            ):
+                prepared = prepare(path)
+        except (OSError, RuntimeError, TypeError, ValueError) as error:
+            log_debug(
+                _LOGGER,
+                "Skipped editable Input document preload",
+                path=str(path),
+                error=repr(error),
+            )
+            return False
+        with self._lock:
+            self._prepared_editable_document = prepared
+        return True
+
+
+def _prepare_cutecanvas_document(path: Path) -> object:
+    """Prepare editable authority through CuteCanvas's detached archive API."""
+
+    from cutecanvas import prepare_document_restore  # noqa: PLC0415
+
+    return prepare_document_restore(path)
 
 
 def _restored_image_paths(snapshot: WorkspaceSnapshot) -> tuple[Path, ...]:

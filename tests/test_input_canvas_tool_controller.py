@@ -80,6 +80,7 @@ class _ToolDocument:
             selection_transform_available=self.transform_available,
             layer_transform_available=self.layer_content_available,
             selection_clear_available=self.clear_available,
+            edit_session_active=False,
         )
 
     def activate_transform(self, target: EditorTransformTarget) -> bool:

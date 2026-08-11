@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from sugarsubstitute_shared.localization import ApplicationText
 from sugarsubstitute_shared.presentation.localization import (
     app_text,
@@ -46,6 +47,9 @@ from substitute.presentation.canvas.input.input_canvas_context_menu import (
 )
 from substitute.presentation.canvas.input.input_contextual_toolbar_controller import (
     InputContextualToolbarController,
+)
+from substitute.presentation.canvas.input.input_edit_session_controller import (
+    InputEditSessionController,
 )
 from substitute.presentation.canvas.input.input_canvas_tool_chrome import (
     InputCanvasToolChrome,
@@ -145,6 +149,10 @@ class InputCanvas(QWidget):
             tool_requested=self.toolRequested.emit,
         )
         self.contextual_toolbar = CanvasContextualToolbar(self.canvas)
+        self.edit_sessions = InputEditSessionController(
+            self.canvas,
+            parent=self,
+        )
         self._selection_authoring = InputSelectionAuthoringObserver(
             canvas=self.canvas,
             operation_provider=self.document.tool_options.current_canvas_operation,
@@ -154,6 +162,7 @@ class InputCanvas(QWidget):
             document=self.document.tool_options,
             toolbar=self.contextual_toolbar,
             tool_chrome=self._tool_chrome,
+            edit_sessions=self.edit_sessions,
             selection_authoring=self._selection_authoring,
             request_tool=self.toolRequested.emit,
             parent=self,
@@ -229,7 +238,7 @@ class InputCanvas(QWidget):
         if not available and self._coverage_edit_mode.active:
             self._coverage_edit_mode.cancel()
         if not available:
-            self._contextual_toolbar_controller.cancel_active_transform()
+            self._contextual_toolbar_controller.cancel_active_edit()
         self.canvas.setEnabled(available)
         self._tool_chrome.set_enabled(available)
         self.contextual_toolbar.setEnabled(available)
@@ -320,11 +329,17 @@ class InputCanvas(QWidget):
         self,
         runtime: CanvasToolRuntime,
         layout: CanvasToolLayout | None = None,
+        *,
+        restore_operation: Callable[[str], bool] | None = None,
     ) -> None:
         """Project one authoritative runtime into Input tool chrome."""
 
         self._tool_chrome.bind_runtime(runtime, layout)
         self._contextual_toolbar_controller.bind_runtime(runtime)
+        if restore_operation is not None:
+            self._contextual_toolbar_controller.bind_operation_restoration(
+                restore_operation
+            )
 
     def _resize_availability_overlay(self) -> None:
         """Resize the unavailable overlay to cover the full input canvas."""
