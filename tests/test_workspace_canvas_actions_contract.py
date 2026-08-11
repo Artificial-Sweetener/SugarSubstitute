@@ -240,9 +240,63 @@ def test_display_preview_image_updates_only_active_workflow() -> None:
     actions.display_preview_image(_live_preview(workflow_id="wf-2"))
     actions.display_preview_image(_live_preview(workflow_id="wf-1"))
 
-    assert registry_calls == ["wf-2", "wf-1"]
+    assert registry_calls == ["wf-1"]
     assert previews == [accepted]
     assert focused == []
+
+
+def test_display_preview_image_rebinds_stale_active_workflow_session() -> None:
+    """An active preview should replace a mounted session from another workflow."""
+
+    mod = _import_module()
+    stale_session = _output_session("wf-old")
+    active_session = _output_session("wf-1")
+    accepted = OutputPreviewAcceptance(accepted=True)
+    accepted_sessions: list[object] = []
+    applied: list[OutputPreviewAcceptance] = []
+    projection_calls: list[tuple[object, str]] = []
+    output_canvas = SimpleNamespace(
+        _output_session=stale_session,
+        apply_preview_acceptance=applied.append,
+    )
+
+    def project_workflow(workflows: object, workflow_id: str) -> None:
+        """Replace the stale mounted session through the projection owner."""
+
+        projection_calls.append((workflows, workflow_id))
+        output_canvas._output_session = active_session
+
+    registry = SimpleNamespace(
+        accept_preview=lambda _preview, **kwargs: (
+            accepted_sessions.append(kwargs["session"]),
+            accepted,
+        )[1]
+    )
+    workflows = {"wf-1": WorkflowState()}
+    view = SimpleNamespace(
+        workflow_session_service=SimpleNamespace(
+            active_workflow_id="wf-1",
+            workflows=workflows,
+        ),
+        canvas_host=SimpleNamespace(
+            canvas_for={"Output": output_canvas}.get,
+            is_canvas_visible=lambda label: label == "Output",
+        ),
+        output_canvas_projection_coordinator=SimpleNamespace(
+            project_workflow=project_workflow
+        ),
+        output_preview_registry=registry,
+        visual_authorization_service=SimpleNamespace(
+            authorize_preview=lambda _identity: True
+        ),
+        _log_missing_output_canvas=lambda _workflow_id: None,
+    )
+
+    mod.WorkspaceCanvasActions(view).display_preview_image(_live_preview())
+
+    assert projection_calls == [(workflows, "wf-1")]
+    assert accepted_sessions == [active_session]
+    assert applied == [accepted]
 
 
 def test_clear_output_previews_updates_only_active_workflow() -> None:

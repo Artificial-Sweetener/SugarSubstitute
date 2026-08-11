@@ -569,9 +569,6 @@ class WorkspaceCanvasActions:
     ) -> OutputCanvasSession | None:
         """Return or bind the active visible Output session for a preview."""
 
-        session = getattr(output_canvas, "_output_session", None)
-        if isinstance(session, OutputCanvasSession):
-            return session
         view = self._view
         session_service = getattr(view, "workflow_session_service", None)
         active_workflow_id = str(
@@ -579,6 +576,12 @@ class WorkspaceCanvasActions:
         )
         if workflow_id != active_workflow_id:
             return None
+        session = getattr(output_canvas, "_output_session", None)
+        if (
+            isinstance(session, OutputCanvasSession)
+            and session.workflow_id.value == workflow_id
+        ):
+            return session
         canvas_host = getattr(view, "canvas_host", None)
         is_canvas_visible = getattr(canvas_host, "is_canvas_visible", None)
         if callable(is_canvas_visible) and not bool(is_canvas_visible("Output")):
