@@ -93,21 +93,26 @@ def test_next_session_resets_manual_navigation_when_first_content_is_presented()
     assert workflow.output_focus_mode.value == OutputFocusMode.AUTOMATIC.value
 
 
-def test_user_navigation_before_first_content_remains_manual_for_that_session() -> None:
-    """Respect navigation performed after session start but before its first final."""
+def test_user_navigation_before_first_content_does_not_override_session_reset() -> None:
+    """Treat pre-result navigation as inspection of the prior session's content."""
 
     workflow = WorkflowState(output_focus_mode=OutputFocusMode.MANUAL)
     service = OutputNavigationSessionService()
     service.begin_session({"wf": workflow}, "wf", "session-2")
 
-    service.mark_user_navigation("wf", workflow)
-    service.present_session_content({"wf": workflow}, "wf", "session-2")
+    pending = service.mark_user_navigation("wf", workflow)
 
     assert workflow.output_focus_mode is OutputFocusMode.MANUAL
-    state = service.state_for("wf")
-    assert state is not None
-    assert state.focus_mode is OutputFocusMode.MANUAL
-    assert state.content_presented is True
+    assert pending is not None
+    assert pending.focus_mode is OutputFocusMode.AUTOMATIC
+    assert pending.content_presented is False
+
+    presented = service.present_session_content({"wf": workflow}, "wf", "session-2")
+
+    assert workflow.output_focus_mode.value == OutputFocusMode.AUTOMATIC.value
+    assert presented is not None
+    assert presented.focus_mode is OutputFocusMode.AUTOMATIC
+    assert presented.content_presented is True
 
 
 def test_unannounced_presentable_session_is_adopted_automatically() -> None:

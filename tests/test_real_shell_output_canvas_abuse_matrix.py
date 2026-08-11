@@ -516,14 +516,19 @@ def test_single_source_grid_route_survives_workflow_switching(
     )
 
 
-def test_manual_source_grid_survives_new_output_arrival(
+def test_first_new_session_result_resets_old_manual_source_grid(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
-    """New finals should not replace a manually selected source grid."""
+    """First new-session content should replace navigation over the prior result."""
 
     source_ids = _seed_sources(harness, "alpha", {"text": 2, "upscale": 2})
+    scene_run_id = "scene-run-alpha-next"
+    run = harness.start_run(
+        "alpha",
+        run_index=4,
+        output_session_id=scene_run_id,
+    )
     _enter_source_grid(harness, "alpha:text", source_ids["alpha:text"])
-    run = harness.start_run("alpha", run_index=2)
     harness.emit_output(
         run,
         OutputSpec(
@@ -531,24 +536,33 @@ def test_manual_source_grid_survives_new_output_arrival(
             "Other",
             (80, 90, 100),
             scene=SceneSpec(
-                run_id="scene-run-alpha",
-                key="scene3",
-                title="scene3",
-                order=2,
+                run_id=scene_run_id,
+                key="next-scene1",
+                title="next-scene1",
+                order=0,
                 count=3,
             ),
         ),
     )
-    harness.wait_for_output_count("alpha", 13)
-
-    _assert_route(
-        harness,
-        alias="alpha",
-        source_key="alpha:text",
-        set_index=0,
-        image_id=None,
-        visible_ids=source_ids["alpha:text"],
+    harness.wait_for_output_count("alpha", 1)
+    harness.wait_until(
+        lambda: (
+            harness.fingerprint().workflow_output_focus_modes["workflow-alpha"]
+            == "automatic"
+        )
     )
+    harness.wait_until(lambda: bool(harness.fingerprint().presented_image_ids))
+
+    fingerprint = harness.fingerprint()
+    assert fingerprint.workflow_output_routes["workflow-alpha"] != (
+        "scene3",
+        False,
+        "alpha:text",
+        0,
+        None,
+    )
+    assert fingerprint.active_source_tab_key != "alpha:text"
+    assert set(fingerprint.presented_image_ids).isdisjoint(source_ids["alpha:text"])
 
 
 def test_concrete_batch_source_route_survives_workflow_switching(
