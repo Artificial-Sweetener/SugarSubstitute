@@ -1109,7 +1109,13 @@ class RealShellPromptEditorHarness:
 
         target = self.focus_editor(field)
         started_at = perf_counter()
-        samples: list[PromptSceneProjectionTimelineSample] = []
+        samples = [
+            _scene_projection_timeline_sample(
+                field.editor,
+                label="before-input",
+                started_at=started_at,
+            )
+        ]
         for character_index, character in enumerate(marker_text):
             QTest.keyClicks(target, character)
             samples.append(

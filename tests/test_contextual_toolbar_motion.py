@@ -189,8 +189,7 @@ def test_rapid_page_retarget_preserves_shell_focus_and_latest_generation() -> No
         assert toolbar.content_host.findChildren(ContextualToolbarPage) == [latest]
         toolbar.set_suppressed(True)
         assert toolbar.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        QTest.qWait(220)
-        assert not toolbar.isVisible()
+        _wait_until(lambda: not toolbar.isVisible())
     finally:
         toolbar.close()
         viewport.close()
