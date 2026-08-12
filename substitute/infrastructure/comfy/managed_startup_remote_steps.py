@@ -27,7 +27,10 @@ from substitute.shared.logging.logger import (
     log_info,
     log_warning_exception,
 )
-from sugarsubstitute_shared.startup_remote_access import StartupRemoteAccess
+from sugarsubstitute_shared.startup_remote_access import (
+    StartupRemoteAccess,
+    is_startup_connectivity_failure,
+)
 
 
 TResult = TypeVar("TResult")
@@ -74,7 +77,9 @@ class ManagedStartupRemoteSteps:
             return ManagedStartupRemoteStepResult(completed=False)
         try:
             return ManagedStartupRemoteStepResult(completed=True, value=action())
-        except Exception as error:  # noqa: BLE001 - this boundary guarantees local fallback.
+        except Exception as error:  # noqa: BLE001 - classify the infrastructure chain.
+            if not is_startup_connectivity_failure(error):
+                raise
             self._remote_access.degrade(reason=operation)
             log_warning_exception(
                 _LOGGER,

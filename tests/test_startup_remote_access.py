@@ -18,9 +18,18 @@
 
 from __future__ import annotations
 
+import errno
+from email.message import Message
+from urllib.error import HTTPError, URLError
+
+import pytest
+
 from sugarsubstitute_shared.startup_remote_access import (
     STARTUP_REMOTE_DEGRADED_ENV,
     StartupRemoteAccess,
+    StartupConnectivityError,
+    is_startup_connectivity_failure,
+    startup_connectivity_error_from_output,
 )
 
 
@@ -45,3 +54,90 @@ def test_available_launch_clears_inherited_degradation() -> None:
     assert remote_access.child_environment(
         {STARTUP_REMOTE_DEGRADED_ENV: "1", "PATH": "runtime"}
     ) == {"PATH": "runtime"}
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ConnectionError("connection refused"),
+        TimeoutError("request timed out"),
+        URLError("name resolution failed"),
+        OSError(errno.ENETUNREACH, "network unreachable"),
+        StartupConnectivityError("remote operation unavailable"),
+    ],
+)
+def test_connectivity_classifier_accepts_only_remote_access_failures(
+    error: BaseException,
+) -> None:
+    """Known transport failures must activate the launch fallback."""
+
+    assert is_startup_connectivity_failure(error)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        UnicodeEncodeError("cp1252", "\u2588", 0, 1, "cannot encode"),
+        OSError("local filesystem unavailable"),
+        ValueError("invalid manifest"),
+        HTTPError("https://example.invalid", 404, "not found", Message(), None),
+    ],
+)
+def test_connectivity_classifier_rejects_local_and_protocol_failures(
+    error: BaseException,
+) -> None:
+    """Local defects and valid HTTP responses must retain normal error semantics."""
+
+    assert not is_startup_connectivity_failure(error)
+
+
+def test_connectivity_classifier_follows_wrapped_transport_failure() -> None:
+    """Infrastructure wrappers must not hide a transport failure from startup."""
+
+    try:
+        raise ConnectionError("offline")
+    except ConnectionError as cause:
+        wrapped = RuntimeError("repository update failed")
+        wrapped.__cause__ = cause
+
+    assert is_startup_connectivity_failure(wrapped)
+
+
+def test_subprocess_output_classifier_requires_a_connectivity_marker() -> None:
+    """Only recognizable network diagnostics may convert subprocess failure."""
+
+    connectivity_error = startup_connectivity_error_from_output(
+        "Retrying after NewConnectionError: getaddrinfo failed",
+        operation="install requirements",
+    )
+
+    assert isinstance(connectivity_error, StartupConnectivityError)
+    assert (
+        startup_connectivity_error_from_output(
+            "ERROR: No matching distribution found for imaginary-package",
+            operation="install requirements",
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "output",
+    [
+        "fatal: unable to access repository: Could not resolve host: github.com",
+        "failed to connect to github.com port 443 after 1000 ms",
+        "Temporary failure resolving 'github.com'",
+    ],
+)
+def test_subprocess_output_classifier_accepts_common_git_diagnostics(
+    output: str,
+) -> None:
+    """Git transport diagnostics must activate the startup fallback."""
+
+    assert (
+        startup_connectivity_error_from_output(
+            output,
+            operation="update a repository",
+        )
+        is not None
+    )

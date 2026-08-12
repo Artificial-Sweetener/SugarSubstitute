@@ -56,6 +56,7 @@ from sugarsubstitute_shared.startup_remote_access import (
     STARTUP_REMOTE_DEGRADED_ENV,
 )
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
+from sugarsubstitute_shared.startup_remote_access import StartupConnectivityError
 
 
 @pytest.fixture(autouse=True)
@@ -355,7 +356,7 @@ def test_existing_managed_setup_latches_first_remote_failure(
     def fail_first_remote_step(**_kwargs: object) -> None:
         """Represent one unavailable prerequisite at the first remote boundary."""
 
-        raise OSError("network unavailable")
+        raise ConnectionError("network unavailable")
 
     def record_downstream_remote_step(*_args: object, **_kwargs: object) -> None:
         """Record work that must remain suppressed after degradation."""
@@ -393,6 +394,32 @@ def test_existing_managed_setup_latches_first_remote_failure(
     assert result == python_path
     assert downstream_calls == []
     assert not (tmp_path / ".substitute" / "managed_setup_freshness.json").exists()
+
+
+def test_existing_managed_setup_preserves_non_connectivity_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A local failure must not masquerade as offline launch degradation."""
+
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+
+    def fail_local_output(**_kwargs: object) -> None:
+        """Represent the Windows console failure observed in upgrade CI."""
+
+        raise UnicodeEncodeError("cp1252", "\u2588", 0, 1, "cannot encode")
+
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "reconcile_managed_workspace_dependencies",
+        fail_local_output,
+    )
+
+    with pytest.raises(UnicodeEncodeError):
+        managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
 
 def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
@@ -729,6 +756,37 @@ def test_pip_install_raises_when_streamed_install_fails(
             tmp_path / "python.exe",
             "comfy-cli",
             on_log=lambda message: None,
+        )
+
+
+def test_pip_install_promotes_connectivity_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Pip transport evidence must reach the launch-scoped fallback as a type."""
+
+    def fail_offline(
+        _command: list[str],
+        *,
+        cwd: Path | None = None,
+        env: dict[str, str] | None = None,
+        on_line: Callable[[str], None] | None = None,
+        creationflags: int = 0,
+    ) -> int:
+        """Emit the connection failure pip reports when its index is unreachable."""
+
+        _ = cwd, env, creationflags
+        assert on_line is not None
+        on_line("NewConnectionError: getaddrinfo failed")
+        return 1
+
+    monkeypatch.setattr(managed_install_commands, "stream_command", fail_offline)
+
+    with pytest.raises(StartupConnectivityError):
+        managed_install_commands.pip_install(
+            tmp_path / "python.exe",
+            "comfy-cli",
+            on_log=lambda _message: None,
         )
 
 
@@ -1397,7 +1455,7 @@ def test_ensure_managed_comfy_setup_migrates_legacy_nested_workspace(
     nested_main.write_text("main", encoding="utf-8")
 
     monkeypatch.setattr(
-        managed_install,
+        managed_existing_setup_operations,
         "ensure_managed_workspace_manager",
         lambda workspace, on_log=None, env=None: (
             workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
