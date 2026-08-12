@@ -106,33 +106,53 @@ def test_harness_close_finalizes_input_document_runtime(
     """Harness teardown must settle native document work before process exit."""
 
     harness = RealShellInputEditorHarness(tmp_path)
-    runtime = harness.input_canvas.document.runtime
-    execution_runtime = runtime.execution_runtime
-    original_close = runtime.close
-    original_shutdown = execution_runtime.shutdown
-    close_calls = 0
-    shutdown_waits: list[bool] = []
+    input_runtime = harness.input_canvas.document.runtime
+    input_execution_runtime = input_runtime.execution_runtime
+    output_runtime = harness.shell.output_canvas.document.runtime
+    output_execution_runtime = output_runtime.execution_runtime
+    original_input_close = input_runtime.close
+    original_input_shutdown = input_execution_runtime.shutdown
+    original_output_close = output_runtime.close
+    original_output_shutdown = output_execution_runtime.shutdown
+    close_calls = {"input": 0, "output": 0}
+    shutdown_waits: dict[str, list[bool]] = {"input": [], "output": []}
 
-    def record_close() -> None:
-        """Record and preserve the real runtime teardown."""
+    def record_input_close() -> None:
+        """Record and preserve the real Input runtime teardown."""
 
-        nonlocal close_calls
-        close_calls += 1
-        original_close()
+        close_calls["input"] += 1
+        original_input_close()
 
-    def record_shutdown(*, wait: bool = False) -> None:
-        """Record and preserve physical execution teardown."""
+    def record_input_shutdown(*, wait: bool = False) -> None:
+        """Record and preserve physical Input execution teardown."""
 
-        shutdown_waits.append(wait)
-        original_shutdown(wait=wait)
+        shutdown_waits["input"].append(wait)
+        original_input_shutdown(wait=wait)
 
-    monkeypatch.setattr(runtime, "close", record_close)
-    monkeypatch.setattr(execution_runtime, "shutdown", record_shutdown)
+    def record_output_close() -> None:
+        """Record and preserve the real Output runtime teardown."""
+
+        close_calls["output"] += 1
+        original_output_close()
+
+    def record_output_shutdown(*, wait: bool = False) -> None:
+        """Record and preserve physical Output execution teardown."""
+
+        shutdown_waits["output"].append(wait)
+        original_output_shutdown(wait=wait)
+
+    monkeypatch.setattr(input_runtime, "close", record_input_close)
+    monkeypatch.setattr(input_execution_runtime, "shutdown", record_input_shutdown)
+    monkeypatch.setattr(output_runtime, "close", record_output_close)
+    monkeypatch.setattr(output_execution_runtime, "shutdown", record_output_shutdown)
     harness.close()
     harness.close()
 
-    assert close_calls == 1
-    assert shutdown_waits == [False, True]
+    assert close_calls == {"input": 1, "output": 1}
+    assert shutdown_waits == {
+        "input": [False, True],
+        "output": [False, True],
+    }
 
 
 def test_real_shell_input_editor_survives_erratic_full_lifecycle(
