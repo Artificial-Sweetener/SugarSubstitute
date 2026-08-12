@@ -107,8 +107,11 @@ def test_harness_close_finalizes_input_document_runtime(
 
     harness = RealShellInputEditorHarness(tmp_path)
     runtime = harness.input_canvas.document.runtime
+    execution_runtime = runtime.execution_runtime
     original_close = runtime.close
+    original_shutdown = execution_runtime.shutdown
     close_calls = 0
+    shutdown_waits: list[bool] = []
 
     def record_close() -> None:
         """Record and preserve the real runtime teardown."""
@@ -117,11 +120,19 @@ def test_harness_close_finalizes_input_document_runtime(
         close_calls += 1
         original_close()
 
+    def record_shutdown(*, wait: bool = False) -> None:
+        """Record and preserve physical execution teardown."""
+
+        shutdown_waits.append(wait)
+        original_shutdown(wait=wait)
+
     monkeypatch.setattr(runtime, "close", record_close)
+    monkeypatch.setattr(execution_runtime, "shutdown", record_shutdown)
     harness.close()
     harness.close()
 
     assert close_calls == 1
+    assert shutdown_waits == [False, True]
 
 
 def test_real_shell_input_editor_survives_erratic_full_lifecycle(
