@@ -1,0 +1,19 @@
+schema_version = 1
+
+[structure]
+soft_lines = 350
+hard_lines = 500
+source_roots = [
+  "substitute",
+  "launcher/sugarsubstitute_launcher",
+  "sugarsubstitute_shared",
+]
+excluded_paths = [
+  "substitute/presentation/resources/app_icons_rc.py",
+  "substitute/presentation/resources/app_orb_rc.py",
+  "substitute/presentation/resources/splash_poses_rc.py",
+]
+
+[registries]
+debt = "ARCHITECTURE_DEBT.toml"
+waivers = "ARCHITECTURE_WAIVERS.toml"
