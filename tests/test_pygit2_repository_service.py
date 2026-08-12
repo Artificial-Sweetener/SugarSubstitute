@@ -30,6 +30,7 @@ from substitute.infrastructure.version_control import (
 )
 from substitute.infrastructure.version_control.clone_process import Pygit2CloneProcess
 from substitute.infrastructure.filesystem import remove_app_owned_path
+from sugarsubstitute_shared.startup_remote_access import StartupConnectivityError
 
 
 def test_repository_initialization_does_not_require_system_git(
@@ -153,7 +154,7 @@ def test_clone_process_removes_partial_checkout_after_timeout(
         raise_timeout,
     )
 
-    with pytest.raises(RepositoryOperationError, match="timed out"):
+    with pytest.raises(StartupConnectivityError, match="Remote access"):
         Pygit2CloneProcess(timeout_seconds=1).clone(
             "https://example.invalid/repository.git",
             target,

@@ -20,9 +20,126 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+import errno
+import ssl
+from urllib.error import HTTPError, URLError
 
 
 STARTUP_REMOTE_DEGRADED_ENV = "SUGARSUBSTITUTE_STARTUP_REMOTE_DEGRADED"
+
+_CONNECTIVITY_ERRNOS = frozenset(
+    value
+    for name in (
+        "EADDRNOTAVAIL",
+        "ECONNABORTED",
+        "ECONNREFUSED",
+        "ECONNRESET",
+        "EHOSTDOWN",
+        "EHOSTUNREACH",
+        "ENETDOWN",
+        "ENETRESET",
+        "ENETUNREACH",
+        "ETIMEDOUT",
+    )
+    if (value := getattr(errno, name, None)) is not None
+)
+_CONNECTIVITY_WINERRORS = frozenset(
+    {10050, 10051, 10052, 10053, 10054, 10060, 10061, 10065, 11001}
+)
+_CONNECTIVITY_EXCEPTION_IDENTITIES = frozenset(
+    {
+        ("httpx", "ConnectError"),
+        ("httpx", "ConnectTimeout"),
+        ("httpx", "NetworkError"),
+        ("httpx", "ReadTimeout"),
+        ("httpx", "TimeoutException"),
+        ("httpx", "WriteTimeout"),
+        ("requests.exceptions", "ConnectionError"),
+        ("requests.exceptions", "ConnectTimeout"),
+        ("requests.exceptions", "ReadTimeout"),
+        ("requests.exceptions", "Timeout"),
+        ("urllib3.exceptions", "ConnectTimeoutError"),
+        ("urllib3.exceptions", "NameResolutionError"),
+        ("urllib3.exceptions", "NewConnectionError"),
+        ("urllib3.exceptions", "ReadTimeoutError"),
+    }
+)
+_CONNECTIVITY_OUTPUT_MARKERS = (
+    "cannot connect to proxy",
+    "could not resolve host",
+    "connection refused",
+    "connection reset",
+    "connection timed out",
+    "connecttimeouterror",
+    "failed to connect",
+    "failed to establish a new connection",
+    "getaddrinfo failed",
+    "name or service not known",
+    "name resolution",
+    "nameresolutionerror",
+    "network is unreachable",
+    "newconnectionerror",
+    "no route to host",
+    "operation timed out",
+    "proxyerror",
+    "read timed out",
+    "readtimeouterror",
+    "temporary failure in name resolution",
+    "temporary failure resolving",
+)
+
+
+class StartupConnectivityError(RuntimeError):
+    """Report proven remote transport loss during automatic startup work."""
+
+
+def is_startup_connectivity_failure(error: BaseException) -> bool:
+    """Return whether an exception chain proves remote transport is unavailable."""
+
+    current: BaseException | None = error
+    visited: set[int] = set()
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        if _is_connectivity_exception(current):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def startup_connectivity_error_from_output(
+    output: str,
+    *,
+    operation: str,
+) -> StartupConnectivityError | None:
+    """Convert explicit subprocess transport diagnostics into a typed failure."""
+
+    normalized_output = " ".join(output.casefold().split())
+    if not any(marker in normalized_output for marker in _CONNECTIVITY_OUTPUT_MARKERS):
+        return None
+    return StartupConnectivityError(
+        f"Remote access became unavailable while attempting to {operation}."
+    )
+
+
+def _is_connectivity_exception(error: BaseException) -> bool:
+    """Classify one exception without inferring connectivity from arbitrary text."""
+
+    if isinstance(error, StartupConnectivityError):
+        return True
+    if isinstance(error, HTTPError):
+        return False
+    if isinstance(error, (ConnectionError, TimeoutError, URLError, ssl.SSLError)):
+        return True
+    if isinstance(error, OSError) and (
+        error.errno in _CONNECTIVITY_ERRNOS
+        or getattr(error, "winerror", None) in _CONNECTIVITY_WINERRORS
+    ):
+        return True
+    error_type = type(error)
+    return (
+        error_type.__module__,
+        error_type.__name__,
+    ) in _CONNECTIVITY_EXCEPTION_IDENTITIES
 
 
 @dataclass(slots=True)
@@ -68,4 +185,10 @@ class StartupRemoteAccess:
         return child_environment
 
 
-__all__ = ["STARTUP_REMOTE_DEGRADED_ENV", "StartupRemoteAccess"]
+__all__ = [
+    "STARTUP_REMOTE_DEGRADED_ENV",
+    "StartupConnectivityError",
+    "StartupRemoteAccess",
+    "is_startup_connectivity_failure",
+    "startup_connectivity_error_from_output",
+]

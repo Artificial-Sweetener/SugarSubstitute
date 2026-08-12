@@ -163,16 +163,13 @@ class ManagedExistingSetupOperations(ExistingManagedSetupOperations):
             env=env,
         )
 
-    def prepare_sugarcubes(self, workspace: Path, env: Mapping[str, str]) -> bool:
+    def prepare_sugarcubes(self, workspace: Path, env: Mapping[str, str]) -> None:
         """Converge SugarCubes baseline dependencies."""
 
-        return (
-            attempt_sugarcubes_startup_maintenance(
-                workspace,
-                on_log=self._on_log,
-                env=env,
-            )
-            is not None
+        attempt_sugarcubes_startup_maintenance(
+            workspace,
+            on_log=self._on_log,
+            env=env,
         )
 
     def validate_torch(

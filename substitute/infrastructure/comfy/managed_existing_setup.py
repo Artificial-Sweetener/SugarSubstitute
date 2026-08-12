@@ -120,7 +120,7 @@ class ExistingManagedSetupOperations(Protocol):
     ) -> None:
         """Converge required SugarSubstitute nodepacks."""
 
-    def prepare_sugarcubes(self, workspace: Path, env: Mapping[str, str]) -> bool:
+    def prepare_sugarcubes(self, workspace: Path, env: Mapping[str, str]) -> None:
         """Converge SugarCubes baseline dependencies."""
 
     def validate_torch(
@@ -391,11 +391,10 @@ def _prepare_sugarcubes(
     workspace: Path,
     managed_env: Mapping[str, str],
 ) -> None:
-    """Turn SugarCubes degradation into the shared launch fallback."""
+    """Run optional SugarCubes preparation inside its startup trace span."""
 
     with trace_span("managed_setup.existing.sugarcubes_baseline"):
-        if not operations.prepare_sugarcubes(workspace, managed_env):
-            raise RuntimeError("SugarCubes startup maintenance was unavailable.")
+        operations.prepare_sugarcubes(workspace, managed_env)
 
 
 def _reconcile_acceleration(

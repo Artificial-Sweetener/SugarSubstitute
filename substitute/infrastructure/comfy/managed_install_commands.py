@@ -41,6 +41,9 @@ from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
     subprocess_working_directory,
 )
+from sugarsubstitute_shared.startup_remote_access import (
+    startup_connectivity_error_from_output,
+)
 
 LogCallback = Callable[[str], None]
 
@@ -140,6 +143,12 @@ def pip_install(
                 fallback_path=python_executable.parent.parent,
                 output=output,
             )
+            connectivity_error = startup_connectivity_error_from_output(
+                output,
+                operation="install Python packages",
+            )
+            if connectivity_error is not None:
+                raise connectivity_error
             if is_storage_exhaustion_message(output):
                 raise ManagedInstallStorageError(
                     "Managed ComfyUI setup ran out of temporary install space "
@@ -170,6 +179,12 @@ def pip_install(
             fallback_path=python_executable.parent.parent,
             output=output,
         )
+        connectivity_error = startup_connectivity_error_from_output(
+            output,
+            operation="install Python packages",
+        )
+        if connectivity_error is not None:
+            raise connectivity_error
         if is_storage_exhaustion_message(output):
             raise ManagedInstallStorageError(
                 "Managed ComfyUI setup ran out of temporary install space "
