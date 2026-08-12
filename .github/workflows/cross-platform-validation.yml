@@ -40,6 +40,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Check license headers
         run: python tools/license_headers.py --check
+      - name: Check architecture governance
+        run: python tools/check_architecture.py
       - name: Install Linux Qt runtime dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
