@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, cast
 from uuid import UUID
 
-from PySide6.QtCore import QPoint, QRectF, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QRectF, Qt
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
@@ -75,6 +75,7 @@ class RealShellInputEditorHarness:
     ) -> None:
         """Build a deterministic shell, project boundary, and inpaint editor panel."""
         self.root = Path(root)
+        self._closed = False
         self._base = RealShellPromptEditorHarness()
         self.shell = cast(Any, self._base.shell)
         self.shell.path_bundle = self._path_bundle(self.root)
@@ -236,7 +237,14 @@ class RealShellInputEditorHarness:
 
     def close(self) -> None:
         """Release every real shell widget and document runtime."""
+
+        if self._closed:
+            return
+        self._closed = True
+        self.input_canvas.document.close()
         self._base.close()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        self.process_events(8)
 
     def _mount_workflow(self, workflow: WorkflowState) -> None:
         """Install one workflow and its real editor-panel surface."""

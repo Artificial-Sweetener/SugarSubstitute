@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
+import pytest
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QImage, QWheelEvent
 from PySide6.QtTest import QSignalSpy, QTest
@@ -96,6 +97,31 @@ class _RecordingAssetStager(ComfyAssetStager):
             execution_value=f"{target_subfolder}/{source_path.name}",
             operation="authorized",
         )
+
+
+def test_harness_close_finalizes_input_document_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Harness teardown must settle native document work before process exit."""
+
+    harness = RealShellInputEditorHarness(tmp_path)
+    runtime = harness.input_canvas.document.runtime
+    original_close = runtime.close
+    close_calls = 0
+
+    def record_close() -> None:
+        """Record and preserve the real runtime teardown."""
+
+        nonlocal close_calls
+        close_calls += 1
+        original_close()
+
+    monkeypatch.setattr(runtime, "close", record_close)
+    harness.close()
+    harness.close()
+
+    assert close_calls == 1
 
 
 def test_real_shell_input_editor_survives_erratic_full_lifecycle(
