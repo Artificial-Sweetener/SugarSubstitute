@@ -5,7 +5,11 @@ on:
     branches-ignore:
       - main
       - "dependabot/**"
+    paths-ignore:
+      - "**/*.md"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
   schedule:
     - cron: "17 13 * * 1"
   workflow_call:

@@ -39,6 +39,32 @@ _EXPECTED_ACTIONS = frozenset(
     }
 )
 _WORKFLOW_PATHS = tuple((PROJECT_ROOT / ".github" / "workflows").glob("*.yml"))
+_DOCUMENTATION_PATH_FILTER = ["**/*.md"]
+
+
+def test_documentation_only_changes_skip_automatic_ci() -> None:
+    """Keep Markdown-only pushes and pull requests out of automated gates."""
+
+    workflows = {
+        path.name: yaml.safe_load(path.read_text(encoding="utf-8"))
+        for path in _WORKFLOW_PATHS
+    }
+    triggers = {name: workflow[True] for name, workflow in workflows.items()}
+
+    assert triggers["tests.yml"]["push"]["paths-ignore"] == (_DOCUMENTATION_PATH_FILTER)
+    assert triggers["tests.yml"]["pull_request"]["paths-ignore"] == (
+        _DOCUMENTATION_PATH_FILTER
+    )
+    assert triggers["comfy-compatibility.yml"]["push"]["paths-ignore"] == (
+        _DOCUMENTATION_PATH_FILTER
+    )
+    assert (
+        triggers["comfy-compatibility.yml"]["pull_request"]["paths-ignore"]
+        == _DOCUMENTATION_PATH_FILTER
+    )
+    assert triggers["release.yml"]["push"]["paths-ignore"] == (
+        _DOCUMENTATION_PATH_FILTER
+    )
 
 
 def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
