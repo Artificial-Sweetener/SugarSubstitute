@@ -1,3 +1,12 @@
+## [0.20.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.20.0...v0.20.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* **nodepacks:** release git handles before migration ([6df5afd](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6df5afdda2c94f4c900fa719747626b772d7c86e))
+* **windows:** avoid recursive path conversion ([c1737a0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/c1737a01ac6876400a4701eb21c5e444e902fe66))
+* **windows:** restore managed updates for relative paths ([637d4e0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/637d4e0ed9a67ecb7465aabf50c9213c52578d94))
+
 # [0.20.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.19.2...v0.20.0) (2026-08-11)
 
 
