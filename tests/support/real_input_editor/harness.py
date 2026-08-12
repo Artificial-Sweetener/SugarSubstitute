@@ -241,13 +241,19 @@ class RealShellInputEditorHarness:
         if self._closed:
             return
         self._closed = True
-        document = self.input_canvas.document
-        execution_runtime = document.runtime.execution_runtime
-        document.close()
+        input_document = self.input_canvas.document
+        output_document = self.shell.output_canvas.document
+        execution_runtimes = (
+            input_document.runtime.execution_runtime,
+            output_document.runtime.execution_runtime,
+        )
         self._base.close()
+        input_document.close()
+        output_document.close()
         QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
         self.process_events(8)
-        execution_runtime.shutdown(wait=True)
+        for execution_runtime in execution_runtimes:
+            execution_runtime.shutdown(wait=True)
 
     def _mount_workflow(self, workflow: WorkflowState) -> None:
         """Install one workflow and its real editor-panel surface."""
