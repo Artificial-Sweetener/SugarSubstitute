@@ -281,10 +281,22 @@ remediation, invalid links, duplicate dispositions, and unused waivers.
 - Run focused tests continuously during development.
 - Before ending a normal implementation turn, run tests covering the changed behavior and its blast area, plus targeted formatting, lint, and strict typing checks for changed files.
 - Report the checks run and state when full commit gates remain pending.
-- Run the complete repository format, lint, strict type, parallel test, and serial test gates before committing, not merely because a turn is ending.
+- A documentation-only change modifies Markdown (`*.md`) files and nothing
+  else. Review its rendered content and diff, run `git diff --check`, and run
+  any documentation-specific validator that governs the changed files.
+  Documentation-only commits do not require the repository format, lint,
+  type, or test gates. A push whose complete changed-file set is
+  documentation-only may proceed without CI; automatic push and pull-request
+  workflows must ignore it.
+- A commit containing any non-Markdown file is not documentation-only,
+  including changes to workflows, dependency or release metadata,
+  architecture registries, scripts, tests, resources, or generated artifacts.
+  Run the complete repository format, lint, strict type, parallel test, and
+  serial test gates before committing it, not merely because a turn is ending.
 - Full-gate results remain valid for the exact commit-relevant worktree they verified and may be reused if that content has not changed. Staging, unstaging, and ignored verification artifacts do not invalidate them.
 - After a commit-relevant change, rerun every affected gate; rerun all gates when impact is uncertain.
-- CI must run the complete applicable suite on Windows, Linux, and macOS.
+- CI must run the complete applicable suite on Windows, Linux, and macOS for
+  every change that is not documentation-only.
 - Report which platforms were actually verified; do not infer cross-platform success from one operating system.
 - Failing and flaky applicable tests are blocking.
 
@@ -315,14 +327,34 @@ remediation, invalid links, duplicate dispositions, and unused waivers.
 - Logging/error handling is actionable.
 - A normal implementation handoff has passing focused tests and targeted format, lint, and strict typing checks for the blast area.
 - Architecture governance passes for the exact current source and registry state.
-- A commit has passing full repository format, lint, strict typing, parallel test, and serial test gates for its exact contents.
+- A non-documentation-only commit has passing full repository format, lint,
+  strict typing, parallel test, and serial test gates for its exact contents.
+- A documentation-only commit has an inspected diff, clean `git diff --check`,
+  and passing applicable documentation-specific validation.
 
 ## Commit Policy
 
-- Use Conventional Commits: `type(scope): subject`.
-- Allowed types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `build`, `ci`.
-- Keep commits atomic and cohesive.
-- Breaking structural changes should be clearly labeled.
+- Commit only when explicitly asked. Each commit must deliver one coherent
+  user- or integrator-meaningful outcome and be independently releasable.
+- Commit subjects feed generated changelogs. Use
+  `type(scope): changelog-ready outcome`, with the scope naming the primary
+  product or repository concern.
+- `feat`, `fix`, and `perf` subjects must describe the delivered capability,
+  corrected behavior, or measurable improvement in audience-facing product
+  language. A changelog reader must be able to understand the outcome without
+  knowing the affected files, classes, adapters, internal architecture, or
+  implementation technique.
+- Use `refactor`, `test`, `docs`, `build`, `ci`, or `chore` only for a coherent
+  internal outcome. Choose the type according to the actual release impact; do
+  not present internal maintenance as a user-facing feature or bug fix.
+- Include supporting tests, documentation, cleanup, and refactoring in the
+  outcome commit they support. Do not create WIP, checkpoint, miscellaneous,
+  mechanical file-movement, or implementation-diary commits.
+- Mark a public breaking change with `!`. Explain its compatibility impact and
+  migration path in the commit body.
+- Use the commit body when the subject cannot carry essential context. Explain
+  why the outcome matters, its behavioral constraints, and coordinated product
+  effects rather than listing implementation steps.
 
 ## Maintainer Authority
 
