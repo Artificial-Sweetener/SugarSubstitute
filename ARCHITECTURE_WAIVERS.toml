@@ -365,19 +365,6 @@ next_limit = 500
 debt = "SS-ARCH-028"
 
 [[waivers]]
-id = "SS-WAIVER-R029"
-owner = "managed Comfy installation"
-rule = "STRUCT003"
-path = "substitute/infrastructure/comfy/managed_install.py"
-kind = "remediation"
-justification = "The assessed file mixes standalone workspace provisioning, dynamic environment preparation, Comfy Manager installation, Torch backend selection and validation, existing-workspace reconciliation. Extract Torch backend management and Manager provisioning from workspace installation orchestration."
-issue = "chore:SS-ARCH-029"
-review_by = 2026-12-15
-max_lines = 770
-next_limit = 616
-debt = "SS-ARCH-029"
-
-[[waivers]]
 id = "SS-WAIVER-R030"
 owner = "managed Comfy launch"
 rule = "STRUCT003"

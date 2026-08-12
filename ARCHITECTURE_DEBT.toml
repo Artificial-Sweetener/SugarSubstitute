@@ -435,22 +435,6 @@ responsibilities = [
 next_extraction = "Separate link models and endpoint indexing from default, normalization, and transition planners."
 
 [[debts]]
-id = "SS-ARCH-029"
-owner = "managed Comfy installation"
-paths = ["substitute/infrastructure/comfy/managed_install.py"]
-fingerprint = "sha256:4829e21ec2eae96313c907109d663eee839b6456a106a4070bd80f453fc5c33c"
-issue = "chore:SS-ARCH-029"
-review_by = 2026-12-15
-responsibilities = [
-  "standalone workspace provisioning",
-  "dynamic environment preparation",
-  "Comfy Manager installation",
-  "Torch backend selection and validation",
-  "existing-workspace reconciliation",
-]
-next_extraction = "Extract Torch backend management and Manager provisioning from workspace installation orchestration."
-
-[[debts]]
 id = "SS-ARCH-030"
 owner = "managed Comfy launch"
 paths = ["substitute/infrastructure/comfy/managed_launcher.py"]

@@ -91,13 +91,18 @@ class GitHubReleaseSource:
 
 def release_source_from_config(
     config: ReleaseSourceConfig | None,
+    *,
+    timeout_seconds: float = 30.0,
 ) -> ReleaseSource | None:
-    """Create a concrete release source from persisted launcher config."""
+    """Create a release source with the caller's operation-specific deadline."""
 
     if config is None:
         return None
     if config.kind == RELEASE_SOURCE_KIND_GITHUB:
-        return GitHubReleaseSource(config.manifest_url)
+        return GitHubReleaseSource(
+            config.manifest_url,
+            timeout_seconds=timeout_seconds,
+        )
     raise ValueError(f"Unsupported launcher release source kind: {config.kind}")
 
 

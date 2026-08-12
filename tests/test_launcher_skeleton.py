@@ -64,6 +64,9 @@ from launcher.sugarsubstitute_launcher.release_sources import LocalFolderRelease
 from sugarsubstitute_shared.application_launch_guard import (
     APPLICATION_LAUNCH_TOKEN_ENV,
 )
+from sugarsubstitute_shared.startup_remote_access import (
+    STARTUP_REMOTE_DEGRADED_ENV,
+)
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
 from sugarsubstitute_shared.localization import LanguagePreference, resolve_locale
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
@@ -634,11 +637,17 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     )
 
 
+@pytest.mark.parametrize(
+    ("failure_reason", "expected_degraded_value"),
+    [(None, None), ("URLError", "1")],
+)
 def test_launcher_main_runs_pre_launch_update_before_app_handoff(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    failure_reason: str | None,
+    expected_degraded_value: str | None,
 ) -> None:
-    """Installed launches should run launcher update orchestration before handoff."""
+    """Installed launches should hand update degradation to the app child."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     LauncherConfig.from_layout(layout=layout).save(layout.config_path)
@@ -676,6 +685,7 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
             assert isinstance(kwargs["config"], LauncherConfig)
             assert isinstance(kwargs["release_source"], GitHubReleaseSource)
             assert kwargs["release_source"].manifest_url == DEFAULT_RELEASE_MANIFEST_URL
+            assert kwargs["release_source"].timeout_seconds == 3.0
             assert kwargs["no_update_check"] is False
             assert kwargs["progress"] is progress_client
             from launcher.sugarsubstitute_launcher.update_orchestrator import (
@@ -685,9 +695,11 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
             return PreLaunchUpdateResult(
                 checked_manifest=True,
                 installed_update=False,
+                failure_reason=failure_reason,
             )
 
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setenv(STARTUP_REMOTE_DEGRADED_ENV, "1")
     monkeypatch.setattr(
         launcher_app,
         "LauncherUpdateOrchestrator",
@@ -721,6 +733,10 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
     ]
     assert len(child_environments) == 1
     assert APPLICATION_LAUNCH_TOKEN_ENV in child_environments[0]
+    assert (
+        child_environments[0].get(STARTUP_REMOTE_DEGRADED_ENV)
+        == expected_degraded_value
+    )
 
 
 def test_launcher_main_hands_off_pending_launcher_update_instead_of_app(
