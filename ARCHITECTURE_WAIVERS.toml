@@ -6,10 +6,10 @@ owner = "launcher installation presentation"
 rule = "STRUCT003"
 path = "launcher/sugarsubstitute_launcher/ui/main_window.py"
 kind = "remediation"
-justification = "The assessed file mixes installer window and step presentation, payload and runtime installation workers, setup handoff orchestration, platform window chrome and geometry integration. Extract installation execution and platform-window integration from launcher presentation."
+justification = "The assessed file mixes installer window and step presentation, setup handoff orchestration, platform window chrome and geometry integration. Extract setup handoff and platform-window integration from launcher presentation."
 issue = "chore:SS-ARCH-001"
 review_by = 2026-12-15
-max_lines = 1158
+max_lines = 1024
 next_limit = 926
 debt = "SS-ARCH-001"
 
@@ -19,10 +19,10 @@ owner = "application bootstrap"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/composition.py"
 kind = "remediation"
-justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, onboarding, repair, and reconfiguration presentation, runtime readiness probing. Extract lazy adapter definitions and shell presentation from the application composition root."
+justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract lazy adapter definitions and shell presentation from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2943
+max_lines = 2848
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -58,10 +58,10 @@ owner = "ready-shell startup"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/ready_shell_controller.py"
 kind = "remediation"
-justification = "The assessed file mixes ready-shell launch orchestration, failure queue and cancellation, target activation and shell reveal, prompt editor and workspace warmup, post-show hydration and diagnostics. Extract warmup and hydration task ownership from shell launch and reveal coordination."
+justification = "The assessed file mixes ready-shell launch orchestration, failure queue and cancellation, target activation and shell construction, prompt editor and workspace warmup, post-show hydration and diagnostics. Extract warmup and hydration task ownership from shell launch coordination."
 issue = "chore:SS-ARCH-005"
 review_by = 2026-12-15
-max_lines = 1949
+max_lines = 1761
 next_limit = 1559
 debt = "SS-ARCH-005"
 
@@ -74,7 +74,7 @@ kind = "remediation"
 justification = "The assessed file mixes factory protocol declarations, ready-shell runtime resource graph composition, managed recovery and readiness binding, prompt editor and CuteCanvas warmup integration. Extract factory port declarations and feature-specific warmup adapters from runtime resource composition."
 issue = "chore:SS-ARCH-006"
 review_by = 2026-12-15
-max_lines = 1138
+max_lines = 1135
 next_limit = 910
 debt = "SS-ARCH-006"
 
@@ -1164,7 +1164,7 @@ kind = "structural"
 justification = "StartupManagedReadyLaunchRuntime is one per-launch factory facade over a single immutable runtime resource graph. Its methods expose construction of the stages in that graph without owning their behavior; splitting the facade would scatter one composition boundary across otherwise ownerless modules."
 issue = "chore:SS-WAIVER-S002"
 review_by = 2026-12-15
-max_lines = 577
+max_lines = 575
 
 [[waivers]]
 id = "SS-WAIVER-S003"

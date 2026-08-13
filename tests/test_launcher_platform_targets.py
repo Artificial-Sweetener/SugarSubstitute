@@ -65,8 +65,14 @@ def test_linux_target_owns_both_published_installer_formats() -> None:
         InstallerFormat.APPIMAGE,
         InstallerFormat.DEB,
     )
-    assert LINUX_X64.installer(InstallerFormat.APPIMAGE).filename.endswith(".AppImage")
-    assert LINUX_X64.installer(InstallerFormat.DEB).filename.endswith(".deb")
+    assert (
+        LINUX_X64.installer(InstallerFormat.APPIMAGE).filename_for("0.20.0")
+        == "SugarSubstitute-0.20.0-Linux-x86_64.AppImage"
+    )
+    assert (
+        LINUX_X64.installer(InstallerFormat.DEB).filename_for("0.20.0")
+        == "SugarSubstitute-0.20.0-Linux-amd64.deb"
+    )
 
 
 @pytest.mark.parametrize(

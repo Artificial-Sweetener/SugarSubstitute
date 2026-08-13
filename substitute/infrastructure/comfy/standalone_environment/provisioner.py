@@ -23,8 +23,8 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
-from substitute.infrastructure.comfy.standalone_environment.catalog_client import (
-    StandaloneEnvironmentCatalogClient,
+from substitute.infrastructure.comfy.standalone_environment.catalog import (
+    StandaloneEnvironmentCatalog,
 )
 from substitute.infrastructure.comfy.standalone_environment.downloader import (
     DownloadProgressCallback,
@@ -49,6 +49,9 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
     StandaloneArtifactError,
     StandaloneVariantId,
 )
+from substitute.infrastructure.comfy.standalone_environment.pinned_catalog import (
+    PinnedStandaloneEnvironmentCatalog,
+)
 
 
 ProvisioningLogCallback = Callable[[str], None]
@@ -60,7 +63,7 @@ class StandaloneEnvironmentProvisioner:
     def __init__(
         self,
         *,
-        catalog: StandaloneEnvironmentCatalogClient | None = None,
+        catalog: StandaloneEnvironmentCatalog | None = None,
         downloader: StandaloneArtifactDownloader | None = None,
         extractor: StandaloneEnvironmentExtractor | None = None,
         migrator: StandaloneWorkspaceMigrator | None = None,
@@ -68,7 +71,7 @@ class StandaloneEnvironmentProvisioner:
     ) -> None:
         """Store focused collaborators for the provisioning transaction."""
 
-        self._catalog = catalog or StandaloneEnvironmentCatalogClient()
+        self._catalog = catalog or PinnedStandaloneEnvironmentCatalog.load_default()
         self._downloader = downloader or StandaloneArtifactDownloader()
         self._extractor = extractor or StandaloneEnvironmentExtractor()
         self._migrator = migrator or StandaloneWorkspaceMigrator()

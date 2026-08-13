@@ -31,6 +31,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _EXPECTED_ACTIONS = frozenset(
     {
         "actions/checkout",
+        "actions/cache",
         "actions/dependency-review-action",
         "actions/download-artifact",
         "actions/setup-node",
@@ -142,7 +143,7 @@ def test_strategy_matrices_use_literal_toolchain_versions() -> None:
                 assert "${{" not in entry["python-version"]
                 observed_entries += 1
 
-    assert observed_entries == 24
+    assert observed_entries == 26
 
 
 def test_ci_actions_use_immutable_verified_revisions() -> None:
@@ -234,6 +235,52 @@ def test_cross_platform_validation_requires_explicit_invocation() -> None:
     assert "  push:" not in workflow_text
 
 
+def test_managed_comfy_pin_automation_opens_pr_before_qualification() -> None:
+    """New upstream pins should always create reviewable PRs without auto-merge."""
+
+    workflow_text = (
+        PROJECT_ROOT / ".github" / "workflows" / "comfy-pin-update.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "  schedule:" in workflow_text
+    assert "gh pr create" in workflow_text
+    assert "gh workflow run tests.yml" in workflow_text
+    assert "gh workflow run managed-comfy-install.yml" in workflow_text
+    assert "gh pr merge" not in workflow_text
+    assert "auto-merge" not in workflow_text
+
+
+def test_managed_comfy_install_uses_exact_pin_and_artifact_cache() -> None:
+    """The compatibility gate should launch pinned Comfy without reinstalling Torch."""
+
+    workflow_text = (
+        PROJECT_ROOT / ".github" / "workflows" / "managed-comfy-install.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae" in workflow_text
+    assert "standalone_environment_pin.json" in workflow_text
+    assert "verify_managed_comfy_install.py" in workflow_text
+    assert "--variant win-cpu" in workflow_text
+    assert "pip install torch" not in workflow_text
+
+
+def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
+    """Release candidates must prove exact installers before stable promotion."""
+
+    workflow_text = (
+        PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "verify_installer_lifecycle.py clean" in workflow_text
+    assert "verify_installer_lifecycle.py upgrade" in workflow_text
+    assert "resolve_upgrade_sources.py" in workflow_text
+    assert "Windows x64" in workflow_text
+    assert "Linux x64" in workflow_text
+    assert "macOS Apple Silicon" in workflow_text
+    assert "./.github/workflows/managed-comfy-install.yml" in workflow_text
+    assert "gh release edit" not in workflow_text
+
+
 def test_cross_platform_validation_proves_packaged_linux_system_trust() -> None:
     """Require the frozen Linux installer to verify releases across distro families."""
 
@@ -280,7 +327,9 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
         "build-windows",
         "build-macos",
         "build-linux",
-        "release",
+        "stage-candidate",
+        "qualify-candidate",
+        "promote-release",
     }
     for job_name in ("build-windows", "build-macos", "build-linux"):
         job = jobs[job_name]
@@ -288,12 +337,35 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
         assert "needs.determine-version.outputs.version" in _job_script(job)
     assert jobs["build-macos"]["runs-on"] == "macos-latest"
     assert jobs["build-linux"]["runs-on"] == "ubuntu-24.04"
-    assert set(jobs["release"]["needs"]) == {
+    assert set(jobs["stage-candidate"]["needs"]) == {
         "determine-version",
         "build-windows",
         "build-macos",
         "build-linux",
     }
+    assert jobs["qualify-candidate"]["uses"] == (
+        "./.github/workflows/release-qualification.yml"
+    )
+    assert set(jobs["promote-release"]["needs"]) == {
+        "stage-candidate",
+        "qualify-candidate",
+    }
+
+
+def test_release_stages_then_promotes_the_same_candidate_bytes() -> None:
+    """Stable publication must be promotion after qualification, never a rebuild."""
+
+    workflow_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "--prerelease" in workflow_text
+    assert "release-qualification.yml" in workflow_text
+    assert "--prerelease=false --latest" in workflow_text
+    assert "SUGAR_SUBSTITUTE_STAGE_ONLY" in workflow_text
+    promotion = workflow_text.split("  promote-release:", maxsplit=1)[1]
+    assert "prepare-release-assets" not in promotion
+    assert "PyInstaller" not in promotion
 
 
 def test_first_release_publishes_version_090_without_adding_a_commit() -> None:
@@ -457,10 +529,10 @@ def test_release_publisher_includes_installer_and_managed_payload_artifacts() ->
 
     config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
     expected_fragments = (
-        "Installer-Windows-x64.exe",
-        "Installer-macOS-Apple-Silicon.dmg",
-        "Installer-Linux-x86_64.AppImage",
-        "Installer-Linux-amd64.deb",
+        "SugarSubstitute-*-Windows-x64-Setup.exe",
+        "SugarSubstitute-*-macOS-Apple-Silicon.dmg",
+        "SugarSubstitute-*-Linux-x86_64.AppImage",
+        "SugarSubstitute-*-Linux-amd64.deb",
         "installer-payload-windows-x64-v*.zip",
         "installer-payload-macos-arm64-v*.zip",
         "installer-payload-linux-x64-v*.zip",
@@ -498,10 +570,10 @@ def test_release_notes_link_directly_to_tagged_platform_installers(
         "https://github.com/Artificial-Sweetener/Substitute-Test/"
         "releases/download/v1.2.3"
     )
-    assert f"{asset_root}/SugarSubstitute-Installer-Windows-x64.exe" in notes
-    assert f"{asset_root}/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg" in notes
-    assert f"{asset_root}/SugarSubstitute-Installer-Linux-x86_64.AppImage" in notes
-    assert f"{asset_root}/SugarSubstitute-Installer-Linux-amd64.deb" in notes
+    assert f"{asset_root}/SugarSubstitute-1.2.3-Windows-x64-Setup.exe" in notes
+    assert f"{asset_root}/SugarSubstitute-1.2.3-macOS-Apple-Silicon.dmg" in notes
+    assert f"{asset_root}/SugarSubstitute-1.2.3-Linux-x86_64.AppImage" in notes
+    assert f"{asset_root}/SugarSubstitute-1.2.3-Linux-amd64.deb" in notes
     icon_root = (
         "https://raw.githubusercontent.com/Artificial-Sweetener/Substitute-Test/"
         "v1.2.3/docs/release/platforms"
@@ -550,6 +622,32 @@ process.stdout.write(JSON.stringify({
     ].index("## Features")
     assert notes["presented"].endswith("## Features\n\n* Added Cubes.")
     assert notes["original"] == "## Features\n\n* Added Cubes."
+
+
+def test_semantic_release_stage_mode_does_not_publish_stable() -> None:
+    """Semantic release should prepare its commit and tag while GitHub stays staged."""
+
+    script = """
+process.env.SUGAR_SUBSTITUTE_STAGE_ONLY = 'true';
+const publisher = require('./scripts/github-release-publisher.cjs');
+publisher.publish(
+  {repository: 'Artificial-Sweetener/Substitute-Test'},
+  {nextRelease: {version: '1.2.3'}},
+).then((result) => process.stdout.write(JSON.stringify(result)));
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    staged = json.loads(result.stdout)
+    assert staged["name"] == "Staged SugarSubstitute 1.2.3"
+    assert staged["url"].endswith("/releases/tag/v1.2.3")
 
 
 def test_release_notes_generator_rejects_unsafe_versions(tmp_path: Path) -> None:

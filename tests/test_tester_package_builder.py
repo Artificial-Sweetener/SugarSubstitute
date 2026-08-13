@@ -60,7 +60,7 @@ def test_tester_package_places_setup_exe_next_to_release_channel(
         / "SugarSubstitute-installer-payload-windows-x64-v0.4.0.zip"
     ).is_file()
     assert (
-        result.release_channel_dir / "SugarSubstitute-Installer-Windows-x64.exe"
+        result.release_channel_dir / "SugarSubstitute-0.4.0-Windows-x64-Setup.exe"
     ).is_file()
 
     with zipfile.ZipFile(result.zip_path) as archive:
@@ -77,7 +77,7 @@ def test_tester_package_places_setup_exe_next_to_release_channel(
     ) in archive_names
     assert (
         f"{package_root}/dist/.local-release-channel/"
-        "SugarSubstitute-Installer-Windows-x64.exe"
+        "SugarSubstitute-0.4.0-Windows-x64-Setup.exe"
     ) in archive_names
 
 
@@ -120,7 +120,9 @@ def _write_release_channel(root: Path, *, include_launcher: bool = True) -> Path
         root / "SugarSubstitute-installer-payload-windows-x64-v0.4.0.zip",
         "launcher",
     )
-    installer_exe = _write_file(root / SETUP_EXE_NAME, "setup")
+    installer_exe = _write_file(
+        root / "SugarSubstitute-0.4.0-Windows-x64-Setup.exe", "setup"
+    )
     manifest: dict[str, object] = {
         "schema_version": 1,
         "channel": "stable",
