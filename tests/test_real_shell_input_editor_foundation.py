@@ -19,9 +19,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
-from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt
+import pytest
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QImage, QWheelEvent
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication, QWidget
@@ -96,6 +97,94 @@ class _RecordingAssetStager(ComfyAssetStager):
             execution_value=f"{target_subfolder}/{source_path.name}",
             operation="authorized",
         )
+
+
+def test_harness_close_finalizes_input_document_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Harness teardown must settle native document work before process exit."""
+
+    harness = RealShellInputEditorHarness(tmp_path)
+    input_runtime = harness.input_canvas.document.runtime
+    input_execution_runtime = input_runtime.execution_runtime
+    output_runtime = harness.shell.output_canvas.document.runtime
+    output_execution_runtime = output_runtime.execution_runtime
+    original_input_close = input_runtime.close
+    original_input_shutdown = input_execution_runtime.shutdown
+    original_output_close = output_runtime.close
+    original_output_shutdown = output_execution_runtime.shutdown
+    close_calls = {"input": 0, "output": 0}
+    shutdown_waits: dict[str, list[bool]] = {"input": [], "output": []}
+
+    def record_input_close() -> None:
+        """Record and preserve the real Input runtime teardown."""
+
+        close_calls["input"] += 1
+        original_input_close()
+
+    def record_input_shutdown(*, wait: bool = False) -> None:
+        """Record and preserve physical Input execution teardown."""
+
+        shutdown_waits["input"].append(wait)
+        original_input_shutdown(wait=wait)
+
+    def record_output_close() -> None:
+        """Record and preserve the real Output runtime teardown."""
+
+        close_calls["output"] += 1
+        original_output_close()
+
+    def record_output_shutdown(*, wait: bool = False) -> None:
+        """Record and preserve physical Output execution teardown."""
+
+        shutdown_waits["output"].append(wait)
+        original_output_shutdown(wait=wait)
+
+    monkeypatch.setattr(input_runtime, "close", record_input_close)
+    monkeypatch.setattr(input_execution_runtime, "shutdown", record_input_shutdown)
+    monkeypatch.setattr(output_runtime, "close", record_output_close)
+    monkeypatch.setattr(output_execution_runtime, "shutdown", record_output_shutdown)
+    harness.close()
+    harness.close()
+
+    assert close_calls == {"input": 1, "output": 1}
+    assert shutdown_waits == {
+        "input": [False, True],
+        "output": [False, True],
+    }
+
+
+def test_harness_defers_unrelated_sam_native_runtime(tmp_path: Path) -> None:
+    """Input-editor foundation tests must not start the unrelated SAM runtime."""
+
+    harness = RealShellInputEditorHarness(tmp_path)
+    try:
+        assert cast(Any, harness.input_canvas.canvas).samManager() is None
+    finally:
+        harness.close()
+
+
+def test_owned_input_document_teardown_awaits_its_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Standalone Input documents must settle their owned execution runtime."""
+
+    document = InputCanvasDocument(features=("mask",))
+    execution_runtime = document.runtime.execution_runtime
+    original_shutdown = execution_runtime.shutdown
+    shutdown_waits: list[bool] = []
+
+    def record_shutdown(*, wait: bool = False) -> None:
+        """Record and preserve physical execution teardown."""
+
+        shutdown_waits.append(wait)
+        original_shutdown(wait=wait)
+
+    monkeypatch.setattr(execution_runtime, "shutdown", record_shutdown)
+    _close_owned_input_document(document)
+
+    assert shutdown_waits == [False, True]
 
 
 def test_real_shell_input_editor_survives_erratic_full_lifecycle(
@@ -179,7 +268,7 @@ def test_real_shell_input_editor_survives_erratic_full_lifecycle(
                 harness.input_canvas.document.export_mask_image(harness.mask_id)
             )
         finally:
-            restored.close()
+            _close_owned_input_document(restored)
 
         image_preview.close()
         mask_preview.close()
@@ -645,6 +734,16 @@ def _focus_belongs_to(widget: QWidget) -> bool:
 
     focus = QApplication.focusWidget()
     return focus is widget or (focus is not None and widget.isAncestorOf(focus))
+
+
+def _close_owned_input_document(document: InputCanvasDocument) -> None:
+    """Destroy every view and await a standalone document's owned runtime."""
+
+    execution_runtime = document.runtime.execution_runtime
+    document.close()
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    QApplication.processEvents()
+    execution_runtime.shutdown(wait=True)
 
 
 def _nonzero_red_bounds(image: QImage) -> QRect | None:

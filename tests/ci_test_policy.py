@@ -55,6 +55,8 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_generation_queue_presentation.py",
         # Registry controls own native titlebar widgets that can terminate xdist.
         "tests/test_generation_titlebar_control_registry.py",
+        # Live CuteCanvas previews share native offscreen rendering resources.
+        "tests/test_input_node_live_previews.py",
         "tests/test_license_dialog.py",
         # Installer payload replacement is not reliable under xdist handle contention.
         "tests/test_launcher_first_run_install.py",
@@ -74,6 +76,8 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_onboarding_terminal_contract.py",
         "tests/test_onboarding_window_contract.py",
         "tests/test_output_canvas_floating_grid_reflow.py",
+        # Comparison tiles exercise asynchronous native offscreen rendering.
+        "tests/test_output_comparison_tile_abuse.py",
         "tests/test_pending_restart_toolbar_button.py",
         "tests/test_prompt_autocomplete_surface_contract.py",
         "tests/test_prompt_card_mode_contract.py",
@@ -136,6 +140,8 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_real_shell_output_canvas_transfer.py",
         # Real workflow-route transitions exercise native Qt animation timing.
         "tests/test_real_shell_direct_workflow_scenarios.py",
+        # Real Input editor previews share native offscreen rendering resources.
+        "tests/test_real_shell_input_editor_foundation.py",
         "tests/test_real_shell_prompt_editor_autocomplete_scenarios.py",
         # Decoration probes mount the same native real-shell prompt editor.
         "tests/test_real_shell_prompt_editor_decoration_boundaries.py",

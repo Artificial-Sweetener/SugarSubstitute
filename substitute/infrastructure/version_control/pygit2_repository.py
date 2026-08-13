@@ -35,6 +35,9 @@ from substitute.infrastructure.version_control.repository import (
     RepositoryProgressCallback,
 )
 from sugarsubstitute_shared.windows_long_paths import operational_path
+from sugarsubstitute_shared.startup_remote_access import (
+    startup_connectivity_error_from_output,
+)
 
 
 _CHECKOUT_STRATEGY = pygit2.GIT_CHECKOUT_SAFE | pygit2.GIT_CHECKOUT_RECREATE_MISSING
@@ -93,6 +96,10 @@ class Pygit2RepositoryService:
                     )
                 self._fast_forward_current_branch(repository)
             except (KeyError, ValueError, pygit2.GitError) as error:
+                _raise_connectivity_error(
+                    error,
+                    operation="update a required repository",
+                )
                 raise RepositoryOperationError(
                     f"Could not fast-forward repository {repository_path}: {error}"
                 ) from error
@@ -111,6 +118,10 @@ class Pygit2RepositoryService:
                     self._emit(on_progress, f"Fetching {remote.name or remote.url}")
                     remote.fetch()
             except (KeyError, ValueError, pygit2.GitError) as error:
+                _raise_connectivity_error(
+                    error,
+                    operation="fetch a required repository",
+                )
                 raise RepositoryOperationError(
                     f"Could not fetch repository remotes for {repository_path}: {error}"
                 ) from error
@@ -131,6 +142,10 @@ class Pygit2RepositoryService:
             try:
                 repository.remotes.create_anonymous(repository_url).fetch([refspec])
             except (ValueError, pygit2.GitError) as error:
+                _raise_connectivity_error(
+                    error,
+                    operation="fetch a required repository tag",
+                )
                 raise RepositoryOperationError(
                     f"Could not fetch tag {tag} into {repository_path}: {error}"
                 ) from error
@@ -278,3 +293,14 @@ def _status_label(flags: int) -> str:
         | pygit2.GIT_STATUS_WT_UNREADABLE
     )
     return f"{'M' if index_changed else ' '}{'M' if worktree_changed else ' '}"
+
+
+def _raise_connectivity_error(error: BaseException, *, operation: str) -> None:
+    """Promote libgit transport evidence without reclassifying local Git failures."""
+
+    connectivity_error = startup_connectivity_error_from_output(
+        str(error),
+        operation=operation,
+    )
+    if connectivity_error is not None:
+        raise connectivity_error from error

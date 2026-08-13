@@ -97,6 +97,13 @@ class _PendingHostJob:
     queued_at: float
 
 
+@dataclass(frozen=True, slots=True)
+class _DeferredHostSettlement:
+    """Publish one detached future after physical scheduler settlement."""
+
+    complete: Callable[[], object]
+
+
 class HostExecutionSubmission:
     """Cancel one host-scheduler job while it remains pending."""
 
@@ -172,15 +179,17 @@ class HostExecutionScheduler:
         future: Future[TResult] = Future()
 
         def _run() -> object:
-            """Execute detached work and settle its future once."""
+            """Execute detached work and return its deferred settlement."""
 
             if not future.set_running_or_notify_cancel():
                 return False
             try:
-                future.set_result(work())
+                result = work()
             except BaseException as error:  # noqa: BLE001
-                future.set_exception(error)
-            return True
+                return _DeferredHostSettlement(
+                    complete=partial(future.set_exception, error)
+                )
+            return _DeferredHostSettlement(complete=partial(future.set_result, result))
 
         job = HostExecutionJob(
             task_id=uuid.uuid4(),
@@ -351,7 +360,7 @@ class HostExecutionScheduler:
                     entry = self._take_next_locked(resource, affinity_shard)
                 self._mark_running_locked(entry.job)
             try:
-                entry.job.run()
+                result = entry.job.run()
             except BaseException:  # noqa: BLE001
                 self._logger.exception(
                     "Host execution job escaped its lifecycle boundary.",
@@ -360,8 +369,13 @@ class HostExecutionScheduler:
                         "resource": entry.job.requirements.resource.value,
                     },
                 )
+                settlement = None
+            else:
+                settlement = (
+                    result if isinstance(result, _DeferredHostSettlement) else None
+                )
             finally:
-                self._finish_running(entry.job)
+                self._finish_running(entry.job, settlement=settlement)
 
     def _take_next_locked(
         self,
@@ -448,7 +462,12 @@ class HostExecutionScheduler:
                 )
         self._publish_locked()
 
-    def _finish_running(self, job: HostExecutionJob) -> None:
+    def _finish_running(
+        self,
+        job: HostExecutionJob,
+        *,
+        settlement: _DeferredHostSettlement | None,
+    ) -> None:
         """Release computation capacity after worker execution returns."""
 
         requirements = job.requirements
@@ -466,19 +485,30 @@ class HostExecutionScheduler:
                 is HostExecutionLeaseRelease.WORK_FINISHED
             ):
                 self._active_exclusive.discard(requirements.exclusive_key)
+            if settlement is not None:
+                self._release_accepted_locked(job.task_id)
             self._condition.notify_all()
             self._publish_locked()
+        if settlement is not None:
+            settlement.complete()
 
     def _release_accepted(self, task_id: uuid.UUID) -> None:
         """Release retained-payload accounting after lifecycle settlement."""
 
         with self._condition:
-            if task_id not in self._accepted_bytes:
+            if not self._release_accepted_locked(task_id):
                 return
-            self._accepted_bytes.pop(task_id)
-            self._completed += 1
             self._condition.notify_all()
             self._publish_locked()
+
+    def _release_accepted_locked(self, task_id: uuid.UUID) -> bool:
+        """Release accepted accounting while holding the scheduler lock."""
+
+        if task_id not in self._accepted_bytes:
+            return False
+        self._accepted_bytes.pop(task_id)
+        self._completed += 1
+        return True
 
     def _release_exclusive(self, exclusive_key: str) -> None:
         """Release one settlement-held exclusive lease."""

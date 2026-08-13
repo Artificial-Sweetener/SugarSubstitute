@@ -34,6 +34,9 @@ from substitute.infrastructure.process.pip_failure import (
 )
 from substitute.shared.logging.logger import get_logger, log_info
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
+from sugarsubstitute_shared.startup_remote_access import (
+    startup_connectivity_error_from_output,
+)
 
 LogCallback = Callable[[str], None]
 _LOGGER = get_logger("infrastructure.comfy.nodepack_python_dependencies")
@@ -76,6 +79,12 @@ def install_nodepack_python_dependencies(
         fallback_path=nodepack_root,
         output="\n".join(output_lines),
     )
+    connectivity_error = startup_connectivity_error_from_output(
+        "\n".join(output_lines),
+        operation=f"install {display_name} Python dependencies",
+    )
+    if connectivity_error is not None:
+        raise connectivity_error
     raise RuntimeError(f"Could not install {display_name} Python dependencies.")
 
 
@@ -116,6 +125,12 @@ def install_nodepack_requirements(
         fallback_path=nodepack_root,
         output="\n".join(output_lines),
     )
+    connectivity_error = startup_connectivity_error_from_output(
+        "\n".join(output_lines),
+        operation=f"install {display_name} Python dependencies",
+    )
+    if connectivity_error is not None:
+        raise connectivity_error
     raise RuntimeError(f"Could not install {display_name} Python dependencies.")
 
 

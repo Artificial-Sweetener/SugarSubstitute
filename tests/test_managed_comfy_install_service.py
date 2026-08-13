@@ -33,9 +33,12 @@ from substitute.application.onboarding.managed_runtime_service import (
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_existing_setup
+from substitute.infrastructure.comfy import managed_existing_setup_operations
 from substitute.infrastructure.comfy import managed_install_commands
 from substitute.infrastructure.comfy import managed_install_failures
 from substitute.infrastructure.comfy import managed_setup_state
+from substitute.infrastructure.comfy import managed_torch_reconciliation
+from substitute.infrastructure.comfy import managed_workspace_provisioning
 from substitute.infrastructure.comfy import managed_workspace_operations
 from substitute.infrastructure.comfy.hardware_models import AcceleratorClass
 from substitute.infrastructure.comfy.managed_validation import (
@@ -49,7 +52,11 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
 )
 from tests.repository_service_test_double import RecordingRepositoryService
 from sugarsubstitute_shared.external_scratch import ExternalScratchWorkspace
+from sugarsubstitute_shared.startup_remote_access import (
+    STARTUP_REMOTE_DEGRADED_ENV,
+)
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
+from sugarsubstitute_shared.startup_remote_access import StartupConnectivityError
 
 
 @pytest.fixture(autouse=True)
@@ -100,7 +107,17 @@ def _disable_shared_models_link(
     )
     monkeypatch.setattr(managed_install, "detect_hardware", lambda: object())
     monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "detect_hardware",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
         managed_install,
+        "select_install_strategy",
+        lambda **kwargs: strategy,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
         "select_install_strategy",
         lambda **kwargs: strategy,
     )
@@ -120,13 +137,23 @@ def _disable_shared_models_link(
         ),
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_torch_reconciliation,
         "validate_managed_environment",
         lambda **kwargs: SimpleNamespace(
             success=True,
             detail="ok",
             detected_torch_channel="nightly",
         ),
+    )
+    monkeypatch.setattr(
+        managed_workspace_provisioning,
+        "install_selected_torch_backend",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        managed_torch_reconciliation,
+        "install_selected_torch_backend",
+        lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
         ManagedRuntimeService,
@@ -144,9 +171,19 @@ def _disable_shared_models_link(
         lambda workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: None,
     )
     monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "ensure_core_comfy_nodepacks",
+        lambda workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: None,
+    )
+    monkeypatch.setattr(
         managed_install,
         "attempt_sugarcubes_startup_maintenance",
-        lambda workspace, on_log=None, env=None: None,
+        lambda workspace, on_log=None, env=None: True,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "attempt_sugarcubes_startup_maintenance",
+        lambda workspace, on_log=None, env=None: True,
     )
     monkeypatch.setattr(
         managed_install,
@@ -154,7 +191,12 @@ def _disable_shared_models_link(
         lambda **kwargs: None,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_existing_setup_operations,
+        "reconcile_managed_acceleration_stack",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
         "reconcile_managed_workspace_dependencies",
         lambda **kwargs: None,
     )
@@ -207,18 +249,17 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
     )
     monkeypatch.setattr(managed_existing_setup, "trace_span", trace_span)
     monkeypatch.setattr(
-        managed_install,
-        "provision_workspace_manager",
+        managed_existing_setup_operations,
+        "ensure_managed_workspace_manager",
         _fake_provision_workspace_manager,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_existing_setup_operations,
         "ensure_core_comfy_nodepacks",
         lambda workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: (
             refresh_targets.append(frozenset(refresh_nodepacks))
         ),
     )
-
     result = managed_install.ensure_managed_comfy_setup(
         workspace=tmp_path,
         refresh_core_nodepacks={CoreNodepackId.SUBSTITUTE_BACKEND},
@@ -249,6 +290,136 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
         "span:start:managed_setup.scratch.cleanup",
         "span:end:managed_setup.scratch.cleanup",
     ]
+
+
+def test_existing_managed_setup_skips_remote_work_after_launcher_degradation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """An inherited launch fallback must cover every remote setup decision."""
+
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+    monkeypatch.setenv(STARTUP_REMOTE_DEGRADED_ENV, "1")
+
+    def unexpected_remote_work(*_args: object, **_kwargs: object) -> None:
+        """Fail if an inherited fallback permits later remote work."""
+
+        pytest.fail("degraded startup attempted downstream remote work")
+
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "reconcile_managed_workspace_dependencies",
+        unexpected_remote_work,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "ensure_managed_workspace_manager",
+        unexpected_remote_work,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "ensure_core_comfy_nodepacks",
+        unexpected_remote_work,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "attempt_sugarcubes_startup_maintenance",
+        unexpected_remote_work,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "reconcile_managed_acceleration_stack",
+        unexpected_remote_work,
+    )
+
+    result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+
+    assert result == python_path
+    assert not (tmp_path / ".substitute" / "managed_setup_freshness.json").exists()
+
+
+def test_existing_managed_setup_latches_first_remote_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The first remote failure must suppress downstream work for this launch."""
+
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+    downstream_calls: list[str] = []
+
+    def fail_first_remote_step(**_kwargs: object) -> None:
+        """Represent one unavailable prerequisite at the first remote boundary."""
+
+        raise ConnectionError("network unavailable")
+
+    def record_downstream_remote_step(*_args: object, **_kwargs: object) -> None:
+        """Record work that must remain suppressed after degradation."""
+
+        downstream_calls.append("remote")
+
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "reconcile_managed_workspace_dependencies",
+        fail_first_remote_step,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "ensure_managed_workspace_manager",
+        record_downstream_remote_step,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "ensure_core_comfy_nodepacks",
+        record_downstream_remote_step,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "attempt_sugarcubes_startup_maintenance",
+        record_downstream_remote_step,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "reconcile_managed_acceleration_stack",
+        record_downstream_remote_step,
+    )
+
+    result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+
+    assert result == python_path
+    assert downstream_calls == []
+    assert not (tmp_path / ".substitute" / "managed_setup_freshness.json").exists()
+
+
+def test_existing_managed_setup_preserves_non_connectivity_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A local failure must not masquerade as offline launch degradation."""
+
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+
+    def fail_local_output(**_kwargs: object) -> None:
+        """Represent the Windows console failure observed in upgrade CI."""
+
+        raise UnicodeEncodeError("cp1252", "\u2588", 0, 1, "cannot encode")
+
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "reconcile_managed_workspace_dependencies",
+        fail_local_output,
+    )
+
+    with pytest.raises(UnicodeEncodeError):
+        managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
 
 def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
@@ -331,11 +502,12 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         workspace: Path,
         on_log: object | None = None,
         env: object | None = None,
-    ) -> None:
+    ) -> bool:
         """Record SugarCubes baseline maintenance."""
 
         _ = workspace, on_log, env
         calls.append("sugarcubes")
+        return True
 
     def _fake_validate(**_kwargs: object) -> SimpleNamespace:
         """Record torch validation."""
@@ -354,34 +526,38 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
 
         calls.append("acceleration")
 
-    monkeypatch.setattr(managed_install, "detect_hardware", _fake_detect_hardware)
     monkeypatch.setattr(
-        managed_install,
+        managed_existing_setup_operations,
+        "detect_hardware",
+        _fake_detect_hardware,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
         "select_install_strategy",
         _fake_select_install_strategy,
     )
     monkeypatch.setattr(
-        managed_install,
-        "provision_workspace_manager",
+        managed_existing_setup_operations,
+        "ensure_managed_workspace_manager",
         _fake_provision_workspace_manager,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_existing_setup_operations,
         "ensure_core_comfy_nodepacks",
         _fake_ensure_core_comfy_nodepacks,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_existing_setup_operations,
         "attempt_sugarcubes_startup_maintenance",
         _fake_sugarcubes_baseline,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_torch_reconciliation,
         "validate_managed_environment",
         _fake_validate,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_existing_setup_operations,
         "reconcile_managed_acceleration_stack",
         _fake_acceleration,
     )
@@ -450,27 +626,37 @@ def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
     (manager_dir / "cm-cli.py").write_text("cli", encoding="utf-8")
 
     reconciliation_calls: list[str] = []
+
+    def _record_sugarcubes_maintenance(
+        workspace: Path,
+        on_log: object | None = None,
+        env: object | None = None,
+    ) -> object:
+        """Record one successful SugarCubes maintenance result."""
+
+        _ = workspace, on_log, env
+        reconciliation_calls.append("sugarcubes")
+        return object()
+
     monkeypatch.setattr(
-        managed_install,
-        "provision_workspace_manager",
+        managed_existing_setup_operations,
+        "ensure_managed_workspace_manager",
         lambda workspace, on_log=None, env=None: manager_dir / "cm-cli.py",
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_existing_setup_operations,
         "ensure_core_comfy_nodepacks",
         lambda workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: (
             reconciliation_calls.append("nodepacks")
         ),
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_existing_setup_operations,
         "attempt_sugarcubes_startup_maintenance",
-        lambda workspace, on_log=None, env=None: reconciliation_calls.append(
-            "sugarcubes"
-        ),
+        _record_sugarcubes_maintenance,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_existing_setup_operations,
         "reconcile_managed_acceleration_stack",
         lambda **kwargs: reconciliation_calls.append("acceleration"),
     )
@@ -570,6 +756,37 @@ def test_pip_install_raises_when_streamed_install_fails(
             tmp_path / "python.exe",
             "comfy-cli",
             on_log=lambda message: None,
+        )
+
+
+def test_pip_install_promotes_connectivity_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Pip transport evidence must reach the launch-scoped fallback as a type."""
+
+    def fail_offline(
+        _command: list[str],
+        *,
+        cwd: Path | None = None,
+        env: dict[str, str] | None = None,
+        on_line: Callable[[str], None] | None = None,
+        creationflags: int = 0,
+    ) -> int:
+        """Emit the connection failure pip reports when its index is unreachable."""
+
+        _ = cwd, env, creationflags
+        assert on_line is not None
+        on_line("NewConnectionError: getaddrinfo failed")
+        return 1
+
+    monkeypatch.setattr(managed_install_commands, "stream_command", fail_offline)
+
+    with pytest.raises(StartupConnectivityError):
+        managed_install_commands.pip_install(
+            tmp_path / "python.exe",
+            "comfy-cli",
+            on_log=lambda _message: None,
         )
 
 
@@ -735,22 +952,22 @@ def test_ensure_managed_comfy_setup_does_not_fallback_after_storage_error(
         )
 
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "sync_managed_workspace_repository",
         _fake_sync_workspace,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "ensure_workspace_virtualenv",
         _fake_ensure_workspace_virtualenv,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "upgrade_workspace_packaging_tools",
         lambda python_executable, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "install_selected_torch_backend",
         _raise_storage_error,
     )
@@ -784,7 +1001,7 @@ def test_ensure_managed_comfy_setup_installs_and_marks_workspace(
         repo_sync_calls.append(workspace)
 
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "sync_managed_workspace_repository",
         _fake_sync_workspace,
     )
@@ -802,24 +1019,24 @@ def test_ensure_managed_comfy_setup_installs_and_marks_workspace(
         return workspace_python
 
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "ensure_workspace_virtualenv",
         _fake_ensure_workspace_virtualenv,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "upgrade_workspace_packaging_tools",
         lambda python_executable, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "install_selected_torch_backend",
         lambda python_executable, *, install_arguments, on_log=None, env=None: (
             install_steps.append("torch")
         ),
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "install_workspace_requirements",
         lambda python_executable, *, workspace, on_log=None, env=None: (
             install_steps.append("requirements")
@@ -837,7 +1054,7 @@ def test_ensure_managed_comfy_setup_installs_and_marks_workspace(
 
     monkeypatch.setattr(
         managed_install,
-        "provision_workspace_manager",
+        "ensure_managed_workspace_manager",
         _fake_provision_workspace_manager,
     )
 
@@ -931,7 +1148,7 @@ def test_new_stable_workspace_uses_verified_standalone_environment(
     )
     monkeypatch.setattr(
         managed_install,
-        "provision_workspace_manager",
+        "ensure_managed_workspace_manager",
         lambda workspace, on_log=None, env=None: (
             workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
         ),
@@ -962,7 +1179,7 @@ def test_ensure_managed_comfy_setup_falls_back_to_stable_when_nightly_validation
         workspace_main_path(workspace).write_text("main", encoding="utf-8")
 
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "sync_managed_workspace_repository",
         _fake_sync_workspace,
     )
@@ -980,30 +1197,37 @@ def test_ensure_managed_comfy_setup_falls_back_to_stable_when_nightly_validation
         return workspace_python
 
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "ensure_workspace_virtualenv",
         _fake_ensure_workspace_virtualenv,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "upgrade_workspace_packaging_tools",
         lambda python_executable, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "install_selected_torch_backend",
         lambda python_executable, *, install_arguments, on_log=None, env=None: (
             install_arguments_seen.append(tuple(install_arguments))
         ),
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_torch_reconciliation,
+        "install_selected_torch_backend",
+        lambda python_executable, *, install_arguments, on_log=None, env=None: (
+            install_arguments_seen.append(tuple(install_arguments))
+        ),
+    )
+    monkeypatch.setattr(
+        managed_workspace_provisioning,
         "install_workspace_requirements",
         lambda python_executable, *, workspace, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
         managed_install,
-        "provision_workspace_manager",
+        "ensure_managed_workspace_manager",
         lambda workspace, on_log=None, env=None: (
             workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
         ),
@@ -1023,7 +1247,7 @@ def test_ensure_managed_comfy_setup_falls_back_to_stable_when_nightly_validation
         )
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_torch_reconciliation,
         "validate_managed_environment",
         lambda **kwargs: next(validations),
     )
@@ -1060,7 +1284,7 @@ def test_ensure_managed_comfy_setup_removes_incomplete_workspace_before_install(
         repo_sync_calls.append(workspace)
 
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "sync_managed_workspace_repository",
         _fake_sync_workspace,
     )
@@ -1078,28 +1302,28 @@ def test_ensure_managed_comfy_setup_removes_incomplete_workspace_before_install(
         return new_python
 
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "ensure_workspace_virtualenv",
         _fake_ensure_workspace_virtualenv,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "upgrade_workspace_packaging_tools",
         lambda python_executable, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "install_selected_torch_backend",
         lambda python_executable, *, install_arguments, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "install_workspace_requirements",
         lambda python_executable, *, workspace, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
         managed_install,
-        "provision_workspace_manager",
+        "ensure_managed_workspace_manager",
         lambda workspace, on_log=None, env=None: (
             workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
         ),
@@ -1138,7 +1362,7 @@ def test_ensure_managed_comfy_setup_accepts_owned_model_paths_bootstrap_file(
         repo_sync_calls.append(workspace)
 
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "sync_managed_workspace_repository",
         _fake_sync_workspace,
     )
@@ -1156,28 +1380,28 @@ def test_ensure_managed_comfy_setup_accepts_owned_model_paths_bootstrap_file(
         return workspace_python
 
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "ensure_workspace_virtualenv",
         _fake_ensure_workspace_virtualenv,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "upgrade_workspace_packaging_tools",
         lambda python_executable, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "install_selected_torch_backend",
         lambda python_executable, *, install_arguments, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "install_workspace_requirements",
         lambda python_executable, *, workspace, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
         managed_install,
-        "provision_workspace_manager",
+        "ensure_managed_workspace_manager",
         lambda workspace, on_log=None, env=None: (
             workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
         ),
@@ -1231,8 +1455,8 @@ def test_ensure_managed_comfy_setup_migrates_legacy_nested_workspace(
     nested_main.write_text("main", encoding="utf-8")
 
     monkeypatch.setattr(
-        managed_install,
-        "provision_workspace_manager",
+        managed_existing_setup_operations,
+        "ensure_managed_workspace_manager",
         lambda workspace, on_log=None, env=None: (
             workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
         ),
@@ -1326,7 +1550,7 @@ def test_ensure_managed_comfy_setup_honors_dependency_failure_stage(
         return workspace_python
 
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "sync_managed_workspace_repository",
         lambda workspace, on_log=None, env=None: _fake_clone_workspace(
             workspace,
@@ -1335,17 +1559,17 @@ def test_ensure_managed_comfy_setup_honors_dependency_failure_stage(
         ),
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "ensure_workspace_virtualenv",
         _fake_ensure_workspace_virtualenv,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "upgrade_workspace_packaging_tools",
         lambda python_executable, on_log=None, env=None: None,
     )
     monkeypatch.setattr(
-        managed_install,
+        managed_workspace_provisioning,
         "install_selected_torch_backend",
         lambda python_executable, *, install_arguments, on_log=None, env=None: (
             managed_install_failures.raise_forced_managed_failure("dependency_install")

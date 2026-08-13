@@ -35,6 +35,9 @@ from substitute.infrastructure.comfy.install_strategy import ManagedInstallStrat
 from substitute.infrastructure.comfy.managed_environment_validator import (
     ManagedEnvironmentValidationResult,
 )
+from substitute.infrastructure.comfy.managed_startup_remote_steps import (
+    ManagedStartupRemoteSteps,
+)
 from substitute.infrastructure.comfy.managed_setup_state import (
     _fresh_installed_setup_record_without_hardware_probe,
     _installed_setup_freshness_is_current,
@@ -48,6 +51,7 @@ from substitute.infrastructure.comfy.managed_setup_state import (
 )
 from substitute.infrastructure.comfy.torch_policy import TorchBackendPolicy
 from substitute.shared.startup_trace import trace_span
+from sugarsubstitute_shared.startup_remote_access import StartupRemoteAccess
 
 
 class ResolvedTorchBackendContract(Protocol):
@@ -168,6 +172,9 @@ def reconcile_existing_managed_setup(
 
     workspace = request.workspace
     python_executable = request.python_executable
+    remote_steps = ManagedStartupRemoteSteps(
+        StartupRemoteAccess.from_environment(request.managed_env)
+    )
     freshness_request = _installed_setup_freshness_request(
         force_cpu_mode=request.force_cpu_mode,
         prefer_edge_torch=request.prefer_edge_torch,
@@ -178,13 +185,25 @@ def reconcile_existing_managed_setup(
             app_text("Checking ComfyUI's Python environment.")
         )
     )
-    with trace_span("managed_setup.existing.reconcile_dependencies"):
-        operations.reconcile_dependencies(
-            workspace, python_executable, request.managed_env
-        )
-    operations.emit_status("Provisioning ComfyUI-Manager.")
-    with trace_span("managed_setup.existing.provision_manager"):
-        operations.provision_manager(workspace, request.managed_env)
+    remote_steps.run(
+        operation="reconcile_dependencies",
+        action=lambda: _reconcile_dependencies(
+            operations=operations,
+            workspace=workspace,
+            python_executable=python_executable,
+            managed_env=request.managed_env,
+        ),
+    )
+    if not remote_steps.degraded:
+        operations.emit_status("Provisioning ComfyUI-Manager.")
+    remote_steps.run(
+        operation="provision_manager",
+        action=lambda: _provision_manager(
+            operations=operations,
+            workspace=workspace,
+            managed_env=request.managed_env,
+        ),
+    )
     if request.configure_model_root:
         with trace_span("managed_setup.existing.configure_model_root"):
             operations.configure_model_root(
@@ -199,10 +218,11 @@ def reconcile_existing_managed_setup(
         refresh_core_nodepacks=request.refresh_core_nodepacks,
     )
     if fast_record is not None:
-        _record_cached_installed_setup_success(
-            runtime_recorder=request.runtime_recorder,
-            record=fast_record,
-        )
+        if not remote_steps.degraded:
+            _record_cached_installed_setup_success(
+                runtime_recorder=request.runtime_recorder,
+                record=fast_record,
+            )
         operations.emit_status("Managed ComfyUI setup is current.")
         return python_executable
 
@@ -240,62 +260,154 @@ def reconcile_existing_managed_setup(
             else None
         )
         if existing_validation is not None:
-            _write_installed_setup_freshness(
-                workspace=workspace,
-                key=freshness_key,
-                request=freshness_request,
-                runtime_configuration=runtime_configuration,
-                validation=existing_validation,
-            )
+            if not remote_steps.degraded:
+                _write_installed_setup_freshness(
+                    workspace=workspace,
+                    key=freshness_key,
+                    request=freshness_request,
+                    runtime_configuration=runtime_configuration,
+                    validation=existing_validation,
+                )
         operations.emit_status("Managed ComfyUI setup is current.")
         return python_executable
 
-    operations.emit_status("Installing Substitute Comfy nodepacks.")
-    with trace_span("managed_setup.existing.ensure_nodepacks"):
-        operations.ensure_nodepacks(
+    if not remote_steps.degraded:
+        operations.emit_status("Installing Substitute Comfy nodepacks.")
+    remote_steps.run(
+        operation="ensure_nodepacks",
+        action=lambda: _ensure_nodepacks(
+            operations=operations,
+            request=request,
+        ),
+    )
+    if request.configure_model_root:
+        operations.configure_model_root(
             workspace,
-            request.refresh_core_nodepacks,
-            request.managed_env,
+            python_executable,
+            request.managed_model_root,
         )
-        if request.configure_model_root:
-            operations.configure_model_root(
-                workspace,
-                python_executable,
-                request.managed_model_root,
-            )
-    operations.emit_status("Preparing Base-Cubes dependencies.")
-    with trace_span("managed_setup.existing.sugarcubes_baseline"):
-        operations.prepare_sugarcubes(workspace, request.managed_env)
+    if not remote_steps.degraded:
+        operations.emit_status("Preparing Base-Cubes dependencies.")
+    remote_steps.run(
+        operation="sugarcubes_baseline",
+        action=lambda: _prepare_sugarcubes(
+            operations=operations,
+            workspace=workspace,
+            managed_env=request.managed_env,
+        ),
+    )
     with trace_span("managed_setup.existing.validate_torch"):
         resolved_backend, validation = operations.validate_torch(
             workspace,
             strategy.torch_policy,
         )
     _record_torch_outcome(request.runtime_recorder, resolved_backend, validation)
-    if not validation.success:
-        resolved_backend, validation = operations.install_and_validate_torch(
-            python_executable,
-            workspace,
-            strategy.torch_policy,
-            request.managed_env,
+    if not validation.success and not remote_steps.degraded:
+        repair = remote_steps.run(
+            operation="install_and_validate_torch",
+            action=lambda: operations.install_and_validate_torch(
+                python_executable,
+                workspace,
+                strategy.torch_policy,
+                request.managed_env,
+            ),
         )
-        _record_torch_outcome(request.runtime_recorder, resolved_backend, validation)
-    if not validation.success:
+        if repair.completed and repair.value is not None:
+            resolved_backend, validation = repair.value
+            _record_torch_outcome(
+                request.runtime_recorder,
+                resolved_backend,
+                validation,
+            )
+    if not validation.success and not remote_steps.degraded:
         raise RuntimeError(validation.detail)
-    with trace_span("managed_setup.existing.acceleration"):
-        operations.reconcile_acceleration(workspace, detection, request.managed_env)
+    remote_steps.run(
+        operation="reconcile_acceleration",
+        action=lambda: _reconcile_acceleration(
+            operations=operations,
+            workspace=workspace,
+            detection=detection,
+            managed_env=request.managed_env,
+        ),
+    )
     freshness_key = _installed_setup_freshness_key(
         workspace=workspace,
         strategy=strategy,
     )
-    _write_installed_setup_freshness(
-        workspace=workspace,
-        key=freshness_key,
-        request=freshness_request,
-        runtime_configuration=runtime_configuration,
-        validation=validation,
-    )
+    if not remote_steps.degraded:
+        _write_installed_setup_freshness(
+            workspace=workspace,
+            key=freshness_key,
+            request=freshness_request,
+            runtime_configuration=runtime_configuration,
+            validation=validation,
+        )
     return python_executable
+
+
+def _reconcile_dependencies(
+    *,
+    operations: ExistingManagedSetupOperations,
+    workspace: Path,
+    python_executable: Path,
+    managed_env: Mapping[str, str],
+) -> None:
+    """Run dependency reconciliation inside its startup trace span."""
+
+    with trace_span("managed_setup.existing.reconcile_dependencies"):
+        operations.reconcile_dependencies(workspace, python_executable, managed_env)
+
+
+def _provision_manager(
+    *,
+    operations: ExistingManagedSetupOperations,
+    workspace: Path,
+    managed_env: Mapping[str, str],
+) -> None:
+    """Run Manager provisioning inside its startup trace span."""
+
+    with trace_span("managed_setup.existing.provision_manager"):
+        operations.provision_manager(workspace, managed_env)
+
+
+def _ensure_nodepacks(
+    *,
+    operations: ExistingManagedSetupOperations,
+    request: ExistingManagedSetupRequest,
+) -> None:
+    """Run core nodepack reconciliation inside its startup trace span."""
+
+    with trace_span("managed_setup.existing.ensure_nodepacks"):
+        operations.ensure_nodepacks(
+            request.workspace,
+            request.refresh_core_nodepacks,
+            request.managed_env,
+        )
+
+
+def _prepare_sugarcubes(
+    *,
+    operations: ExistingManagedSetupOperations,
+    workspace: Path,
+    managed_env: Mapping[str, str],
+) -> None:
+    """Run optional SugarCubes preparation inside its startup trace span."""
+
+    with trace_span("managed_setup.existing.sugarcubes_baseline"):
+        operations.prepare_sugarcubes(workspace, managed_env)
+
+
+def _reconcile_acceleration(
+    *,
+    operations: ExistingManagedSetupOperations,
+    workspace: Path,
+    detection: HardwareDetectionResult,
+    managed_env: Mapping[str, str],
+) -> None:
+    """Run acceleration reconciliation inside its startup trace span."""
+
+    with trace_span("managed_setup.existing.acceleration"):
+        operations.reconcile_acceleration(workspace, detection, managed_env)
 
 
 def _record_torch_outcome(

@@ -29,6 +29,7 @@ from typing import Any, cast
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments, parse_launcher_args
 from launcher.sugarsubstitute_launcher.application_launch import (
     enter_installed_application_launch,
+    installed_application_environment,
 )
 from launcher.sugarsubstitute_launcher.connectivity import ReleaseConnectivityVerifier
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
@@ -68,6 +69,7 @@ from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 _LOGGER = logging.getLogger(__name__)
+_PRE_LAUNCH_MANIFEST_TIMEOUT_SECONDS = 3.0
 LauncherMainWindow: Callable[..., Any] | None = None
 
 
@@ -160,7 +162,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     ),
                     splash_session,
                 ),
-                environment=launch_guard.initial_handoff_environment(),
+                environment=installed_application_environment(
+                    launch_guard,
+                    remote_failure_reason=update_result.failure_reason,
+                ),
             )
             return 0
         except Exception as error:
@@ -231,7 +236,10 @@ def _launcher_main_window_class() -> Callable[..., Any]:
 def create_normal_launch_release_source(config: LauncherConfig) -> ReleaseSource | None:
     """Return the configured release source for normal launcher startup."""
 
-    return release_source_from_config(config.release_source)
+    return release_source_from_config(
+        config.release_source,
+        timeout_seconds=_PRE_LAUNCH_MANIFEST_TIMEOUT_SECONDS,
+    )
 
 
 def resolve_install_root(
