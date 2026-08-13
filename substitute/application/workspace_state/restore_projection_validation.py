@@ -30,7 +30,6 @@ from substitute.application.workspace_state.restore_projection_codec import (
     restore_projection_artifact_to_json,
 )
 from substitute.application.workspace_state.restore_projection_models import (
-    APP_PROJECTION_VERSION,
     RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
     RestoreProjectionArtifact,
 )
@@ -106,11 +105,6 @@ class RestoreProjectionValidationService:
             return _validation_result(
                 RestoreProjectionCacheState.SCHEMA_MISMATCH,
                 "Cache schema version is incompatible.",
-            )
-        if artifact.app_projection_version != APP_PROJECTION_VERSION:
-            return _validation_result(
-                RestoreProjectionCacheState.SCHEMA_MISMATCH,
-                "App projection version is incompatible.",
             )
         unsafe_range_paths = _unsafe_slider_range_paths(
             restore_projection_artifact_to_json(artifact)

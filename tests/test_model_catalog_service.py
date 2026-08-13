@@ -125,7 +125,6 @@ def test_model_catalog_lists_model_kinds_separately(tmp_path: Path) -> None:
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     checkpoints = service.list_models("checkpoints")
@@ -155,7 +154,6 @@ def test_model_catalog_cached_models_never_loads_missing_kind(tmp_path: Path) ->
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     assert service.cached_models("checkpoints") is None
@@ -202,7 +200,6 @@ def test_model_catalog_snapshot_loads_are_single_flight(tmp_path: Path) -> None:
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
     snapshots: list[ModelCatalogSnapshot] = []
     errors: list[BaseException] = []
@@ -252,7 +249,6 @@ def test_model_catalog_builds_cache_only_snapshot_without_backend(
                 ),
             )
         ),
-        model_metadata_root=tmp_path,
     )
 
     snapshot = service.cached_metadata_snapshot_for_kind("loras")
@@ -286,7 +282,6 @@ def test_model_catalog_refresh_snapshot_installs_canonical_generation(
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     first_snapshot = service.refresh_snapshot("loras")
@@ -327,7 +322,6 @@ def test_model_catalog_uses_live_loras_enriched_by_cache_when_backend_available(
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=catalog,
-        model_metadata_root=tmp_path,
     )
 
     items = service.list_models("loras")
@@ -369,7 +363,6 @@ def test_model_catalog_refresh_reconciles_lora_cache_bootstrap_with_backend(
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=catalog,
-        model_metadata_root=tmp_path,
     )
 
     initial_snapshot = service.snapshot_for_kind("loras")
@@ -405,7 +398,6 @@ def test_model_catalog_refresh_shows_empty_loras_when_backend_returns_empty(
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=catalog,
-        model_metadata_root=tmp_path,
     )
 
     snapshot = service.refresh_snapshot("loras")
@@ -425,7 +417,6 @@ def test_model_catalog_loads_durable_snapshot_without_backend(
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
         snapshot_store=snapshot_store,
     )
     saved_snapshot = service.refresh_snapshot("loras")
@@ -433,7 +424,6 @@ def test_model_catalog_loads_durable_snapshot_without_backend(
     fresh_service = ModelCatalogService(
         backend=fresh_backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
         snapshot_store=SqliteModelCatalogSnapshotStore(tmp_path),
     )
 
@@ -459,7 +449,6 @@ def test_model_catalog_invalidate_clears_snapshot_and_advances_generation(
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     initial_snapshot = service.snapshot_for_kind("loras")
@@ -501,7 +490,6 @@ def test_model_catalog_merges_cached_metadata_by_sha256(tmp_path: Path) -> None:
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=catalog,
-        model_metadata_root=tmp_path,
     )
 
     item = service.list_models("checkpoints")[0]
@@ -557,7 +545,6 @@ def test_model_catalog_falls_back_to_kind_value_and_relative_path(
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=catalog,
-        model_metadata_root=tmp_path,
     )
 
     item = service.list_models("checkpoints")[0]
@@ -609,7 +596,6 @@ def test_model_catalog_preserves_thumbnail_variants_without_file_checks(
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=catalog,
-        model_metadata_root=tmp_path,
     )
 
     item = service.list_models("checkpoints")[0]
@@ -649,7 +635,6 @@ def test_model_catalog_sorts_and_flags_basename_collisions(tmp_path: Path) -> No
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     items = service.list_models("checkpoints")
@@ -672,7 +657,6 @@ def test_model_catalog_keeps_lora_prompt_rules_out_of_generic_rows(
     service = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     item = service.list_models("loras")[0]

@@ -160,7 +160,7 @@ def test_streaming_client_retains_only_active_and_english_branches(
     assert response.closed is True
     assert published == [True]
     cache_document = json.loads(
-        next((tmp_path / "comfy_i18n").glob("*.json")).read_text(encoding="utf-8")
+        next(tmp_path.glob("*.json")).read_text(encoding="utf-8")
     )
     assert "ja" not in json.dumps(cache_document, ensure_ascii=False)
     assert set(cache_document) == {

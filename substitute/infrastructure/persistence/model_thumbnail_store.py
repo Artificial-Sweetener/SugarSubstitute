@@ -21,7 +21,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import requests
@@ -55,7 +54,6 @@ class ModelThumbnailStore:
 
     def __init__(
         self,
-        model_metadata_root: Path,
         *,
         http_get: HttpGet = requests.get,
         timeout_seconds: float = 20.0,
@@ -65,7 +63,6 @@ class ModelThumbnailStore:
     ) -> None:
         """Initialize the thumbnail preparer."""
 
-        self._root = model_metadata_root.resolve()
         self._http_get = http_get
         self._timeout_seconds = timeout_seconds
         self._variant_sizes = variant_sizes or (128, 256, 512)

@@ -19,7 +19,7 @@ next_extraction = "Extract installation execution and platform-window integratio
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]
-fingerprint = "sha256:680726017702b505562a682eeb3c458ea3df8b7b9090cc54a9253b460d749136"
+fingerprint = "sha256:0e572a7363af5b863e4e4fab82372240b7b0a4b05ada4ad16817b1750ecdd76c"
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
 responsibilities = [
@@ -202,7 +202,7 @@ next_extraction = "Extract output-run allocation and live-result projection from
 id = "SS-ARCH-014"
 owner = "model catalog"
 paths = ["substitute/application/model_metadata/model_catalog_service.py"]
-fingerprint = "sha256:ffc5aeeacf152103210b01a30deed596cfc8307e48a80e7e4d3eea9026fc04df"
+fingerprint = "sha256:f1358caed2e399dcf7bc06db6760196f62b370da0f71bce0c450cda2914ae19e"
 issue = "chore:SS-ARCH-014"
 review_by = 2026-12-15
 responsibilities = [
@@ -480,38 +480,6 @@ responsibilities = [
   "HTTP response and queue error translation",
 ]
 next_extraction = "Extract listener-session transport from queue mutation and interruption transport."
-
-[[debts]]
-id = "SS-ARCH-033"
-owner = "Danbooru cache persistence"
-paths = ["substitute/infrastructure/persistence/danbooru_cache_store.py"]
-fingerprint = "sha256:48016623b18e03672e3bbce53ad89e3ba17a39fcc9e874bf92778f102f893def"
-issue = "chore:SS-ARCH-033"
-review_by = 2026-12-15
-responsibilities = [
-  "wiki, tag, and post metadata persistence",
-  "post-search persistence",
-  "binary preview asset persistence and file ownership",
-  "cache clearing and summary accounting",
-  "SQLite schema initialization",
-]
-next_extraction = "Extract preview-asset storage from textual Danbooru metadata and search persistence."
-
-[[debts]]
-id = "SS-ARCH-034"
-owner = "model metadata persistence"
-paths = ["substitute/infrastructure/persistence/sqlite_model_metadata_store.py"]
-fingerprint = "sha256:c10075178c6b33f53c1367df6e509fc6a7df5ffd515b90bde4db48a39c434f93"
-issue = "chore:SS-ARCH-034"
-review_by = 2026-12-15
-responsibilities = [
-  "model metadata record persistence",
-  "provider, file, and image relation persistence",
-  "thumbnail binary storage and variant selection",
-  "cache summaries and selective clearing",
-  "SQLite schema and transaction ownership",
-]
-next_extraction = "Extract thumbnail storage and cache maintenance from normalized model metadata persistence."
 
 [[debts]]
 id = "SS-ARCH-035"

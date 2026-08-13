@@ -26,8 +26,8 @@ from substitute.domain.danbooru import (
     DanbooruLookupStatus,
     DanbooruWikiPageRecord,
 )
-from substitute.infrastructure.persistence.danbooru_cache_store import (
-    SqliteDanbooruCacheStore,
+from tests.support.danbooru_cache_repository import (
+    build_danbooru_cache_repository,
 )
 
 
@@ -36,7 +36,7 @@ def test_wiki_renderer_audit_service_detects_known_quoted_link_patterns(
 ) -> None:
     """The audit service should inventory quoted links found in cached wiki bodies."""
 
-    store = SqliteDanbooruCacheStore(tmp_path)
+    store = build_danbooru_cache_repository(tmp_path)
     store.save_cached_wiki_page(
         DanbooruCachedWikiPage(
             title="serious",
@@ -82,7 +82,7 @@ def test_wiki_renderer_audit_service_ignores_supported_post_embeds(
 ) -> None:
     """The audit service should not report already supported post embed syntax."""
 
-    store = SqliteDanbooruCacheStore(tmp_path)
+    store = build_danbooru_cache_repository(tmp_path)
     store.save_cached_wiki_page(
         DanbooruCachedWikiPage(
             title="center_opening",

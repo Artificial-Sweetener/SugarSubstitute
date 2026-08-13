@@ -36,7 +36,6 @@ from substitute.application.workspace_state.restore_projection_codec import (
     restore_projection_artifact_to_json,
 )
 from substitute.application.workspace_state.restore_projection_models import (
-    APP_PROJECTION_VERSION,
     RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
     CachedCubeProjection,
     CachedCubeStackProjection,
@@ -377,7 +376,7 @@ def test_validation_reports_schema_mismatch_from_constructed_artifact() -> None:
     """Validation should handle incompatible artifacts even when already parsed."""
 
     workspace = _workspace()
-    artifact = replace(_artifact(workspace), app_projection_version=999)
+    artifact = replace(_artifact(workspace), schema_version=999)
 
     result = RestoreProjectionValidationService().validate_before_backend(
         artifact,
@@ -439,13 +438,11 @@ def _artifact(
     return RestoreProjectionArtifact(
         schema_version=RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
         created_at="2026-05-10T00:00:00Z",
-        app_projection_version=APP_PROJECTION_VERSION,
         target_key=target_key,
         workspace_fingerprint=workspace_projection_fingerprint(workspace),
         active_route=workspace.active_route,
         active_workflow_id=workspace.active_workflow_id,
         workflows=(workflow,),
-        prompt_editor_feature_profile_fingerprint="profile-fp",
         node_definition_fingerprints={"CLIPTextEncode": "node-fp"},
         cube_definition_fingerprints={"workflow-a:Scene": "cube-fp"},
         projection={"mode": "live"},

@@ -29,7 +29,6 @@ from substitute.application.workspace_state.restore_projection_identity import (
     node_definition_fingerprint,
 )
 from substitute.application.workspace_state.restore_projection_models import (
-    APP_PROJECTION_VERSION,
     RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
     CachedCubeProjection,
     CachedCubeStackProjection,
@@ -146,13 +145,11 @@ def _artifact(
     return RestoreProjectionArtifact(
         schema_version=RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
         created_at="2026-07-16T00:00:00Z",
-        app_projection_version=APP_PROJECTION_VERSION,
         target_key="target",
         workspace_fingerprint="workspace",
         active_route="workflow-a",
         active_workflow_id="workflow-a",
         workflows=(workflow,),
-        prompt_editor_feature_profile_fingerprint="prompt",
         node_definition_fingerprints={
             "KSampler": node_definition_fingerprint(node_definition)
         },

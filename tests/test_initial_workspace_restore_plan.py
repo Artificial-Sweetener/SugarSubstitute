@@ -23,7 +23,6 @@ from datetime import datetime, timezone
 
 from substitute.application.ports import SessionSnapshotRepository
 from substitute.application.workspace_state import (
-    APP_PROJECTION_VERSION,
     InitialWorkspaceRestorePlan,
     InitialWorkspaceRestorePlanService,
     RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
@@ -368,13 +367,11 @@ def _projection_artifact(
     return RestoreProjectionArtifact(
         schema_version=RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
         created_at="2026-05-10T00:00:00Z",
-        app_projection_version=APP_PROJECTION_VERSION,
         target_key=target_key,
         workspace_fingerprint=workspace_projection_fingerprint(workspace),
         active_route=workspace.active_route,
         active_workflow_id=workspace.active_workflow_id,
         workflows=(),
-        prompt_editor_feature_profile_fingerprint="prompt",
         node_definition_fingerprints={},
         cube_definition_fingerprints={},
         projection={},

@@ -33,6 +33,7 @@ from substitute.app.bootstrap.startup_model_metadata import (
 from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
 )
+from substitute.application.cache_lifecycle import PreparedCacheCatalog
 from substitute.application.ports.startup_diagnostics_ignore_repository import (
     StartupDiagnosticsIgnoreRepository,
 )
@@ -96,13 +97,14 @@ def test_startup_shell_composition_ports_expose_shell_callables() -> None:
     )
 
     context = cast(InstallationContext, object())
+    prepared_caches = cast(PreparedCacheCatalog, object())
 
     assert ports.build_main_window() == "build_main_window"
     assert ports.show_main_window() == "show_main_window"
     assert ports.show_built_main_window() == "show_built_main_window"
     assert ports.main_window_for_shell(object()) == "main_window_for_shell"
     assert (
-        ports.build_model_metadata_refresh_service(context)
+        ports.build_model_metadata_refresh_service(context, prepared_caches)
         == "build_model_metadata_refresh_service"
     )
     assert ports.is_comfy_http_ready("127.0.0.1", 8188) is True
@@ -200,10 +202,7 @@ def test_startup_facade_uses_shell_composition_port_bundle() -> None:
         "main_window_for_shell=self.shell_ports.main_window_for_shell" in launch_source
     )
     assert "readiness_probe=self.shell_ports.is_comfy_http_ready" in launch_source
-    assert (
-        "self.shell_ports.build_model_metadata_refresh_service(context)"
-        in launch_source
-    )
+    assert "self.shell_ports.build_model_metadata_refresh_service(" in launch_source
     assert "build_main_window=composition.build_main_window" not in source
     assert "show_main_window=composition.show_main_window" not in source
     assert "show_built_main_window=composition.show_built_main_window" not in source

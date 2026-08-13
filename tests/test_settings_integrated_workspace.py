@@ -169,7 +169,9 @@ from tests.execution_testing import ImmediateTaskSubmitter
 from substitute.infrastructure.persistence import (
     FileCivitaiPreferenceRepository,
     FileDanbooruPreferenceRepository,
-    SqliteDanbooruCacheStore,
+)
+from tests.support.danbooru_cache_repository import (
+    build_danbooru_cache_repository,
 )
 
 if os.environ.get("PYTEST_XDIST_WORKER"):
@@ -613,7 +615,7 @@ def test_settings_workspace_uses_user_intent_navigation_order(
         danbooru_preference_service=DanbooruPreferenceService(
             FileDanbooruPreferenceRepository(tmp_path / "config")
         ),
-        danbooru_cache_repository=SqliteDanbooruCacheStore(tmp_path / "state"),
+        danbooru_cache_repository=build_danbooru_cache_repository(tmp_path / "state"),
         civitai_preference_service=CivitaiPreferenceService(
             FileCivitaiPreferenceRepository(tmp_path / "settings")
         ),
@@ -1928,7 +1930,9 @@ def _settings_workspace(tmp_path: Path) -> Any:
         danbooru_preference_service=DanbooruPreferenceService(
             FileDanbooruPreferenceRepository(tmp_path / "danbooru-settings")
         ),
-        danbooru_cache_repository=SqliteDanbooruCacheStore(tmp_path / "danbooru-cache"),
+        danbooru_cache_repository=build_danbooru_cache_repository(
+            tmp_path / "danbooru-cache"
+        ),
         civitai_preference_service=CivitaiPreferenceService(
             FileCivitaiPreferenceRepository(tmp_path / "civitai-settings")
         ),
