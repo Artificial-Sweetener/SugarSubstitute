@@ -39,7 +39,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
-from launcher.sugarsubstitute_launcher.runtime import RuntimeProvisioningResult  # noqa: E402
+from launcher.sugarsubstitute_launcher.runtime_models import (  # noqa: E402
+    RuntimeProvisioningResult,
+)
 from launcher.sugarsubstitute_launcher.runtime_reconciliation import (  # noqa: E402
     RuntimeReconciliationProgress,
 )

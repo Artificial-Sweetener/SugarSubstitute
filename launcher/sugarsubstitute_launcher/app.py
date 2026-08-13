@@ -27,6 +27,9 @@ from pathlib import Path
 from typing import Any, cast
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments, parse_launcher_args
+from launcher.sugarsubstitute_launcher.application.installation.composition import (
+    build_installation_workflow,
+)
 from launcher.sugarsubstitute_launcher.application_launch import (
     enter_installed_application_launch,
 )
@@ -47,6 +50,7 @@ from launcher.sugarsubstitute_launcher.platforms import detect_launcher_target
 from launcher.sugarsubstitute_launcher.process import (
     build_app_launch_command,
     start_detached,
+    start_detached_handoff,
 )
 from launcher.sugarsubstitute_launcher.release_sources import (
     GitHubReleaseSource,
@@ -95,7 +99,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise ValueError("Headless installation requires an explicit install root.")
         layout = InstallLayout.from_root(args.install_root)
         configure_launcher_logging(layout=layout)
-        HeadlessInstallService().install(
+        HeadlessInstallService(
+            workflow=build_installation_workflow(output_callback=_LOGGER.info)
+        ).install(
             install_root=layout.root,
             release_source=_explicit_release_source(args.manifest_url),
         )
@@ -196,6 +202,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 app_launch_error=app_launch_error,
             ),
             update_check_enabled=not args.no_update_check,
+            workflow_factory=lambda output_callback: build_installation_workflow(
+                output_callback=output_callback,
+                process_starter=start_detached_handoff,
+            ),
             handoff_geometry=args.handoff_geometry,
         )
         window.show()

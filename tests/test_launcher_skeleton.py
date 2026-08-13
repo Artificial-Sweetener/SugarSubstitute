@@ -32,6 +32,15 @@ from PySide6.QtWidgets import QApplication, QWidget
 import pytest
 
 from launcher.sugarsubstitute_launcher import app as launcher_app
+from launcher.sugarsubstitute_launcher.application.installation.models import (
+    InstalledApplication,
+)
+from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
+    resolve_initial_install_release_source,
+)
+from launcher.sugarsubstitute_launcher.application.installation.workflow import (
+    InstallationWorkflow,
+)
 from launcher.sugarsubstitute_launcher.app import (
     is_installed_app_launchable,
     resolve_install_root,
@@ -45,6 +54,7 @@ from launcher.sugarsubstitute_launcher.config import (
     ReleaseSourceConfig,
     UpdateCheckConfig,
 )
+from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
 from launcher.sugarsubstitute_launcher.install_layout import (
     InstallLayout,
     default_install_root,
@@ -56,9 +66,14 @@ from launcher.sugarsubstitute_launcher.platforms import (
     detect_launcher_target,
 )
 from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
+from launcher.sugarsubstitute_launcher.ui.installation_execution import (
+    QtInstallationExecutor,
+)
 from launcher.sugarsubstitute_launcher.ui.main_window import (
     LauncherMainWindow,
-    resolve_initial_install_release_source,
+)
+from launcher.sugarsubstitute_launcher.ui.window_geometry import (
+    parse_handoff_geometry,
 )
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
 from sugarsubstitute_shared.application_launch_guard import (
@@ -128,6 +143,45 @@ def _write_launcher_executable(layout: InstallLayout) -> None:
 
     layout.executable_path.parent.mkdir(parents=True, exist_ok=True)
     layout.executable_path.write_text("", encoding="utf-8")
+
+
+class _UnusedRuntimeProvisioner:
+    """Provide a runtime result for tests that do not exercise provisioning."""
+
+    def provision(self, *, layout: InstallLayout) -> object:
+        """Return the runtime path without performing installation work."""
+
+        return SimpleNamespace(python_executable=layout.runtime_python)
+
+
+def _workflow_factory(
+    *,
+    layout_preparer: object | None = None,
+    artifact_installer: object | None = None,
+    runtime_provisioner: object | None = None,
+    process_starter: Callable[[Sequence[str]], None] = lambda _command: None,
+) -> Callable[[Callable[[str], None]], InstallationWorkflow]:
+    """Build test workflows from explicit installer boundary doubles."""
+
+    resolved_layout_preparer = layout_preparer or LayoutInstaller()
+    resolved_artifact_installer = artifact_installer or FirstRunInstaller(
+        process_starter=lambda _command: None
+    )
+    resolved_runtime_provisioner = runtime_provisioner or _UnusedRuntimeProvisioner()
+
+    def create_workflow(
+        _output_callback: Callable[[str], None],
+    ) -> InstallationWorkflow:
+        """Return one workflow using the configured test boundaries."""
+
+        return InstallationWorkflow(
+            layout_preparer=cast(Any, resolved_layout_preparer),
+            artifact_installer=cast(Any, resolved_artifact_installer),
+            runtime_provisioner=cast(Any, resolved_runtime_provisioner),
+            process_starter=process_starter,
+        )
+
+    return create_workflow
 
 
 def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
@@ -322,6 +376,69 @@ def test_frozen_local_test_installer_prefers_embedded_release_channel(
     assert source == LocalFolderReleaseSource(release_root.resolve())
 
 
+def test_frozen_installer_uses_production_release_without_embedded_channel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A production frozen installer should resolve the public release channel."""
+
+    monkeypatch.setattr(
+        "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_packaged_release_root",
+        lambda: None,
+    )
+
+    source = resolve_initial_install_release_source(frozen_setup=True)
+
+    assert isinstance(source, GitHubReleaseSource)
+    assert source.manifest_url == DEFAULT_RELEASE_MANIFEST_URL
+
+
+def test_source_installer_uses_worktree_release_channel(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A source-run installer should resolve the worktree-local release channel."""
+
+    release_root = tmp_path / ".local-release-channel"
+    monkeypatch.setattr(
+        "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_packaged_release_root",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_local_release_root",
+        lambda: release_root,
+    )
+
+    source = resolve_initial_install_release_source(frozen_setup=False)
+
+    assert source == LocalFolderReleaseSource(release_root)
+
+
+@pytest.mark.parametrize(
+    "raw_geometry",
+    [None, "", "1,2,3", "1,2,3,4,5", "left,2,300,200", "1,2,0,200"],
+)
+def test_handoff_geometry_rejects_missing_or_invalid_values(
+    raw_geometry: str | None,
+) -> None:
+    """Invalid installer handoff geometry should leave default placement intact."""
+
+    assert parse_handoff_geometry(raw_geometry) is None
+
+
+def test_handoff_geometry_preserves_valid_window_frame() -> None:
+    """Valid installer handoff geometry should preserve position and dimensions."""
+
+    geometry = parse_handoff_geometry("-20,35,1260,800")
+
+    assert geometry is not None
+    assert (geometry.x(), geometry.y(), geometry.width(), geometry.height()) == (
+        -20,
+        35,
+        1260,
+        800,
+    )
+
+
 def test_launcher_config_upgrades_missing_release_source_to_github(
     tmp_path: Path,
 ) -> None:
@@ -459,28 +576,27 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
-        process_starter=lambda _command: None,
-        runtime_installer=cast(Any, object()),
+        workflow_factory=_workflow_factory(),
     )
 
     assert window.width() == 1260
     assert window.height() == 800
     assert window.titleBar.minBtn.isHidden() is True
     assert window.titleBar.maxBtn.isHidden() is True
-    assert window.progress_count_label.text() == "Step 1 of 4"
-    assert window.progress_title_label.text() == "Choose a folder"
-    assert len(window.step_items) == 4
-    assert window.step_items[0].property("stepState") == "active"
-    assert window.step_items[1].property("stepState") == "inactive"
-    assert window._path_edit.text() == str(layout.root)  # noqa: SLF001
-    assert window._path_edit.isEnabled() is True  # noqa: SLF001
-    assert window._browse_button is not None  # noqa: SLF001
-    assert window._browse_button.isEnabled() is True  # noqa: SLF001
-    assert window._primary_button.text() == "Install"  # noqa: SLF001
-    assert isinstance(window._progress_log, TerminalOutputView)  # noqa: SLF001
-    assert window._progress_log.log_view.minimumHeight() == 260  # noqa: SLF001
-    assert window._progress_log.log_view.maximumHeight() == 340  # noqa: SLF001
-    guidance = window._install_location_guidance_label.text()  # noqa: SLF001
+    assert window.view.progress_count_label.text() == "Step 1 of 4"
+    assert window.view.progress_title_label.text() == "Choose a folder"
+    assert len(window.view.step_items) == 4
+    assert window.view.step_items[0].property("stepState") == "active"
+    assert window.view.step_items[1].property("stepState") == "inactive"
+    assert window.view.install_path_edit.text() == str(layout.root)
+    assert window.view.install_path_edit.isEnabled() is True
+    assert window.view.browse_button is not None
+    assert window.view.browse_button.isEnabled() is True
+    assert window.view.primary_button.text() == "Install"
+    assert isinstance(window.view.progress_log, TerminalOutputView)
+    assert window.view.progress_log.log_view.minimumHeight() == 260
+    assert window.view.progress_log.log_view.maximumHeight() == 340
+    guidance = window.view.install_location_guidance_label.text()
     target = detect_launcher_target()
     if target.operating_system is LauncherOperatingSystem.WINDOWS:
         assert "Avoid Program Files" in guidance
@@ -488,9 +604,9 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
         assert "~/Applications/SugarSubstitute" in guidance
     else:
         assert "~/.local/share/SugarSubstitute" in guidance
-    assert "Ready." in window._progress_log.log_view.toPlainText()  # noqa: SLF001
-    assert window._status_panel is not None  # noqa: SLF001
-    assert window._status_panel.isHidden() is True  # noqa: SLF001
+    assert "Ready." in window.view.progress_log.log_view.toPlainText()
+    assert window.view.status_panel is not None
+    assert window.view.status_panel.isHidden() is True
     assert "OnboardingIdentityRail" in window.styleSheet()
     assert "OnboardingSectionPanel" in window.styleSheet()
     window.close()
@@ -507,8 +623,7 @@ def test_launcher_page_fits_fixed_window_with_live_output_visible(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
-        process_starter=lambda _command: None,
-        runtime_installer=cast(Any, object()),
+        workflow_factory=_workflow_factory(),
     )
     window.show()
     qt_application.processEvents()
@@ -523,7 +638,7 @@ def test_launcher_page_fits_fixed_window_with_live_output_visible(
 
         for live_output_visible in (False, True):
             if live_output_visible:
-                window._show_status_output()
+                window.view.show_status_output()
                 qt_application.processEvents()
 
             assert page.sizeHint().height() <= page_stage.contentsRect().height()
@@ -815,8 +930,9 @@ def test_frozen_setup_installs_in_current_window(
     downloaded_exe.parent.mkdir(parents=True)
     downloaded_exe.write_text("", encoding="utf-8")
     handoff_calls: list[tuple[Path, str | None, bool]] = []
+    handoff_commands: list[list[str]] = []
     continue_calls = 0
-    setup_started = 0
+    runtime_calls = 0
 
     class _FakeFirstRunInstaller:
         """Record setup install requests."""
@@ -847,16 +963,27 @@ def test_frozen_setup_installs_in_current_window(
             _ = release_source
             continue_calls += 1
             return SimpleNamespace(
+                layout=layout,
                 app_version="0.4.0",
                 app_command=["python.exe", "main.py", f"--install-root={layout.root}"],
             )
+
+    class _FakeRuntimeInstaller:
+        """Record managed runtime provisioning."""
+
+        def provision(self, *, layout: InstallLayout) -> object:
+            """Return a successful runtime result for the installed layout."""
+
+            nonlocal runtime_calls
+            runtime_calls += 1
+            return SimpleNamespace(python_executable=layout.runtime_python)
 
     monkeypatch.setattr(
         "launcher.sugarsubstitute_launcher.ui.main_window._current_frozen_executable",
         lambda: downloaded_exe,
     )
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.discover_local_release_root",
+        "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_local_release_root",
         lambda: tmp_path / ".local-release-channel",
     )
     window = LauncherMainWindow(
@@ -864,46 +991,97 @@ def test_frozen_setup_installs_in_current_window(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
-        process_starter=lambda _command: None,
-        runtime_installer=cast(Any, object()),
-    )
-    window._first_run_installer = cast(Any, _FakeFirstRunInstaller())  # noqa: SLF001
-    monkeypatch.setattr(
-        window,
-        "_start_setup_worker",
-        lambda: nonlocal_setup_started(),
+        workflow_factory=_workflow_factory(
+            artifact_installer=_FakeFirstRunInstaller(),
+            runtime_provisioner=_FakeRuntimeInstaller(),
+            process_starter=lambda command: handoff_commands.append(list(command)),
+        ),
     )
 
-    def nonlocal_setup_started() -> None:
-        """Record that setup would continue into runtime provisioning."""
-
-        nonlocal setup_started
-        setup_started += 1
-
-    window._primary_button.click()  # noqa: SLF001
-    _pump_events_until(application, lambda: setup_started == 1)
+    window.view.primary_button.click()
+    _pump_events_until(
+        application,
+        lambda: (
+            window.view.primary_button.text() == "Setup started"
+            and not window.execution.setup_running
+        ),
+    )
 
     assert len(handoff_calls) == 1
     assert handoff_calls[0][0] == layout.root
     assert handoff_calls[0][1] is not None
     assert handoff_calls[0][2] is False
     assert continue_calls == 1
-    assert window._prepared_layout == layout  # noqa: SLF001
-    assert window._setup_command is not None  # noqa: SLF001
-    assert window._setup_command[:3] == [  # noqa: SLF001
+    assert runtime_calls == 1
+    assert len(handoff_commands) == 1
+    assert handoff_commands[0][:3] == [
         "python.exe",
         "main.py",
         f"--install-root={layout.root}",
     ]
-    assert window._setup_command[3].startswith("--handoff-geometry=")  # noqa: SLF001
-    assert window._path_edit.isEnabled() is False  # noqa: SLF001
-    assert window._browse_button is not None  # noqa: SLF001
-    assert window._browse_button.isEnabled() is False  # noqa: SLF001
-    assert "Installed launcher:" in window._progress_log.log_view.toPlainText()  # noqa: SLF001
-    assert (  # noqa: SLF001
+    assert handoff_commands[0][3].startswith("--handoff-geometry=")
+    assert window.view.install_path_edit.isEnabled() is False
+    assert window.view.browse_button is not None
+    assert window.view.browse_button.isEnabled() is False
+    assert "Installed launcher:" in window.view.progress_log.log_view.toPlainText()
+    assert (
         "Starting installed launcher."
-        not in window._progress_log.log_view.toPlainText()
+        not in window.view.progress_log.log_view.toPlainText()
     )
+    window.close()
+
+
+def test_initial_install_failure_restores_editable_retry_state(
+    monkeypatch: pytest.MonkeyPatch,
+    qt_application: QApplication,
+    tmp_path: Path,
+) -> None:
+    """A failed launcher install should restore path editing and the install action."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+
+    class _FailingFirstRunInstaller:
+        """Fail the first launcher installation stage."""
+
+        def install_downloaded_launcher(
+            self,
+            *,
+            install_root: Path,
+            release_source: object,
+            handoff_geometry: str | None,
+            launch_installed: bool,
+        ) -> object:
+            """Raise a representative filesystem installation failure."""
+
+            _ = (install_root, release_source, handoff_geometry, launch_installed)
+            raise OSError("launcher copy failed")
+
+    monkeypatch.setattr(
+        "launcher.sugarsubstitute_launcher.ui.main_window._current_frozen_executable",
+        lambda: tmp_path / "SugarSubstitute-Setup-Windows-x64.exe",
+    )
+    window = LauncherMainWindow(
+        initial_layout=layout,
+        continue_install=False,
+        repair=False,
+        update_check_enabled=True,
+        workflow_factory=_workflow_factory(
+            artifact_installer=_FailingFirstRunInstaller(),
+        ),
+    )
+
+    window.view.primary_button.click()
+    _pump_events_until(
+        qt_application,
+        lambda: not window.execution.initial_running,
+    )
+
+    assert window.view.primary_button.text() == "Install"
+    assert window.view.primary_button.isEnabled() is True
+    assert window.view.install_path_edit.isEnabled() is True
+    assert window.view.browse_button is not None
+    assert window.view.browse_button.isEnabled() is True
+    assert "launcher copy failed" in (window.view.progress_log.log_view.toPlainText())
     window.close()
 
 
@@ -933,6 +1111,7 @@ def test_continue_install_auto_starts_runtime_and_setup(
             _ = release_source
             continue_calls += 1
             return SimpleNamespace(
+                layout=layout,
                 app_version="0.4.0",
                 app_command=["python.exe", "main.py", f"--install-root={layout.root}"],
             )
@@ -946,10 +1125,10 @@ def test_continue_install_auto_starts_runtime_and_setup(
             nonlocal runtime_calls
             _ = layout
             runtime_calls += 1
-            return object()
+            return SimpleNamespace(python_executable=layout.runtime_python)
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.discover_local_release_root",
+        "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_local_release_root",
         lambda: tmp_path / ".local-release-channel",
     )
     window = LauncherMainWindow(
@@ -957,17 +1136,17 @@ def test_continue_install_auto_starts_runtime_and_setup(
         continue_install=True,
         repair=False,
         update_check_enabled=True,
-        process_starter=lambda command: handoff_commands.append(list(command)),
-        runtime_installer=_FakeRuntimeInstaller(),
+        workflow_factory=_workflow_factory(
+            artifact_installer=_FakeFirstRunInstaller(),
+            runtime_provisioner=_FakeRuntimeInstaller(),
+            process_starter=lambda command: handoff_commands.append(list(command)),
+        ),
     )
-    window._first_run_installer = cast(Any, _FakeFirstRunInstaller())  # noqa: SLF001
-    window._close_after_successful_handoff = lambda: _record_close_call(  # type: ignore[method-assign]  # noqa: SLF001
-        close_calls_ref
-    )
+    window.handoff_completed.connect(lambda: _record_close_call(close_calls_ref))
     _pump_events_until(
         qt_application,
         lambda: (
-            window._primary_button.text() == "Setup started"  # noqa: SLF001
+            window.view.primary_button.text() == "Setup started"
             and close_calls_ref["count"] == 1
         ),
     )
@@ -985,58 +1164,37 @@ def test_continue_install_auto_starts_runtime_and_setup(
     window.close()
 
 
-def test_setup_handoff_closes_only_after_worker_thread_stops(
+def test_setup_execution_finishes_only_after_worker_thread_stops(
     qt_application: QApplication,
     tmp_path: Path,
 ) -> None:
-    """Successful handoff must hide promptly and close after its thread stops."""
+    """Setup completion is published only after its worker thread has stopped."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
-    close_calls_ref = {"count": 0}
-
-    class _FakeSetupThread:
-        """Record an explicit request to stop the setup worker thread."""
-
-        def __init__(self) -> None:
-            """Initialize the quit-call counter."""
-
-            self.quit_calls = 0
-
-        def quit(self) -> None:
-            """Record one worker event-loop shutdown request."""
-
-            self.quit_calls += 1
-
-    setup_thread = _FakeSetupThread()
-    window = LauncherMainWindow(
-        initial_layout=layout,
-        continue_install=False,
-        repair=False,
-        update_check_enabled=True,
-        process_starter=lambda _command: None,
-        runtime_installer=cast(Any, object()),
+    executor = QtInstallationExecutor(
+        workflow_factory=_workflow_factory(),
     )
-    window.show()
-    qt_application.processEvents()
-    window._setup_thread = cast(Any, setup_thread)  # noqa: SLF001
-    window._setup_worker = cast(Any, object())  # noqa: SLF001
-    window._close_after_successful_handoff = lambda: _record_close_call(  # type: ignore[method-assign]  # noqa: SLF001
-        close_calls_ref
+    events: list[tuple[str, bool]] = []
+    executor.setup_succeeded.connect(
+        lambda: events.append(("succeeded", executor.setup_running))
+    )
+    executor.setup_finished.connect(
+        lambda: events.append(("finished", executor.setup_running))
+    )
+    installed_application = InstalledApplication(
+        layout=layout,
+        app_command=("python.exe", "main.py"),
+        app_version="0.4.0",
+        launcher_installed=True,
     )
 
-    window._handle_setup_worker_succeeded()  # noqa: SLF001
+    assert executor.start_setup(
+        application=installed_application,
+        setup_command=installed_application.app_command,
+    )
+    _pump_events_until(qt_application, lambda: not executor.setup_running)
 
-    assert window._primary_button.text() == "Setup started"  # noqa: SLF001
-    assert window.isVisible() is False
-    assert setup_thread.quit_calls == 1
-    assert close_calls_ref["count"] == 0
-
-    window._forget_setup_worker()  # noqa: SLF001
-
-    assert close_calls_ref["count"] == 1
-    assert window._setup_thread is None  # noqa: SLF001
-    assert window._setup_worker is None  # noqa: SLF001
-    window.close()
+    assert events == [("succeeded", True), ("finished", False)]
 
 
 def test_launcher_continue_installs_app_once(
@@ -1077,6 +1235,7 @@ def test_launcher_continue_installs_app_once(
             _ = release_source
             continue_calls += 1
             return SimpleNamespace(
+                layout=layout,
                 app_version="0.4.0",
                 app_command=["python.exe", "main.py", f"--install-root={layout.root}"],
             )
@@ -1090,10 +1249,10 @@ def test_launcher_continue_installs_app_once(
             nonlocal runtime_calls
             _ = layout
             runtime_calls += 1
-            return object()
+            return SimpleNamespace(python_executable=layout.runtime_python)
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.discover_local_release_root",
+        "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_local_release_root",
         lambda: tmp_path / ".local-release-channel",
     )
     window = LauncherMainWindow(
@@ -1101,22 +1260,22 @@ def test_launcher_continue_installs_app_once(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
-        process_starter=lambda command: handoff_commands.append(list(command)),
-        runtime_installer=_FakeRuntimeInstaller(),
+        workflow_factory=_workflow_factory(
+            layout_preparer=_FakeLayoutInstaller(),
+            artifact_installer=_FakeFirstRunInstaller(),
+            runtime_provisioner=_FakeRuntimeInstaller(),
+            process_starter=lambda command: handoff_commands.append(list(command)),
+        ),
     )
-    window._layout_installer = cast(Any, _FakeLayoutInstaller())  # noqa: SLF001
-    window._first_run_installer = cast(Any, _FakeFirstRunInstaller())  # noqa: SLF001
-    window._close_after_successful_handoff = lambda: _record_close_call(  # type: ignore[method-assign]  # noqa: SLF001
-        close_calls_ref
-    )
+    window.handoff_completed.connect(lambda: _record_close_call(close_calls_ref))
 
-    window._primary_button.click()  # noqa: SLF001
-    window._primary_button.click()  # noqa: SLF001
-    window._primary_button.click()  # noqa: SLF001
+    window.view.primary_button.click()
+    window.view.primary_button.click()
+    window.view.primary_button.click()
     _pump_events_until(
         qt_application,
         lambda: (
-            window._primary_button.text() == "Setup started"  # noqa: SLF001
+            window.view.primary_button.text() == "Setup started"
             and close_calls_ref["count"] == 1
         ),
     )
@@ -1131,11 +1290,11 @@ def test_launcher_continue_installs_app_once(
         f"--install-root={layout.root}",
     ]
     assert handoff_commands[0][3].startswith("--handoff-geometry=")
-    assert window._primary_button.text() == "Setup started"  # noqa: SLF001
-    assert window._primary_button.isEnabled() is False  # noqa: SLF001
-    assert window._path_edit.isEnabled() is False  # noqa: SLF001
-    assert window._browse_button is not None  # noqa: SLF001
-    assert window._browse_button.isEnabled() is False  # noqa: SLF001
+    assert window.view.primary_button.text() == "Setup started"
+    assert window.view.primary_button.isEnabled() is False
+    assert window.view.install_path_edit.isEnabled() is False
+    assert window.view.browse_button is not None
+    assert window.view.browse_button.isEnabled() is False
     assert close_calls_ref["count"] == 1
     window.close()
 
@@ -1169,6 +1328,7 @@ def test_launcher_handoff_failure_keeps_open_setup_enabled(
 
             _ = release_source
             return SimpleNamespace(
+                layout=layout,
                 app_version="0.4.0",
                 app_command=["missing-python.exe", str(layout.app_entrypoint)],
             )
@@ -1180,7 +1340,7 @@ def test_launcher_handoff_failure_keeps_open_setup_enabled(
             """Return a successful runtime provisioning marker."""
 
             _ = layout
-            return object()
+            return SimpleNamespace(python_executable=layout.runtime_python)
 
     def _fail_handoff(_command: Sequence[str]) -> None:
         """Raise the same broad failure class as subprocess startup."""
@@ -1188,7 +1348,7 @@ def test_launcher_handoff_failure_keeps_open_setup_enabled(
         raise OSError("missing-python.exe was not found")
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.discover_local_release_root",
+        "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_local_release_root",
         lambda: tmp_path / ".local-release-channel",
     )
     window = LauncherMainWindow(
@@ -1196,28 +1356,30 @@ def test_launcher_handoff_failure_keeps_open_setup_enabled(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
-        process_starter=_fail_handoff,
-        runtime_installer=_FakeRuntimeInstaller(),
+        workflow_factory=_workflow_factory(
+            layout_preparer=_FakeLayoutInstaller(),
+            artifact_installer=_FakeFirstRunInstaller(),
+            runtime_provisioner=_FakeRuntimeInstaller(),
+            process_starter=_fail_handoff,
+        ),
     )
-    window._layout_installer = cast(Any, _FakeLayoutInstaller())  # noqa: SLF001
-    window._first_run_installer = cast(Any, _FakeFirstRunInstaller())  # noqa: SLF001
 
-    window._primary_button.click()  # noqa: SLF001
-    window._primary_button.click()  # noqa: SLF001
+    window.view.primary_button.click()
+    window.view.primary_button.click()
     _pump_events_until(
         qt_application,
-        lambda: window._primary_button.text() == "Open setup",  # noqa: SLF001
+        lambda: window.view.primary_button.text() == "Open setup",
     )
 
-    assert window._primary_button.text() == "Open setup"  # noqa: SLF001
-    assert window._primary_button.isEnabled() is True  # noqa: SLF001
+    assert window.view.primary_button.text() == "Open setup"
+    assert window.view.primary_button.isEnabled() is True
     assert (
         "Could not start SugarSubstitute setup."
-        in window._progress_log.log_view.toPlainText()
-    )  # noqa: SLF001
+        in window.view.progress_log.log_view.toPlainText()
+    )
     _pump_events_until(
         qt_application,
-        lambda: window._setup_thread is None,  # noqa: SLF001
+        lambda: not window.execution.setup_running,
     )
     window.close()
 
@@ -1252,6 +1414,7 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
 
             _ = release_source
             return SimpleNamespace(
+                layout=layout,
                 app_version="0.4.0",
                 app_command=["python.exe", str(layout.app_entrypoint)],
             )
@@ -1266,7 +1429,7 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
             raise RuntimeError("uv.exe is missing")
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.discover_local_release_root",
+        "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_local_release_root",
         lambda: tmp_path / ".local-release-channel",
     )
     window = LauncherMainWindow(
@@ -1274,29 +1437,31 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
-        process_starter=lambda command: handoff_commands.append(list(command)),
-        runtime_installer=_FailingRuntimeInstaller(),
+        workflow_factory=_workflow_factory(
+            layout_preparer=_FakeLayoutInstaller(),
+            artifact_installer=_FakeFirstRunInstaller(),
+            runtime_provisioner=_FailingRuntimeInstaller(),
+            process_starter=lambda command: handoff_commands.append(list(command)),
+        ),
     )
-    window._layout_installer = cast(Any, _FakeLayoutInstaller())  # noqa: SLF001
-    window._first_run_installer = cast(Any, _FakeFirstRunInstaller())  # noqa: SLF001
 
-    window._primary_button.click()  # noqa: SLF001
-    window._primary_button.click()  # noqa: SLF001
+    window.view.primary_button.click()
+    window.view.primary_button.click()
     _pump_events_until(
         qt_application,
-        lambda: window._primary_button.text() == "Install runtime",  # noqa: SLF001
+        lambda: window.view.primary_button.text() == "Install runtime",
     )
 
     assert handoff_commands == []
-    assert window._primary_button.text() == "Install runtime"  # noqa: SLF001
-    assert window._primary_button.isEnabled() is True  # noqa: SLF001
-    assert (  # noqa: SLF001
+    assert window.view.primary_button.text() == "Install runtime"
+    assert window.view.primary_button.isEnabled() is True
+    assert (
         "Could not install the Python runtime."
-        in window._progress_log.log_view.toPlainText()
+        in window.view.progress_log.log_view.toPlainText()
     )
     _pump_events_until(
         qt_application,
-        lambda: window._setup_thread is None,  # noqa: SLF001
+        lambda: not window.execution.setup_running,
     )
     window.close()
 
