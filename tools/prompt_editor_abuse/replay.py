@@ -115,6 +115,7 @@ def _scenario_from_payload(payload: dict[str, Any]) -> PromptAbuseScenario:
         cursor_position=int(payload.get("cursor_position", 0)),
         viewport_size=_size(payload.get("viewport_size", (720, 240))),
         editor_kind=cast(Any, payload.get("editor_kind", "prompt")),
+        mount_source=cast(Any, payload.get("mount_source", "fresh")),
         seed=cast(int | None, payload.get("seed")),
     )
 

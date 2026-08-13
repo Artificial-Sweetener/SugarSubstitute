@@ -419,13 +419,11 @@ def _artifact(*, active_workflow_id: str) -> RestoreProjectionArtifact:
     return RestoreProjectionArtifact(
         schema_version=1,
         created_at="2026-01-01T00:00:00Z",
-        app_projection_version=1,
         target_key="target",
         workspace_fingerprint="workspace",
         active_route=active_workflow_id,
         active_workflow_id=active_workflow_id,
         workflows=(),
-        prompt_editor_feature_profile_fingerprint="prompt",
         node_definition_fingerprints={},
         cube_definition_fingerprints={},
     )

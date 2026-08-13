@@ -28,6 +28,9 @@ from substitute.application.workspace_state import (
     restore_projection_artifact_from_json,
     restore_projection_artifact_to_json,
 )
+from substitute.infrastructure.cache_lifecycle.atomic_json import (
+    write_json_atomically,
+)
 from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("infrastructure.persistence.file_restore_projection_cache")
@@ -42,7 +45,6 @@ class FileRestoreProjectionCacheRepository(RestoreProjectionCacheRepository):
 
         self._cache_dir = Path(cache_dir)
         self._path = self._cache_dir / _CACHE_FILE_NAME
-        self._temp_path = self._cache_dir / f"{_CACHE_FILE_NAME}.tmp"
 
     @property
     def path(self) -> Path:
@@ -73,17 +75,11 @@ class FileRestoreProjectionCacheRepository(RestoreProjectionCacheRepository):
     def save(self, artifact: RestoreProjectionArtifact) -> None:
         """Persist one restore projection artifact through atomic replacement."""
 
-        serialized = (
-            json.dumps(
-                restore_projection_artifact_to_json(artifact),
-                indent=2,
-                sort_keys=True,
-            )
-            + "\n"
-        )
         self._cache_dir.mkdir(parents=True, exist_ok=True)
-        self._temp_path.write_text(serialized, encoding="utf-8")
-        self._temp_path.replace(self._path)
+        write_json_atomically(
+            self._path,
+            restore_projection_artifact_to_json(artifact),
+        )
 
     def clear(self) -> None:
         """Remove the restore projection cache file when present."""

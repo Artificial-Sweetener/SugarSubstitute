@@ -31,6 +31,7 @@ from substitute.application.ports.startup_diagnostics_ignore_repository import (
 )
 from substitute.domain.comfy_startup_diagnostics import ComfyStartupIncident
 from substitute.domain.onboarding import ComfyTargetConfiguration, InstallationContext
+from substitute.application.cache_lifecycle import PreparedCacheCatalog
 
 if TYPE_CHECKING:
     from substitute.app.bootstrap.startup_model_metadata import (
@@ -58,7 +59,9 @@ class StartupShellCompositionPorts:
     show_main_window: Callable[..., object]
     show_built_main_window: Callable[..., object]
     main_window_for_shell: Callable[[object], object]
-    build_model_metadata_refresh_service: Callable[[InstallationContext], object]
+    build_model_metadata_refresh_service: Callable[
+        [InstallationContext, PreparedCacheCatalog], object
+    ]
     is_comfy_http_ready: Callable[[str, int], bool]
 
 

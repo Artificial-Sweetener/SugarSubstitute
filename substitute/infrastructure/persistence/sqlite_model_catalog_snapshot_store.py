@@ -25,10 +25,16 @@ import json
 from pathlib import Path
 import sqlite3
 
+from substitute.application.cache_lifecycle.cache_ids import (
+    CACHE_ID_MODEL_CATALOG_SNAPSHOTS,
+)
 from substitute.application.model_metadata import (
     ModelCatalogItem,
     ModelCatalogSnapshot,
     ModelThumbnailVariant,
+)
+from substitute.infrastructure.cache_lifecycle.sqlite_recovery import (
+    initialize_recoverable_sqlite,
 )
 
 _DATABASE_NAME = "model_catalog_snapshots.sqlite3"
@@ -45,7 +51,17 @@ class SqliteModelCatalogSnapshotStore:
         self._root = model_metadata_root.resolve()
         self._root.mkdir(parents=True, exist_ok=True)
         self._database_path = self._root / _DATABASE_NAME
-        self._initialize_database()
+        initialize_recoverable_sqlite(
+            self._database_path,
+            cache_id=CACHE_ID_MODEL_CATALOG_SNAPSHOTS,
+            initialize=self._create_or_validate_database,
+            select_database=self._select_database,
+        )
+
+    def _select_database(self, database_path: Path) -> None:
+        """Select a recovery database when the invalid file remains locked."""
+
+        self._database_path = database_path
 
     def load_snapshot(self, kind: str) -> ModelCatalogSnapshot | None:
         """Return the newest durable authoritative snapshot for one kind."""
@@ -156,7 +172,7 @@ class SqliteModelCatalogSnapshotStore:
         finally:
             connection.close()
 
-    def _initialize_database(self) -> None:
+    def _create_or_validate_database(self) -> None:
         """Create the snapshot schema if it does not already exist."""
 
         with self._connect() as connection:

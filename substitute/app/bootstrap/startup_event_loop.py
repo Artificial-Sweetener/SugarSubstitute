@@ -89,12 +89,23 @@ class StartupExecutionRuntimeProtocol(Protocol):
         """Release execution runtime resources."""
 
 
+class StartupCacheRuntimeProtocol(Protocol):
+    """Expose process-lifetime cache fallback cleanup."""
+
+    def close(self) -> None:
+        """Release cache lifecycle resources."""
+
+
 class StartupRuntimeServicesProtocol(Protocol):
     """Expose runtime services needed by event-loop shutdown."""
 
     @property
     def execution_runtime(self) -> StartupExecutionRuntimeProtocol:
         """Return the process-lifetime execution runtime."""
+
+    @property
+    def persistent_cache_runtime(self) -> StartupCacheRuntimeProtocol:
+        """Return the process-lifetime persistent cache runtime."""
 
 
 def run_startup_event_loop_and_shutdown(
@@ -125,6 +136,7 @@ def run_startup_event_loop_and_shutdown(
         start_ready_app_process=start_ready_app_process,
     )
     shutdown_execution_runtime(runtime_services.execution_runtime)
+    close_persistent_cache_runtime(runtime_services.persistent_cache_runtime)
     close_startup_trace()
 
     # Keep references alive until all shutdown side effects finish.
@@ -147,6 +159,17 @@ def shutdown_execution_runtime(
         log_exception(_LOGGER, "Failed to shut down execution runtime")
 
 
+def close_persistent_cache_runtime(
+    cache_runtime: StartupCacheRuntimeProtocol,
+) -> None:
+    """Release temporary cache fallback storage without blocking shutdown."""
+
+    try:
+        cache_runtime.close()
+    except Exception:
+        log_exception(_LOGGER, "Failed to close persistent cache runtime")
+
+
 def close_launch_splash_for_shutdown(splash: StartupSplashProtocol | None) -> None:
     """Close the launch splash during normal shutdown while preserving cleanup."""
 
@@ -160,6 +183,7 @@ def close_launch_splash_for_shutdown(splash: StartupSplashProtocol | None) -> No
 
 __all__ = [
     "StartupApplicationProtocol",
+    "StartupCacheRuntimeProtocol",
     "StartupResourceRegistryProtocol",
     "StartupExecutionRuntimeProtocol",
     "StartupRuntimeServicesProtocol",
@@ -167,5 +191,6 @@ __all__ = [
     "StartupShutdownRuntimeProtocol",
     "StartupSplashProtocol",
     "close_launch_splash_for_shutdown",
+    "close_persistent_cache_runtime",
     "run_startup_event_loop_and_shutdown",
 ]

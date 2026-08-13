@@ -22,8 +22,6 @@ import sqlite3
 from collections.abc import Callable
 from pathlib import Path
 
-import pytest
-
 from substitute.application.ports import (
     CachedCubePickerClassification,
     CachedCubeSearchTerm,
@@ -124,10 +122,10 @@ def test_sqlite_cube_classification_cache_algorithm_version_misses(
     )
 
 
-def test_sqlite_cube_classification_cache_rejects_unknown_schema(
+def test_sqlite_cube_classification_cache_recovers_unknown_schema(
     tmp_path: Path,
 ) -> None:
-    """Unsupported schema versions should fail clearly instead of corrupting rows."""
+    """Unsupported schema versions should be quarantined as a cache miss."""
 
     database_path = tmp_path / "cube_classification_cache.sqlite3"
     with sqlite3.connect(database_path) as connection:
@@ -139,10 +137,10 @@ def test_sqlite_cube_classification_cache_rejects_unknown_schema(
         )
         connection.commit()
 
-    with pytest.raises(RuntimeError) as error:
-        SqliteCubeClassificationCache(tmp_path)
+    cache = SqliteCubeClassificationCache(tmp_path)
 
-    assert "Unsupported cube classification cache SQLite schema version" in str(error)
+    assert cache.read_classification(_cache_key(cube_id="missing")) is None
+    assert tuple((tmp_path / "quarantine").glob("*.invalid"))
 
 
 def _cache_key(
