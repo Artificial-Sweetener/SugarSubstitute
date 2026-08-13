@@ -89,11 +89,17 @@ def test_grid_context_copy_materializes_the_clicked_output_mime(
         harness.shell.output_canvas.activeOutputGridChanged.emit("source")
         harness.process_events(cycles=8)
 
-        workflow = harness.shell.workflow_session_service.workflows[
-            harness.workflows["alpha"].workflow_id
-        ]
-        first_id, second_id = workflow.output_image_uuids
         document = harness.shell.output_canvas.document
+        first_id = next(
+            image_id
+            for image_id in document.image_ids()
+            if document.image_path(image_id) == first_path
+        )
+        second_id = next(
+            image_id
+            for image_id in document.image_ids()
+            if document.image_path(image_id) == second_path
+        )
         second_composition_id = document.composition_id_for(second_id)
         assert second_composition_id is not None
         target = harness.shell.output_canvas.workspace.canvasFor(second_composition_id)
