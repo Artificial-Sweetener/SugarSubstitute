@@ -22,6 +22,7 @@ import copy
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import patch
 from uuid import UUID
 
 from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QRectF, Qt
@@ -76,7 +77,14 @@ class RealShellInputEditorHarness:
         """Build a deterministic shell, project boundary, and inpaint editor panel."""
         self.root = Path(root)
         self._closed = False
-        self._base = RealShellPromptEditorHarness()
+        with patch.dict(
+            "os.environ",
+            {
+                "SUGAR_SUBSTITUTE_STARTUP_HARNESS": "1",
+                "SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM": "1",
+            },
+        ):
+            self._base = RealShellPromptEditorHarness()
         self.shell = cast(Any, self._base.shell)
         self.shell.path_bundle = self._path_bundle(self.root)
         self.shell.node_definition_gateway.install_recorded_definitions(
