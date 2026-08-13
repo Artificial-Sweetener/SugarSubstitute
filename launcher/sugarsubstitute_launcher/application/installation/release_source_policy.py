@@ -14,18 +14,23 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Select the immutable release source used by initial installation."""
+"""Select the release source used by initial installer invocations."""
 
 from __future__ import annotations
 
 from launcher.sugarsubstitute_launcher import __version__ as LAUNCHER_VERSION
+from launcher.sugarsubstitute_launcher.application.installation.models import (
+    ApplicationInstallationRequest,
+    InstallationPreparation,
+    ReleaseManifestSource,
+)
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.release_discovery import (
     discover_local_release_root,
     discover_packaged_release_root,
 )
 from launcher.sugarsubstitute_launcher.release_sources import (
     LocalFolderReleaseSource,
-    ReleaseSource,
     production_installer_release_source,
 )
 
@@ -34,8 +39,8 @@ def resolve_initial_install_release_source(
     *,
     frozen_setup: bool,
     release_version: str = LAUNCHER_VERSION,
-) -> ReleaseSource:
-    """Choose an embedded, version-bound production, or source-run channel."""
+) -> ReleaseManifestSource:
+    """Choose the embedded, version-bound production, or source-run channel."""
 
     packaged_release_root = discover_packaged_release_root()
     if packaged_release_root is not None:
@@ -45,4 +50,36 @@ def resolve_initial_install_release_source(
     return LocalFolderReleaseSource(discover_local_release_root())
 
 
-__all__ = ["resolve_initial_install_release_source"]
+def create_initial_installation_request(
+    *,
+    layout: InstallLayout,
+    frozen_setup: bool,
+    handoff_geometry: str | None,
+) -> ApplicationInstallationRequest:
+    """Build the application request for one fresh installer invocation."""
+
+    preparation = (
+        InstallationPreparation.INSTALL_LAUNCHER
+        if frozen_setup
+        else InstallationPreparation.PREPARE_LAYOUT
+    )
+    return ApplicationInstallationRequest(
+        layout=layout,
+        release_source=resolve_initial_install_release_source(
+            frozen_setup=frozen_setup
+        ),
+        preparation=preparation,
+        handoff_geometry=handoff_geometry,
+    )
+
+
+def create_continued_installation_request(
+    layout: InstallLayout,
+) -> ApplicationInstallationRequest:
+    """Build the local-source request used by installed development launchers."""
+
+    return ApplicationInstallationRequest(
+        layout=layout,
+        release_source=LocalFolderReleaseSource(discover_local_release_root()),
+        preparation=InstallationPreparation.USE_EXISTING_LAYOUT,
+    )

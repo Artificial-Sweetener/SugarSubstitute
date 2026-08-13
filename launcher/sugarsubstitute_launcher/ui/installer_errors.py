@@ -14,11 +14,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Render actionable launcher failure details for presentation surfaces."""
+"""Render actionable localized guidance for installer failures and locations."""
 
 from __future__ import annotations
 
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
+from launcher.sugarsubstitute_launcher.platforms import (
+    LauncherOperatingSystem,
+    detect_launcher_target,
+)
 from sugarsubstitute_shared.external_path_failure import (
     ExternalLongPathCompatibilityError,
 )
@@ -45,4 +49,18 @@ def launcher_failure_detail(error: Exception) -> str:
     return str(error)
 
 
-__all__ = ["launcher_failure_detail"]
+def install_location_guidance() -> str:
+    """Return writable-location guidance for the current launcher target."""
+
+    operating_system = detect_launcher_target().operating_system
+    if operating_system is LauncherOperatingSystem.MACOS:
+        return launcher_text(
+            "Use a writable folder in your home directory, such as ~/Applications/SugarSubstitute. System Applications folders can require administrator access for updates and runtime setup."
+        )
+    if operating_system is LauncherOperatingSystem.LINUX:
+        return launcher_text(
+            "Use a writable folder in your home directory, such as ~/.local/share/SugarSubstitute. System application folders can require administrator access for updates and runtime setup."
+        )
+    return launcher_text(
+        "Use a normal writable folder such as %USERPROFILE%\\SugarSubstitute. Avoid Program Files because Windows can block app updates, runtime setup, and local ComfyUI files there."
+    )

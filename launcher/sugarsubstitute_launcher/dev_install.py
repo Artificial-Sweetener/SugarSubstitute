@@ -29,12 +29,13 @@ from pathlib import Path
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
-from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
-from launcher.sugarsubstitute_launcher.runtime import (
+from launcher.sugarsubstitute_launcher.runtime import UvManagedRuntimeInstaller
+from launcher.sugarsubstitute_launcher.runtime_command import (
     SubprocessRuntimeCommandRunner,
-    UvManagedRuntimeInstaller,
-    runtime_environment,
 )
+from launcher.sugarsubstitute_launcher.runtime_policy import runtime_environment
+from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
+from launcher.sugarsubstitute_launcher.uv_tool import VerifiedUvExecutableProvider
 from launcher.sugarsubstitute_launcher.platforms import (
     LauncherOperatingSystem,
     LauncherTarget,
@@ -104,7 +105,7 @@ def run_clean_dev_install(
 
     log("[3/6] Provisioning Python runtime and app dependencies.")
     runtime_result = UvManagedRuntimeInstaller(
-        bundled_uv_path=launcher_uv_path(),
+        uv_provider=VerifiedUvExecutableProvider(bundled_uv_path=launcher_uv_path()),
         runner=SubprocessRuntimeCommandRunner(log),
     ).provision(layout=layout)
     log(f"Runtime ready: {runtime_result.python_executable}")

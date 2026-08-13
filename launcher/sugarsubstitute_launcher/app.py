@@ -30,6 +30,12 @@ from launcher.sugarsubstitute_launcher.cli import LauncherArguments, parse_launc
 from launcher.sugarsubstitute_launcher.candidate_update_launch import (
     launch_prepared_update,
 )
+from launcher.sugarsubstitute_launcher.application.installation.composition import (
+    build_installation_workflow,
+)
+from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
+    resolve_initial_install_release_source,
+)
 from launcher.sugarsubstitute_launcher.application_launch import (
     enter_installed_application_launch,
     installed_application_environment,
@@ -41,9 +47,6 @@ from launcher.sugarsubstitute_launcher.install_layout import (
     default_install_root,
 )
 from launcher.sugarsubstitute_launcher.headless_install import HeadlessInstallService
-from launcher.sugarsubstitute_launcher.initial_release_source import (
-    resolve_initial_install_release_source,
-)
 from launcher.sugarsubstitute_launcher.logging_setup import configure_launcher_logging
 from launcher.sugarsubstitute_launcher.localization import (
     build_launcher_localization_runtime,
@@ -54,6 +57,7 @@ from launcher.sugarsubstitute_launcher.platforms import detect_launcher_target
 from launcher.sugarsubstitute_launcher.process import (
     build_app_launch_command,
     start_detached,
+    start_detached_handoff,
 )
 from launcher.sugarsubstitute_launcher.release_sources import (
     GitHubReleaseSource,
@@ -103,7 +107,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise ValueError("Headless installation requires an explicit install root.")
         layout = InstallLayout.from_root(args.install_root)
         configure_launcher_logging(layout=layout)
-        HeadlessInstallService().install(
+        HeadlessInstallService(
+            workflow=build_installation_workflow(output_callback=_LOGGER.info)
+        ).install(
             install_root=layout.root,
             release_source=_initial_install_release_source(args.manifest_url),
         )
@@ -216,6 +222,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 app_launch_error=app_launch_error,
             ),
             update_check_enabled=not args.no_update_check,
+            workflow_factory=lambda output_callback: build_installation_workflow(
+                output_callback=output_callback,
+                process_starter=start_detached_handoff,
+            ),
             handoff_geometry=args.handoff_geometry,
         )
         window.show()

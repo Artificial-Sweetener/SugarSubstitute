@@ -35,14 +35,17 @@ import pytest
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset
 from launcher.sugarsubstitute_launcher.platforms import LINUX_X64, WINDOWS_X64
-from launcher.sugarsubstitute_launcher.runtime import (
-    DEFAULT_PYTHON_VERSION,
-    RuntimeProvisioningError,
+from launcher.sugarsubstitute_launcher.runtime import UvManagedRuntimeInstaller
+from launcher.sugarsubstitute_launcher.runtime_command import (
     SubprocessRuntimeCommandRunner,
-    UvManagedRuntimeInstaller,
+)
+from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningError
+from launcher.sugarsubstitute_launcher.runtime_policy import (
+    DEFAULT_PYTHON_VERSION,
     runtime_environment,
     runtime_requirements_command,
 )
+from launcher.sugarsubstitute_launcher.uv_tool import VerifiedUvExecutableProvider
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
@@ -78,7 +81,7 @@ def test_uv_runtime_provisioner_builds_managed_runtime_commands(tmp_path: Path) 
     runner = RecordingRuntimeRunner()
 
     result = UvManagedRuntimeInstaller(
-        bundled_uv_path=bundled_uv,
+        uv_provider=VerifiedUvExecutableProvider(bundled_uv_path=bundled_uv),
         runner=runner,
     ).provision(layout=layout)
 
@@ -157,7 +160,7 @@ def test_uv_runtime_provisioner_preserves_matching_existing_venv(
     runner = RecordingRuntimeRunner()
 
     UvManagedRuntimeInstaller(
-        bundled_uv_path=bundled_uv,
+        uv_provider=VerifiedUvExecutableProvider(bundled_uv_path=bundled_uv),
         runner=runner,
     ).provision(layout=layout)
 
@@ -178,7 +181,7 @@ def test_uv_runtime_provisioner_rebuilds_invalid_existing_venv(
     runner = RecordingRuntimeRunner()
 
     UvManagedRuntimeInstaller(
-        bundled_uv_path=bundled_uv,
+        uv_provider=VerifiedUvExecutableProvider(bundled_uv_path=bundled_uv),
         runner=runner,
     ).provision(layout=layout)
 
@@ -198,7 +201,7 @@ def test_linux_uv_install_disables_global_bin_without_windows_registry_flag(
     runner = RecordingRuntimeRunner()
 
     UvManagedRuntimeInstaller(
-        bundled_uv_path=bundled_uv,
+        uv_provider=VerifiedUvExecutableProvider(bundled_uv_path=bundled_uv),
         runner=runner,
     ).provision(layout=layout)
 
@@ -303,7 +306,7 @@ def test_subprocess_runtime_runner_logs_captured_failure_output(
 
     with caplog.at_level(
         logging.INFO,
-        logger="launcher.sugarsubstitute_launcher.runtime",
+        logger="launcher.sugarsubstitute_launcher.runtime_command",
     ):
         with pytest.raises(subprocess.CalledProcessError) as error_info:
             SubprocessRuntimeCommandRunner().run(
@@ -328,6 +331,40 @@ def test_subprocess_runtime_runner_logs_captured_failure_output(
     assert "return_code=7" in caplog.text
 
 
+def test_subprocess_runtime_runner_redacts_supported_credential_forms(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Persisted failure output should redact URL, assignment, and bearer secrets."""
+
+    script = (
+        "print('https://alice:hunter2@example.com/path "
+        "password=private-password "
+        "Authorization=private-authorization "
+        "Bearer private-bearer'); "
+        "raise SystemExit(8)"
+    )
+    with caplog.at_level(
+        logging.INFO,
+        logger="launcher.sugarsubstitute_launcher.runtime_command",
+    ):
+        with pytest.raises(subprocess.CalledProcessError):
+            SubprocessRuntimeCommandRunner().run(
+                [sys.executable, "-c", script],
+                cwd=tmp_path,
+                env=os.environ,
+            )
+
+    assert "hunter2" not in caplog.text
+    assert "private-password" not in caplog.text
+    assert "private-authorization" not in caplog.text
+    assert "private-bearer" not in caplog.text
+    assert "https://<redacted>@example.com/path" in caplog.text
+    assert "password=<redacted>" in caplog.text
+    assert "Authorization=<redacted>" in caplog.text
+    assert "Bearer <redacted>" in caplog.text
+
+
 def test_runtime_provisioner_requires_requirements_file(tmp_path: Path) -> None:
     """Runtime provisioning fails clearly before running uv without requirements."""
 
@@ -336,7 +373,9 @@ def test_runtime_provisioner_requires_requirements_file(tmp_path: Path) -> None:
     bundled_uv.write_bytes(b"uv")
 
     with pytest.raises(RuntimeProvisioningError, match="Requirements file is missing"):
-        UvManagedRuntimeInstaller(bundled_uv_path=bundled_uv).provision(layout=layout)
+        UvManagedRuntimeInstaller(
+            uv_provider=VerifiedUvExecutableProvider(bundled_uv_path=bundled_uv)
+        ).provision(layout=layout)
 
 
 def test_runtime_provisioner_requires_verified_uv_source(tmp_path: Path) -> None:
@@ -367,7 +406,7 @@ def test_runtime_provisioner_extracts_checksummed_uv_archive(tmp_path: Path) -> 
         size_bytes=archive_path.stat().st_size,
     )
 
-    uv_executable = UvManagedRuntimeInstaller(uv_archive_asset=asset).ensure_uv(
+    uv_executable = VerifiedUvExecutableProvider(uv_archive_asset=asset).ensure(
         layout=layout
     )
 
@@ -401,7 +440,7 @@ def test_runtime_provisioner_extracts_posix_uv_archive_as_executable(
         size_bytes=archive_path.stat().st_size,
     )
 
-    uv_executable = UvManagedRuntimeInstaller(uv_archive_asset=asset).ensure_uv(
+    uv_executable = VerifiedUvExecutableProvider(uv_archive_asset=asset).ensure(
         layout=layout
     )
 
@@ -424,7 +463,32 @@ def test_runtime_provisioner_rejects_bad_uv_archive_checksum(tmp_path: Path) -> 
     )
 
     with pytest.raises(RuntimeProvisioningError, match="SHA256 mismatch"):
-        UvManagedRuntimeInstaller(uv_archive_asset=asset).ensure_uv(layout=layout)
+        VerifiedUvExecutableProvider(uv_archive_asset=asset).ensure(layout=layout)
+
+
+def test_runtime_provisioner_rejects_archive_without_target_uv_executable(
+    tmp_path: Path,
+) -> None:
+    """A verified archive without the target executable should fail explicitly."""
+
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    archive_path = _write_uv_archive(
+        tmp_path / "uv.zip",
+        executable_name="not-uv.exe",
+    )
+    asset = ReleaseAsset(
+        filename=archive_path.name,
+        url=archive_path.as_uri(),
+        sha256=_sha256(archive_path),
+        size_bytes=archive_path.stat().st_size,
+    )
+
+    expected_message = re.escape(
+        f"Downloaded uv archive does not contain {layout.target.uv_executable_name}"
+    )
+    with pytest.raises(RuntimeProvisioningError, match=expected_message):
+        VerifiedUvExecutableProvider(uv_archive_asset=asset).ensure(layout=layout)
+    assert not (layout.runtime_dir / "uv_extract").exists()
 
 
 def _write_uv_archive(path: Path, *, executable_name: str = "uv.exe") -> Path:
