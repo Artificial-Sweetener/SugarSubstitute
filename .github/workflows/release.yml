@@ -203,14 +203,18 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  release:
-    name: Publish cross-platform release
+  stage-candidate:
+    name: Stage exact release candidate
     needs:
       - determine-version
       - build-windows
       - build-macos
       - build-linux
     runs-on: windows-latest
+    outputs:
+      candidate_tag: ${{ steps.publish.outputs.candidate_tag }}
+      candidate_version: ${{ needs.determine-version.outputs.version }}
+      staged: ${{ steps.publish.outputs.staged }}
 
     steps:
       - name: Checkout
@@ -254,37 +258,22 @@ jobs:
           name: release-inputs-linux
           path: build/release-inputs/linux
 
-      - name: Prepare first release assets
+      - name: Prepare first release candidate assets
         if: needs.determine-version.outputs.first_release == 'true'
         shell: pwsh
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts\prepare-release-assets.mjs ${{ needs.determine-version.outputs.version }}
 
-      - name: Prepare first release notes
-        if: needs.determine-version.outputs.first_release == 'true'
+      - name: Prepare installer release notes
         shell: pwsh
-        run: node scripts\release-notes-preamble.cjs --repository "${{ github.repository }}" --version "${{ needs.determine-version.outputs.version }}" --output "build\first-release-notes.md"
+        run: node scripts\release-notes-preamble.cjs --repository "${{ github.repository }}" --version "${{ needs.determine-version.outputs.version }}" --output "build\release-notes.md"
 
-      - name: Publish first release
-        if: needs.determine-version.outputs.first_release == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: pwsh
-        run: |
-          $assets = Get-ChildItem .local-release-channel -File | Select-Object -ExpandProperty FullName
-          $releaseNotes = Get-Content -Raw build\first-release-notes.md
-          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.dry_run }}" -eq "true") {
-            Write-Output "Dry run: would publish v${{ needs.determine-version.outputs.version }}"
-            $assets
-          } else {
-            gh release create "v${{ needs.determine-version.outputs.version }}" $assets --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "SugarSubstitute ${{ needs.determine-version.outputs.version }}" --generate-notes --notes $releaseNotes
-          }
-
-      - name: Publish subsequent release
+      - name: Prepare semantic release commit and tag without publishing stable
         if: needs.determine-version.outputs.first_release != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUGAR_SUBSTITUTE_STAGE_ONLY: "true"
         shell: pwsh
         run: |
           if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.dry_run }}" -eq "true") {
@@ -292,3 +281,56 @@ jobs:
           } else {
             npx semantic-release
           }
+
+      - name: Publish exact bytes as a visible prerelease candidate
+        id: publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $version = "${{ needs.determine-version.outputs.version }}"
+          $tag = "v$version"
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.dry_run }}" -eq "true") {
+            Write-Output "Dry run: would stage $tag for qualification."
+            "staged=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            $assets = Get-ChildItem .local-release-channel -File | Select-Object -ExpandProperty FullName
+            $releaseNotes = Get-Content -Raw build\release-notes.md
+            $target = if ("${{ needs.determine-version.outputs.first_release }}" -eq "true") { "${{ github.sha }}" } else { $tag }
+            gh release create $tag $assets --repo "${{ github.repository }}" --target $target --title "SugarSubstitute $version release candidate" --generate-notes --notes $releaseNotes --prerelease
+            $readback = gh release view $tag --repo "${{ github.repository }}" --json isDraft,isPrerelease,assets | ConvertFrom-Json
+            if ($readback.isDraft -or -not $readback.isPrerelease) {
+              throw "Candidate release was not published as a visible prerelease."
+            }
+            $expected = @(Get-ChildItem .local-release-channel -File | Select-Object -ExpandProperty Name | Sort-Object)
+            $actual = @($readback.assets | ForEach-Object { $_.name } | Sort-Object)
+            if (Compare-Object $expected $actual) {
+              throw "Candidate release assets differ from the qualified local channel."
+            }
+            "candidate_tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+
+  qualify-candidate:
+    name: Qualify staged installer and update bytes
+    needs: stage-candidate
+    if: needs.stage-candidate.outputs.staged == 'true'
+    uses: ./.github/workflows/release-qualification.yml
+    with:
+      candidate_version: ${{ needs.stage-candidate.outputs.candidate_version }}
+      candidate_tag: ${{ needs.stage-candidate.outputs.candidate_tag }}
+
+  promote-release:
+    name: Promote qualified bytes without rebuilding
+    needs:
+      - stage-candidate
+      - qualify-candidate
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Promote the exact qualified prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_TAG: ${{ needs.stage-candidate.outputs.candidate_tag }}
+        run: |
+          gh release edit "$CANDIDATE_TAG" --repo "${{ github.repository }}" --prerelease=false --latest
+          gh release view "$CANDIDATE_TAG" --repo "${{ github.repository }}" --json isDraft,isPrerelease --jq 'select(.isDraft == false and .isPrerelease == false)' > /dev/null

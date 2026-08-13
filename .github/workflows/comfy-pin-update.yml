@@ -1,0 +1,97 @@
+name: Managed Comfy pin update
+
+on:
+  schedule:
+    - cron: "41 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: managed-comfy-pin-update
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+  UPDATE_BRANCH: automation/managed-comfy-pin
+
+jobs:
+  propose:
+    name: Propose latest standalone environment
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Create focused automation environment
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --constraint requirements.txt requests
+      - name: Resolve proposed managed-Comfy pin
+        id: pin
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe tools\update_comfy_pin.py
+      - name: Commit and push the proposal branch
+        if: steps.pin.outputs.changed == 'true'
+        env:
+          PROPOSED_TAGS: ${{ steps.pin.outputs.proposed_release_tags }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          git fetch origin $env:UPDATE_BRANCH
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "No existing automation branch was found."
+          }
+          $PSNativeCommandUseErrorActionPreference = $true
+          git checkout -B $env:UPDATE_BRANCH
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add substitute/infrastructure/comfy/standalone_environment/standalone_environment_pin.json
+          git commit -m "chore(comfy): propose standalone $env:PROPOSED_TAGS"
+          git push --force-with-lease --set-upstream origin "HEAD:$env:UPDATE_BRANCH"
+      - name: Open or refresh compatibility PR
+        if: steps.pin.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIOUS_TAGS: ${{ steps.pin.outputs.previous_release_tags }}
+          PROPOSED_TAGS: ${{ steps.pin.outputs.proposed_release_tags }}
+          COMFYUI_VERSIONS: ${{ steps.pin.outputs.proposed_comfyui_versions }}
+        shell: pwsh
+        run: |
+          $bodyPath = Join-Path $env:RUNNER_TEMP "managed-comfy-pin-pr.md"
+          @"
+          Comfy published new standalone-environment metadata.
+
+          - Current pin: $env:PREVIOUS_TAGS
+          - Proposed pin: $env:PROPOSED_TAGS
+          - Proposed ComfyUI: $env:COMFYUI_VERSIONS
+          - Upstream releases: https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases
+
+          This PR is intentionally opened before compatibility is known. Merge it only after the managed-install and application-readiness checks pass.
+          "@ | Set-Content -Path $bodyPath -Encoding utf8
+          $existing = gh pr list --head $env:UPDATE_BRANCH --state open --json number --jq '.[0].number'
+          if ($existing) {
+            gh pr edit $existing --title "chore(comfy): qualify standalone $env:PROPOSED_TAGS" --body-file $bodyPath
+          } else {
+            gh pr create --base main --head $env:UPDATE_BRANCH --title "chore(comfy): qualify standalone $env:PROPOSED_TAGS" --body-file $bodyPath
+          }
+      - name: Dispatch PR checks suppressed for bot-created events
+        if: steps.pin.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh workflow run tests.yml --ref $env:UPDATE_BRANCH
+          gh workflow run managed-comfy-install.yml --ref $env:UPDATE_BRANCH

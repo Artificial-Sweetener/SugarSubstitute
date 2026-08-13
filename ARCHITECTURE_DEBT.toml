@@ -4,29 +4,27 @@ schema_version = 1
 id = "SS-ARCH-001"
 owner = "launcher installation presentation"
 paths = ["launcher/sugarsubstitute_launcher/ui/main_window.py"]
-fingerprint = "sha256:d967bfd7670dddeeebc66318eab393d87b9b47889f5ee97fce6b1d3c70f99bfb"
+fingerprint = "sha256:132e1373e7944d6a04e1baabe7f7c7f15d00e1eca700df53b0fe9e91b301f92f"
 issue = "chore:SS-ARCH-001"
 review_by = 2026-12-15
 responsibilities = [
   "installer window and step presentation",
-  "payload and runtime installation workers",
   "setup handoff orchestration",
   "platform window chrome and geometry integration",
 ]
-next_extraction = "Extract installation execution and platform-window integration from launcher presentation."
+next_extraction = "Extract setup handoff and platform-window integration from launcher presentation."
 
 [[debts]]
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]
-fingerprint = "sha256:680726017702b505562a682eeb3c458ea3df8b7b9090cc54a9253b460d749136"
+fingerprint = "sha256:aad87b696b13eb679366ef5dc5ac378c2d08edd1464988645bc17c8236e7f266"
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
 responsibilities = [
   "lazy infrastructure adapter implementations",
   "application service graph composition",
   "shell construction and geometry",
-  "onboarding, repair, and reconfiguration presentation",
   "runtime readiness probing",
 ]
 next_extraction = "Extract lazy adapter definitions and shell presentation from the application composition root."
@@ -65,13 +63,13 @@ next_extraction = "Extract pure recovery policy and background task execution fr
 id = "SS-ARCH-005"
 owner = "ready-shell startup"
 paths = ["substitute/app/bootstrap/ready_shell_controller.py"]
-fingerprint = "sha256:78c8ea5e4f9ec661ce2568c5f50408f0ca7711f6da6347f3621a9561172bed5b"
+fingerprint = "sha256:d8bad0da93b8c1d4725b02b194613e952809b1f2ef370e48767337753dfbf310"
 issue = "chore:SS-ARCH-005"
 review_by = 2026-12-15
 responsibilities = [
   "ready-shell launch orchestration",
   "failure queue and cancellation",
-  "target activation and shell reveal",
+  "target activation and shell construction",
   "prompt editor and workspace warmup",
   "post-show hydration and diagnostics",
 ]
@@ -81,7 +79,7 @@ next_extraction = "Extract warmup and hydration task ownership from shell launch
 id = "SS-ARCH-006"
 owner = "startup managed-ready runtime"
 paths = ["substitute/app/bootstrap/startup_managed_ready_runtime.py"]
-fingerprint = "sha256:9496bc8270e4f9c88ad482712764781bd5f5099286816913c8960d967f9f4151"
+fingerprint = "sha256:f55f0d0f48a36f78517c05f2549654bea8a4947f8849463d9798d4d4533ef582"
 issue = "chore:SS-ARCH-006"
 review_by = 2026-12-15
 responsibilities = [

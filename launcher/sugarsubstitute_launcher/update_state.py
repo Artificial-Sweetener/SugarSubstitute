@@ -21,7 +21,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
+import os
 from pathlib import Path
+import secrets
 from typing import Any, Self
 
 
@@ -76,10 +78,20 @@ class LauncherUpdateState:
         """Persist launcher update state as stable JSON."""
 
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(self.to_json(), indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
+        temporary_path = path.with_name(
+            f".{path.name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
         )
+        try:
+            temporary_path.write_text(
+                json.dumps(self.to_json(), indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            os.replace(temporary_path, path)
+        finally:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
 
     def to_json(self) -> dict[str, object]:
         """Return a JSON-safe state payload."""

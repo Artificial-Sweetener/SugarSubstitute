@@ -33,7 +33,7 @@ from substitute.infrastructure.comfy.install_targets import ManagedInstallTarget
 from substitute.infrastructure.comfy.standalone_environment.catalog_client import (
     GITHUB_RELEASE_API_TEMPLATE,
     LATEST_CATALOG_URL,
-    StandaloneEnvironmentCatalogClient,
+    LiveStandaloneEnvironmentCatalogClient,
 )
 from substitute.infrastructure.comfy.standalone_environment.downloader import (
     StandaloneArtifactDownloader,
@@ -147,7 +147,7 @@ def test_catalog_joins_live_variant_metadata_to_github_sha256() -> None:
         }
     )
 
-    release = StandaloneEnvironmentCatalogClient(
+    release = LiveStandaloneEnvironmentCatalogClient(
         session=cast(requests.Session, session)
     ).resolve(StandaloneVariantId.MACOS_MPS)
 
@@ -189,7 +189,7 @@ def test_catalog_rejects_assets_without_sha256_digest() -> None:
     )
 
     with pytest.raises(StandaloneCatalogError, match="SHA256"):
-        StandaloneEnvironmentCatalogClient(
+        LiveStandaloneEnvironmentCatalogClient(
             session=cast(requests.Session, session)
         ).resolve(StandaloneVariantId.WINDOWS_CPU)
 

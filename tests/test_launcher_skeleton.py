@@ -55,10 +55,12 @@ from launcher.sugarsubstitute_launcher.platforms import (
     LauncherOperatingSystem,
     detect_launcher_target,
 )
+from launcher.sugarsubstitute_launcher.initial_release_source import (
+    resolve_initial_install_release_source,
+)
 from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
 from launcher.sugarsubstitute_launcher.ui.main_window import (
     LauncherMainWindow,
-    resolve_initial_install_release_source,
 )
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource
 from sugarsubstitute_shared.application_launch_guard import (
@@ -582,7 +584,9 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     """The installed executable should launch the app instead of setup UI."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
-    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    LauncherConfig.from_layout(layout=layout, release_source=None).save(
+        layout.config_path
+    )
     _write_launcher_executable(layout)
     layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
     layout.app_entrypoint.write_text("", encoding="utf-8")
@@ -856,7 +860,7 @@ def test_frozen_setup_installs_in_current_window(
         lambda: downloaded_exe,
     )
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.discover_local_release_root",
+        "launcher.sugarsubstitute_launcher.initial_release_source.discover_local_release_root",
         lambda: tmp_path / ".local-release-channel",
     )
     window = LauncherMainWindow(
@@ -1093,7 +1097,7 @@ def test_launcher_continue_installs_app_once(
             return object()
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.discover_local_release_root",
+        "launcher.sugarsubstitute_launcher.initial_release_source.discover_local_release_root",
         lambda: tmp_path / ".local-release-channel",
     )
     window = LauncherMainWindow(
@@ -1188,7 +1192,7 @@ def test_launcher_handoff_failure_keeps_open_setup_enabled(
         raise OSError("missing-python.exe was not found")
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.discover_local_release_root",
+        "launcher.sugarsubstitute_launcher.initial_release_source.discover_local_release_root",
         lambda: tmp_path / ".local-release-channel",
     )
     window = LauncherMainWindow(
@@ -1266,7 +1270,7 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
             raise RuntimeError("uv.exe is missing")
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.discover_local_release_root",
+        "launcher.sugarsubstitute_launcher.initial_release_source.discover_local_release_root",
         lambda: tmp_path / ".local-release-channel",
     )
     window = LauncherMainWindow(

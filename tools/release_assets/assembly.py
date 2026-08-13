@@ -82,7 +82,7 @@ def build_local_release_channel(
         )
         for installer_input in platform_input.installers:
             specification = target.installer(installer_input.format)
-            installer_path = resolved_output_dir / specification.filename
+            installer_path = resolved_output_dir / specification.filename_for(version)
             copy_public_installer(
                 source_path=installer_input.source_path,
                 output_path=installer_path,

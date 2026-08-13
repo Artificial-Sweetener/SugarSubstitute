@@ -43,15 +43,13 @@ from substitute.app.bootstrap.ready_shell_controller import (
     ReadyShellMinimumReadyTask,
     ReadyShellPostShowController,
     ReadyShellPromptEditorWarmupTask,
-    ReadyShellRevealTask,
-    ReadyShellRevealTimerProtocol,
     ReadyShellShowGateTask,
-    ReadyShellSplashProtocol,
     ReadyShellStartupDiagnosticsUpdateAdapter,
     ReadyShellTargetActivationTask,
     StartupSplashLogProtocol,
     StartupPhaseTimerProtocol,
 )
+from substitute.app.bootstrap import ready_shell_reveal
 from substitute.app.bootstrap.startup_failure_controller import SplashCloseProtocol
 from substitute.app.bootstrap.startup_managed_ready_runtime import (
     StartupManagedReadyRuntimeResources,
@@ -372,19 +370,19 @@ class StartupManagedReadyLaunchRuntime:
     def create_reveal_task(
         self,
         *,
-        splash: Callable[[], ReadyShellSplashProtocol | None],
+        splash: ready_shell_reveal.ReadyShellSplashProvider,
         shell_frame: Callable[[], object | None],
         initial_shell_placement: Callable[[], object | None],
-        startup_timer: ReadyShellRevealTimerProtocol,
+        startup_timer: ready_shell_reveal.ReadyShellRevealTimerProtocol,
         show_built_main_window: Callable[..., object],
         set_current_shell: Callable[[object], None],
         schedule_warmups: Callable[[str], None],
         request_startup_diagnostics_update: Callable[[object], object],
         schedule_post_show_hydration: Callable[[], object],
         set_shell_frame: Callable[[object], None],
-        set_splash: Callable[[ReadyShellSplashProtocol | None], None],
+        set_splash: ready_shell_reveal.ReadyShellSplashSetter,
         trace_fields: Callable[[], Mapping[str, object]],
-    ) -> ReadyShellRevealTask:
+    ) -> ready_shell_reveal.ReadyShellRevealTask:
         """Bind managed-ready launch state into the reveal task."""
 
         return self.runtime.create_reveal_task(

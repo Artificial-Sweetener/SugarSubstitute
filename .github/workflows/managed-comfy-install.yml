@@ -1,0 +1,56 @@
+name: managed Comfy install
+
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - ".github/workflows/managed-comfy-install.yml"
+      - "substitute/infrastructure/comfy/standalone_environment/**"
+      - "tools/ci/verify_managed_comfy_install.py"
+      - "tests/test_standalone_environment_pin.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+  STANDALONE_CACHE: build/managed-comfy-cache
+
+jobs:
+  windows-cpu:
+    name: Pinned managed Comfy (Windows CPU)
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Restore checksum-addressed standalone artifact
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.STANDALONE_CACHE }}
+          key: managed-comfy-win-cpu-${{ hashFiles('substitute/infrastructure/comfy/standalone_environment/standalone_environment_pin.json') }}
+
+      - name: Install pinned verification toolchain
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --requirement requirements-toolchain.txt
+
+      - name: Provision and launch the pinned managed Comfy environment
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          .\.venv\Scripts\python.exe tools\ci\verify_managed_comfy_install.py `
+            --workspace "${{ runner.temp }}\managed-comfy" `
+            --cache-root "${{ env.STANDALONE_CACHE }}" `
+            --variant win-cpu
