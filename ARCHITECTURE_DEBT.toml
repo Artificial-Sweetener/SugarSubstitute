@@ -1,20 +1,6 @@
 schema_version = 1
 
 [[debts]]
-id = "SS-ARCH-001"
-owner = "launcher installation presentation"
-paths = ["launcher/sugarsubstitute_launcher/ui/main_window.py"]
-fingerprint = "sha256:132e1373e7944d6a04e1baabe7f7c7f15d00e1eca700df53b0fe9e91b301f92f"
-issue = "chore:SS-ARCH-001"
-review_by = 2026-12-15
-responsibilities = [
-  "installer window and step presentation",
-  "setup handoff orchestration",
-  "platform window chrome and geometry integration",
-]
-next_extraction = "Extract setup handoff and platform-window integration from launcher presentation."
-
-[[debts]]
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]

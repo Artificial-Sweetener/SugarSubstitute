@@ -1,19 +1,6 @@
 schema_version = 1
 
 [[waivers]]
-id = "SS-WAIVER-R001"
-owner = "launcher installation presentation"
-rule = "STRUCT003"
-path = "launcher/sugarsubstitute_launcher/ui/main_window.py"
-kind = "remediation"
-justification = "The assessed file mixes installer window and step presentation, setup handoff orchestration, platform window chrome and geometry integration. Extract setup handoff and platform-window integration from launcher presentation."
-issue = "chore:SS-ARCH-001"
-review_by = 2026-12-15
-max_lines = 1024
-next_limit = 926
-debt = "SS-ARCH-001"
-
-[[waivers]]
 id = "SS-WAIVER-R002"
 owner = "application bootstrap"
 rule = "STRUCT003"

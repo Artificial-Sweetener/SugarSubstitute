@@ -21,12 +21,13 @@ from __future__ import annotations
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.runtime import (
-    RuntimeProvisioningResult,
+from launcher.sugarsubstitute_launcher.runtime import UvManagedRuntimeInstaller
+from launcher.sugarsubstitute_launcher.runtime_command import (
     SubprocessRuntimeCommandRunner,
-    UvManagedRuntimeInstaller,
 )
+from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
 from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
+from launcher.sugarsubstitute_launcher.uv_tool import VerifiedUvExecutableProvider
 
 
 class RuntimeReconciliationProgress(Protocol):
@@ -60,7 +61,9 @@ class UvRuntimeReconciler:
         """Install or refresh Python and app requirements for the payload."""
 
         installer = UvManagedRuntimeInstaller(
-            bundled_uv_path=launcher_uv_path(),
+            uv_provider=VerifiedUvExecutableProvider(
+                bundled_uv_path=launcher_uv_path()
+            ),
             runner=SubprocessRuntimeCommandRunner(progress.append_log),
         )
         return installer.provision(layout=layout)

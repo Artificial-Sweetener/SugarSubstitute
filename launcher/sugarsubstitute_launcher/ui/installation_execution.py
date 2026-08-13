@@ -14,169 +14,137 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Run launcher installation operations away from the Qt presentation thread."""
+"""Own Qt thread lifecycles for blocking installation workflow adapters."""
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from pathlib import Path
-from typing import Protocol
+from collections.abc import Sequence
 
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, QThread, Signal, Slot
 
-from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
-from launcher.sugarsubstitute_launcher.initial_release_source import (
-    resolve_initial_install_release_source,
+from launcher.sugarsubstitute_launcher.application.installation.models import (
+    InstalledApplication,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
-from launcher.sugarsubstitute_launcher.localized_text import launcher_text
-from launcher.sugarsubstitute_launcher.ui.failure_detail import (
-    launcher_failure_detail,
+from launcher.sugarsubstitute_launcher.ui.installation_workers import (
+    InitialInstallWorker,
+    InstallationWorkflowFactory,
+    SetupWorker,
 )
 
 
-class LauncherRuntimeInstaller(Protocol):
-    """Provision the runtime required to start the installed source app."""
-
-    def provision(self, *, layout: InstallLayout) -> object:
-        """Ensure the runtime exists for the supplied install layout."""
-
-
-RuntimeInstallerFactory = Callable[[Callable[[str], None]], LauncherRuntimeInstaller]
-
-
-class SetupWorker(QObject):
-    """Run runtime provisioning and app handoff away from the UI thread."""
+class QtInstallationExecutor(QObject):
+    """Run installation workers and publish results after deterministic cleanup."""
 
     log = Signal(str)
-    failed = Signal(str, str)
-    succeeded = Signal()
-    finished = Signal()
+    initial_failed = Signal(str)
+    initial_succeeded = Signal(object)
+    initial_finished = Signal()
+    setup_failed = Signal(str, str)
+    setup_succeeded = Signal()
+    setup_finished = Signal()
 
     def __init__(
+        self,
+        *,
+        workflow_factory: InstallationWorkflowFactory,
+        parent: QObject | None = None,
+    ) -> None:
+        """Store workflow composition and initialize idle execution slots."""
+
+        super().__init__(parent)
+        self._workflow_factory = workflow_factory
+        self._initial_thread: QThread | None = None
+        self._initial_worker: InitialInstallWorker | None = None
+        self._setup_thread: QThread | None = None
+        self._setup_worker: SetupWorker | None = None
+
+    @property
+    def initial_running(self) -> bool:
+        """Return whether launcher and payload installation is still running."""
+
+        return self._initial_thread is not None
+
+    @property
+    def setup_running(self) -> bool:
+        """Return whether runtime provisioning and setup handoff is still running."""
+
+        return self._setup_thread is not None
+
+    def start_initial(
         self,
         *,
         layout: InstallLayout,
-        setup_command: Sequence[str],
-        runtime_installer_factory: RuntimeInstallerFactory,
-        process_starter: Callable[[Sequence[str]], None],
-    ) -> None:
-        """Store setup work that must not block the Qt event loop."""
-
-        super().__init__()
-        self._layout = layout
-        self._setup_command = list(setup_command)
-        self._runtime_installer_factory = runtime_installer_factory
-        self._process_starter = process_starter
-
-    @Slot()
-    def run(self) -> None:
-        """Provision the runtime, launch setup, and publish terminal signals."""
-
-        try:
-            runtime_installer = self._runtime_installer_factory(self.log.emit)
-            runtime_installer.provision(layout=self._layout)
-        except Exception as error:
-            self.failed.emit("runtime", launcher_failure_detail(error))
-            self.finished.emit()
-            return
-
-        self.log.emit(launcher_text("Runtime ready: %1", self._layout.runtime_python))
-        self.log.emit(launcher_text("Starting SugarSubstitute setup."))
-        try:
-            self._process_starter(self._setup_command)
-        except Exception as error:
-            self.failed.emit("setup", launcher_failure_detail(error))
-            self.finished.emit()
-            return
-
-        self.log.emit(launcher_text("Started SugarSubstitute setup."))
-        self.log.emit(launcher_text("Waiting for the setup window to open."))
-        self.succeeded.emit()
-        self.finished.emit()
-
-
-class InitialInstallWorker(QObject):
-    """Install launcher and app payload without blocking the setup window."""
-
-    log = Signal(str)
-    failed = Signal(str)
-    succeeded = Signal(object, object, str)
-    finished = Signal()
-
-    def __init__(
-        self,
-        *,
-        install_root: Path,
         frozen_setup: bool,
         handoff_geometry: str | None,
-        layout_installer: LayoutInstaller,
-        first_run_installer: FirstRunInstaller,
-    ) -> None:
-        """Store initial install work that runs away from the Qt event loop."""
+    ) -> bool:
+        """Start launcher and app installation unless that stage is already active."""
 
-        super().__init__()
-        self._install_root = install_root
-        self._frozen_setup = frozen_setup
-        self._handoff_geometry = handoff_geometry
-        self._layout_installer = layout_installer
-        self._first_run_installer = first_run_installer
+        if self._initial_thread is not None:
+            return False
+        thread = QThread(self)
+        worker = InitialInstallWorker(
+            layout=layout,
+            frozen_setup=frozen_setup,
+            handoff_geometry=handoff_geometry,
+            workflow_factory=self._workflow_factory,
+        )
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.log.connect(self.log.emit)
+        worker.failed.connect(self.initial_failed.emit)
+        worker.succeeded.connect(self.initial_succeeded.emit)
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._finish_initial)
+        self._initial_thread = thread
+        self._initial_worker = worker
+        thread.start()
+        return True
+
+    def start_setup(
+        self,
+        *,
+        application: InstalledApplication,
+        setup_command: Sequence[str],
+    ) -> bool:
+        """Start runtime provisioning and setup handoff unless already active."""
+
+        if self._setup_thread is not None:
+            return False
+        thread = QThread(self)
+        worker = SetupWorker(
+            application=application,
+            setup_command=setup_command,
+            workflow_factory=self._workflow_factory,
+        )
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.log.connect(self.log.emit)
+        worker.failed.connect(self.setup_failed.emit)
+        worker.succeeded.connect(self.setup_succeeded.emit)
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._finish_setup)
+        self._setup_thread = thread
+        self._setup_worker = worker
+        thread.start()
+        return True
 
     @Slot()
-    def run(self) -> None:
-        """Install permanent launcher files and the bound app payload."""
+    def _finish_initial(self) -> None:
+        """Release initial-install objects before publishing stage completion."""
 
-        try:
-            release_source = resolve_initial_install_release_source(
-                frozen_setup=self._frozen_setup
-            )
-            if self._frozen_setup:
-                downloaded_result = (
-                    self._first_run_installer.install_downloaded_launcher(
-                        install_root=self._install_root,
-                        release_source=release_source,
-                        handoff_geometry=self._handoff_geometry,
-                        launch_installed=False,
-                    )
-                )
-                layout = downloaded_result.layout
-                self.log.emit(
-                    launcher_text("Installed launcher: %1", layout.executable_path)
-                )
-            else:
-                prepared_result = self._layout_installer.prepare(self._install_root)
-                layout = prepared_result.layout
-                self.log.emit(
-                    launcher_text(
-                        "Source-run launcher detected; skipped executable self-copy."
-                    )
-                )
+        self._initial_thread = None
+        self._initial_worker = None
+        self.initial_finished.emit()
 
-            self.log.emit(launcher_text("Created install root: %1", layout.root))
-            self.log.emit(
-                launcher_text("Wrote launcher config: %1", layout.config_path)
-            )
-            continued_result = self._first_run_installer.continue_install(
-                layout=layout,
-                release_source=release_source,
-            )
-        except Exception as error:
-            self.failed.emit(launcher_failure_detail(error))
-            self.finished.emit()
-            return
+    @Slot()
+    def _finish_setup(self) -> None:
+        """Release setup objects before publishing stage completion."""
 
-        self.succeeded.emit(
-            layout,
-            continued_result.app_command,
-            continued_result.app_version,
-        )
-        self.finished.emit()
-
-
-__all__ = [
-    "InitialInstallWorker",
-    "LauncherRuntimeInstaller",
-    "RuntimeInstallerFactory",
-    "SetupWorker",
-]
+        self._setup_thread = None
+        self._setup_worker = None
+        self.setup_finished.emit()

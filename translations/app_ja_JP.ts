@@ -295,7 +295,7 @@ Prompt preview:
       <translation>%1% 完了</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="726"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="732"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
     </message>
@@ -525,7 +525,7 @@ Prompt preview:
       <translation>影響を受けるキューブ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="625"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="616"></location>
       <source>All</source>
       <translation>すべて</translation>
     </message>
@@ -1475,7 +1475,7 @@ Prompt preview:
       <translation>Comfy の実行に失敗しました</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="844"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="841"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy を利用できません</translation>
     </message>
@@ -1895,12 +1895,12 @@ Prompt preview:
       <translation>連続生成</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="488"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="486"></location>
       <source>Continuous generation prepared no jobs.</source>
       <translation>連続生成でジョブを準備できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="479"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="477"></location>
       <source>Continuous generation requires the generation queue.</source>
       <translation>連続生成には生成キューが必要です。</translation>
     </message>
@@ -1965,7 +1965,7 @@ Prompt preview:
       <translation>キューブライブラリに必要なノードをインストールできませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="965"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1048"></location>
       <source>Could not load image: %1</source>
       <translation>画像を読み込めませんでした：%1</translation>
     </message>
@@ -2110,7 +2110,7 @@ Prompt preview:
       <translation>キューブ依存関係の修復によってターゲット環境が変更されました。修復したキューブで生成する前に ComfyUI を再起動してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="973"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="979"></location>
       <source>Cube disabled</source>
       <translation>キューブは無効です</translation>
     </message>
@@ -2623,7 +2623,7 @@ Install these nodes now?</source>
       <translation>失敗 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="906"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="905"></location>
       <source>Failed to allocate output run number.</source>
       <translation>出力の実行番号を割り当てられませんでした。</translation>
     </message>
@@ -2633,7 +2633,7 @@ Install these nodes now?</source>
       <translation>生成用の入力キャンバスの内容を取得できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="502"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="500"></location>
       <source>Failed to connect generation listener session</source>
       <translation>生成リスナーセッションに接続できませんでした</translation>
     </message>
@@ -2693,12 +2693,12 @@ Install these nodes now?</source>
       <translation>キューブの差分挿入後にエディターの表示状態を更新できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>ワークフローアセット %1.%2 を準備できませんでした：%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="641"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="635"></location>
       <source>Failed to start generation listener</source>
       <translation>生成リスナーを開始できませんでした</translation>
     </message>
@@ -2773,12 +2773,12 @@ Install these nodes now?</source>
       <translation>保存済みの設定を修復し、Substitute を再び開けるようにします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="68"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="71"></location>
       <source>Flip horizontal</source>
       <translation>水平方向に反転</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="73"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="76"></location>
       <source>Flip vertical</source>
       <translation>垂直方向に反転</translation>
     </message>
@@ -2833,12 +2833,12 @@ Install these nodes now?</source>
       <translation>生成</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="522"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="489"></location>
       <source>Generate scene could not find runnable scene: %1</source>
       <translation>生成可能なシーンが見つかりませんでした：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="977"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1060"></location>
       <source>Generated image load failed</source>
       <translation>生成画像の読み込みに失敗しました</translation>
     </message>
@@ -2863,7 +2863,7 @@ Install these nodes now?</source>
       <translation>すべてのキューブにランタイムエラーがあるため、生成できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1097"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1096"></location>
       <source>Generation dispatch failed.</source>
       <translation>生成ジョブを送信できませんでした。</translation>
     </message>
@@ -2883,12 +2883,12 @@ Install these nodes now?</source>
       <translation>%1 の処理中に生成に失敗しました：%2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="881"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="878"></location>
       <source>Generation preflight failed</source>
       <translation>生成前チェックに失敗しました</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="697"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="695"></location>
       <source>Generation preparation failed</source>
       <translation>生成の準備に失敗しました</translation>
     </message>
@@ -2918,12 +2918,12 @@ Install these nodes now?</source>
       <translation>生成キュー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="534"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="532"></location>
       <source>Generation queue preparation bindings are unavailable.</source>
       <translation>生成キューの準備用バインディングを利用できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="528"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="526"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>生成キューのスナップショットバインドを利用できません。</translation>
     </message>
@@ -3423,7 +3423,7 @@ Install these nodes now?</source>
       <translation>LoRA トリガーワード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="969"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1052"></location>
       <source>Load Error</source>
       <translation>読み込みエラー</translation>
     </message>
@@ -3878,7 +3878,7 @@ Install these nodes now?</source>
       <translation>キューブが見つかりません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="189"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="198"></location>
       <source>No input canvas nodes</source>
       <translation>入力キャンバスノードがありません</translation>
     </message>
@@ -4033,7 +4033,7 @@ Install these nodes now?</source>
       <translation>未設定</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_context_projection.py" line="68"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_context_projection.py" line="76"></location>
       <source>Nothing to transform!</source>
       <translation>変形するものがありません！</translation>
     </message>
@@ -4618,7 +4618,7 @@ Install these nodes now?</source>
       <translation>このシーンをキューに追加</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="424"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="392"></location>
       <source>Queue this scene requires the generation queue.</source>
       <translation>このシーンをキューに追加するには生成キューが必要です。</translation>
     </message>
@@ -4703,7 +4703,7 @@ Install these nodes now?</source>
       <translation>赤</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="528"></location>
+      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/history_controls.py" line="50"></location>
       <source>Redo</source>
       <translation>やり直す</translation>
     </message>
@@ -4758,7 +4758,7 @@ Install these nodes now?</source>
       <translation>この Python、PyTorch、CUDA、Windows 環境用のネイティブ依存関係を再インストールしてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="346"></location>
+      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="335"></location>
       <source>Reload GUI</source>
       <translation>GUI を再読み込み</translation>
     </message>
@@ -5052,7 +5052,7 @@ No known extension claimant.</source>
       <translation>再試行</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="790"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="796"></location>
       <source>Reveal Hidden Cards</source>
       <translation>非表示のカードを表示</translation>
     </message>
@@ -5142,12 +5142,12 @@ No known extension claimant.</source>
       <translation>リッチプロンプト表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="58"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="61"></location>
       <source>Rotate left</source>
       <translation>左に回転</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="66"></location>
       <source>Rotate right</source>
       <translation>右に回転</translation>
     </message>
@@ -5342,12 +5342,12 @@ No known extension claimant.</source>
       <translation>シーン</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="481"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="448"></location>
       <source>Scene generation requires an active workflow prompt index.</source>
       <translation>シーンの生成には、アクティブなワークフローのプロンプトインデックスが必要です。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="494"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="461"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>シーンの生成には、最初のポジティブプロンプトに **scene マーカーが 1 つ以上必要です。</translation>
     </message>
@@ -5667,12 +5667,12 @@ No known extension claimant.</source>
       <translation>正常に終了しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="314"></location>
+      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="316"></location>
       <source>Shutdown returned an invalid cleanup result.</source>
       <translation>シャットダウン処理から無効なクリーンアップ結果が返されました。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="452"></location>
+      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="454"></location>
       <source>Shutdown timed out before cleanup could finish.</source>
       <translation>クリーンアップが完了する前に、終了処理がタイムアウトしました。</translation>
     </message>
@@ -6262,7 +6262,7 @@ No known extension claimant.</source>
       <translation>Substitute に保存されたフォルダー設定を修正する必要があります</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2859"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2860"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -7002,7 +7002,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>変形</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="51"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="54"></location>
       <source>Transform selection</source>
       <translation>選択範囲を変形</translation>
     </message>
@@ -7097,7 +7097,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>プロンプト内の重複部分に下線を付け、整理する操作を表示します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="518"></location>
+      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/history_controls.py" line="45"></location>
       <source>Undo</source>
       <translation>元に戻す</translation>
     </message>
@@ -7712,12 +7712,12 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>モデル</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="287"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="294"></location>
       <source>node missing from cube buffer</source>
       <translation>キューブバッファーにノードがありません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="308"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="315"></location>
       <source>node payload is not a mapping</source>
       <translation>ノードのペイロードがマッピングではありません</translation>
     </message>
@@ -7727,7 +7727,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>なし</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="548"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="546"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>プロンプト送信後に prompt_id が返されませんでした</translation>
     </message>
