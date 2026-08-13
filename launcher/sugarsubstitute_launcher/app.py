@@ -27,6 +27,9 @@ from pathlib import Path
 from typing import Any, cast
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments, parse_launcher_args
+from launcher.sugarsubstitute_launcher.candidate_update_launch import (
+    launch_prepared_update,
+)
 from launcher.sugarsubstitute_launcher.application_launch import (
     enter_installed_application_launch,
 )
@@ -37,6 +40,9 @@ from launcher.sugarsubstitute_launcher.install_layout import (
     default_install_root,
 )
 from launcher.sugarsubstitute_launcher.headless_install import HeadlessInstallService
+from launcher.sugarsubstitute_launcher.initial_release_source import (
+    resolve_initial_install_release_source,
+)
 from launcher.sugarsubstitute_launcher.logging_setup import configure_launcher_logging
 from launcher.sugarsubstitute_launcher.localization import (
     build_launcher_localization_runtime,
@@ -97,7 +103,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         configure_launcher_logging(layout=layout)
         HeadlessInstallService().install(
             install_root=layout.root,
-            release_source=_explicit_release_source(args.manifest_url),
+            release_source=_initial_install_release_source(args.manifest_url),
         )
         seed_headless_locale_preference(
             layout,
@@ -152,16 +158,25 @@ def main(argv: Sequence[str] | None = None) -> int:
                     wait_pid=os.getpid(),
                 )
                 return 0
-            start_detached(
-                append_splash_session_args(
-                    build_app_launch_command(
-                        layout=layout,
-                        extra_args=(locale_argument,),
-                    ),
-                    splash_session,
+            app_command = append_splash_session_args(
+                build_app_launch_command(
+                    layout=layout,
+                    extra_args=(locale_argument,),
                 ),
-                environment=launch_guard.initial_handoff_environment(),
+                splash_session,
             )
+            if update_result.pending_activation is not None:
+                launch_prepared_update(
+                    layout=layout,
+                    command=app_command,
+                    initial_guard=launch_guard,
+                    activation=update_result.pending_activation,
+                )
+            else:
+                start_detached(
+                    app_command,
+                    environment=launch_guard.initial_handoff_environment(),
+                )
             return 0
         except Exception as error:
             app_launch_error = error
@@ -213,6 +228,16 @@ def _explicit_release_source(manifest_url: str | None) -> ReleaseSource:
     if manifest_url is None:
         return default_production_release_source()
     return GitHubReleaseSource(manifest_url)
+
+
+def _initial_install_release_source(manifest_url: str | None) -> ReleaseSource:
+    """Return an explicit test source or the installer-bound release source."""
+
+    if manifest_url is not None:
+        return GitHubReleaseSource(manifest_url)
+    return resolve_initial_install_release_source(
+        frozen_setup=bool(getattr(sys, "frozen", False))
+    )
 
 
 def _launcher_main_window_class() -> Callable[..., Any]:

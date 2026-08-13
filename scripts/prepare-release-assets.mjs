@@ -124,7 +124,7 @@ if (buildResult.status !== 0) {
 
 const publicInstallerPath = join(
   releaseChannelDir,
-  "SugarSubstitute-Installer-Windows-x64.exe",
+  `SugarSubstitute-${nextVersion}-Windows-x64-Setup.exe`,
 );
 assertFile(publicInstallerPath, "public installer executable");
 assertFile(join(releaseChannelDir, "manifest.json"), "release manifest");
@@ -143,16 +143,16 @@ assertFile(
 assertFile(
   join(
     releaseChannelDir,
-    "SugarSubstitute-Installer-macOS-Apple-Silicon.dmg",
+    `SugarSubstitute-${nextVersion}-macOS-Apple-Silicon.dmg`,
   ),
   "Apple Silicon installer DMG",
 );
 assertFile(
-  join(releaseChannelDir, "SugarSubstitute-Installer-Linux-x86_64.AppImage"),
+  join(releaseChannelDir, `SugarSubstitute-${nextVersion}-Linux-x86_64.AppImage`),
   "Linux AppImage installer",
 );
 assertFile(
-  join(releaseChannelDir, "SugarSubstitute-Installer-Linux-amd64.deb"),
+  join(releaseChannelDir, `SugarSubstitute-${nextVersion}-Linux-amd64.deb`),
   "Linux Debian installer",
 );
 assertFile(

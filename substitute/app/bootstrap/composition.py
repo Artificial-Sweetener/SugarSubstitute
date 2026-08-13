@@ -63,7 +63,6 @@ from substitute.domain.onboarding import (
     ComfyEndpoint,
     InstallationContext,
     ReadinessAssessment,
-    SetupTransactionMode,
 )
 from substitute.application.workspace_state import (
     InitialShellPlacement,
@@ -80,7 +79,6 @@ from substitute.app.bootstrap.prompt_editor_execution import (
 from substitute.app.bootstrap.settings_execution import (
     create_settings_task_runner_factory,
 )
-from substitute.app.bootstrap.execution_runtime import ExecutionRuntime
 from substitute.app.bootstrap.startup_timing import StartupTimer
 from substitute.app.bootstrap.startup_trace import (
     StartupVisibilityEventFilter,
@@ -201,7 +199,7 @@ if TYPE_CHECKING:
     from substitute.infrastructure.comfy.model_catalog_event_listener import (
         ModelCatalogEventListener,
     )
-    from substitute.presentation.onboarding import OnboardingFlowMode, OnboardingWindow
+    from substitute.presentation.onboarding import OnboardingWindow
     from substitute.presentation.shell.window_frame import ShellBackdropMode
 
 
@@ -3364,95 +3362,6 @@ def show_main_window(
     return shown_frame
 
 
-def _show_onboarding_surface(
-    *,
-    context: InstallationContext,
-    readiness_assessment: ReadinessAssessment,
-    flow_mode: OnboardingFlowMode,
-    entrypoint_path: Path,
-    initial_geometry: tuple[int, int, int, int] | None = None,
-    execution_runtime: object | None = None,
-) -> OnboardingWindow:
-    """Build and show the dedicated onboarding, repair, or reconfigure surface."""
-
-    from substitute.application.onboarding import OnboardingFlowService
-    from substitute.application.onboarding.comfy_environment_service import (
-        ComfyEnvironmentService,
-    )
-    from substitute.infrastructure.comfy.managed_install import (
-        ensure_managed_comfy_setup,
-    )
-    from substitute.infrastructure.comfy.attached_install import (
-        prepare_verified_attached_comfy_setup,
-    )
-    from substitute.infrastructure.comfy.local_process_gateway import (
-        PsutilLocalComfyProcessGateway,
-    )
-    from substitute.infrastructure.comfy.workspace_python_discovery import (
-        WorkspacePythonGateway,
-    )
-    from substitute.app.bootstrap.installation_context import (
-        build_onboarding_service_bundle,
-    )
-    from substitute.app.bootstrap.onboarding_execution import (
-        OnboardingExecutionRuntime,
-        create_onboarding_environment_submitter,
-        create_onboarding_provisioning_submitter_factory,
-    )
-    from substitute.presentation.onboarding import (
-        OnboardingController,
-        OnboardingWindow,
-    )
-    from substitute.presentation.onboarding.comfy_environment_coordinator import (
-        ComfyEnvironmentCoordinator,
-    )
-
-    owned_execution_runtime: ExecutionRuntime | None = None
-    active_execution_runtime = execution_runtime
-    if active_execution_runtime is None:
-        owned_execution_runtime = ExecutionRuntime()
-        active_execution_runtime = owned_execution_runtime
-    flow_service = OnboardingFlowService(
-        service_bundle_factory=build_onboarding_service_bundle,
-        managed_workspace_provisioner=ensure_managed_comfy_setup,
-        entrypoint_path=entrypoint_path,
-        attached_workspace_provisioner=prepare_verified_attached_comfy_setup,
-        transaction_mode=_transaction_mode_for_flow(flow_mode),
-    )
-    controller = OnboardingController(
-        initial_install_root=context.install_root,
-        flow_mode=flow_mode,
-        readiness_assessment=readiness_assessment,
-        flow_service=flow_service,
-        submitter_factory=create_onboarding_provisioning_submitter_factory(
-            cast(OnboardingExecutionRuntime, active_execution_runtime)
-        ),
-    )
-    environment_submitter = create_onboarding_environment_submitter(
-        cast(OnboardingExecutionRuntime, active_execution_runtime),
-        controller,
-    )
-    environment_coordinator = ComfyEnvironmentCoordinator(
-        service=ComfyEnvironmentService(
-            process_gateway=PsutilLocalComfyProcessGateway(),
-            python_gateway=WorkspacePythonGateway(),
-        ),
-        submitter=environment_submitter,
-        close_submitter=environment_submitter.close,
-        parent=controller,
-    )
-    window = OnboardingWindow(
-        controller=controller,
-        environment_coordinator=environment_coordinator,
-        install_root_locked=resolve_app_layout(context.install_root).installed_payload,
-        initial_geometry=initial_geometry,
-    )
-    if owned_execution_runtime is not None:
-        window.destroyed.connect(lambda _obj=None: owned_execution_runtime.shutdown())
-    window.show()
-    return window
-
-
 def show_onboarding_window(
     *,
     context: InstallationContext,
@@ -3463,8 +3372,9 @@ def show_onboarding_window(
     """Show first-run onboarding routed from bootstrap readiness."""
 
     from substitute.presentation.onboarding import OnboardingFlowMode
+    from substitute.app.bootstrap.onboarding_surface import show_onboarding_surface
 
-    return _show_onboarding_surface(
+    return show_onboarding_surface(
         context=context,
         readiness_assessment=readiness_assessment,
         flow_mode=OnboardingFlowMode.FIRST_RUN,
@@ -3483,8 +3393,9 @@ def show_repair_window(
     """Show repair onboarding routed from bootstrap readiness."""
 
     from substitute.presentation.onboarding import OnboardingFlowMode
+    from substitute.app.bootstrap.onboarding_surface import show_onboarding_surface
 
-    return _show_onboarding_surface(
+    return show_onboarding_surface(
         context=context,
         readiness_assessment=readiness_assessment,
         flow_mode=OnboardingFlowMode.REPAIR,
@@ -3502,29 +3413,15 @@ def show_reconfigure_window(
     """Show reconfigure onboarding from the live shell."""
 
     from substitute.presentation.onboarding import OnboardingFlowMode
+    from substitute.app.bootstrap.onboarding_surface import show_onboarding_surface
 
-    return _show_onboarding_surface(
+    return show_onboarding_surface(
         context=context,
-        readiness_assessment=ReadinessAssessment(
-            route=BootstrapRoute.READY,
-            issues=(),
-        ),
+        readiness_assessment=ReadinessAssessment(route=BootstrapRoute.READY, issues=()),
         flow_mode=OnboardingFlowMode.RECONFIGURE,
         entrypoint_path=entrypoint_path,
         execution_runtime=execution_runtime,
     )
-
-
-def _transaction_mode_for_flow(flow_mode: OnboardingFlowMode) -> SetupTransactionMode:
-    """Map one UI flow entry mode to durable setup transaction intent."""
-
-    from substitute.presentation.onboarding import OnboardingFlowMode
-
-    if flow_mode is OnboardingFlowMode.FIRST_RUN:
-        return SetupTransactionMode.FIRST_RUN
-    if flow_mode is OnboardingFlowMode.RECONFIGURE:
-        return SetupTransactionMode.RECONFIGURE
-    return SetupTransactionMode.REPAIR
 
 
 def create_splash_window() -> Any:

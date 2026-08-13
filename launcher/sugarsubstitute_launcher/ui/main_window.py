@@ -24,9 +24,9 @@ from collections.abc import Callable, Sequence
 import ctypes
 from enum import Enum
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
-from PySide6.QtCore import QObject, QRect, QThread, QTimer, Qt, Signal, Slot
+from PySide6.QtCore import QRect, QThread, QTimer, Qt, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -58,17 +58,17 @@ from qframelesswindow import AcrylicWindow  # type: ignore[import-untyped]
 from qframelesswindow.titlebar import TitleBar  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
+from launcher.sugarsubstitute_launcher.initial_release_source import (
+    resolve_initial_install_release_source,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.process import start_detached_handoff
 from launcher.sugarsubstitute_launcher.release_discovery import (
     discover_local_release_root,
-    discover_packaged_release_root,
 )
 from launcher.sugarsubstitute_launcher.release_sources import (
     LocalFolderReleaseSource,
-    ReleaseSource,
-    default_production_release_source,
 )
 from launcher.sugarsubstitute_launcher.resources import launcher_icon
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
@@ -81,12 +81,17 @@ from launcher.sugarsubstitute_launcher.runtime import (
     SubprocessRuntimeCommandRunner,
     UvManagedRuntimeInstaller,
 )
+from launcher.sugarsubstitute_launcher.ui.failure_detail import (
+    launcher_failure_detail,
+)
+from launcher.sugarsubstitute_launcher.ui.installation_execution import (
+    InitialInstallWorker,
+    LauncherRuntimeInstaller,
+    RuntimeInstallerFactory,
+    SetupWorker,
+)
 
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
-from sugarsubstitute_shared.external_path_failure import (
-    ExternalLongPathCompatibilityError,
-)
-from sugarsubstitute_shared.windows_long_paths import WindowsPathComponentTooLongError
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -126,157 +131,6 @@ class LauncherUiState(Enum):
     INSTALL_RUNTIME = "install_runtime"
     START_SETUP = "start_setup"
     COMPLETE = "complete"
-
-
-class LauncherRuntimeInstaller(Protocol):
-    """Provision the runtime required to start the installed source app."""
-
-    def provision(self, *, layout: InstallLayout) -> object:
-        """Ensure the runtime exists for the supplied install layout."""
-
-        ...
-
-
-RuntimeInstallerFactory = Callable[[Callable[[str], None]], LauncherRuntimeInstaller]
-
-
-class _SetupWorker(QObject):
-    """Run runtime provisioning and app handoff away from the UI thread."""
-
-    log = Signal(str)
-    failed = Signal(str, str)
-    succeeded = Signal()
-    finished = Signal()
-
-    def __init__(
-        self,
-        *,
-        layout: InstallLayout,
-        setup_command: Sequence[str],
-        runtime_installer_factory: RuntimeInstallerFactory,
-        process_starter: Callable[[Sequence[str]], None],
-    ) -> None:
-        """Store setup work that must not block the Qt event loop."""
-
-        super().__init__()
-        self._layout = layout
-        self._setup_command = list(setup_command)
-        self._runtime_installer_factory = runtime_installer_factory
-        self._process_starter = process_starter
-
-    @Slot()
-    def run(self) -> None:
-        """Provision the runtime, launch setup, and report progress through signals."""
-
-        try:
-            runtime_installer = self._runtime_installer_factory(self.log.emit)
-            runtime_installer.provision(layout=self._layout)
-        except Exception as error:
-            self.failed.emit("runtime", _launcher_failure_detail(error))
-            self.finished.emit()
-            return
-
-        self.log.emit(launcher_text("Runtime ready: %1", self._layout.runtime_python))
-        self.log.emit(launcher_text("Starting SugarSubstitute setup."))
-        try:
-            self._process_starter(self._setup_command)
-        except Exception as error:
-            self.failed.emit("setup", _launcher_failure_detail(error))
-            self.finished.emit()
-            return
-
-        self.log.emit(launcher_text("Started SugarSubstitute setup."))
-        self.log.emit(launcher_text("Waiting for the setup window to open."))
-        self.succeeded.emit()
-        self.finished.emit()
-
-
-class _InitialInstallWorker(QObject):
-    """Install launcher and app payload without blocking the setup window."""
-
-    log = Signal(str)
-    failed = Signal(str)
-    succeeded = Signal(object, object, str)
-    finished = Signal()
-
-    def __init__(
-        self,
-        *,
-        install_root: Path,
-        frozen_setup: bool,
-        handoff_geometry: str | None,
-        layout_installer: LayoutInstaller,
-        first_run_installer: FirstRunInstaller,
-    ) -> None:
-        """Store initial install work that runs away from the Qt event loop."""
-
-        super().__init__()
-        self._install_root = install_root
-        self._frozen_setup = frozen_setup
-        self._handoff_geometry = handoff_geometry
-        self._layout_installer = layout_installer
-        self._first_run_installer = first_run_installer
-
-    @Slot()
-    def run(self) -> None:
-        """Install permanent launcher files and the app payload."""
-
-        try:
-            release_source = resolve_initial_install_release_source(
-                frozen_setup=self._frozen_setup
-            )
-            if self._frozen_setup:
-                downloaded_result = (
-                    self._first_run_installer.install_downloaded_launcher(
-                        install_root=self._install_root,
-                        release_source=release_source,
-                        handoff_geometry=self._handoff_geometry,
-                        launch_installed=False,
-                    )
-                )
-                layout = downloaded_result.layout
-                self.log.emit(
-                    launcher_text("Installed launcher: %1", layout.executable_path)
-                )
-            else:
-                prepared_result = self._layout_installer.prepare(self._install_root)
-                layout = prepared_result.layout
-                self.log.emit(
-                    launcher_text(
-                        "Source-run launcher detected; skipped executable self-copy."
-                    )
-                )
-
-            self.log.emit(launcher_text("Created install root: %1", layout.root))
-            self.log.emit(
-                launcher_text("Wrote launcher config: %1", layout.config_path)
-            )
-            continued_result = self._first_run_installer.continue_install(
-                layout=layout,
-                release_source=release_source,
-            )
-        except Exception as error:
-            self.failed.emit(_launcher_failure_detail(error))
-            self.finished.emit()
-            return
-
-        self.succeeded.emit(
-            layout,
-            continued_result.app_command,
-            continued_result.app_version,
-        )
-        self.finished.emit()
-
-
-def resolve_initial_install_release_source(*, frozen_setup: bool) -> ReleaseSource:
-    """Choose the embedded, production, or source-run release channel."""
-
-    packaged_release_root = discover_packaged_release_root()
-    if packaged_release_root is not None:
-        return LocalFolderReleaseSource(packaged_release_root)
-    if frozen_setup:
-        return default_production_release_source()
-    return LocalFolderReleaseSource(discover_local_release_root())
 
 
 class LauncherStepItem(QFrame):
@@ -355,10 +209,10 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             runtime_installer
         )
         self._setup_thread: QThread | None = None
-        self._setup_worker: _SetupWorker | None = None
+        self._setup_worker: SetupWorker | None = None
         self._setup_handoff_close_pending = False
         self._install_thread: QThread | None = None
-        self._install_worker: _InitialInstallWorker | None = None
+        self._install_worker: InitialInstallWorker | None = None
         self._setup_command: list[str] | None = None
         self._prepared_layout: InstallLayout | None = (
             initial_layout if continue_install else None
@@ -712,7 +566,9 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
                 downloaded_result = (
                     self._first_run_installer.install_downloaded_launcher(
                         install_root=install_root,
-                        release_source=default_production_release_source(),
+                        release_source=resolve_initial_install_release_source(
+                            frozen_setup=True
+                        ),
                         handoff_geometry=self._current_handoff_geometry(),
                         launch_installed=True,
                     )
@@ -769,7 +625,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._append_log(launcher_text("Preparing SugarSubstitute install."))
 
         thread = QThread(self)
-        worker = _InitialInstallWorker(
+        worker = InitialInstallWorker(
             install_root=install_root,
             frozen_setup=_current_frozen_executable() is not None,
             handoff_geometry=self._current_handoff_geometry(),
@@ -846,7 +702,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._append_log(launcher_text("This can take a while the first time."))
 
         thread = QThread(self)
-        worker = _SetupWorker(
+        worker = SetupWorker(
             layout=self._prepared_layout,
             setup_command=self._setup_command,
             runtime_installer_factory=self._runtime_installer_factory,
@@ -1026,7 +882,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._append_log(
             launcher_text("Setup failed. Check the details below and try again.")
         )
-        self._append_log(launcher_text("Details: %1", _launcher_failure_detail(error)))
+        self._append_log(launcher_text("Details: %1", launcher_failure_detail(error)))
 
     @Slot(str)
     def _append_log(self, message: str) -> None:
@@ -1235,26 +1091,6 @@ def _current_frozen_executable() -> Path | None:
     if bool(getattr(sys, "frozen", False)):
         return Path(sys.executable)
     return None
-
-
-def _launcher_failure_detail(error: Exception) -> str:
-    """Render structured Windows path failures as actionable launcher text."""
-
-    if isinstance(error, WindowsPathComponentTooLongError):
-        return launcher_text(
-            "Windows limits each file or folder name to 255 characters. Shorten "
-            "the name in %1, then try again.",
-            error.path,
-        )
-    if isinstance(error, ExternalLongPathCompatibilityError):
-        return launcher_text(
-            "%1 could not use this long Windows path even though SugarSubstitute "
-            "can: %2. Choose a shorter folder for this operation, or enable Win32 "
-            "long paths in Windows, then try again.",
-            error.component,
-            error.path,
-        )
-    return str(error)
 
 
 def _install_location_guidance() -> str:
