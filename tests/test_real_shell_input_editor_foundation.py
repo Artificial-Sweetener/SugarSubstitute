@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, Qt
@@ -153,6 +153,16 @@ def test_harness_close_finalizes_input_document_runtime(
         "input": [False, True],
         "output": [False, True],
     }
+
+
+def test_harness_defers_unrelated_sam_native_runtime(tmp_path: Path) -> None:
+    """Input-editor foundation tests must not start the unrelated SAM runtime."""
+
+    harness = RealShellInputEditorHarness(tmp_path)
+    try:
+        assert cast(Any, harness.input_canvas.canvas).samManager() is None
+    finally:
+        harness.close()
 
 
 def test_owned_input_document_teardown_awaits_its_runtime(
