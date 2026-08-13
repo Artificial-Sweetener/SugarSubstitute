@@ -27,7 +27,7 @@ from launcher.sugarsubstitute_launcher.config import LauncherConfig, UpdateCheck
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
 from launcher.sugarsubstitute_launcher.payload import AppPayloadInstallResult
-from launcher.sugarsubstitute_launcher.runtime import RuntimeProvisioningResult
+from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherMinimumVersionError,
     LauncherUpdateOrchestrator,

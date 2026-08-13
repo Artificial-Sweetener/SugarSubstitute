@@ -44,9 +44,16 @@ from launcher.sugarsubstitute_launcher.runtime_resources import (  # noqa: E402
     launcher_uv_path,
 )
 from launcher.sugarsubstitute_launcher.runtime import (  # noqa: E402
-    SubprocessRuntimeCommandRunner,
     UvManagedRuntimeInstaller,
+)
+from launcher.sugarsubstitute_launcher.runtime_command import (  # noqa: E402
+    SubprocessRuntimeCommandRunner,
+)
+from launcher.sugarsubstitute_launcher.runtime_policy import (  # noqa: E402
     runtime_environment,
+)
+from launcher.sugarsubstitute_launcher.uv_tool import (  # noqa: E402
+    VerifiedUvExecutableProvider,
 )
 from substitute.infrastructure.comfy.managed_process_registry import (  # noqa: E402
     ManagedProcessRegistry,
@@ -150,7 +157,7 @@ def run_clean_install_harness(
 
     log("[3/5] Provisioning installed app runtime.")
     UvManagedRuntimeInstaller(
-        bundled_uv_path=launcher_uv_path(),
+        uv_provider=VerifiedUvExecutableProvider(bundled_uv_path=launcher_uv_path()),
         runner=SubprocessRuntimeCommandRunner(log),
     ).provision(layout=layout)
 

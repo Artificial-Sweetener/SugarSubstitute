@@ -19,105 +19,56 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
 
-from launcher.sugarsubstitute_launcher.first_run import (
-    ContinuedInstallResult,
-    DownloadedLauncherInstallResult,
-    FirstRunInstaller,
+from launcher.sugarsubstitute_launcher.application.installation.models import (
+    ApplicationInstallationRequest,
+    CompletedInstallation,
+    InstallationPreparation,
+)
+from launcher.sugarsubstitute_launcher.application.installation.workflow import (
+    InstallationWorkflow,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
-from launcher.sugarsubstitute_launcher.runtime import (
-    RuntimeProvisioningResult,
-    SubprocessRuntimeCommandRunner,
-    UvManagedRuntimeInstaller,
-)
-from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
 
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class RuntimeProvisioner(Protocol):
-    """Provision the managed Python runtime for an installed app payload."""
-
-    def provision(self, *, layout: InstallLayout) -> RuntimeProvisioningResult:
-        """Return the runtime provisioned for one installation layout."""
-
-
-class FirstRunInstallCoordinator(Protocol):
-    """Install launcher and app artifacts from one release source."""
-
-    def install_downloaded_launcher(
-        self,
-        *,
-        install_root: Path,
-        release_source: ReleaseSource,
-        handoff_geometry: str | None = None,
-        launch_installed: bool = True,
-    ) -> DownloadedLauncherInstallResult:
-        """Install the permanent launcher without requiring a GUI handoff."""
-
-    def continue_install(
-        self,
-        *,
-        layout: InstallLayout,
-        release_source: ReleaseSource,
-    ) -> ContinuedInstallResult:
-        """Install the application payload into the prepared layout."""
-
-
-@dataclass(frozen=True, slots=True)
-class HeadlessInstallResult:
-    """Describe a completed launcher, app, and runtime installation."""
-
-    layout: InstallLayout
-    app_version: str
-    runtime_python: Path
-
-
 class HeadlessInstallService:
-    """Coordinate the same install stages used by the setup window."""
+    """Adapt headless installer requests to the shared installation workflow."""
 
     def __init__(
         self,
         *,
-        first_run_installer: FirstRunInstallCoordinator | None = None,
-        runtime_provisioner: RuntimeProvisioner | None = None,
+        workflow: InstallationWorkflow,
     ) -> None:
-        """Store collaborators for launcher, payload, and runtime installation."""
+        """Store the application workflow used by headless installation."""
 
-        self._first_run_installer = first_run_installer or FirstRunInstaller(
-            process_starter=lambda _command: None
-        )
-        self._runtime_provisioner = runtime_provisioner or UvManagedRuntimeInstaller(
-            bundled_uv_path=launcher_uv_path(),
-            runner=SubprocessRuntimeCommandRunner(_LOGGER.info),
-        )
+        self._workflow = workflow
 
     def install(
         self,
         *,
         install_root: Path,
         release_source: ReleaseSource,
-    ) -> HeadlessInstallResult:
+    ) -> CompletedInstallation:
         """Install the launcher, app payload, and managed runtime into one root."""
 
-        launcher_result = self._first_run_installer.install_downloaded_launcher(
-            install_root=install_root,
-            release_source=release_source,
-            launch_installed=False,
+        application = self._workflow.install_application(
+            ApplicationInstallationRequest(
+                layout=InstallLayout.from_root(install_root),
+                release_source=release_source,
+                preparation=InstallationPreparation.INSTALL_LAUNCHER,
+            )
         )
-        app_result = self._first_run_installer.continue_install(
-            layout=launcher_result.layout,
-            release_source=release_source,
+        result = self._workflow.provision_runtime(application)
+        _LOGGER.info(
+            "Completed headless installation.",
+            extra={
+                "install_root": str(result.application.layout.root),
+                "app_version": result.application.app_version,
+            },
         )
-        runtime_result = self._runtime_provisioner.provision(layout=app_result.layout)
-        return HeadlessInstallResult(
-            layout=app_result.layout,
-            app_version=app_result.app_version,
-            runtime_python=runtime_result.python_executable,
-        )
+        return result
