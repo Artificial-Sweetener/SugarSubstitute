@@ -26,6 +26,7 @@ from substitute.application.comfy_nodepacks.sugarcubes_maintenance_report_parser
     SugarCubesMaintenanceResult,
 )
 from substitute.infrastructure.comfy import sugarcubes_startup_maintenance
+from sugarsubstitute_shared.startup_remote_access import StartupConnectivityError
 
 
 def test_successful_startup_maintenance_returns_the_strict_result(
@@ -76,3 +77,24 @@ def test_failed_startup_maintenance_reports_degradation_and_returns(
         "SugarCubes startup maintenance failed: local checkout is ahead and "
         "must be preserved ComfyUI will continue starting."
     ]
+
+
+def test_connectivity_failure_reaches_the_launch_scoped_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """SugarCubes must expose connectivity loss to the shared sticky decision."""
+
+    def fail_connectivity(*_args: object, **_kwargs: object) -> None:
+        """Represent one typed remote-access failure."""
+
+        raise StartupConnectivityError("repository fetch unavailable")
+
+    monkeypatch.setattr(
+        sugarcubes_startup_maintenance,
+        "run_sugarcubes_baseline_maintenance",
+        fail_connectivity,
+    )
+
+    with pytest.raises(StartupConnectivityError):
+        sugarcubes_startup_maintenance.attempt_sugarcubes_startup_maintenance(tmp_path)

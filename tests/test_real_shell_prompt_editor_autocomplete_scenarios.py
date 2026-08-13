@@ -23,8 +23,8 @@ from itertools import pairwise
 import os
 from typing import Any, cast
 
-from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QKeySequence, QTextCursor
+from PySide6.QtCore import QCoreApplication, QEvent, QPoint, Qt
+from PySide6.QtGui import QFocusEvent, QKeySequence, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLineEdit
 import pytest
@@ -408,10 +408,20 @@ def test_real_shell_region_inline_edit_commits_when_focus_leaves(
 
     assert inline_editor is not None
     QTest.keyClicks(inline_editor, "Background")
-    harness.click_away_from_editor()
+    QCoreApplication.sendEvent(
+        inline_editor,
+        QFocusEvent(QEvent.Type.FocusOut, Qt.FocusReason.MouseFocusReason),
+    )
+    expected_source = "global\n[SEP|Background]\nregion"
+    harness.wait_until(
+        lambda: (
+            field.editor.toPlainText() == expected_source
+            and not inline_editor.isVisible()
+        )
+    )
 
     after = harness.capture_state_snapshot(field, label="separator-focus-committed")
-    assert after.source_text == "global\n[SEP|Background]\nregion"
+    assert after.source_text == expected_source
     assert not inline_editor.isVisible()
 
 

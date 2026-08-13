@@ -37,6 +37,10 @@ from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
     subprocess_working_directory,
 )
+from sugarsubstitute_shared.startup_remote_access import (
+    StartupConnectivityError,
+    startup_connectivity_error_from_output,
+)
 
 
 _DEFAULT_CLONE_TIMEOUT_SECONDS = 120.0
@@ -110,9 +114,8 @@ class Pygit2CloneProcess:
             )
         except subprocess.TimeoutExpired as error:
             _discard_clone_work(target_path, workspace=workspace)
-            raise RepositoryOperationError(
-                f"Repository clone timed out after {self._timeout_seconds:g} seconds: "
-                f"{repository_url}"
+            raise StartupConnectivityError(
+                "Remote access became unavailable while cloning a required repository."
             ) from error
         except OSError as error:
             _discard_clone_work(target_path, workspace=workspace)
@@ -139,6 +142,12 @@ class Pygit2CloneProcess:
         )
         if compatibility_error is not None:
             raise compatibility_error
+        connectivity_error = startup_connectivity_error_from_output(
+            detail,
+            operation="clone a required repository",
+        )
+        if connectivity_error is not None:
+            raise connectivity_error
         suffix = f" Details: {detail}" if detail else ""
         raise RepositoryOperationError(
             f"Repository clone process failed with exit code "

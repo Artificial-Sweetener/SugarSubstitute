@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.error import URLError
 
 import pytest
 
@@ -277,6 +278,50 @@ def test_pre_launch_update_blocks_app_below_unavailable_launcher_minimum(
     assert not layout.state_path.exists()
 
 
+def test_required_launcher_network_failure_still_launches_installed_app(
+    tmp_path: Path,
+) -> None:
+    """Network loss while staging a required launcher must degrade, not block."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
+    layout.runtime_python.write_text("python", encoding="utf-8")
+    config = LauncherConfig.from_layout(layout=layout)
+    base = _manifest(version="0.11.0")
+    manifest = ReleaseManifest(
+        schema_version=base.schema_version,
+        channel=base.channel,
+        version=base.version,
+        minimum_launcher_version="0.11.0",
+        app=base.app,
+        launchers={
+            layout.target.key: ReleaseAsset(
+                filename="launcher.zip",
+                url="https://example.invalid/launcher.zip",
+                sha256="1" * 64,
+                size_bytes=42,
+            )
+        },
+        installers={},
+    )
+
+    result = LauncherUpdateOrchestrator(
+        payload_installer=_PayloadInstaller(version="0.11.0"),
+        runtime_reconciler=_RuntimeReconciler(),
+        launcher_bundle_stager=_OfflineLauncherStager(),
+        launcher_version="0.10.0",
+        now=_fixed_now,
+    ).run(
+        layout=layout,
+        config=config,
+        release_source=_ReleaseSource(manifest),
+        no_update_check=False,
+    )
+
+    assert result.failure_reason == "URLError"
+    assert result.launcher_update_request_path is None
+
+
 def _fixed_now() -> datetime:
     """Return a deterministic UTC timestamp."""
 
@@ -425,3 +470,12 @@ class _LauncherStager:
         self.versions.append(version)
         self.assets.append(asset)
         return self._request_path
+
+
+class _OfflineLauncherStager:
+    """Represent network loss while staging a launcher bundle."""
+
+    def stage(self, **_kwargs: object) -> Path:
+        """Raise the urllib connectivity error used by the production downloader."""
+
+        raise URLError("offline")

@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 import logging
 from pathlib import Path
 from typing import Protocol
+from urllib.error import URLError
 
 from launcher.sugarsubstitute_launcher import __version__ as LAUNCHER_VERSION
 
@@ -320,6 +321,8 @@ class LauncherUpdateOrchestrator:
                     size_bytes=release_asset.size_bytes,
                 ),
             )
+        except (ConnectionError, TimeoutError, URLError):
+            raise
         except Exception as error:
             if minimum_comparison < 0:
                 raise LauncherMinimumVersionError(

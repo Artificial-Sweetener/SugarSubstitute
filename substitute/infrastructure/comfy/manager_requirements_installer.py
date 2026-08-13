@@ -36,6 +36,9 @@ from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
     subprocess_working_directory,
 )
+from sugarsubstitute_shared.startup_remote_access import (
+    startup_connectivity_error_from_output,
+)
 
 LogCallback = Callable[[str], None]
 
@@ -113,13 +116,19 @@ class ComfyManagerRequirementsInstaller:
         )
         self._log_output(result, on_log)
         if result.returncode != 0:
+            output = command_output(result)
             raise_pip_path_compatibility_error(
                 fallback_path=workspace,
-                output=command_output(result),
+                output=output,
             )
+            connectivity_error = startup_connectivity_error_from_output(
+                output,
+                operation="install ComfyUI Manager requirements",
+            )
+            if connectivity_error is not None:
+                raise connectivity_error
             raise RuntimeError(
-                "Substitute could not install ComfyUI Manager requirements. "
-                + command_output(result)
+                "Substitute could not install ComfyUI Manager requirements. " + output
             )
 
     @staticmethod

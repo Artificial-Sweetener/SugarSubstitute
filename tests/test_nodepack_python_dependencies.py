@@ -30,6 +30,7 @@ from substitute.infrastructure.comfy.nodepack_python_dependencies import (
     read_nodepack_python_dependencies,
 )
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
+from sugarsubstitute_shared.startup_remote_access import StartupConnectivityError
 
 _MODULE = (
     Path(__file__).resolve().parents[1]
@@ -115,6 +116,29 @@ def test_empty_dependency_list_performs_no_pip_install(
         nodepack_root=tmp_path,
         display_name="Example",
     )
+
+
+def test_dependency_install_promotes_connectivity_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Nodepack pip transport evidence must activate startup degradation."""
+
+    _write_pyproject(tmp_path, dependencies=("example",))
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.nodepack_python_dependencies.stream_command_collecting_output",
+        lambda *args, **kwargs: (
+            1,
+            ("NewConnectionError: network is unreachable",),
+        ),
+    )
+
+    with pytest.raises(StartupConnectivityError):
+        install_nodepack_python_dependencies(
+            python_executable=tmp_path / "python.exe",
+            nodepack_root=tmp_path,
+            display_name="Example",
+        )
 
 
 def test_dependency_manifest_rejects_invalid_values(tmp_path: Path) -> None:

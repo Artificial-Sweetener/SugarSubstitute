@@ -33,6 +33,9 @@ from substitute.infrastructure.comfy.sugarcubes_maintenance_runner import (
 )
 from substitute.infrastructure.version_control import RepositoryService
 from substitute.shared.logging.logger import get_logger, log_warning_exception
+from sugarsubstitute_shared.startup_remote_access import (
+    is_startup_connectivity_failure,
+)
 
 _LOGGER = get_logger(__name__)
 
@@ -56,6 +59,8 @@ def attempt_sugarcubes_startup_maintenance(
             repositories=repositories,
         )
     except Exception as error:  # noqa: BLE001 - startup must survive this optional phase.
+        if is_startup_connectivity_failure(error):
+            raise
         log_warning_exception(
             _LOGGER,
             "SugarCubes startup maintenance degraded without blocking launch",
