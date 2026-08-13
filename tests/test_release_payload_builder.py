@@ -212,13 +212,13 @@ def test_local_release_channel_writes_optional_launcher_bundle_asset(
     )
     assert launcher["url"] == launcher_zip.as_uri()
     assert launcher["sha256"] == sha256_file(launcher_zip)
-    assert installer["filename"] == "SugarSubstitute-Installer-Windows-x64.exe"
+    assert installer["filename"] == "SugarSubstitute-0.4.0-Windows-x64-Setup.exe"
     assert installer["url"] == installer_exe.as_uri()
     assert installer["sha256"] == sha256_file(installer_exe)
     assert "SugarSubstitute-installer-payload-windows-x64-v0.4.0.zip" in (
         result.checksums_path.read_text(encoding="utf-8")
     )
-    assert "SugarSubstitute-Installer-Windows-x64.exe" in (
+    assert "SugarSubstitute-0.4.0-Windows-x64-Setup.exe" in (
         result.checksums_path.read_text(encoding="utf-8")
     )
     with zipfile.ZipFile(launcher_zip) as archive:
@@ -230,7 +230,7 @@ def test_local_release_channel_writes_optional_launcher_bundle_asset(
         "SugarSubstitute-installer-payload-macos-arm64-v0.4.0.zip"
     )
     assert macos_installer_asset["filename"] == (
-        "SugarSubstitute-Installer-macOS-Apple-Silicon.dmg"
+        "SugarSubstitute-0.4.0-macOS-Apple-Silicon.dmg"
     )
 
 

@@ -56,7 +56,7 @@ def test_pre_launch_update_skips_without_release_source(tmp_path: Path) -> None:
     assert not layout.state_path.exists()
 
 
-def test_pre_launch_update_installs_newer_manifest_and_writes_state(
+def test_pre_launch_update_commits_new_version_only_after_launch_readiness(
     tmp_path: Path,
 ) -> None:
     """A newer manifest should install the payload and persist the new version."""
@@ -84,6 +84,9 @@ def test_pre_launch_update_installs_newer_manifest_and_writes_state(
     assert result.installed_update is True
     assert installer.installed_layouts == [layout]
     assert runtime_reconciler.reconciled_layouts == [layout]
+    assert not layout.state_path.exists()
+    assert result.pending_activation is not None
+    result.pending_activation.commit()
     assert LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
     assert progress.lines == [
         "Checking for SugarSubstitute updates.",

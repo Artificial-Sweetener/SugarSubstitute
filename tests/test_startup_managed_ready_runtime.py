@@ -48,11 +48,11 @@ from substitute.app.bootstrap.ready_shell_controller import (
     ReadyShellMinimumReadyTask,
     ReadyShellPostShowController,
     ReadyShellPromptEditorWarmupTask,
-    ReadyShellRevealTask,
     ReadyShellShowGateTask,
     ReadyShellStartupDiagnosticsUpdateAdapter,
     ReadyShellTargetActivationTask,
 )
+from substitute.app.bootstrap.ready_shell_reveal import ReadyShellRevealTask
 from substitute.app.bootstrap.pre_show_restore_projection import (
     PreShowRestoreProjectionState,
 )

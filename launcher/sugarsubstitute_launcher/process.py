@@ -82,6 +82,38 @@ def start_detached(
 ) -> None:
     """Start a child process hidden and fail if it exits during startup."""
 
+    process, startup_log_path = spawn_detached_process(
+        command,
+        environment=environment,
+    )
+    try:
+        return_code = process.wait(timeout=startup_timeout_seconds)
+    except subprocess.TimeoutExpired:
+        return
+
+    startup_detail = _tail_text(startup_log_path)
+    compatibility_error = external_long_path_error(
+        component="Python",
+        path=_command_working_directory(command) or startup_log_path.parent,
+        detail=startup_detail,
+    )
+    if compatibility_error is not None:
+        raise compatibility_error
+    raise ProcessStartupError(
+        "SugarSubstitute exited before the setup window opened. "
+        f"Exit code: {return_code}. "
+        f"Startup log: {startup_log_path}. "
+        f"{startup_detail}"
+    )
+
+
+def spawn_detached_process(
+    command: Sequence[str],
+    *,
+    environment: Mapping[str, str] | None = None,
+) -> tuple[subprocess.Popen[bytes], Path]:
+    """Start a hidden app child and return its process and diagnostic log path."""
+
     startupinfo = None
     creationflags = 0
     if sys.platform == "win32":
@@ -124,25 +156,7 @@ def start_detached(
             if compatibility_error is not None:
                 raise compatibility_error from error
             raise
-        try:
-            return_code = process.wait(timeout=startup_timeout_seconds)
-        except subprocess.TimeoutExpired:
-            return
-
-    startup_detail = _tail_text(startup_log_path)
-    compatibility_error = external_long_path_error(
-        component="Python",
-        path=_command_working_directory(command) or startup_log_path.parent,
-        detail=startup_detail,
-    )
-    if compatibility_error is not None:
-        raise compatibility_error
-    raise ProcessStartupError(
-        "SugarSubstitute exited before the setup window opened. "
-        f"Exit code: {return_code}. "
-        f"Startup log: {startup_log_path}. "
-        f"{startup_detail}"
-    )
+    return process, startup_log_path
 
 
 def start_detached_handoff(command: Sequence[str]) -> None:

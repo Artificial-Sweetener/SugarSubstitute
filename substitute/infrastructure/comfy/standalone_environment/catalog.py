@@ -14,30 +14,23 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Expose verified standalone Comfy environment provisioning services."""
+"""Define the standalone-environment release lookup boundary."""
 
-from substitute.infrastructure.comfy.standalone_environment.catalog import (
-    StandaloneEnvironmentCatalog,
-)
+from __future__ import annotations
+
+from typing import Protocol
+
 from substitute.infrastructure.comfy.standalone_environment.models import (
-    StandaloneArchiveKind,
-    StandaloneArtifact,
     StandaloneEnvironmentRelease,
     StandaloneVariantId,
 )
-from substitute.infrastructure.comfy.standalone_environment.pinned_catalog import (
-    PinnedStandaloneEnvironmentCatalog,
-)
-from substitute.infrastructure.comfy.standalone_environment.variant_policy import (
-    standalone_variant_for_target,
-)
 
-__all__ = [
-    "StandaloneArchiveKind",
-    "StandaloneArtifact",
-    "PinnedStandaloneEnvironmentCatalog",
-    "StandaloneEnvironmentCatalog",
-    "StandaloneEnvironmentRelease",
-    "StandaloneVariantId",
-    "standalone_variant_for_target",
-]
+
+class StandaloneEnvironmentCatalog(Protocol):
+    """Resolve a qualified standalone environment for one managed target."""
+
+    def resolve(self, variant: StandaloneVariantId) -> StandaloneEnvironmentRelease:
+        """Return the exact release selected for the supplied variant."""
+
+
+__all__ = ["StandaloneEnvironmentCatalog"]

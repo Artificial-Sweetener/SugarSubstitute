@@ -44,11 +44,11 @@ from substitute.app.bootstrap.ready_shell_controller import (
     ReadyShellMinimumReadyTask,
     ReadyShellPostShowController,
     ReadyShellPromptEditorWarmupTask,
-    ReadyShellRevealTask,
     ReadyShellShowGateTask,
     ReadyShellStartupDiagnosticsUpdateAdapter,
     ReadyShellTargetActivationTask,
 )
+from substitute.app.bootstrap.ready_shell_reveal import ReadyShellRevealTask
 from substitute.app.bootstrap.ready_shell_startup_tasks import (
     ReadyShellStartupTaskQueueProtocol,
 )
