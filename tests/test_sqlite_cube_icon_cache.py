@@ -149,10 +149,10 @@ def test_sqlite_cube_icon_cache_prunes_oldest_bytes(tmp_path: Path) -> None:
     assert cache.read_rendered_icon(keys[1]) is not None
 
 
-def test_sqlite_cube_icon_cache_rejects_unsupported_schema_version(
+def test_sqlite_cube_icon_cache_recovers_unsupported_schema_version(
     tmp_path: Path,
 ) -> None:
-    """Unsupported schema versions should fail clearly instead of reusing rows."""
+    """Unsupported schema versions should be quarantined as a cache miss."""
 
     database_path = tmp_path / "cube_icon_cache.sqlite3"
     with sqlite3.connect(database_path) as connection:
@@ -163,12 +163,21 @@ def test_sqlite_cube_icon_cache_rejects_unsupported_schema_version(
             "insert into cube_icon_cache_schema(key, value) values('schema_version', '999')"
         )
 
-    try:
-        SqliteCubeIconCache(tmp_path)
-    except RuntimeError as error:
-        assert "Unsupported cube icon cache SQLite schema version" in str(error)
-    else:
-        raise AssertionError("Expected unsupported schema version to raise.")
+    cache = SqliteCubeIconCache(tmp_path)
+
+    assert cache.read_rendered_icon(_key()) is None
+    assert tuple((tmp_path / "quarantine").glob("*.invalid"))
+
+
+def test_sqlite_cube_icon_cache_recovers_corrupt_database(tmp_path: Path) -> None:
+    """Corrupt SQLite bytes should not prevent cache construction or use."""
+
+    (tmp_path / "cube_icon_cache.sqlite3").write_bytes(b"not sqlite")
+
+    cache = SqliteCubeIconCache(tmp_path)
+
+    assert cache.read_rendered_icon(_key()) is None
+    assert tuple((tmp_path / "quarantine").glob("*.invalid"))
 
 
 def _key(

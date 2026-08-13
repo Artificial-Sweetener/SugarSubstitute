@@ -22,7 +22,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, onboarding, repair, and reconfiguration presentation, runtime readiness probing. Extract lazy adapter definitions and shell presentation from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 3038
+max_lines = 2943
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -178,7 +178,7 @@ kind = "remediation"
 justification = "The assessed file mixes catalog cache lifecycle and durable snapshots, backend refresh orchestration, metadata-record matching, picker item, thumbnail, and search-text projection. Extract pure picker-record projection from catalog loading, caching, and refresh orchestration."
 issue = "chore:SS-ARCH-014"
 review_by = 2026-12-15
-max_lines = 645
+max_lines = 643
 next_limit = 516
 debt = "SS-ARCH-014"
 
@@ -415,32 +415,6 @@ review_by = 2026-12-15
 max_lines = 570
 next_limit = 500
 debt = "SS-ARCH-032"
-
-[[waivers]]
-id = "SS-WAIVER-R033"
-owner = "Danbooru cache persistence"
-rule = "STRUCT003"
-path = "substitute/infrastructure/persistence/danbooru_cache_store.py"
-kind = "remediation"
-justification = "The assessed file mixes wiki, tag, and post metadata persistence, post-search persistence, binary preview asset persistence and file ownership, cache clearing and summary accounting, SQLite schema initialization. Extract preview-asset storage from textual Danbooru metadata and search persistence."
-issue = "chore:SS-ARCH-033"
-review_by = 2026-12-15
-max_lines = 594
-next_limit = 500
-debt = "SS-ARCH-033"
-
-[[waivers]]
-id = "SS-WAIVER-R034"
-owner = "model metadata persistence"
-rule = "STRUCT003"
-path = "substitute/infrastructure/persistence/sqlite_model_metadata_store.py"
-kind = "remediation"
-justification = "The assessed file mixes model metadata record persistence, provider, file, and image relation persistence, thumbnail binary storage and variant selection, cache summaries and selective clearing, SQLite schema and transaction ownership. Extract thumbnail storage and cache maintenance from normalized model metadata persistence."
-issue = "chore:SS-ARCH-034"
-review_by = 2026-12-15
-max_lines = 841
-next_limit = 672
-debt = "SS-ARCH-034"
 
 [[waivers]]
 id = "SS-WAIVER-R035"

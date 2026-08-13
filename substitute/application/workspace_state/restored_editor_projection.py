@@ -35,7 +35,6 @@ from substitute.application.workspace_state.restore_projection_identity import (
     workspace_projection_fingerprint,
 )
 from substitute.application.workspace_state.restore_projection_models import (
-    APP_PROJECTION_VERSION,
     RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
     CachedCubeProjection,
     CachedCubeStackProjection,
@@ -94,7 +93,6 @@ class RestoredEditorProjectionCacheExtractor:
         )
         node_fingerprints: dict[str, str] = {}
         cube_fingerprints: dict[str, str] = {}
-        prompt_metadata: dict[str, object] = {}
         source_workflows = {
             workflow.workflow_id: workflow for workflow in snapshot.workflows
         }
@@ -118,27 +116,19 @@ class RestoredEditorProjectionCacheExtractor:
                 node_fingerprints.update(
                     cube.section.node_definition_fingerprint_by_class
                 )
-                if cube.section.prompt_field_metadata:
-                    prompt_metadata[cube.alias] = cube.section.prompt_field_metadata
             direct = workflow.direct_workflow
             if direct is not None:
                 node_fingerprints.update(
                     direct.section.node_definition_fingerprint_by_class
                 )
-                if direct.section.prompt_field_metadata:
-                    prompt_metadata[workflow.workflow_id] = (
-                        direct.section.prompt_field_metadata
-                    )
         return RestoreProjectionArtifact(
             schema_version=RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
             created_at=_utc_now_text(),
-            app_projection_version=APP_PROJECTION_VERSION,
             target_key=target_key,
             workspace_fingerprint=workspace_projection_fingerprint(snapshot),
             active_route=snapshot.active_route,
             active_workflow_id=snapshot.active_workflow_id,
             workflows=workflows,
-            prompt_editor_feature_profile_fingerprint=fingerprint_json(prompt_metadata),
             node_definition_fingerprints=node_fingerprints,
             cube_definition_fingerprints=cube_fingerprints,
             projection={

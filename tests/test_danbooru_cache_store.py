@@ -31,15 +31,15 @@ from substitute.domain.danbooru import (
     DanbooruTagRecord,
     DanbooruWikiPageRecord,
 )
-from substitute.infrastructure.persistence.danbooru_cache_store import (
-    SqliteDanbooruCacheStore,
+from tests.support.danbooru_cache_repository import (
+    build_danbooru_cache_repository,
 )
 
 
 def test_danbooru_cache_store_round_trips_metadata_entries(tmp_path: Path) -> None:
     """The Danbooru cache store should persist wiki, tag, and post records."""
 
-    store = SqliteDanbooruCacheStore(tmp_path)
+    store = build_danbooru_cache_repository(tmp_path)
     wiki_entry = DanbooruCachedWikiPage(
         title="long_hair",
         lookup_status=DanbooruLookupStatus.FOUND,
@@ -88,7 +88,7 @@ def test_danbooru_cache_store_round_trips_metadata_entries(tmp_path: Path) -> No
 def test_danbooru_cache_store_persists_negative_cache_entries(tmp_path: Path) -> None:
     """The Danbooru cache store should preserve negative lookup results."""
 
-    store = SqliteDanbooruCacheStore(tmp_path)
+    store = build_danbooru_cache_repository(tmp_path)
     missing_wiki = DanbooruCachedWikiPage(
         title="missing_tag",
         lookup_status=DanbooruLookupStatus.NOT_FOUND,
@@ -108,7 +108,7 @@ def test_danbooru_cache_store_lists_cached_wiki_pages_in_title_order(
 ) -> None:
     """The Danbooru cache store should expose cached wiki pages deterministically."""
 
-    store = SqliteDanbooruCacheStore(tmp_path)
+    store = build_danbooru_cache_repository(tmp_path)
     store.save_cached_wiki_page(
         DanbooruCachedWikiPage(
             title="zebra_print",
@@ -138,7 +138,7 @@ def test_danbooru_cache_store_lists_cached_wiki_pages_in_title_order(
 def test_danbooru_cache_store_persists_preview_image_assets(tmp_path: Path) -> None:
     """The Danbooru cache store should write preview image bytes and metadata."""
 
-    store = SqliteDanbooruCacheStore(tmp_path)
+    store = build_danbooru_cache_repository(tmp_path)
     asset = DanbooruCachedImageAsset(
         cache_key="preview:12345",
         source_url="https://cdn.donmai.us/180x180/example.jpg",
@@ -160,12 +160,35 @@ def test_danbooru_cache_store_persists_preview_image_assets(tmp_path: Path) -> N
     assert stored.byte_size == len(b"image-bytes")
 
 
+def test_danbooru_cache_store_rejects_truncated_preview_asset(tmp_path: Path) -> None:
+    """A mismatched binary payload should be discarded as a cache miss."""
+
+    store = build_danbooru_cache_repository(tmp_path)
+    stored = store.save_cached_image_asset(
+        DanbooruCachedImageAsset(
+            cache_key="preview:truncated",
+            source_url="https://cdn.donmai.us/180x180/example.jpg",
+            local_path=Path("preview.jpg"),
+            rating="s",
+            width=180,
+            height=180,
+            fetched_at="2026-05-14T16:00:00+00:00",
+            last_used_at="2026-05-14T16:00:00+00:00",
+            byte_size=0,
+        ),
+        b"complete-image-bytes",
+    )
+    stored.local_path.write_bytes(b"short")
+
+    assert store.load_cached_image_asset("preview:truncated") is None
+
+
 def test_danbooru_cache_store_clear_operations_remove_cached_rows_and_files(
     tmp_path: Path,
 ) -> None:
     """Clear operations should drop cached metadata rows and image assets."""
 
-    store = SqliteDanbooruCacheStore(tmp_path)
+    store = build_danbooru_cache_repository(tmp_path)
     store.save_cached_wiki_page(
         DanbooruCachedWikiPage(
             title="long_hair",

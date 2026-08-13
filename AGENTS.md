@@ -17,6 +17,43 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 - Preserve compatibility for persisted files and project data unless explicitly approved to change.
 - Treat current behavior and persisted formats as the contract; change internals freely within that boundary.
 
+## Cache Architecture and Governance
+
+- Classify stored or retained data before implementation as persistent cache,
+  process-lifetime memoization, or authoritative application/user state.
+- Register every persistent cache in the authoritative application cache
+  catalog. The catalog owns persistent cache identifiers, storage namespaces,
+  compatibility inputs, retention, recovery, and invalidation policy.
+- Obtain persistent cache storage through the prepared catalog namespace. Do
+  not construct persistent cache paths directly from an installation cache
+  root or create cache-owned directories during general installation setup.
+- Give each persistent cache one non-overlapping namespace and one cohesive
+  domain owner. Split caches whose records have independent compatibility,
+  retention, or lifecycle requirements instead of coordinating them through a
+  shared incidental directory.
+- Declare storage schema, semantic producer inputs, relevant runtime or asset
+  dependencies, entry-level freshness rules, and an emergency compatibility
+  epoch. An application version alone is not a cache compatibility input.
+- Invalidate only the incompatible cache owner. Preserve compatible cache
+  generations across releases and development branch changes, and bound old
+  generations through explicit age, count, or size retention.
+- Treat unreadable, corrupt, incomplete, or incompatible cache data as an
+  observable cache miss. Quarantine or replace it safely; a disposable cache
+  must not abort application startup or permit stale data to be read.
+- Never register preferences, sessions, projects, outputs, user-authored
+  artifacts, trust state, or other authoritative state as cache. Cache cleanup
+  must remain incapable of deleting authoritative data.
+- Keep process-only memoization with its runtime owner. It does not receive a
+  persistent namespace, but it must still define input identity and explicit
+  invalidation where stale reuse is possible.
+- Add or change a persistent cache atomically with its catalog registration,
+  compatibility and recovery behavior, structured diagnostics, architecture
+  enforcement, and tests for reuse, relevant and unrelated changes,
+  corruption, upgrade, and cross-platform path safety.
+- Unknown cache-root content is not proof of ownership. Report it and leave it
+  intact until a verified migration identifies its producer and safe
+  disposition.
+
 ## Localization Policy
 
 - Route all SugarSubstitute-owned user-facing text, including installer text, through its explicit localization owner. Hard-coded visible copy is not allowed.

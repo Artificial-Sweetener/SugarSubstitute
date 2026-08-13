@@ -393,6 +393,14 @@ class _RuntimeServices:
         """Create an inert execution runtime."""
 
         self.execution_runtime = _ExecutionRuntime()
+        self.persistent_cache_runtime = _CacheRuntime()
+
+
+class _CacheRuntime:
+    """Expose persistent cache cleanup for shell-flow type checks."""
+
+    def close(self) -> None:
+        """Accept cache lifecycle cleanup."""
 
 
 class _Clock:
