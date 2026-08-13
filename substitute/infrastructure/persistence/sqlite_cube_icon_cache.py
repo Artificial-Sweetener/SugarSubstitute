@@ -25,7 +25,11 @@ from pathlib import Path
 import sqlite3
 from typing import Iterator
 
+from substitute.application.cache_lifecycle.cache_ids import CACHE_ID_CUBE_ICONS
 from substitute.application.ports import CubeIconCacheKey, RenderedCubeIconAsset
+from substitute.infrastructure.cache_lifecycle.sqlite_recovery import (
+    initialize_recoverable_sqlite,
+)
 from substitute.shared.logging.logger import get_logger, log_info, log_debug
 
 _LOGGER = get_logger("infrastructure.persistence.sqlite_cube_icon_cache")
@@ -48,7 +52,17 @@ class SqliteCubeIconCache:
         self._database_path = Path(cache_dir) / filename
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
         self._clock = clock or _utc_now
-        self._initialize_database()
+        initialize_recoverable_sqlite(
+            self._database_path,
+            cache_id=CACHE_ID_CUBE_ICONS,
+            initialize=self._create_or_validate_database,
+            select_database=self._select_database,
+        )
+
+    def _select_database(self, database_path: Path) -> None:
+        """Select a recovery database when the invalid file remains locked."""
+
+        self._database_path = database_path
 
     def read_rendered_icon(
         self,
@@ -228,7 +242,7 @@ class SqliteCubeIconCache:
         finally:
             connection.close()
 
-    def _initialize_database(self) -> None:
+    def _create_or_validate_database(self) -> None:
         """Create cache schema and validate stored schema version."""
 
         with self._connect() as connection:

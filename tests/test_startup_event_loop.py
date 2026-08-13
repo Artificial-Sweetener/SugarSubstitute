@@ -87,6 +87,7 @@ def test_startup_event_loop_runs_shutdown_sequence_in_order(
         "runtime.relaunch:True:python main.py",
         "launch:python main.py",
         "execution_runtime.shutdown",
+        "cache_runtime.close",
         "close_trace",
         "resources.keep_alive_references",
     ]
@@ -319,6 +320,21 @@ class _RuntimeServices:
         """Create the execution runtime fake."""
 
         self.execution_runtime = _ExecutionRuntime(calls)
+        self.persistent_cache_runtime = _CacheRuntime(calls)
+
+
+class _CacheRuntime:
+    """Record persistent cache runtime cleanup."""
+
+    def __init__(self, calls: list[str]) -> None:
+        """Store call records."""
+
+        self._calls = calls
+
+    def close(self) -> None:
+        """Record cache fallback cleanup."""
+
+        self._calls.append("cache_runtime.close")
 
 
 def _assert_protocol_shapes() -> None:
@@ -330,5 +346,6 @@ def _assert_protocol_shapes() -> None:
     cast(startup_event_loop.StartupResourceRegistryProtocol, _StartupResources(calls))
     cast(startup_event_loop.StartupShutdownRuntimeProtocol, _ShutdownRuntime(calls))
     cast(startup_event_loop.StartupShellReloadProtocol, _ShellReload())
+    cast(startup_event_loop.StartupCacheRuntimeProtocol, _CacheRuntime(calls))
     cast(startup_event_loop.StartupRuntimeServicesProtocol, _RuntimeServices(calls))
     cast(Any, calls)

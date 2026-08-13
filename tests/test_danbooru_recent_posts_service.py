@@ -28,8 +28,8 @@ from substitute.application.danbooru.recent_posts_service import (
 )
 from substitute.domain.danbooru.models import DanbooruPostRecord
 from substitute.domain.danbooru.preferences import DanbooruImageRatingPolicy
-from substitute.infrastructure.persistence.danbooru_cache_store import (
-    SqliteDanbooruCacheStore,
+from tests.support.danbooru_cache_repository import (
+    build_danbooru_cache_repository,
 )
 
 
@@ -162,7 +162,7 @@ def _service(
     )
     return DanbooruRecentPostsService(
         client=client,
-        cache_repository=SqliteDanbooruCacheStore(tmp_path),
+        cache_repository=build_danbooru_cache_repository(tmp_path),
         preference_service=preference_service,
     )
 

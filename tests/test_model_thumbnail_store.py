@@ -42,7 +42,7 @@ def test_thumbnail_store_skips_repeated_not_found_image_urls(tmp_path: Path) -> 
         calls.append(url)
         return _NotFoundResponse()
 
-    store = ModelThumbnailStore(tmp_path, http_get=http_get)
+    store = ModelThumbnailStore(http_get=http_get)
     image = CivitaiImage(
         image_id=42,
         url="https://image.civitai.com/missing.jpeg",

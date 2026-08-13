@@ -64,10 +64,14 @@ class PromptEditorOperation(StrEnum):
     EMPHASIS_SYNTAX = "emphasis.syntax"
     EMPHASIS_SHORTCUT = "emphasis.shortcut"
     EMPHASIS_WHEEL = "emphasis.wheel"
+    EMPHASIS_POINTER_STEP = "emphasis.pointer_step"
+    EMPHASIS_EXACT_EDIT = "emphasis.exact_edit"
     LORA_SYNTAX = "lora.syntax"
     LORA_AUTOCOMPLETE = "lora.autocomplete"
     LORA_PICKER = "lora.picker"
     LORA_TRIGGER_WORDS = "lora.trigger_words"
+    LORA_POINTER_STEP = "lora.pointer_step"
+    LORA_EXACT_EDIT = "lora.exact_edit"
     WILDCARD_SYNTAX = "wildcard.syntax"
     WILDCARD_AUTOCOMPLETE = "wildcard.autocomplete"
     SPELLCHECK_DIAGNOSTIC = "diagnostic.spellcheck"
@@ -266,6 +270,12 @@ _SCENARIO_OPERATIONS: Final[dict[str, frozenset[PromptEditorOperation]]] = {
     "emphasis-syntax-formation": frozenset({PromptEditorOperation.EMPHASIS_SYNTAX}),
     "emphasis-keyboard-shortcut": frozenset({PromptEditorOperation.EMPHASIS_SHORTCUT}),
     "emphasis-pointer-wheel": frozenset({PromptEditorOperation.EMPHASIS_WHEEL}),
+    "emphasis-pointer-step": frozenset({PromptEditorOperation.EMPHASIS_POINTER_STEP}),
+    "emphasis-exact-edit-pointer": frozenset(
+        {PromptEditorOperation.EMPHASIS_EXACT_EDIT}
+    ),
+    "lora-pointer-step": frozenset({PromptEditorOperation.LORA_POINTER_STEP}),
+    "lora-exact-edit-pointer": frozenset({PromptEditorOperation.LORA_EXACT_EDIT}),
     "mouse-caret-drag-selection": frozenset(
         {
             PromptEditorOperation.MOUSE_CARET,

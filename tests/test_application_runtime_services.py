@@ -76,8 +76,21 @@ def test_application_runtime_services_schedule_session_autosave_on_disk_lane(
     submitter = _RecordingTaskSubmitter()
     execution_runtime = _ExecutionRuntime(submitter)
     single_shots: list[tuple[int, Callable[[], None]]] = []
+    cache_preparation_events: list[str] = []
+    persistent_cache_runtime = _PersistentCacheRuntime(
+        root=tmp_path / "prepared-cache",
+        events=cache_preparation_events,
+    )
 
     monkeypatch.setattr(runtime_module, "ExecutionRuntime", lambda: execution_runtime)
+    monkeypatch.setattr(
+        runtime_module,
+        "prepare_persistent_cache_runtime",
+        lambda _cache_root, **_kwargs: _record_cache_preparation(
+            persistent_cache_runtime,
+            cache_preparation_events,
+        ),
+    )
     monkeypatch.setattr(
         runtime_module,
         "SnapshotCaptureService",
@@ -91,13 +104,21 @@ def test_application_runtime_services_schedule_session_autosave_on_disk_lane(
     monkeypatch.setattr(
         runtime_module,
         "FileRestoreProjectionCacheRepository",
-        lambda _cache_dir: object(),
+        lambda cache_dir: _record_cache_repository_open(
+            cache_dir,
+            cache_preparation_events,
+            "restore",
+        ),
     )
     comfy_node_localization = object()
     monkeypatch.setattr(
         runtime_module,
         "build_comfy_node_localization_runtime",
-        lambda *_args, **_kwargs: comfy_node_localization,
+        lambda *_args, **kwargs: _record_localization_cache_open(
+            comfy_node_localization,
+            cache_preparation_events,
+            cast(Path, kwargs["cache_root"]),
+        ),
     )
     monkeypatch.setattr(
         "PySide6.QtCore.QTimer.singleShot",
@@ -118,6 +139,8 @@ def test_application_runtime_services_schedule_session_autosave_on_disk_lane(
     single_shots.pop()[1]()
 
     assert services.comfy_node_localization is comfy_node_localization
+    assert cast(object, services.persistent_cache_runtime) is persistent_cache_runtime
+    assert cache_preparation_events == ["prepare", "restore", "localization"]
     assert services.session_persistence_submitter is submitter
     assert execution_runtime.submitter_calls == [
         {
@@ -246,6 +269,73 @@ class _AppearanceRuntime:
         """Return valid appearance preferences."""
 
         return default_appearance_preferences()
+
+
+class _CacheNamespace:
+    """Expose one deterministic prepared cache path."""
+
+    def __init__(self, path: Path) -> None:
+        """Store the path returned to one cache consumer."""
+
+        self.path = path
+
+
+class _PreparedCacheCatalog:
+    """Return cache-specific paths from a deterministic prepared root."""
+
+    def __init__(self, root: Path) -> None:
+        """Store the prepared test root."""
+
+        self._root = root
+
+    def namespace(self, cache_id: str) -> _CacheNamespace:
+        """Return one cache-specific prepared namespace."""
+
+        return _CacheNamespace(self._root / cache_id)
+
+
+class _PersistentCacheRuntime:
+    """Stand in for process-lifetime cache preparation ownership."""
+
+    def __init__(self, *, root: Path, events: list[str]) -> None:
+        """Expose prepared namespaces and retain the shared event log."""
+
+        self.prepared = _PreparedCacheCatalog(root)
+        self.events = events
+
+
+def _record_cache_preparation(
+    runtime: _PersistentCacheRuntime,
+    events: list[str],
+) -> _PersistentCacheRuntime:
+    """Record that lifecycle preparation ran before repository construction."""
+
+    events.append("prepare")
+    return runtime
+
+
+def _record_cache_repository_open(
+    cache_dir: Path,
+    events: list[str],
+    cache_name: str,
+) -> object:
+    """Record one repository construction against a prepared namespace."""
+
+    assert cache_dir.name == "restore-projection"
+    events.append(cache_name)
+    return object()
+
+
+def _record_localization_cache_open(
+    runtime: object,
+    events: list[str],
+    cache_root: Path,
+) -> object:
+    """Record localization composition after persistent cache preparation."""
+
+    assert cache_root.name == "comfy-i18n"
+    events.append("localization")
+    return runtime
 
 
 def _context(tmp_path: Path) -> InstallationContext:
