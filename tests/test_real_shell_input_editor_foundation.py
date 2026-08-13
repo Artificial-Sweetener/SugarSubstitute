@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QImage, QWheelEvent
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication, QWidget
@@ -155,6 +155,28 @@ def test_harness_close_finalizes_input_document_runtime(
     }
 
 
+def test_owned_input_document_teardown_awaits_its_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Standalone Input documents must settle their owned execution runtime."""
+
+    document = InputCanvasDocument(features=("mask",))
+    execution_runtime = document.runtime.execution_runtime
+    original_shutdown = execution_runtime.shutdown
+    shutdown_waits: list[bool] = []
+
+    def record_shutdown(*, wait: bool = False) -> None:
+        """Record and preserve physical execution teardown."""
+
+        shutdown_waits.append(wait)
+        original_shutdown(wait=wait)
+
+    monkeypatch.setattr(execution_runtime, "shutdown", record_shutdown)
+    _close_owned_input_document(document)
+
+    assert shutdown_waits == [False, True]
+
+
 def test_real_shell_input_editor_survives_erratic_full_lifecycle(
     tmp_path: Path,
 ) -> None:
@@ -236,7 +258,7 @@ def test_real_shell_input_editor_survives_erratic_full_lifecycle(
                 harness.input_canvas.document.export_mask_image(harness.mask_id)
             )
         finally:
-            restored.close()
+            _close_owned_input_document(restored)
 
         image_preview.close()
         mask_preview.close()
@@ -702,6 +724,16 @@ def _focus_belongs_to(widget: QWidget) -> bool:
 
     focus = QApplication.focusWidget()
     return focus is widget or (focus is not None and widget.isAncestorOf(focus))
+
+
+def _close_owned_input_document(document: InputCanvasDocument) -> None:
+    """Destroy every view and await a standalone document's owned runtime."""
+
+    execution_runtime = document.runtime.execution_runtime
+    document.close()
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    QApplication.processEvents()
+    execution_runtime.shutdown(wait=True)
 
 
 def _nonzero_red_bounds(image: QImage) -> QRect | None:
