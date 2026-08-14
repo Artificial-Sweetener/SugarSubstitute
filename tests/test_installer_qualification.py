@@ -29,6 +29,7 @@ import urllib.request
 
 import pytest
 
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.installer_qualification import (
     InstallerQualificationDriver,
 )
@@ -38,6 +39,7 @@ from sugarsubstitute_shared.installer_qualification import (
 )
 from sugarsubstitute_shared.tls import EXTRA_CA_FILE_ENV, SystemTrustTlsContext
 from substitute.presentation.onboarding.installer_qualification import (
+    OnboardingQualificationDriver,
     qualification_preflight_action,
 )
 from tools.ci.historical_install_qualification import (
@@ -48,10 +50,13 @@ from tools.ci.historical_install_qualification import (
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.installer_ui_qualification import (
+    InstalledCandidateLaunch,
     assert_qualification_event_sequence,
+    launch_installed_candidate,
     prepare_qualification_evidence,
     run_current_installer_ui,
     terminate_verified_process,
+    verify_main_shell_evidence,
 )
 from tools.ci.local_release_server import (
     LOCAL_RELEASE_BASE_URL,
@@ -73,6 +78,7 @@ def test_qualification_plan_round_trips_through_environment(tmp_path: Path) -> N
         endpoint_port=8188,
         event_log_path=(tmp_path / "events.jsonl").resolve(),
         timeout_seconds=45.0,
+        force_cpu_mode=True,
     )
 
     restored = InstallerQualificationPlan.from_environment(
@@ -80,6 +86,78 @@ def test_qualification_plan_round_trips_through_environment(tmp_path: Path) -> N
     )
 
     assert restored == plan
+
+
+def test_legacy_qualification_plan_defaults_cpu_override_off(tmp_path: Path) -> None:
+    """Older serialized plans should remain compatible without forcing CPU."""
+
+    payload = {
+        "schema_version": 2,
+        "token": "qualification-token",
+        "install_root": str((tmp_path / "install").resolve()),
+        "endpoint_host": "127.0.0.1",
+        "endpoint_port": 8188,
+        "event_log_path": str((tmp_path / "events.jsonl").resolve()),
+        "timeout_seconds": 45.0,
+    }
+
+    restored = InstallerQualificationPlan.from_json(json.dumps(payload))
+
+    assert restored.force_cpu_mode is False
+
+
+def test_managed_qualification_applies_explicit_cpu_choice(tmp_path: Path) -> None:
+    """The production managed page should receive the platform qualification choice."""
+
+    plan = InstallerQualificationPlan(
+        token="qualification-token",
+        install_root=(tmp_path / "install").resolve(),
+        endpoint_host="127.0.0.1",
+        endpoint_port=48188,
+        event_log_path=(tmp_path / "events.jsonl").resolve(),
+        timeout_seconds=45.0,
+        target_mode="managed_local",
+        managed_workspace_path=(tmp_path / "comfyui").resolve(),
+        force_cpu_mode=True,
+    )
+    values: dict[str, object] = {}
+    checkbox = SimpleNamespace(
+        setChecked=lambda value: values.__setitem__("force_cpu", value)
+    )
+    window = SimpleNamespace(
+        managed_local_page=SimpleNamespace(
+            runtime_summary_panel=SimpleNamespace(force_cpu_checkbox=checkbox)
+        )
+    )
+    widgets = {
+        "OnboardingManagedHostEdit": SimpleNamespace(
+            setText=lambda value: values.__setitem__("host", value)
+        ),
+        "OnboardingManagedPortSpinBox": SimpleNamespace(
+            setValue=lambda value: values.__setitem__("port", value)
+        ),
+        "OnboardingManagedWorkspaceEdit": SimpleNamespace(
+            setText=lambda value: values.__setitem__("workspace", value)
+        ),
+    }
+    driver = cast(
+        OnboardingQualificationDriver,
+        SimpleNamespace(
+            _plan=plan,
+            _window=window,
+            _wait_for_page=lambda _page: None,
+            _widget=lambda _type, name: widgets[name],
+        ),
+    )
+
+    OnboardingQualificationDriver._configure_managed_target(driver)
+
+    assert values == {
+        "force_cpu": True,
+        "host": "127.0.0.1",
+        "port": 48188,
+        "workspace": str((tmp_path / "comfyui").resolve()),
+    }
 
 
 def test_qualification_event_sequence_requires_real_ui_actions(tmp_path: Path) -> None:
@@ -358,6 +436,88 @@ def test_qualification_evidence_is_absolute_across_process_working_directories(
     assert plan.target_mode == "managed_local"
     assert plan.managed_workspace_path == (tmp_path / "installed" / "comfyui")
     assert plan.managed_model_root == (tmp_path / "installed" / "qualified-models")
+    assert plan.force_cpu_mode is sys.platform.startswith("linux")
+
+
+def test_installed_candidate_launch_is_observed_without_capture_bound_wait(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Updater qualification should observe a process while evidence arrives."""
+
+    install_root = tmp_path / "installed"
+    layout = InstallLayout.from_root(install_root)
+    layout.root.mkdir(parents=True)
+    observed: dict[str, object] = {}
+    fake_process = SimpleNamespace(pid=123, poll=lambda: None)
+
+    def _popen(command: list[str], **kwargs: object) -> object:
+        """Capture the process contract without starting an executable."""
+
+        observed["command"] = command
+        observed.update(kwargs)
+        return fake_process
+
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification.subprocess.Popen",
+        _popen,
+    )
+
+    launch = launch_installed_candidate(
+        install_root=install_root,
+        environment={"QUALIFICATION": "1"},
+    )
+
+    assert isinstance(launch, InstalledCandidateLaunch)
+    assert launch.process is fake_process
+    assert observed["command"] == [str(layout.executable_path)]
+    assert observed["stdout"] is observed["stderr"]
+    assert observed["env"] == {"QUALIFICATION": "1"}
+
+
+def test_failed_candidate_evidence_wait_terminates_only_owned_launcher(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A readiness failure must not leave the qualification launcher running."""
+
+    evidence = prepare_qualification_evidence(
+        install_root=tmp_path / "installed",
+        expected_version="1.2.3",
+        endpoint_port=48188,
+        phase="upgrade",
+    )
+    fake_process = SimpleNamespace(pid=321, poll=lambda: None)
+    launch = InstalledCandidateLaunch(
+        process=cast(subprocess.Popen[bytes], fake_process),
+        output_path=tmp_path / "candidate.log",
+    )
+    terminated: list[int] = []
+
+    def _fail_wait(**_kwargs: object) -> object:
+        """Fail before a token-bound child can publish readiness."""
+
+        raise InstallerLifecycleError("readiness failed")
+
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification._wait_for_readiness_receipt",
+        _fail_wait,
+    )
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification.terminate_verified_process",
+        terminated.append,
+    )
+
+    with pytest.raises(InstallerLifecycleError, match="readiness failed"):
+        verify_main_shell_evidence(
+            install_root=evidence.plan.install_root,
+            expected_version="1.2.3",
+            evidence=evidence,
+            required_qualification_events=(),
+            candidate_launch=launch,
+        )
+
+    assert terminated == [321]
 
 
 def test_portable_historical_path_runs_the_complete_installer_contract(
@@ -676,14 +836,14 @@ def test_historical_onboarding_reaches_open_button_and_real_main_shell(
 ) -> None:
     """Historical qualification must complete onboarding instead of killing it."""
 
-    pages = [
-        "OnboardingWelcomePage",
-        "OnboardingTargetModePage",
-        "OnboardingManagedLocalPage",
-        "OnboardingFolderSetupPage",
-        "OnboardingIntegrationsPage",
-        "OnboardingProvisioningPage",
-        "OnboardingCompletionPage",
+    page_controls = [
+        "OnboardingInstallRootEdit",
+        "OnboardingTargetCardRadio_managed_local",
+        "OnboardingManagedWorkspaceEdit",
+        "OnboardingManagedModelRootEdit",
+        "OnboardingCivitaiApiKeyEdit",
+        "OnboardingProgressStatus",
+        "OnboardingCompletionSurface",
     ]
     state = {"page": 0, "main": False}
     values: dict[str, object] = {}
@@ -698,8 +858,8 @@ def test_historical_onboarding_reaches_open_button_and_real_main_shell(
         def is_visible(self) -> bool:
             """Expose only the active page and its controls."""
 
-            if self.suffix in pages:
-                return self.suffix == pages[state["page"]]
+            if self.suffix in page_controls:
+                return self.suffix == page_controls[state["page"]]
             return True
 
         def is_enabled(self) -> bool:
@@ -741,13 +901,10 @@ def test_historical_onboarding_reaches_open_button_and_real_main_shell(
             values[self.suffix] = value
 
     controls = [
-        *(_Control(page) for page in pages),
+        *(_Control(control) for control in page_controls),
         _Control("OnboardingPrimaryButton"),
-        _Control("OnboardingTargetCardRadio_managed_local"),
         _Control("OnboardingManagedHostEdit"),
         _Control("OnboardingManagedPortSpinBox"),
-        _Control("OnboardingManagedWorkspaceEdit"),
-        _Control("OnboardingManagedModelRootEdit"),
     ]
     onboarding = SimpleNamespace(
         element_info=SimpleNamespace(process_id=100),

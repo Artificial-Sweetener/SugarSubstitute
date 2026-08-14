@@ -17,6 +17,16 @@ on:
         required: false
         default: ""
         type: string
+      candidate_run_id:
+        description: "Run containing a temporary candidate artifact"
+        required: false
+        default: ""
+        type: string
+      qualification_scope:
+        description: "Exact qualification slice to execute"
+        required: false
+        default: "all"
+        type: string
   workflow_dispatch:
     inputs:
       candidate_version:
@@ -33,8 +43,30 @@ on:
         required: false
         default: ""
         type: string
+      candidate_run_id:
+        description: "Run containing a temporary candidate artifact"
+        required: false
+        default: ""
+        type: string
+      qualification_scope:
+        description: "Exact qualification slice to execute"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - clean-all
+          - clean-windows
+          - clean-linux
+          - clean-macos
+          - updates-all
+          - updates-windows
+          - updates-linux
+          - updates-macos
+          - managed-comfy
 
 permissions:
+  actions: read
   contents: read
 
 env:
@@ -49,8 +81,70 @@ env:
     libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0 libxkbcommon0
 
 jobs:
+  select-qualification:
+    name: Select focused qualification jobs
+    runs-on: ubuntu-24.04
+    outputs:
+      clean_enabled: ${{ steps.selection.outputs.clean_enabled }}
+      clean_matrix: ${{ steps.selection.outputs.clean_matrix }}
+      macos_clean_enabled: ${{ steps.selection.outputs.macos_clean_enabled }}
+      updates_enabled: ${{ steps.selection.outputs.updates_enabled }}
+      update_platforms: ${{ steps.selection.outputs.update_platforms }}
+      managed_comfy_enabled: ${{ steps.selection.outputs.managed_comfy_enabled }}
+    steps:
+      - name: Resolve requested matrix slice
+        id: selection
+        shell: pwsh
+        env:
+          QUALIFICATION_SCOPE: ${{ inputs.qualification_scope }}
+          CANDIDATE_VERSION: ${{ inputs.candidate_version }}
+        run: |
+          $scope = $env:QUALIFICATION_SCOPE
+          $cleanPlatforms = switch ($scope) {
+            { $_ -in @("all", "clean-all") } { @("windows", "linux"); break }
+            "clean-windows" { @("windows"); break }
+            "clean-linux" { @("linux"); break }
+            default { @() }
+          }
+          $cleanMatrix = @($cleanPlatforms | ForEach-Object {
+            if ($_ -eq "windows") {
+              @{
+                name = "Windows x64"
+                os = "windows-latest"
+                python_version = "3.12.10"
+                asset = "SugarSubstitute-$env:CANDIDATE_VERSION-Windows-x64-Setup.exe"
+              }
+            } else {
+              @{
+                name = "Linux x64"
+                os = "ubuntu-24.04"
+                python_version = "3.12.13"
+                asset = "SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage"
+              }
+            }
+          }) | ConvertTo-Json -Compress -AsArray
+          $updatePlatforms = switch ($scope) {
+            { $_ -in @("all", "updates-all") } { @("windows", "linux", "macos"); break }
+            "updates-windows" { @("windows"); break }
+            "updates-linux" { @("linux"); break }
+            "updates-macos" { @("macos"); break }
+            default { @() }
+          }
+          $cleanEnabled = if ($cleanPlatforms.Count -gt 0) { "true" } else { "false" }
+          $macosCleanEnabled = if ($scope -in @("all", "clean-all", "clean-macos")) { "true" } else { "false" }
+          $updatesEnabled = if ($updatePlatforms.Count -gt 0) { "true" } else { "false" }
+          $managedComfyEnabled = if ($scope -in @("all", "managed-comfy")) { "true" } else { "false" }
+          "clean_enabled=$cleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append
+          "clean_matrix=$cleanMatrix" | Out-File $env:GITHUB_OUTPUT -Append
+          "macos_clean_enabled=$macosCleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append
+          "updates_enabled=$updatesEnabled" | Out-File $env:GITHUB_OUTPUT -Append
+          "update_platforms=$($updatePlatforms | ConvertTo-Json -Compress -AsArray)" | Out-File $env:GITHUB_OUTPUT -Append
+          "managed_comfy_enabled=$managedComfyEnabled" | Out-File $env:GITHUB_OUTPUT -Append
+
   resolve-upgrades:
     name: Resolve required historical upgrades
+    needs: select-qualification
+    if: needs.select-qualification.outputs.updates_enabled == 'true'
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.sources.outputs.matrix }}
@@ -88,16 +182,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: Windows x64
-            os: windows-latest
-            python-version: "3.12.10"
-            asset: SugarSubstitute-${{ inputs.candidate_version }}-Windows-x64-Setup.exe
-          - name: Linux x64
-            os: ubuntu-24.04
-            python-version: "3.12.13"
-            asset: SugarSubstitute-${{ inputs.candidate_version }}-Linux-x86_64.AppImage
-    needs: validate-candidate-source
+        include: ${{ fromJSON(needs.select-qualification.outputs.clean_matrix) }}
+    needs:
+      - select-qualification
+      - validate-candidate-source
+    if: >-
+      always() &&
+      needs.select-qualification.outputs.clean_enabled == 'true' &&
+      needs.validate-candidate-source.result == 'success'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -106,7 +198,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python_version }}
       - name: Install Linux runtime dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
@@ -128,6 +220,8 @@ jobs:
         with:
           name: ${{ inputs.candidate_artifact_name }}
           path: build/candidate
+          run-id: ${{ inputs.candidate_run_id != '' && inputs.candidate_run_id || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Make temporary Linux installer executable
         if: runner.os == 'Linux' && inputs.candidate_artifact_name != ''
         run: chmod +x "build/candidate/${{ matrix.asset }}"
@@ -155,7 +249,13 @@ jobs:
 
   clean-install-macos:
     name: Clean install and launch (macOS Apple Silicon)
-    needs: validate-candidate-source
+    needs:
+      - select-qualification
+      - validate-candidate-source
+    if: >-
+      always() &&
+      needs.select-qualification.outputs.macos_clean_enabled == 'true' &&
+      needs.validate-candidate-source.result == 'success'
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -181,6 +281,8 @@ jobs:
         with:
           name: ${{ inputs.candidate_artifact_name }}
           path: build/candidate
+          run-id: ${{ inputs.candidate_run_id != '' && inputs.candidate_run_id || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Mount temporary candidate DMG
         if: inputs.candidate_artifact_name != ''
         run: |
@@ -212,18 +314,21 @@ jobs:
   historical-update:
     name: Update ${{ matrix.history.version }} and launch (${{ matrix.platform }})
     needs:
+      - select-qualification
       - resolve-upgrades
       - validate-candidate-source
     strategy:
       fail-fast: false
       matrix:
         history: ${{ fromJSON(needs.resolve-upgrades.outputs.matrix) }}
-        platform:
-          - windows
-          - linux
-          - macos
+        platform: ${{ fromJSON(needs.select-qualification.outputs.update_platforms) }}
     runs-on: ${{ matrix.platform == 'windows' && 'windows-latest' || matrix.platform == 'linux' && 'ubuntu-24.04' || 'macos-15' }}
     timeout-minutes: 120
+    if: >-
+      always() &&
+      needs.select-qualification.outputs.updates_enabled == 'true' &&
+      needs.resolve-upgrades.result == 'success' &&
+      needs.validate-candidate-source.result == 'success'
     steps:
       - name: Checkout candidate source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -256,6 +361,8 @@ jobs:
         with:
           name: ${{ inputs.candidate_artifact_name }}
           path: build/candidate
+          run-id: ${{ inputs.candidate_run_id != '' && inputs.candidate_run_id || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Download real historical installer
         env:
           GH_TOKEN: ${{ github.token }}
@@ -335,4 +442,6 @@ jobs:
 
   managed-comfy:
     name: Pinned managed Comfy qualification
+    needs: select-qualification
+    if: needs.select-qualification.outputs.managed_comfy_enabled == 'true'
     uses: ./.github/workflows/managed-comfy-install.yml

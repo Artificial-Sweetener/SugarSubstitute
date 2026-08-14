@@ -306,3 +306,21 @@ def test_linux_cpu_is_rejected_without_a_published_standalone_environment() -> N
                 tooling=_tooling(),
             )
         )
+
+
+def test_linux_forced_cpu_uses_published_standalone_base() -> None:
+    """Explicit CPU mode should retain a real published Linux environment."""
+
+    result = select_install_strategy(
+        detection=HardwareDetectionResult(
+            platform=ManagedPlatform.LINUX,
+            adapters=(),
+            tooling=_tooling(),
+        ),
+        force_cpu=True,
+    )
+
+    assert result.target is ManagedInstallTarget.LINUX_CPU
+    assert result.standalone_variant is StandaloneVariantId.LINUX_NVIDIA
+    assert result.torch_policy.backend_key == "cpu"
+    assert result.summary_reason == "CPU mode was forced."

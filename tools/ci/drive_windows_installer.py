@@ -30,6 +30,10 @@ import time
 from collections.abc import Sequence
 from typing import Any, Protocol
 
+_UI_PHASE_TIMEOUT_SECONDS = 60.0
+_PROVISIONING_TIMEOUT_SECONDS = 1_800.0
+_MAIN_SHELL_TIMEOUT_SECONDS = 300.0
+
 
 class WindowsInstallerAutomationError(RuntimeError):
     """Report a packaged Windows installer that cannot complete its real UI."""
@@ -308,14 +312,28 @@ def _complete_historical_onboarding(
     onboarding = _wait_for_process_window(
         desktop=desktop,
         process_id=onboarding_pid,
-        required_control="OnboardingWelcomePage",
-        deadline=deadline,
+        required_control="OnboardingInstallRootEdit",
+        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
     )
-    _invoke_primary(onboarding, deadline=deadline)
-    _wait_for_visible_control(onboarding, "OnboardingTargetModePage", deadline)
+    _invoke_primary(
+        onboarding,
+        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _wait_for_visible_control(
+        onboarding,
+        "OnboardingTargetCardRadio_managed_local",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
     _invoke_choice(onboarding, "OnboardingTargetCardRadio_managed_local")
-    _invoke_primary(onboarding, deadline=deadline)
-    _wait_for_visible_control(onboarding, "OnboardingManagedLocalPage", deadline)
+    _invoke_primary(
+        onboarding,
+        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _wait_for_visible_control(
+        onboarding,
+        "OnboardingManagedWorkspaceEdit",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
     _set_text(onboarding, "OnboardingManagedHostEdit", endpoint_host)
     _set_value(onboarding, "OnboardingManagedPortSpinBox", endpoint_port)
     _set_text(
@@ -323,26 +341,65 @@ def _complete_historical_onboarding(
         "OnboardingManagedWorkspaceEdit",
         str(managed_workspace_path.resolve()),
     )
-    _invoke_primary(onboarding, deadline=deadline)
-    _wait_for_visible_control(onboarding, "OnboardingFolderSetupPage", deadline)
+    _invoke_primary(
+        onboarding,
+        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _wait_for_visible_control(
+        onboarding,
+        "OnboardingManagedModelRootEdit",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
     _set_text(
         onboarding,
         "OnboardingManagedModelRootEdit",
         str(managed_model_root.resolve()),
     )
-    _invoke_primary(onboarding, deadline=deadline)
-    _wait_for_visible_control(onboarding, "OnboardingIntegrationsPage", deadline)
-    _invoke_primary(onboarding, deadline=deadline)
-    _wait_for_visible_control(onboarding, "OnboardingProvisioningPage", deadline)
-    _wait_for_primary_action(onboarding, "Review setup", deadline)
-    _invoke_primary(onboarding, deadline=deadline)
-    _wait_for_visible_control(onboarding, "OnboardingCompletionPage", deadline)
-    _wait_for_primary_action(onboarding, "Open Substitute", deadline)
-    _invoke_primary(onboarding, deadline=deadline)
+    _invoke_primary(
+        onboarding,
+        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _wait_for_visible_control(
+        onboarding,
+        "OnboardingCivitaiApiKeyEdit",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _invoke_primary(
+        onboarding,
+        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _wait_for_visible_control(
+        onboarding,
+        "OnboardingProgressStatus",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _wait_for_primary_action(
+        onboarding,
+        "Review setup",
+        _phase_deadline(deadline, _PROVISIONING_TIMEOUT_SECONDS),
+    )
+    _invoke_primary(
+        onboarding,
+        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _wait_for_visible_control(
+        onboarding,
+        "OnboardingCompletionSurface",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _wait_for_primary_action(
+        onboarding,
+        "Open Substitute",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _invoke_primary(
+        onboarding,
+        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
     return _wait_for_historical_main_shell(
         desktop=desktop,
         excluded_process_id=onboarding_pid,
-        deadline=deadline,
+        deadline=_phase_deadline(deadline, _MAIN_SHELL_TIMEOUT_SECONDS),
     )
 
 
@@ -368,7 +425,10 @@ def _wait_for_process_window(
             if control.is_visible():
                 return window
         time.sleep(0.1)
-    raise TimeoutError(f"Historical onboarding did not expose {required_control}.")
+    raise TimeoutError(
+        f"Historical onboarding did not expose {required_control}.\n"
+        + _desktop_automation_snapshot(desktop)
+    )
 
 
 def _wait_for_visible_control(window: Any, suffix: str, deadline: float) -> Any:
@@ -382,7 +442,10 @@ def _wait_for_visible_control(window: Any, suffix: str, deadline: float) -> Any:
         if control is not None and control.is_visible():
             return control
         time.sleep(0.1)
-    raise TimeoutError(f"Historical onboarding did not reveal {suffix}.")
+    raise TimeoutError(
+        f"Historical onboarding did not reveal {suffix}.\n"
+        + _window_automation_snapshot(window)
+    )
 
 
 def _invoke_primary(window: Any, *, deadline: float) -> None:
@@ -394,7 +457,10 @@ def _invoke_primary(window: Any, *, deadline: float) -> None:
             primary.invoke()
             return
         time.sleep(0.1)
-    raise TimeoutError("Historical onboarding primary action did not become enabled.")
+    raise TimeoutError(
+        "Historical onboarding primary action did not become enabled.\n"
+        + _window_automation_snapshot(window)
+    )
 
 
 def _wait_for_primary_action(window: Any, action: str, deadline: float) -> None:
@@ -409,7 +475,10 @@ def _wait_for_primary_action(window: Any, action: str, deadline: float) -> None:
         ):
             return
         time.sleep(0.2)
-    raise TimeoutError(f"Historical onboarding did not expose {action!r}.")
+    raise TimeoutError(
+        f"Historical onboarding did not expose {action!r}.\n"
+        + _window_automation_snapshot(window)
+    )
 
 
 def _invoke_choice(window: Any, suffix: str) -> None:
@@ -461,7 +530,44 @@ def _wait_for_historical_main_shell(
             if toolbar.is_visible():
                 return process_id
         time.sleep(0.2)
-    raise TimeoutError("Historical Open Substitute did not reveal the main shell.")
+    raise TimeoutError(
+        "Historical Open Substitute did not reveal the main shell.\n"
+        + _desktop_automation_snapshot(desktop)
+    )
+
+
+def _phase_deadline(overall_deadline: float, timeout_seconds: float) -> float:
+    """Bound one UI transition without extending the overall qualification."""
+
+    return min(overall_deadline, time.monotonic() + timeout_seconds)
+
+
+def _desktop_automation_snapshot(desktop: Any) -> str:
+    """Describe visible windows and controls after an automation timeout."""
+
+    snapshots: list[str] = []
+    for window in desktop.windows():
+        process_id = getattr(window.element_info, "process_id", "unknown")
+        snapshots.append(
+            f"window pid={process_id} text={window.window_text()!r} "
+            f"visible={window.is_visible()}\n{_window_automation_snapshot(window)}"
+        )
+    return "\n".join(snapshots) or "<no desktop windows>"
+
+
+def _window_automation_snapshot(window: Any) -> str:
+    """Describe a bounded set of UI Automation descendants for diagnostics."""
+
+    controls: list[str] = []
+    for control in window.descendants()[:200]:
+        automation_id = control.element_info.automation_id or ""
+        if not automation_id:
+            continue
+        controls.append(
+            f"{automation_id} text={control.window_text()!r} "
+            f"visible={control.is_visible()} enabled={control.is_enabled()}"
+        )
+    return "\n".join(controls) or "<no identified controls>"
 
 
 def _launch_on_isolated_desktop(

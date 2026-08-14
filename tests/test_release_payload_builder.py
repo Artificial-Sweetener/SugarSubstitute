@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import stat
 import subprocess
 import sys
 import zipfile
@@ -302,6 +303,43 @@ def test_macos_launcher_zip_rejects_pyinstaller_sibling_output(
             output_path=tmp_path / "launcher.zip",
             target=MACOS_ARM64,
         )
+
+
+@pytest.mark.platforms("linux", "macos")
+def test_macos_launcher_zip_preserves_pyinstaller_bundle_symlinks(
+    tmp_path: Path,
+) -> None:
+    """The updater archive must retain the framework links PyInstaller requires."""
+
+    launcher_bundle = _write_fixture_macos_launcher_bundle(tmp_path / "macos-dist")
+    framework_root = (
+        launcher_bundle
+        / "SugarSubstitute.app"
+        / "Contents"
+        / "Frameworks"
+        / "Python.framework"
+    )
+    _write_file(framework_root / "Versions" / "3.13" / "Python", "runtime")
+    (framework_root / "Versions" / "Current").symlink_to("3.13")
+    (framework_root / "Python").symlink_to("Versions/Current/Python")
+
+    archive_path = build_installed_launcher_zip(
+        launcher_bundle_dir=launcher_bundle,
+        output_path=tmp_path / "launcher.zip",
+        target=MACOS_ARM64,
+    )
+
+    with zipfile.ZipFile(archive_path) as archive:
+        current = archive.getinfo(
+            "SugarSubstitute.app/Contents/Frameworks/Python.framework/Versions/Current"
+        )
+        python_link = archive.getinfo(
+            "SugarSubstitute.app/Contents/Frameworks/Python.framework/Python"
+        )
+        assert stat.S_IFMT(current.external_attr >> 16) == stat.S_IFLNK
+        assert stat.S_IFMT(python_link.external_attr >> 16) == stat.S_IFLNK
+        assert archive.read(current).decode("utf-8") == "3.13"
+        assert archive.read(python_link).decode("utf-8") == ("Versions/Current/Python")
 
 
 def test_linux_launcher_zip_restores_executable_mode(tmp_path: Path) -> None:

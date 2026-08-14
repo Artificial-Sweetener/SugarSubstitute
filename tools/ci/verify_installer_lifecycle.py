@@ -293,7 +293,7 @@ def _activate_and_verify_candidate_update(
                 phase=f"upgrade-{historical_version}",
             )
             _trust_candidate_source(evidence.environment, candidate_source)
-            launch_installed_candidate(
+            candidate_launch = launch_installed_candidate(
                 install_root=install_root,
                 environment=evidence.environment,
             )
@@ -303,6 +303,7 @@ def _activate_and_verify_candidate_update(
                 evidence=evidence,
                 required_qualification_events=(),
                 require_governed_setup_record=False,
+                candidate_launch=candidate_launch,
             )
             assert_historical_user_configuration_preserved(
                 preservation_marker=preservation_marker,

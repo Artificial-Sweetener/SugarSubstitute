@@ -163,9 +163,10 @@ def _cpu_target_for_platform(platform: ManagedPlatform) -> ManagedInstallTarget:
         return ManagedInstallTarget.WINDOWS_CPU
     if platform is ManagedPlatform.MACOS:
         raise ValueError("CPU fallback is not supported for managed macOS installs.")
+    if platform is ManagedPlatform.LINUX:
+        return ManagedInstallTarget.LINUX_CPU
     raise ValueError(
-        "CPU mode is unavailable on Linux because Comfy Desktop does not currently "
-        "publish a verified Linux CPU standalone environment."
+        f"CPU fallback is unsupported on managed platform {platform.value}."
     )
 
 

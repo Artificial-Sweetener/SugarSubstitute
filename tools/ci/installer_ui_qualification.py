@@ -26,6 +26,7 @@ from pathlib import Path
 import signal
 import socket
 import subprocess
+import sys
 import time
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -64,6 +65,14 @@ class InstallerQualificationEvidence:
     plan: InstallerQualificationPlan
 
 
+@dataclass(frozen=True, slots=True)
+class InstalledCandidateLaunch:
+    """Bind an installed-launcher process to its durable diagnostic output."""
+
+    process: subprocess.Popen[bytes]
+    output_path: Path
+
+
 def prepare_qualification_evidence(
     *,
     install_root: Path,
@@ -96,6 +105,7 @@ def prepare_qualification_evidence(
         target_mode="managed_local",
         managed_workspace_path=resolved_root / "comfyui",
         managed_model_root=resolved_root / "qualified-models",
+        force_cpu_mode=sys.platform.startswith("linux"),
     )
     environment = dict(os.environ)
     environment[READINESS_PATH_ENV] = str(readiness_path)
@@ -173,26 +183,21 @@ def launch_installed_candidate(
     *,
     install_root: Path,
     environment: dict[str, str],
-) -> None:
-    """Launch a historical install so it updates and continues onboarding."""
+) -> InstalledCandidateLaunch:
+    """Launch a historical install and return immediately for evidence polling."""
 
     layout = InstallLayout.from_root(install_root)
-    result = subprocess.run(
-        [str(layout.executable_path)],
-        cwd=layout.root,
-        env=environment,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=_LAUNCH_TIMEOUT_SECONDS,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise InstallerLifecycleError(
-            f"Installed launcher exited with {result.returncode}.\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    output_path = layout.logs_dir / "candidate-update-launch.log"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("wb") as output:
+        process = subprocess.Popen(
+            [str(layout.executable_path)],
+            cwd=layout.root,
+            env=environment,
+            stdout=output,
+            stderr=output,
         )
+    return InstalledCandidateLaunch(process=process, output_path=output_path)
 
 
 def verify_main_shell_evidence(
@@ -202,15 +207,23 @@ def verify_main_shell_evidence(
     evidence: InstallerQualificationEvidence,
     required_qualification_events: tuple[str, ...],
     require_governed_setup_record: bool = True,
+    candidate_launch: InstalledCandidateLaunch | None = None,
 ) -> None:
     """Require UI events, installed version, splash sequence, and main shell."""
 
-    receipt = _wait_for_readiness_receipt(
-        readiness_path=evidence.readiness_path,
-        token=evidence.token,
-        timeout_seconds=_LAUNCH_TIMEOUT_SECONDS,
-    )
+    receipt: ApplicationReadinessReceipt | None = None
     try:
+        receipt = _wait_for_readiness_receipt(
+            readiness_path=evidence.readiness_path,
+            token=evidence.token,
+            timeout_seconds=_LAUNCH_TIMEOUT_SECONDS,
+            candidate_launch=candidate_launch,
+            diagnostic_paths=_evidence_diagnostic_paths(
+                install_root=install_root,
+                evidence=evidence,
+                candidate_launch=candidate_launch,
+            ),
+        )
         assert_installed_version(install_root, expected_version)
         if required_qualification_events:
             assert_qualification_event_sequence(
@@ -225,7 +238,10 @@ def verify_main_shell_evidence(
             require_governed_setup_record=require_governed_setup_record,
         )
     finally:
-        terminate_verified_process(receipt.pid)
+        if receipt is not None:
+            terminate_verified_process(receipt.pid)
+        if candidate_launch is not None and candidate_launch.process.poll() is None:
+            terminate_verified_process(candidate_launch.process.pid)
 
 
 def available_loopback_port() -> int:
@@ -331,11 +347,21 @@ def _wait_for_readiness_receipt(
     readiness_path: Path,
     token: str,
     timeout_seconds: float,
+    candidate_launch: InstalledCandidateLaunch | None = None,
+    diagnostic_paths: tuple[Path, ...] = (),
 ) -> ApplicationReadinessReceipt:
     """Wait for a token-bound main-shell receipt or surface diagnostics."""
 
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
+        if candidate_launch is not None:
+            return_code = candidate_launch.process.poll()
+            if return_code not in {None, 0}:
+                raise InstallerLifecycleError(
+                    f"Installed launcher exited with {return_code} before the "
+                    "main-shell receipt.\n"
+                    + diagnostic_tail(candidate_launch.output_path)
+                )
         if readiness_path.is_file():
             try:
                 payload = json.loads(readiness_path.read_text(encoding="utf-8"))
@@ -358,19 +384,35 @@ def _wait_for_readiness_receipt(
                 )
             return receipt
         time.sleep(0.1)
-    layout_root = readiness_path.parents[2]
+    diagnostics = "\n\n".join(
+        f"{path}:\n{diagnostic_tail(path)}" for path in diagnostic_paths
+    )
     raise InstallerLifecycleError(
         "Application did not reveal a post-splash window before timeout.\n"
-        + diagnostic_tail(layout_root / "launcher" / "logs" / "app-startup.log")
-        + "\n"
-        + diagnostic_tail(
-            layout_root.parent
-            / "appdata"
-            / "diagnostics"
-            / "logs"
-            / "startup-trace.jsonl"
-        )
+        + diagnostics
     )
+
+
+def _evidence_diagnostic_paths(
+    *,
+    install_root: Path,
+    evidence: InstallerQualificationEvidence,
+    candidate_launch: InstalledCandidateLaunch | None,
+) -> tuple[Path, ...]:
+    """Return authoritative logs for one installed splash-to-shell chain."""
+
+    layout = InstallLayout.from_root(install_root)
+    paths = [
+        evidence.event_log_path,
+        layout.logs_dir / "launcher.log",
+        layout.logs_dir / "app-startup.log",
+        evidence.trace_path,
+        layout.appdata_dir / "diagnostics" / "logs" / "substitute.log",
+        layout.root / "managed-comfy-startup.log",
+    ]
+    if candidate_launch is not None:
+        paths.insert(0, candidate_launch.output_path)
+    return tuple(paths)
 
 
 def assert_startup_trace_sequence(trace_path: Path) -> None:
@@ -434,6 +476,7 @@ def _windows_process_exists(pid: int) -> bool:
 
 
 __all__ = [
+    "InstalledCandidateLaunch",
     "InstallerQualificationEvidence",
     "assert_installed_version",
     "assert_qualification_event_sequence",
