@@ -277,8 +277,66 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert "Windows x64" in workflow_text
     assert "Linux x64" in workflow_text
     assert "macOS Apple Silicon" in workflow_text
+    assert (
+        "platform:\n          - windows\n          - linux\n          - macos"
+        in workflow_text
+    )
     assert "./.github/workflows/managed-comfy-install.yml" in workflow_text
     assert "gh release edit" not in workflow_text
+    lifecycle_text = (
+        PROJECT_ROOT / "tools" / "ci" / "verify_installer_lifecycle.py"
+    ).read_text(encoding="utf-8")
+    ui_qualification_text = (
+        PROJECT_ROOT / "tools" / "ci" / "installer_ui_qualification.py"
+    ).read_text(encoding="utf-8")
+    historical_qualification_text = (
+        PROJECT_ROOT / "tools" / "ci" / "historical_install_qualification.py"
+    ).read_text(encoding="utf-8")
+    assert "run_current_installer_ui" in lifecycle_text
+    assert "drive_windows_installer" in lifecycle_text
+    assert "INSTALLER_QUALIFICATION_PLAN_ENV" in ui_qualification_text
+    current_installer_path = ui_qualification_text.split(
+        "def run_current_installer_ui", maxsplit=1
+    )[1].split("\ndef ", maxsplit=1)[0]
+    assert '"--headless-install"' not in current_installer_path
+    assert "prepare_portable_historical_install" in lifecycle_text
+    assert '"--headless-install"' in historical_qualification_text
+    assert "Build version-pinned historical Windows setup" in workflow_text
+    assert "SugarSubstitute-app-v${{ matrix.history.version }}.zip" in workflow_text
+    assert (
+        "SugarSubstitute-installer-payload-windows-x64-"
+        "v${{ matrix.history.version }}.zip" in workflow_text
+    )
+    assert "build/historical-setup/SugarSubstitute-Local-Test-Installer" in (
+        workflow_text
+    )
+
+
+def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
+    """Manual dry runs should exercise release qualification without a release."""
+
+    release_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    qualification_text = (
+        PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
+    ).read_text(encoding="utf-8")
+    preparation_text = (
+        PROJECT_ROOT / "scripts" / "prepare-release-assets.mjs"
+    ).read_text(encoding="utf-8")
+
+    assert "SUGAR_SUBSTITUTE_ASSET_BASE_URL: https://localhost:44443" in release_text
+    assert "SUGAR_SUBSTITUTE_QUALIFICATION_VERSION:" in release_text
+    assert "format('9999.0.{0}', github.run_number)" in release_text
+    assert "name: non-release-candidate-channel" in release_text
+    assert "candidate_artifact_name:" in release_text
+    assert "github.event.inputs.dry_run != 'true'" in release_text
+    assert '--candidate-release-root "build/candidate"' in qualification_text
+    assert "Provide exactly one candidate_tag or candidate_artifact_name" in (
+        qualification_text
+    )
+    assert "process.env.SUGAR_SUBSTITUTE_ASSET_BASE_URL" in preparation_text
+    assert 'startsWith("https://")' in preparation_text
 
 
 def test_cross_platform_validation_proves_packaged_linux_system_trust() -> None:

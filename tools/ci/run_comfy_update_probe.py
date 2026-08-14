@@ -32,6 +32,9 @@ from substitute.infrastructure.comfy.comfy_checkout_contract import (
     ComfyCheckoutContract,
 )
 from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy_setup
+from substitute.infrastructure.comfy.managed_setup_cache_storage import (
+    prepare_managed_setup_cache,
+)
 from substitute.infrastructure.comfy.manager_runtime_probe import (
     detect_workspace_manager_runtime,
 )
@@ -335,8 +338,11 @@ def _assert_repository_preserved(
 def _assert_success_state(workspace: Path, target_tag: str) -> None:
     """Verify managed reconciliation atomically recorded validated target state."""
 
-    path = workspace / ".substitute" / "managed_setup_freshness.json"
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    cache = prepare_managed_setup_cache(workspace)
+    try:
+        payload = json.loads(cache.record_path.read_text(encoding="utf-8"))
+    finally:
+        cache.close()
     if not isinstance(payload, dict) or payload.get("success") is not True:
         raise RuntimeError("Managed reconciliation did not record successful state.")
     expected_version = target_tag.removeprefix("v")

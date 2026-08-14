@@ -115,6 +115,8 @@ jobs:
       - name: Install project and test dependencies
         run: |
           ${{ matrix.python }} -m pip install --requirement requirements-toolchain.txt
+      - name: Verify installed runtime dependency graph
+        run: ${{ matrix.python }} -m pip check
       - name: Audit installed Python dependency graph
         run: >-
           ${{ matrix.python }} -m pip_audit

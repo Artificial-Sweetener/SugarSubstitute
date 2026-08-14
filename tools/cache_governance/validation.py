@@ -42,6 +42,7 @@ _PREPARED_NAMESPACE_OWNERS = frozenset(
         "substitute/app/bootstrap/runtime.py",
         "substitute/infrastructure/cache_lifecycle/legacy_migration.py",
         "substitute/infrastructure/cache_lifecycle/legacy_model_cache_migration.py",
+        "substitute/infrastructure/comfy/managed_setup_cache_storage.py",
     }
 )
 _REQUIRED_AGENTS_GUIDANCE = (

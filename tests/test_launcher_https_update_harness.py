@@ -18,10 +18,20 @@
 
 from __future__ import annotations
 
+import json
 import shutil
+from pathlib import Path
 
 import pytest
 
+from launcher.sugarsubstitute_launcher.config import (
+    RELEASE_SOURCE_KIND_GITHUB,
+    LauncherConfig,
+)
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
+from tools.ci.installer_ui_qualification import assert_startup_trace_sequence
+from tools.ci.verify_installer_lifecycle import set_update_manifest
 from tools.run_https_update_harness import (
     DEFAULT_HARNESS_ROOT,
     NEW_VERSION,
@@ -45,3 +55,52 @@ def test_https_update_harness_installs_remote_payload() -> None:
         f"/SugarSubstitute-app-v{NEW_VERSION}.zip",
     )
     assert not DEFAULT_HARNESS_ROOT.exists()
+
+
+def test_lifecycle_candidate_manifest_preserves_release_source_contract(
+    tmp_path: Path,
+) -> None:
+    """The upgrade verifier should write config loadable by historical launchers."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    candidate_manifest_url = "https://localhost:44443/manifest.json"
+
+    set_update_manifest(layout.root, candidate_manifest_url)
+
+    updated_config = LauncherConfig.load(layout.config_path)
+    assert updated_config.release_source is not None
+    assert updated_config.release_source.kind == RELEASE_SOURCE_KIND_GITHUB
+    assert updated_config.release_source.manifest_url == candidate_manifest_url
+
+
+def test_lifecycle_requires_ordered_splash_to_main_shell_trace(tmp_path: Path) -> None:
+    """The install proof should accept only the production reveal sequence."""
+
+    trace_path = tmp_path / "startup-trace.jsonl"
+    trace_path.write_text(
+        "\n".join(
+            json.dumps({"event": event})
+            for event in (
+                "launch_splash.started",
+                "launch_splash.closed",
+                "main_shell.shown",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    assert_startup_trace_sequence(trace_path)
+
+
+def test_lifecycle_rejects_main_shell_without_completed_splash(tmp_path: Path) -> None:
+    """A main-window event alone must not count as button-launch proof."""
+
+    trace_path = tmp_path / "startup-trace.jsonl"
+    trace_path.write_text(
+        json.dumps({"event": "main_shell.shown"}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(InstallerLifecycleError, match="splash-to-shell sequence"):
+        assert_startup_trace_sequence(trace_path)

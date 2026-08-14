@@ -87,6 +87,8 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_prompt_danbooru_dialog_runner.py",
         # Deferred feedback exercises process-global Qt event delivery.
         "tests/test_prompt_deferred_feedback_strategy.py",
+        # Restored real-shell mounts retain native Qt editor state within an xdist worker.
+        "tests/test_prompt_editor_abuse_restored_mounts.py",
         "tests/test_prompt_editor_context_menu_contract.py",
         "tests/test_prompt_editor_debounce.py",
         "tests/test_prompt_editor_main_thread_dispatcher.py",

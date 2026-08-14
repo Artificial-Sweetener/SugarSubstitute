@@ -12,4 +12,5 @@ pytest-xdist==3.8.0
 ruff==0.16.2
 mypy==2.3.0
 pyinstaller==6.22.0
+pywinauto==0.6.9; sys_platform == "win32"
 uv==0.12.3

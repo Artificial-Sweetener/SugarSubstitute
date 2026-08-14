@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Install and validate the paired local QPane and CuteCanvas development overlay."""
+"""Install and validate the local Ferrastra, QPane, and CuteCanvas overlay."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-_DEFAULT_QPANE_ROOT = _REPOSITORY_ROOT.parent / "qpane"
+_DEFAULT_CANVAS_ROOT = _REPOSITORY_ROOT.parent / "CuteCanvas"
 
 CommandRunner = Callable[[Sequence[str]], None]
 
@@ -33,22 +33,24 @@ CommandRunner = Callable[[Sequence[str]], None]
 def install_local_canvas_editables(
     *,
     python_executable: Path,
-    qpane_root: Path,
+    canvas_root: Path,
     runner: CommandRunner | None = None,
 ) -> None:
-    """Install the paired editable packages and verify their resolved source roots.
+    """Install the canvas-stack editables and verify their resolved source roots.
 
     Args:
         python_executable: Interpreter of the target virtual environment.
-        qpane_root: Local QPane monorepo root containing both package roots.
+        canvas_root: Local canvas monorepo root containing all package roots.
         runner: Subprocess boundary used for deterministic automation tests.
 
     Raises:
-        FileNotFoundError: If the paired local package roots are unavailable.
+        FileNotFoundError: If the local canvas package roots are unavailable.
         subprocess.CalledProcessError: If installation or validation fails.
     """
 
-    qpane_package, cutecanvas_package = local_canvas_package_roots(qpane_root)
+    ferrastra_package, qpane_package, cutecanvas_package = local_canvas_package_roots(
+        canvas_root
+    )
     python = str(Path(python_executable).resolve())
     execute = runner or _run_command
     execute(
@@ -60,17 +62,18 @@ def install_local_canvas_editables(
             *_non_canvas_runtime_requirements(_REPOSITORY_ROOT / "requirements.txt"),
         )
     )
-    execute(
-        (
-            python,
-            "-m",
-            "pip",
-            "install",
-            "--no-deps",
-            "--editable",
-            str(qpane_package),
+    for package in (ferrastra_package, qpane_package):
+        execute(
+            (
+                python,
+                "-m",
+                "pip",
+                "install",
+                "--no-deps",
+                "--editable",
+                str(package),
+            )
         )
-    )
     execute(
         (
             python,
@@ -86,21 +89,26 @@ def install_local_canvas_editables(
         (
             python,
             "-c",
-            _validation_script(qpane_package, cutecanvas_package),
+            _validation_script(
+                ferrastra_package,
+                qpane_package,
+                cutecanvas_package,
+            ),
         )
     )
 
 
-def local_canvas_package_roots(qpane_root: Path) -> tuple[Path, Path]:
-    """Return validated paired local package roots for one QPane checkout."""
+def local_canvas_package_roots(canvas_root: Path) -> tuple[Path, Path, Path]:
+    """Return validated package roots for one canvas-stack checkout."""
 
-    root = Path(qpane_root).resolve()
+    root = Path(canvas_root).resolve()
+    ferrastra_package = root / "packages" / "ferrastra"
     qpane_package = root / "packages" / "qpane"
     cutecanvas_package = root / "packages" / "cutecanvas"
-    for package in (qpane_package, cutecanvas_package):
+    for package in (ferrastra_package, qpane_package, cutecanvas_package):
         if not (package / "pyproject.toml").is_file():
             raise FileNotFoundError(f"Local canvas package is unavailable: {package}")
-    return qpane_package, cutecanvas_package
+    return ferrastra_package, qpane_package, cutecanvas_package
 
 
 def _non_canvas_runtime_requirements(requirements_path: Path) -> tuple[str, ...]:
@@ -111,7 +119,7 @@ def _non_canvas_runtime_requirements(requirements_path: Path) -> tuple[str, ...]
         requirement = raw_line.split(" #", maxsplit=1)[0].strip()
         if not requirement or requirement.startswith("#"):
             continue
-        if requirement.casefold().startswith(("qpane", "cutecanvas")):
+        if requirement.casefold().startswith(("ferrastra", "qpane", "cutecanvas")):
             continue
         requirements.append(requirement)
     return tuple(requirements)
@@ -122,17 +130,17 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--qpane-root",
+        "--canvas-root",
         type=Path,
-        default=_DEFAULT_QPANE_ROOT,
-        help="Local QPane monorepo root (defaults to the sibling checkout).",
+        default=_DEFAULT_CANVAS_ROOT,
+        help="Local canvas monorepo root (defaults to the sibling checkout).",
     )
     parsed = parser.parse_args(arguments)
     install_local_canvas_editables(
         python_executable=Path(sys.executable),
-        qpane_root=parsed.qpane_root,
+        canvas_root=parsed.canvas_root,
     )
-    print("Installed and validated local editable QPane and CuteCanvas packages.")
+    print("Installed and validated local editable Ferrastra, QPane, and CuteCanvas.")
     return 0
 
 
@@ -142,13 +150,20 @@ def _run_command(command: Sequence[str]) -> None:
     subprocess.run(tuple(command), check=True)
 
 
-def _validation_script(qpane_package: Path, cutecanvas_package: Path) -> str:
-    """Build a fresh-interpreter assertion for the paired editable import roots."""
+def _validation_script(
+    ferrastra_package: Path,
+    qpane_package: Path,
+    cutecanvas_package: Path,
+) -> str:
+    """Build a fresh-interpreter assertion for the editable import roots."""
 
     return (
-        "from pathlib import Path; import cutecanvas, qpane; "
+        "from pathlib import Path; import cutecanvas, ferrastra, qpane; "
+        f"ferrastra_root = Path({str(ferrastra_package.resolve())!r}); "
         f"qpane_root = Path({str(qpane_package.resolve())!r}); "
         f"cutecanvas_root = Path({str(cutecanvas_package.resolve())!r}); "
+        "assert Path(ferrastra.__file__).resolve().is_relative_to("
+        "ferrastra_root / 'src'); "
         "assert Path(qpane.__file__).resolve().is_relative_to(qpane_root / 'src'); "
         "assert Path(cutecanvas.__file__).resolve().is_relative_to("
         "cutecanvas_root / 'src')"

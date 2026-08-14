@@ -131,6 +131,9 @@ class LegacyModelCacheMigrator:
     def _migrate_thumbnails(self, source: Path, destination: Path) -> None:
         """Adopt thumbnail rows through the current thumbnail-store contract."""
 
+        store = SqliteModelThumbnailAssetStore(destination)
+        if store.summary()[0] > 0:
+            return
         with sqlite3.connect(source) as connection:
             connection.row_factory = sqlite3.Row
             if not {"thumbnail_sources", "thumbnail_variants"}.issubset(
@@ -143,9 +146,6 @@ class LegacyModelCacheMigrator:
             variant_rows = connection.execute(
                 "select * from thumbnail_variants"
             ).fetchall()
-        store = SqliteModelThumbnailAssetStore(destination)
-        if store.summary()[0] > 0:
-            return
         variants_by_sha: dict[str, list[sqlite3.Row]] = {}
         for row in variant_rows:
             variants_by_sha.setdefault(str(row["sha256"]), []).append(row)

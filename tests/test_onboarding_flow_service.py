@@ -707,6 +707,68 @@ def test_flow_service_recovers_stale_attached_retry_to_managed_local(
     assert provisioned_workspaces == [context.comfy_target.workspace_path]
 
 
+def test_flow_service_preserves_explicit_attached_choice_during_first_run(
+    tmp_path: Path,
+) -> None:
+    """First-run setup must not reinterpret an explicit attached-local choice."""
+
+    context = _build_context(tmp_path, ComfyTargetMode.MANAGED_LOCAL)
+    transaction_service = _FakeSetupTransactionService(context)
+    provisioned_workspaces: list[Path] = []
+    workspace = context.comfy_target.workspace_path
+    assert workspace is not None
+
+    def _reject_managed_provisioning(**kwargs: object) -> Path:
+        """Fail if first-run attached setup enters managed provisioning."""
+
+        _ = kwargs
+        raise AssertionError("Explicit attached-local choice used managed setup.")
+
+    def _record_attached_provisioning(**kwargs: object) -> ComfyPythonBinding:
+        """Record the attached workspace selected during first-run setup."""
+
+        selected_workspace = kwargs["workspace"]
+        assert isinstance(selected_workspace, Path)
+        provisioned_workspaces.append(selected_workspace)
+        return _python_binding(selected_workspace)
+
+    service = OnboardingFlowService(
+        service_bundle_factory=lambda _root: _Bundle(
+            onboarding_service=_StaticOnboardingService(context),
+            runtime_service=_FakeRuntimeLaunchService(),
+            readiness_service=_StaticReadinessService(
+                ReadinessAssessment(route=BootstrapRoute.READY, issues=())
+            ),
+            managed_runtime_service=_StaticManagedRuntimeService(),
+            setup_transaction_service=transaction_service,
+        ),
+        managed_workspace_provisioner=_reject_managed_provisioning,
+        attached_workspace_provisioner=_record_attached_provisioning,
+        entrypoint_path=tmp_path / "main.py",
+        transaction_mode=SetupTransactionMode.FIRST_RUN,
+    )
+
+    service.provision(
+        draft=OnboardingDraftState(
+            installation_root=tmp_path,
+            target_mode=ComfyTargetMode.ATTACHED_LOCAL.value,
+            endpoint_host=context.comfy_target.endpoint.host,
+            endpoint_port=context.comfy_target.endpoint.port,
+            managed_workspace_path=tmp_path / "unused-managed",
+            attached_workspace_path=workspace,
+            attached_python_binding=_python_binding(workspace),
+        ),
+        restart_required=False,
+        on_status=lambda message: None,
+        on_log=lambda line: None,
+    )
+
+    assert provisioned_workspaces == [workspace]
+    assert transaction_service.transaction is not None
+    assert transaction_service.transaction.target is not None
+    assert transaction_service.transaction.target.mode is ComfyTargetMode.ATTACHED_LOCAL
+
+
 def test_flow_service_saves_preferences_model_root_and_credentials(
     tmp_path: Path,
 ) -> None:

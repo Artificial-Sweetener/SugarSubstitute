@@ -31,6 +31,7 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import spawn_detached_process
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
+    ApplicationReadinessSurface,
     READINESS_PATH_ENV,
     READINESS_TOKEN_ENV,
 )
@@ -162,6 +163,11 @@ class ApplicationReadinessSupervisor:
         if receipt.token != expected_token or receipt.pid != expected_pid:
             raise ApplicationReadinessError(
                 "Application readiness receipt did not match the launched process."
+            )
+        if receipt.surface is not ApplicationReadinessSurface.MAIN_SHELL:
+            raise ApplicationReadinessError(
+                "SugarSubstitute did not reveal its main shell. "
+                f"Reported surface: {receipt.surface.value}."
             )
 
 

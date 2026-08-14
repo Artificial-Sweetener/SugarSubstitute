@@ -228,7 +228,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
             handoff_geometry=args.handoff_geometry,
         )
+        if owns_application:
+            window.handoff_completed.connect(application.quit)
         window.show()
+        from launcher.sugarsubstitute_launcher.ui.installer_qualification import (
+            schedule_installer_qualification,
+        )
+
+        schedule_installer_qualification(window)
         if owns_application:
             return int(application.exec())
         return 0

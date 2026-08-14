@@ -143,13 +143,11 @@ class InputTransformSessionController(QObject):
             return False
         session = self._edit_sessions.snapshot
         if session is not None:
-            self._edit_sessions.cancel()
-            accepted = session.can_cancel
+            if not self._edit_sessions.cancel():
+                log_warning(_LOGGER, "Affine transform could not be cancelled")
+                return False
         else:
-            accepted = self._document.cancel_transform()
-        if not accepted:
-            log_warning(_LOGGER, "Affine transform could not be cancelled")
-            return False
+            self._document.cancel_transform()
         return self._restore_previous_operation("cancel")
 
     def leave(self, *, cancel_unresolved: bool) -> None:

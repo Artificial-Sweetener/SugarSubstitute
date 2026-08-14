@@ -14,39 +14,94 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Prove a release installer can install, update, and reveal the application."""
+"""Qualify packaged clean installs and historical updates through main shell."""
 
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
-import signal
-import subprocess
 import sys
-import time
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
+from launcher.sugarsubstitute_launcher.config import (  # noqa: E402
+    RELEASE_SOURCE_KIND_GITHUB,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
-from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState  # noqa: E402
-from sugarsubstitute_shared.application_readiness import (  # noqa: E402
-    ApplicationReadinessReceipt,
-    READINESS_PATH_ENV,
-    READINESS_TOKEN_ENV,
+from sugarsubstitute_shared.installer_qualification import (  # noqa: E402
+    InstallerQualificationPlan,
+)
+from tools.ci.drive_windows_installer import drive_windows_installer  # noqa: E402
+from tools.ci.historical_install_qualification import (  # noqa: E402
+    assert_historical_user_configuration_preserved,
+    prepare_portable_historical_install,
+    seed_historical_user_configuration,
+)
+from tools.ci.installer_lifecycle_errors import InstallerLifecycleError  # noqa: E402
+from tools.ci.installer_ui_qualification import (  # noqa: E402
+    assert_installed_version,
+    available_loopback_port,
+    launch_installed_candidate,
+    prepare_qualification_evidence,
+    run_current_installer_ui,
+    terminate_verified_process,
+    verify_main_shell_evidence,
+)
+from tools.ci.local_release_server import LocalReleaseServer  # noqa: E402
+from tools.ci.managed_comfy_qualification import (  # noqa: E402
+    assert_real_managed_comfy,
+    terminate_owned_managed_comfy,
+)
+
+_INSTALL_TIMEOUT_SECONDS = 3_600.0
+_REQUIRED_INSTALLER_EVENTS = (
+    "installer.window.ready",
+    "installer.install.clicked",
+    "onboarding.page.ready",
+    "onboarding.target.selected",
+    "onboarding.completion.ready",
+    "onboarding.open_substitute.clicked",
 )
 
 
-_INSTALL_TIMEOUT_SECONDS = 3_600.0
-_LAUNCH_TIMEOUT_SECONDS = 600.0
+@dataclass(frozen=True, slots=True)
+class _CandidateReleaseSource:
+    """Describe the candidate manifest and optional local trust anchor."""
+
+    manifest_url: str | None
+    certificate_path: Path | None
 
 
-class InstallerLifecycleError(RuntimeError):
-    """Report a packaged install or update lifecycle failure."""
+@contextmanager
+def _candidate_release_source(
+    *,
+    release_root: Path | None,
+    manifest_url: str | None,
+    certificate_root: Path,
+) -> Iterator[_CandidateReleaseSource]:
+    """Serve temporary artifacts or retain the published manifest source."""
+
+    if release_root is None:
+        yield _CandidateReleaseSource(
+            manifest_url=manifest_url,
+            certificate_path=None,
+        )
+        return
+    with LocalReleaseServer(
+        release_root=release_root,
+        certificate_root=certificate_root,
+    ) as server:
+        yield _CandidateReleaseSource(
+            manifest_url=server.manifest_url,
+            certificate_path=server.certificate_path,
+        )
 
 
 def verify_clean_install(
@@ -54,20 +109,39 @@ def verify_clean_install(
     installer_path: Path,
     install_root: Path,
     expected_version: str,
+    candidate_release_root: Path | None = None,
 ) -> None:
-    """Install through the candidate's default binding and reveal onboarding."""
+    """Install and prove the completion button reveals the post-splash shell."""
 
     _require_empty_install_root(install_root)
-    _run_installer(
-        installer_path=installer_path,
-        install_root=install_root,
+    endpoint_port = available_loopback_port()
+    with _candidate_release_source(
+        release_root=candidate_release_root,
         manifest_url=None,
-    )
-    _assert_installed_version(install_root, expected_version)
-    _launch_and_verify_readiness(
-        install_root=install_root,
-        expected_version=expected_version,
-    )
+        certificate_root=install_root.parent / ".candidate-certificate",
+    ) as candidate_source:
+        evidence = prepare_qualification_evidence(
+            install_root=install_root,
+            expected_version=expected_version,
+            endpoint_port=endpoint_port,
+            phase="clean",
+        )
+        _trust_candidate_source(evidence.environment, candidate_source)
+        try:
+            run_current_installer_ui(
+                installer_path=installer_path,
+                install_root=install_root,
+                manifest_url=candidate_source.manifest_url,
+                environment=evidence.environment,
+            )
+            verify_main_shell_evidence(
+                install_root=install_root,
+                expected_version=expected_version,
+                evidence=evidence,
+                required_qualification_events=_REQUIRED_INSTALLER_EVENTS,
+            )
+        finally:
+            terminate_owned_managed_comfy(install_root)
     print(f"INSTALLER_CLEAN_READY version={expected_version}", flush=True)
 
 
@@ -77,22 +151,54 @@ def verify_upgrade(
     install_root: Path,
     historical_manifest_url: str,
     historical_version: str,
-    candidate_manifest_url: str,
+    candidate_manifest_url: str | None,
     candidate_version: str,
+    candidate_release_root: Path | None = None,
 ) -> None:
     """Install one historical release, update it, and prove candidate readiness."""
 
     _require_empty_install_root(install_root)
-    _run_installer(
-        installer_path=historical_installer_path,
+    historical_port = available_loopback_port()
+    managed_workspace = install_root.resolve() / "comfyui"
+    managed_model_root = install_root.resolve() / "qualified-models"
+    if os.name == "nt":
+        _complete_windows_historical_install(
+            installer_path=historical_installer_path,
+            install_root=install_root,
+            manifest_url=historical_manifest_url,
+            historical_version=historical_version,
+            endpoint_port=historical_port,
+            managed_workspace=managed_workspace,
+            managed_model_root=managed_model_root,
+        )
+    else:
+        prepare_portable_historical_install(
+            installer_path=historical_installer_path,
+            install_root=install_root,
+            manifest_url=historical_manifest_url,
+            historical_version=historical_version,
+            endpoint_port=historical_port,
+            managed_workspace=managed_workspace,
+            managed_model_root=managed_model_root,
+            timeout_seconds=_INSTALL_TIMEOUT_SECONDS,
+        )
+        assert_installed_version(install_root, historical_version)
+    preservation_marker = seed_historical_user_configuration(
         install_root=install_root,
-        manifest_url=historical_manifest_url,
+        historical_version=historical_version,
+        managed_workspace=managed_workspace,
+        managed_model_root=managed_model_root,
     )
-    _assert_installed_version(install_root, historical_version)
-    _set_update_manifest(install_root, candidate_manifest_url)
-    _launch_and_verify_readiness(
+    _activate_and_verify_candidate_update(
         install_root=install_root,
-        expected_version=candidate_version,
+        historical_version=historical_version,
+        candidate_version=candidate_version,
+        candidate_manifest_url=candidate_manifest_url,
+        candidate_release_root=candidate_release_root,
+        endpoint_port=historical_port,
+        managed_workspace=managed_workspace,
+        managed_model_root=managed_model_root,
+        preservation_marker=preservation_marker,
     )
     print(
         f"INSTALLER_UPGRADE_READY from={historical_version} to={candidate_version}",
@@ -100,123 +206,137 @@ def verify_upgrade(
     )
 
 
-def _run_installer(
+def _complete_windows_historical_install(
     *,
     installer_path: Path,
     install_root: Path,
-    manifest_url: str | None,
+    manifest_url: str,
+    historical_version: str,
+    endpoint_port: int,
+    managed_workspace: Path,
+    managed_model_root: Path,
 ) -> None:
-    """Run the packaged headless installer through its public CLI contract."""
+    """Drive Windows historical setup through Open Substitute and real shell."""
 
-    command = [
-        str(installer_path.resolve()),
-        "--headless-install",
-        f"--install-root={install_root.resolve()}",
-    ]
-    if manifest_url is not None:
-        command.append(f"--manifest-url={manifest_url}")
-    result = subprocess.run(  # noqa: S603
-        command,
-        cwd=installer_path.resolve().parent,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=_INSTALL_TIMEOUT_SECONDS,
-        check=False,
+    main_pid = drive_windows_installer(
+        installer_path=installer_path,
+        install_root=install_root,
+        manifest_url=manifest_url,
+        timeout_seconds=_INSTALL_TIMEOUT_SECONDS,
+        managed_workspace_path=managed_workspace,
+        managed_model_root=managed_model_root,
+        endpoint_host="127.0.0.1",
+        endpoint_port=endpoint_port,
     )
-    if result.returncode != 0:
-        raise InstallerLifecycleError(
-            f"Installer exited with {result.returncode}.\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    try:
+        assert_installed_version(install_root, historical_version)
+        assert_real_managed_comfy(
+            install_root=install_root,
+            plan=_managed_plan(
+                install_root=install_root,
+                version=historical_version,
+                endpoint_port=endpoint_port,
+                managed_workspace=managed_workspace,
+                managed_model_root=managed_model_root,
+            ),
+            require_current_nodepack_versions=False,
+            require_governed_setup_record=False,
         )
+        print(
+            "HISTORICAL_INSTALLER_MAIN_READY "
+            f"version={historical_version} main_pid={main_pid}",
+            flush=True,
+        )
+    finally:
+        terminate_verified_process(main_pid)
 
 
-def _launch_and_verify_readiness(
+def _activate_and_verify_candidate_update(
     *,
     install_root: Path,
-    expected_version: str,
+    historical_version: str,
+    candidate_version: str,
+    candidate_manifest_url: str | None,
+    candidate_release_root: Path | None,
+    endpoint_port: int,
+    managed_workspace: Path,
+    managed_model_root: Path,
+    preservation_marker: Path,
 ) -> None:
-    """Launch the installed shortcut and wait for its post-splash receipt."""
+    """Run the installed updater and require the candidate's real main shell."""
 
-    layout = InstallLayout.from_root(install_root)
-    readiness_path = layout.launcher_dir / "readiness" / "ci-lifecycle.json"
-    try:
-        readiness_path.unlink()
-    except FileNotFoundError:
-        pass
-    token = f"ci-lifecycle-{expected_version}-{os.getpid()}"
-    environment = dict(os.environ)
-    environment[READINESS_PATH_ENV] = str(readiness_path)
-    environment[READINESS_TOKEN_ENV] = token
-    environment.setdefault("QT_QPA_PLATFORM", "offscreen")
-    result = subprocess.run(  # noqa: S603
-        [str(layout.executable_path)],
-        cwd=layout.root,
-        env=environment,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=_LAUNCH_TIMEOUT_SECONDS,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise InstallerLifecycleError(
-            f"Installed launcher exited with {result.returncode}.\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
-    receipt = _wait_for_readiness_receipt(
-        readiness_path=readiness_path,
-        token=token,
-        timeout_seconds=_LAUNCH_TIMEOUT_SECONDS,
-    )
-    try:
-        _assert_installed_version(install_root, expected_version)
-    finally:
-        _terminate_verified_process(receipt.pid)
+    with _candidate_release_source(
+        release_root=candidate_release_root,
+        manifest_url=candidate_manifest_url,
+        certificate_root=install_root.parent / ".candidate-certificate",
+    ) as candidate_source:
+        if candidate_source.manifest_url is None:
+            raise InstallerLifecycleError("Candidate update source is missing.")
+        set_update_manifest(install_root, candidate_source.manifest_url)
+        try:
+            evidence = prepare_qualification_evidence(
+                install_root=install_root,
+                expected_version=candidate_version,
+                endpoint_port=endpoint_port,
+                phase=f"upgrade-{historical_version}",
+            )
+            _trust_candidate_source(evidence.environment, candidate_source)
+            launch_installed_candidate(
+                install_root=install_root,
+                environment=evidence.environment,
+            )
+            verify_main_shell_evidence(
+                install_root=install_root,
+                expected_version=candidate_version,
+                evidence=evidence,
+                required_qualification_events=(),
+                require_governed_setup_record=False,
+            )
+            assert_historical_user_configuration_preserved(
+                preservation_marker=preservation_marker,
+                historical_version=historical_version,
+                managed_workspace=managed_workspace,
+                managed_model_root=managed_model_root,
+            )
+        finally:
+            terminate_owned_managed_comfy(install_root)
 
 
-def _wait_for_readiness_receipt(
+def _managed_plan(
     *,
-    readiness_path: Path,
-    token: str,
-    timeout_seconds: float,
-) -> ApplicationReadinessReceipt:
-    """Wait for a valid receipt or surface launcher and app diagnostics."""
+    install_root: Path,
+    version: str,
+    endpoint_port: int,
+    managed_workspace: Path,
+    managed_model_root: Path,
+) -> InstallerQualificationPlan:
+    """Describe one installed managed target for live qualification."""
 
-    deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        if readiness_path.is_file():
-            try:
-                payload = json.loads(readiness_path.read_text(encoding="utf-8"))
-                receipt = ApplicationReadinessReceipt.from_json(payload)
-            except (OSError, json.JSONDecodeError, ValueError) as error:
-                raise InstallerLifecycleError(
-                    f"Application wrote an invalid readiness receipt: {readiness_path}."
-                ) from error
-            if receipt.token != token:
-                raise InstallerLifecycleError(
-                    "Application readiness receipt did not match this CI launch."
-                )
-            return receipt
-        time.sleep(0.1)
-    layout_root = readiness_path.parents[2]
-    raise InstallerLifecycleError(
-        "Application did not reveal a post-splash window before timeout.\n"
-        + _diagnostic_tail(layout_root / "launcher" / "logs" / "app-startup.log")
-        + "\n"
-        + _diagnostic_tail(
-            layout_root.parent
-            / "appdata"
-            / "diagnostics"
-            / "logs"
-            / "startup-trace.jsonl"
-        )
+    return InstallerQualificationPlan(
+        token=f"historical-{version}",
+        install_root=install_root.resolve(),
+        endpoint_host="127.0.0.1",
+        endpoint_port=endpoint_port,
+        event_log_path=install_root.resolve() / "historical-events.jsonl",
+        timeout_seconds=_INSTALL_TIMEOUT_SECONDS,
+        target_mode="managed_local",
+        managed_workspace_path=managed_workspace,
+        managed_model_root=managed_model_root,
     )
 
 
-def _set_update_manifest(install_root: Path, manifest_url: str) -> None:
+def _trust_candidate_source(
+    environment: dict[str, str],
+    candidate_source: _CandidateReleaseSource,
+) -> None:
+    """Add the temporary release certificate only to qualification children."""
+
+    if candidate_source.certificate_path is not None:
+        environment["SSL_CERT_FILE"] = str(candidate_source.certificate_path)
+        environment["UV_NATIVE_TLS"] = "1"
+
+
+def set_update_manifest(install_root: Path, manifest_url: str) -> None:
     """Point a historical installation at the exact candidate manifest."""
 
     layout = InstallLayout.from_root(install_root)
@@ -224,52 +344,13 @@ def _set_update_manifest(install_root: Path, manifest_url: str) -> None:
     if not isinstance(payload, dict):
         raise InstallerLifecycleError("Historical launcher config is invalid.")
     payload["release_source"] = {
-        "kind": "github",
+        "kind": RELEASE_SOURCE_KIND_GITHUB,
         "manifest_url": manifest_url,
     }
     layout.config_path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-
-
-def _assert_installed_version(install_root: Path, expected_version: str) -> None:
-    """Require both launcher state and app source to identify the expected release."""
-
-    layout = InstallLayout.from_root(install_root)
-    state = LauncherUpdateState.load(layout.state_path)
-    if state.installed_app_version != expected_version:
-        raise InstallerLifecycleError(
-            "Launcher state version mismatch: "
-            f"{state.installed_app_version} != {expected_version}."
-        )
-    version_path = layout.app_dir / "substitute" / "_version.py"
-    expected_line = f'__version__ = "{expected_version}"'
-    if expected_line not in version_path.read_text(encoding="utf-8"):
-        raise InstallerLifecycleError(
-            f"Installed app source does not identify version {expected_version}."
-        )
-
-
-def _terminate_verified_process(pid: int) -> None:
-    """Terminate only the token-verified app process and its child processes."""
-
-    if os.name == "nt":
-        result = subprocess.run(  # noqa: S603
-            ["taskkill.exe", "/PID", str(pid), "/T", "/F"],
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode not in {0, 128}:
-            raise InstallerLifecycleError(
-                f"Could not terminate verified app process {pid}: "
-                + result.stderr.decode("utf-8", errors="replace")
-            )
-        return
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        return
 
 
 def _require_empty_install_root(install_root: Path) -> None:
@@ -281,44 +362,37 @@ def _require_empty_install_root(install_root: Path) -> None:
         )
 
 
-def _diagnostic_tail(path: Path, *, maximum_lines: int = 80) -> str:
-    """Return bounded lifecycle diagnostics when a readiness wait fails."""
-
-    try:
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
-        return f"Unavailable diagnostic: {path}"
-    return f"Diagnostic tail ({path}):\n" + "\n".join(lines[-maximum_lines:])
-
-
 def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
-    """Parse clean-install or historical-upgrade verification inputs."""
+    """Parse clean-install or upgrade verification arguments."""
 
     parser = argparse.ArgumentParser(description=__doc__)
-    subparsers = parser.add_subparsers(dest="mode", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=True)
     clean = subparsers.add_parser("clean")
     clean.add_argument("--installer", type=Path, required=True)
     clean.add_argument("--install-root", type=Path, required=True)
     clean.add_argument("--expected-version", required=True)
+    clean.add_argument("--candidate-release-root", type=Path)
     upgrade = subparsers.add_parser("upgrade")
     upgrade.add_argument("--historical-installer", type=Path, required=True)
     upgrade.add_argument("--install-root", type=Path, required=True)
     upgrade.add_argument("--historical-manifest-url", required=True)
     upgrade.add_argument("--historical-version", required=True)
-    upgrade.add_argument("--candidate-manifest-url", required=True)
+    upgrade.add_argument("--candidate-manifest-url")
+    upgrade.add_argument("--candidate-release-root", type=Path)
     upgrade.add_argument("--candidate-version", required=True)
     return parser.parse_args(argv)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run one installer lifecycle qualification."""
+    """Run one requested installer lifecycle qualification."""
 
     args = _parse_args(sys.argv[1:] if argv is None else argv)
-    if args.mode == "clean":
+    if args.command == "clean":
         verify_clean_install(
             installer_path=args.installer,
             install_root=args.install_root,
             expected_version=args.expected_version,
+            candidate_release_root=args.candidate_release_root,
         )
     else:
         verify_upgrade(
@@ -328,6 +402,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             historical_version=args.historical_version,
             candidate_manifest_url=args.candidate_manifest_url,
             candidate_version=args.candidate_version,
+            candidate_release_root=args.candidate_release_root,
         )
     return 0
 

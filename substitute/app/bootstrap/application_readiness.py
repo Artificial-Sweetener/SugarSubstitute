@@ -26,18 +26,21 @@ from PySide6.QtCore import QTimer
 
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
+    ApplicationReadinessSurface,
     READINESS_PATH_ENV,
     READINESS_SCHEMA_VERSION,
     READINESS_TOKEN_ENV,
 )
 
 
-def schedule_application_readiness_receipt() -> bool:
+def schedule_application_readiness_receipt(
+    *,
+    surface: ApplicationReadinessSurface,
+) -> bool:
     """Queue a readiness receipt after Qt processes the visible-shell event."""
 
     readiness_path = _readiness_path_from_environment()
-    readiness_token = os.environ.pop(READINESS_TOKEN_ENV, "")
-    os.environ.pop(READINESS_PATH_ENV, None)
+    readiness_token = os.environ.get(READINESS_TOKEN_ENV, "")
     if readiness_path is None or not readiness_token:
         return False
     QTimer.singleShot(
@@ -45,6 +48,7 @@ def schedule_application_readiness_receipt() -> bool:
         lambda: _write_readiness_receipt(
             readiness_path=readiness_path,
             readiness_token=readiness_token,
+            surface=surface,
         ),
     )
     return True
@@ -62,7 +66,12 @@ def _readiness_path_from_environment() -> Path | None:
     return readiness_path
 
 
-def _write_readiness_receipt(*, readiness_path: Path, readiness_token: str) -> None:
+def _write_readiness_receipt(
+    *,
+    readiness_path: Path,
+    readiness_token: str,
+    surface: ApplicationReadinessSurface,
+) -> None:
     """Atomically publish one process-bound application readiness receipt."""
 
     readiness_path.parent.mkdir(parents=True, exist_ok=True)
@@ -72,6 +81,7 @@ def _write_readiness_receipt(*, readiness_path: Path, readiness_token: str) -> N
     payload = ApplicationReadinessReceipt(
         pid=os.getpid(),
         token=readiness_token,
+        surface=surface,
     ).to_json()
     try:
         temporary_path.write_text(
@@ -86,9 +96,18 @@ def _write_readiness_receipt(*, readiness_path: Path, readiness_token: str) -> N
             pass
 
 
+def schedule_main_shell_readiness_receipt() -> bool:
+    """Queue a readiness receipt for the visible main application shell."""
+
+    return schedule_application_readiness_receipt(
+        surface=ApplicationReadinessSurface.MAIN_SHELL
+    )
+
+
 __all__ = [
     "READINESS_PATH_ENV",
     "READINESS_SCHEMA_VERSION",
     "READINESS_TOKEN_ENV",
     "schedule_application_readiness_receipt",
+    "schedule_main_shell_readiness_receipt",
 ]

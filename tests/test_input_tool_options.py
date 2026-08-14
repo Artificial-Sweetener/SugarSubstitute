@@ -1154,6 +1154,31 @@ def test_contextual_transform_requires_explicit_apply_or_cancel(
         )
         assert not canvas.tool_strip.isVisible()
         assert not canvas.canvas_top_bar.isVisible()
+        assert not transaction.history_controls.undo_button.isEnabled()
+        assert transaction.cancel_button.isEnabled()
+
+        cancelled_without_history = QSignalSpy(transaction.cancelRequested)
+        QTest.mouseClick(transaction.cancel_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert cancelled_without_history.count() == 1
+        assert canvas.edit_sessions.snapshot is None
+        assert canvas.document.canvas.floatingPixelEditState() is None
+        assert canvas.document.export_mask_image(mask_id) == before
+        assert (
+            canvas.document.current_canvas_operation()
+            != CuteCanvas.CONTROL_MODE_TRANSFORM
+        )
+
+        page = canvas.contextual_toolbar.page
+        assert isinstance(page, InputSelectionContextualToolbarPage)
+        _wait_for_condition(page.isVisible)
+        transform = page.action_strip.button_for(InputCanvasToolId.TRANSFORM_SELECTION)
+        assert transform is not None and transform.isEnabled()
+        QTest.mouseClick(transform, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        transaction = canvas.contextual_toolbar.page
+        assert isinstance(transaction, InputTransformContextualToolbarPage)
+        _wait_for_condition(transaction.isVisible)
 
         start_rect = canvas.document.canvas.sceneToPanelRect(
             QRectF(40.0, 28.0, 1.0, 1.0)
@@ -1350,6 +1375,27 @@ def test_layer_transform_uses_tight_content_frame_and_contextual_settlement(
             EditorTransformTarget.LAYER_CONTENT
         )
         assert state.allowed and state.corners is not None
+        assert canvas.edit_sessions.snapshot is None
+        assert not page.history_controls.undo_button.isEnabled()
+        assert not page.history_controls.redo_button.isEnabled()
+        assert not page.apply_button.isEnabled()
+        assert page.cancel_button.isEnabled()
+
+        cancelled_without_history = QSignalSpy(page.cancelRequested)
+        QTest.mouseClick(page.cancel_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        assert cancelled_without_history.count() == 1
+        assert canvas.edit_sessions.snapshot is None
+        assert (
+            canvas.document.current_canvas_operation()
+            != CuteCanvas.CONTROL_MODE_TRANSFORM
+        )
+        _wait_for_condition(lambda: canvas.contextual_toolbar.page is None)
+
+        assert controller.request_tool(InputCanvasToolId.TRANSFORM_LAYER)
+        app.processEvents()
+        page = canvas.contextual_toolbar.page
+        assert isinstance(page, InputTransformContextualToolbarPage)
         panel_bounds = canvas.document.tool_options.transform_panel_bounds(
             EditorTransformTarget.LAYER_CONTENT
         )

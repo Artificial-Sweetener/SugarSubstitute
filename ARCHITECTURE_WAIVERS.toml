@@ -191,7 +191,7 @@ kind = "remediation"
 justification = "The assessed file mixes onboarding draft loading and validation, preference persistence across independent domains, workspace provisioning transactions, runtime launch and completion routing. Extract preference application and runtime launch from provisioning transaction orchestration."
 issue = "chore:SS-ARCH-016"
 review_by = 2026-12-15
-max_lines = 1388
+max_lines = 1390
 next_limit = 1110
 debt = "SS-ARCH-016"
 
@@ -357,25 +357,12 @@ owner = "managed Comfy launch"
 rule = "STRUCT003"
 path = "substitute/infrastructure/comfy/managed_launcher.py"
 kind = "remediation"
-justification = "The assessed file mixes managed process state and synchronization, subprocess command construction and spawning, background output pumping, startup readiness adoption, setup revalidation transactions. Extract output pumping and startup revalidation from managed process launch ownership."
+justification = "The assessed file mixes managed process state and synchronization, subprocess command construction and spawning, background output pumping, and startup readiness adoption. Extract background output pumping from managed process state, spawning, and readiness ownership."
 issue = "chore:SS-ARCH-030"
 review_by = 2026-12-15
-max_lines = 892
-next_limit = 713
+max_lines = 713
+next_limit = 600
 debt = "SS-ARCH-030"
-
-[[waivers]]
-id = "SS-WAIVER-R031"
-owner = "managed setup state"
-rule = "STRUCT003"
-path = "substitute/infrastructure/comfy/managed_setup_state.py"
-kind = "remediation"
-justification = "The assessed file mixes runtime configuration serialization, installed-setup persistence, freshness policy and cache admission, workspace, package, Git, and hardware evidence collection. Extract freshness evidence collection from configuration persistence and cache-admission policy."
-issue = "chore:SS-ARCH-031"
-review_by = 2026-12-15
-max_lines = 538
-next_limit = 500
-debt = "SS-ARCH-031"
 
 [[waivers]]
 id = "SS-WAIVER-R032"
