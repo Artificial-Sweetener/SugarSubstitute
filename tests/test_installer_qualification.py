@@ -369,6 +369,13 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
         setup_requests.append((workspace, managed_model_root))
         return workspace
 
+    def _prepare_environment(repository_root: Path, workspace: Path) -> Path:
+        """Record real portable-Comfy environment preparation."""
+
+        prepared_environments.append((repository_root, workspace))
+        executable = "Scripts/python.exe" if sys.platform == "win32" else "bin/python"
+        return workspace / ".venv" / executable
+
     monkeypatch.setattr(
         "tools.ci.historical_install_qualification.subprocess.run",
         _run,
@@ -383,12 +390,7 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
     )
     monkeypatch.setattr(
         "tools.ci.historical_install_qualification.prepare_environment",
-        lambda repository_root, workspace: (
-            prepared_environments.append((repository_root, workspace))
-            or workspace
-            / ".venv"
-            / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
-        ),
+        _prepare_environment,
     )
     installer = tmp_path / "candidate-installer"
     install_root = tmp_path / "installed"
