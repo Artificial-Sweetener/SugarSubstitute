@@ -104,7 +104,7 @@ def test_pygit2_backend_is_an_explicit_separate_transaction(
     )
 
     assert observed == [
-        [subprocess_path(python), "-m", "pip", "install", "pygit2==1.19.3"]
+        [subprocess_path(python), "-m", "pip", "install", "pygit2==1.20.0"]
     ]
 
 

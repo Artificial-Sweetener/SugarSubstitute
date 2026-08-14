@@ -75,7 +75,7 @@ assertFile(linuxDebPath, "Linux Debian installer");
 rmSync(releaseChannelDir, { force: true, recursive: true });
 updateReleaseVersions(new URL("../", import.meta.url), nextVersion);
 
-const assetBaseUrl = `https://github.com/${repository}/releases/download/v${nextVersion}`;
+const assetBaseUrl = resolveAssetBaseUrl(repository, nextVersion);
 const buildResult = spawnSync(
   pythonPath,
   [
@@ -176,6 +176,17 @@ function resolvePythonPath(root) {
     return venvPython;
   }
   return "python";
+}
+
+function resolveAssetBaseUrl(repositoryName, version) {
+  const configuredBaseUrl = process.env.SUGAR_SUBSTITUTE_ASSET_BASE_URL;
+  if (!configuredBaseUrl) {
+    return `https://github.com/${repositoryName}/releases/download/v${version}`;
+  }
+  if (!configuredBaseUrl.startsWith("https://")) {
+    throw new Error("SUGAR_SUBSTITUTE_ASSET_BASE_URL must use HTTPS.");
+  }
+  return configuredBaseUrl.replace(/\/+$/, "");
 }
 
 function assertFile(path, description) {

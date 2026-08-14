@@ -36,7 +36,7 @@ from substitute.infrastructure.comfy import managed_existing_setup
 from substitute.infrastructure.comfy import managed_existing_setup_operations
 from substitute.infrastructure.comfy import managed_install_commands
 from substitute.infrastructure.comfy import managed_install_failures
-from substitute.infrastructure.comfy import managed_setup_state
+from substitute.infrastructure.comfy import managed_setup_freshness_cache
 from substitute.infrastructure.comfy import managed_torch_reconciliation
 from substitute.infrastructure.comfy import managed_workspace_provisioning
 from substitute.infrastructure.comfy import managed_workspace_operations
@@ -45,6 +45,9 @@ from substitute.infrastructure.comfy.managed_validation import (
     workspace_main_path,
     workspace_nested_main_path,
     workspace_python_path,
+)
+from substitute.infrastructure.comfy.managed_setup_cache_storage import (
+    prepare_managed_setup_cache,
 )
 from substitute.infrastructure.comfy.torch_policy import TorchReleaseChannel
 from substitute.infrastructure.comfy.standalone_environment.models import (
@@ -57,6 +60,16 @@ from sugarsubstitute_shared.startup_remote_access import (
 )
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 from sugarsubstitute_shared.startup_remote_access import StartupConnectivityError
+
+
+def _managed_setup_record_path(workspace: Path) -> Path:
+    """Return the prepared setup-evidence path without leaking fallback storage."""
+
+    cache = prepare_managed_setup_cache(workspace)
+    try:
+        return cache.record_path
+    finally:
+        cache.close()
 
 
 @pytest.fixture(autouse=True)
@@ -338,7 +351,7 @@ def test_existing_managed_setup_skips_remote_work_after_launcher_degradation(
     result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
     assert result == python_path
-    assert not (tmp_path / ".substitute" / "managed_setup_freshness.json").exists()
+    assert not _managed_setup_record_path(tmp_path).exists()
 
 
 def test_existing_managed_setup_latches_first_remote_failure(
@@ -393,7 +406,7 @@ def test_existing_managed_setup_latches_first_remote_failure(
 
     assert result == python_path
     assert downstream_calls == []
-    assert not (tmp_path / ".substitute" / "managed_setup_freshness.json").exists()
+    assert not _managed_setup_record_path(tmp_path).exists()
 
 
 def test_existing_managed_setup_preserves_non_connectivity_failures(
@@ -426,7 +439,7 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Fresh installed-workspace evidence should skip repeated setup checks."""
+    """Fresh setup evidence should bypass every recurring setup operation."""
 
     python_path = workspace_python_path(tmp_path)
     python_path.parent.mkdir(parents=True, exist_ok=True)
@@ -564,7 +577,7 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
 
     first = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
     second = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
-    freshness_path = tmp_path / ".substitute" / "managed_setup_freshness.json"
+    freshness_path = _managed_setup_record_path(tmp_path)
     stale_payload = json.loads(freshness_path.read_text(encoding="utf-8"))
     acceleration_fingerprint = stale_payload["key"]["managed_acceleration"][
         "policy_fingerprint"
@@ -590,7 +603,6 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         "validate",
         "acceleration",
         "manager",
-        "manager",
         "nodepacks",
         "sugarcubes",
         "validate",
@@ -608,6 +620,88 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         frozenset(),
         frozenset({CoreNodepackId.SUBSTITUTE_BACKEND}),
     ]
+
+
+def test_existing_setup_repairs_torch_only_when_explicitly_authorized(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A failed probe must not mutate Torch outside an explicit repair flow."""
+
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (python_path.parent.parent / "Lib" / "site-packages").mkdir(parents=True)
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "ensure_managed_workspace_manager",
+        lambda workspace, on_log=None, env=None: workspace / "manager.py",
+    )
+
+    first = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+    repair_calls: list[Path] = []
+    failed_validation = SimpleNamespace(
+        success=False,
+        detail="Torch device execution probe exited with 0xC0000005.",
+        detected_backend=None,
+        detected_torch_channel=None,
+        torch_version=None,
+        device_name=None,
+    )
+    repaired_validation = SimpleNamespace(
+        success=True,
+        detail="Managed workspace validation succeeded.",
+        detected_backend="nvidia",
+        detected_torch_channel="stable",
+        torch_version="2.13.1+cu130",
+        device_name="NVIDIA GeForce RTX 5090",
+    )
+    resolved_backend = SimpleNamespace(
+        backend_key="cuda_cu130",
+        release_channel=TorchReleaseChannel.STABLE,
+        selection_reason="NVIDIA stable runtime.",
+        fallback_used=False,
+    )
+
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "validate_existing_torch_backend",
+        lambda **_kwargs: (resolved_backend, failed_validation),
+    )
+
+    def _repair_runtime(**kwargs: object) -> tuple[object, object]:
+        """Record repair and return independently validated runtime evidence."""
+
+        workspace = cast(Path, kwargs["workspace"])
+        repair_calls.append(workspace)
+        return resolved_backend, repaired_validation
+
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "install_and_validate_selected_torch_backend",
+        _repair_runtime,
+    )
+
+    freshness_path = _managed_setup_record_path(tmp_path)
+    stale_payload = json.loads(freshness_path.read_text(encoding="utf-8"))
+    stale_payload["schema_version"] = 1
+    freshness_path.write_text(json.dumps(stale_payload), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="0xC0000005"):
+        managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+
+    second = managed_install.ensure_managed_comfy_setup(
+        workspace=tmp_path,
+        repair_existing_runtime=True,
+    )
+
+    assert first == python_path
+    assert second == python_path
+    assert repair_calls == [tmp_path]
+    freshness_payload = json.loads(freshness_path.read_text(encoding="utf-8"))
+    assert freshness_payload["success"] is True
+    assert freshness_payload["validation"]["torch_version"] == "2.13.1+cu130"
 
 
 def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
@@ -663,7 +757,7 @@ def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
 
     atomic_write = cast(
         "Callable[[Path, dict[str, object]], None]",
-        getattr(managed_setup_state, "write_json_object_atomic"),
+        getattr(managed_setup_freshness_cache, "write_json_object_atomic"),
     )
     commit_attempts = 0
 
@@ -677,7 +771,7 @@ def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
         atomic_write(path, payload)
 
     monkeypatch.setattr(
-        managed_setup_state,
+        managed_setup_freshness_cache,
         "write_json_object_atomic",
         _fail_first_state_commit,
     )
@@ -685,7 +779,7 @@ def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
     with pytest.raises(OSError, match="injected state commit failure"):
         managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
-    freshness_path = tmp_path / ".substitute" / "managed_setup_freshness.json"
+    freshness_path = _managed_setup_record_path(tmp_path)
     assert not freshness_path.exists()
 
     retried = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)

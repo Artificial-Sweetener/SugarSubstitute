@@ -32,6 +32,7 @@ from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
+    ApplicationReadinessSurface,
     READINESS_PATH_ENV,
     READINESS_TOKEN_ENV,
 )
@@ -101,6 +102,7 @@ def test_supervisor_returns_only_after_matching_receipt(tmp_path: Path) -> None:
                 ApplicationReadinessReceipt(
                     pid=process.pid,
                     token=environment[READINESS_TOKEN_ENV],
+                    surface=ApplicationReadinessSurface.MAIN_SHELL,
                 ).to_json()
             ),
             encoding="utf-8",
@@ -121,6 +123,29 @@ def test_supervisor_returns_only_after_matching_receipt(tmp_path: Path) -> None:
     assert result is process
     assert child_environments[0]["BASE"] == "preserved"
     assert not (layout.launcher_dir / "readiness" / "candidate.json").exists()
+
+
+def test_supervisor_rejects_onboarding_as_candidate_readiness(tmp_path: Path) -> None:
+    """Candidate activation must require the real main shell."""
+
+    receipt_path = tmp_path / "onboarding.json"
+    receipt_path.write_text(
+        json.dumps(
+            ApplicationReadinessReceipt(
+                pid=123,
+                token="candidate-token",
+                surface=ApplicationReadinessSurface.ONBOARDING,
+            ).to_json()
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ApplicationReadinessError, match="main shell"):
+        ApplicationReadinessSupervisor._validate_receipt(
+            receipt_path=receipt_path,
+            expected_token="candidate-token",
+            expected_pid=123,
+        )
 
 
 def test_supervisor_rejects_early_process_exit(tmp_path: Path) -> None:

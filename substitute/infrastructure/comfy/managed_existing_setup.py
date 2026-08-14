@@ -38,16 +38,20 @@ from substitute.infrastructure.comfy.managed_environment_validator import (
 from substitute.infrastructure.comfy.managed_startup_remote_steps import (
     ManagedStartupRemoteSteps,
 )
-from substitute.infrastructure.comfy.managed_setup_state import (
-    _fresh_installed_setup_record_without_hardware_probe,
-    _installed_setup_freshness_is_current,
-    _installed_setup_freshness_key,
-    _installed_setup_freshness_request,
-    _load_installed_setup_freshness,
-    _managed_runtime_configuration_from_strategy,
-    _record_cached_installed_setup_success,
-    _validation_from_installed_setup_record,
-    _write_installed_setup_freshness,
+from substitute.infrastructure.comfy.managed_runtime_configuration_codec import (
+    managed_runtime_configuration_from_strategy,
+)
+from substitute.infrastructure.comfy.managed_setup_freshness_cache import (
+    fresh_installed_setup_record_without_hardware_probe,
+    installed_setup_freshness_is_current,
+    load_installed_setup_freshness,
+    record_cached_installed_setup_success,
+    validation_from_installed_setup_record,
+    write_installed_setup_freshness,
+)
+from substitute.infrastructure.comfy.managed_setup_freshness_inputs import (
+    installed_setup_freshness_key,
+    installed_setup_freshness_request,
 )
 from substitute.infrastructure.comfy.torch_policy import TorchBackendPolicy
 from substitute.shared.startup_trace import trace_span
@@ -153,12 +157,14 @@ class ExistingManagedSetupRequest:
     """Carry immutable inputs for one existing-workspace transaction."""
 
     workspace: Path
+    setup_cache_record_path: Path
     python_executable: Path
     managed_model_root: Path | None
     configure_model_root: bool
     force_cpu_mode: bool
     prefer_edge_torch: bool
     prefer_edge_comfy_channel: bool
+    repair_existing_runtime: bool
     refresh_core_nodepacks: Collection[CoreNodepackId]
     runtime_recorder: ManagedRuntimeStateRecorder
     managed_env: Mapping[str, str]
@@ -175,11 +181,27 @@ def reconcile_existing_managed_setup(
     remote_steps = ManagedStartupRemoteSteps(
         StartupRemoteAccess.from_environment(request.managed_env)
     )
-    freshness_request = _installed_setup_freshness_request(
+    freshness_request = installed_setup_freshness_request(
         force_cpu_mode=request.force_cpu_mode,
         prefer_edge_torch=request.prefer_edge_torch,
         prefer_edge_comfy_channel=request.prefer_edge_comfy_channel,
     )
+    fast_record = None
+    if not request.configure_model_root and not request.repair_existing_runtime:
+        fast_record = fresh_installed_setup_record_without_hardware_probe(
+            workspace=workspace,
+            record_path=request.setup_cache_record_path,
+            request=freshness_request,
+            refresh_core_nodepacks=request.refresh_core_nodepacks,
+        )
+    if fast_record is not None:
+        record_cached_installed_setup_success(
+            runtime_recorder=request.runtime_recorder,
+            record=fast_record,
+        )
+        operations.emit_status("Managed ComfyUI setup is current.")
+        return python_executable
+
     operations.emit_status(
         render_source_application_text(
             app_text("Checking ComfyUI's Python environment.")
@@ -212,20 +234,6 @@ def reconcile_existing_managed_setup(
                 request.managed_model_root,
             )
 
-    fast_record = _fresh_installed_setup_record_without_hardware_probe(
-        workspace=workspace,
-        request=freshness_request,
-        refresh_core_nodepacks=request.refresh_core_nodepacks,
-    )
-    if fast_record is not None:
-        if not remote_steps.degraded:
-            _record_cached_installed_setup_success(
-                runtime_recorder=request.runtime_recorder,
-                record=fast_record,
-            )
-        operations.emit_status("Managed ComfyUI setup is current.")
-        return python_executable
-
     with trace_span("managed_setup.detect_hardware"):
         detection = operations.detect_hardware()
     with trace_span("managed_setup.select_install_strategy"):
@@ -235,7 +243,7 @@ def reconcile_existing_managed_setup(
             prefer_edge_torch=request.prefer_edge_torch,
             prefer_edge_comfy=request.prefer_edge_comfy_channel,
         )
-    runtime_configuration = _managed_runtime_configuration_from_strategy(
+    runtime_configuration = managed_runtime_configuration_from_strategy(
         workspace=workspace,
         detection=detection,
         strategy=strategy,
@@ -244,65 +252,75 @@ def reconcile_existing_managed_setup(
         prefer_edge_comfy_channel=request.prefer_edge_comfy_channel,
     )
     request.runtime_recorder.record_selection(runtime_configuration)
-    freshness_key = _installed_setup_freshness_key(
+    freshness_key = installed_setup_freshness_key(
         workspace=workspace,
         strategy=strategy,
     )
-    if _installed_setup_freshness_is_current(
-        workspace=workspace,
-        key=freshness_key,
-        refresh_core_nodepacks=request.refresh_core_nodepacks,
-    ):
-        existing_record = _load_installed_setup_freshness(workspace)
+    setup_is_current = (
+        not request.repair_existing_runtime
+        and installed_setup_freshness_is_current(
+            record_path=request.setup_cache_record_path,
+            key=freshness_key,
+            refresh_core_nodepacks=request.refresh_core_nodepacks,
+        )
+    )
+    if setup_is_current:
+        existing_record = load_installed_setup_freshness(
+            request.setup_cache_record_path
+        )
         existing_validation = (
-            _validation_from_installed_setup_record(existing_record)
+            validation_from_installed_setup_record(existing_record)
             if existing_record is not None
             else None
         )
-        if existing_validation is not None:
-            if not remote_steps.degraded:
-                _write_installed_setup_freshness(
-                    workspace=workspace,
-                    key=freshness_key,
-                    request=freshness_request,
-                    runtime_configuration=runtime_configuration,
-                    validation=existing_validation,
-                )
+        if existing_validation is not None and not remote_steps.degraded:
+            write_installed_setup_freshness(
+                record_path=request.setup_cache_record_path,
+                key=freshness_key,
+                request=freshness_request,
+                runtime_configuration=runtime_configuration,
+                validation=existing_validation,
+            )
         operations.emit_status("Managed ComfyUI setup is current.")
         return python_executable
 
-    if not remote_steps.degraded:
-        operations.emit_status("Installing Substitute Comfy nodepacks.")
-    remote_steps.run(
-        operation="ensure_nodepacks",
-        action=lambda: _ensure_nodepacks(
-            operations=operations,
-            request=request,
-        ),
-    )
-    if request.configure_model_root:
-        operations.configure_model_root(
-            workspace,
-            python_executable,
-            request.managed_model_root,
+    if not setup_is_current:
+        if not remote_steps.degraded:
+            operations.emit_status("Installing Substitute Comfy nodepacks.")
+        remote_steps.run(
+            operation="ensure_nodepacks",
+            action=lambda: _ensure_nodepacks(
+                operations=operations,
+                request=request,
+            ),
         )
-    if not remote_steps.degraded:
-        operations.emit_status("Preparing Base-Cubes dependencies.")
-    remote_steps.run(
-        operation="sugarcubes_baseline",
-        action=lambda: _prepare_sugarcubes(
-            operations=operations,
-            workspace=workspace,
-            managed_env=request.managed_env,
-        ),
-    )
+        if request.configure_model_root:
+            operations.configure_model_root(
+                workspace,
+                python_executable,
+                request.managed_model_root,
+            )
+        if not remote_steps.degraded:
+            operations.emit_status("Preparing Base-Cubes dependencies.")
+        remote_steps.run(
+            operation="sugarcubes_baseline",
+            action=lambda: _prepare_sugarcubes(
+                operations=operations,
+                workspace=workspace,
+                managed_env=request.managed_env,
+            ),
+        )
     with trace_span("managed_setup.existing.validate_torch"):
         resolved_backend, validation = operations.validate_torch(
             workspace,
             strategy.torch_policy,
         )
     _record_torch_outcome(request.runtime_recorder, resolved_backend, validation)
-    if not validation.success and not remote_steps.degraded:
+    if (
+        not validation.success
+        and request.repair_existing_runtime
+        and not remote_steps.degraded
+    ):
         repair = remote_steps.run(
             operation="install_and_validate_torch",
             action=lambda: operations.install_and_validate_torch(
@@ -330,13 +348,13 @@ def reconcile_existing_managed_setup(
             managed_env=request.managed_env,
         ),
     )
-    freshness_key = _installed_setup_freshness_key(
+    freshness_key = installed_setup_freshness_key(
         workspace=workspace,
         strategy=strategy,
     )
     if not remote_steps.degraded:
-        _write_installed_setup_freshness(
-            workspace=workspace,
+        write_installed_setup_freshness(
+            record_path=request.setup_cache_record_path,
             key=freshness_key,
             request=freshness_request,
             runtime_configuration=runtime_configuration,

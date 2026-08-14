@@ -43,8 +43,18 @@ from substitute.infrastructure.comfy.managed_install_environment import (
 from substitute.infrastructure.comfy.managed_install_scratch import (
     allocate_managed_install_scratch,
 )
-from substitute.infrastructure.comfy.managed_setup_state import (
-    _managed_runtime_configuration_from_strategy,
+from substitute.infrastructure.comfy.managed_runtime_configuration_codec import (
+    managed_runtime_configuration_from_strategy,
+)
+from substitute.infrastructure.comfy.managed_setup_cache_storage import (
+    prepare_managed_setup_cache,
+)
+from substitute.infrastructure.comfy.managed_setup_freshness_cache import (
+    write_installed_setup_freshness,
+)
+from substitute.infrastructure.comfy.managed_setup_freshness_inputs import (
+    installed_setup_freshness_key,
+    installed_setup_freshness_request,
 )
 from substitute.infrastructure.comfy.managed_workspace_operations import (
     migrate_nested_workspace_layout,
@@ -110,6 +120,7 @@ def ensure_managed_comfy_setup(
     force_cpu_mode: bool = False,
     prefer_edge_torch: bool = False,
     prefer_edge_comfy_channel: bool = False,
+    repair_existing_runtime: bool = False,
     refresh_core_nodepacks: Collection[CoreNodepackId] = frozenset(),
     on_status: StatusCallback | None = None,
     on_log: LogCallback | None = None,
@@ -128,6 +139,7 @@ def ensure_managed_comfy_setup(
             force_cpu_mode=force_cpu_mode,
             prefer_edge_torch=prefer_edge_torch,
             prefer_edge_comfy_channel=prefer_edge_comfy_channel,
+            repair_existing_runtime=repair_existing_runtime,
             refresh_core_nodepacks=refresh_core_nodepacks,
             on_status=on_status,
             on_log=on_log,
@@ -155,6 +167,7 @@ def _ensure_managed_comfy_setup(
     force_cpu_mode: bool,
     prefer_edge_torch: bool,
     prefer_edge_comfy_channel: bool,
+    repair_existing_runtime: bool,
     refresh_core_nodepacks: Collection[CoreNodepackId],
     on_status: StatusCallback | None,
     on_log: LogCallback | None,
@@ -175,24 +188,30 @@ def _ensure_managed_comfy_setup(
         and workspace_main_path(workspace).exists()
         and not force_install
     ):
-        return reconcile_existing_managed_setup(
-            ExistingManagedSetupRequest(
-                workspace=workspace,
-                python_executable=venv_python,
-                managed_model_root=managed_model_root,
-                configure_model_root=configure_model_root,
-                force_cpu_mode=force_cpu_mode,
-                prefer_edge_torch=prefer_edge_torch,
-                prefer_edge_comfy_channel=prefer_edge_comfy_channel,
-                refresh_core_nodepacks=refresh_core_nodepacks,
-                runtime_recorder=runtime_recorder,
-                managed_env=managed_env,
-            ),
-            ManagedExistingSetupOperations(
-                on_status=on_status,
-                on_log=on_log,
-            ),
-        )
+        setup_cache = prepare_managed_setup_cache(workspace)
+        try:
+            return reconcile_existing_managed_setup(
+                ExistingManagedSetupRequest(
+                    workspace=workspace,
+                    setup_cache_record_path=setup_cache.record_path,
+                    python_executable=venv_python,
+                    managed_model_root=managed_model_root,
+                    configure_model_root=configure_model_root,
+                    force_cpu_mode=force_cpu_mode,
+                    prefer_edge_torch=prefer_edge_torch,
+                    prefer_edge_comfy_channel=prefer_edge_comfy_channel,
+                    repair_existing_runtime=repair_existing_runtime,
+                    refresh_core_nodepacks=refresh_core_nodepacks,
+                    runtime_recorder=runtime_recorder,
+                    managed_env=managed_env,
+                ),
+                ManagedExistingSetupOperations(
+                    on_status=on_status,
+                    on_log=on_log,
+                ),
+            )
+        finally:
+            setup_cache.close()
 
     with trace_span("managed_setup.detect_hardware"):
         detection = detect_hardware()
@@ -203,16 +222,15 @@ def _ensure_managed_comfy_setup(
             prefer_edge_torch=prefer_edge_torch,
             prefer_edge_comfy=prefer_edge_comfy_channel,
         )
-    runtime_recorder.record_selection(
-        _managed_runtime_configuration_from_strategy(
-            workspace=workspace,
-            detection=detection,
-            strategy=strategy,
-            force_cpu_mode=force_cpu_mode,
-            prefer_edge_torch=prefer_edge_torch,
-            prefer_edge_comfy_channel=prefer_edge_comfy_channel,
-        )
+    runtime_configuration = managed_runtime_configuration_from_strategy(
+        workspace=workspace,
+        detection=detection,
+        strategy=strategy,
+        force_cpu_mode=force_cpu_mode,
+        prefer_edge_torch=prefer_edge_torch,
+        prefer_edge_comfy_channel=prefer_edge_comfy_channel,
     )
+    runtime_recorder.record_selection(runtime_configuration)
     try:
         if remove_invalid_bootstrap_workspace(workspace):
             emit_log(
@@ -334,6 +352,24 @@ def _ensure_managed_comfy_setup(
                 on_log=on_log,
                 env=managed_env,
             )
+        setup_cache = prepare_managed_setup_cache(workspace)
+        try:
+            write_installed_setup_freshness(
+                record_path=setup_cache.record_path,
+                key=installed_setup_freshness_key(
+                    workspace=workspace,
+                    strategy=strategy,
+                ),
+                request=installed_setup_freshness_request(
+                    force_cpu_mode=force_cpu_mode,
+                    prefer_edge_torch=prefer_edge_torch,
+                    prefer_edge_comfy_channel=prefer_edge_comfy_channel,
+                ),
+                runtime_configuration=runtime_configuration,
+                validation=validation,
+            )
+        finally:
+            setup_cache.close()
         return venv_python
     except Exception as error:
         runtime_recorder.record_failure(

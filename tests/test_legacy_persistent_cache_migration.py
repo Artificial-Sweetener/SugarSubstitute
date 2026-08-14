@@ -21,6 +21,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import sqlite3
+from typing import Any
+
+import pytest
 
 from substitute.app.bootstrap.persistent_cache_catalog import (
     CACHE_ID_COMFY_I18N,
@@ -206,6 +209,49 @@ def test_legacy_model_database_splits_thumbnail_assets_from_metadata(
     assert asset.payload == b"pixels"
 
 
+def test_populated_thumbnail_generation_skips_legacy_blob_queries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Repeated startup must not reload legacy thumbnail BLOBs after migration."""
+
+    cache_root = tmp_path / "cache"
+    legacy_root = cache_root / "model_metadata"
+    metadata = SqliteModelMetadataStore(legacy_root)
+    metadata.save_record(
+        ModelMetadataCacheRecord(
+            schema_version=1,
+            local=_local_model_evidence(),
+            provider=None,
+            provider_status="found",
+            thumbnail=None,
+            thumbnail_status=ThumbnailSelectionStatus.SELECTED,
+            updated_at="2026-01-01T00:00:00+00:00",
+        )
+    )
+    legacy_database = legacy_root / "model_metadata.sqlite3"
+    _add_legacy_thumbnail(legacy_database)
+    _prepare(cache_root)
+
+    real_connect = sqlite3.connect
+
+    def guarded_connect(database: Any, *args: Any, **kwargs: Any) -> Any:
+        """Reject legacy thumbnail table scans while allowing metadata validation."""
+
+        connection = real_connect(database, *args, **kwargs)
+        if Path(str(database)).resolve() != legacy_database.resolve():
+            return connection
+        return _LegacyThumbnailQueryGuard(connection)
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.cache_lifecycle.legacy_model_cache_migration."
+        "sqlite3.connect",
+        guarded_connect,
+    )
+
+    _prepare(cache_root)
+
+
 def test_corrupt_legacy_sqlite_is_ignored_without_blocking_preparation(
     tmp_path: Path,
 ) -> None:
@@ -351,6 +397,47 @@ def _add_legacy_thumbnail(database_path: Path) -> None:
                 b"pixels",
             ),
         )
+
+
+class _LegacyThumbnailQueryGuard:
+    """Proxy a SQLite connection while rejecting expensive legacy BLOB scans."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        """Store the guarded legacy database connection."""
+
+        object.__setattr__(self, "_connection", connection)
+
+    def __enter__(self) -> _LegacyThumbnailQueryGuard:
+        """Enter the underlying connection context and retain the guard."""
+
+        self._connection.__enter__()
+        return self
+
+    def __exit__(self, *args: object) -> object:
+        """Exit the underlying connection context."""
+
+        return self._connection.__exit__(*args)
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate unguarded connection operations."""
+
+        return getattr(self._connection, name)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        """Delegate connection settings such as the row factory."""
+
+        setattr(self._connection, name, value)
+
+    def execute(self, sql: str, *args: Any) -> Any:
+        """Reject full reads of legacy thumbnail source and BLOB tables."""
+
+        normalized = " ".join(sql.lower().split())
+        if normalized in {
+            "select * from thumbnail_sources",
+            "select * from thumbnail_variants",
+        }:
+            raise AssertionError("Repeated startup queried legacy thumbnail BLOBs.")
+        return self._connection.execute(sql, *args)
 
 
 def _local_model_evidence() -> LocalModelEvidence:

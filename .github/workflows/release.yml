@@ -59,6 +59,7 @@ jobs:
         id: release-version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUGAR_SUBSTITUTE_QUALIFICATION_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && format('9999.0.{0}', github.run_number) || '' }}
         run: node scripts/resolve-next-release-version.mjs
 
   build-windows:
@@ -213,6 +214,7 @@ jobs:
     runs-on: windows-latest
     outputs:
       candidate_tag: ${{ steps.publish.outputs.candidate_tag }}
+      candidate_artifact_name: ${{ steps.publish.outputs.candidate_artifact_name }}
       candidate_version: ${{ needs.determine-version.outputs.version }}
       staged: ${{ steps.publish.outputs.staged }}
 
@@ -282,6 +284,23 @@ jobs:
             npx semantic-release
           }
 
+      - name: Prepare temporary non-release candidate assets
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SUGAR_SUBSTITUTE_ASSET_BASE_URL: https://localhost:44443
+        shell: pwsh
+        run: node scripts\prepare-release-assets.mjs ${{ needs.determine-version.outputs.version }}
+
+      - name: Upload temporary non-release candidate channel
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: non-release-candidate-channel
+          path: .local-release-channel
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Publish exact bytes as a visible prerelease candidate
         id: publish
         env:
@@ -291,8 +310,9 @@ jobs:
           $version = "${{ needs.determine-version.outputs.version }}"
           $tag = "v$version"
           if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.dry_run }}" -eq "true") {
-            Write-Output "Dry run: would stage $tag for qualification."
-            "staged=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Output "Dry run: qualifying temporary candidate bytes without publishing $tag."
+            "candidate_artifact_name=non-release-candidate-channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           } else {
             $assets = Get-ChildItem .local-release-channel -File | Select-Object -ExpandProperty FullName
             $releaseNotes = Get-Content -Raw build\release-notes.md
@@ -319,12 +339,14 @@ jobs:
     with:
       candidate_version: ${{ needs.stage-candidate.outputs.candidate_version }}
       candidate_tag: ${{ needs.stage-candidate.outputs.candidate_tag }}
+      candidate_artifact_name: ${{ needs.stage-candidate.outputs.candidate_artifact_name }}
 
   promote-release:
     name: Promote qualified bytes without rebuilding
     needs:
       - stage-candidate
       - qualify-candidate
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: Promote the exact qualified prerelease

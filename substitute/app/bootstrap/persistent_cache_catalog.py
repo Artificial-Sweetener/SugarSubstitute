@@ -35,6 +35,7 @@ from substitute.application.cache_lifecycle.cache_ids import (
     CACHE_ID_CUBE_ICONS,
     CACHE_ID_DANBOORU_IMAGES,
     CACHE_ID_DANBOORU_METADATA,
+    CACHE_ID_MANAGED_SETUP_EVIDENCE,
     CACHE_ID_MODEL_CATALOG_SNAPSHOTS,
     CACHE_ID_MODEL_METADATA,
     CACHE_ID_MODEL_THUMBNAILS,
@@ -42,6 +43,9 @@ from substitute.application.cache_lifecycle.cache_ids import (
 )
 from substitute.infrastructure.cache_lifecycle import (
     SemanticSourceFingerprintService,
+)
+from substitute.infrastructure.comfy.managed_setup_cache_storage import (
+    build_managed_setup_cache_registration,
 )
 
 _CACHE_EMERGENCY_EPOCH = 0
@@ -58,6 +62,10 @@ def build_persistent_cache_catalog(
     rendered_runtime = _rendered_runtime_fingerprint()
     return PersistentCacheCatalog(
         registrations=(
+            build_managed_setup_cache_registration(
+                source_root=root,
+                fingerprints=fingerprints,
+            ),
             _derived_registration(
                 cache_id=CACHE_ID_RESTORE_PROJECTION,
                 namespace="restore/projection",
@@ -327,6 +335,7 @@ __all__ = [
     "CACHE_ID_CUBE_ICONS",
     "CACHE_ID_DANBOORU_IMAGES",
     "CACHE_ID_DANBOORU_METADATA",
+    "CACHE_ID_MANAGED_SETUP_EVIDENCE",
     "CACHE_ID_MODEL_CATALOG_SNAPSHOTS",
     "CACHE_ID_MODEL_METADATA",
     "CACHE_ID_MODEL_THUMBNAILS",

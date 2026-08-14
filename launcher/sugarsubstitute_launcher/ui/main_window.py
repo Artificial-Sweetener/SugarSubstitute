@@ -133,6 +133,12 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         if continue_install:
             QTimer.singleShot(0, self._install_app_payload)
 
+    @property
+    def ui_state(self) -> LauncherUiState:
+        """Return the installer phase currently projected by the window."""
+
+        return self._ui_state
+
     def _build_shell(self, initial_layout: InstallLayout) -> None:
         """Compose window chrome around the installer-owned view."""
 

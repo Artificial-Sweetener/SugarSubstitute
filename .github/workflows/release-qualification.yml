@@ -9,7 +9,13 @@ on:
         type: string
       candidate_tag:
         description: "Exact GitHub prerelease tag containing candidate bytes"
-        required: true
+        required: false
+        default: ""
+        type: string
+      candidate_artifact_name:
+        description: "Same-run artifact containing a temporary candidate channel"
+        required: false
+        default: ""
         type: string
   workflow_dispatch:
     inputs:
@@ -19,7 +25,13 @@ on:
         type: string
       candidate_tag:
         description: "Exact GitHub prerelease tag containing candidate bytes"
-        required: true
+        required: false
+        default: ""
+        type: string
+      candidate_artifact_name:
+        description: "Same-run artifact containing a temporary candidate channel"
+        required: false
+        default: ""
         type: string
 
 permissions:
@@ -58,6 +70,19 @@ jobs:
           --repository "${{ github.repository }}"
           --candidate-version "${{ env.CANDIDATE_VERSION }}"
 
+  validate-candidate-source:
+    name: Validate exact candidate source
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require one published or temporary candidate source
+        shell: pwsh
+        run: |
+          $published = "${{ inputs.candidate_tag }}" -ne ""
+          $temporary = "${{ inputs.candidate_artifact_name }}" -ne ""
+          if ($published -eq $temporary) {
+            throw "Provide exactly one candidate_tag or candidate_artifact_name."
+          }
+
   clean-install:
     name: Clean install and launch (${{ matrix.name }})
     strategy:
@@ -72,6 +97,7 @@ jobs:
             os: ubuntu-24.04
             python-version: "3.12.13"
             asset: SugarSubstitute-${{ inputs.candidate_version }}-Linux-x86_64.AppImage
+    needs: validate-candidate-source
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -87,6 +113,7 @@ jobs:
       - name: Install qualification toolchain
         run: python -m pip install --requirement requirements-toolchain.txt
       - name: Download exact candidate installer
+        if: inputs.candidate_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
@@ -95,7 +122,17 @@ jobs:
           New-Item -ItemType Directory -Force build/candidate | Out-Null
           gh release download $env:CANDIDATE_TAG --repo "${{ github.repository }}" --pattern "${{ matrix.asset }}" --dir build/candidate
           if ($IsLinux) { chmod +x "build/candidate/${{ matrix.asset }}" }
-      - name: Prove clean install and post-splash launch
+      - name: Download exact temporary candidate channel
+        if: inputs.candidate_artifact_name != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/candidate
+      - name: Make temporary Linux installer executable
+        if: runner.os == 'Linux' && inputs.candidate_artifact_name != ''
+        run: chmod +x "build/candidate/${{ matrix.asset }}"
+      - name: Prove published clean install and post-splash launch
+        if: inputs.candidate_tag != ''
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
           QT_QPA_PLATFORM: offscreen
@@ -104,9 +141,21 @@ jobs:
           --installer "build/candidate/${{ matrix.asset }}"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
+      - name: Prove temporary clean install and post-splash launch
+        if: inputs.candidate_artifact_name != ''
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          QT_QPA_PLATFORM: offscreen
+        run: >-
+          python tools/ci/verify_installer_lifecycle.py clean
+          --installer "build/candidate/${{ matrix.asset }}"
+          --install-root "${{ runner.temp }}/SugarSubstitute-clean"
+          --expected-version "${{ env.CANDIDATE_VERSION }}"
+          --candidate-release-root "build/candidate"
 
   clean-install-macos:
     name: Clean install and launch (macOS Apple Silicon)
+    needs: validate-candidate-source
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -119,13 +168,26 @@ jobs:
       - name: Install qualification toolchain
         run: python -m pip install --requirement requirements-toolchain.txt
       - name: Download and mount exact candidate DMG
+        if: inputs.candidate_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p build/candidate "${{ runner.temp }}/candidate-dmg"
           gh release download "$CANDIDATE_TAG" --repo "${{ github.repository }}" --pattern "SugarSubstitute-${CANDIDATE_VERSION}-macOS-Apple-Silicon.dmg" --dir build/candidate
           hdiutil attach "build/candidate/SugarSubstitute-${CANDIDATE_VERSION}-macOS-Apple-Silicon.dmg" -mountpoint "${{ runner.temp }}/candidate-dmg" -nobrowse
-      - name: Prove clean install and post-splash launch
+      - name: Download exact temporary candidate channel
+        if: inputs.candidate_artifact_name != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/candidate
+      - name: Mount temporary candidate DMG
+        if: inputs.candidate_artifact_name != ''
+        run: |
+          mkdir -p "${{ runner.temp }}/candidate-dmg"
+          hdiutil attach "build/candidate/SugarSubstitute-${CANDIDATE_VERSION}-macOS-Apple-Silicon.dmg" -mountpoint "${{ runner.temp }}/candidate-dmg" -nobrowse
+      - name: Prove published clean install and post-splash launch
+        if: inputs.candidate_tag != ''
         env:
           QT_QPA_PLATFORM: offscreen
         run: >-
@@ -133,49 +195,122 @@ jobs:
           --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
+      - name: Prove temporary clean install and post-splash launch
+        if: inputs.candidate_artifact_name != ''
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: >-
+          python tools/ci/verify_installer_lifecycle.py clean
+          --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
+          --install-root "${{ runner.temp }}/SugarSubstitute-clean"
+          --expected-version "$CANDIDATE_VERSION"
+          --candidate-release-root "build/candidate"
       - name: Unmount candidate DMG
         if: always()
         run: hdiutil detach "${{ runner.temp }}/candidate-dmg" || true
 
-  upgrade-windows:
-    name: Upgrade ${{ matrix.version }} to candidate
-    needs: resolve-upgrades
+  historical-update:
+    name: Update ${{ matrix.history.version }} and launch (${{ matrix.platform }})
+    needs:
+      - resolve-upgrades
+      - validate-candidate-source
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.resolve-upgrades.outputs.matrix) }}
-    runs-on: windows-latest
-    timeout-minutes: 75
+        history: ${{ fromJSON(needs.resolve-upgrades.outputs.matrix) }}
+        platform:
+          - windows
+          - linux
+          - macos
+    runs-on: ${{ matrix.platform == 'windows' && 'windows-latest' || matrix.platform == 'linux' && 'ubuntu-24.04' || 'macos-15' }}
+    timeout-minutes: 120
     steps:
       - name: Checkout candidate source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ matrix.platform == 'linux' && env.LINUX_PYTHON_VERSION || env.PYTHON_VERSION }}
+      - name: Install Linux runtime dependencies
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
       - name: Install qualification toolchain
         run: python -m pip install --requirement requirements-toolchain.txt
-      - name: Download historical installer
+      - name: Download published candidate installer
+        if: inputs.candidate_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          New-Item -ItemType Directory -Force build/historical | Out-Null
-          gh release download "${{ matrix.tag }}" --repo "${{ github.repository }}" --pattern "SugarSubstitute-Installer-Windows-x64.exe" --dir build/historical
-      - name: Prove historical update and post-splash launch
+          New-Item -ItemType Directory -Force build/candidate | Out-Null
+          $asset = switch ("${{ matrix.platform }}") {
+            "windows" { "SugarSubstitute-$env:CANDIDATE_VERSION-Windows-x64-Setup.exe" }
+            "linux" { "SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage" }
+            "macos" { "SugarSubstitute-$env:CANDIDATE_VERSION-macOS-Apple-Silicon.dmg" }
+          }
+          gh release download $env:CANDIDATE_TAG --repo "${{ github.repository }}" --pattern $asset --dir build/candidate
+      - name: Download temporary candidate channel
+        if: inputs.candidate_artifact_name != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/candidate
+      - name: Select Linux historical installer host
+        if: matrix.platform == 'linux'
+        shell: pwsh
+        run: |
+          $path = "build/candidate/SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage"
+          chmod +x $path
+          "HISTORICAL_INSTALLER=$path" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Mount macOS historical installer host
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p "${{ runner.temp }}/candidate-dmg"
+          hdiutil attach "build/candidate/SugarSubstitute-${CANDIDATE_VERSION}-macOS-Apple-Silicon.dmg" -mountpoint "${{ runner.temp }}/candidate-dmg" -nobrowse
+          echo "HISTORICAL_INSTALLER=${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup" >> "$GITHUB_ENV"
+      - name: Build version-pinned historical Windows setup
+        if: matrix.platform == 'windows'
         env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          New-Item -ItemType Directory -Force build/local-test-release-channel | Out-Null
+          gh release download "${{ matrix.history.tag }}" `
+            --repo "${{ github.repository }}" `
+            --pattern "manifest.json" `
+            --pattern "SugarSubstitute-app-v${{ matrix.history.version }}.zip" `
+            --pattern "SugarSubstitute-installer-payload-windows-x64-v${{ matrix.history.version }}.zip" `
+            --dir build/local-test-release-channel
+          python -m PyInstaller launcher/SugarSubstitute-Local-Test-Installer-Windows-x64.spec `
+            --noconfirm `
+            --clean `
+            --distpath build/historical-setup `
+            --workpath build/pyinstaller-historical-setup
+          "HISTORICAL_INSTALLER=build/historical-setup/SugarSubstitute-Local-Test-Installer-Windows-x64.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Prove historical update, splash, and main shell
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
           QT_QPA_PLATFORM: offscreen
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
+          $candidateSource = if ("${{ inputs.candidate_artifact_name }}" -ne "") {
+            @("--candidate-release-root", "build/candidate")
+          } else {
+            @("--candidate-manifest-url", $env:CANDIDATE_MANIFEST_URL)
+          }
           python tools/ci/verify_installer_lifecycle.py upgrade `
-            --historical-installer build/historical/SugarSubstitute-Installer-Windows-x64.exe `
-            --install-root "${{ runner.temp }}\SugarSubstitute-${{ matrix.version }}" `
-            --historical-manifest-url "https://github.com/${{ github.repository }}/releases/download/${{ matrix.tag }}/manifest.json" `
-            --historical-version "${{ matrix.version }}" `
-            --candidate-manifest-url "$env:CANDIDATE_MANIFEST_URL" `
+            --historical-installer "$env:HISTORICAL_INSTALLER" `
+            --install-root "${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}" `
+            --historical-manifest-url "https://github.com/${{ github.repository }}/releases/download/${{ matrix.history.tag }}/manifest.json" `
+            --historical-version "${{ matrix.history.version }}" `
+            @candidateSource `
             --candidate-version "$env:CANDIDATE_VERSION"
+      - name: Unmount candidate DMG
+        if: always() && matrix.platform == 'macos'
+        run: hdiutil detach "${{ runner.temp }}/candidate-dmg" || true
 
   managed-comfy:
     name: Pinned managed Comfy qualification

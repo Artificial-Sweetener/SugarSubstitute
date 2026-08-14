@@ -393,14 +393,13 @@ def test_project_requirements_do_not_install_sugar_dsl() -> None:
 
 
 def test_project_requirements_pin_cutecanvas_as_the_canvas_boundary() -> None:
-    """Frontend installs CuteCanvas and receives QPane through that package."""
+    """Frontend payloads install the exact verified canvas package stack."""
 
     requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-    assert "cutecanvas[sam]==1.0.1" in requirements
-    assert not any(
-        line.strip().lower().startswith("qpane") for line in requirements.splitlines()
-    )
+    assert "cutecanvas[sam]==1.0.3" in requirements
+    assert "qpane==3.0.2" in requirements
+    assert "ferrastra==1.0.1" in requirements
 
 
 def _write_fixture_repo(tmp_path: Path) -> Path:

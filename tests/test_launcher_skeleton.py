@@ -73,6 +73,9 @@ from launcher.sugarsubstitute_launcher.release_sources import (
 from launcher.sugarsubstitute_launcher.ui.installation_execution import (
     QtInstallationExecutor,
 )
+from launcher.sugarsubstitute_launcher.ui.installer_qualification import (
+    InstallerQualificationDriver,
+)
 from launcher.sugarsubstitute_launcher.ui.main_window import (
     LauncherMainWindow,
 )
@@ -81,6 +84,9 @@ from launcher.sugarsubstitute_launcher.ui.window_geometry import (
 )
 from sugarsubstitute_shared.application_launch_guard import (
     APPLICATION_LAUNCH_TOKEN_ENV,
+)
+from sugarsubstitute_shared.installer_qualification import (
+    InstallerQualificationPlan,
 )
 from sugarsubstitute_shared.startup_remote_access import (
     STARTUP_REMOTE_DEGRADED_ENV,
@@ -618,6 +624,57 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
     assert window.view.status_panel.isHidden() is True
     assert "OnboardingIdentityRail" in window.styleSheet()
     assert "OnboardingSectionPanel" in window.styleSheet()
+    window.close()
+
+
+def test_installer_qualification_clicks_visible_production_install_action(
+    qt_application: QApplication,
+    tmp_path: Path,
+) -> None:
+    """Release qualification should click the displayed installer control."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    event_log_path = tmp_path / "installer-events.jsonl"
+    window = LauncherMainWindow(
+        initial_layout=layout,
+        continue_install=False,
+        repair=False,
+        update_check_enabled=True,
+        workflow_factory=_workflow_factory(),
+    )
+    window.view.primary_requested.disconnect()
+    click_count = 0
+
+    def _record_click() -> None:
+        """Count the production button signal emitted by QTest."""
+
+        nonlocal click_count
+        click_count += 1
+
+    window.view.primary_requested.connect(_record_click)
+    window.show()
+    qt_application.processEvents()
+    driver = InstallerQualificationDriver(
+        window=window,
+        plan=InstallerQualificationPlan(
+            token="installer-click",
+            install_root=layout.root,
+            endpoint_host="127.0.0.1",
+            endpoint_port=8188,
+            event_log_path=event_log_path,
+            timeout_seconds=5.0,
+        ),
+    )
+
+    driver.schedule()
+    _pump_events_until(qt_application, lambda: click_count == 1)
+
+    assert click_count == 1
+    events = [
+        json.loads(line)["event"]
+        for line in event_log_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert events == ["installer.window.ready", "installer.install.clicked"]
     window.close()
 
 

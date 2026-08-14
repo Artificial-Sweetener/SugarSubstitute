@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import ContextManager, Protocol
 
 from substitute.app.bootstrap.application_readiness import (
-    schedule_application_readiness_receipt,
+    schedule_main_shell_readiness_receipt,
 )
 from substitute.app.bootstrap.startup_trace import trace_mark, trace_span
 from substitute.app.bootstrap.startup_warmup_controller import (
@@ -80,7 +80,7 @@ def reveal_ready_shell_main_window(
     schedule_post_show_hydration: Callable[[], object],
     trace_fields: Callable[[], Mapping[str, object]],
     schedule_readiness_receipt: Callable[[], bool] = (
-        schedule_application_readiness_receipt
+        schedule_main_shell_readiness_receipt
     ),
 ) -> ReadyShellRevealResult:
     """Close splash, show the ready shell, and publish post-event-loop readiness."""

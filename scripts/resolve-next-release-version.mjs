@@ -26,6 +26,7 @@ const { selectVersionResolutionPlugins } = require(
   "./release-version-plugins.cjs",
 );
 const FIRST_RELEASE_VERSION = "0.9.0";
+const qualificationVersion = process.env.SUGAR_SUBSTITUTE_QUALIFICATION_VERSION;
 const projectRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const releaseTags = git(["tag", "--list", "v[0-9]*"])
   .split(/\r?\n/)
@@ -36,7 +37,16 @@ let version;
 let shouldRelease;
 let firstRelease;
 
-if (releaseTags.length === 0) {
+if (qualificationVersion) {
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(qualificationVersion)) {
+    throw new Error(
+      "SUGAR_SUBSTITUTE_QUALIFICATION_VERSION must be an exact semantic version.",
+    );
+  }
+  version = qualificationVersion;
+  shouldRelease = true;
+  firstRelease = false;
+} else if (releaseTags.length === 0) {
   version = readFirstReleaseVersion();
   shouldRelease = true;
   firstRelease = true;

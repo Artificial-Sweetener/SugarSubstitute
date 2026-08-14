@@ -84,14 +84,25 @@ class _RenderItemProbe(Protocol):
     """Expose immutable frame geometry needed by the abuse oracle."""
 
     descriptor: _DescriptorProbe
-    strategy: _StrategyProbe
     transform: QTransform
-    pyramid_scale: float
     clip: _ClipProbe | None
     placement: _PlacementProbe
     source_size: QSize
+
+
+class _RasterRenderItemProbe(_RenderItemProbe, Protocol):
+    """Expose one pyramid-backed raster tile plan."""
+
+    strategy: _StrategyProbe
+    pyramid_scale: float
     visible_tile_range: tuple[int, int, int, int] | None
     tiles_to_draw: tuple[object, ...]
+
+
+class _SampledRenderItemProbe(_RenderItemProbe, Protocol):
+    """Expose one atomic native sampled-tile batch."""
+
+    tiles: tuple[object, ...]
 
 
 class _RenderPlanProbe(Protocol):
@@ -317,7 +328,7 @@ def _wait_for_dense_pixels(
         plan = pane.calculateRenderPlan()
         assert plan is not None
         assert len(plan.render_items) == 2
-        assert all(item.strategy.value == "tile" for item in plan.render_items)
+        assert all(_uses_dense_tile_product(item) for item in plan.render_items)
         frame = pane.grab().toImage()
         mismatch = _first_mismatch(plan, frame, sources, horizontal=horizontal)
         assert mismatch is None, mismatch
@@ -329,12 +340,25 @@ def _wait_for_dense_pixels(
 def _visible_tiles_complete(item: _RenderItemProbe) -> bool:
     """Return whether every tile in one visible range has arrived."""
 
-    visible_range = item.visible_tile_range
+    sampled_tiles = getattr(item, "tiles", None)
+    if isinstance(sampled_tiles, tuple):
+        return bool(sampled_tiles)
+    raster_item = cast(_RasterRenderItemProbe, item)
+    visible_range = raster_item.visible_tile_range
     if visible_range is None:
         return True
     start_row, end_row, start_column, end_column = visible_range
     expected = (end_row - start_row + 1) * (end_column - start_column + 1)
-    return len(item.tiles_to_draw) == expected
+    return len(raster_item.tiles_to_draw) == expected
+
+
+def _uses_dense_tile_product(item: _RenderItemProbe) -> bool:
+    """Accept pyramid tiles or the native sampled-tile replacement contract."""
+
+    strategy = getattr(item, "strategy", None)
+    if strategy is not None:
+        return cast(_StrategyProbe, strategy).value == "tile"
+    return isinstance(getattr(item, "tiles", None), tuple)
 
 
 def _first_mismatch(
@@ -359,10 +383,7 @@ def _first_mismatch(
             point = QPointF(float(x), float(y))
             revealed = y >= divider_y if horizontal else x >= divider_x
             primary_product_point = inverse.map(point)
-            primary_point = primary_product_point / max(
-                primary.pyramid_scale,
-                1e-9,
-            )
+            primary_point = primary_product_point / _source_product_scale(primary)
             normalized_x = primary_point.x() / primary_source.width()
             normalized_y = primary_point.y() / primary_source.height()
             if not (0.0 <= normalized_x < 1.0 and 0.0 <= normalized_y < 1.0):
@@ -387,9 +408,32 @@ def _first_mismatch(
                 continue
             expected = source.pixelColor(source_x, source_y)
             actual = frame.pixelColor(x, y)
-            if actual != expected:
+            if not _matches_reconstructed_source(expected, actual):
                 return point, expected, actual
     return None
+
+
+def _source_product_scale(item: _RenderItemProbe) -> float:
+    """Map pyramid products to source pixels while native samples stay source-local."""
+
+    scale = getattr(item, "pyramid_scale", 1.0)
+    if not isinstance(scale, (int, float)):
+        raise TypeError("render-item source product scale must be numeric")
+    return max(float(scale), 1e-9)
+
+
+def _matches_reconstructed_source(expected: QColor, actual: QColor) -> bool:
+    """Allow only the one-channel-step quantization of encoded raster reconstruction."""
+
+    return (
+        max(
+            abs(expected.red() - actual.red()),
+            abs(expected.green() - actual.green()),
+            abs(expected.blue() - actual.blue()),
+            abs(expected.alpha() - actual.alpha()),
+        )
+        <= 1
+    )
 
 
 def _projected_comparison_divider(

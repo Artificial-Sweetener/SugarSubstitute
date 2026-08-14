@@ -43,6 +43,7 @@ from substitute.domain.onboarding import (
     ReadinessAssessment,
     SetupTransactionMode,
 )
+from sugarsubstitute_shared.application_readiness import ApplicationReadinessSurface
 from substitute.infrastructure.comfy.attached_install import (
     prepare_verified_attached_comfy_setup,
 )
@@ -117,7 +118,14 @@ def show_onboarding_surface(
     if owned_execution_runtime is not None:
         window.destroyed.connect(lambda _obj=None: owned_execution_runtime.shutdown())
     window.show()
-    schedule_application_readiness_receipt()
+    schedule_application_readiness_receipt(
+        surface=ApplicationReadinessSurface.ONBOARDING
+    )
+    from substitute.presentation.onboarding.installer_qualification import (
+        schedule_onboarding_qualification,
+    )
+
+    schedule_onboarding_qualification(window)
     return window
 
 

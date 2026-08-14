@@ -27,6 +27,11 @@ from PySide6.QtCore import QTimer
 import pytest
 
 from substitute.app.bootstrap import application_readiness
+from sugarsubstitute_shared.application_readiness import ApplicationReadinessSurface
+from sugarsubstitute_shared.application_readiness import (
+    ApplicationReadinessReceipt,
+    READINESS_SCHEMA_VERSION,
+)
 
 
 def test_readiness_receipt_is_queued_after_shell_reveal(
@@ -51,7 +56,9 @@ def test_readiness_receipt_is_queued_after_shell_reveal(
         lambda delay, callback: callbacks.append(callback) if delay == 0 else None,
     )
 
-    scheduled = application_readiness.schedule_application_readiness_receipt()
+    scheduled = application_readiness.schedule_application_readiness_receipt(
+        surface=ApplicationReadinessSurface.MAIN_SHELL
+    )
 
     assert scheduled is True
     assert not readiness_path.exists()
@@ -61,10 +68,50 @@ def test_readiness_receipt_is_queued_after_shell_reveal(
     assert payload == {
         "pid": os.getpid(),
         "schema_version": application_readiness.READINESS_SCHEMA_VERSION,
+        "surface": "main_shell",
         "token": "launch-token",
     }
-    assert application_readiness.READINESS_PATH_ENV not in os.environ
-    assert application_readiness.READINESS_TOKEN_ENV not in os.environ
+    assert os.environ[application_readiness.READINESS_PATH_ENV] == str(readiness_path)
+    assert os.environ[application_readiness.READINESS_TOKEN_ENV] == "launch-token"
+
+
+def test_readiness_token_survives_onboarding_to_main_shell_handoff(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Open Substitute should pass the authenticated receipt plan to its child."""
+
+    callbacks: list[Callable[[], None]] = []
+    readiness_path = (tmp_path / "launcher" / "readiness" / "launch.json").resolve()
+    monkeypatch.setenv(
+        application_readiness.READINESS_PATH_ENV,
+        str(readiness_path),
+    )
+    monkeypatch.setenv(
+        application_readiness.READINESS_TOKEN_ENV,
+        "launch-token",
+    )
+    monkeypatch.setattr(
+        QTimer,
+        "singleShot",
+        lambda delay, callback: callbacks.append(callback) if delay == 0 else None,
+    )
+
+    assert application_readiness.schedule_application_readiness_receipt(
+        surface=ApplicationReadinessSurface.ONBOARDING
+    )
+    callbacks.pop(0)()
+    assert json.loads(readiness_path.read_text(encoding="utf-8"))["surface"] == (
+        "onboarding"
+    )
+
+    assert application_readiness.schedule_application_readiness_receipt(
+        surface=ApplicationReadinessSurface.MAIN_SHELL
+    )
+    callbacks.pop(0)()
+    assert json.loads(readiness_path.read_text(encoding="utf-8"))["surface"] == (
+        "main_shell"
+    )
 
 
 def test_readiness_receipt_requires_absolute_json_path(
@@ -87,5 +134,25 @@ def test_readiness_receipt_requires_absolute_json_path(
         lambda _delay, callback: callbacks.append(callback),
     )
 
-    assert application_readiness.schedule_application_readiness_receipt() is False
+    assert (
+        application_readiness.schedule_application_readiness_receipt(
+            surface=ApplicationReadinessSurface.ONBOARDING
+        )
+        is False
+    )
     assert callbacks == []
+
+
+def test_legacy_readiness_receipt_remains_parseable_but_not_main_shell() -> None:
+    """Schema-one evidence should remain readable without claiming main readiness."""
+
+    receipt = ApplicationReadinessReceipt.from_json(
+        {
+            "pid": 123,
+            "schema_version": 1,
+            "token": "legacy-token",
+        }
+    )
+
+    assert READINESS_SCHEMA_VERSION > 1
+    assert receipt.surface is ApplicationReadinessSurface.LEGACY_VISIBLE_SHELL

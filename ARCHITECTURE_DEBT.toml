@@ -217,7 +217,7 @@ next_extraction = "Extract field metadata enrichment and override mutation from 
 id = "SS-ARCH-016"
 owner = "onboarding flow"
 paths = ["substitute/application/onboarding/flow_service.py"]
-fingerprint = "sha256:743ebe5227bda74c85abf327a1dce3f59e99e04c46ed1dc7e7ca3ef31db80739"
+fingerprint = "sha256:e7f7479466c6551933f7324802cdc6bb8a8cea72df1010e472f933512e358d0e"
 issue = "chore:SS-ARCH-016"
 review_by = 2026-12-15
 responsibilities = [
@@ -422,7 +422,7 @@ next_extraction = "Separate link models and endpoint indexing from default, norm
 id = "SS-ARCH-030"
 owner = "managed Comfy launch"
 paths = ["substitute/infrastructure/comfy/managed_launcher.py"]
-fingerprint = "sha256:652de6fb67fc9cd05822cb709fe6202af2a107d962e36bb6c81163a14d78130c"
+fingerprint = "sha256:25a38fca9de1f46378ef0522213afae6ef3a20408ab0c3e6f8c241685550978c"
 issue = "chore:SS-ARCH-030"
 review_by = 2026-12-15
 responsibilities = [
@@ -430,24 +430,8 @@ responsibilities = [
   "subprocess command construction and spawning",
   "background output pumping",
   "startup readiness adoption",
-  "setup revalidation transactions",
 ]
-next_extraction = "Extract output pumping and startup revalidation from managed process launch ownership."
-
-[[debts]]
-id = "SS-ARCH-031"
-owner = "managed setup state"
-paths = ["substitute/infrastructure/comfy/managed_setup_state.py"]
-fingerprint = "sha256:f2945432ea85f2f815891ab2911f4d70c1201bbf523cdf0aeb64b6bcdf8329a3"
-issue = "chore:SS-ARCH-031"
-review_by = 2026-12-15
-responsibilities = [
-  "runtime configuration serialization",
-  "installed-setup persistence",
-  "freshness policy and cache admission",
-  "workspace, package, Git, and hardware evidence collection",
-]
-next_extraction = "Extract freshness evidence collection from configuration persistence and cache-admission policy."
+next_extraction = "Extract background output pumping from managed process state, spawning, and readiness ownership."
 
 [[debts]]
 id = "SS-ARCH-032"

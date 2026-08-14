@@ -28,9 +28,6 @@ from typing import IO, Any, cast
 
 import pytest
 
-from substitute.application.onboarding.managed_runtime_service import (
-    ManagedRuntimeService,
-)
 from substitute.application.execution import (
     CancellationSource,
     ExecutionContext,
@@ -44,7 +41,6 @@ from substitute.app.bootstrap.lifecycle import ManagedComfyCleanupOutcome
 from substitute.domain.onboarding import (
     ComfyEndpoint,
     ManagedRuntimeConfiguration,
-    SetupTransactionStatus,
 )
 from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import (
@@ -70,6 +66,10 @@ from substitute.infrastructure.comfy.managed_process_registry import (
 from substitute.infrastructure.comfy.managed_startup_monitor import (
     ManagedStartupReadinessResult,
 )
+from substitute.infrastructure.comfy.managed_validation import (
+    workspace_main_path,
+    workspace_python_path,
+)
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedContainmentLaunchRequest,
     ManagedContainmentLaunchResult,
@@ -83,12 +83,6 @@ from substitute.infrastructure.comfy.managed_shutdown import (
 )
 from substitute.infrastructure.comfy.windows_job_containment import (
     WindowsJobContainmentHandle,
-)
-from substitute.infrastructure.onboarding.file_managed_runtime_repository import (
-    FileManagedRuntimeConfigurationRepository,
-)
-from substitute.infrastructure.onboarding.file_setup_transaction_repository import (
-    FileSetupTransactionRepository,
 )
 
 
@@ -344,79 +338,39 @@ def test_cleanup_handler_without_managed_state_maps_to_no_action_required() -> N
     assert result.outcome is ManagedComfyCleanupOutcome.NO_ACTION_REQUIRED
 
 
-def test_startup_revalidation_transaction_created_for_missing_workspace(
+def test_normal_managed_launch_never_runs_setup_reconciliation(tmp_path: Path) -> None:
+    """Ordinary launch should start the installed runtime without mutating it."""
+
+    workspace = _write_launchable_workspace(tmp_path / "comfyui")
+    python_executable = workspace_python_path(workspace)
+
+    resolved = managed_launcher._resolve_launch_python(
+        workspace=workspace,
+        python_executable=None,
+    )
+
+    assert resolved == python_executable
+    source = Path(managed_launcher.__file__).read_text(encoding="utf-8")
+    assert "ensure_managed_comfy_setup" not in source
+    assert "prepare_attached_comfy_setup" not in source
+    assert "startup_revalidation" not in source
+
+
+def test_normal_managed_launch_fails_closed_when_workspace_is_incomplete(
     tmp_path: Path,
 ) -> None:
-    """Launcher setup work should leave pending state if startup is interrupted."""
+    """Ordinary launch should route incomplete setup to recovery without mutation."""
 
-    state_dir = tmp_path / "state"
-    runtime_service = ManagedRuntimeService(
-        FileManagedRuntimeConfigurationRepository(state_dir),
-        selection_policy=_StaticSelectionPolicy(),
-    )
+    workspace = tmp_path / "comfyui"
 
-    transaction = managed_launcher._begin_startup_revalidation_transaction_if_needed(
-        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
-        workspace=tmp_path / "comfyui",
-        runtime_state_dir=state_dir,
-        runtime_service=runtime_service,
-    )
+    with pytest.raises(FileNotFoundError) as error:
+        managed_launcher._resolve_launch_python(
+            workspace=workspace,
+            python_executable=None,
+        )
 
-    assert transaction is not None
-    saved = FileSetupTransactionRepository(state_dir).load()
-    assert saved is not None
-    assert saved.status is SetupTransactionStatus.MANAGED_WORKSPACE_PROVISIONING
-
-
-def test_startup_revalidation_transaction_cleared_after_success(
-    tmp_path: Path,
-) -> None:
-    """Successful startup revalidation should remove pending setup state."""
-
-    state_dir = tmp_path / "state"
-    runtime_service = ManagedRuntimeService(
-        FileManagedRuntimeConfigurationRepository(state_dir),
-        selection_policy=_StaticSelectionPolicy(),
-    )
-    transaction = managed_launcher._begin_startup_revalidation_transaction_if_needed(
-        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
-        workspace=tmp_path / "comfyui",
-        runtime_state_dir=state_dir,
-        runtime_service=runtime_service,
-    )
-
-    managed_launcher._finish_startup_revalidation_transaction(transaction)
-
-    assert FileSetupTransactionRepository(state_dir).exists() is False
-
-
-def test_startup_revalidation_transaction_records_failure(
-    tmp_path: Path,
-) -> None:
-    """Failed startup revalidation should persist recoverable failure detail."""
-
-    state_dir = tmp_path / "state"
-    runtime_service = ManagedRuntimeService(
-        FileManagedRuntimeConfigurationRepository(state_dir),
-        selection_policy=_StaticSelectionPolicy(),
-    )
-    transaction = managed_launcher._begin_startup_revalidation_transaction_if_needed(
-        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
-        workspace=tmp_path / "comfyui",
-        runtime_state_dir=state_dir,
-        runtime_service=runtime_service,
-    )
-
-    managed_launcher._fail_startup_revalidation_transaction(
-        transaction,
-        RuntimeError("interrupted"),
-    )
-
-    saved = FileSetupTransactionRepository(state_dir).load()
-    assert saved is not None
-    assert saved.status is SetupTransactionStatus.FAILED
-    assert saved.failure is not None
-    assert saved.failure.message == "interrupted"
+    assert error.value.args == (workspace_main_path(workspace),)
+    assert workspace.exists() is False
 
 
 def test_cleanup_handler_maps_termination_timeout_to_failure(tmp_path: Path) -> None:
@@ -632,11 +586,7 @@ def test_background_start_returns_before_listener_probe_completes(
         "probe_managed_listener",
         probe_managed_listener,
     )
-    monkeypatch.setattr(
-        managed_launcher,
-        "ensure_managed_comfy_setup",
-        lambda **kwargs: tmp_path / ".venv" / "Scripts" / "python.exe",
-    )
+    _write_launchable_workspace(tmp_path / "comfyui")
     monkeypatch.setattr(
         managed_launcher,
         "wait_for_managed_startup_ready",
@@ -709,11 +659,7 @@ def test_background_start_reaps_stale_owned_listener_before_spawn(
             None if metadata is None else metadata.pid,
         ),
     )
-    monkeypatch.setattr(
-        managed_launcher,
-        "ensure_managed_comfy_setup",
-        lambda **kwargs: tmp_path / ".venv" / "Scripts" / "python.exe",
-    )
+    _write_launchable_workspace(tmp_path / "comfyui")
     monkeypatch.setattr(
         managed_launcher,
         "wait_for_managed_startup_ready",
@@ -758,11 +704,7 @@ def test_background_start_uses_utf8_for_managed_output_stream(
             reason="absent",
         ),
     )
-    monkeypatch.setattr(
-        managed_launcher,
-        "ensure_managed_comfy_setup",
-        lambda **kwargs: tmp_path / ".venv" / "Scripts" / "python.exe",
-    )
+    _write_launchable_workspace(tmp_path / "comfyui")
     monkeypatch.setattr(
         managed_launcher,
         "wait_for_managed_startup_ready",
@@ -850,11 +792,7 @@ def test_background_start_traces_managed_startup_phases(
             reason="absent",
         ),
     )
-    monkeypatch.setattr(
-        managed_launcher,
-        "ensure_managed_comfy_setup",
-        lambda **kwargs: tmp_path / ".venv" / "Scripts" / "python.exe",
-    )
+    _write_launchable_workspace(tmp_path / "comfyui")
     monkeypatch.setattr(
         managed_launcher,
         "wait_for_managed_startup_ready",
@@ -895,12 +833,8 @@ def test_background_start_traces_managed_startup_phases(
         "managed_comfy.startup_task.start",
         "span:start:managed_comfy.resolve_listener",
         "span:end:managed_comfy.resolve_listener",
-        "span:start:managed_comfy.startup_revalidation.begin",
-        "span:end:managed_comfy.startup_revalidation.begin",
-        "span:start:managed_comfy.ensure_setup",
-        "span:end:managed_comfy.ensure_setup",
-        "span:start:managed_comfy.startup_revalidation.finish",
-        "span:end:managed_comfy.startup_revalidation.finish",
+        "span:start:managed_comfy.resolve_launch_workspace",
+        "span:end:managed_comfy.resolve_launch_workspace",
         "span:start:managed_comfy.launch_process",
         "span:end:managed_comfy.launch_process",
         "managed_comfy.process_launched",
@@ -1391,6 +1325,16 @@ def _raise_taskkill_timeout(*args: object, **kwargs: object) -> object:
         cmd=command,
         timeout=timeout if isinstance(timeout, int | float) else 5.0,
     )
+
+
+def _write_launchable_workspace(workspace: Path) -> Path:
+    """Create the installed artifacts required by ordinary Comfy launch."""
+
+    python_executable = workspace_python_path(workspace)
+    python_executable.parent.mkdir(parents=True)
+    python_executable.write_text("", encoding="utf-8")
+    workspace_main_path(workspace).write_text("", encoding="utf-8")
+    return workspace
 
 
 def _record_launch_request(

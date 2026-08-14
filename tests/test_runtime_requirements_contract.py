@@ -27,6 +27,8 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 _EXPECTED_RUNTIME_DEPENDENCIES = frozenset(
     {
         "comtypes",
+        "cutecanvas",
+        "ferrastra",
         "ijson",
         "keyring",
         "pillow",
@@ -40,7 +42,7 @@ _EXPECTED_RUNTIME_DEPENDENCIES = frozenset(
         "pyside6",
         "pyside6-fluent-widgets",
         "pysidesix-frameless-window",
-        "cutecanvas",
+        "qpane",
         "requests",
         "truststore",
         "websocket-client",
@@ -54,6 +56,7 @@ _EXPECTED_TOOLCHAIN_DEPENDENCIES = frozenset(
         "pip-audit",
         "pre-commit",
         "pyinstaller",
+        "pywinauto",
         "pytest",
         "pytest-xdist",
         "ruff",
