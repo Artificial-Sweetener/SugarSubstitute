@@ -54,9 +54,10 @@ def create_initial_installation_request(
     *,
     layout: InstallLayout,
     frozen_setup: bool,
+    release_source: ReleaseManifestSource,
     handoff_geometry: str | None,
 ) -> ApplicationInstallationRequest:
-    """Build the application request for one fresh installer invocation."""
+    """Build an initial request with the source selected at process startup."""
 
     preparation = (
         InstallationPreparation.INSTALL_LAUNCHER
@@ -65,9 +66,7 @@ def create_initial_installation_request(
     )
     return ApplicationInstallationRequest(
         layout=layout,
-        release_source=resolve_initial_install_release_source(
-            frozen_setup=frozen_setup
-        ),
+        release_source=release_source,
         preparation=preparation,
         handoff_geometry=handoff_geometry,
     )

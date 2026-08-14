@@ -189,7 +189,7 @@ jobs:
       - name: Prove published clean install and post-splash launch
         if: inputs.candidate_tag != ''
         env:
-          QT_QPA_PLATFORM: offscreen
+          QT_QPA_PLATFORM: cocoa
         run: >-
           python tools/ci/verify_installer_lifecycle.py clean
           --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
@@ -198,7 +198,7 @@ jobs:
       - name: Prove temporary clean install and post-splash launch
         if: inputs.candidate_artifact_name != ''
         env:
-          QT_QPA_PLATFORM: offscreen
+          QT_QPA_PLATFORM: cocoa
         run: >-
           python tools/ci/verify_installer_lifecycle.py clean
           --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
@@ -300,14 +300,14 @@ jobs:
             --pattern "SugarSubstitute-app-v$version.zip" `
             --pattern "SugarSubstitute-installer-payload-macos-arm64-v$version.zip" `
             --dir build/historical-channel
-          python tools/ci/reconstitute_historical_macos_release.py `
+          python -m tools.ci.reconstitute_historical_macos_release `
             --source-root build/historical-channel `
             --output-root build/historical-channel-reconstituted
           "HISTORICAL_RELEASE_ROOT=$((Resolve-Path build/historical-channel-reconstituted).Path)" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Prove historical update, splash, and main shell
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
-          QT_QPA_PLATFORM: offscreen
+          QT_QPA_PLATFORM: ${{ matrix.platform == 'macos' && 'cocoa' || 'offscreen' }}
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true

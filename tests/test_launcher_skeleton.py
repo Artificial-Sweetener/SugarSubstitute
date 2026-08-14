@@ -157,6 +157,12 @@ def _write_launcher_executable(layout: InstallLayout) -> None:
     layout.executable_path.write_text("", encoding="utf-8")
 
 
+def _test_release_source() -> GitHubReleaseSource:
+    """Return a non-networking source identity for launcher window tests."""
+
+    return GitHubReleaseSource("https://example.invalid/manifest.json")
+
+
 class _UnusedRuntimeProvisioner:
     """Provide a runtime result for tests that do not exercise provisioning."""
 
@@ -591,6 +597,7 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=_test_release_source(),
         workflow_factory=_workflow_factory(),
     )
 
@@ -640,6 +647,7 @@ def test_installer_qualification_clicks_visible_production_install_action(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=_test_release_source(),
         workflow_factory=_workflow_factory(),
     )
     window.view.primary_requested.disconnect()
@@ -689,6 +697,7 @@ def test_launcher_page_fits_fixed_window_with_live_output_visible(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=_test_release_source(),
         workflow_factory=_workflow_factory(),
     )
     window.show()
@@ -729,6 +738,7 @@ def test_launcher_main_repairs_moved_installed_exe_config(
     LauncherConfig.from_layout(layout=other_layout).save(layout.config_path)
     _write_launcher_executable(layout)
     windows: list[dict[str, object]] = []
+    manifest_url = "https://localhost:44443/manifest.json"
 
     class _FakeWindow:
         """Record launcher window construction without showing real UI."""
@@ -749,11 +759,14 @@ def test_launcher_main_repairs_moved_installed_exe_config(
         lambda _command: pytest.fail("Invalid installed config must not launch app."),
     )
 
-    assert launcher_app.main([]) == 0
+    assert launcher_app.main(["--manifest-url", manifest_url]) == 0
     assert windows
     assert windows[0]["initial_layout"] == layout
     assert windows[0]["repair"] is True
     assert windows[0]["continue_install"] is False
+    initial_release_source = windows[0]["initial_release_source"]
+    assert isinstance(initial_release_source, GitHubReleaseSource)
+    assert initial_release_source.manifest_url == manifest_url
 
 
 def test_launcher_main_starts_app_from_installed_exe_parent(
@@ -1014,6 +1027,7 @@ def test_frozen_setup_installs_in_current_window(
     handoff_commands: list[list[str]] = []
     continue_calls = 0
     runtime_calls = 0
+    observed_release_sources: list[object] = []
 
     class _FakeFirstRunInstaller:
         """Record setup install requests."""
@@ -1028,7 +1042,7 @@ def test_frozen_setup_installs_in_current_window(
         ) -> object:
             """Return a fake copied-launcher result."""
 
-            _ = release_source
+            observed_release_sources.append(release_source)
             handoff_calls.append((install_root, handoff_geometry, launch_installed))
             return SimpleNamespace(layout=layout)
 
@@ -1041,7 +1055,7 @@ def test_frozen_setup_installs_in_current_window(
             """Record app payload installation."""
 
             nonlocal continue_calls
-            _ = release_source
+            observed_release_sources.append(release_source)
             continue_calls += 1
             return SimpleNamespace(
                 layout=layout,
@@ -1067,11 +1081,13 @@ def test_frozen_setup_installs_in_current_window(
         "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_local_release_root",
         lambda: tmp_path / ".local-release-channel",
     )
+    initial_release_source = _test_release_source()
     window = LauncherMainWindow(
         initial_layout=layout,
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=initial_release_source,
         workflow_factory=_workflow_factory(
             artifact_installer=_FakeFirstRunInstaller(),
             runtime_provisioner=_FakeRuntimeInstaller(),
@@ -1094,6 +1110,10 @@ def test_frozen_setup_installs_in_current_window(
     assert handoff_calls[0][2] is False
     assert continue_calls == 1
     assert runtime_calls == 1
+    assert observed_release_sources == [
+        initial_release_source,
+        initial_release_source,
+    ]
     assert len(handoff_commands) == 1
     assert handoff_commands[0][:3] == [
         "python.exe",
@@ -1146,6 +1166,7 @@ def test_initial_install_failure_restores_editable_retry_state(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=_test_release_source(),
         workflow_factory=_workflow_factory(
             artifact_installer=_FailingFirstRunInstaller(),
         ),
@@ -1217,6 +1238,7 @@ def test_continue_install_auto_starts_runtime_and_setup(
         continue_install=True,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=_test_release_source(),
         workflow_factory=_workflow_factory(
             artifact_installer=_FakeFirstRunInstaller(),
             runtime_provisioner=_FakeRuntimeInstaller(),
@@ -1341,6 +1363,7 @@ def test_launcher_continue_installs_app_once(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=_test_release_source(),
         workflow_factory=_workflow_factory(
             layout_preparer=_FakeLayoutInstaller(),
             artifact_installer=_FakeFirstRunInstaller(),
@@ -1437,6 +1460,7 @@ def test_launcher_handoff_failure_keeps_open_setup_enabled(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=_test_release_source(),
         workflow_factory=_workflow_factory(
             layout_preparer=_FakeLayoutInstaller(),
             artifact_installer=_FakeFirstRunInstaller(),
@@ -1518,6 +1542,7 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=_test_release_source(),
         workflow_factory=_workflow_factory(
             layout_preparer=_FakeLayoutInstaller(),
             artifact_installer=_FakeFirstRunInstaller(),

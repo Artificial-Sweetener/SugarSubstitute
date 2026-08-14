@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import ssl
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -36,6 +35,7 @@ from sugarsubstitute_shared.installer_qualification import (
     INSTALLER_QUALIFICATION_PLAN_ENV,
     InstallerQualificationPlan,
 )
+from sugarsubstitute_shared.tls import EXTRA_CA_FILE_ENV, SystemTrustTlsContext
 from substitute.presentation.onboarding.installer_qualification import (
     qualification_preflight_action,
 )
@@ -301,7 +301,8 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
         release_root=release_root,
         certificate_root=Path("certificate"),
     ) as server:
-        context = ssl.create_default_context(cafile=str(server.certificate_path))
+        monkeypatch.setenv(EXTRA_CA_FILE_ENV, str(server.certificate_path))
+        context = SystemTrustTlsContext.create()
         with urllib.request.urlopen(
             server.manifest_url,
             timeout=5.0,

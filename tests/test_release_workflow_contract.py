@@ -306,7 +306,11 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert '"SugarSubstitute-Installer-Linux-x86_64.AppImage"' in workflow_text
     assert '"SugarSubstitute-Installer-macOS-Apple-Silicon.dmg"' in workflow_text
     assert "Reconstitute exact historical macOS install channel" in workflow_text
-    assert "reconstitute_historical_macos_release.py" in workflow_text
+    assert "python -m tools.ci.reconstitute_historical_macos_release" in workflow_text
+    assert workflow_text.count("QT_QPA_PLATFORM: cocoa") == 2
+    assert (
+        "QT_QPA_PLATFORM: ${{ matrix.platform == 'macos' && 'cocoa' || 'offscreen' }}"
+    ) in workflow_text
     assert '"--historical-release-root"' in workflow_text
     assert "Build version-pinned historical Windows setup" not in workflow_text
     assert "SugarSubstitute-Local-Test-Installer" not in workflow_text

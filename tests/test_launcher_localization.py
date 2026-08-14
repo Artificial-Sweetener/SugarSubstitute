@@ -34,6 +34,7 @@ from launcher.sugarsubstitute_launcher.localization import (
     resolve_launcher_locale,
     seed_headless_locale_preference,
 )
+from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
 from sugarsubstitute_shared.localization import (
     LanguagePreference,
@@ -99,6 +100,9 @@ def test_launcher_runtime_installs_spanish_before_window_construction(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=GitHubReleaseSource(
+            "https://example.invalid/manifest.json"
+        ),
         workflow_factory=_unused_workflow_factory,
     )
 
@@ -129,6 +133,9 @@ def test_launcher_uses_startup_locale_without_exposing_a_language_selector(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=GitHubReleaseSource(
+            "https://example.invalid/manifest.json"
+        ),
         workflow_factory=_unused_workflow_factory,
     )
 
