@@ -23,6 +23,7 @@ from pathlib import Path
 import ssl
 import subprocess
 from types import SimpleNamespace
+from typing import cast
 import urllib.request
 
 import pytest
@@ -138,7 +139,10 @@ def test_installer_qualification_fails_fast_when_runtime_setup_fails(
         "QCoreApplication.exit",
         exit_codes.append,
     )
-    driver = SimpleNamespace(_plan=plan)
+    driver = cast(
+        InstallerQualificationDriver,
+        SimpleNamespace(_plan=plan),
+    )
 
     InstallerQualificationDriver._record_installation_failure(
         driver,
