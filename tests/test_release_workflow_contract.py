@@ -361,6 +361,7 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     assert "github.event.inputs.dry_run != 'true'" in tests_guard
     assert "github.event.inputs.qualification_scope == 'full'" in tests_guard
     assert "candidate_run_id: ${{ github.run_id }}" in release_text
+    assert "  actions: read\n  contents: write" in release_text
     assert "qualification-all" in release_text
     assert "select-qualification:" in qualification_text
     assert "clean_matrix" in qualification_text
