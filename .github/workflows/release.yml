@@ -300,6 +300,7 @@ jobs:
           path: .local-release-channel
           if-no-files-found: error
           retention-days: 1
+          include-hidden-files: true
 
       - name: Publish exact bytes as a visible prerelease candidate
         id: publish

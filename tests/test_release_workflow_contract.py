@@ -326,6 +326,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     ).read_text(encoding="utf-8")
 
     assert "SUGAR_SUBSTITUTE_ASSET_BASE_URL: https://localhost:44443" in release_text
+    assert "include-hidden-files: true" in release_text
     assert "SUGAR_SUBSTITUTE_QUALIFICATION_VERSION:" in release_text
     assert "format('9999.0.{0}', github.run_number)" in release_text
     assert "name: non-release-candidate-channel" in release_text
