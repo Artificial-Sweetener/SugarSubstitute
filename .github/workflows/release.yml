@@ -35,6 +35,7 @@ on:
           - managed-comfy
 
 permissions:
+  actions: read
   contents: write
 
 env:
