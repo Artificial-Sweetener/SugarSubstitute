@@ -599,7 +599,12 @@ def test_real_picker_interactions_select_masks_without_changing_held_tool(
         QTest.mouseClick(
             harness.image_picker.preview_surface, Qt.MouseButton.LeftButton
         )
-        harness.process_events(4)
+        harness.wait_until(
+            lambda: (
+                harness.workflow.canvas.input_image_uuid == harness.image_id
+                and _focus_belongs_to(harness.input_canvas)
+            )
+        )
         assert harness.workflow.canvas.input_image_uuid == harness.image_id
         assert _focus_belongs_to(harness.input_canvas)
 
@@ -608,7 +613,15 @@ def test_real_picker_interactions_select_masks_without_changing_held_tool(
         )
         harness.shell.editor_panel.setFocus()
         QTest.mouseClick(harness.mask_picker.preview_surface, Qt.MouseButton.LeftButton)
-        harness.process_events(4)
+        harness.wait_until(
+            lambda: (
+                harness.workflow.canvas.input_image_uuid == harness.image_id
+                and harness.workflow.canvas.active_input_mask_uuid == harness.mask_id
+                and harness.shell.input_canvas_tool_controller.palette.active_tool_id
+                == InputCanvasToolId.MASK_RECTANGLE
+                and _focus_belongs_to(harness.input_canvas)
+            )
+        )
         assert harness.workflow.canvas.input_image_uuid == harness.image_id
         assert harness.workflow.canvas.active_input_mask_uuid == harness.mask_id
         assert (
