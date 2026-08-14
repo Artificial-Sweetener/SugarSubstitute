@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 import ssl
 import subprocess
+import sys
 from types import SimpleNamespace
 from typing import cast
 import urllib.request
@@ -256,9 +257,7 @@ def test_failed_current_installer_reports_process_bound_evidence(
         phase="initial_install",
         details="archive rejected",
     )
-    launcher_log = (
-        evidence.plan.install_root / "launcher" / "logs" / "launcher.log"
-    )
+    launcher_log = evidence.plan.install_root / "launcher" / "logs" / "launcher.log"
     launcher_log.parent.mkdir(parents=True, exist_ok=True)
     launcher_log.write_text("launcher rejected archive\n", encoding="utf-8")
 
@@ -350,6 +349,8 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
 
     commands: list[list[str]] = []
     setup_requests: list[tuple[Path, Path | None]] = []
+    prepared_checkouts: list[tuple[Path, str]] = []
+    prepared_environments: list[tuple[Path, Path]] = []
 
     def _run(command: list[str], **_kwargs: object) -> object:
         """Capture the native install invocation and report success."""
@@ -376,6 +377,19 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
         "tools.ci.historical_install_qualification.ensure_managed_comfy_setup",
         _ensure_setup,
     )
+    monkeypatch.setattr(
+        "tools.ci.historical_install_qualification.prepare_checkout",
+        lambda workspace, tag: prepared_checkouts.append((workspace, tag)),
+    )
+    monkeypatch.setattr(
+        "tools.ci.historical_install_qualification.prepare_environment",
+        lambda repository_root, workspace: (
+            prepared_environments.append((repository_root, workspace))
+            or workspace
+            / ".venv"
+            / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+        ),
+    )
     installer = tmp_path / "candidate-installer"
     install_root = tmp_path / "installed"
     workspace = install_root / "comfyui"
@@ -401,6 +415,8 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
         ]
     ]
     assert setup_requests == [(workspace, model_root)]
+    assert prepared_checkouts == [(workspace, "v0.28.2")]
+    assert prepared_environments == [(Path.cwd().resolve(), workspace)]
     assert (install_root / "user" / "settings" / "installation.json").is_file()
     assert (install_root / "user" / "settings" / "runtime.json").is_file()
     target = json.loads(

@@ -166,12 +166,7 @@ def _installer_failure_diagnostics(
     launcher_log = diagnostic_tail(
         InstallLayout.from_root(install_root).logs_dir / "launcher.log"
     )
-    return (
-        "qualification events:\n"
-        f"{event_log}\n"
-        "launcher log:\n"
-        f"{launcher_log}"
-    )
+    return f"qualification events:\n{event_log}\nlauncher log:\n{launcher_log}"
 
 
 def launch_installed_candidate(

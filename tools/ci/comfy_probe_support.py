@@ -24,6 +24,7 @@ import os
 from pathlib import Path
 import socket
 import subprocess
+import shutil
 import sys
 import threading
 import time
@@ -76,9 +77,10 @@ def prepare_environment(repository_root: Path, workspace: Path) -> Path:
     python_executable = (
         workspace / ".venv" / ("Scripts/python.exe" if windows else "bin/python")
     )
-    uv_executable = (
+    repository_uv = (
         repository_root / ".venv" / ("Scripts/uv.exe" if windows else "bin/uv")
     )
+    uv_executable = _resolve_uv_executable(repository_uv)
     if not python_executable.is_file():
         run_checked(
             [
@@ -119,6 +121,19 @@ def prepare_environment(repository_root: Path, workspace: Path) -> Path:
         cwd=workspace,
     )
     return python_executable
+
+
+def _resolve_uv_executable(repository_uv: Path) -> Path:
+    """Use the repository toolchain first and a CI-installed uv only as fallback."""
+
+    if repository_uv.is_file():
+        return repository_uv
+    discovered = shutil.which("uv")
+    if discovered is None:
+        raise RuntimeError(
+            "Comfy qualification requires uv in the repository .venv or PATH."
+        )
+    return Path(discovered).resolve()
 
 
 def assert_manager_requirement(workspace: Path, expected_version: str) -> None:
