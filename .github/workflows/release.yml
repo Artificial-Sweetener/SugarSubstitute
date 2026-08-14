@@ -33,6 +33,11 @@ on:
           - updates-linux
           - updates-macos
           - managed-comfy
+      release_input_run_id:
+        description: "Focused dry-run containing unchanged native release inputs"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   actions: read
@@ -97,10 +102,12 @@ jobs:
     needs: determine-version
     if: >-
       always() && (
-        needs.determine-version.outputs.should_release == 'true' || (
-          github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.dry_run == 'true' &&
-          github.event.inputs.qualification_scope != 'full'
+        github.event.inputs.release_input_run_id == '' && (
+          needs.determine-version.outputs.should_release == 'true' || (
+            github.event_name == 'workflow_dispatch' &&
+            github.event.inputs.dry_run == 'true' &&
+            github.event.inputs.qualification_scope != 'full'
+          )
         )
       )
     runs-on: windows-latest
@@ -148,10 +155,12 @@ jobs:
     needs: determine-version
     if: >-
       always() && (
-        needs.determine-version.outputs.should_release == 'true' || (
-          github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.dry_run == 'true' &&
-          github.event.inputs.qualification_scope != 'full'
+        github.event.inputs.release_input_run_id == '' && (
+          needs.determine-version.outputs.should_release == 'true' || (
+            github.event_name == 'workflow_dispatch' &&
+            github.event.inputs.dry_run == 'true' &&
+            github.event.inputs.qualification_scope != 'full'
+          )
         )
       )
     runs-on: macos-latest
@@ -205,10 +214,12 @@ jobs:
     needs: determine-version
     if: >-
       always() && (
-        needs.determine-version.outputs.should_release == 'true' || (
-          github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.dry_run == 'true' &&
-          github.event.inputs.qualification_scope != 'full'
+        github.event.inputs.release_input_run_id == '' && (
+          needs.determine-version.outputs.should_release == 'true' || (
+            github.event_name == 'workflow_dispatch' &&
+            github.event.inputs.dry_run == 'true' &&
+            github.event.inputs.qualification_scope != 'full'
+          )
         )
       )
     runs-on: ubuntu-24.04
@@ -264,6 +275,20 @@ jobs:
       - build-windows
       - build-macos
       - build-linux
+    if: >-
+      always() &&
+      needs.determine-version.result == 'success' && (
+        (
+          needs.build-windows.result == 'success' &&
+          needs.build-macos.result == 'success' &&
+          needs.build-linux.result == 'success'
+        ) || (
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.dry_run == 'true' &&
+          github.event.inputs.qualification_scope != 'full' &&
+          github.event.inputs.release_input_run_id != ''
+        )
+      )
     runs-on: windows-latest
     outputs:
       candidate_tag: ${{ steps.publish.outputs.candidate_tag }}
@@ -300,18 +325,24 @@ jobs:
         with:
           name: release-inputs-windows
           path: build/release-inputs/windows
+          run-id: ${{ github.event.inputs.release_input_run_id || github.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Download Apple Silicon release inputs
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-inputs-macos
           path: build/release-inputs/macos
+          run-id: ${{ github.event.inputs.release_input_run_id || github.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Download Linux release inputs
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-inputs-linux
           path: build/release-inputs/linux
+          run-id: ${{ github.event.inputs.release_input_run_id || github.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Prepare first release candidate assets
         if: needs.determine-version.outputs.first_release == 'true'
@@ -388,7 +419,10 @@ jobs:
   qualify-candidate:
     name: Qualify staged installer and update bytes
     needs: stage-candidate
-    if: needs.stage-candidate.outputs.staged == 'true'
+    if: >-
+      always() &&
+      needs.stage-candidate.result == 'success' &&
+      needs.stage-candidate.outputs.staged == 'true'
     uses: ./.github/workflows/release-qualification.yml
     with:
       candidate_version: ${{ needs.stage-candidate.outputs.candidate_version }}
