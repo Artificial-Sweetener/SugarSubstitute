@@ -95,7 +95,12 @@ jobs:
   build-windows:
     name: Build Windows x64 installer
     needs: determine-version
-    if: needs.determine-version.outputs.should_release == 'true'
+    if: >-
+      needs.determine-version.outputs.should_release == 'true' || (
+        github.event_name == 'workflow_dispatch' &&
+        github.event.inputs.dry_run == 'true' &&
+        github.event.inputs.qualification_scope != 'full'
+      )
     runs-on: windows-latest
 
     steps:
@@ -139,7 +144,12 @@ jobs:
   build-macos:
     name: Build macOS Apple Silicon installer
     needs: determine-version
-    if: needs.determine-version.outputs.should_release == 'true'
+    if: >-
+      needs.determine-version.outputs.should_release == 'true' || (
+        github.event_name == 'workflow_dispatch' &&
+        github.event.inputs.dry_run == 'true' &&
+        github.event.inputs.qualification_scope != 'full'
+      )
     runs-on: macos-latest
 
     steps:
@@ -189,7 +199,12 @@ jobs:
   build-linux:
     name: Build Linux x64 installers
     needs: determine-version
-    if: needs.determine-version.outputs.should_release == 'true'
+    if: >-
+      needs.determine-version.outputs.should_release == 'true' || (
+        github.event_name == 'workflow_dispatch' &&
+        github.event.inputs.dry_run == 'true' &&
+        github.event.inputs.qualification_scope != 'full'
+      )
     runs-on: ubuntu-24.04
 
     steps:
