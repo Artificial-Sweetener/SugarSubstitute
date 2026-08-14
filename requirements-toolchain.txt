@@ -4,6 +4,7 @@
 
 -r requirements.txt
 
+certifi==2026.6.17
 pip==26.2.1
 pip-audit==2.10.1
 pre-commit==4.6.1

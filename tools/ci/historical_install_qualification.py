@@ -22,6 +22,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from substitute.domain.onboarding import (
@@ -29,10 +30,42 @@ from substitute.domain.onboarding import (
     ComfyTargetConfiguration,
     ComfyTargetMode,
     InstallationConfiguration,
+    ManagedRuntimeConfiguration,
+    ManagedRuntimeValidationStatus,
     RuntimeBootstrapStatus,
     RuntimeConfiguration,
 )
-from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy_setup
+from substitute.infrastructure.comfy.backend_model_root_configurator import (
+    configure_backend_model_root,
+)
+from substitute.infrastructure.comfy.core_nodepack_reconciler import (
+    ensure_core_comfy_nodepacks,
+)
+from substitute.infrastructure.comfy.hardware_models import (
+    AcceleratorClass,
+    ManagedPlatform,
+)
+from substitute.infrastructure.comfy.install_targets import ManagedInstallTarget
+from substitute.infrastructure.comfy.managed_environment_validator import (
+    validate_managed_environment,
+)
+from substitute.infrastructure.comfy.managed_setup_cache_storage import (
+    prepare_managed_setup_cache,
+)
+from substitute.infrastructure.comfy.managed_setup_freshness_cache import (
+    write_installed_setup_freshness,
+)
+from substitute.infrastructure.comfy.managed_setup_freshness_inputs import (
+    installed_setup_freshness_request,
+    installed_setup_static_freshness_key,
+)
+from substitute.infrastructure.comfy.managed_validation import workspace_python_path
+from substitute.infrastructure.comfy.manager_provisioner import (
+    ensure_managed_workspace_manager,
+)
+from substitute.infrastructure.comfy.sugarcubes_maintenance_runner import (
+    run_sugarcubes_baseline_maintenance,
+)
 from substitute.infrastructure.onboarding.file_comfy_target_repository import (
     FileComfyTargetConfigurationRepository,
 )
@@ -135,11 +168,90 @@ def materialize_historical_managed_configuration(
     qualification_release = COMFY_SUPPORT_MATRIX[-1]
     prepare_checkout(managed_workspace, qualification_release.comfyui_tag)
     prepare_environment(Path.cwd().resolve(), managed_workspace)
-    ensure_managed_comfy_setup(
+    _prepare_qualified_existing_managed_workspace(
         workspace=managed_workspace,
-        managed_model_root=managed_model_root,
-        configure_model_root=True,
+        model_root=managed_model_root,
     )
+
+
+def _prepare_qualified_existing_managed_workspace(
+    *,
+    workspace: Path,
+    model_root: Path,
+) -> None:
+    """Converge and record a real existing runtime without new-install selection."""
+
+    python_executable = workspace_python_path(workspace)
+    environment = dict(os.environ)
+    ensure_managed_workspace_manager(
+        workspace,
+        python_executable=python_executable,
+        env=environment,
+    )
+    ensure_core_comfy_nodepacks(
+        workspace,
+        python_executable=python_executable,
+        env=environment,
+    )
+    run_sugarcubes_baseline_maintenance(
+        workspace,
+        python_executable=python_executable,
+        env=environment,
+    )
+    configure_backend_model_root(
+        workspace=workspace,
+        python_executable=python_executable,
+        model_root=model_root,
+    )
+    validation = validate_managed_environment(
+        workspace=workspace,
+        expected_accelerator=AcceleratorClass.CPU,
+    )
+    if not validation.success:
+        raise InstallerLifecycleError(validation.detail)
+
+    platform, target = _existing_qualification_target()
+    runtime_configuration = ManagedRuntimeConfiguration(
+        workspace_path=str(workspace.resolve()),
+        detected_platform=platform.value,
+        detected_accelerator=validation.detected_backend,
+        install_target=target.value,
+        backend_policy=validation.detected_backend,
+        torch_release_channel=validation.detected_torch_channel,
+        torch_selection_reason="Validated existing qualification runtime.",
+        validation_status=ManagedRuntimeValidationStatus.VALID,
+        validation_detail=validation.detail,
+    )
+    freshness_key = installed_setup_static_freshness_key(workspace)
+    freshness_key["strategy"] = {
+        "source": "existing_qualification_runtime",
+        "target": target.value,
+    }
+    cache = prepare_managed_setup_cache(workspace)
+    try:
+        write_installed_setup_freshness(
+            record_path=cache.record_path,
+            key=freshness_key,
+            request=installed_setup_freshness_request(
+                force_cpu_mode=False,
+                prefer_edge_torch=False,
+                prefer_edge_comfy_channel=False,
+            ),
+            runtime_configuration=runtime_configuration,
+            validation=validation,
+        )
+    finally:
+        cache.close()
+
+
+def _existing_qualification_target() -> tuple[ManagedPlatform, ManagedInstallTarget]:
+    """Return the existing-runtime identity for the native qualification host."""
+
+    if sys.platform == "win32":
+        return ManagedPlatform.WINDOWS, ManagedInstallTarget.WINDOWS_CPU
+    if sys.platform == "darwin":
+        return ManagedPlatform.MACOS, ManagedInstallTarget.MACOS_APPLE_SILICON
+    return ManagedPlatform.LINUX, ManagedInstallTarget.LINUX_CPU
 
 
 def seed_historical_user_configuration(

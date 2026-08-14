@@ -51,6 +51,7 @@ _EXPECTED_RUNTIME_DEPENDENCIES = frozenset(
 )
 _EXPECTED_TOOLCHAIN_DEPENDENCIES = frozenset(
     {
+        "certifi",
         "mypy",
         "pip",
         "pip-audit",
