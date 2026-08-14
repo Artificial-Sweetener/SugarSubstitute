@@ -365,6 +365,7 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     assert "steps.release-version.outputs.should_release ||" in release_text
     assert "format('9999.0.{0}', github.run_number) || ''" in release_text
     assert release_text.count("github.event.inputs.qualification_scope != 'full'") == 4
+    assert release_text.count("always() && (") >= 4
     assert "qualification-all" in release_text
     assert "select-qualification:" in qualification_text
     assert "clean_matrix" in qualification_text
