@@ -143,7 +143,7 @@ def test_strategy_matrices_use_literal_toolchain_versions() -> None:
                 assert "${{" not in entry["python-version"]
                 observed_entries += 1
 
-    assert observed_entries == 26
+    assert observed_entries == 24
 
 
 def test_ci_actions_use_immutable_verified_revisions() -> None:
@@ -213,10 +213,13 @@ def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
     ).read_text(encoding="utf-8")
 
     jobs = release_workflow["jobs"]
-    assert jobs["tests"] == {
-        "name": "Required cross-platform tests",
-        "uses": "./.github/workflows/tests.yml",
-    }
+    assert jobs["tests"]["name"] == "Required cross-platform tests"
+    assert jobs["tests"]["uses"] == "./.github/workflows/tests.yml"
+    assert jobs["tests"]["if"] == (
+        "github.event_name != 'workflow_dispatch' || "
+        "github.event.inputs.dry_run != 'true' || "
+        "github.event.inputs.qualification_scope == 'full'"
+    )
     assert jobs["determine-version"]["needs"] == "tests"
     assert "  workflow_call:" in tests_workflow_text
     assert '    branches-ignore:\n      - main\n      - "dependabot/**"' in (
@@ -277,10 +280,8 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert "Windows x64" in workflow_text
     assert "Linux x64" in workflow_text
     assert "macOS Apple Silicon" in workflow_text
-    assert (
-        "platform:\n          - windows\n          - linux\n          - macos"
-        in workflow_text
-    )
+    assert '@("windows", "linux", "macos")' in workflow_text
+    assert "update_platforms" in workflow_text
     assert "./.github/workflows/managed-comfy-install.yml" in workflow_text
     assert "gh release edit" not in workflow_text
     lifecycle_text = (
@@ -374,6 +375,21 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     )
     assert "needs.stage-candidate.result == 'success'" in release_text
     assert "qualification-all" in release_text
+    assert "upgrade_selection:" in release_text
+    assert (
+        "upgrade_selection: ${{ inputs.dry_run == 'true' && "
+        "inputs.qualification_scope != 'full' && inputs.upgrade_selection || "
+        "'complete' }}"
+    ) in release_text
+    assert '--selection "${{ inputs.upgrade_selection }}"' in qualification_text
+    assert "inputs.qualification_scope == 'qualification-all' && 'all'" not in (
+        release_text
+    )
+    assert (
+        "qualification-all" in qualification_text.split("permissions:", maxsplit=1)[0]
+    )
+    assert '@("all", "qualification-all", "clean-all")' in qualification_text
+    assert '@("all", "qualification-all", "updates-all")' in qualification_text
     assert "select-qualification:" in qualification_text
     assert "clean_matrix" in qualification_text
     assert "update_platforms" in qualification_text

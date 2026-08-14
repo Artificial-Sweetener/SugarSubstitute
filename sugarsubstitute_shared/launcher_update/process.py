@@ -18,12 +18,14 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 import subprocess
 import sys
 
 from sugarsubstitute_shared.launcher_update.models import LauncherUpdateRequest
+from sugarsubstitute_shared.subprocess_environment import (
+    clean_frozen_parent_environment,
+)
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
     subprocess_path,
@@ -49,7 +51,7 @@ def schedule_launcher_update(
         wait_pid=wait_pid,
     )
     request.save(request_path)
-    environment = os.environ.copy()
+    environment = clean_frozen_parent_environment()
     environment["PYTHONPATH"] = subprocess_path(app_dir)
     install_root = operational_path(request.install_root)
     log_path = install_root / "launcher" / "logs" / "launcher-update.log"

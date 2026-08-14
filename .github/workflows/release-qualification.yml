@@ -27,6 +27,11 @@ on:
         required: false
         default: "all"
         type: string
+      upgrade_selection:
+        description: "Historical upgrade depth for focused remediation"
+        required: false
+        default: "complete"
+        type: string
   workflow_dispatch:
     inputs:
       candidate_version:
@@ -55,6 +60,7 @@ on:
         type: choice
         options:
           - all
+          - qualification-all
           - clean-all
           - clean-windows
           - clean-linux
@@ -64,6 +70,14 @@ on:
           - updates-linux
           - updates-macos
           - managed-comfy
+      upgrade_selection:
+        description: "Historical upgrade depth for focused remediation"
+        required: false
+        default: "complete"
+        type: choice
+        options:
+          - complete
+          - latest-only
 
 permissions:
   actions: read
@@ -101,7 +115,7 @@ jobs:
         run: |
           $scope = $env:QUALIFICATION_SCOPE
           $cleanPlatforms = switch ($scope) {
-            { $_ -in @("all", "clean-all") } { @("windows", "linux"); break }
+            { $_ -in @("all", "qualification-all", "clean-all") } { @("windows", "linux"); break }
             "clean-windows" { @("windows"); break }
             "clean-linux" { @("linux"); break }
             default { @() }
@@ -124,14 +138,14 @@ jobs:
             }
           }) | ConvertTo-Json -Compress -AsArray
           $updatePlatforms = switch ($scope) {
-            { $_ -in @("all", "updates-all") } { @("windows", "linux", "macos"); break }
+            { $_ -in @("all", "qualification-all", "updates-all") } { @("windows", "linux", "macos"); break }
             "updates-windows" { @("windows"); break }
             "updates-linux" { @("linux"); break }
             "updates-macos" { @("macos"); break }
             default { @() }
           }
           $cleanEnabled = if ($cleanPlatforms.Count -gt 0) { "true" } else { "false" }
-          $macosCleanEnabled = if ($scope -in @("all", "clean-all", "clean-macos")) { "true" } else { "false" }
+          $macosCleanEnabled = if ($scope -in @("all", "qualification-all", "clean-all", "clean-macos")) { "true" } else { "false" }
           $updatesEnabled = if ($updatePlatforms.Count -gt 0) { "true" } else { "false" }
           $managedComfyEnabled = if ($scope -in @("all", "managed-comfy")) { "true" } else { "false" }
           "clean_enabled=$cleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append
@@ -163,6 +177,7 @@ jobs:
           python tools/ci/resolve_upgrade_sources.py
           --repository "${{ github.repository }}"
           --candidate-version "${{ env.CANDIDATE_VERSION }}"
+          --selection "${{ inputs.upgrade_selection }}"
 
   validate-candidate-source:
     name: Validate exact candidate source

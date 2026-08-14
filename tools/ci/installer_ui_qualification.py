@@ -45,7 +45,6 @@ from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
-_LAUNCH_TIMEOUT_SECONDS = 600.0
 _REQUIRED_STARTUP_EVENTS = (
     "launch_splash.started",
     "launch_splash.closed",
@@ -216,7 +215,7 @@ def verify_main_shell_evidence(
         receipt = _wait_for_readiness_receipt(
             readiness_path=evidence.readiness_path,
             token=evidence.token,
-            timeout_seconds=_LAUNCH_TIMEOUT_SECONDS,
+            timeout_seconds=evidence.plan.timeout_seconds,
             candidate_launch=candidate_launch,
             diagnostic_paths=_evidence_diagnostic_paths(
                 install_root=install_root,
@@ -405,6 +404,7 @@ def _evidence_diagnostic_paths(
     paths = [
         evidence.event_log_path,
         layout.logs_dir / "launcher.log",
+        layout.logs_dir / "launcher-update.log",
         layout.logs_dir / "app-startup.log",
         evidence.trace_path,
         layout.appdata_dir / "diagnostics" / "logs" / "substitute.log",

@@ -43,7 +43,6 @@ from launcher.sugarsubstitute_launcher.payload import (
     PayloadInstallError,
     safe_extract_zip,
 )
-from launcher.sugarsubstitute_launcher import process
 from launcher.sugarsubstitute_launcher.process import (
     ProcessStartupError,
     build_app_launch_command,
@@ -56,6 +55,9 @@ from launcher.sugarsubstitute_launcher.release_sources import (
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
+from sugarsubstitute_shared.subprocess_environment import (
+    clean_frozen_parent_environment,
+)
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
@@ -396,9 +398,7 @@ def test_child_process_environment_removes_pyinstaller_runtime_state(
         "HANDOFF": "private",
     }
 
-    environment = process._child_process_environment(  # noqa: SLF001
-        parent_environment
-    )
+    environment = clean_frozen_parent_environment(parent_environment)
 
     path_entries = environment["PATH"].split(os.pathsep)
     assert str(bundled_bin) not in path_entries

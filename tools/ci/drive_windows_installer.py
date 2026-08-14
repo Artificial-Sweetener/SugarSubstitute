@@ -185,7 +185,7 @@ def drive_windows_installer(
             process=process,
             deadline=deadline,
         )
-        return _complete_historical_onboarding(
+        main_pid = _complete_historical_onboarding(
             desktop=desktop,
             onboarding_pid=onboarding_pid,
             managed_workspace_path=managed_workspace_path,
@@ -194,6 +194,9 @@ def drive_windows_installer(
             endpoint_port=endpoint_port,
             deadline=deadline,
         )
+        if process.poll() is None:
+            _terminate_process(process.pid)
+        return main_pid
     except Exception:
         _terminate_process_tree(process.pid)
         raise
@@ -244,7 +247,6 @@ def _wait_for_onboarding_window(
                 try:
                     process.wait(timeout=30.0)
                 except subprocess.TimeoutExpired:
-                    _terminate_process_tree(process.pid)
                     return onboarding_pid
                 if process.returncode != 0:
                     raise WindowsInstallerAutomationError(
@@ -654,6 +656,16 @@ def _terminate_process_tree(pid: int) -> None:
 
     subprocess.run(  # noqa: S603
         ["taskkill.exe", "/PID", str(pid), "/T", "/F"],
+        capture_output=True,
+        check=False,
+    )
+
+
+def _terminate_process(pid: int) -> None:
+    """Terminate only a lingering setup parent after handoff proof completes."""
+
+    subprocess.run(  # noqa: S603
+        ["taskkill.exe", "/PID", str(pid), "/F"],
         capture_output=True,
         check=False,
     )

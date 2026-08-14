@@ -66,6 +66,22 @@ def test_upgrade_sources_fail_when_history_is_too_shallow() -> None:
         )
 
 
+def test_latest_only_upgrade_source_supports_focused_remediation() -> None:
+    """Focused remote proof may select one latest history without weakening final depth."""
+
+    matrix = resolve_upgrade_sources(
+        repository="example/repository",
+        candidate_version="0.21.0",
+        selection="latest-only",
+        fetch_releases=lambda _repository: [
+            _release("v0.20.1"),
+            _release("v0.20.0"),
+        ],
+    )
+
+    assert matrix == [{"tag": "v0.20.1", "version": "0.20.1"}]
+
+
 def _release(tag: str, *, prerelease: bool = False) -> dict[str, object]:
     """Return one GitHub-shaped release fixture."""
 

@@ -449,7 +449,10 @@ def test_installed_candidate_launch_is_observed_without_capture_bound_wait(
     layout = InstallLayout.from_root(install_root)
     layout.root.mkdir(parents=True)
     observed: dict[str, object] = {}
-    fake_process = SimpleNamespace(pid=123, poll=lambda: None)
+    fake_process = cast(
+        subprocess.Popen[bytes],
+        SimpleNamespace(pid=123, poll=lambda: None),
+    )
 
     def _popen(command: list[str], **kwargs: object) -> object:
         """Capture the process contract without starting an executable."""
@@ -705,10 +708,10 @@ def test_qualification_plan_preserves_legacy_remote_schema(tmp_path: Path) -> No
     assert restored.managed_model_root is None
 
 
-def test_historical_onboarding_contains_a_lingering_old_setup(
+def test_historical_onboarding_preserves_handoff_when_old_setup_lingers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An old setup may be contained after its real onboarding window appears."""
+    """A lingering setup parent must not be allowed to kill handed-off onboarding."""
 
     terminated_pids: list[int] = []
 
@@ -749,7 +752,7 @@ def test_historical_onboarding_contains_a_lingering_old_setup(
     )
 
     assert onboarding_pid == 5678
-    assert terminated_pids == [1234]
+    assert terminated_pids == []
 
 
 def test_historical_installer_exercises_each_primary_phase(

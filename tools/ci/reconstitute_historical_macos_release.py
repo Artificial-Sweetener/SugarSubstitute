@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+from copy import copy
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
@@ -34,6 +35,8 @@ from tools.release_assets.launcher_archive import (
 
 _APP_ROOT = "SugarSubstitute.app"
 _PYINSTALLER_SIBLING_ROOT = "SugarSubstitute"
+_APP_EXECUTABLE = PurePosixPath("SugarSubstitute.app/Contents/MacOS/SugarSubstitute")
+_APP_ONEDIR_ROOT = PurePosixPath("SugarSubstitute.app/Contents/MacOS")
 
 
 def reconstitute_historical_macos_release(
@@ -82,6 +85,7 @@ def reconstitute_historical_macos_release(
             "source_launcher_sha256": original_launcher_sha256,
             "reconstituted_launcher_sha256": _sha256(launcher_output),
             "retained_root": _APP_ROOT,
+            "runtime_source_root": _PYINSTALLER_SIBLING_ROOT,
             "removed_roots": list(removed_roots),
         },
     )
@@ -91,7 +95,7 @@ def reconstitute_historical_macos_release(
 def _write_reconstituted_launcher(
     *, source: Path, destination: Path
 ) -> tuple[str, ...]:
-    """Copy the signed app tree while proving the discarded root is the known defect."""
+    """Rebuild the app around exact runnable one-folder release bytes."""
 
     encountered_roots: set[str] = set()
     retained_members = 0
@@ -105,6 +109,9 @@ def _write_reconstituted_launcher(
         ) as destination_archive,
     ):
         seen_names: set[str] = set()
+        written_names: set[str] = set()
+        runtime_executable_found = False
+        runtime_support_found = False
         for member in source_archive.infolist():
             normalized = _validated_member_name(member.filename)
             if member.filename in seen_names:
@@ -113,9 +120,29 @@ def _write_reconstituted_launcher(
                 )
             seen_names.add(member.filename)
             encountered_roots.add(normalized.parts[0])
-            if normalized.parts[0] != _APP_ROOT:
+            if normalized == _APP_EXECUTABLE:
                 continue
-            destination_archive.writestr(member, source_archive.read(member))
+            destination_name = normalized
+            if normalized.parts[0] == _PYINSTALLER_SIBLING_ROOT:
+                destination_name = _remap_onedir_member(normalized)
+                runtime_executable_found |= destination_name == _APP_EXECUTABLE
+                runtime_support_found |= (
+                    len(destination_name.parts) > len(_APP_ONEDIR_ROOT.parts)
+                    and destination_name.parts[len(_APP_ONEDIR_ROOT.parts)]
+                    == "_internal"
+                )
+            if destination_name.as_posix() in written_names:
+                raise ValueError(
+                    "Historical macOS launcher remaps duplicate member: "
+                    f"{destination_name}."
+                )
+            rewritten_member = copy(member)
+            rewritten_member.filename = destination_name.as_posix()
+            destination_archive.writestr(
+                rewritten_member,
+                source_archive.read(member),
+            )
+            written_names.add(destination_name.as_posix())
             retained_members += 1
     expected_roots = {_APP_ROOT, _PYINSTALLER_SIBLING_ROOT}
     if encountered_roots != expected_roots:
@@ -125,7 +152,22 @@ def _write_reconstituted_launcher(
         )
     if retained_members == 0:
         raise ValueError("Historical macOS launcher contains no signed app members.")
+    if not runtime_executable_found or not runtime_support_found:
+        raise ValueError(
+            "Historical macOS launcher lacks its runnable one-folder runtime."
+        )
     return (_PYINSTALLER_SIBLING_ROOT,)
+
+
+def _remap_onedir_member(member: PurePosixPath) -> PurePosixPath:
+    """Place one released one-folder member beside the app executable."""
+
+    relative = PurePosixPath(*member.parts[1:])
+    if relative == PurePosixPath("SugarSubstitute"):
+        return _APP_EXECUTABLE
+    if relative.parts and relative.parts[0] == "_internal":
+        return _APP_ONEDIR_ROOT / relative
+    raise ValueError(f"Unexpected historical one-folder member: {member}.")
 
 
 def _validated_member_name(name: str) -> PurePosixPath:
