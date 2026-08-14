@@ -256,39 +256,35 @@ jobs:
         with:
           name: ${{ inputs.candidate_artifact_name }}
           path: build/candidate
-      - name: Select Linux historical installer host
-        if: matrix.platform == 'linux'
-        shell: pwsh
-        run: |
-          $path = "build/candidate/SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage"
-          chmod +x $path
-          "HISTORICAL_INSTALLER=$path" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Mount macOS historical installer host
-        if: matrix.platform == 'macos'
-        run: |
-          mkdir -p "${{ runner.temp }}/candidate-dmg"
-          hdiutil attach "build/candidate/SugarSubstitute-${CANDIDATE_VERSION}-macOS-Apple-Silicon.dmg" -mountpoint "${{ runner.temp }}/candidate-dmg" -nobrowse
-          echo "HISTORICAL_INSTALLER=${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup" >> "$GITHUB_ENV"
-      - name: Build version-pinned historical Windows setup
-        if: matrix.platform == 'windows'
+      - name: Download real historical installer
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          New-Item -ItemType Directory -Force build/local-test-release-channel | Out-Null
+          New-Item -ItemType Directory -Force build/historical-installer | Out-Null
+          $asset = switch ("${{ matrix.platform }}") {
+            "windows" { "SugarSubstitute-Installer-Windows-x64.exe" }
+            "linux" { "SugarSubstitute-Installer-Linux-x86_64.AppImage" }
+            "macos" { "SugarSubstitute-Installer-macOS-Apple-Silicon.dmg" }
+          }
           gh release download "${{ matrix.history.tag }}" `
             --repo "${{ github.repository }}" `
-            --pattern "manifest.json" `
-            --pattern "SugarSubstitute-app-v${{ matrix.history.version }}.zip" `
-            --pattern "SugarSubstitute-installer-payload-windows-x64-v${{ matrix.history.version }}.zip" `
-            --dir build/local-test-release-channel
-          python -m PyInstaller launcher/SugarSubstitute-Local-Test-Installer-Windows-x64.spec `
-            --noconfirm `
-            --clean `
-            --distpath build/historical-setup `
-            --workpath build/pyinstaller-historical-setup
-          "HISTORICAL_INSTALLER=build/historical-setup/SugarSubstitute-Local-Test-Installer-Windows-x64.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
+            --pattern $asset `
+            --dir build/historical-installer
+          $path = (Resolve-Path (Join-Path build/historical-installer $asset)).Path
+          if ("${{ matrix.platform }}" -eq "linux") {
+            chmod +x $path
+          }
+          if ("${{ matrix.platform }}" -ne "macos") {
+            "HISTORICAL_INSTALLER=$path" | Out-File -FilePath $env:GITHUB_ENV -Append
+          }
+      - name: Mount real historical macOS installer
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p "${{ runner.temp }}/historical-dmg"
+          hdiutil attach "build/historical-installer/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg" -mountpoint "${{ runner.temp }}/historical-dmg" -nobrowse
+          echo "HISTORICAL_INSTALLER=${{ runner.temp }}/historical-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup" >> "$GITHUB_ENV"
       - name: Prove historical update, splash, and main shell
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
@@ -308,9 +304,9 @@ jobs:
             --historical-version "${{ matrix.history.version }}" `
             @candidateSource `
             --candidate-version "$env:CANDIDATE_VERSION"
-      - name: Unmount candidate DMG
+      - name: Unmount historical DMG
         if: always() && matrix.platform == 'macos'
-        run: hdiutil detach "${{ runner.temp }}/candidate-dmg" || true
+        run: hdiutil detach "${{ runner.temp }}/historical-dmg" || true
 
   managed-comfy:
     name: Pinned managed Comfy qualification

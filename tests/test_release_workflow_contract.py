@@ -301,15 +301,12 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert '"--headless-install"' not in current_installer_path
     assert "prepare_portable_historical_install" in lifecycle_text
     assert '"--headless-install"' in historical_qualification_text
-    assert "Build version-pinned historical Windows setup" in workflow_text
-    assert "SugarSubstitute-app-v${{ matrix.history.version }}.zip" in workflow_text
-    assert (
-        "SugarSubstitute-installer-payload-windows-x64-"
-        "v${{ matrix.history.version }}.zip" in workflow_text
-    )
-    assert "build/historical-setup/SugarSubstitute-Local-Test-Installer" in (
-        workflow_text
-    )
+    assert "Download real historical installer" in workflow_text
+    assert '"SugarSubstitute-Installer-Windows-x64.exe"' in workflow_text
+    assert '"SugarSubstitute-Installer-Linux-x86_64.AppImage"' in workflow_text
+    assert '"SugarSubstitute-Installer-macOS-Apple-Silicon.dmg"' in workflow_text
+    assert "Build version-pinned historical Windows setup" not in workflow_text
+    assert "SugarSubstitute-Local-Test-Installer" not in workflow_text
 
 
 def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
