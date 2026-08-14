@@ -65,8 +65,8 @@ jobs:
       )
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.release-version.outputs.version }}
-      should_release: ${{ steps.release-version.outputs.should_release }}
+      version: ${{ steps.release-version.outputs.version || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && format('9999.0.{0}', github.run_number) || '') }}
+      should_release: ${{ steps.release-version.outputs.should_release || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && 'true' || 'false') }}
       first_release: ${{ steps.release-version.outputs.first_release }}
 
     steps:
