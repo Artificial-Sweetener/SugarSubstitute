@@ -344,6 +344,31 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert 'startsWith("https://")' in preparation_text
 
 
+def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
+    """Only manual non-publishing runs may bypass unchanged repository gates."""
+
+    release_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    qualification_text = (
+        PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
+    ).read_text(encoding="utf-8")
+
+    tests_guard = release_text.split("  tests:", maxsplit=1)[1].split(
+        "  determine-version:", maxsplit=1
+    )[0]
+    assert "github.event_name != 'workflow_dispatch'" in tests_guard
+    assert "github.event.inputs.dry_run != 'true'" in tests_guard
+    assert "github.event.inputs.qualification_scope == 'full'" in tests_guard
+    assert "candidate_run_id: ${{ github.run_id }}" in release_text
+    assert "qualification-all" in release_text
+    assert "select-qualification:" in qualification_text
+    assert "clean_matrix" in qualification_text
+    assert "update_platforms" in qualification_text
+    assert "run-id: ${{ inputs.candidate_run_id" in qualification_text
+    assert "managed_comfy_enabled" in qualification_text
+
+
 def test_cross_platform_validation_proves_packaged_linux_system_trust() -> None:
     """Require the frozen Linux installer to verify releases across distro families."""
 

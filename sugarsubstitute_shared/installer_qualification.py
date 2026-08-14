@@ -28,8 +28,8 @@ from typing import Final, Literal, Mapping, TypeAlias
 INSTALLER_QUALIFICATION_PLAN_ENV: Final = (
     "SUGAR_SUBSTITUTE_INSTALLER_QUALIFICATION_PLAN"
 )
-_SCHEMA_VERSION: Final = 2
-_LEGACY_SCHEMA_VERSION: Final = 1
+_SCHEMA_VERSION: Final = 3
+_LEGACY_SCHEMA_VERSIONS: Final = frozenset({1, 2})
 InstallerQualificationTarget: TypeAlias = Literal["managed_local", "remote"]
 
 
@@ -46,6 +46,7 @@ class InstallerQualificationPlan:
     target_mode: InstallerQualificationTarget = "remote"
     managed_workspace_path: Path | None = None
     managed_model_root: Path | None = None
+    force_cpu_mode: bool = False
 
     def to_json(self) -> str:
         """Serialize the plan for inheritance by installer child processes."""
@@ -70,6 +71,7 @@ class InstallerQualificationPlan:
                     if self.managed_model_root is not None
                     else None
                 ),
+                "force_cpu_mode": self.force_cpu_mode,
             },
             sort_keys=True,
         )
@@ -82,7 +84,7 @@ class InstallerQualificationPlan:
         if not isinstance(payload, dict):
             raise ValueError("Installer qualification plan must be a JSON object.")
         schema_version = payload.get("schema_version")
-        if schema_version not in {_LEGACY_SCHEMA_VERSION, _SCHEMA_VERSION}:
+        if schema_version not in {*_LEGACY_SCHEMA_VERSIONS, _SCHEMA_VERSION}:
             raise ValueError("Installer qualification plan schema is unsupported.")
         token = payload.get("token")
         install_root = payload.get("install_root")
@@ -93,6 +95,7 @@ class InstallerQualificationPlan:
         target_mode = payload.get("target_mode", "remote")
         managed_workspace_path = payload.get("managed_workspace_path")
         managed_model_root = payload.get("managed_model_root")
+        force_cpu_mode = payload.get("force_cpu_mode", False)
         if not isinstance(token, str) or not token:
             raise ValueError("Installer qualification token is missing.")
         if not isinstance(install_root, str) or not install_root:
@@ -113,6 +116,8 @@ class InstallerQualificationPlan:
             raise ValueError("Installer qualification managed workspace is invalid.")
         if managed_model_root is not None and not isinstance(managed_model_root, str):
             raise ValueError("Installer qualification managed model root is invalid.")
+        if not isinstance(force_cpu_mode, bool):
+            raise ValueError("Installer qualification CPU preference is invalid.")
         if target_mode == "managed_local" and not managed_workspace_path:
             raise ValueError("Managed qualification requires a workspace path.")
         return cls(
@@ -133,6 +138,7 @@ class InstallerQualificationPlan:
                 if managed_model_root is not None
                 else None
             ),
+            force_cpu_mode=force_cpu_mode,
         )
 
     @classmethod

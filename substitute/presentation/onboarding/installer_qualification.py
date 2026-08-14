@@ -194,6 +194,9 @@ class OnboardingQualificationDriver(QObject):
             self._plan.endpoint_port
         )
         self._widget(LineEdit, "OnboardingManagedWorkspaceEdit").setText(str(workspace))
+        self._window.managed_local_page.runtime_summary_panel.force_cpu_checkbox.setChecked(
+            self._plan.force_cpu_mode
+        )
 
     def _configure_remote_target(self) -> None:
         """Enter the external endpoint used by legacy qualification plans."""

@@ -16,6 +16,23 @@ on:
         options:
           - "true"
           - "false"
+      qualification_scope:
+        description: "Focused dry-run qualification; full runs every required gate"
+        required: false
+        default: "full"
+        type: choice
+        options:
+          - full
+          - qualification-all
+          - clean-all
+          - clean-windows
+          - clean-linux
+          - clean-macos
+          - updates-all
+          - updates-windows
+          - updates-linux
+          - updates-macos
+          - managed-comfy
 
 permissions:
   contents: write
@@ -28,11 +45,23 @@ env:
 jobs:
   tests:
     name: Required cross-platform tests
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.dry_run != 'true' ||
+      github.event.inputs.qualification_scope == 'full'
     uses: ./.github/workflows/tests.yml
 
   determine-version:
     name: Resolve semantic release version
     needs: tests
+    if: >-
+      always() && (
+        needs.tests.result == 'success' || (
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.dry_run == 'true' &&
+          github.event.inputs.qualification_scope != 'full'
+        )
+      )
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.release-version.outputs.version }}
@@ -343,6 +372,8 @@ jobs:
       candidate_version: ${{ needs.stage-candidate.outputs.candidate_version }}
       candidate_tag: ${{ needs.stage-candidate.outputs.candidate_tag }}
       candidate_artifact_name: ${{ needs.stage-candidate.outputs.candidate_artifact_name }}
+      candidate_run_id: ${{ github.run_id }}
+      qualification_scope: ${{ inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope == 'qualification-all' && 'all' || inputs.qualification_scope }}
 
   promote-release:
     name: Promote qualified bytes without rebuilding

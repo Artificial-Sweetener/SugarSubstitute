@@ -23,6 +23,7 @@ import io
 import json
 from pathlib import Path
 import ssl
+import stat
 import subprocess
 import sys
 import time
@@ -43,6 +44,7 @@ from sugarsubstitute_shared.launcher_update.models import (
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import (
     LINUX_X64_BUNDLE,
+    MACOS_ARM64_BUNDLE,
     WINDOWS_X64_BUNDLE,
 )
 from sugarsubstitute_shared.launcher_update.transaction import (
@@ -130,6 +132,121 @@ def test_stager_rejects_archive_path_traversal(tmp_path: Path) -> None:
         )
 
     assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_stager_rejects_symlink_target_that_escapes_bundle(tmp_path: Path) -> None:
+    """A launcher symlink may never resolve outside its staged bundle."""
+
+    archive = tmp_path / "unsafe-link.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        link = zipfile.ZipInfo("SugarSubstitute.app/Contents/Frameworks/Python")
+        link.create_system = 3
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        bundle.writestr(link, "../../../../outside")
+
+    with pytest.raises(SecureArchiveError, match="target escapes"):
+        LauncherBundleStager().stage(
+            install_root=tmp_path / "SugarSubstitute",
+            version="0.11.0",
+            target=MACOS_ARM64_BUNDLE,
+            asset=_asset(archive),
+        )
+
+    assert not (tmp_path / "outside").exists()
+
+
+@pytest.mark.platforms("linux", "macos")
+def test_stager_restores_safe_relative_macos_symlinks(tmp_path: Path) -> None:
+    """Staging should reconstruct a PyInstaller-style macOS framework link."""
+
+    archive = tmp_path / "macos-launcher.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr(
+            "SugarSubstitute.app/Contents/MacOS/SugarSubstitute",
+            "launcher",
+        )
+        bundle.writestr(
+            "SugarSubstitute.app/Contents/Frameworks/"
+            "Python.framework/Versions/3.13/Python",
+            "runtime",
+        )
+        link = zipfile.ZipInfo(
+            "SugarSubstitute.app/Contents/Frameworks/Python.framework/Versions/Current"
+        )
+        link.create_system = 3
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        bundle.writestr(link, "3.13")
+
+    request_path = LauncherBundleStager().stage(
+        install_root=tmp_path / "SugarSubstitute",
+        version="0.11.0",
+        target=MACOS_ARM64_BUNDLE,
+        asset=_asset(archive),
+    )
+    request = LauncherUpdateRequest.load(request_path)
+    restored_link = (
+        request.staged_bundle_dir
+        / "SugarSubstitute.app"
+        / "Contents"
+        / "Frameworks"
+        / "Python.framework"
+        / "Versions"
+        / "Current"
+    )
+
+    assert restored_link.is_symlink()
+    assert restored_link.readlink() == Path("3.13")
+
+
+@pytest.mark.platforms("linux", "macos")
+def test_transaction_preserves_macos_symlinks_during_promotion(tmp_path: Path) -> None:
+    """Promotion must retain the staged PyInstaller bundle topology."""
+
+    install_root = tmp_path / "SugarSubstitute"
+    old_app = install_root / "SugarSubstitute.app" / "Contents"
+    (old_app / "MacOS").mkdir(parents=True)
+    (old_app / "MacOS" / "SugarSubstitute").write_text(
+        "old launcher",
+        encoding="utf-8",
+    )
+    (old_app / "Frameworks").mkdir()
+    archive = tmp_path / "macos-launcher.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr(
+            "SugarSubstitute.app/Contents/MacOS/SugarSubstitute",
+            "new launcher",
+        )
+        bundle.writestr(
+            "SugarSubstitute.app/Contents/Frameworks/"
+            "Python.framework/Versions/3.13/Python",
+            "runtime",
+        )
+        link = zipfile.ZipInfo(
+            "SugarSubstitute.app/Contents/Frameworks/Python.framework/Versions/Current"
+        )
+        link.create_system = 3
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        bundle.writestr(link, "3.13")
+
+    request_path = LauncherBundleStager().stage(
+        install_root=install_root,
+        version="0.11.0",
+        target=MACOS_ARM64_BUNDLE,
+        asset=_asset(archive),
+    )
+    LauncherUpdateTransaction(wait_timeout_seconds=0).apply(request_path=request_path)
+    promoted_link = (
+        install_root
+        / "SugarSubstitute.app"
+        / "Contents"
+        / "Frameworks"
+        / "Python.framework"
+        / "Versions"
+        / "Current"
+    )
+
+    assert promoted_link.is_symlink()
+    assert promoted_link.readlink() == Path("3.13")
 
 
 @pytest.mark.platforms("linux", "macos")

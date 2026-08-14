@@ -376,11 +376,11 @@ def test_start_detached_reports_immediate_app_startup_exit(tmp_path: Path) -> No
     assert "RuntimeError: boom" in startup_log.read_text(encoding="utf-8")
 
 
-def test_child_process_environment_removes_pyinstaller_temp_path(
+def test_child_process_environment_removes_pyinstaller_runtime_state(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Child app launches must not inherit PyInstaller's temp DLL search path."""
+    """Child app launches must not inherit PyInstaller or bundled Qt state."""
 
     meipass = tmp_path / "_MEI12345"
     bundled_bin = meipass / "PySide6"
@@ -388,6 +388,11 @@ def test_child_process_environment_removes_pyinstaller_temp_path(
     monkeypatch.setattr(sys, "_MEIPASS", str(meipass), raising=False)
     parent_environment = {
         "PATH": f"{bundled_bin}{os.pathsep}{normal_bin}",
+        "LD_LIBRARY_PATH": f"{bundled_bin}{os.pathsep}{normal_bin}",
+        "LD_LIBRARY_PATH_ORIG": str(normal_bin),
+        "DYLD_LIBRARY_PATH": str(bundled_bin),
+        "QT_PLUGIN_PATH": str(meipass / "PySide6" / "Qt" / "plugins"),
+        "_PYI_APPLICATION_HOME_DIR": str(meipass),
         "HANDOFF": "private",
     }
 
@@ -398,6 +403,11 @@ def test_child_process_environment_removes_pyinstaller_temp_path(
     path_entries = environment["PATH"].split(os.pathsep)
     assert str(bundled_bin) not in path_entries
     assert str(normal_bin) in path_entries
+    assert environment["LD_LIBRARY_PATH"] == str(normal_bin)
+    assert "LD_LIBRARY_PATH_ORIG" not in environment
+    assert "DYLD_LIBRARY_PATH" not in environment
+    assert "QT_PLUGIN_PATH" not in environment
+    assert "_PYI_APPLICATION_HOME_DIR" not in environment
     assert environment["HANDOFF"] == "private"
     assert str(bundled_bin) in parent_environment["PATH"]
 
