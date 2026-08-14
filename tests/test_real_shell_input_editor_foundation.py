@@ -702,13 +702,14 @@ def test_two_real_picker_pairs_route_exact_image_and_mask_identity(
             ImagePicker,
             harness.picker(ImagePicker, harness.CUBE_ALIAS, harness.IMAGE_NODE),
         )
-        second_mask_picker = cast(
-            MaskPicker,
-            harness.picker(MaskPicker, second_alias, harness.MASK_NODE),
-        )
-
         QTest.mouseClick(first_image_picker.preview_surface, Qt.MouseButton.LeftButton)
-        harness.process_events(4)
+        harness.wait_until(
+            lambda: (
+                workflow.canvas.input_image_uuid == first_image_id
+                and workflow.canvas.active_input_mask_uuid == first_mask_id
+                and _focus_belongs_to(harness.input_canvas)
+            )
+        )
         assert workflow.canvas.input_image_uuid == first_image_id
         assert workflow.canvas.active_input_mask_uuid == first_mask_id
         assert _focus_belongs_to(harness.input_canvas)
@@ -716,8 +717,20 @@ def test_two_real_picker_pairs_route_exact_image_and_mask_identity(
         assert harness.shell.input_canvas_tool_controller.request_tool(
             InputCanvasToolId.MOVE
         )
+        second_mask_picker = cast(
+            MaskPicker,
+            harness.picker(MaskPicker, second_alias, harness.MASK_NODE),
+        )
         QTest.mouseClick(second_mask_picker.preview_surface, Qt.MouseButton.LeftButton)
-        harness.process_events(4)
+        harness.wait_until(
+            lambda: (
+                workflow.canvas.input_image_uuid == second_image_id
+                and workflow.canvas.active_input_mask_uuid == second_mask_id
+                and harness.shell.input_canvas_tool_controller.palette.active_tool_id
+                == InputCanvasToolId.MOVE
+                and _focus_belongs_to(harness.input_canvas)
+            )
+        )
         assert workflow.canvas.input_image_uuid == second_image_id
         assert workflow.canvas.active_input_mask_uuid == second_mask_id
         assert (
