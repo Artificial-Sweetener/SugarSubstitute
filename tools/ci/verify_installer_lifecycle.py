@@ -154,6 +154,7 @@ def verify_upgrade(
     candidate_manifest_url: str | None,
     candidate_version: str,
     candidate_release_root: Path | None = None,
+    historical_release_root: Path | None = None,
 ) -> None:
     """Install one historical release, update it, and prove candidate readiness."""
 
@@ -161,28 +162,38 @@ def verify_upgrade(
     historical_port = available_loopback_port()
     managed_workspace = install_root.resolve() / "comfyui"
     managed_model_root = install_root.resolve() / "qualified-models"
-    if os.name == "nt":
-        _complete_windows_historical_install(
-            installer_path=historical_installer_path,
-            install_root=install_root,
-            manifest_url=historical_manifest_url,
-            historical_version=historical_version,
-            endpoint_port=historical_port,
-            managed_workspace=managed_workspace,
-            managed_model_root=managed_model_root,
-        )
-    else:
-        prepare_portable_historical_install(
-            installer_path=historical_installer_path,
-            install_root=install_root,
-            manifest_url=historical_manifest_url,
-            historical_version=historical_version,
-            endpoint_port=historical_port,
-            managed_workspace=managed_workspace,
-            managed_model_root=managed_model_root,
-            timeout_seconds=_INSTALL_TIMEOUT_SECONDS,
-        )
-        assert_installed_version(install_root, historical_version)
+    with _candidate_release_source(
+        release_root=historical_release_root,
+        manifest_url=historical_manifest_url,
+        certificate_root=install_root.parent / ".historical-certificate",
+    ) as historical_source:
+        if historical_source.manifest_url is None:
+            raise InstallerLifecycleError("Historical install source is missing.")
+        historical_environment = dict(os.environ)
+        _trust_candidate_source(historical_environment, historical_source)
+        if os.name == "nt":
+            _complete_windows_historical_install(
+                installer_path=historical_installer_path,
+                install_root=install_root,
+                manifest_url=historical_source.manifest_url,
+                historical_version=historical_version,
+                endpoint_port=historical_port,
+                managed_workspace=managed_workspace,
+                managed_model_root=managed_model_root,
+            )
+        else:
+            prepare_portable_historical_install(
+                installer_path=historical_installer_path,
+                install_root=install_root,
+                manifest_url=historical_source.manifest_url,
+                historical_version=historical_version,
+                endpoint_port=historical_port,
+                managed_workspace=managed_workspace,
+                managed_model_root=managed_model_root,
+                timeout_seconds=_INSTALL_TIMEOUT_SECONDS,
+                environment=historical_environment,
+            )
+            assert_installed_version(install_root, historical_version)
     preservation_marker = seed_historical_user_configuration(
         install_root=install_root,
         historical_version=historical_version,
@@ -376,6 +387,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     upgrade.add_argument("--historical-installer", type=Path, required=True)
     upgrade.add_argument("--install-root", type=Path, required=True)
     upgrade.add_argument("--historical-manifest-url", required=True)
+    upgrade.add_argument("--historical-release-root", type=Path)
     upgrade.add_argument("--historical-version", required=True)
     upgrade.add_argument("--candidate-manifest-url")
     upgrade.add_argument("--candidate-release-root", type=Path)
@@ -400,6 +412,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             install_root=args.install_root,
             historical_manifest_url=args.historical_manifest_url,
             historical_version=args.historical_version,
+            historical_release_root=args.historical_release_root,
             candidate_manifest_url=args.candidate_manifest_url,
             candidate_version=args.candidate_version,
             candidate_release_root=args.candidate_release_root,

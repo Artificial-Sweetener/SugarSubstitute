@@ -42,6 +42,8 @@ from substitute.infrastructure.onboarding.file_installation_repository import (
 from substitute.infrastructure.onboarding.file_runtime_repository import (
     FileRuntimeConfigurationRepository,
 )
+from tools.ci.comfy_probe_support import prepare_checkout, prepare_environment
+from tools.ci.comfy_support_matrix import COMFY_SUPPORT_MATRIX
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 
 
@@ -55,6 +57,7 @@ def prepare_portable_historical_install(
     managed_workspace: Path,
     managed_model_root: Path,
     timeout_seconds: float,
+    environment: dict[str, str] | None = None,
 ) -> None:
     """Complete the native historical installer contract on Linux and macOS."""
 
@@ -67,7 +70,7 @@ def prepare_portable_historical_install(
     result = subprocess.run(
         command,
         cwd=installer_path.resolve().parent,
-        env=dict(os.environ),
+        env=dict(os.environ if environment is None else environment),
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -129,11 +132,13 @@ def materialize_historical_managed_configuration(
             launch_owned=True,
         )
     )
+    qualification_release = COMFY_SUPPORT_MATRIX[-1]
+    prepare_checkout(managed_workspace, qualification_release.comfyui_tag)
+    prepare_environment(Path.cwd().resolve(), managed_workspace)
     ensure_managed_comfy_setup(
         workspace=managed_workspace,
         managed_model_root=managed_model_root,
         configure_model_root=True,
-        force_cpu_mode=True,
     )
 
 

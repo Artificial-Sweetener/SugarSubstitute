@@ -285,6 +285,25 @@ jobs:
           mkdir -p "${{ runner.temp }}/historical-dmg"
           hdiutil attach "build/historical-installer/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg" -mountpoint "${{ runner.temp }}/historical-dmg" -nobrowse
           echo "HISTORICAL_INSTALLER=${{ runner.temp }}/historical-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup" >> "$GITHUB_ENV"
+      - name: Reconstitute exact historical macOS install channel
+        if: matrix.platform == 'macos'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $version = "${{ matrix.history.version }}"
+          New-Item -ItemType Directory -Force build/historical-channel | Out-Null
+          gh release download "${{ matrix.history.tag }}" `
+            --repo "${{ github.repository }}" `
+            --pattern manifest.json `
+            --pattern "SugarSubstitute-app-v$version.zip" `
+            --pattern "SugarSubstitute-installer-payload-macos-arm64-v$version.zip" `
+            --dir build/historical-channel
+          python tools/ci/reconstitute_historical_macos_release.py `
+            --source-root build/historical-channel `
+            --output-root build/historical-channel-reconstituted
+          "HISTORICAL_RELEASE_ROOT=$((Resolve-Path build/historical-channel-reconstituted).Path)" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Prove historical update, splash, and main shell
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
@@ -297,10 +316,16 @@ jobs:
           } else {
             @("--candidate-manifest-url", $env:CANDIDATE_MANIFEST_URL)
           }
+          $historicalSource = if ($env:HISTORICAL_RELEASE_ROOT) {
+            @("--historical-release-root", $env:HISTORICAL_RELEASE_ROOT)
+          } else {
+            @()
+          }
           python tools/ci/verify_installer_lifecycle.py upgrade `
             --historical-installer "$env:HISTORICAL_INSTALLER" `
             --install-root "${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}" `
             --historical-manifest-url "https://github.com/${{ github.repository }}/releases/download/${{ matrix.history.tag }}/manifest.json" `
+            @historicalSource `
             --historical-version "${{ matrix.history.version }}" `
             @candidateSource `
             --candidate-version "$env:CANDIDATE_VERSION"
