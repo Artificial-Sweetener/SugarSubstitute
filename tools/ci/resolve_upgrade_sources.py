@@ -25,6 +25,7 @@ import re
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Literal
 from urllib.request import Request, urlopen
 
 
@@ -41,9 +42,10 @@ def resolve_upgrade_sources(
     *,
     repository: str,
     candidate_version: str,
+    selection: Literal["complete", "latest-only"] = "complete",
     fetch_releases: Callable[[str], object] | None = None,
 ) -> list[dict[str, str]]:
-    """Return ordered matrix entries for recent releases and the canary."""
+    """Return the complete matrix or one latest focused-remediation source."""
 
     payload = (fetch_releases or _fetch_github_releases)(repository)
     if not isinstance(payload, list):
@@ -65,6 +67,17 @@ def resolve_upgrade_sources(
         ):
             stable_tags.append(tag)
     stable_tags.sort(key=_version_key, reverse=True)
+    if selection == "latest-only":
+        if not stable_tags:
+            raise UpgradeSourceResolutionError(
+                "Expected at least 1 stable historical release."
+            )
+        return [
+            {
+                "tag": stable_tags[0],
+                "version": stable_tags[0].removeprefix("v"),
+            }
+        ]
     selected = stable_tags[:_RELEASE_COUNT]
     if len(selected) != _RELEASE_COUNT:
         raise UpgradeSourceResolutionError(
@@ -115,6 +128,11 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", required=True)
     parser.add_argument("--candidate-version", required=True)
+    parser.add_argument(
+        "--selection",
+        choices=("complete", "latest-only"),
+        default="complete",
+    )
     parser.add_argument("--output", type=Path)
     return parser.parse_args(argv)
 
@@ -126,6 +144,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     matrix = resolve_upgrade_sources(
         repository=args.repository,
         candidate_version=args.candidate_version,
+        selection=args.selection,
     )
     encoded = json.dumps(matrix, separators=(",", ":"))
     output_path = args.output or (

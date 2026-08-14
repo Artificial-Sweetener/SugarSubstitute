@@ -33,6 +33,7 @@ from substitute.domain.onboarding import (
     RuntimeBootstrapStatus,
     RuntimeConfiguration,
 )
+from substitute.domain.onboarding.runtime_layout import runtime_layout_for_root
 from substitute.infrastructure.onboarding import (
     LauncherManagedRuntimeProvisioner,
     SubstituteRuntimeProvisioner,
@@ -70,6 +71,18 @@ def test_app_layout_falls_back_to_source_checkout(tmp_path: Path) -> None:
     assert layout.entrypoint_path.name == "main.py"
     assert layout.requirements_path.name == "requirements.txt"
     assert layout.entrypoint_path.parent == layout.app_dir
+
+
+@pytest.mark.parametrize("platform_name", ["linux", "darwin"])
+def test_runtime_layout_uses_posix_python_on_posix_platforms(
+    tmp_path: Path,
+    platform_name: str,
+) -> None:
+    """Installed POSIX runtimes must resolve the interpreter uv created."""
+
+    layout = runtime_layout_for_root(tmp_path / "runtime", platform=platform_name)
+
+    assert layout.python_executable == tmp_path / "runtime" / ".venv" / "bin" / "python"
 
 
 def test_onboarding_bundle_uses_launcher_runtime_for_installed_payload(

@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import contextlib
 import ctypes
-import os
 import subprocess
 import sys
 from collections.abc import Iterator, Mapping, Sequence
@@ -28,6 +27,9 @@ from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
+from sugarsubstitute_shared.subprocess_environment import (
+    clean_frozen_parent_environment,
+)
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
     subprocess_path,
@@ -138,7 +140,7 @@ def spawn_detached_process(
                         if working_directory is not None
                         else None
                     ),
-                    env=_child_process_environment(environment),
+                    env=clean_frozen_parent_environment(environment),
                     stdin=subprocess.DEVNULL,
                     stdout=log_file,
                     stderr=subprocess.STDOUT,
@@ -192,90 +194,6 @@ def _standard_child_process_dll_search_path() -> Iterator[None]:
     finally:
         if isinstance(meipass, str) and meipass:
             kernel32.SetDllDirectoryW(meipass)
-
-
-def _child_process_environment(
-    environment: Mapping[str, str] | None = None,
-) -> dict[str, str]:
-    """Return an app environment independent from the frozen launcher's runtime."""
-
-    child_environment = dict(os.environ if environment is None else environment)
-    meipass = getattr(sys, "_MEIPASS", None)
-    if isinstance(meipass, str) and meipass:
-        bundled_root = Path(meipass)
-        _restore_original_library_path(child_environment, "LD_LIBRARY_PATH")
-        _restore_original_library_path(child_environment, "DYLD_LIBRARY_PATH")
-        for variable_name in (
-            "PATH",
-            "LD_LIBRARY_PATH",
-            "DYLD_LIBRARY_PATH",
-            "DYLD_FALLBACK_LIBRARY_PATH",
-            "DYLD_FRAMEWORK_PATH",
-            "QT_PLUGIN_PATH",
-            "QT_QPA_PLATFORM_PLUGIN_PATH",
-            "QML2_IMPORT_PATH",
-            "QML_IMPORT_PATH",
-            "PYTHONHOME",
-        ):
-            _remove_bundled_path_entries(
-                child_environment,
-                variable_name,
-                bundled_root=bundled_root,
-            )
-        for variable_name in tuple(child_environment):
-            if variable_name.startswith("_PYI_"):
-                child_environment.pop(variable_name, None)
-    return child_environment
-
-
-def _restore_original_library_path(
-    environment: dict[str, str],
-    variable_name: str,
-) -> None:
-    """Restore a dynamic-loader path saved by the PyInstaller bootloader."""
-
-    original_name = f"{variable_name}_ORIG"
-    if original_name not in environment:
-        return
-    original_value = environment.pop(original_name)
-    if original_value:
-        environment[variable_name] = original_value
-    else:
-        environment.pop(variable_name, None)
-
-
-def _remove_bundled_path_entries(
-    environment: dict[str, str],
-    variable_name: str,
-    *,
-    bundled_root: Path,
-) -> None:
-    """Remove path-list entries owned by the frozen launcher's extraction root."""
-
-    value = environment.get(variable_name)
-    if not value:
-        return
-    retained = tuple(
-        entry
-        for entry in value.split(os.pathsep)
-        if entry and not _is_relative_to(Path(entry), bundled_root)
-    )
-    if retained:
-        environment[variable_name] = os.pathsep.join(retained)
-    else:
-        environment.pop(variable_name, None)
-
-
-def _is_relative_to(path: Path, parent: Path) -> bool:
-    """Return whether `path` is inside `parent` without requiring Python 3.9 APIs."""
-
-    try:
-        path.resolve().relative_to(parent.resolve())
-    except OSError:
-        return False
-    except ValueError:
-        return False
-    return True
 
 
 def _app_startup_log_path(command: Sequence[str]) -> Path:

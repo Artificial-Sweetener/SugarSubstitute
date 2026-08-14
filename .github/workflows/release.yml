@@ -38,6 +38,14 @@ on:
         required: false
         default: ""
         type: string
+      upgrade_selection:
+        description: "Focused upgrade depth; full qualification always uses complete"
+        required: false
+        default: "complete"
+        type: choice
+        options:
+          - complete
+          - latest-only
 
 permissions:
   actions: read
@@ -429,7 +437,8 @@ jobs:
       candidate_tag: ${{ needs.stage-candidate.outputs.candidate_tag }}
       candidate_artifact_name: ${{ needs.stage-candidate.outputs.candidate_artifact_name }}
       candidate_run_id: ${{ github.run_id }}
-      qualification_scope: ${{ inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope == 'qualification-all' && 'all' || inputs.qualification_scope }}
+      qualification_scope: ${{ inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope }}
+      upgrade_selection: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.upgrade_selection || 'complete' }}
 
   promote-release:
     name: Promote qualified bytes without rebuilding

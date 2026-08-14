@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +28,7 @@ class RuntimeLayout:
     """Describe the canonical launcher-managed runtime layout."""
 
     runtime_root: Path
+    platform: str
 
     @property
     def venv_root(self) -> Path:
@@ -36,12 +38,21 @@ class RuntimeLayout:
 
     @property
     def python_executable(self) -> Path:
-        """Return the Windows runtime Python executable path."""
+        """Return the target platform's runtime Python executable path."""
 
-        return self.venv_root / "Scripts" / "python.exe"
+        if self.platform.startswith("win"):
+            return self.venv_root / "Scripts" / "python.exe"
+        return self.venv_root / "bin" / "python"
 
 
-def runtime_layout_for_root(runtime_root: Path) -> RuntimeLayout:
+def runtime_layout_for_root(
+    runtime_root: Path,
+    *,
+    platform: str | None = None,
+) -> RuntimeLayout:
     """Return the canonical runtime layout for one runtime root."""
 
-    return RuntimeLayout(runtime_root=runtime_root)
+    return RuntimeLayout(
+        runtime_root=runtime_root,
+        platform=sys.platform if platform is None else platform,
+    )

@@ -31,8 +31,10 @@ from tools.ci.reconstitute_historical_macos_release import (
 )
 
 
-def test_reconstitution_retains_only_released_app_bundle(tmp_path: Path) -> None:
-    """Qualification may remove only the reviewed PyInstaller sibling root."""
+def test_reconstitution_builds_runnable_app_from_released_onedir_runtime(
+    tmp_path: Path,
+) -> None:
+    """Qualification must retain exact released bytes in a runnable app topology."""
 
     source_root = tmp_path / "source"
     output_root = tmp_path / "output"
@@ -49,7 +51,7 @@ def test_reconstitution_retains_only_released_app_bundle(tmp_path: Path) -> None
             b"framework",
         )
         archive.writestr("SugarSubstitute/SugarSubstitute", b"sibling launcher")
-        archive.writestr("SugarSubstitute/launcher-bin/Python", b"sibling runtime")
+        archive.writestr("SugarSubstitute/_internal/_struct.so", b"sibling runtime")
     manifest = {
         "schema_version": 2,
         "version": "0.20.1",
@@ -69,6 +71,14 @@ def test_reconstitution_retains_only_released_app_bundle(tmp_path: Path) -> None
     rewritten = json.loads(manifest_path.read_text(encoding="utf-8"))
     with zipfile.ZipFile(output_root / "launcher.zip") as archive:
         roots = {name.split("/", maxsplit=1)[0] for name in archive.namelist()}
+        assert (
+            archive.read("SugarSubstitute.app/Contents/MacOS/SugarSubstitute")
+            == b"sibling launcher"
+        )
+        assert (
+            archive.read("SugarSubstitute.app/Contents/MacOS/_internal/_struct.so")
+            == b"sibling runtime"
+        )
     evidence = json.loads(
         (output_root / "historical-reconstitution.json").read_text(encoding="utf-8")
     )
@@ -80,6 +90,7 @@ def test_reconstitution_retains_only_released_app_bundle(tmp_path: Path) -> None
     )
     assert evidence["removed_roots"] == ["SugarSubstitute"]
     assert evidence["retained_root"] == "SugarSubstitute.app"
+    assert evidence["runtime_source_root"] == "SugarSubstitute"
 
 
 def test_reconstitution_rejects_unreviewed_archive_roots(tmp_path: Path) -> None:
