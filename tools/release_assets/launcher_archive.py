@@ -89,7 +89,7 @@ def validate_installed_launcher_bundle(
     *,
     target: LauncherTarget,
 ) -> None:
-    """Reject launcher bundle directories missing required target paths."""
+    """Reject launcher bundle directories outside the replacement contract."""
 
     if not launcher_bundle_dir.is_dir():
         raise ValueError(
@@ -106,6 +106,20 @@ def validate_installed_launcher_bundle(
         raise FileNotFoundError(
             "Installed launcher bundle must include "
             f"{target.support_relative_path}: {launcher_bundle_dir}"
+        )
+    allowed_roots = {
+        target.executable_relative_path.parts[0],
+        target.support_relative_path.parts[0],
+    }
+    unexpected_roots = sorted(
+        child.name
+        for child in launcher_bundle_dir.iterdir()
+        if child.name not in allowed_roots
+    )
+    if unexpected_roots:
+        raise ValueError(
+            "Installed launcher bundle contains unexpected roots: "
+            + ", ".join(unexpected_roots)
         )
 
 

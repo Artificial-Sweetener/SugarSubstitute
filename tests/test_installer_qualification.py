@@ -239,6 +239,52 @@ def test_current_qualification_launches_normal_installer_ui(
     assert "--headless-install" not in captured_command
 
 
+def test_failed_current_installer_reports_process_bound_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A packaged installer failure must expose its UI event and launcher logs."""
+
+    evidence = prepare_qualification_evidence(
+        install_root=tmp_path / "installed",
+        expected_version="1.2.3",
+        endpoint_port=48188,
+        phase="clean",
+    )
+    evidence.plan.record(
+        "installer.qualification.failed",
+        phase="initial_install",
+        details="archive rejected",
+    )
+    launcher_log = (
+        evidence.plan.install_root / "launcher" / "logs" / "launcher.log"
+    )
+    launcher_log.parent.mkdir(parents=True, exist_ok=True)
+    launcher_log.write_text("launcher rejected archive\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification.subprocess.run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=1,
+            stdout="installer output",
+            stderr="installer error",
+        ),
+    )
+
+    with pytest.raises(InstallerLifecycleError) as captured:
+        run_current_installer_ui(
+            installer_path=tmp_path / "installer",
+            install_root=evidence.plan.install_root,
+            manifest_url="https://example.test/manifest.json",
+            environment=evidence.environment,
+        )
+
+    message = str(captured.value)
+    assert "installer.qualification.failed" in message
+    assert "archive rejected" in message
+    assert "launcher rejected archive" in message
+
+
 def test_local_candidate_channel_uses_trusted_https_and_exact_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

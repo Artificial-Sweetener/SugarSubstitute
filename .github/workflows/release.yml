@@ -143,7 +143,9 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "build/launcher-bundles/SugarSubstitute.app"
           codesign --verify --deep --strict --verbose=2 "dist/SugarSubstitute Setup.app"
           mkdir -p build/release-inputs/macos
-          .venv/bin/python tools/build_release_payload.py package-launcher --target macos_arm64 --bundle-dir build/launcher-bundles --output-path build/release-inputs/macos/installer-payload-macos-arm64.zip
+          mkdir -p build/installed-launcher-bundle
+          ditto "build/launcher-bundles/SugarSubstitute.app" "build/installed-launcher-bundle/SugarSubstitute.app"
+          .venv/bin/python tools/build_release_payload.py package-launcher --target macos_arm64 --bundle-dir build/installed-launcher-bundle --output-path build/release-inputs/macos/installer-payload-macos-arm64.zip
           .venv/bin/python tools/build_macos_dmg.py --setup-app "dist/SugarSubstitute Setup.app" --output build/release-inputs/macos/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg
 
       - name: Upload Apple Silicon release inputs
