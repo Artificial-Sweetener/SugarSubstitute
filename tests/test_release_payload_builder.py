@@ -288,6 +288,22 @@ def test_installed_launcher_zip_requires_onedir_support_dir(tmp_path: Path) -> N
         raise AssertionError("Expected launcher bundle validation to fail.")
 
 
+def test_macos_launcher_zip_rejects_pyinstaller_sibling_output(
+    tmp_path: Path,
+) -> None:
+    """The macOS update archive must contain only the signed app replacement."""
+
+    launcher_bundle = _write_fixture_macos_launcher_bundle(tmp_path / "macos-dist")
+    _write_file(launcher_bundle / "SugarSubstitute" / "launcher-bin" / "Python", "x")
+
+    with pytest.raises(ValueError, match="unexpected roots: SugarSubstitute"):
+        build_installed_launcher_zip(
+            launcher_bundle_dir=launcher_bundle,
+            output_path=tmp_path / "launcher.zip",
+            target=MACOS_ARM64,
+        )
+
+
 def test_linux_launcher_zip_restores_executable_mode(tmp_path: Path) -> None:
     """Artifact handoff must not strip the permanent Linux launcher execute bit."""
 

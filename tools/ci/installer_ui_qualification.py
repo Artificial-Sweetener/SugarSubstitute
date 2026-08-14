@@ -139,10 +139,39 @@ def run_current_installer_ui(
         check=False,
     )
     if result.returncode != 0:
+        diagnostics = _installer_failure_diagnostics(
+            install_root=install_root,
+            environment=environment,
+        )
         raise InstallerLifecycleError(
             f"Installer UI exited with {result.returncode}.\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}\n"
+            f"{diagnostics}"
         )
+
+
+def _installer_failure_diagnostics(
+    *,
+    install_root: Path,
+    environment: dict[str, str],
+) -> str:
+    """Expose token-bound UI events and launcher logs after a failed install."""
+
+    plan = InstallerQualificationPlan.from_environment(environment)
+    event_log = (
+        diagnostic_tail(plan.event_log_path)
+        if plan is not None
+        else "Qualification plan was not inherited."
+    )
+    launcher_log = diagnostic_tail(
+        InstallLayout.from_root(install_root).logs_dir / "launcher.log"
+    )
+    return (
+        "qualification events:\n"
+        f"{event_log}\n"
+        "launcher log:\n"
+        f"{launcher_log}"
+    )
 
 
 def launch_installed_candidate(
