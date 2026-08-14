@@ -101,7 +101,7 @@ def _candidate_release_source(
     ) as server:
         yield _CandidateReleaseSource(
             manifest_url=server.manifest_url,
-            certificate_path=server.certificate_path,
+            certificate_path=server.trust_bundle_path,
         )
 
 
@@ -347,6 +347,7 @@ def _trust_candidate_source(
         environment["SSL_CERT_FILE"] = str(candidate_source.certificate_path)
         environment[EXTRA_CA_FILE_ENV] = str(candidate_source.certificate_path)
         environment["UV_NATIVE_TLS"] = "1"
+        environment["UV_SYSTEM_CERTS"] = "true"
 
 
 def set_update_manifest(install_root: Path, manifest_url: str) -> None:

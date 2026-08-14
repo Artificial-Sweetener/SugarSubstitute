@@ -25,6 +25,8 @@ import subprocess
 from threading import Thread
 from typing import Any, Self
 
+import certifi
+
 LOCAL_RELEASE_PORT = 44_443
 LOCAL_RELEASE_BASE_URL = f"https://localhost:{LOCAL_RELEASE_PORT}"
 
@@ -44,6 +46,10 @@ class LocalReleaseServer:
         certificate_root.mkdir(parents=True, exist_ok=True)
         self.certificate_path, key_path = _create_localhost_certificate(
             certificate_root
+        )
+        self.trust_bundle_path = _create_qualification_trust_bundle(
+            certificate_root=certificate_root,
+            certificate_path=self.certificate_path,
         )
         self._server = ThreadingHTTPServer(
             ("127.0.0.1", LOCAL_RELEASE_PORT),
@@ -149,6 +155,23 @@ def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:
         stderr=subprocess.DEVNULL,
     )
     return certificate_path, key_path
+
+
+def _create_qualification_trust_bundle(
+    *,
+    certificate_root: Path,
+    certificate_path: Path,
+) -> Path:
+    """Combine public roots and the loopback CA for inherited installers."""
+
+    bundle_path = certificate_root / "qualification-ca-bundle.pem"
+    public_roots = Path(certifi.where()).read_text(encoding="ascii")
+    loopback_root = certificate_path.read_text(encoding="ascii")
+    bundle_path.write_text(
+        f"{public_roots.rstrip()}\n{loopback_root.rstrip()}\n",
+        encoding="ascii",
+    )
+    return bundle_path.resolve()
 
 
 __all__ = ["LOCAL_RELEASE_BASE_URL", "LOCAL_RELEASE_PORT", "LocalReleaseServer"]

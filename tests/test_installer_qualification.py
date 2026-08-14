@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import ssl
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -40,6 +41,7 @@ from substitute.presentation.onboarding.installer_qualification import (
     qualification_preflight_action,
 )
 from tools.ci.historical_install_qualification import (
+    _prepare_qualified_existing_managed_workspace,
     assert_historical_user_configuration_preserved,
     prepare_portable_historical_install,
     seed_historical_user_configuration,
@@ -301,7 +303,7 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
         release_root=release_root,
         certificate_root=Path("certificate"),
     ) as server:
-        monkeypatch.setenv(EXTRA_CA_FILE_ENV, str(server.certificate_path))
+        monkeypatch.setenv(EXTRA_CA_FILE_ENV, str(server.trust_bundle_path))
         context = SystemTrustTlsContext.create()
         with urllib.request.urlopen(
             server.manifest_url,
@@ -309,10 +311,26 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
             context=context,
         ) as response:
             payload = json.loads(response.read().decode("utf-8"))
+        legacy_context = ssl.create_default_context(
+            cafile=str(server.trust_bundle_path)
+        )
+        with urllib.request.urlopen(
+            server.manifest_url,
+            timeout=5.0,
+            context=legacy_context,
+        ) as response:
+            assert response.status == 200
 
-    assert server.manifest_url == f"{LOCAL_RELEASE_BASE_URL}/manifest.json"
-    assert payload == {"version": "9999.0.1"}
-    assert server.certificate_path.is_absolute()
+        assert server.manifest_url == f"{LOCAL_RELEASE_BASE_URL}/manifest.json"
+        assert payload == {"version": "9999.0.1"}
+        assert server.certificate_path.is_absolute()
+        assert server.trust_bundle_path.is_absolute()
+        assert (
+            server.trust_bundle_path.read_text(encoding="ascii").count(
+                "-----BEGIN CERTIFICATE-----"
+            )
+            > 1
+        )
 
 
 def test_qualification_evidence_is_absolute_across_process_working_directories(
@@ -349,7 +367,7 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
     """Linux and macOS updates should begin from an installed historical payload."""
 
     commands: list[list[str]] = []
-    setup_requests: list[tuple[Path, Path | None]] = []
+    setup_requests: list[tuple[Path, Path]] = []
     prepared_checkouts: list[tuple[Path, str]] = []
     prepared_environments: list[tuple[Path, Path]] = []
 
@@ -359,16 +377,14 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
         commands.append(command)
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
-    def _ensure_setup(
+    def _prepare_existing_workspace(
         *,
         workspace: Path,
-        managed_model_root: Path | None = None,
-        **_kwargs: object,
-    ) -> Path:
+        model_root: Path,
+    ) -> None:
         """Record real managed-setup orchestration at the external boundary."""
 
-        setup_requests.append((workspace, managed_model_root))
-        return workspace
+        setup_requests.append((workspace, model_root))
 
     def _prepare_environment(repository_root: Path, workspace: Path) -> Path:
         """Record real portable-Comfy environment preparation."""
@@ -382,8 +398,9 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
         _run,
     )
     monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.ensure_managed_comfy_setup",
-        _ensure_setup,
+        "tools.ci.historical_install_qualification."
+        "_prepare_qualified_existing_managed_workspace",
+        _prepare_existing_workspace,
     )
     monkeypatch.setattr(
         "tools.ci.historical_install_qualification.prepare_checkout",
@@ -429,6 +446,81 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
     )
     assert target["mode"] == "managed_local"
     assert target["workspace_path"] == str(workspace)
+
+
+def test_existing_historical_runtime_is_converged_before_readiness_is_recorded(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Historical qualification should prove one real existing runtime in order."""
+
+    from substitute.infrastructure.comfy.managed_environment_validator import (
+        ManagedEnvironmentValidationResult,
+    )
+    from substitute.infrastructure.comfy.managed_setup_cache_storage import (
+        prepare_managed_setup_cache,
+    )
+
+    workspace = tmp_path / "comfyui"
+    model_root = tmp_path / "models"
+    workspace.mkdir()
+    operations: list[str] = []
+
+    monkeypatch.setattr(
+        "tools.ci.historical_install_qualification.ensure_managed_workspace_manager",
+        lambda *_args, **_kwargs: operations.append("manager"),
+    )
+    monkeypatch.setattr(
+        "tools.ci.historical_install_qualification.ensure_core_comfy_nodepacks",
+        lambda *_args, **_kwargs: operations.append("nodepacks"),
+    )
+    monkeypatch.setattr(
+        "tools.ci.historical_install_qualification.run_sugarcubes_baseline_maintenance",
+        lambda *_args, **_kwargs: operations.append("sugarcubes"),
+    )
+    monkeypatch.setattr(
+        "tools.ci.historical_install_qualification.configure_backend_model_root",
+        lambda **_kwargs: operations.append("model_root"),
+    )
+
+    def _validate(**_kwargs: object) -> ManagedEnvironmentValidationResult:
+        """Return real-runtime evidence at the validation boundary."""
+
+        operations.append("validation")
+        return ManagedEnvironmentValidationResult(
+            success=True,
+            detail="Managed workspace validation succeeded.",
+            detected_backend="cpu",
+            detected_torch_channel="stable",
+            torch_version="2.13.0",
+            device_name="cpu",
+        )
+
+    monkeypatch.setattr(
+        "tools.ci.historical_install_qualification.validate_managed_environment",
+        _validate,
+    )
+
+    _prepare_qualified_existing_managed_workspace(
+        workspace=workspace,
+        model_root=model_root,
+    )
+
+    cache = prepare_managed_setup_cache(workspace)
+    try:
+        payload = json.loads(cache.record_path.read_text(encoding="utf-8"))
+    finally:
+        cache.close()
+    assert operations == [
+        "manager",
+        "nodepacks",
+        "sugarcubes",
+        "model_root",
+        "validation",
+    ]
+    assert payload["success"] is True
+    assert payload["key"]["strategy"]["source"] == ("existing_qualification_runtime")
+    assert payload["runtime_configuration"]["validation_status"] == "valid"
 
 
 def test_qualification_plan_preserves_legacy_remote_schema(tmp_path: Path) -> None:
