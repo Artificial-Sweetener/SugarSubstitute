@@ -23,6 +23,7 @@ from threading import Event
 import time
 from typing import cast
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from substitute.application.onboarding.comfy_environment_service import (
@@ -66,14 +67,18 @@ class _BlockingEnvironmentService:
 
         self.entered = Event()
         self.release = Event()
+        self.completed = Event()
 
     def inspect_preflight(self) -> ComfyPreflightSnapshot:
         """Wait in the worker until the test permits delivery."""
 
         self.entered.set()
-        if not self.release.wait(timeout=5.0):
-            raise TimeoutError("Test did not release the environment scan.")
-        return ComfyPreflightSnapshot(processes=())
+        try:
+            if not self.release.wait(timeout=5.0):
+                raise TimeoutError("Test did not release the environment scan.")
+            return ComfyPreflightSnapshot(processes=())
+        finally:
+            self.completed.set()
 
     def discover_attached_python(self, workspace: Path) -> ComfyPythonDiscoveryResult:
         """Return unused automatic-discovery evidence."""
@@ -115,12 +120,21 @@ def test_preflight_scan_does_not_block_qt_owner_thread() -> None:
     snapshots: list[ComfyPreflightSnapshot] = []
     coordinator.preflight_changed.connect(snapshots.append)
 
-    started = time.monotonic()
+    owner_responsive_while_scan_blocked: list[bool] = []
+    QTimer.singleShot(
+        0,
+        lambda: owner_responsive_while_scan_blocked.append(
+            not service.completed.is_set()
+        ),
+    )
     coordinator.start_preflight()
-    elapsed = time.monotonic() - started
-
-    assert elapsed < 0.1
     assert service.entered.wait(timeout=1.0)
+
+    deadline = time.monotonic() + 1.0
+    while not owner_responsive_while_scan_blocked and time.monotonic() < deadline:
+        app.processEvents()
+
+    assert owner_responsive_while_scan_blocked == [True]
     assert snapshots == []
 
     service.release.set()
