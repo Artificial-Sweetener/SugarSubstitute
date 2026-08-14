@@ -228,6 +228,7 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
     provision_calls: list[Path] = []
     refresh_targets: list[frozenset[CoreNodepackId]] = []
     trace_events: list[str] = []
+    mutation_order: list[str] = []
 
     class _TraceSpan:
         """Record deterministic setup span entry and exit events."""
@@ -255,6 +256,18 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
         provision_calls.append(workspace)
         return workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
 
+    def _record_nodepack_install(
+        workspace: Path,
+        refresh_nodepacks: frozenset[CoreNodepackId] = frozenset(),
+        on_log: object | None = None,
+        env: object | None = None,
+    ) -> None:
+        """Record nodepack convergence before model-root configuration."""
+
+        _ = workspace, on_log, env
+        refresh_targets.append(frozenset(refresh_nodepacks))
+        mutation_order.append("nodepacks")
+
     monkeypatch.setattr(
         managed_install,
         "trace_span",
@@ -269,18 +282,26 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_core_comfy_nodepacks",
-        lambda workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: (
-            refresh_targets.append(frozenset(refresh_nodepacks))
+        _record_nodepack_install,
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "configure_backend_model_root",
+        lambda *, workspace, python_executable, model_root: mutation_order.append(
+            "model_root"
         ),
     )
     result = managed_install.ensure_managed_comfy_setup(
         workspace=tmp_path,
+        managed_model_root=tmp_path / "models",
+        configure_model_root=True,
         refresh_core_nodepacks={CoreNodepackId.SUBSTITUTE_BACKEND},
     )
 
     assert result == python_path
     assert provision_calls == [tmp_path]
     assert refresh_targets == [frozenset({CoreNodepackId.SUBSTITUTE_BACKEND})]
+    assert mutation_order == ["nodepacks", "model_root"]
     assert trace_events == [
         "span:start:managed_setup.scratch.create",
         "span:end:managed_setup.scratch.create",
@@ -296,6 +317,8 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
         "span:end:managed_setup.existing.ensure_nodepacks",
         "span:start:managed_setup.existing.sugarcubes_baseline",
         "span:end:managed_setup.existing.sugarcubes_baseline",
+        "span:start:managed_setup.existing.configure_model_root",
+        "span:end:managed_setup.existing.configure_model_root",
         "span:start:managed_setup.existing.validate_torch",
         "span:end:managed_setup.existing.validate_torch",
         "span:start:managed_setup.existing.acceleration",

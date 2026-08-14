@@ -31,6 +31,7 @@ from qframelesswindow.titlebar import TitleBar  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstalledApplication,
+    ReleaseManifestSource,
 )
 from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
     create_continued_installation_request,
@@ -84,6 +85,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         continue_install: bool,
         repair: bool,
         update_check_enabled: bool,
+        initial_release_source: ReleaseManifestSource,
         workflow_factory: InstallationWorkflowFactory,
         handoff_geometry: str | None = None,
     ) -> None:
@@ -94,6 +96,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         setThemeColor(QColor(_ACCENT_COLOR))
         self._initial_layout = initial_layout
         self._continue_install = continue_install
+        self._initial_release_source = initial_release_source
         self._workflow_factory = workflow_factory
         self._handoff_geometry = handoff_geometry
         self._setup_handoff_close_pending = False
@@ -194,6 +197,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self.execution.start_initial(
             layout=InstallLayout.from_root(install_root),
             frozen_setup=_current_frozen_executable() is not None,
+            release_source=self._initial_release_source,
             handoff_geometry=self._current_handoff_geometry(),
         )
 

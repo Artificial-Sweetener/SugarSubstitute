@@ -25,6 +25,9 @@ import ssl
 import truststore
 
 
+EXTRA_CA_FILE_ENV = "SUGARSUBSTITUTE_EXTRA_CA_FILE"
+
+
 class SystemTrustTlsContext:
     """Own secure TLS context creation across supported application layers."""
 
@@ -32,15 +35,19 @@ class SystemTrustTlsContext:
     def create() -> ssl.SSLContext:
         """Return a hostname-verifying context backed by current system trust."""
 
+        extra_ca_file = os.environ.get(EXTRA_CA_FILE_ENV)
         explicit_ca_file = os.environ.get("SSL_CERT_FILE")
-        context = (
-            ssl.create_default_context(cafile=explicit_ca_file)
-            if explicit_ca_file is not None and Path(explicit_ca_file).is_file()
-            else truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        )
+        context: ssl.SSLContext
+        if extra_ca_file is not None and Path(extra_ca_file).is_file():
+            context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.load_verify_locations(cafile=extra_ca_file)
+        elif explicit_ca_file is not None and Path(explicit_ca_file).is_file():
+            context = ssl.create_default_context(cafile=explicit_ca_file)
+        else:
+            context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         context.check_hostname = True
         context.verify_mode = ssl.CERT_REQUIRED
         return context
 
 
-__all__ = ["SystemTrustTlsContext"]
+__all__ = ["EXTRA_CA_FILE_ENV", "SystemTrustTlsContext"]

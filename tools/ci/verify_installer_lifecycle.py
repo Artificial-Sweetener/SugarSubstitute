@@ -38,6 +38,7 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # no
 from sugarsubstitute_shared.installer_qualification import (  # noqa: E402
     InstallerQualificationPlan,
 )
+from sugarsubstitute_shared.tls import EXTRA_CA_FILE_ENV  # noqa: E402
 from tools.ci.drive_windows_installer import drive_windows_installer  # noqa: E402
 from tools.ci.historical_install_qualification import (  # noqa: E402
     assert_historical_user_configuration_preserved,
@@ -344,6 +345,7 @@ def _trust_candidate_source(
 
     if candidate_source.certificate_path is not None:
         environment["SSL_CERT_FILE"] = str(candidate_source.certificate_path)
+        environment[EXTRA_CA_FILE_ENV] = str(candidate_source.certificate_path)
         environment["UV_NATIVE_TLS"] = "1"
 
 

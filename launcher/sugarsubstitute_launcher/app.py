@@ -222,6 +222,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 app_launch_error=app_launch_error,
             ),
             update_check_enabled=not args.no_update_check,
+            initial_release_source=_initial_install_release_source(args.manifest_url),
             workflow_factory=lambda output_callback: build_installation_workflow(
                 output_callback=output_callback,
                 process_starter=start_detached_handoff,

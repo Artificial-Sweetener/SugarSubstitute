@@ -24,6 +24,7 @@ from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstalledApplication,
+    ReleaseManifestSource,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.installation_workers import (
@@ -76,6 +77,7 @@ class QtInstallationExecutor(QObject):
         *,
         layout: InstallLayout,
         frozen_setup: bool,
+        release_source: ReleaseManifestSource,
         handoff_geometry: str | None,
     ) -> bool:
         """Start launcher and app installation unless that stage is already active."""
@@ -86,6 +88,7 @@ class QtInstallationExecutor(QObject):
         worker = InitialInstallWorker(
             layout=layout,
             frozen_setup=frozen_setup,
+            release_source=release_source,
             handoff_geometry=handoff_geometry,
             workflow_factory=self._workflow_factory,
         )

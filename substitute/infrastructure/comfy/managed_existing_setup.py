@@ -226,14 +226,6 @@ def reconcile_existing_managed_setup(
             managed_env=request.managed_env,
         ),
     )
-    if request.configure_model_root:
-        with trace_span("managed_setup.existing.configure_model_root"):
-            operations.configure_model_root(
-                workspace,
-                python_executable,
-                request.managed_model_root,
-            )
-
     with trace_span("managed_setup.detect_hardware"):
         detection = operations.detect_hardware()
     with trace_span("managed_setup.select_install_strategy"):
@@ -294,12 +286,6 @@ def reconcile_existing_managed_setup(
                 request=request,
             ),
         )
-        if request.configure_model_root:
-            operations.configure_model_root(
-                workspace,
-                python_executable,
-                request.managed_model_root,
-            )
         if not remote_steps.degraded:
             operations.emit_status("Preparing Base-Cubes dependencies.")
         remote_steps.run(
@@ -310,6 +296,13 @@ def reconcile_existing_managed_setup(
                 managed_env=request.managed_env,
             ),
         )
+    if request.configure_model_root:
+        with trace_span("managed_setup.existing.configure_model_root"):
+            operations.configure_model_root(
+                workspace,
+                python_executable,
+                request.managed_model_root,
+            )
     with trace_span("managed_setup.existing.validate_torch"):
         resolved_backend, validation = operations.validate_torch(
             workspace,

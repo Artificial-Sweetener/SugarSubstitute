@@ -24,6 +24,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstalledApplication,
+    ReleaseManifestSource,
 )
 from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
     create_initial_installation_request,
@@ -106,6 +107,7 @@ class InitialInstallWorker(QObject):
         *,
         layout: InstallLayout,
         frozen_setup: bool,
+        release_source: ReleaseManifestSource,
         handoff_geometry: str | None,
         workflow_factory: InstallationWorkflowFactory,
     ) -> None:
@@ -114,6 +116,7 @@ class InitialInstallWorker(QObject):
         super().__init__()
         self._layout = layout
         self._frozen_setup = frozen_setup
+        self._release_source = release_source
         self._handoff_geometry = handoff_geometry
         self._workflow_factory = workflow_factory
 
@@ -126,6 +129,7 @@ class InitialInstallWorker(QObject):
             request = create_initial_installation_request(
                 layout=self._layout,
                 frozen_setup=self._frozen_setup,
+                release_source=self._release_source,
                 handoff_geometry=self._handoff_geometry,
             )
             application = workflow.install_application(request)
