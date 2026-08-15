@@ -357,6 +357,11 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert qualification_text.count("Upload clean-install diagnostics") == 2
     assert "Upload historical-update diagnostics" in qualification_text
     assert "historical-update-diagnostics-${{ matrix.platform }}-" in qualification_text
+    historical_proof = qualification_text.split(
+        "- name: Prove historical update, splash, and main shell",
+        maxsplit=1,
+    )[1].split("- name: Upload historical-update diagnostics", maxsplit=1)[0]
+    assert '--timeout-seconds "$env:QUALIFICATION_TIMEOUT_SECONDS"' in historical_proof
     assert "clean-install-diagnostics-${{ runner.os }}" in qualification_text
     assert (
         qualification_text.count("Restore checksum-addressed standalone artifact") == 2

@@ -177,10 +177,12 @@ def verify_upgrade(
     candidate_version: str,
     candidate_release_root: Path | None = None,
     historical_release_root: Path | None = None,
+    timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
 ) -> None:
     """Install one historical release, update it, and prove candidate readiness."""
 
     _require_empty_install_root(install_root)
+    qualification_deadline = time.monotonic() + timeout_seconds
     historical_port = available_loopback_port()
     managed_workspace = install_root.resolve() / "comfyui"
     managed_model_root = install_root.resolve() / "qualified-models"
@@ -202,6 +204,10 @@ def verify_upgrade(
                 endpoint_port=historical_port,
                 managed_workspace=managed_workspace,
                 managed_model_root=managed_model_root,
+                timeout_seconds=_remaining_qualification_timeout(
+                    qualification_deadline,
+                    phase="historical Windows install",
+                ),
             )
         else:
             prepare_portable_historical_install(
@@ -212,7 +218,10 @@ def verify_upgrade(
                 endpoint_port=historical_port,
                 managed_workspace=managed_workspace,
                 managed_model_root=managed_model_root,
-                timeout_seconds=_INSTALL_TIMEOUT_SECONDS,
+                timeout_seconds=_remaining_qualification_timeout(
+                    qualification_deadline,
+                    phase="historical portable install",
+                ),
                 environment=historical_environment,
             )
             assert_installed_version(install_root, historical_version)
@@ -232,6 +241,10 @@ def verify_upgrade(
         managed_workspace=managed_workspace,
         managed_model_root=managed_model_root,
         preservation_marker=preservation_marker,
+        timeout_seconds=_remaining_qualification_timeout(
+            qualification_deadline,
+            phase="candidate update and readiness",
+        ),
     )
     print(
         f"INSTALLER_UPGRADE_READY from={historical_version} to={candidate_version}",
@@ -248,6 +261,7 @@ def _complete_windows_historical_install(
     endpoint_port: int,
     managed_workspace: Path,
     managed_model_root: Path,
+    timeout_seconds: float,
 ) -> None:
     """Drive Windows historical setup through Open Substitute and real shell."""
 
@@ -255,7 +269,7 @@ def _complete_windows_historical_install(
         installer_path=installer_path,
         install_root=install_root,
         manifest_url=manifest_url,
-        timeout_seconds=_INSTALL_TIMEOUT_SECONDS,
+        timeout_seconds=timeout_seconds,
         managed_workspace_path=managed_workspace,
         managed_model_root=managed_model_root,
         endpoint_host="127.0.0.1",
@@ -295,9 +309,11 @@ def _activate_and_verify_candidate_update(
     managed_workspace: Path,
     managed_model_root: Path,
     preservation_marker: Path,
+    timeout_seconds: float,
 ) -> None:
     """Run the installed updater and require the candidate's real main shell."""
 
+    qualification_deadline = time.monotonic() + timeout_seconds
     with _candidate_release_source(
         release_root=candidate_release_root,
         manifest_url=candidate_manifest_url,
@@ -312,6 +328,10 @@ def _activate_and_verify_candidate_update(
                 expected_version=candidate_version,
                 endpoint_port=endpoint_port,
                 phase=f"upgrade-{historical_version}",
+                timeout_seconds=_remaining_qualification_timeout(
+                    qualification_deadline,
+                    phase="candidate qualification setup",
+                ),
             )
             _trust_candidate_source(evidence.environment, candidate_source)
             candidate_launch = launch_installed_candidate(
@@ -325,6 +345,10 @@ def _activate_and_verify_candidate_update(
                 required_qualification_events=(),
                 require_governed_setup_record=False,
                 candidate_launch=candidate_launch,
+                timeout_seconds=_remaining_qualification_timeout(
+                    qualification_deadline,
+                    phase="candidate main-shell readiness",
+                ),
             )
             assert_historical_user_configuration_preserved(
                 preservation_marker=preservation_marker,
@@ -446,6 +470,11 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     upgrade.add_argument("--candidate-manifest-url")
     upgrade.add_argument("--candidate-release-root", type=Path)
     upgrade.add_argument("--candidate-version", required=True)
+    upgrade.add_argument(
+        "--timeout-seconds",
+        type=_positive_timeout,
+        default=_INSTALL_TIMEOUT_SECONDS,
+    )
     return parser.parse_args(argv)
 
 
@@ -472,6 +501,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             candidate_manifest_url=args.candidate_manifest_url,
             candidate_version=args.candidate_version,
             candidate_release_root=args.candidate_release_root,
+            timeout_seconds=args.timeout_seconds,
         )
     return 0
 
