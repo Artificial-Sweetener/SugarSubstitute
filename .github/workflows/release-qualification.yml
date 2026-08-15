@@ -535,6 +535,23 @@ jobs:
             --historical-version "${{ matrix.history.version }}" `
             @candidateSource `
             --candidate-version "$env:CANDIDATE_VERSION"
+      - name: Upload historical-update diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: historical-update-diagnostics-${{ matrix.platform }}-${{ matrix.history.version }}
+          path: |
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/logs/**
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/readiness/**
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/runtime_state/setup_transaction.json
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/user/settings/**
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/managed-comfy-startup.log
+            ${{ runner.temp }}/.SugarSubstitute-${{ matrix.history.version }}-*-installer-qualification.jsonl
+            build/historical-channel-reconstituted/historical-reconstitution.json
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
       - name: Unmount historical DMG
         if: always() && matrix.platform == 'macos'
         run: hdiutil detach "${{ runner.temp }}/historical-dmg" || true

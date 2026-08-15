@@ -355,6 +355,8 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     )
     assert qualification_text.count("timeout-minutes: 75") == 2
     assert qualification_text.count("Upload clean-install diagnostics") == 2
+    assert "Upload historical-update diagnostics" in qualification_text
+    assert "historical-update-diagnostics-${{ matrix.platform }}-" in qualification_text
     assert "clean-install-diagnostics-${{ runner.os }}" in qualification_text
     assert (
         qualification_text.count("Restore checksum-addressed standalone artifact") == 2
@@ -363,7 +365,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert "managed-comfy-${{ matrix.standalone_variant }}-" in qualification_text
     assert "managed-comfy-mac-mps-" in qualification_text
     assert qualification_text.count("--managed-artifact-cache-root") == 4
-    assert qualification_text.count("appdata/runtime_state/setup_transaction.json") == 2
+    assert qualification_text.count("appdata/runtime_state/setup_transaction.json") == 3
     assert qualification_text.count(".SugarSubstitute-clean-standalone-cache.json") == 2
 
 

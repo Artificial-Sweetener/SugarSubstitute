@@ -314,17 +314,8 @@ def _complete_historical_onboarding(
     onboarding = _wait_for_process_window(
         desktop=desktop,
         process_id=onboarding_pid,
-        required_control="OnboardingInstallRootEdit",
+        required_control="OnboardingTargetCardRadio_managed_local",
         deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
-    )
-    _invoke_primary(
-        onboarding,
-        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
-    )
-    _wait_for_visible_control(
-        onboarding,
-        "OnboardingTargetCardRadio_managed_local",
-        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
     )
     _invoke_choice(onboarding, "OnboardingTargetCardRadio_managed_local")
     _invoke_primary(
