@@ -46,6 +46,11 @@ on:
         options:
           - complete
           - latest-only
+      qualification_timeout_seconds:
+        description: "Focused installer-chain timeout; full qualification requires 3600"
+        required: false
+        default: "3600"
+        type: string
 
 permissions:
   actions: read
@@ -439,6 +444,7 @@ jobs:
       candidate_run_id: ${{ github.run_id }}
       qualification_scope: ${{ inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope }}
       upgrade_selection: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.upgrade_selection || 'complete' }}
+      qualification_timeout_seconds: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.qualification_timeout_seconds || '3600' }}
 
   promote-release:
     name: Promote qualified bytes without rebuilding
