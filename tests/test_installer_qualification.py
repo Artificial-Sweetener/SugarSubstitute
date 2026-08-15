@@ -661,6 +661,54 @@ def test_installed_candidate_launch_is_observed_without_capture_bound_wait(
     }
 
 
+def test_successful_portable_launcher_is_reaped_before_update_evidence(
+    tmp_path: Path,
+) -> None:
+    """A successful launcher exit must stop being a zombie for its updater."""
+
+    readiness_path = tmp_path / "readiness.json"
+    readiness_path.write_text(
+        json.dumps(
+            {
+                "pid": 456,
+                "schema_version": 2,
+                "surface": "main_shell",
+                "token": "qualification-token",
+            }
+        ),
+        encoding="utf-8",
+    )
+    reaped: list[float | None] = []
+
+    def _wait(timeout: float | None = None) -> int:
+        """Record the nonblocking reap of an already-exited launcher."""
+
+        reaped.append(timeout)
+        return 0
+
+    process = cast(
+        subprocess.Popen[bytes],
+        SimpleNamespace(
+            pid=123,
+            poll=lambda: 0,
+            wait=_wait,
+        ),
+    )
+
+    receipt = installer_ui_qualification._wait_for_readiness_receipt(
+        readiness_path=readiness_path,
+        token="qualification-token",
+        timeout_seconds=1.0,
+        candidate_launch=InstalledCandidateLaunch(
+            process=process,
+            output_path=tmp_path / "candidate.log",
+        ),
+    )
+
+    assert receipt.pid == 456
+    assert reaped == [0.0]
+
+
 def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
     """Focused update qualification must bound history and candidate readiness."""
 
@@ -1066,6 +1114,9 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         def __init__(self, suffix: str) -> None:
             self.suffix = suffix
             self.element_info = SimpleNamespace(automation_id=f"qt_{suffix}")
+            self.iface_range_value = SimpleNamespace(
+                SetValue=lambda value: values.__setitem__(self.suffix, value)
+            )
 
         def is_visible(self) -> bool:
             """Expose only the active page and its controls."""
@@ -1109,11 +1160,6 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
 
             values[self.suffix] = value
 
-        def set_value(self, value: int) -> None:
-            """Record a production numeric value."""
-
-            values[self.suffix] = value
-
     controls = [
         *(_Control(control) for control in page_controls),
         _Control("OnboardingPrimaryButton"),
@@ -1152,6 +1198,7 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
     assert values["OnboardingManagedModelRootEdit"] == str(
         (tmp_path / "models").resolve()
     )
+    assert values["OnboardingManagedPortSpinBox"] == 8188
 
 
 def test_verified_process_cleanup_accepts_an_already_exited_root(

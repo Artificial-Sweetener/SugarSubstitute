@@ -496,7 +496,7 @@ def _set_value(window: Any, suffix: str, value: int) -> None:
     """Set one visible historical numeric field through UI Automation."""
 
     control = _control_by_suffix(window, suffix)
-    control.set_value(value)
+    control.iface_range_value.SetValue(value)
 
 
 def _wait_for_historical_main_shell(
