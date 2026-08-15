@@ -420,8 +420,6 @@ def _wait_for_readiness_receipt(
     while time.monotonic() < deadline:
         if candidate_launch is not None:
             return_code = candidate_launch.process.poll()
-            if return_code is not None:
-                candidate_launch.process.wait(timeout=0.0)
             if return_code not in {None, 0}:
                 raise InstallerLifecycleError(
                     f"Installed launcher exited with {return_code} before the "
