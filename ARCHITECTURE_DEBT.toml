@@ -422,12 +422,12 @@ next_extraction = "Separate link models and endpoint indexing from default, norm
 id = "SS-ARCH-030"
 owner = "managed Comfy launch"
 paths = ["substitute/infrastructure/comfy/managed_launcher.py"]
-fingerprint = "sha256:25a38fca9de1f46378ef0522213afae6ef3a20408ab0c3e6f8c241685550978c"
+fingerprint = "sha256:e17935aa9213284530ff0fe54bc364ee6dfc1e8b4a130d0a1305eeb3a07c308f"
 issue = "chore:SS-ARCH-030"
 review_by = 2026-12-15
 responsibilities = [
   "managed process state and synchronization",
-  "subprocess command construction and spawning",
+  "foreground and background subprocess spawning",
   "background output pumping",
   "startup readiness adoption",
 ]
