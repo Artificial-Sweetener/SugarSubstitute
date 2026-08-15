@@ -248,6 +248,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
       - name: Install qualification toolchain
         run: python -m pip install --requirement requirements-toolchain.txt
+      - name: Populate checksum-addressed standalone artifact
+        run: >-
+          python tools/ci/cache_managed_comfy_artifacts.py
+          --cache-root "${{ env.STANDALONE_CACHE }}"
+          --variant "${{ matrix.standalone_variant }}"
       - name: Download exact candidate installer
         if: inputs.candidate_tag != ''
         env:
@@ -336,6 +341,11 @@ jobs:
           key: managed-comfy-mac-mps-${{ hashFiles('substitute/infrastructure/comfy/standalone_environment/standalone_environment_pin.json') }}
       - name: Install qualification toolchain
         run: python -m pip install --requirement requirements-toolchain.txt
+      - name: Populate checksum-addressed standalone artifact
+        run: >-
+          python tools/ci/cache_managed_comfy_artifacts.py
+          --cache-root "$STANDALONE_CACHE"
+          --variant mac-mps
       - name: Download and mount exact candidate DMG
         if: inputs.candidate_tag != ''
         env:

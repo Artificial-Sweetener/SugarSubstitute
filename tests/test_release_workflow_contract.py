@@ -359,6 +359,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert (
         qualification_text.count("Restore checksum-addressed standalone artifact") == 2
     )
+    assert qualification_text.count("cache_managed_comfy_artifacts.py") == 2
     assert "managed-comfy-${{ matrix.standalone_variant }}-" in qualification_text
     assert "managed-comfy-mac-mps-" in qualification_text
     assert qualification_text.count("--managed-artifact-cache-root") == 4
