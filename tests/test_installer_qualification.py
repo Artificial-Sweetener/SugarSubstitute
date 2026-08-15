@@ -58,6 +58,7 @@ from tools.ci.installer_ui_qualification import (
     assert_qualification_event_sequence,
     launch_installed_candidate,
     prepare_qualification_evidence,
+    process_tree_diagnostics,
     run_current_installer_ui,
     terminate_verified_process,
     verify_main_shell_evidence,
@@ -681,6 +682,68 @@ def test_installed_candidate_launch_is_observed_without_capture_bound_wait(
     }
 
 
+def test_stalled_process_diagnostics_expose_runtime_location(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A frozen launcher stall should reveal its cwd and opened state owner."""
+
+    class _Process:
+        """Expose deterministic psutil identity for one stalled launcher."""
+
+        pid = 123
+
+        def children(self, *, recursive: bool) -> list[_Process]:
+            """Return no child because the launcher never handed off."""
+
+            assert recursive is True
+            return []
+
+        def cmdline(self) -> list[str]:
+            """Return the installed executable invocation."""
+
+            return ["/installed/SugarSubstitute"]
+
+        def cwd(self) -> str:
+            """Return the intended installation root."""
+
+            return "/installed"
+
+        def exe(self) -> str:
+            """Return the frozen executable path."""
+
+            return "/installed/SugarSubstitute"
+
+        def name(self) -> str:
+            """Return the frozen process name."""
+
+            return "SugarSubstitute"
+
+        def open_files(self) -> list[SimpleNamespace]:
+            """Return the launcher state file that identifies its chosen root."""
+
+            return [SimpleNamespace(path="/wrong-root/launcher/logs/launcher.log")]
+
+        def ppid(self) -> int:
+            """Return one deterministic parent PID."""
+
+            return 45
+
+        def status(self) -> str:
+            """Return the observed sleeping status."""
+
+            return "sleeping"
+
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification.psutil.Process",
+        lambda _pid: _Process(),
+    )
+
+    payload = json.loads(process_tree_diagnostics(123))
+
+    assert payload[0]["cwd"] == "/installed"
+    assert payload[0]["open_files"] == ["/wrong-root/launcher/logs/launcher.log"]
+
+
 def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
     """Focused update qualification must bound history and candidate readiness."""
 
@@ -954,6 +1017,9 @@ def test_existing_historical_runtime_is_converged_before_readiness_is_recorded(
     ]
     assert payload["success"] is True
     assert payload["key"]["strategy"]["source"] == ("existing_qualification_runtime")
+    expected_force_cpu_mode = sys.platform != "darwin"
+    assert payload["request"]["force_cpu_mode"] is expected_force_cpu_mode
+    assert payload["runtime_configuration"]["force_cpu_mode"] is expected_force_cpu_mode
     assert payload["runtime_configuration"]["validation_status"] == "valid"
 
 
@@ -1119,7 +1185,7 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         "OnboardingProgressStatus",
         "OnboardingCompletionSurface",
     ]
-    state = {"page": 1, "main": False}
+    state = {"page": 1, "main": False, "force_cpu": False}
     values: dict[str, object] = {}
 
     class _Control:
@@ -1135,6 +1201,8 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         def is_visible(self) -> bool:
             """Expose only the active page and its controls."""
 
+            if self.suffix == "ForceCpuModeCheckBox":
+                return state["page"] == 2
             if self.suffix in page_controls:
                 return self.suffix == page_controls[state["page"]]
             return True
@@ -1147,6 +1215,8 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         def window_text(self) -> str:
             """Return terminal primary labels when qualification requires them."""
 
+            if self.suffix == "ForceCpuModeCheckBox":
+                return "Force CPU mode"
             if state["page"] == 5:
                 return "Review setup"
             if state["page"] == 6:
@@ -1158,11 +1228,18 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
 
             if self.suffix == "OnboardingTargetCardRadio_managed_local":
                 values[self.suffix] = True
+            elif self.suffix == "ForceCpuModeCheckBox":
+                state["force_cpu"] = not state["force_cpu"]
             elif self.suffix == "OnboardingPrimaryButton":
                 if state["page"] == 6:
                     state["main"] = True
                 else:
                     state["page"] += 1
+
+        def get_toggle_state(self) -> int:
+            """Return the production UI Automation toggle state."""
+
+            return int(state["force_cpu"])
 
         def select(self) -> None:
             """Reject the unsupported SelectionItem route exposed by the wrapper."""
@@ -1179,6 +1256,7 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         _Control("OnboardingPrimaryButton"),
         _Control("OnboardingManagedHostEdit"),
         _Control("OnboardingManagedPortSpinBox"),
+        _Control("ForceCpuModeCheckBox"),
     ]
     onboarding = SimpleNamespace(
         element_info=SimpleNamespace(process_id=100),
@@ -1221,6 +1299,7 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         (tmp_path / "models").resolve()
     )
     assert values["OnboardingManagedPortSpinBox"] == 8188
+    assert state["force_cpu"] is True
 
 
 def test_historical_windows_shell_wait_surfaces_terminal_startup_failure(

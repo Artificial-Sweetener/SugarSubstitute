@@ -24,7 +24,10 @@ import time
 
 import psutil  # type: ignore[import-untyped]
 
-from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.install_layout import (
+    InstallLayout,
+    default_install_root,
+)
 from sugarsubstitute_shared.application_launch_guard import (
     application_launch_lock_path,
 )
@@ -141,6 +144,49 @@ def _live_launch_owner_pid(layout: InstallLayout) -> int | None:
     return pid if process_is_alive(pid) else None
 
 
+def assert_historical_installed_launch_contract(install_root: Path) -> None:
+    """Require historical launcher state to resolve to one installed app root."""
+
+    layout = InstallLayout.from_root(install_root)
+    required_files = {
+        "launcher executable": layout.executable_path,
+        "launcher config": layout.config_path,
+        "application entrypoint": layout.app_entrypoint,
+        "runtime Python": layout.runtime_python,
+    }
+    missing = [name for name, path in required_files.items() if not path.is_file()]
+    if missing:
+        raise InstallerLifecycleError(
+            "Historical installation is not launchable; missing " + ", ".join(missing)
+        )
+    try:
+        payload = json.loads(layout.config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise InstallerLifecycleError(
+            f"Historical launcher config is unreadable: {layout.config_path}."
+        ) from error
+    if not isinstance(payload, dict):
+        raise InstallerLifecycleError("Historical launcher config is not an object.")
+    expected_paths = {
+        "install_root": layout.root,
+        "app_dir": layout.app_dir,
+        "runtime_python": layout.runtime_python,
+    }
+    mismatches: list[str] = []
+    for field, expected_path in expected_paths.items():
+        value = payload.get(field)
+        if not isinstance(value, str) or not value:
+            mismatches.append(f"{field}=<missing>")
+            continue
+        if Path(value).expanduser().resolve() != expected_path.resolve():
+            mismatches.append(f"{field}={value!r} expected={str(expected_path)!r}")
+    if mismatches:
+        raise InstallerLifecycleError(
+            "Historical launcher config does not identify its installed root: "
+            + "; ".join(mismatches)
+        )
+
+
 def _read_trace_events(trace_path: Path) -> tuple[str, ...]:
     """Return complete event names while tolerating an in-flight final record."""
 
@@ -169,6 +215,8 @@ def _historical_diagnostics(
     paths = (
         launch.output_path,
         *(path for path, _baseline in launch.progress_baselines),
+        layout.config_path,
+        layout.state_path,
         layout.logs_dir / "launcher.log",
         layout.logs_dir / "app-startup.log",
         layout.appdata_dir / "diagnostics" / "logs" / "startup-trace.jsonl",
@@ -176,7 +224,18 @@ def _historical_diagnostics(
         layout.root / HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME,
         application_launch_lock_path(layout.root),
     )
-    return "\n\n".join(f"{path}:\n{diagnostic_tail(path)}" for path in paths)
+    default_log = (
+        default_install_root(layout.executable_path)
+        / "launcher"
+        / "logs"
+        / "launcher.log"
+    )
+    complete_paths = (*paths, *((default_log,) if default_log not in paths else ()))
+    return "\n\n".join(f"{path}:\n{diagnostic_tail(path)}" for path in complete_paths)
 
 
-__all__ = ["process_is_alive", "wait_for_historical_main_shell"]
+__all__ = [
+    "assert_historical_installed_launch_contract",
+    "process_is_alive",
+    "wait_for_historical_main_shell",
+]

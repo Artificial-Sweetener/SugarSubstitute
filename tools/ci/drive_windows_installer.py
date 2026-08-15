@@ -368,6 +368,7 @@ def _complete_historical_onboarding(
         "OnboardingManagedWorkspaceEdit",
         str(managed_workspace_path.resolve()),
     )
+    _set_checkbox(onboarding, "Force CPU mode", checked=True)
     _invoke_primary(
         onboarding,
         deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
@@ -518,6 +519,42 @@ def _invoke_choice(window: Any, suffix: str) -> None:
             f"Historical onboarding choice is not actionable: {suffix}."
         )
     control.invoke()
+
+
+def _set_checkbox(window: Any, text: str, *, checked: bool) -> None:
+    """Set one visible historical checkbox through its UI Automation pattern."""
+
+    controls = [
+        control
+        for control in window.descendants()
+        if control.window_text() == text
+        and control.is_visible()
+        and control.is_enabled()
+    ]
+    if len(controls) != 1:
+        raise WindowsInstallerAutomationError(
+            f"Expected one actionable historical checkbox {text!r}; "
+            f"found {len(controls)}."
+        )
+    control = controls[0]
+    try:
+        current_state = bool(control.get_toggle_state())
+    except (AttributeError, TypeError, ValueError) as error:
+        raise WindowsInstallerAutomationError(
+            f"Historical checkbox does not expose toggle state: {text!r}."
+        ) from error
+    if current_state != checked:
+        control.invoke()
+    try:
+        resulting_state = bool(control.get_toggle_state())
+    except (AttributeError, TypeError, ValueError) as error:
+        raise WindowsInstallerAutomationError(
+            f"Historical checkbox state could not be verified: {text!r}."
+        ) from error
+    if resulting_state != checked:
+        raise WindowsInstallerAutomationError(
+            f"Historical checkbox did not reach the required state: {text!r}."
+        )
 
 
 def _set_text(window: Any, suffix: str, value: str) -> None:

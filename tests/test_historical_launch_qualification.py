@@ -28,10 +28,52 @@ import pytest
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from tools.ci.historical_launch_qualification import (
+    assert_historical_installed_launch_contract,
     wait_for_historical_main_shell,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.installer_ui_qualification import InstalledCandidateLaunch
+
+
+def test_historical_installed_contract_requires_self_consistent_launch_paths(
+    tmp_path: Path,
+) -> None:
+    """Portable history must identify the exact root its executable will resolve."""
+
+    layout = InstallLayout.from_root(tmp_path / "installed")
+    for path in (
+        layout.executable_path,
+        layout.app_entrypoint,
+        layout.runtime_python,
+    ):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("qualification", encoding="utf-8")
+    layout.config_path.parent.mkdir(parents=True, exist_ok=True)
+    layout.config_path.write_text(
+        json.dumps(
+            {
+                "install_root": str(layout.root),
+                "app_dir": str(layout.app_dir),
+                "runtime_python": str(layout.runtime_python),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert_historical_installed_launch_contract(layout.root)
+
+    layout.config_path.write_text(
+        json.dumps(
+            {
+                "install_root": str(tmp_path / "wrong-root"),
+                "app_dir": str(layout.app_dir),
+                "runtime_python": str(layout.runtime_python),
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(InstallerLifecycleError, match="does not identify"):
+        assert_historical_installed_launch_contract(layout.root)
 
 
 def test_historical_shell_requires_ordered_trace_and_live_handoff_process(

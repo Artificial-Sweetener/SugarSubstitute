@@ -211,6 +211,7 @@ def _prepare_qualified_existing_managed_workspace(
         raise InstallerLifecycleError(validation.detail)
 
     platform, target = _existing_qualification_target()
+    force_cpu_mode = sys.platform != "darwin"
     runtime_configuration = ManagedRuntimeConfiguration(
         workspace_path=str(workspace.resolve()),
         detected_platform=platform.value,
@@ -219,6 +220,7 @@ def _prepare_qualified_existing_managed_workspace(
         backend_policy=validation.detected_backend,
         torch_release_channel=validation.detected_torch_channel,
         torch_selection_reason="Validated existing qualification runtime.",
+        force_cpu_mode=force_cpu_mode,
         validation_status=ManagedRuntimeValidationStatus.VALID,
         validation_detail=validation.detail,
     )
@@ -233,7 +235,7 @@ def _prepare_qualified_existing_managed_workspace(
             record_path=cache.record_path,
             key=freshness_key,
             request=installed_setup_freshness_request(
-                force_cpu_mode=False,
+                force_cpu_mode=force_cpu_mode,
                 prefer_edge_torch=False,
                 prefer_edge_comfy_channel=False,
             ),
