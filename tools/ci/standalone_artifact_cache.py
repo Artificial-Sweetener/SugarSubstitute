@@ -20,9 +20,13 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass, field
+import json
 import os
 from pathlib import Path
 import shutil
+from threading import Event, Thread
+import time
 from uuid import uuid4
 
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
@@ -33,8 +37,9 @@ def qualification_standalone_artifact_cache(
     *,
     install_root: Path,
     external_cache_root: Path | None,
+    timeout_seconds: float,
 ) -> Iterator[None]:
-    """Stage CI artifacts after the empty-root proof and retain verified results."""
+    """Stage CI artifacts after layout creation and retain verified results."""
 
     if external_cache_root is None:
         yield
@@ -51,19 +56,164 @@ def qualification_standalone_artifact_cache(
     installed_cache_root = (
         resolved_install_root / ".sugarsubstitute-cache" / "standalone"
     )
-    _mirror_complete_files(
+    stage = _DeferredArtifactCacheStage(
+        ready_path=resolved_install_root / "launcher" / "config.json",
         source_root=resolved_external_root,
         destination_root=installed_cache_root,
+        diagnostic_path=standalone_cache_diagnostic_path(resolved_install_root),
+        timeout_seconds=timeout_seconds,
     )
+    stage.start()
+    succeeded = False
     try:
         yield
-    except BaseException:
-        raise
-    else:
+        succeeded = True
+    finally:
+        if succeeded:
+            stage.wait_for_completion()
+            stage.require_success()
+        else:
+            stage.cancel()
+    if succeeded:
         _mirror_complete_files(
             source_root=installed_cache_root,
             destination_root=resolved_external_root,
         )
+
+
+def standalone_cache_diagnostic_path(install_root: Path) -> Path:
+    """Return the durable cache-exchange receipt beside one install root."""
+
+    resolved_root = install_root.resolve()
+    return resolved_root.parent / f".{resolved_root.name}-standalone-cache.json"
+
+
+@dataclass(slots=True)
+class _DeferredArtifactCacheStage:
+    """Stage restored artifacts after the installer owns its selected layout."""
+
+    ready_path: Path
+    source_root: Path
+    destination_root: Path
+    diagnostic_path: Path
+    timeout_seconds: float
+    _stop: Event = field(default_factory=Event, init=False)
+    _completed: Event = field(default_factory=Event, init=False)
+    _failure: str | None = field(default=None, init=False)
+    _thread: Thread = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Create the bounded background worker without starting it."""
+
+        self._thread = Thread(
+            target=self._run,
+            name="qualification-standalone-cache",
+            daemon=True,
+        )
+
+    def start(self) -> None:
+        """Begin waiting for the installed launcher layout."""
+
+        self._write_receipt(state="waiting_for_install_layout")
+        self._thread.start()
+
+    def wait_for_completion(self) -> None:
+        """Wait for the bounded staging worker after a successful chain."""
+
+        if not self._completed.wait(self.timeout_seconds):
+            raise InstallerLifecycleError(
+                "Qualification cache staging did not finish within its timeout."
+            )
+
+    def require_success(self) -> None:
+        """Raise the staging failure after the foreground chain completes."""
+
+        if self._failure is not None:
+            raise InstallerLifecycleError(self._failure)
+
+    def cancel(self) -> None:
+        """Stop a worker whose foreground installer chain already failed."""
+
+        self._stop.set()
+        self._thread.join(timeout=5.0)
+
+    def _run(self) -> None:
+        """Wait for layout ownership, then atomically expose restored artifacts."""
+
+        try:
+            deadline = time.monotonic() + self.timeout_seconds
+            while not self.ready_path.is_file():
+                if self._stop.wait(0.05):
+                    self._write_receipt(state="cancelled_before_install_layout")
+                    return
+                if time.monotonic() >= deadline:
+                    raise InstallerLifecycleError(
+                        "Installed launcher layout was not prepared before cache staging."
+                    )
+            _mirror_complete_files(
+                source_root=self.source_root,
+                destination_root=self.destination_root,
+            )
+            self._write_receipt(state="staged_after_install_layout")
+        except Exception as error:
+            self._failure = str(error).strip() or type(error).__name__
+            self._write_receipt(
+                state="staging_failed",
+                error_type=type(error).__name__,
+                error=self._failure,
+            )
+        finally:
+            self._completed.set()
+
+    def _write_receipt(self, *, state: str, **fields: object) -> None:
+        """Persist bounded evidence for the external and installed cache roots."""
+
+        payload = {
+            "schema_version": 1,
+            "state": state,
+            "ready_path_present": self.ready_path.is_file(),
+            "source": _cache_inventory(self.source_root),
+            "destination": _cache_inventory(self.destination_root),
+            **fields,
+        }
+        self.diagnostic_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self.diagnostic_path.with_name(
+            f".{self.diagnostic_path.name}.{uuid4().hex}.tmp"
+        )
+        try:
+            temporary.write_text(
+                json.dumps(payload, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            temporary.replace(self.diagnostic_path)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+
+def _cache_inventory(root: Path) -> dict[str, object]:
+    """Describe complete artifact files without exposing machine-local roots."""
+
+    files = (
+        tuple(
+            path
+            for path in root.rglob("*")
+            if path.is_file() and not path.name.endswith(".part")
+        )
+        if root.is_dir()
+        else ()
+    )
+    return {
+        "present": root.is_dir(),
+        "file_count": len(files),
+        "total_bytes": sum(path.stat().st_size for path in files),
+        "files": [
+            {
+                "path": path.relative_to(root).as_posix(),
+                "size_bytes": path.stat().st_size,
+            }
+            for path in files
+        ],
+    }
 
 
 def _mirror_complete_files(*, source_root: Path, destination_root: Path) -> None:
@@ -101,4 +251,7 @@ def _mirror_complete_files(*, source_root: Path, destination_root: Path) -> None
             temporary.unlink(missing_ok=True)
 
 
-__all__ = ["qualification_standalone_artifact_cache"]
+__all__ = [
+    "qualification_standalone_artifact_cache",
+    "standalone_cache_diagnostic_path",
+]

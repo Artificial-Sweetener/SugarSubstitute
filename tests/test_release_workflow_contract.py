@@ -363,6 +363,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert "managed-comfy-mac-mps-" in qualification_text
     assert qualification_text.count("--managed-artifact-cache-root") == 4
     assert qualification_text.count("appdata/runtime_state/setup_transaction.json") == 2
+    assert qualification_text.count(".SugarSubstitute-clean-standalone-cache.json") == 2
 
 
 def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:

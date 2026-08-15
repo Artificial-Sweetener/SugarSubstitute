@@ -126,6 +126,7 @@ def verify_clean_install(
     with qualification_standalone_artifact_cache(
         install_root=install_root,
         external_cache_root=managed_artifact_cache_root,
+        timeout_seconds=timeout_seconds,
     ):
         with _candidate_release_source(
             release_root=candidate_release_root,

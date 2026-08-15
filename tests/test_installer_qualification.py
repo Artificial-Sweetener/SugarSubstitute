@@ -23,6 +23,7 @@ from pathlib import Path
 import ssl
 import subprocess
 import sys
+import time
 from types import SimpleNamespace
 from typing import cast
 import urllib.request
@@ -64,6 +65,7 @@ from tools.ci.local_release_server import (
 )
 from tools.ci.standalone_artifact_cache import (
     qualification_standalone_artifact_cache,
+    standalone_cache_diagnostic_path,
 )
 from tools.ci.drive_windows_installer import (
     _complete_historical_onboarding,
@@ -504,6 +506,7 @@ def test_clean_qualification_exchanges_only_complete_standalone_artifacts(
     with qualification_standalone_artifact_cache(
         install_root=install_root,
         external_cache_root=external_cache,
+        timeout_seconds=5.0,
     ):
         installed_artifact = (
             install_root
@@ -513,6 +516,13 @@ def test_clean_qualification_exchanges_only_complete_standalone_artifacts(
             / "win-cpu"
             / "artifact.7z.001"
         )
+        assert not installed_artifact.exists()
+        ready_path = install_root / "launcher" / "config.json"
+        ready_path.parent.mkdir(parents=True)
+        ready_path.write_text("{}", encoding="utf-8")
+        deadline = time.monotonic() + 5.0
+        while not installed_artifact.is_file() and time.monotonic() < deadline:
+            time.sleep(0.01)
         assert installed_artifact.read_bytes() == b"cached"
         assert not installed_artifact.with_name("artifact.7z.001.part").exists()
         installed_artifact.unlink()
@@ -520,6 +530,13 @@ def test_clean_qualification_exchanges_only_complete_standalone_artifacts(
 
     assert cached_artifact.read_bytes() == b"verified replacement"
     assert (cached_artifact.parent / "artifact.7z.001.part").read_bytes() == b"partial"
+    receipt = json.loads(
+        standalone_cache_diagnostic_path(install_root).read_text(encoding="utf-8")
+    )
+    assert receipt["state"] == "staged_after_install_layout"
+    assert receipt["ready_path_present"] is True
+    assert receipt["source"]["total_bytes"] == len(b"cached")
+    assert receipt["destination"]["total_bytes"] == len(b"cached")
 
 
 def test_clean_qualification_rejects_cache_inside_install_root(tmp_path: Path) -> None:
@@ -531,6 +548,7 @@ def test_clean_qualification_rejects_cache_inside_install_root(tmp_path: Path) -
         with qualification_standalone_artifact_cache(
             install_root=install_root,
             external_cache_root=install_root / "cache",
+            timeout_seconds=5.0,
         ):
             pass
 
