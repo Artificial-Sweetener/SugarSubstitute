@@ -356,6 +356,13 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert qualification_text.count("timeout-minutes: 75") == 2
     assert qualification_text.count("Upload clean-install diagnostics") == 2
     assert "clean-install-diagnostics-${{ runner.os }}" in qualification_text
+    assert (
+        qualification_text.count("Restore checksum-addressed standalone artifact") == 2
+    )
+    assert "managed-comfy-${{ matrix.standalone_variant }}-" in qualification_text
+    assert "managed-comfy-mac-mps-" in qualification_text
+    assert qualification_text.count("--managed-artifact-cache-root") == 4
+    assert qualification_text.count("appdata/runtime_state/setup_transaction.json") == 2
 
 
 def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:

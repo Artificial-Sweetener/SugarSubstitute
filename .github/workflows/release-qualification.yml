@@ -100,6 +100,7 @@ env:
   CANDIDATE_TAG: ${{ inputs.candidate_tag }}
   CANDIDATE_MANIFEST_URL: https://github.com/${{ github.repository }}/releases/download/${{ inputs.candidate_tag }}/manifest.json
   QUALIFICATION_TIMEOUT_SECONDS: ${{ inputs.qualification_timeout_seconds }}
+  STANDALONE_CACHE: build/managed-comfy-cache
   LINUX_QT_PACKAGES: >-
     xvfb libegl1 libfontconfig1 libgl1 libpulse0 libxcb-cursor0 libxcb-icccm4
     libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
@@ -138,6 +139,7 @@ jobs:
                 os = "windows-latest"
                 python_version = "3.12.10"
                 asset = "SugarSubstitute-$env:CANDIDATE_VERSION-Windows-x64-Setup.exe"
+                standalone_variant = "win-cpu"
               }
             } else {
               @{
@@ -145,6 +147,7 @@ jobs:
                 os = "ubuntu-24.04"
                 python_version = "3.12.13"
                 asset = "SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage"
+                standalone_variant = "linux-nvidia"
               }
             }
           }) | ConvertTo-Json -Compress -AsArray
@@ -235,6 +238,11 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python_version }}
+      - name: Restore checksum-addressed standalone artifact
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.STANDALONE_CACHE }}
+          key: managed-comfy-${{ matrix.standalone_variant }}-${{ hashFiles('substitute/infrastructure/comfy/standalone_environment/standalone_environment_pin.json') }}
       - name: Install Linux runtime dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
@@ -271,6 +279,7 @@ jobs:
           --installer "build/candidate/${{ matrix.asset }}"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
+          --managed-artifact-cache-root "${{ env.STANDALONE_CACHE }}"
           --timeout-seconds "${{ env.QUALIFICATION_TIMEOUT_SECONDS }}"
       - name: Prove temporary clean install and post-splash launch
         if: inputs.candidate_artifact_name != ''
@@ -283,6 +292,7 @@ jobs:
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
           --candidate-release-root "build/candidate"
+          --managed-artifact-cache-root "${{ env.STANDALONE_CACHE }}"
           --timeout-seconds "${{ env.QUALIFICATION_TIMEOUT_SECONDS }}"
       - name: Upload clean-install diagnostics
         if: always()
@@ -294,6 +304,7 @@ jobs:
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
             ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/runtime_state/setup_transaction.json
             ${{ runner.temp }}/SugarSubstitute-clean/managed-comfy-startup.log
           if-no-files-found: warn
           include-hidden-files: true
@@ -317,6 +328,11 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Restore checksum-addressed standalone artifact
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.STANDALONE_CACHE }}
+          key: managed-comfy-mac-mps-${{ hashFiles('substitute/infrastructure/comfy/standalone_environment/standalone_environment_pin.json') }}
       - name: Install qualification toolchain
         run: python -m pip install --requirement requirements-toolchain.txt
       - name: Download and mount exact candidate DMG
@@ -349,6 +365,7 @@ jobs:
           --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
+          --managed-artifact-cache-root "$STANDALONE_CACHE"
           --timeout-seconds "$QUALIFICATION_TIMEOUT_SECONDS"
       - name: Prove temporary clean install and post-splash launch
         if: inputs.candidate_artifact_name != ''
@@ -360,6 +377,7 @@ jobs:
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
           --candidate-release-root "build/candidate"
+          --managed-artifact-cache-root "$STANDALONE_CACHE"
           --timeout-seconds "$QUALIFICATION_TIMEOUT_SECONDS"
       - name: Upload clean-install diagnostics
         if: always()
@@ -371,6 +389,7 @@ jobs:
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
             ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/runtime_state/setup_transaction.json
             ${{ runner.temp }}/SugarSubstitute-clean/managed-comfy-startup.log
           if-no-files-found: warn
           include-hidden-files: true

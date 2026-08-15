@@ -62,6 +62,9 @@ from tools.ci.local_release_server import (
     LOCAL_RELEASE_BASE_URL,
     LocalReleaseServer,
 )
+from tools.ci.standalone_artifact_cache import (
+    qualification_standalone_artifact_cache,
+)
 from tools.ci.drive_windows_installer import (
     _complete_historical_onboarding,
     _wait_for_onboarding_window,
@@ -483,7 +486,53 @@ def test_qualification_evidence_is_absolute_across_process_working_directories(
     assert plan.target_mode == "managed_local"
     assert plan.managed_workspace_path == (tmp_path / "installed" / "comfyui")
     assert plan.managed_model_root == (tmp_path / "installed" / "qualified-models")
-    assert plan.force_cpu_mode is sys.platform.startswith("linux")
+    assert plan.force_cpu_mode is (sys.platform != "darwin")
+
+
+def test_clean_qualification_exchanges_only_complete_standalone_artifacts(
+    tmp_path: Path,
+) -> None:
+    """Cached downloads should enter and leave the otherwise-clean install root."""
+
+    install_root = tmp_path / "installed"
+    external_cache = tmp_path / "ci-cache"
+    cached_artifact = external_cache / "release" / "win-cpu" / "artifact.7z.001"
+    cached_artifact.parent.mkdir(parents=True)
+    cached_artifact.write_bytes(b"cached")
+    (cached_artifact.parent / "artifact.7z.001.part").write_bytes(b"partial")
+
+    with qualification_standalone_artifact_cache(
+        install_root=install_root,
+        external_cache_root=external_cache,
+    ):
+        installed_artifact = (
+            install_root
+            / ".sugarsubstitute-cache"
+            / "standalone"
+            / "release"
+            / "win-cpu"
+            / "artifact.7z.001"
+        )
+        assert installed_artifact.read_bytes() == b"cached"
+        assert not installed_artifact.with_name("artifact.7z.001.part").exists()
+        installed_artifact.unlink()
+        installed_artifact.write_bytes(b"verified replacement")
+
+    assert cached_artifact.read_bytes() == b"verified replacement"
+    assert (cached_artifact.parent / "artifact.7z.001.part").read_bytes() == b"partial"
+
+
+def test_clean_qualification_rejects_cache_inside_install_root(tmp_path: Path) -> None:
+    """The acceleration cache must not weaken clean-root isolation."""
+
+    install_root = tmp_path / "installed"
+
+    with pytest.raises(InstallerLifecycleError, match="outside the clean install"):
+        with qualification_standalone_artifact_cache(
+            install_root=install_root,
+            external_cache_root=install_root / "cache",
+        ):
+            pass
 
 
 def test_qualification_evidence_preserves_focused_timeout(tmp_path: Path) -> None:
