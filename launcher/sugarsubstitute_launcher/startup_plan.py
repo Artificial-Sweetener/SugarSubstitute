@@ -184,7 +184,7 @@ def _resolve_installed_config_plan(layout: InstallLayout) -> LauncherStartupPlan
         "runtime_python": (config.runtime_python, layout.runtime_python),
     }
     for name, (configured_path, expected_path) in expected_values.items():
-        if operational_path(configured_path).resolve() != expected_path:
+        if operational_path(configured_path) != operational_path(expected_path):
             return LauncherStartupPlan(
                 layout=layout,
                 installed_config_found=True,
