@@ -72,6 +72,9 @@ from substitute.infrastructure.onboarding.file_comfy_target_repository import (
 from substitute.infrastructure.onboarding.file_installation_repository import (
     FileInstallationConfigurationRepository,
 )
+from substitute.infrastructure.onboarding.file_managed_runtime_repository import (
+    FileManagedRuntimeConfigurationRepository,
+)
 from substitute.infrastructure.onboarding.file_runtime_repository import (
     FileRuntimeConfigurationRepository,
 )
@@ -128,6 +131,40 @@ def prepare_portable_historical_install(
     )
 
 
+def update_portable_historical_install(
+    *,
+    installer_path: Path,
+    install_root: Path,
+    manifest_url: str,
+    timeout_seconds: float,
+    environment: dict[str, str],
+) -> None:
+    """Update one completed portable installation through its real installer."""
+
+    command = [
+        str(installer_path.resolve()),
+        "--headless-install",
+        f"--install-root={install_root.resolve()}",
+        f"--manifest-url={manifest_url}",
+    ]
+    result = subprocess.run(
+        command,
+        cwd=installer_path.resolve().parent,
+        env=environment,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout_seconds,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise InstallerLifecycleError(
+            f"Historical installer update exited with {result.returncode}.\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+
 def materialize_historical_managed_configuration(
     *,
     install_root: Path,
@@ -171,6 +208,7 @@ def materialize_historical_managed_configuration(
     _prepare_qualified_existing_managed_workspace(
         workspace=managed_workspace,
         model_root=managed_model_root,
+        runtime_state_dir=installation.runtime_state_dir,
     )
 
 
@@ -178,6 +216,7 @@ def _prepare_qualified_existing_managed_workspace(
     *,
     workspace: Path,
     model_root: Path,
+    runtime_state_dir: Path,
 ) -> None:
     """Converge and record a real existing runtime without new-install selection."""
 
@@ -223,6 +262,9 @@ def _prepare_qualified_existing_managed_workspace(
         force_cpu_mode=force_cpu_mode,
         validation_status=ManagedRuntimeValidationStatus.VALID,
         validation_detail=validation.detail,
+    )
+    FileManagedRuntimeConfigurationRepository(runtime_state_dir).save(
+        runtime_configuration
     )
     freshness_key = installed_setup_static_freshness_key(workspace)
     freshness_key["strategy"] = {
@@ -335,4 +377,5 @@ __all__ = [
     "materialize_historical_managed_configuration",
     "prepare_portable_historical_install",
     "seed_historical_user_configuration",
+    "update_portable_historical_install",
 ]

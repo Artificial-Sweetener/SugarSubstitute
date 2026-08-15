@@ -54,6 +54,7 @@ from tools.ci.historical_install_qualification import (
     assert_historical_user_configuration_preserved,
     prepare_portable_historical_install,
     seed_historical_user_configuration,
+    update_portable_historical_install,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci import installer_ui_qualification
@@ -804,11 +805,11 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
     assert arguments.timeout_seconds == 1200.0
 
 
-def test_portable_update_activates_candidate_before_its_only_launch(
+def test_portable_update_installs_candidate_before_its_only_launch(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Portable history must not open once before the candidate update launch."""
+    """Portable history must update before its only installed-app launch."""
 
     install_root = tmp_path / "installed"
     layout = InstallLayout.from_root(install_root)
@@ -825,6 +826,29 @@ def test_portable_update_activates_candidate_before_its_only_launch(
         encoding="utf-8",
     )
     events: list[tuple[str, str]] = []
+
+    def update_once(
+        *,
+        installer_path: Path,
+        install_root: Path,
+        manifest_url: str,
+        timeout_seconds: float,
+        environment: dict[str, str],
+    ) -> None:
+        """Record the real historical-installer update boundary."""
+
+        del installer_path, timeout_seconds, environment
+        payload = json.loads(
+            InstallLayout.from_root(install_root).config_path.read_text(
+                encoding="utf-8"
+            )
+        )
+        payload["release_source"]["manifest_url"] = manifest_url
+        InstallLayout.from_root(install_root).config_path.write_text(
+            json.dumps(payload),
+            encoding="utf-8",
+        )
+        events.append(("update", manifest_url))
 
     def launch_once(
         *,
@@ -850,6 +874,19 @@ def test_portable_update_activates_candidate_before_its_only_launch(
         events.append(("verify", "9999.0.109"))
 
     monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle.update_portable_historical_install",
+        update_once,
+    )
+    monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle.assert_installed_version",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle."
+        "assert_historical_installed_launch_contract",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
         "tools.ci.verify_installer_lifecycle.launch_installed_candidate",
         launch_once,
     )
@@ -863,6 +900,7 @@ def test_portable_update_activates_candidate_before_its_only_launch(
     )
 
     _verify_portable_candidate_update(
+        historical_installer_path=tmp_path / "historical-installer",
         install_root=install_root,
         historical_version="0.20.1",
         candidate_version="9999.0.109",
@@ -876,6 +914,7 @@ def test_portable_update_activates_candidate_before_its_only_launch(
     )
 
     assert events == [
+        ("update", "https://example.test/candidate.json"),
         ("launch", "https://example.test/candidate.json"),
         ("verify", "9999.0.109"),
     ]
@@ -1026,9 +1065,11 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
         *,
         workspace: Path,
         model_root: Path,
+        runtime_state_dir: Path,
     ) -> None:
         """Record real managed-setup orchestration at the external boundary."""
 
+        assert runtime_state_dir == install_root / "appdata" / "runtime_state"
         setup_requests.append((workspace, model_root))
 
     def _prepare_environment(repository_root: Path, workspace: Path) -> Path:
@@ -1093,6 +1134,45 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
     assert target["workspace_path"] == str(workspace)
 
 
+def test_portable_update_reuses_real_historical_installer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Portable updates must execute the historical installer's real pipeline."""
+
+    commands: list[list[str]] = []
+
+    def _run(command: list[str], **_kwargs: object) -> object:
+        """Capture the update invocation and report success."""
+
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(
+        "tools.ci.historical_install_qualification.subprocess.run",
+        _run,
+    )
+    installer = tmp_path / "historical-installer"
+    install_root = tmp_path / "installed"
+
+    update_portable_historical_install(
+        installer_path=installer,
+        install_root=install_root,
+        manifest_url="https://example.test/candidate/manifest.json",
+        timeout_seconds=60.0,
+        environment={"QUALIFICATION": "1"},
+    )
+
+    assert commands == [
+        [
+            str(installer.resolve()),
+            "--headless-install",
+            f"--install-root={install_root.resolve()}",
+            "--manifest-url=https://example.test/candidate/manifest.json",
+        ]
+    ]
+
+
 def test_existing_historical_runtime_is_converged_before_readiness_is_recorded(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1149,6 +1229,7 @@ def test_existing_historical_runtime_is_converged_before_readiness_is_recorded(
     _prepare_qualified_existing_managed_workspace(
         workspace=workspace,
         model_root=model_root,
+        runtime_state_dir=tmp_path / "runtime-state",
     )
 
     cache = prepare_managed_setup_cache(workspace)
@@ -1169,6 +1250,15 @@ def test_existing_historical_runtime_is_converged_before_readiness_is_recorded(
     assert payload["request"]["force_cpu_mode"] is expected_force_cpu_mode
     assert payload["runtime_configuration"]["force_cpu_mode"] is expected_force_cpu_mode
     assert payload["runtime_configuration"]["validation_status"] == "valid"
+    persisted_runtime = json.loads(
+        (tmp_path / "runtime-state" / "managed_runtime.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert persisted_runtime["force_cpu_mode"] is expected_force_cpu_mode
+    assert (
+        persisted_runtime["install_target"].endswith("_cpu") or sys.platform == "darwin"
+    )
 
 
 def test_qualification_plan_preserves_legacy_remote_schema(tmp_path: Path) -> None:

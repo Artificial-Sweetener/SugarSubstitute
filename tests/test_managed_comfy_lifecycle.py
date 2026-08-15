@@ -818,6 +818,71 @@ def test_background_start_launches_force_cpu_runtime_with_comfy_cpu_flag(
     assert "--cpu" in command
 
 
+@pytest.mark.parametrize("install_target", ["windows_cpu", "linux_cpu"])
+def test_background_start_preserves_historical_cpu_target_launch_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    install_target: str,
+) -> None:
+    """Historical CPU targets must retain ComfyUI CPU mode after an update."""
+
+    workspace = _write_launchable_workspace(tmp_path / "comfyui")
+    FileManagedRuntimeConfigurationRepository(tmp_path).save(
+        ManagedRuntimeConfiguration(
+            workspace_path=str(workspace.resolve()),
+            install_target=install_target,
+            force_cpu_mode=False,
+        )
+    )
+    monkeypatch.setattr(
+        managed_launcher,
+        "probe_managed_listener",
+        lambda **kwargs: ManagedListenerProbeResult(
+            status=ManagedListenerStatus.ABSENT,
+            reason="absent",
+        ),
+    )
+    monkeypatch.setattr(
+        managed_launcher,
+        "wait_for_managed_startup_ready",
+        lambda **kwargs: ManagedStartupReadinessResult(ready=False),
+    )
+    observed_request: dict[str, object] = {}
+
+    class _SpawnedProcess:
+        """Provide the minimal process handle used by managed startup."""
+
+        pid = 792
+        stdout = None
+
+        def poll(self) -> int | None:
+            """Behave like a still-running managed process."""
+
+            return None
+
+    monkeypatch.setattr(
+        managed_launcher,
+        "launch_managed_process",
+        lambda **kwargs: _record_launch_request(
+            observed_request,
+            kwargs["request"],
+            _SpawnedProcess(),
+        ),
+    )
+
+    state = managed_launcher.start_managed_comfy_background(
+        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
+        workspace=workspace,
+        runtime_state_dir=tmp_path,
+        launch_task_factory=_managed_task_factory,
+        process_pump_task_factory=_managed_task_factory,
+    )
+    state.wait_until_finished(timeout=2)
+
+    command = cast(tuple[str, ...], observed_request["command"])
+    assert "--cpu" in command
+
+
 def test_background_start_traces_managed_startup_phases(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
