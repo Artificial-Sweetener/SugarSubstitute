@@ -357,10 +357,10 @@ owner = "managed Comfy launch"
 rule = "STRUCT003"
 path = "substitute/infrastructure/comfy/managed_launcher.py"
 kind = "remediation"
-justification = "The assessed file mixes managed process state and synchronization, subprocess command construction and spawning, background output pumping, and startup readiness adoption. Extract background output pumping from managed process state, spawning, and readiness ownership."
+justification = "Managed command construction now has a separate owner. The assessed file still mixes managed process state and synchronization, foreground and background subprocess spawning, background output pumping, and startup readiness adoption. Extract background output pumping from managed process state, spawning, and readiness ownership."
 issue = "chore:SS-ARCH-030"
 review_by = 2026-12-15
-max_lines = 713
+max_lines = 683
 next_limit = 600
 debt = "SS-ARCH-030"
 

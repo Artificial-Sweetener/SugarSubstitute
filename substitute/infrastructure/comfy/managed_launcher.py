@@ -45,10 +45,13 @@ from substitute.domain.onboarding import (
     ManagedRuntimeValidationStatus,
 )
 from substitute.domain.onboarding import ManagedRuntimeLaunchStatus
-from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
+from substitute.domain.comfy_manager import ComfyManagerKind
 from substitute.infrastructure.comfy.managed_install import (
     emit_log,
     emit_status,
+)
+from substitute.infrastructure.comfy.managed_launch_command import (
+    build_managed_launch_command,
 )
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
@@ -98,11 +101,7 @@ from substitute.shared.logging.logger import (
     log_info,
     log_warning_exception,
 )
-from sugarsubstitute_shared.windows_long_paths import (
-    exceeds_windows_legacy_path_limit,
-    operational_path,
-    subprocess_path,
-)
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 StatusCallback = Callable[[str], None]
 LogCallback = Callable[[str], None]
@@ -112,12 +111,6 @@ LongLivedWork = Callable[[CancellationSource], TResult]
 _LOGGER = get_logger("infrastructure.comfy.managed_launcher")
 _MANAGED_LAUNCH_REQUEST_IDS = count(1)
 _STARTUP_HARNESS_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS"
-_LONG_WORKSPACE_BOOTSTRAP = (
-    "import os, runpy, sys; "
-    "root = sys.argv.pop(1); script = sys.argv.pop(1); "
-    "os.chdir(root); sys.argv[0] = script; "
-    "runpy.run_path(script, run_name='__main__')"
-)
 
 
 class ManagedLongLivedTaskHandle(Protocol):
@@ -298,11 +291,12 @@ def start_managed_comfy_subprocess(
         endpoint=endpoint,
         workspace=workspace,
         request=build_launch_request(
-            command=_build_managed_launch_command(
+            command=build_managed_launch_command(
                 venv_python=venv_python,
                 endpoint=endpoint,
                 workspace=workspace,
                 manager_runtime=manager_runtime,
+                force_cpu_mode=_managed_force_cpu_mode(runtime_service),
             ),
             cwd=workspace,
             env=env,
@@ -415,11 +409,12 @@ def start_managed_comfy_background(
                     endpoint=endpoint,
                     workspace=workspace,
                     request=build_launch_request(
-                        command=_build_managed_launch_command(
+                        command=build_managed_launch_command(
                             venv_python=venv_python,
                             endpoint=endpoint,
                             workspace=workspace,
                             manager_runtime=manager_runtime,
+                            force_cpu_mode=_managed_force_cpu_mode(runtime_service),
                         ),
                         cwd=workspace,
                         env=env,
@@ -733,36 +728,11 @@ def _timestamp_now() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def _build_managed_launch_command(
-    *,
-    venv_python: Path,
-    endpoint: ComfyEndpoint,
-    workspace: Path,
-    manager_runtime: ComfyManagerRuntime,
-) -> tuple[str, ...]:
-    """Build the authoritative managed ComfyUI launch command."""
+def _managed_force_cpu_mode(runtime_service: ManagedRuntimeService) -> bool:
+    """Return whether the active managed runtime requires ComfyUI CPU mode."""
 
-    arguments = (
-        "--listen",
-        str(endpoint.host),
-        "--port",
-        str(endpoint.port),
-        *manager_runtime.launch_arguments,
-    )
-    if exceeds_windows_legacy_path_limit(workspace):
-        return (
-            subprocess_path(venv_python),
-            "-c",
-            _LONG_WORKSPACE_BOOTSTRAP,
-            subprocess_path(workspace),
-            subprocess_path(workspace / "main.py"),
-            *arguments,
-        )
-    return (
-        subprocess_path(venv_python),
-        subprocess_path(workspace / "main.py"),
-        *arguments,
-    )
+    configuration = runtime_service.load_persisted()
+    return configuration.force_cpu_mode if configuration is not None else False
 
 
 def _iter_output_records(
