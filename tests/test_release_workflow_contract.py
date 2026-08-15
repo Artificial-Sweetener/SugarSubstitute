@@ -344,6 +344,12 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert "process.env.SUGAR_SUBSTITUTE_ASSET_BASE_URL" in preparation_text
     assert 'startsWith("https://")' in preparation_text
     assert "qualification_timeout_seconds" in qualification_text
+    assert "qualification_timeout_seconds:" in release_text
+    assert (
+        "qualification_timeout_seconds: ${{ inputs.dry_run == 'true' && "
+        "inputs.qualification_scope != 'full' && "
+        "inputs.qualification_timeout_seconds || '3600' }}"
+    ) in release_text
     assert "Published and full qualification require the canonical" in (
         qualification_text
     )
