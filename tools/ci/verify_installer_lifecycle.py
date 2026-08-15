@@ -37,7 +37,7 @@ from launcher.sugarsubstitute_launcher.config import (  # noqa: E402
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
 from sugarsubstitute_shared.installer_qualification import (  # noqa: E402
-    InstallerQualificationPlan,
+    INSTALLER_QUALIFICATION_PLAN_ENV,
 )
 from sugarsubstitute_shared.tls import EXTRA_CA_FILE_ENV  # noqa: E402
 from tools.ci.drive_windows_installer import drive_windows_installer  # noqa: E402
@@ -48,27 +48,24 @@ from tools.ci.historical_install_qualification import (  # noqa: E402
 )
 from tools.ci.historical_launch_qualification import (  # noqa: E402
     assert_historical_installed_launch_contract,
-    wait_for_historical_main_shell,
 )
 from tools.ci.historical_release_contract import (  # noqa: E402
-    UV_EXCLUDE_NEWER_ENV,
+    MANAGED_COMFY_OUTPUT_LOG_ENV,
     historical_install_environment,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError  # noqa: E402
 from tools.ci.installer_ui_qualification import (  # noqa: E402
+    InstalledCandidateLaunch,
+    InstallerQualificationEvidence,
     assert_installed_version,
     available_loopback_port,
     launch_installed_candidate,
     prepare_qualification_evidence,
     run_current_installer_ui,
-    terminate_verified_process,
     verify_main_shell_evidence,
 )
 from tools.ci.local_release_server import LocalReleaseServer  # noqa: E402
-from tools.ci.managed_comfy_qualification import (  # noqa: E402
-    assert_real_managed_comfy,
-    terminate_owned_managed_comfy,
-)
+from tools.ci.managed_comfy_qualification import terminate_owned_managed_comfy  # noqa: E402
 from tools.ci.standalone_artifact_cache import (  # noqa: E402
     qualification_standalone_artifact_cache,
 )
@@ -190,42 +187,43 @@ def verify_upgrade(
     historical_release_root: Path | None = None,
     timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
 ) -> None:
-    """Install one historical release, update it, and prove candidate readiness."""
+    """Install history and reach the candidate shell through one launch action."""
 
     _require_empty_install_root(install_root)
     qualification_deadline = time.monotonic() + timeout_seconds
     historical_port = available_loopback_port()
     managed_workspace = install_root.resolve() / "comfyui"
     managed_model_root = install_root.resolve() / "qualified-models"
-    with _candidate_release_source(
-        release_root=historical_release_root,
-        manifest_url=historical_manifest_url,
-        certificate_root=install_root.parent / ".historical-certificate",
-    ) as historical_source:
-        if historical_source.manifest_url is None:
-            raise InstallerLifecycleError("Historical install source is missing.")
-        historical_environment = historical_install_environment(
-            os.environ,
-            published_at=historical_published_at,
+    if os.name == "nt":
+        _verify_windows_upgrade_chain(
+            historical_installer_path=historical_installer_path,
             install_root=install_root,
+            historical_manifest_url=historical_manifest_url,
+            historical_version=historical_version,
+            historical_published_at=historical_published_at,
+            historical_release_root=historical_release_root,
+            candidate_manifest_url=candidate_manifest_url,
+            candidate_version=candidate_version,
+            candidate_release_root=candidate_release_root,
+            endpoint_port=historical_port,
+            managed_workspace=managed_workspace,
+            managed_model_root=managed_model_root,
+            qualification_deadline=qualification_deadline,
         )
-        _trust_candidate_source(historical_environment, historical_source)
-        if os.name == "nt":
-            _complete_windows_historical_install(
-                installer_path=historical_installer_path,
+    else:
+        with _candidate_release_source(
+            release_root=historical_release_root,
+            manifest_url=historical_manifest_url,
+            certificate_root=install_root.parent / ".historical-certificate",
+        ) as historical_source:
+            if historical_source.manifest_url is None:
+                raise InstallerLifecycleError("Historical install source is missing.")
+            historical_environment = historical_install_environment(
+                os.environ,
+                published_at=historical_published_at,
                 install_root=install_root,
-                manifest_url=historical_source.manifest_url,
-                historical_version=historical_version,
-                endpoint_port=historical_port,
-                managed_workspace=managed_workspace,
-                managed_model_root=managed_model_root,
-                environment=historical_environment,
-                timeout_seconds=_remaining_qualification_timeout(
-                    qualification_deadline,
-                    phase="historical Windows install",
-                ),
             )
-        else:
+            _trust_candidate_source(historical_environment, historical_source)
             prepare_portable_historical_install(
                 installer_path=historical_installer_path,
                 install_root=install_root,
@@ -242,150 +240,153 @@ def verify_upgrade(
             )
             assert_installed_version(install_root, historical_version)
             assert_historical_installed_launch_contract(install_root)
-            historical_launch_environment = dict(historical_environment)
-            historical_launch_environment.pop(UV_EXCLUDE_NEWER_ENV, None)
-            _complete_portable_historical_launch(
-                install_root=install_root,
-                historical_version=historical_version,
-                endpoint_port=historical_port,
-                managed_workspace=managed_workspace,
-                managed_model_root=managed_model_root,
-                environment=historical_launch_environment,
-                progress_path=historical_source.request_log_path,
-                timeout_seconds=_remaining_qualification_timeout(
-                    qualification_deadline,
-                    phase="historical portable splash and main shell",
-                ),
-            )
-    preservation_marker = seed_historical_user_configuration(
-        install_root=install_root,
-        historical_version=historical_version,
-        managed_workspace=managed_workspace,
-        managed_model_root=managed_model_root,
-    )
-    _activate_and_verify_candidate_update(
-        install_root=install_root,
-        historical_version=historical_version,
-        candidate_version=candidate_version,
-        candidate_manifest_url=candidate_manifest_url,
-        candidate_release_root=candidate_release_root,
-        endpoint_port=historical_port,
-        managed_workspace=managed_workspace,
-        managed_model_root=managed_model_root,
-        preservation_marker=preservation_marker,
-        timeout_seconds=_remaining_qualification_timeout(
-            qualification_deadline,
-            phase="candidate update and readiness",
-        ),
-    )
+        preservation_marker = seed_historical_user_configuration(
+            install_root=install_root,
+            historical_version=historical_version,
+            managed_workspace=managed_workspace,
+            managed_model_root=managed_model_root,
+        )
+        _verify_portable_candidate_update(
+            install_root=install_root,
+            historical_version=historical_version,
+            candidate_version=candidate_version,
+            candidate_manifest_url=candidate_manifest_url,
+            candidate_release_root=candidate_release_root,
+            endpoint_port=historical_port,
+            managed_workspace=managed_workspace,
+            managed_model_root=managed_model_root,
+            preservation_marker=preservation_marker,
+            timeout_seconds=_remaining_qualification_timeout(
+                qualification_deadline,
+                phase="candidate update and readiness",
+            ),
+        )
     print(
         f"INSTALLER_UPGRADE_READY from={historical_version} to={candidate_version}",
         flush=True,
     )
 
 
-def _complete_windows_historical_install(
+def _verify_windows_upgrade_chain(
     *,
-    installer_path: Path,
+    historical_installer_path: Path,
     install_root: Path,
-    manifest_url: str,
+    historical_manifest_url: str,
     historical_version: str,
+    historical_published_at: str,
+    historical_release_root: Path | None,
+    candidate_manifest_url: str | None,
+    candidate_version: str,
+    candidate_release_root: Path | None,
     endpoint_port: int,
     managed_workspace: Path,
     managed_model_root: Path,
-    environment: dict[str, str],
-    timeout_seconds: float,
+    qualification_deadline: float,
 ) -> None:
-    """Drive Windows historical setup through Open Substitute and real shell."""
+    """Use the historical Open action to update and reveal the candidate shell."""
 
-    main_pid = drive_windows_installer(
-        installer_path=installer_path,
-        install_root=install_root,
-        manifest_url=manifest_url,
-        timeout_seconds=timeout_seconds,
-        managed_workspace_path=managed_workspace,
-        managed_model_root=managed_model_root,
-        endpoint_host="127.0.0.1",
-        endpoint_port=endpoint_port,
-        environment=environment,
-    )
-    try:
-        assert_installed_version(install_root, historical_version)
-        assert_real_managed_comfy(
-            install_root=install_root,
-            plan=_managed_plan(
+    with _candidate_release_source(
+        release_root=historical_release_root,
+        manifest_url=historical_manifest_url,
+        certificate_root=install_root.parent / ".historical-certificate",
+    ) as historical_source:
+        if historical_source.manifest_url is None:
+            raise InstallerLifecycleError("Historical install source is missing.")
+        with _candidate_release_source(
+            release_root=candidate_release_root,
+            manifest_url=candidate_manifest_url,
+            certificate_root=install_root.parent / ".candidate-certificate",
+        ) as candidate_source:
+            candidate_source_manifest_url = candidate_source.manifest_url
+            if candidate_source_manifest_url is None:
+                raise InstallerLifecycleError("Candidate update source is missing.")
+            evidence = prepare_qualification_evidence(
                 install_root=install_root,
-                version=historical_version,
+                expected_version=candidate_version,
                 endpoint_port=endpoint_port,
-                managed_workspace=managed_workspace,
-                managed_model_root=managed_model_root,
-            ),
-            require_current_nodepack_versions=False,
-            require_governed_setup_record=False,
-        )
-        print(
-            "HISTORICAL_INSTALLER_MAIN_READY "
-            f"version={historical_version} main_pid={main_pid}",
-            flush=True,
-        )
-    finally:
-        terminate_verified_process(main_pid)
-
-
-def _complete_portable_historical_launch(
-    *,
-    install_root: Path,
-    historical_version: str,
-    endpoint_port: int,
-    managed_workspace: Path,
-    managed_model_root: Path,
-    environment: dict[str, str],
-    progress_path: Path | None,
-    timeout_seconds: float,
-) -> None:
-    """Launch portable history normally and require its live real main shell."""
-
-    layout = InstallLayout.from_root(install_root)
-    trace_path = layout.appdata_dir / "diagnostics" / "logs" / "startup-trace.jsonl"
-    trace_path.unlink(missing_ok=True)
-    launch = launch_installed_candidate(
-        install_root=install_root,
-        environment=environment,
-        progress_paths=(progress_path,),
-    )
-    main_pid: int | None = None
-    try:
-        main_pid = wait_for_historical_main_shell(
-            install_root=install_root,
-            launch=launch,
-            timeout_seconds=timeout_seconds,
-        )
-        assert_real_managed_comfy(
-            install_root=install_root,
-            plan=_managed_plan(
+                phase=f"upgrade-{historical_version}",
+                timeout_seconds=_remaining_qualification_timeout(
+                    qualification_deadline,
+                    phase="candidate qualification setup",
+                ),
+            )
+            install_environment = historical_install_environment(
+                evidence.environment,
+                published_at=historical_published_at,
                 install_root=install_root,
-                version=historical_version,
-                endpoint_port=endpoint_port,
-                managed_workspace=managed_workspace,
-                managed_model_root=managed_model_root,
-            ),
-            require_current_nodepack_versions=False,
-            require_governed_setup_record=False,
-        )
-        print(
-            "HISTORICAL_INSTALLER_MAIN_READY "
-            f"version={historical_version} main_pid={main_pid}",
-            flush=True,
-        )
-    finally:
-        if main_pid is not None:
-            terminate_verified_process(main_pid)
-        if launch.process.poll() is None:
-            terminate_verified_process(launch.process.pid)
-        terminate_owned_managed_comfy(install_root)
+            )
+            install_environment[MANAGED_COMFY_OUTPUT_LOG_ENV] = evidence.environment[
+                MANAGED_COMFY_OUTPUT_LOG_ENV
+            ]
+            install_environment.pop(INSTALLER_QUALIFICATION_PLAN_ENV, None)
+            _trust_release_sources(
+                install_environment,
+                sources=(historical_source, candidate_source),
+                combined_path=install_root.parent / ".upgrade-certificates.pem",
+            )
+            preservation_marker: Path | None = None
+
+            def activate_candidate_before_open() -> None:
+                """Bind completed historical state to the candidate before Open."""
+
+                nonlocal preservation_marker
+                assert_installed_version(install_root, historical_version)
+                assert_historical_installed_launch_contract(install_root)
+                preservation_marker = seed_historical_user_configuration(
+                    install_root=install_root,
+                    historical_version=historical_version,
+                    managed_workspace=managed_workspace,
+                    managed_model_root=managed_model_root,
+                )
+                set_update_manifest(install_root, candidate_source_manifest_url)
+
+            try:
+                main_pid = drive_windows_installer(
+                    installer_path=historical_installer_path,
+                    install_root=install_root,
+                    manifest_url=historical_source.manifest_url,
+                    timeout_seconds=_remaining_qualification_timeout(
+                        qualification_deadline,
+                        phase="historical Windows install and candidate launch",
+                    ),
+                    managed_workspace_path=managed_workspace,
+                    managed_model_root=managed_model_root,
+                    endpoint_host="127.0.0.1",
+                    endpoint_port=endpoint_port,
+                    environment=install_environment,
+                    before_open_substitute=activate_candidate_before_open,
+                )
+                if preservation_marker is None:
+                    raise InstallerLifecycleError(
+                        "Historical Open action bypassed candidate activation."
+                    )
+                _verify_candidate_evidence(
+                    install_root=install_root,
+                    historical_version=historical_version,
+                    candidate_version=candidate_version,
+                    evidence=evidence,
+                    candidate_launch=None,
+                    expected_main_pid=main_pid,
+                    candidate_source=candidate_source,
+                    managed_workspace=managed_workspace,
+                    managed_model_root=managed_model_root,
+                    preservation_marker=preservation_marker,
+                    timeout_seconds=_remaining_qualification_timeout(
+                        qualification_deadline,
+                        phase="candidate main-shell readiness",
+                    ),
+                )
+                print(
+                    "HISTORICAL_INSTALLER_OPEN_READY "
+                    f"from={historical_version} to={candidate_version} "
+                    f"main_pid={main_pid}",
+                    flush=True,
+                )
+            finally:
+                terminate_owned_managed_comfy(install_root)
 
 
-def _activate_and_verify_candidate_update(
+def _verify_portable_candidate_update(
     *,
     install_root: Path,
     historical_version: str,
@@ -398,7 +399,7 @@ def _activate_and_verify_candidate_update(
     preservation_marker: Path,
     timeout_seconds: float,
 ) -> None:
-    """Run the installed updater and require the candidate's real main shell."""
+    """Launch once after candidate activation and require the real main shell."""
 
     qualification_deadline = time.monotonic() + timeout_seconds
     with _candidate_release_source(
@@ -408,7 +409,6 @@ def _activate_and_verify_candidate_update(
     ) as candidate_source:
         if candidate_source.manifest_url is None:
             raise InstallerLifecycleError("Candidate update source is missing.")
-        set_update_manifest(install_root, candidate_source.manifest_url)
         try:
             evidence = prepare_qualification_evidence(
                 install_root=install_root,
@@ -421,53 +421,62 @@ def _activate_and_verify_candidate_update(
                 ),
             )
             _trust_candidate_source(evidence.environment, candidate_source)
+            set_update_manifest(install_root, candidate_source.manifest_url)
             candidate_launch = launch_installed_candidate(
                 install_root=install_root,
                 environment=evidence.environment,
                 progress_paths=(candidate_source.request_log_path,),
             )
-            verify_main_shell_evidence(
+            _verify_candidate_evidence(
                 install_root=install_root,
-                expected_version=candidate_version,
+                historical_version=historical_version,
+                candidate_version=candidate_version,
                 evidence=evidence,
-                required_qualification_events=(),
-                require_governed_setup_record=False,
                 candidate_launch=candidate_launch,
-                additional_diagnostic_paths=(candidate_source.request_log_path,),
+                candidate_source=candidate_source,
+                managed_workspace=managed_workspace,
+                managed_model_root=managed_model_root,
+                preservation_marker=preservation_marker,
                 timeout_seconds=_remaining_qualification_timeout(
                     qualification_deadline,
                     phase="candidate main-shell readiness",
                 ),
             )
-            assert_historical_user_configuration_preserved(
-                preservation_marker=preservation_marker,
-                historical_version=historical_version,
-                managed_workspace=managed_workspace,
-                managed_model_root=managed_model_root,
-            )
         finally:
             terminate_owned_managed_comfy(install_root)
 
 
-def _managed_plan(
+def _verify_candidate_evidence(
     *,
     install_root: Path,
-    version: str,
-    endpoint_port: int,
+    historical_version: str,
+    candidate_version: str,
+    evidence: InstallerQualificationEvidence,
+    candidate_launch: InstalledCandidateLaunch | None,
+    expected_main_pid: int | None = None,
+    candidate_source: _CandidateReleaseSource,
     managed_workspace: Path,
     managed_model_root: Path,
-) -> InstallerQualificationPlan:
-    """Describe one installed managed target for live qualification."""
+    preservation_marker: Path,
+    timeout_seconds: float,
+) -> None:
+    """Require candidate readiness and exact preservation of historical state."""
 
-    return InstallerQualificationPlan(
-        token=f"historical-{version}",
-        install_root=install_root.resolve(),
-        endpoint_host="127.0.0.1",
-        endpoint_port=endpoint_port,
-        event_log_path=install_root.resolve() / "historical-events.jsonl",
-        timeout_seconds=_INSTALL_TIMEOUT_SECONDS,
-        target_mode="managed_local",
-        managed_workspace_path=managed_workspace,
+    verify_main_shell_evidence(
+        install_root=install_root,
+        expected_version=candidate_version,
+        evidence=evidence,
+        required_qualification_events=(),
+        require_governed_setup_record=False,
+        candidate_launch=candidate_launch,
+        expected_main_pid=expected_main_pid,
+        additional_diagnostic_paths=(candidate_source.request_log_path,),
+        timeout_seconds=timeout_seconds,
+    )
+    assert_historical_user_configuration_preserved(
+        preservation_marker=preservation_marker,
+        historical_version=historical_version,
+        managed_workspace=managed_workspace,
         managed_model_root=managed_model_root,
     )
 
@@ -483,6 +492,42 @@ def _trust_candidate_source(
         environment[EXTRA_CA_FILE_ENV] = str(candidate_source.certificate_path)
         environment["UV_NATIVE_TLS"] = "1"
         environment["UV_SYSTEM_CERTS"] = "true"
+
+
+def _trust_release_sources(
+    environment: dict[str, str],
+    *,
+    sources: tuple[_CandidateReleaseSource, ...],
+    combined_path: Path,
+) -> None:
+    """Trust every temporary HTTPS source inherited by one continuous chain."""
+
+    certificates = tuple(
+        dict.fromkeys(
+            source.certificate_path
+            for source in sources
+            if source.certificate_path is not None
+        )
+    )
+    if not certificates:
+        return
+    if len(certificates) == 1:
+        trusted_path = certificates[0]
+    else:
+        combined_path.parent.mkdir(parents=True, exist_ok=True)
+        combined_path.write_text(
+            "\n".join(
+                certificate.read_text(encoding="utf-8").rstrip()
+                for certificate in certificates
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        trusted_path = combined_path
+    environment["SSL_CERT_FILE"] = str(trusted_path)
+    environment[EXTRA_CA_FILE_ENV] = str(trusted_path)
+    environment["UV_NATIVE_TLS"] = "1"
+    environment["UV_SYSTEM_CERTS"] = "true"
 
 
 def set_update_manifest(install_root: Path, manifest_url: str) -> None:
