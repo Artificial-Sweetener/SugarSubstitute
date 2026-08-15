@@ -297,7 +297,7 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
         PROJECT_ROOT / "tools" / "ci" / "historical_install_qualification.py"
     ).read_text(encoding="utf-8")
     assert "run_current_installer_ui" in lifecycle_text
-    assert "drive_windows_installer" in lifecycle_text
+    assert "install_candidate_over_historical_install" in lifecycle_text
     assert "INSTALLER_QUALIFICATION_PLAN_ENV" in ui_qualification_text
     current_installer_path = ui_qualification_text.split(
         "def run_current_installer_ui", maxsplit=1
@@ -316,6 +316,8 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
         "QT_QPA_PLATFORM: ${{ matrix.platform == 'macos' && 'cocoa' || 'offscreen' }}"
     ) in workflow_text
     assert '"--historical-release-root"' in workflow_text
+    assert '--candidate-installer "$env:CANDIDATE_INSTALLER"' in workflow_text
+    assert "CANDIDATE_INSTALLER=" in workflow_text
     assert "Build version-pinned historical Windows setup" not in workflow_text
     assert "SugarSubstitute-Local-Test-Installer" not in workflow_text
 

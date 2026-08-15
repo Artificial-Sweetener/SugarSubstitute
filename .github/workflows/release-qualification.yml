@@ -462,6 +462,25 @@ jobs:
           path: build/candidate
           run-id: ${{ inputs.candidate_run_id != '' && inputs.candidate_run_id || github.run_id }}
           github-token: ${{ github.token }}
+      - name: Resolve real candidate installer
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $asset = switch ("${{ matrix.platform }}") {
+            "windows" { "SugarSubstitute-$env:CANDIDATE_VERSION-Windows-x64-Setup.exe" }
+            "linux" { "SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage" }
+            "macos" { "SugarSubstitute-$env:CANDIDATE_VERSION-macOS-Apple-Silicon.dmg" }
+          }
+          $assetPath = (Resolve-Path (Join-Path build/candidate $asset)).Path
+          if ("${{ matrix.platform }}" -eq "linux") {
+            chmod +x $assetPath
+          }
+          if ("${{ matrix.platform }}" -eq "macos") {
+            New-Item -ItemType Directory -Force "${{ runner.temp }}/candidate-update-dmg" | Out-Null
+            hdiutil attach $assetPath -mountpoint "${{ runner.temp }}/candidate-update-dmg" -nobrowse
+            $assetPath = "${{ runner.temp }}/candidate-update-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
+          }
+          "CANDIDATE_INSTALLER=$assetPath" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Download real historical installer
         env:
           GH_TOKEN: ${{ github.token }}
@@ -529,6 +548,7 @@ jobs:
           }
           python tools/ci/verify_installer_lifecycle.py upgrade `
             --historical-installer "$env:HISTORICAL_INSTALLER" `
+            --candidate-installer "$env:CANDIDATE_INSTALLER" `
             --install-root "${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}" `
             --historical-manifest-url "https://github.com/${{ github.repository }}/releases/download/${{ matrix.history.tag }}/manifest.json" `
             @historicalSource `
@@ -563,6 +583,9 @@ jobs:
       - name: Unmount historical DMG
         if: always() && matrix.platform == 'macos'
         run: hdiutil detach "${{ runner.temp }}/historical-dmg" || true
+      - name: Unmount candidate DMG
+        if: always() && matrix.platform == 'macos'
+        run: hdiutil detach "${{ runner.temp }}/candidate-update-dmg" || true
 
   managed-comfy:
     name: Pinned managed Comfy qualification
