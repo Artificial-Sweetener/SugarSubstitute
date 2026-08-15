@@ -703,6 +703,11 @@ def test_stalled_process_diagnostics_expose_runtime_location(
 
             return ["/installed/SugarSubstitute"]
 
+        def cpu_times(self) -> tuple[float, float, float, float]:
+            """Return bounded CPU counters for the stalled process."""
+
+            return (1.0, 2.0, 0.0, 0.0)
+
         def cwd(self) -> str:
             """Return the intended installation root."""
 
@@ -717,6 +722,21 @@ def test_stalled_process_diagnostics_expose_runtime_location(
             """Return the frozen process name."""
 
             return "SugarSubstitute"
+
+        def memory_maps(self, *, grouped: bool) -> list[SimpleNamespace]:
+            """Return mappings that reveal whether Qt startup was reached."""
+
+            assert grouped is True
+            return [
+                SimpleNamespace(path="/installed/launcher-bin/libpython3.12.so"),
+                SimpleNamespace(path="/installed/launcher-bin/libQt6Core.so.6"),
+                SimpleNamespace(path="/usr/lib/libunrelated.so"),
+            ]
+
+        def num_threads(self) -> int:
+            """Return the frozen process thread count."""
+
+            return 2
 
         def open_files(self) -> list[SimpleNamespace]:
             """Return the launcher state file that identifies its chosen root."""
@@ -742,6 +762,11 @@ def test_stalled_process_diagnostics_expose_runtime_location(
 
     assert payload[0]["cwd"] == "/installed"
     assert payload[0]["open_files"] == ["/wrong-root/launcher/logs/launcher.log"]
+    assert payload[0]["mapped_runtime_paths"] == [
+        "/installed/launcher-bin/libQt6Core.so.6",
+        "/installed/launcher-bin/libpython3.12.so",
+    ]
+    assert payload[0]["num_threads"] == 2
 
 
 def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
@@ -1228,13 +1253,18 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
 
             if self.suffix == "OnboardingTargetCardRadio_managed_local":
                 values[self.suffix] = True
-            elif self.suffix == "ForceCpuModeCheckBox":
-                state["force_cpu"] = not state["force_cpu"]
             elif self.suffix == "OnboardingPrimaryButton":
                 if state["page"] == 6:
                     state["main"] = True
                 else:
                     state["page"] += 1
+
+        def toggle(self) -> None:
+            """Toggle only the checkbox through the production UIA pattern."""
+
+            if self.suffix != "ForceCpuModeCheckBox":
+                raise AssertionError("Only the checkbox exposes TogglePattern.")
+            state["force_cpu"] = not state["force_cpu"]
 
         def get_toggle_state(self) -> int:
             """Return the production UI Automation toggle state."""
