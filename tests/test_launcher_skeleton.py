@@ -632,6 +632,29 @@ def test_launcher_resolves_installed_root_from_native_process_image(
     assert startup_plan.installed_config_valid is True
 
 
+@pytest.mark.platforms("linux", "macos")
+def test_launcher_accepts_configured_runtime_python_symlink(tmp_path: Path) -> None:
+    """A POSIX venv Python symlink should retain its configured install identity."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    _write_launcher_executable(layout)
+    managed_python = tmp_path / "uv-managed-python" / "python"
+    managed_python.parent.mkdir(parents=True)
+    managed_python.write_text("", encoding="utf-8")
+    layout.runtime_python.parent.mkdir(parents=True)
+    layout.runtime_python.symlink_to(managed_python)
+
+    startup_plan = resolve_startup_plan(
+        explicit_install_root=None,
+        executable_path=layout.executable_path,
+    )
+
+    assert startup_plan.layout == layout
+    assert startup_plan.installed_config_found is True
+    assert startup_plan.installed_config_valid is True
+
+
 def test_launcher_records_token_bound_startup_route(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
