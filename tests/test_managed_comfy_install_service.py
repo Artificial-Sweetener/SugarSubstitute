@@ -1207,6 +1207,30 @@ def test_new_stable_workspace_uses_verified_standalone_environment(
 
     workspace_python = workspace_python_path(tmp_path)
     provisioned: list[StandaloneVariantId] = []
+    trace_events: list[str] = []
+
+    class _TraceSpan:
+        """Record deterministic new-workspace span entry and exit events."""
+
+        def __init__(self, name: str) -> None:
+            self._name = name
+
+        def __enter__(self) -> None:
+            trace_events.append(f"span:start:{self._name}")
+
+        def __exit__(self, *_exc: object) -> None:
+            trace_events.append(f"span:end:{self._name}")
+
+    monkeypatch.setattr(
+        managed_install,
+        "trace_mark",
+        lambda event, **_fields: trace_events.append(f"mark:{event}"),
+    )
+    monkeypatch.setattr(
+        managed_install,
+        "trace_span",
+        lambda event, **_fields: _TraceSpan(event),
+    )
     strategy = SimpleNamespace(
         target=SimpleNamespace(value="windows_nvidia"),
         python_runtime=SimpleNamespace(
@@ -1275,6 +1299,38 @@ def test_new_stable_workspace_uses_verified_standalone_environment(
 
     assert result == workspace_python
     assert provisioned == [StandaloneVariantId.WINDOWS_NVIDIA]
+    assert trace_events == [
+        "span:start:managed_setup.scratch.create",
+        "span:end:managed_setup.scratch.create",
+        "mark:managed_setup.detect_hardware.start",
+        "span:start:managed_setup.detect_hardware",
+        "span:end:managed_setup.detect_hardware",
+        "span:start:managed_setup.select_install_strategy",
+        "span:end:managed_setup.select_install_strategy",
+        "mark:managed_setup.standalone_workspace.start",
+        "span:start:managed_setup.standalone_workspace",
+        "span:end:managed_setup.standalone_workspace",
+        "mark:managed_setup.manager.start",
+        "span:start:managed_setup.manager",
+        "span:end:managed_setup.manager",
+        "mark:managed_setup.nodepacks.start",
+        "span:start:managed_setup.nodepacks",
+        "span:end:managed_setup.nodepacks",
+        "mark:managed_setup.sugarcubes_baseline.start",
+        "span:start:managed_setup.sugarcubes_baseline",
+        "span:end:managed_setup.sugarcubes_baseline",
+        "mark:managed_setup.torch_validation.start",
+        "span:start:managed_setup.torch_validation",
+        "span:end:managed_setup.torch_validation",
+        "mark:managed_setup.acceleration.start",
+        "span:start:managed_setup.acceleration",
+        "span:end:managed_setup.acceleration",
+        "mark:managed_setup.freshness_receipt.start",
+        "span:start:managed_setup.freshness_receipt",
+        "span:end:managed_setup.freshness_receipt",
+        "span:start:managed_setup.scratch.cleanup",
+        "span:end:managed_setup.scratch.cleanup",
+    ]
 
 
 def test_ensure_managed_comfy_setup_falls_back_to_stable_when_nightly_validation_fails(

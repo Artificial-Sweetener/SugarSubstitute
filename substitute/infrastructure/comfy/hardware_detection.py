@@ -30,8 +30,19 @@ from substitute.infrastructure.comfy.hardware_models import (
 from substitute.infrastructure.comfy.hardware_windows import detect_windows_hardware
 
 
-def detect_hardware() -> HardwareDetectionResult:
-    """Return normalized hardware detection for the current platform."""
+def detect_hardware(*, force_cpu: bool = False) -> HardwareDetectionResult:
+    """Return normalized hardware detection for the current runtime policy."""
+
+    if force_cpu:
+        return HardwareDetectionResult(
+            platform=_current_platform(),
+            adapters=(),
+            tooling=HardwareToolingAvailability(
+                nvidia_smi=False,
+                amd_tooling=False,
+                intel_xpu_tooling=False,
+            ),
+        )
 
     if sys.platform.startswith("win"):
         return detect_windows_hardware()
@@ -40,9 +51,7 @@ def detect_hardware() -> HardwareDetectionResult:
     if sys.platform == "darwin":
         return detect_macos_hardware()
     return HardwareDetectionResult(
-        platform=ManagedPlatform.WINDOWS
-        if sys.platform.startswith("cygwin")
-        else ManagedPlatform.LINUX,
+        platform=_current_platform(),
         adapters=(),
         tooling=HardwareToolingAvailability(
             nvidia_smi=False,
@@ -50,6 +59,16 @@ def detect_hardware() -> HardwareDetectionResult:
             intel_xpu_tooling=False,
         ),
     )
+
+
+def _current_platform() -> ManagedPlatform:
+    """Map the current interpreter platform to managed-install policy."""
+
+    if sys.platform.startswith(("win", "cygwin")):
+        return ManagedPlatform.WINDOWS
+    if sys.platform == "darwin":
+        return ManagedPlatform.MACOS
+    return ManagedPlatform.LINUX
 
 
 __all__ = ["detect_hardware"]

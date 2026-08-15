@@ -89,7 +89,7 @@ from substitute.infrastructure.comfy.managed_validation import (
     workspace_python_path,
 )
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
-from substitute.shared.startup_trace import trace_span
+from substitute.shared.startup_trace import trace_mark, trace_span
 
 _LOGGER = get_logger("infrastructure.comfy.managed_install")
 StatusCallback = Callable[[str], None]
@@ -213,8 +213,11 @@ def _ensure_managed_comfy_setup(
         finally:
             setup_cache.close()
 
+    trace_mark("managed_setup.detect_hardware.start")
     with trace_span("managed_setup.detect_hardware"):
-        detection = detect_hardware()
+        detection = (
+            detect_hardware(force_cpu=True) if force_cpu_mode else detect_hardware()
+        )
     with trace_span("managed_setup.select_install_strategy"):
         strategy = select_install_strategy(
             detection=detection,
@@ -271,11 +274,13 @@ def _ensure_managed_comfy_setup(
                 on_status,
                 "Installing Comfy's verified standalone Python environment.",
             )
-            venv_python = provision_verified_standalone_workspace(
-                workspace,
-                variant=strategy.standalone_variant,
-                on_log=on_log,
-            )
+            trace_mark("managed_setup.standalone_workspace.start")
+            with trace_span("managed_setup.standalone_workspace"):
+                venv_python = provision_verified_standalone_workspace(
+                    workspace,
+                    variant=strategy.standalone_variant,
+                    on_log=on_log,
+                )
             resolved_backend = ResolvedTorchBackend(
                 backend_key=strategy.torch_policy.backend_key,
                 release_channel=strategy.torch_policy.release_channel,
@@ -286,48 +291,60 @@ def _ensure_managed_comfy_setup(
                 fallback_used=False,
             )
         else:
-            venv_python, resolved_backend = prepare_dynamic_workspace_environment(
-                workspace=workspace,
-                strategy=strategy,
-                force_install=force_install,
-                on_status=on_status,
+            trace_mark("managed_setup.dynamic_workspace.start")
+            with trace_span("managed_setup.dynamic_workspace"):
+                venv_python, resolved_backend = prepare_dynamic_workspace_environment(
+                    workspace=workspace,
+                    strategy=strategy,
+                    force_install=force_install,
+                    on_status=on_status,
+                    on_log=on_log,
+                    env=managed_env,
+                )
+        emit_status(on_status, "Provisioning ComfyUI-Manager.")
+        trace_mark("managed_setup.manager.start")
+        with trace_span("managed_setup.manager"):
+            ensure_managed_workspace_manager(
+                workspace,
                 on_log=on_log,
                 env=managed_env,
             )
-        emit_status(on_status, "Provisioning ComfyUI-Manager.")
-        ensure_managed_workspace_manager(
-            workspace,
-            on_log=on_log,
-            env=managed_env,
-        )
         emit_status(on_status, "Installing Substitute Comfy nodepacks.")
-        ensure_core_comfy_nodepacks(
-            workspace,
-            refresh_nodepacks=refresh_core_nodepacks,
-            on_log=on_log,
-            env=managed_env,
-        )
+        trace_mark("managed_setup.nodepacks.start")
+        with trace_span("managed_setup.nodepacks"):
+            ensure_core_comfy_nodepacks(
+                workspace,
+                refresh_nodepacks=refresh_core_nodepacks,
+                on_log=on_log,
+                env=managed_env,
+            )
         if configure_model_root:
-            configure_backend_model_root(
+            trace_mark("managed_setup.model_root.start")
+            with trace_span("managed_setup.model_root"):
+                configure_backend_model_root(
+                    workspace=workspace,
+                    python_executable=venv_python,
+                    model_root=managed_model_root,
+                )
+        emit_status(on_status, "Preparing Base-Cubes dependencies.")
+        trace_mark("managed_setup.sugarcubes_baseline.start")
+        with trace_span("managed_setup.sugarcubes_baseline"):
+            attempt_sugarcubes_startup_maintenance(
+                workspace,
+                on_log=on_log,
+                env=managed_env,
+            )
+        emit_status(on_status, "Validating the managed ComfyUI environment.")
+        trace_mark("managed_setup.torch_validation.start")
+        with trace_span("managed_setup.torch_validation"):
+            resolved_backend, validation = validate_new_workspace_torch(
                 workspace=workspace,
                 python_executable=venv_python,
-                model_root=managed_model_root,
+                policy=strategy.torch_policy,
+                resolved_backend=resolved_backend,
+                on_log=on_log,
+                env=managed_env,
             )
-        emit_status(on_status, "Preparing Base-Cubes dependencies.")
-        attempt_sugarcubes_startup_maintenance(
-            workspace,
-            on_log=on_log,
-            env=managed_env,
-        )
-        emit_status(on_status, "Validating the managed ComfyUI environment.")
-        resolved_backend, validation = validate_new_workspace_torch(
-            workspace=workspace,
-            python_executable=venv_python,
-            policy=strategy.torch_policy,
-            resolved_backend=resolved_backend,
-            on_log=on_log,
-            env=managed_env,
-        )
         runtime_recorder.record_torch_resolution(
             backend_policy=resolved_backend.backend_key,
             torch_release_channel=resolved_backend.release_channel.value,
@@ -344,6 +361,7 @@ def _ensure_managed_comfy_setup(
         )
         if not validation.success:
             raise RuntimeError(validation.detail)
+        trace_mark("managed_setup.acceleration.start")
         with trace_span("managed_setup.acceleration"):
             reconcile_managed_acceleration_stack(
                 workspace=workspace,
@@ -354,20 +372,22 @@ def _ensure_managed_comfy_setup(
             )
         setup_cache = prepare_managed_setup_cache(workspace)
         try:
-            write_installed_setup_freshness(
-                record_path=setup_cache.record_path,
-                key=installed_setup_freshness_key(
-                    workspace=workspace,
-                    strategy=strategy,
-                ),
-                request=installed_setup_freshness_request(
-                    force_cpu_mode=force_cpu_mode,
-                    prefer_edge_torch=prefer_edge_torch,
-                    prefer_edge_comfy_channel=prefer_edge_comfy_channel,
-                ),
-                runtime_configuration=runtime_configuration,
-                validation=validation,
-            )
+            trace_mark("managed_setup.freshness_receipt.start")
+            with trace_span("managed_setup.freshness_receipt"):
+                write_installed_setup_freshness(
+                    record_path=setup_cache.record_path,
+                    key=installed_setup_freshness_key(
+                        workspace=workspace,
+                        strategy=strategy,
+                    ),
+                    request=installed_setup_freshness_request(
+                        force_cpu_mode=force_cpu_mode,
+                        prefer_edge_torch=prefer_edge_torch,
+                        prefer_edge_comfy_channel=prefer_edge_comfy_channel,
+                    ),
+                    runtime_configuration=runtime_configuration,
+                    validation=validation,
+                )
         finally:
             setup_cache.close()
         return venv_python
