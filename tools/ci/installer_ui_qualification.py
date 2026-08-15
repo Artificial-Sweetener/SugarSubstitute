@@ -105,7 +105,7 @@ def prepare_qualification_evidence(
         target_mode="managed_local",
         managed_workspace_path=resolved_root / "comfyui",
         managed_model_root=resolved_root / "qualified-models",
-        force_cpu_mode=sys.platform.startswith("linux"),
+        force_cpu_mode=sys.platform != "darwin",
     )
     environment = dict(os.environ)
     environment[READINESS_PATH_ENV] = str(readiness_path)
@@ -436,7 +436,8 @@ def _evidence_diagnostic_paths(
         layout.logs_dir / "launcher-update.log",
         layout.logs_dir / "app-startup.log",
         evidence.trace_path,
-        layout.appdata_dir / "diagnostics" / "logs" / "substitute.log",
+        layout.appdata_dir / "diagnostics" / "logs" / "sugarsubstitute.log",
+        layout.appdata_dir / "runtime_state" / "setup_transaction.json",
         layout.root / "managed-comfy-startup.log",
     ]
     if candidate_launch is not None:

@@ -61,6 +61,9 @@ from tools.ci.managed_comfy_qualification import (  # noqa: E402
     assert_real_managed_comfy,
     terminate_owned_managed_comfy,
 )
+from tools.ci.standalone_artifact_cache import (  # noqa: E402
+    qualification_standalone_artifact_cache,
+)
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
 _REQUIRED_INSTALLER_EVENTS = (
@@ -112,6 +115,7 @@ def verify_clean_install(
     install_root: Path,
     expected_version: str,
     candidate_release_root: Path | None = None,
+    managed_artifact_cache_root: Path | None = None,
     timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
 ) -> None:
     """Install and prove the completion button reveals the post-splash shell."""
@@ -119,42 +123,46 @@ def verify_clean_install(
     _require_empty_install_root(install_root)
     qualification_deadline = time.monotonic() + timeout_seconds
     endpoint_port = available_loopback_port()
-    with _candidate_release_source(
-        release_root=candidate_release_root,
-        manifest_url=None,
-        certificate_root=install_root.parent / ".candidate-certificate",
-    ) as candidate_source:
-        evidence = prepare_qualification_evidence(
-            install_root=install_root,
-            expected_version=expected_version,
-            endpoint_port=endpoint_port,
-            phase="clean",
-            timeout_seconds=timeout_seconds,
-        )
-        _trust_candidate_source(evidence.environment, candidate_source)
-        try:
-            run_current_installer_ui(
-                installer_path=installer_path,
-                install_root=install_root,
-                manifest_url=candidate_source.manifest_url,
-                environment=evidence.environment,
-                timeout_seconds=_remaining_qualification_timeout(
-                    qualification_deadline,
-                    phase="installer UI",
-                ),
-            )
-            verify_main_shell_evidence(
+    with qualification_standalone_artifact_cache(
+        install_root=install_root,
+        external_cache_root=managed_artifact_cache_root,
+    ):
+        with _candidate_release_source(
+            release_root=candidate_release_root,
+            manifest_url=None,
+            certificate_root=install_root.parent / ".candidate-certificate",
+        ) as candidate_source:
+            evidence = prepare_qualification_evidence(
                 install_root=install_root,
                 expected_version=expected_version,
-                evidence=evidence,
-                required_qualification_events=_REQUIRED_INSTALLER_EVENTS,
-                timeout_seconds=_remaining_qualification_timeout(
-                    qualification_deadline,
-                    phase="main-shell readiness",
-                ),
+                endpoint_port=endpoint_port,
+                phase="clean",
+                timeout_seconds=timeout_seconds,
             )
-        finally:
-            terminate_owned_managed_comfy(install_root)
+            _trust_candidate_source(evidence.environment, candidate_source)
+            try:
+                run_current_installer_ui(
+                    installer_path=installer_path,
+                    install_root=install_root,
+                    manifest_url=candidate_source.manifest_url,
+                    environment=evidence.environment,
+                    timeout_seconds=_remaining_qualification_timeout(
+                        qualification_deadline,
+                        phase="installer UI",
+                    ),
+                )
+                verify_main_shell_evidence(
+                    install_root=install_root,
+                    expected_version=expected_version,
+                    evidence=evidence,
+                    required_qualification_events=_REQUIRED_INSTALLER_EVENTS,
+                    timeout_seconds=_remaining_qualification_timeout(
+                        qualification_deadline,
+                        phase="main-shell readiness",
+                    ),
+                )
+            finally:
+                terminate_owned_managed_comfy(install_root)
     print(f"INSTALLER_CLEAN_READY version={expected_version}", flush=True)
 
 
@@ -422,6 +430,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     clean.add_argument("--install-root", type=Path, required=True)
     clean.add_argument("--expected-version", required=True)
     clean.add_argument("--candidate-release-root", type=Path)
+    clean.add_argument("--managed-artifact-cache-root", type=Path)
     clean.add_argument(
         "--timeout-seconds",
         type=_positive_timeout,
@@ -449,6 +458,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             install_root=args.install_root,
             expected_version=args.expected_version,
             candidate_release_root=args.candidate_release_root,
+            managed_artifact_cache_root=args.managed_artifact_cache_root,
             timeout_seconds=args.timeout_seconds,
         )
     else:
