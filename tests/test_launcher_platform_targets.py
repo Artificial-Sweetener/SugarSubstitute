@@ -35,6 +35,7 @@ from launcher.sugarsubstitute_launcher.platforms import (
     LINUX_X64,
     WINDOWS_X64,
     InstallerFormat,
+    LauncherTarget,
     UnsupportedLauncherPlatformError,
     detect_launcher_target,
 )
@@ -123,6 +124,31 @@ def test_linux_install_layout_uses_posix_runtime_paths(tmp_path: Path) -> None:
     assert default_install_root(target=LINUX_X64) == (
         Path.home() / ".local" / "share" / "SugarSubstitute"
     )
+
+
+@pytest.mark.parametrize("target", (LINUX_X64, MACOS_ARM64))
+def test_posix_target_resolves_install_root_from_frozen_support_path(
+    tmp_path: Path,
+    target: LauncherTarget,
+) -> None:
+    """PyInstaller support paths should recover the surrounding install root."""
+
+    install_root = tmp_path / target.key
+    support_path = install_root / target.support_relative_path
+    support_path.mkdir(parents=True)
+
+    assert target.install_root_for_support_path(support_path) == install_root.resolve()
+
+
+def test_macos_target_ignores_setup_bundle_support_path(tmp_path: Path) -> None:
+    """The setup app's support directory should remain a first-run invocation."""
+
+    setup_support_path = (
+        tmp_path / "SugarSubstitute Setup.app" / "Contents" / "Frameworks"
+    )
+    setup_support_path.mkdir(parents=True)
+
+    assert MACOS_ARM64.install_root_for_support_path(setup_support_path) is None
 
 
 def test_macos_target_resolves_install_root_outside_app_bundle(tmp_path: Path) -> None:

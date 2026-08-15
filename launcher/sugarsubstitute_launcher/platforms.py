@@ -101,6 +101,22 @@ class LauncherTarget:
         resolved_path = executable_path.expanduser().resolve()
         return resolved_path.parents[self.executable_install_root_parent]
 
+    def install_root_for_support_path(self, support_path: Path) -> Path | None:
+        """Resolve the install root when a frozen support path matches this target."""
+
+        resolved_support_path = support_path.expanduser().resolve()
+        support_parts = self.support_relative_path.parts
+        if len(resolved_support_path.parts) <= len(support_parts):
+            return None
+        install_root = resolved_support_path
+        for _part in support_parts:
+            install_root = install_root.parent
+        if (
+            install_root / self.support_relative_path
+        ).resolve() != resolved_support_path:
+            return None
+        return install_root
+
     def installer(self, installer_format: InstallerFormat) -> InstallerSpecification:
         """Return the native installer specification for one supported format."""
 

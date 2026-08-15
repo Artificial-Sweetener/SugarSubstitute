@@ -41,7 +41,7 @@ from launcher.sugarsubstitute_launcher.application.installation.release_source_p
 from launcher.sugarsubstitute_launcher.application.installation.workflow import (
     InstallationWorkflow,
 )
-from launcher.sugarsubstitute_launcher.app import (
+from launcher.sugarsubstitute_launcher.startup_plan import (
     is_installed_app_launchable,
     resolve_install_root,
     resolve_startup_plan,
@@ -504,6 +504,29 @@ def test_launcher_resolves_installed_exe_parent_as_install_root(
     assert resolved_root == layout.root
 
 
+def test_launcher_resolves_install_root_from_frozen_support_bundle(
+    tmp_path: Path,
+) -> None:
+    """A symlink-resolved frozen executable should retain its installed root."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    _write_launcher_executable(layout)
+    layout.launcher_support_path.mkdir(parents=True, exist_ok=True)
+    resolved_executable = layout.launcher_support_path / layout.executable_path.name
+    resolved_executable.write_text("", encoding="utf-8")
+
+    startup_plan = resolve_startup_plan(
+        explicit_install_root=None,
+        executable_path=resolved_executable,
+        frozen_support_path=layout.launcher_support_path,
+    )
+
+    assert startup_plan.layout == layout
+    assert startup_plan.installed_config_found is True
+    assert startup_plan.installed_config_valid is True
+
+
 def test_launcher_ignores_adjacent_app_without_launcher_config(
     tmp_path: Path,
 ) -> None:
@@ -784,6 +807,9 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     layout.app_entrypoint.write_text("", encoding="utf-8")
     layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
     layout.runtime_python.write_text("", encoding="utf-8")
+    layout.launcher_support_path.mkdir(parents=True, exist_ok=True)
+    resolved_executable = layout.launcher_support_path / layout.executable_path.name
+    resolved_executable.write_text("", encoding="utf-8")
     started_commands: list[list[str]] = []
     started_environments: list[dict[str, str]] = []
 
@@ -797,7 +823,14 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
         started_commands.append(list(command))
         started_environments.append(dict(environment))
 
-    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setattr(sys, "executable", str(resolved_executable))
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(
+        sys,
+        "_MEIPASS",
+        str(layout.launcher_support_path),
+        raising=False,
+    )
     monkeypatch.setenv(APPLICATION_LAUNCH_TOKEN_ENV, "inherited-poison-token")
     monkeypatch.setattr(
         launcher_app,
