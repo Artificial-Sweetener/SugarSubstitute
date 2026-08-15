@@ -95,7 +95,7 @@ def prepare_portable_historical_install(
     timeout_seconds: float,
     environment: dict[str, str] | None = None,
 ) -> None:
-    """Complete the native historical installer contract on Linux and macOS."""
+    """Complete the native historical installer contract without launching it."""
 
     command = [
         str(installer_path.resolve()),
@@ -131,7 +131,7 @@ def prepare_portable_historical_install(
     )
 
 
-def update_portable_historical_install(
+def install_candidate_over_historical_install(
     *,
     installer_path: Path,
     install_root: Path,
@@ -139,7 +139,7 @@ def update_portable_historical_install(
     timeout_seconds: float,
     environment: dict[str, str],
 ) -> None:
-    """Update one completed portable installation through its real installer."""
+    """Install candidate bytes over one completed historical installation."""
 
     command = [
         str(installer_path.resolve()),
@@ -160,7 +160,7 @@ def update_portable_historical_install(
     )
     if result.returncode != 0:
         raise InstallerLifecycleError(
-            f"Historical installer update exited with {result.returncode}.\n"
+            f"Candidate installer update exited with {result.returncode}.\n"
             f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
 
@@ -374,8 +374,8 @@ def _read_json(path: Path) -> dict[str, object]:
 
 __all__ = [
     "assert_historical_user_configuration_preserved",
+    "install_candidate_over_historical_install",
     "materialize_historical_managed_configuration",
     "prepare_portable_historical_install",
     "seed_historical_user_configuration",
-    "update_portable_historical_install",
 ]

@@ -52,9 +52,9 @@ from substitute.presentation.onboarding.installer_qualification import (
 from tools.ci.historical_install_qualification import (
     _prepare_qualified_existing_managed_workspace,
     assert_historical_user_configuration_preserved,
+    install_candidate_over_historical_install,
     prepare_portable_historical_install,
     seed_historical_user_configuration,
-    update_portable_historical_install,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci import installer_ui_qualification
@@ -74,7 +74,7 @@ from tools.ci.local_release_server import (
 )
 from tools.ci.verify_installer_lifecycle import (
     _parse_args,
-    _verify_portable_candidate_update,
+    _verify_candidate_installer_update,
 )
 from tools.ci.standalone_artifact_cache import (
     qualification_standalone_artifact_cache,
@@ -785,6 +785,8 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
             "upgrade",
             "--historical-installer",
             "historical-installer",
+            "--candidate-installer",
+            "candidate-installer",
             "--install-root",
             "installed",
             "--historical-manifest-url",
@@ -805,7 +807,7 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
     assert arguments.timeout_seconds == 1200.0
 
 
-def test_portable_update_installs_candidate_before_its_only_launch(
+def test_candidate_installer_updates_history_before_its_only_launch(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -835,9 +837,10 @@ def test_portable_update_installs_candidate_before_its_only_launch(
         timeout_seconds: float,
         environment: dict[str, str],
     ) -> None:
-        """Record the real historical-installer update boundary."""
+        """Record the real candidate-installer update boundary."""
 
-        del installer_path, timeout_seconds, environment
+        assert installer_path == candidate_installer
+        del timeout_seconds, environment
         payload = json.loads(
             InstallLayout.from_root(install_root).config_path.read_text(
                 encoding="utf-8"
@@ -874,7 +877,7 @@ def test_portable_update_installs_candidate_before_its_only_launch(
         events.append(("verify", "9999.0.109"))
 
     monkeypatch.setattr(
-        "tools.ci.verify_installer_lifecycle.update_portable_historical_install",
+        "tools.ci.verify_installer_lifecycle.install_candidate_over_historical_install",
         update_once,
     )
     monkeypatch.setattr(
@@ -899,8 +902,9 @@ def test_portable_update_installs_candidate_before_its_only_launch(
         lambda _install_root: None,
     )
 
-    _verify_portable_candidate_update(
-        historical_installer_path=tmp_path / "historical-installer",
+    candidate_installer = tmp_path / "candidate-installer"
+    _verify_candidate_installer_update(
+        candidate_installer_path=candidate_installer,
         install_root=install_root,
         historical_version="0.20.1",
         candidate_version="9999.0.109",
@@ -1134,11 +1138,11 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
     assert target["workspace_path"] == str(workspace)
 
 
-def test_portable_update_reuses_real_historical_installer(
+def test_update_uses_real_candidate_installer_over_historical_state(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Portable updates must execute the historical installer's real pipeline."""
+    """Updates must execute the candidate installer's real pipeline."""
 
     commands: list[list[str]] = []
 
@@ -1152,10 +1156,10 @@ def test_portable_update_reuses_real_historical_installer(
         "tools.ci.historical_install_qualification.subprocess.run",
         _run,
     )
-    installer = tmp_path / "historical-installer"
+    installer = tmp_path / "candidate-installer"
     install_root = tmp_path / "installed"
 
-    update_portable_historical_install(
+    install_candidate_over_historical_install(
         installer_path=installer,
         install_root=install_root,
         manifest_url="https://example.test/candidate/manifest.json",
