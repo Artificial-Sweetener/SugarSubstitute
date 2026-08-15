@@ -53,6 +53,7 @@ def resolve_install_root(
     executable_path: Path,
     frozen_support_path: Path | None = None,
     invocation_path: Path | None = None,
+    native_executable_path: Path | None = None,
     working_directory_path: Path | None = None,
 ) -> Path:
     """Resolve the launcher install root from flags, installed exe, or bundle."""
@@ -62,6 +63,7 @@ def resolve_install_root(
         executable_path=executable_path,
         frozen_support_path=frozen_support_path,
         invocation_path=invocation_path,
+        native_executable_path=native_executable_path,
         working_directory_path=working_directory_path,
     ).layout.root
 
@@ -72,6 +74,7 @@ def resolve_startup_plan(
     executable_path: Path,
     frozen_support_path: Path | None = None,
     invocation_path: Path | None = None,
+    native_executable_path: Path | None = None,
     working_directory_path: Path | None = None,
 ) -> LauncherStartupPlan:
     """Resolve setup, installed, or repair behavior from package-owned paths."""
@@ -86,11 +89,20 @@ def resolve_startup_plan(
     target = detect_launcher_target()
     candidate_roots: list[Path] = []
     installed_invocation = _matches_installed_executable(invocation_path, target)
+    installed_native_executable = _matches_installed_executable(
+        native_executable_path,
+        target,
+    )
     installed_executable = _matches_installed_executable(executable_path, target)
     if installed_invocation and invocation_path is not None:
         candidate_roots.append(target.install_root_for_invocation(invocation_path))
         candidate_roots.extend(_bounded_ancestor_roots(invocation_path))
-    if installed_invocation or installed_executable:
+    if installed_native_executable and native_executable_path is not None:
+        candidate_roots.append(
+            target.install_root_for_executable(native_executable_path)
+        )
+        candidate_roots.extend(_bounded_ancestor_roots(native_executable_path))
+    if installed_invocation or installed_native_executable or installed_executable:
         if frozen_support_path is not None:
             frozen_install_root = target.install_root_for_support_path(
                 frozen_support_path
