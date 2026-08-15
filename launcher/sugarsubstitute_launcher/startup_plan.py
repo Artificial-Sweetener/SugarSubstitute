@@ -27,8 +27,14 @@ from launcher.sugarsubstitute_launcher.install_layout import (
     InstallLayout,
     default_install_root,
 )
-from launcher.sugarsubstitute_launcher.platforms import detect_launcher_target
+from launcher.sugarsubstitute_launcher.platforms import (
+    LauncherTarget,
+    detect_launcher_target,
+)
 from sugarsubstitute_shared.windows_long_paths import operational_path
+
+
+_MAX_PACKAGED_ROOT_ANCESTORS = 6
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +53,7 @@ def resolve_install_root(
     executable_path: Path,
     frozen_support_path: Path | None = None,
     invocation_path: Path | None = None,
+    working_directory_path: Path | None = None,
 ) -> Path:
     """Resolve the launcher install root from flags, installed exe, or bundle."""
 
@@ -55,6 +62,7 @@ def resolve_install_root(
         executable_path=executable_path,
         frozen_support_path=frozen_support_path,
         invocation_path=invocation_path,
+        working_directory_path=working_directory_path,
     ).layout.root
 
 
@@ -64,6 +72,7 @@ def resolve_startup_plan(
     executable_path: Path,
     frozen_support_path: Path | None = None,
     invocation_path: Path | None = None,
+    working_directory_path: Path | None = None,
 ) -> LauncherStartupPlan:
     """Resolve setup, installed, or repair behavior from package-owned paths."""
 
@@ -76,14 +85,31 @@ def resolve_startup_plan(
 
     target = detect_launcher_target()
     candidate_roots: list[Path] = []
-    if invocation_path is not None:
+    installed_invocation = _matches_installed_executable(invocation_path, target)
+    installed_executable = _matches_installed_executable(executable_path, target)
+    if installed_invocation and invocation_path is not None:
         candidate_roots.append(target.install_root_for_invocation(invocation_path))
-    if frozen_support_path is not None:
-        frozen_install_root = target.install_root_for_support_path(frozen_support_path)
-        if frozen_install_root is not None:
-            candidate_roots.append(frozen_install_root)
-    executable_install_root = target.install_root_for_executable(executable_path)
-    candidate_roots.append(executable_install_root)
+        candidate_roots.extend(_bounded_ancestor_roots(invocation_path))
+    if installed_invocation or installed_executable:
+        if frozen_support_path is not None:
+            frozen_install_root = target.install_root_for_support_path(
+                frozen_support_path
+            )
+            if frozen_install_root is not None:
+                candidate_roots.append(frozen_install_root)
+            candidate_roots.extend(
+                _bounded_ancestor_roots(frozen_support_path, include_path=True)
+            )
+        executable_install_root = target.install_root_for_executable(executable_path)
+        candidate_roots.append(executable_install_root)
+        candidate_roots.extend(_bounded_ancestor_roots(executable_path))
+        if working_directory_path is not None:
+            candidate_roots.extend(
+                _bounded_ancestor_roots(
+                    working_directory_path,
+                    include_path=True,
+                )
+            )
 
     checked_roots: set[Path] = set()
     for candidate_root in candidate_roots:
@@ -99,6 +125,32 @@ def resolve_startup_plan(
         installed_config_found=False,
         installed_config_valid=True,
     )
+
+
+def _matches_installed_executable(
+    path: Path | None,
+    target: LauncherTarget,
+) -> bool:
+    """Return whether one runtime path names the installed launcher executable."""
+
+    if path is None:
+        return False
+    expected_name = target.executable_relative_path.name
+    return path.name.casefold() == expected_name.casefold()
+
+
+def _bounded_ancestor_roots(
+    path: Path,
+    *,
+    include_path: bool = False,
+) -> tuple[Path, ...]:
+    """Return nearby lexical roots without searching arbitrary parent trees."""
+
+    absolute_path = path.expanduser().absolute()
+    roots = list(absolute_path.parents[:_MAX_PACKAGED_ROOT_ANCESTORS])
+    if include_path:
+        roots.insert(0, absolute_path)
+    return tuple(roots)
 
 
 def _resolve_installed_config_plan(layout: InstallLayout) -> LauncherStartupPlan:
