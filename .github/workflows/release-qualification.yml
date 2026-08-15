@@ -188,7 +188,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
-          python tools/ci/resolve_upgrade_sources.py
+          python -m tools.ci.resolve_upgrade_sources
           --repository "${{ github.repository }}"
           --candidate-version "${{ env.CANDIDATE_VERSION }}"
           --selection "${{ inputs.upgrade_selection }}"
@@ -533,6 +533,7 @@ jobs:
             --historical-manifest-url "https://github.com/${{ github.repository }}/releases/download/${{ matrix.history.tag }}/manifest.json" `
             @historicalSource `
             --historical-version "${{ matrix.history.version }}" `
+            --historical-published-at "${{ matrix.history.published_at }}" `
             @candidateSource `
             --timeout-seconds "$env:QUALIFICATION_TIMEOUT_SECONDS" `
             --candidate-version "$env:CANDIDATE_VERSION"

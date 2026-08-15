@@ -23,11 +23,12 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
-import signal
 import socket
 import subprocess
 import sys
 import time
+
+import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import (
     InstallLayout,
@@ -50,7 +51,13 @@ from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
 _LAUNCH_PROGRESS_TIMEOUT_SECONDS = 120.0
 _MANAGED_COMFY_OUTPUT_LOG_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
-_TERMINAL_STARTUP_FAILURE_EVENTS = frozenset({"startup.managed.failure"})
+_TERMINAL_STARTUP_FAILURE_EVENTS = frozenset(
+    {
+        "startup.gui_task.failure",
+        "startup.managed.failure",
+    }
+)
+_PROCESS_TERMINATION_TIMEOUT_SECONDS = 10.0
 _REQUIRED_STARTUP_EVENTS = (
     "launch_splash.started",
     "launch_splash.closed",
@@ -402,10 +409,62 @@ def terminate_verified_process(pid: int) -> None:
                 + result.stderr.decode("utf-8", errors="replace")
             )
         return
+    _terminate_posix_process_tree(pid)
+
+
+def _terminate_posix_process_tree(pid: int) -> None:
+    """Stop and reap one verified POSIX process tree before the next launch."""
+
     try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
+        root = psutil.Process(pid)
+    except psutil.NoSuchProcess:
         return
+    except psutil.AccessDenied as error:
+        raise InstallerLifecycleError(
+            f"Could not inspect verified app process {pid} for cleanup."
+        ) from error
+
+    try:
+        processes = tuple(root.children(recursive=True)) + (root,)
+    except psutil.NoSuchProcess:
+        return
+    except psutil.AccessDenied as error:
+        raise InstallerLifecycleError(
+            f"Could not inspect children of verified app process {pid}."
+        ) from error
+
+    inaccessible: list[int] = []
+    for process in processes:
+        try:
+            process.terminate()
+        except psutil.NoSuchProcess:
+            continue
+        except psutil.AccessDenied:
+            inaccessible.append(process.pid)
+    _, alive = psutil.wait_procs(
+        processes,
+        timeout=_PROCESS_TERMINATION_TIMEOUT_SECONDS / 2,
+    )
+    for process in alive:
+        try:
+            process.kill()
+        except psutil.NoSuchProcess:
+            continue
+        except psutil.AccessDenied:
+            inaccessible.append(process.pid)
+    _, remaining = psutil.wait_procs(
+        alive,
+        timeout=_PROCESS_TERMINATION_TIMEOUT_SECONDS / 2,
+    )
+    if inaccessible or remaining:
+        unresolved = sorted(
+            set(inaccessible).union(process.pid for process in remaining)
+        )
+        raise InstallerLifecycleError(
+            "Could not terminate verified app process tree: "
+            + ", ".join(str(process_id) for process_id in unresolved)
+            + "."
+        )
 
 
 def diagnostic_tail(path: Path, *, maximum_lines: int = 80) -> str:
@@ -461,11 +520,15 @@ def _wait_for_readiness_receipt(
                 diagnostics = "\n\n".join(
                     f"{path}:\n{diagnostic_tail(path)}" for path in diagnostic_paths
                 )
+                process_diagnostics = _process_tree_diagnostics(
+                    candidate_launch.process.pid
+                )
                 raise InstallerLifecycleError(
                     "Installed launcher did not begin its configured update or "
                     "application handoff within 120 seconds. "
                     f"Launcher PID: {candidate_launch.process.pid}; "
-                    f"return code: {return_code}.\n{diagnostics}"
+                    f"return code: {return_code}.\n"
+                    f"process tree:\n{process_diagnostics}\n\n{diagnostics}"
                 )
         if trace_path is not None:
             trace_offset, terminal_event = _read_terminal_startup_failure(
@@ -577,6 +640,36 @@ def _candidate_launch_has_progress(launch: InstalledCandidateLaunch) -> bool:
         _path_signature(path) != baseline
         for path, baseline in launch.progress_baselines
     )
+
+
+def _process_tree_diagnostics(pid: int) -> str:
+    """Render bounded non-secret identity for one qualification process tree."""
+
+    try:
+        root = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        return f"<launcher process {pid} already exited>"
+    except psutil.AccessDenied:
+        return f"<launcher process {pid} could not be inspected>"
+    try:
+        processes = (root, *root.children(recursive=True))
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        processes = (root,)
+    records: list[dict[str, object]] = []
+    for process in processes:
+        try:
+            records.append(
+                {
+                    "exe": str(process.exe()),
+                    "name": str(process.name()),
+                    "pid": int(process.pid),
+                    "ppid": int(process.ppid()),
+                    "status": str(process.status()),
+                }
+            )
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            records.append({"pid": int(process.pid), "status": "unavailable"})
+    return json.dumps(records, indent=2, sort_keys=True)
 
 
 def _path_signature(path: Path) -> tuple[bool, int]:

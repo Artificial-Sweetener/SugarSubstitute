@@ -46,6 +46,13 @@ from tools.ci.historical_install_qualification import (  # noqa: E402
     prepare_portable_historical_install,
     seed_historical_user_configuration,
 )
+from tools.ci.historical_launch_qualification import (  # noqa: E402
+    wait_for_historical_main_shell,
+)
+from tools.ci.historical_release_contract import (  # noqa: E402
+    UV_EXCLUDE_NEWER_ENV,
+    historical_install_environment,
+)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError  # noqa: E402
 from tools.ci.installer_ui_qualification import (  # noqa: E402
     assert_installed_version,
@@ -175,6 +182,7 @@ def verify_upgrade(
     install_root: Path,
     historical_manifest_url: str,
     historical_version: str,
+    historical_published_at: str,
     candidate_manifest_url: str | None,
     candidate_version: str,
     candidate_release_root: Path | None = None,
@@ -195,7 +203,10 @@ def verify_upgrade(
     ) as historical_source:
         if historical_source.manifest_url is None:
             raise InstallerLifecycleError("Historical install source is missing.")
-        historical_environment = dict(os.environ)
+        historical_environment = historical_install_environment(
+            os.environ,
+            published_at=historical_published_at,
+        )
         _trust_candidate_source(historical_environment, historical_source)
         if os.name == "nt":
             _complete_windows_historical_install(
@@ -206,6 +217,7 @@ def verify_upgrade(
                 endpoint_port=historical_port,
                 managed_workspace=managed_workspace,
                 managed_model_root=managed_model_root,
+                environment=historical_environment,
                 timeout_seconds=_remaining_qualification_timeout(
                     qualification_deadline,
                     phase="historical Windows install",
@@ -227,6 +239,21 @@ def verify_upgrade(
                 environment=historical_environment,
             )
             assert_installed_version(install_root, historical_version)
+            historical_launch_environment = dict(historical_environment)
+            historical_launch_environment.pop(UV_EXCLUDE_NEWER_ENV, None)
+            _complete_portable_historical_launch(
+                install_root=install_root,
+                historical_version=historical_version,
+                endpoint_port=historical_port,
+                managed_workspace=managed_workspace,
+                managed_model_root=managed_model_root,
+                environment=historical_launch_environment,
+                progress_path=historical_source.request_log_path,
+                timeout_seconds=_remaining_qualification_timeout(
+                    qualification_deadline,
+                    phase="historical portable splash and main shell",
+                ),
+            )
     preservation_marker = seed_historical_user_configuration(
         install_root=install_root,
         historical_version=historical_version,
@@ -263,6 +290,7 @@ def _complete_windows_historical_install(
     endpoint_port: int,
     managed_workspace: Path,
     managed_model_root: Path,
+    environment: dict[str, str],
     timeout_seconds: float,
 ) -> None:
     """Drive Windows historical setup through Open Substitute and real shell."""
@@ -276,6 +304,7 @@ def _complete_windows_historical_install(
         managed_model_root=managed_model_root,
         endpoint_host="127.0.0.1",
         endpoint_port=endpoint_port,
+        environment=environment,
     )
     try:
         assert_installed_version(install_root, historical_version)
@@ -298,6 +327,59 @@ def _complete_windows_historical_install(
         )
     finally:
         terminate_verified_process(main_pid)
+
+
+def _complete_portable_historical_launch(
+    *,
+    install_root: Path,
+    historical_version: str,
+    endpoint_port: int,
+    managed_workspace: Path,
+    managed_model_root: Path,
+    environment: dict[str, str],
+    progress_path: Path | None,
+    timeout_seconds: float,
+) -> None:
+    """Launch portable history normally and require its live real main shell."""
+
+    layout = InstallLayout.from_root(install_root)
+    trace_path = layout.appdata_dir / "diagnostics" / "logs" / "startup-trace.jsonl"
+    trace_path.unlink(missing_ok=True)
+    launch = launch_installed_candidate(
+        install_root=install_root,
+        environment=environment,
+        progress_paths=(progress_path,),
+    )
+    main_pid: int | None = None
+    try:
+        main_pid = wait_for_historical_main_shell(
+            install_root=install_root,
+            launch=launch,
+            timeout_seconds=timeout_seconds,
+        )
+        assert_real_managed_comfy(
+            install_root=install_root,
+            plan=_managed_plan(
+                install_root=install_root,
+                version=historical_version,
+                endpoint_port=endpoint_port,
+                managed_workspace=managed_workspace,
+                managed_model_root=managed_model_root,
+            ),
+            require_current_nodepack_versions=False,
+            require_governed_setup_record=False,
+        )
+        print(
+            "HISTORICAL_INSTALLER_MAIN_READY "
+            f"version={historical_version} main_pid={main_pid}",
+            flush=True,
+        )
+    finally:
+        if main_pid is not None:
+            terminate_verified_process(main_pid)
+        if launch.process.poll() is None:
+            terminate_verified_process(launch.process.pid)
+        terminate_owned_managed_comfy(install_root)
 
 
 def _activate_and_verify_candidate_update(
@@ -471,6 +553,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     upgrade.add_argument("--historical-manifest-url", required=True)
     upgrade.add_argument("--historical-release-root", type=Path)
     upgrade.add_argument("--historical-version", required=True)
+    upgrade.add_argument("--historical-published-at", required=True)
     upgrade.add_argument("--candidate-manifest-url")
     upgrade.add_argument("--candidate-release-root", type=Path)
     upgrade.add_argument("--candidate-version", required=True)
@@ -501,6 +584,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             install_root=args.install_root,
             historical_manifest_url=args.historical_manifest_url,
             historical_version=args.historical_version,
+            historical_published_at=args.historical_published_at,
             historical_release_root=args.historical_release_root,
             candidate_manifest_url=args.candidate_manifest_url,
             candidate_version=args.candidate_version,

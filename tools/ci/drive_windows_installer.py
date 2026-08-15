@@ -151,6 +151,7 @@ def drive_windows_installer(
     managed_model_root: Path,
     endpoint_host: str,
     endpoint_port: int,
+    environment: dict[str, str] | None = None,
 ) -> int:
     """Complete installer and onboarding UI through the historical main shell."""
 
@@ -158,8 +159,8 @@ def drive_windows_installer(
         raise WindowsInstallerAutomationError(
             "Historical Windows installer automation requires Windows."
         )
-    environment = dict(os.environ)
-    environment.pop("QT_QPA_PLATFORM", None)
+    process_environment = dict(os.environ if environment is None else environment)
+    process_environment.pop("QT_QPA_PLATFORM", None)
     process = _launch_on_isolated_desktop(
         command=(
             str(installer_path.resolve()),
@@ -167,7 +168,7 @@ def drive_windows_installer(
             f"--manifest-url={manifest_url}",
         ),
         working_directory=installer_path.resolve().parent,
-        environment=environment,
+        environment=process_environment,
     )
     from pywinauto import Desktop  # type: ignore[import-untyped]
 

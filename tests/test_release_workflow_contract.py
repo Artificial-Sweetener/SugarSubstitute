@@ -276,7 +276,10 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
 
     assert "verify_installer_lifecycle.py clean" in workflow_text
     assert "verify_installer_lifecycle.py upgrade" in workflow_text
-    assert "resolve_upgrade_sources.py" in workflow_text
+    assert "python -m tools.ci.resolve_upgrade_sources" in workflow_text
+    assert '--historical-published-at "${{ matrix.history.published_at }}"' in (
+        workflow_text
+    )
     assert "Windows x64" in workflow_text
     assert "Linux x64" in workflow_text
     assert "macOS Apple Silicon" in workflow_text

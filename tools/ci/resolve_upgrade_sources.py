@@ -28,6 +28,11 @@ from pathlib import Path
 from typing import Literal
 from urllib.request import Request, urlopen
 
+from tools.ci.historical_release_contract import (
+    HistoricalReleaseContractError,
+    validated_published_at,
+)
+
 
 _CANARY_TAG = "v0.12.2"
 _RELEASE_COUNT = 3
@@ -51,7 +56,7 @@ def resolve_upgrade_sources(
     if not isinstance(payload, list):
         raise UpgradeSourceResolutionError("GitHub releases response must be a list.")
     candidate_tag = f"v{candidate_version}"
-    stable_tags: list[str] = []
+    stable_releases: dict[str, str] = {}
     for item in payload:
         if not isinstance(item, dict):
             raise UpgradeSourceResolutionError(
@@ -65,7 +70,11 @@ def resolve_upgrade_sources(
             and _SEMVER_TAG.fullmatch(tag)
             and tag != candidate_tag
         ):
-            stable_tags.append(tag)
+            try:
+                stable_releases[tag] = validated_published_at(item.get("published_at"))
+            except HistoricalReleaseContractError as error:
+                raise UpgradeSourceResolutionError(str(error)) from error
+    stable_tags = list(stable_releases)
     stable_tags.sort(key=_version_key, reverse=True)
     if selection == "latest-only":
         if not stable_tags:
@@ -74,6 +83,7 @@ def resolve_upgrade_sources(
             )
         return [
             {
+                "published_at": stable_releases[stable_tags[0]],
                 "tag": stable_tags[0],
                 "version": stable_tags[0].removeprefix("v"),
             }
@@ -84,9 +94,14 @@ def resolve_upgrade_sources(
             f"Expected at least {_RELEASE_COUNT} stable historical releases."
         )
     if _CANARY_TAG not in selected:
+        if _CANARY_TAG not in stable_releases:
+            raise UpgradeSourceResolutionError(
+                f"Fixed canary release {_CANARY_TAG} is missing from GitHub history."
+            )
         selected.append(_CANARY_TAG)
     return [
         {
+            "published_at": stable_releases[tag],
             "tag": tag,
             "version": tag.removeprefix("v"),
         }
