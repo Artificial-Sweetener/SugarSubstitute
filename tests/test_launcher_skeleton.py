@@ -86,6 +86,7 @@ from sugarsubstitute_shared.application_launch_guard import (
     APPLICATION_LAUNCH_TOKEN_ENV,
 )
 from sugarsubstitute_shared.installer_qualification import (
+    INSTALLER_QUALIFICATION_PLAN_ENV,
     InstallerQualificationPlan,
 )
 from sugarsubstitute_shared.startup_remote_access import (
@@ -602,6 +603,70 @@ def test_launcher_resolves_installed_root_from_validated_working_directory(
     assert startup_plan.layout == layout
     assert startup_plan.installed_config_found is True
     assert startup_plan.installed_config_valid is True
+
+
+def test_launcher_resolves_installed_root_from_native_process_image(
+    tmp_path: Path,
+) -> None:
+    """The OS-native process image should survive rewritten PyInstaller paths."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    _write_launcher_executable(layout)
+    unrelated_runtime = tmp_path / "runtime"
+    unrelated_runtime.mkdir()
+    runtime_executable = unrelated_runtime / layout.executable_path.name
+    runtime_executable.write_text("", encoding="utf-8")
+
+    startup_plan = resolve_startup_plan(
+        explicit_install_root=None,
+        executable_path=runtime_executable,
+        frozen_support_path=unrelated_runtime,
+        invocation_path=runtime_executable,
+        native_executable_path=layout.executable_path,
+        working_directory_path=tmp_path,
+    )
+
+    assert startup_plan.layout == layout
+    assert startup_plan.installed_config_found is True
+    assert startup_plan.installed_config_valid is True
+
+
+def test_launcher_records_token_bound_startup_route(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Release qualification should retain the packaged route decision."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    _write_launcher_executable(layout)
+    startup_plan = resolve_startup_plan(
+        explicit_install_root=None,
+        executable_path=layout.executable_path,
+    )
+    event_log_path = tmp_path / "qualification.jsonl"
+    qualification_plan = InstallerQualificationPlan(
+        token="route-token",
+        install_root=layout.root,
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        event_log_path=event_log_path,
+        timeout_seconds=30.0,
+    )
+    monkeypatch.setenv(
+        INSTALLER_QUALIFICATION_PLAN_ENV,
+        qualification_plan.to_json(),
+    )
+
+    launcher_app._record_qualification_startup_route(startup_plan)
+
+    event = json.loads(event_log_path.read_text(encoding="utf-8"))
+    assert event["event"] == "launcher.startup.resolved"
+    assert event["token"] == "route-token"
+    assert event["fields"]["installed_config_found"] is True
+    assert event["fields"]["installed_config_valid"] is True
+    assert event["fields"]["resolved_root"] == str(layout.root)
 
 
 def test_setup_executable_does_not_adopt_ancestor_install_config(

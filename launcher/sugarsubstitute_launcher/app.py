@@ -67,6 +67,7 @@ from launcher.sugarsubstitute_launcher.splash_session import (
     start_launcher_splash_session,
 )
 from launcher.sugarsubstitute_launcher.startup_plan import (
+    LauncherStartupPlan,
     resolve_startup_plan,
     should_launch_installed_app,
     should_show_repair,
@@ -75,6 +76,7 @@ from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
 from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
+from sugarsubstitute_shared.installer_qualification import InstallerQualificationPlan
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
 from sugarsubstitute_shared.localization import format_locale_argument
 
@@ -114,10 +116,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         executable_path=Path(sys.executable),
         frozen_support_path=_frozen_support_path(),
         invocation_path=_frozen_invocation_path(),
+        native_executable_path=_native_frozen_executable_path(),
         working_directory_path=Path.cwd(),
     )
     layout = startup_plan.layout
     configure_launcher_logging(layout=layout)
+    _record_qualification_startup_route(startup_plan)
     resolved_locale = resolve_launcher_locale(
         layout,
         locale_override=args.locale_override,
@@ -294,3 +298,43 @@ def _frozen_invocation_path() -> Path | None:
     if not bool(getattr(sys, "frozen", False)) or not sys.argv or not sys.argv[0]:
         return None
     return Path(sys.argv[0])
+
+
+def _native_frozen_executable_path() -> Path | None:
+    """Return Linux's kernel-owned path to the current packaged executable."""
+
+    if not bool(getattr(sys, "frozen", False)) or not sys.platform.startswith("linux"):
+        return None
+    try:
+        return Path("/proc/self/exe").resolve(strict=True)
+    except OSError:
+        return None
+
+
+def _record_qualification_startup_route(
+    startup_plan: LauncherStartupPlan,
+) -> None:
+    """Record packaged route evidence only for an authenticated CI chain."""
+
+    try:
+        plan = InstallerQualificationPlan.from_environment()
+    except ValueError as error:
+        _LOGGER.warning("Ignored invalid installer qualification plan: %s", error)
+        return
+    if plan is None:
+        return
+    try:
+        plan.record(
+            "launcher.startup.resolved",
+            config_error=startup_plan.config_error,
+            installed_config_found=startup_plan.installed_config_found,
+            installed_config_valid=startup_plan.installed_config_valid,
+            resolved_root=str(startup_plan.layout.root),
+            invocation_path=str(_frozen_invocation_path()),
+            native_executable_path=str(_native_frozen_executable_path()),
+            python_executable=sys.executable,
+            support_path=str(_frozen_support_path()),
+            working_directory=str(Path.cwd()),
+        )
+    except OSError as error:
+        _LOGGER.warning("Could not record launcher startup route: %s", error)
