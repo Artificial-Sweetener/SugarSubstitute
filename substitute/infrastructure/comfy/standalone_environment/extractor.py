@@ -32,6 +32,10 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
     StandaloneArtifactError,
     StandaloneEnvironmentRelease,
 )
+from substitute.infrastructure.comfy.standalone_environment.tar_extraction_process import (
+    NativeTarExtractionProcess,
+    TarExtractionProcess,
+)
 
 
 class StandaloneEnvironmentExtractor:
@@ -41,10 +45,12 @@ class StandaloneEnvironmentExtractor:
         self,
         *,
         seven_zip_process: SevenZipExtractionProcess | None = None,
+        tar_process: TarExtractionProcess | None = None,
     ) -> None:
-        """Store the process boundary used for CPU-bound 7z decompression."""
+        """Store native process boundaries used for archive materialization."""
 
         self._seven_zip_process = seven_zip_process or NativeSevenZipExtractionProcess()
+        self._tar_process = tar_process or NativeTarExtractionProcess()
 
     def extract(
         self,
@@ -79,10 +85,20 @@ class StandaloneEnvironmentExtractor:
         return destination
 
     def _extract_tar(self, archive_path: Path, destination: Path) -> None:
-        """Validate and extract a gzip-compressed tar in one streaming pass."""
+        """Validate in a stream, then materialize through native tar."""
 
-        with tarfile.open(archive_path, mode="r:gz") as archive:
-            archive.extractall(destination, filter=_validate_tar_member)
+        member_paths: set[PurePosixPath] = set()
+        link_paths: set[PurePosixPath] = set()
+        with tarfile.open(archive_path, mode="r|gz") as archive:
+            for member in archive:
+                member_path = _validate_tar_member(member)
+                _reject_link_path_traversal(
+                    member_path,
+                    member_paths=member_paths,
+                    link_paths=link_paths,
+                    is_link=member.issym() or member.islnk(),
+                )
+        self._tar_process.extract(archive_path, destination)
 
     def _extract_seven_zip(
         self,
@@ -124,8 +140,8 @@ class StandaloneEnvironmentExtractor:
             raise StandaloneArtifactError("A standalone archive part is missing.")
 
 
-def _validate_member_path(member_name: str) -> None:
-    """Reject absolute and parent-traversing archive member paths."""
+def _validate_member_path(member_name: str) -> PurePosixPath:
+    """Return a normalized safe relative archive member path."""
 
     normalized = member_name.replace("\\", "/")
     member_path = PurePosixPath(normalized)
@@ -137,22 +153,44 @@ def _validate_member_path(member_name: str) -> None:
         raise StandaloneArtifactError(
             f"Standalone archive contains a drive-qualified path: {member_name}"
         )
+    return PurePosixPath(*(part for part in member_path.parts if part not in {"", "."}))
 
 
 def _validate_tar_member(
     member: tarfile.TarInfo,
-    destination: str,
-) -> tarfile.TarInfo | None:
-    """Validate one tar member immediately before staged extraction."""
+) -> PurePosixPath:
+    """Return one safe tar member path for native materialization."""
 
-    _validate_member_path(member.name)
+    member_path = _validate_member_path(member.name)
     if member.isdev() or member.isfifo():
         raise StandaloneArtifactError(
             f"Standalone tar contains a special file: {member.name}"
         )
     if member.issym() or member.islnk():
         _validate_link_target(member.name, member.linkname)
-    return tarfile.data_filter(member, destination)
+    return member_path
+
+
+def _reject_link_path_traversal(
+    member_path: PurePosixPath,
+    *,
+    member_paths: set[PurePosixPath],
+    link_paths: set[PurePosixPath],
+    is_link: bool,
+) -> None:
+    """Reject archive members whose materialization could traverse a link."""
+
+    if any(parent in link_paths for parent in member_path.parents):
+        raise StandaloneArtifactError(
+            f"Standalone tar member traverses an archive link: {member_path}"
+        )
+    if is_link and any(member_path in path.parents for path in member_paths):
+        raise StandaloneArtifactError(
+            f"Standalone tar link replaces an existing member parent: {member_path}"
+        )
+    member_paths.add(member_path)
+    if is_link:
+        link_paths.add(member_path)
 
 
 def _validate_link_target(member_name: str, link_name: str) -> None:

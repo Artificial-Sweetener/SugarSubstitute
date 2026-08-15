@@ -34,6 +34,10 @@ from substitute.infrastructure.comfy.managed_process_probe import (
     ManagedListenerStatus,
     probe_managed_listener,
 )
+from substitute.infrastructure.comfy.managed_validation import (
+    workspace_main_path,
+    workspace_python_path,
+)
 from substitute.infrastructure.comfy.nodepack_reconciliation import (
     CORE_COMFY_NODEPACKS,
     core_nodepack_installed,
@@ -212,10 +216,10 @@ class FileSystemReadinessChecks:
     def managed_workspace_python_path(workspace: Path) -> Path:
         """Return the canonical managed-workspace Python path."""
 
-        return workspace / ".venv" / "Scripts" / "python.exe"
+        return workspace_python_path(workspace)
 
     @staticmethod
     def managed_workspace_main_path(workspace: Path) -> Path:
         """Return the canonical managed-workspace entrypoint path."""
 
-        return workspace / "main.py"
+        return workspace_main_path(workspace)
