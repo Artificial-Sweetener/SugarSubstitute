@@ -78,6 +78,7 @@ def prepare_qualification_evidence(
     expected_version: str,
     endpoint_port: int,
     phase: str,
+    timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
 ) -> InstallerQualificationEvidence:
     """Build inherited automation and readiness state for one continuous chain."""
 
@@ -100,7 +101,7 @@ def prepare_qualification_evidence(
         endpoint_host="127.0.0.1",
         endpoint_port=endpoint_port,
         event_log_path=event_log_path,
-        timeout_seconds=_INSTALL_TIMEOUT_SECONDS,
+        timeout_seconds=timeout_seconds,
         target_mode="managed_local",
         managed_workspace_path=resolved_root / "comfyui",
         managed_model_root=resolved_root / "qualified-models",
@@ -127,6 +128,7 @@ def run_current_installer_ui(
     install_root: Path,
     manifest_url: str | None,
     environment: dict[str, str],
+    timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
 ) -> None:
     """Launch packaged setup normally and let its real Install action run."""
 
@@ -136,17 +138,29 @@ def run_current_installer_ui(
     ]
     if manifest_url is not None:
         command.append(f"--manifest-url={manifest_url}")
-    result = subprocess.run(
-        command,
-        cwd=installer_path.resolve().parent,
-        env=environment,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=_INSTALL_TIMEOUT_SECONDS,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            cwd=installer_path.resolve().parent,
+            env=environment,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        diagnostics = _installer_failure_diagnostics(
+            install_root=install_root,
+            environment=environment,
+        )
+        raise InstallerLifecycleError(
+            f"Installer UI did not complete within {timeout_seconds:g} seconds.\n"
+            f"stdout:\n{_timeout_output(error.stdout)}\n"
+            f"stderr:\n{_timeout_output(error.stderr)}\n"
+            f"{diagnostics}"
+        ) from error
     if result.returncode != 0:
         diagnostics = _installer_failure_diagnostics(
             install_root=install_root,
@@ -207,6 +221,7 @@ def verify_main_shell_evidence(
     required_qualification_events: tuple[str, ...],
     require_governed_setup_record: bool = True,
     candidate_launch: InstalledCandidateLaunch | None = None,
+    timeout_seconds: float | None = None,
 ) -> None:
     """Require UI events, installed version, splash sequence, and main shell."""
 
@@ -215,7 +230,11 @@ def verify_main_shell_evidence(
         receipt = _wait_for_readiness_receipt(
             readiness_path=evidence.readiness_path,
             token=evidence.token,
-            timeout_seconds=evidence.plan.timeout_seconds,
+            timeout_seconds=(
+                evidence.plan.timeout_seconds
+                if timeout_seconds is None
+                else timeout_seconds
+            ),
             candidate_launch=candidate_launch,
             diagnostic_paths=_evidence_diagnostic_paths(
                 install_root=install_root,
@@ -339,6 +358,16 @@ def diagnostic_tail(path: Path, *, maximum_lines: int = 80) -> str:
     except OSError:
         return f"<missing diagnostics: {path}>"
     return "\n".join(lines[-maximum_lines:])
+
+
+def _timeout_output(output: bytes | str | None) -> str:
+    """Render bounded subprocess timeout output without losing byte diagnostics."""
+
+    if output is None:
+        return "<no output>"
+    if isinstance(output, bytes):
+        return output.decode("utf-8", errors="replace")
+    return output
 
 
 def _wait_for_readiness_receipt(

@@ -288,11 +288,13 @@ def test_current_qualification_launches_normal_installer_ui(
     """Candidate qualification must never invoke the headless install bypass."""
 
     captured_command: list[str] = []
+    captured_kwargs: dict[str, object] = {}
 
-    def _run(command: list[str], **_kwargs: object) -> object:
+    def _run(command: list[str], **kwargs: object) -> object:
         """Capture the packaged installer command and report success."""
 
         captured_command.extend(command)
+        captured_kwargs.update(kwargs)
         return type(
             "CompletedInstaller",
             (),
@@ -318,6 +320,51 @@ def test_current_qualification_launches_normal_installer_ui(
         f"--install-root={install_root.resolve()}",
     ]
     assert "--headless-install" not in captured_command
+    assert captured_kwargs["timeout"] == 3_600.0
+
+
+def test_timed_out_current_installer_reports_process_bound_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bounded setup timeout must report durable events before CI kills the job."""
+
+    evidence = prepare_qualification_evidence(
+        install_root=tmp_path / "installed",
+        expected_version="1.2.3",
+        endpoint_port=48188,
+        phase="clean",
+        timeout_seconds=900.0,
+    )
+    evidence.plan.record("onboarding.install.started", operation="managed_comfy")
+
+    def _timeout(command: list[str], **kwargs: object) -> object:
+        """Simulate setup exceeding the shared focused timeout."""
+
+        raise subprocess.TimeoutExpired(
+            command,
+            cast(float, kwargs["timeout"]),
+            output="partial setup output",
+        )
+
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification.subprocess.run",
+        _timeout,
+    )
+
+    with pytest.raises(InstallerLifecycleError) as captured:
+        run_current_installer_ui(
+            installer_path=tmp_path / "installer",
+            install_root=evidence.plan.install_root,
+            manifest_url="https://example.test/manifest.json",
+            environment=evidence.environment,
+            timeout_seconds=900.0,
+        )
+
+    message = str(captured.value)
+    assert "did not complete within 900 seconds" in message
+    assert "partial setup output" in message
+    assert "onboarding.install.started" in message
 
 
 def test_failed_current_installer_reports_process_bound_evidence(
@@ -437,6 +484,20 @@ def test_qualification_evidence_is_absolute_across_process_working_directories(
     assert plan.managed_workspace_path == (tmp_path / "installed" / "comfyui")
     assert plan.managed_model_root == (tmp_path / "installed" / "qualified-models")
     assert plan.force_cpu_mode is sys.platform.startswith("linux")
+
+
+def test_qualification_evidence_preserves_focused_timeout(tmp_path: Path) -> None:
+    """Focused diagnostics should carry their exact total chain timeout."""
+
+    evidence = prepare_qualification_evidence(
+        install_root=tmp_path / "installed",
+        expected_version="1.2.3",
+        endpoint_port=8188,
+        phase="clean",
+        timeout_seconds=900.0,
+    )
+
+    assert evidence.plan.timeout_seconds == 900.0
 
 
 def test_installed_candidate_launch_is_observed_without_capture_bound_wait(

@@ -25,6 +25,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 from collections.abc import Iterator, Sequence
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -111,10 +112,12 @@ def verify_clean_install(
     install_root: Path,
     expected_version: str,
     candidate_release_root: Path | None = None,
+    timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
 ) -> None:
     """Install and prove the completion button reveals the post-splash shell."""
 
     _require_empty_install_root(install_root)
+    qualification_deadline = time.monotonic() + timeout_seconds
     endpoint_port = available_loopback_port()
     with _candidate_release_source(
         release_root=candidate_release_root,
@@ -126,6 +129,7 @@ def verify_clean_install(
             expected_version=expected_version,
             endpoint_port=endpoint_port,
             phase="clean",
+            timeout_seconds=timeout_seconds,
         )
         _trust_candidate_source(evidence.environment, candidate_source)
         try:
@@ -134,12 +138,20 @@ def verify_clean_install(
                 install_root=install_root,
                 manifest_url=candidate_source.manifest_url,
                 environment=evidence.environment,
+                timeout_seconds=_remaining_qualification_timeout(
+                    qualification_deadline,
+                    phase="installer UI",
+                ),
             )
             verify_main_shell_evidence(
                 install_root=install_root,
                 expected_version=expected_version,
                 evidence=evidence,
                 required_qualification_events=_REQUIRED_INSTALLER_EVENTS,
+                timeout_seconds=_remaining_qualification_timeout(
+                    qualification_deadline,
+                    phase="main-shell readiness",
+                ),
             )
         finally:
             terminate_owned_managed_comfy(install_root)
@@ -377,6 +389,29 @@ def _require_empty_install_root(install_root: Path) -> None:
         )
 
 
+def _remaining_qualification_timeout(deadline: float, *, phase: str) -> float:
+    """Return the remaining shared installer-chain budget for one phase."""
+
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise InstallerLifecycleError(
+            f"Installer qualification exhausted its total timeout before {phase}."
+        )
+    return remaining
+
+
+def _positive_timeout(raw_value: str) -> float:
+    """Parse one positive qualification timeout for argparse."""
+
+    try:
+        timeout_seconds = float(raw_value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("Timeout must be a number.") from error
+    if timeout_seconds <= 0:
+        raise argparse.ArgumentTypeError("Timeout must be greater than zero.")
+    return timeout_seconds
+
+
 def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     """Parse clean-install or upgrade verification arguments."""
 
@@ -387,6 +422,11 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     clean.add_argument("--install-root", type=Path, required=True)
     clean.add_argument("--expected-version", required=True)
     clean.add_argument("--candidate-release-root", type=Path)
+    clean.add_argument(
+        "--timeout-seconds",
+        type=_positive_timeout,
+        default=_INSTALL_TIMEOUT_SECONDS,
+    )
     upgrade = subparsers.add_parser("upgrade")
     upgrade.add_argument("--historical-installer", type=Path, required=True)
     upgrade.add_argument("--install-root", type=Path, required=True)
@@ -409,6 +449,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             install_root=args.install_root,
             expected_version=args.expected_version,
             candidate_release_root=args.candidate_release_root,
+            timeout_seconds=args.timeout_seconds,
         )
     else:
         verify_upgrade(
