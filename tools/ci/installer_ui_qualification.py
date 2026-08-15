@@ -661,12 +661,22 @@ def process_tree_diagnostics(pid: int) -> str:
             opened_files = [
                 str(open_file.path) for open_file in process.open_files()[:20]
             ]
+            mapped_runtime_paths = sorted(
+                {
+                    str(memory_map.path)
+                    for memory_map in process.memory_maps(grouped=True)
+                    if _is_relevant_runtime_mapping(str(memory_map.path))
+                }
+            )[:60]
             records.append(
                 {
                     "cmdline": [str(argument) for argument in process.cmdline()],
+                    "cpu_times": [float(value) for value in process.cpu_times()[:4]],
                     "cwd": str(process.cwd()),
                     "exe": str(process.exe()),
+                    "mapped_runtime_paths": mapped_runtime_paths,
                     "name": str(process.name()),
+                    "num_threads": int(process.num_threads()),
                     "open_files": opened_files,
                     "pid": int(process.pid),
                     "ppid": int(process.ppid()),
@@ -676,6 +686,23 @@ def process_tree_diagnostics(pid: int) -> str:
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             records.append({"pid": int(process.pid), "status": "unavailable"})
     return json.dumps(records, indent=2, sort_keys=True)
+
+
+def _is_relevant_runtime_mapping(path: str) -> bool:
+    """Return whether one mapped file identifies the frozen startup subsystem."""
+
+    normalized = path.casefold()
+    return any(
+        marker in normalized
+        for marker in (
+            "python",
+            "pyside",
+            "qt6",
+            "libqt",
+            "ssl",
+            "truststore",
+        )
+    )
 
 
 def _path_signature(path: Path) -> tuple[bool, int]:

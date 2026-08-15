@@ -544,7 +544,12 @@ def _set_checkbox(window: Any, text: str, *, checked: bool) -> None:
             f"Historical checkbox does not expose toggle state: {text!r}."
         ) from error
     if current_state != checked:
-        control.invoke()
+        try:
+            control.toggle()
+        except (AttributeError, TypeError, ValueError) as error:
+            raise WindowsInstallerAutomationError(
+                f"Historical checkbox does not expose its Toggle pattern: {text!r}."
+            ) from error
     try:
         resulting_state = bool(control.get_toggle_state())
     except (AttributeError, TypeError, ValueError) as error:
