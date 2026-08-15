@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from tools.ci.historical_release_contract import (
@@ -37,10 +39,16 @@ def test_historical_install_environment_limits_only_the_historical_resolver() ->
     environment = historical_install_environment(
         source,
         published_at="2026-08-12T00:27:36Z",
+        install_root=Path("historical-install"),
     )
 
     assert environment == {
         "QUALIFICATION": "1",
+        "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG": str(
+            (
+                Path("historical-install") / "historical-managed-comfy-startup.log"
+            ).resolve()
+        ),
         "UV_EXCLUDE_NEWER": "2026-08-12T00:27:36Z",
     }
     assert source["UV_EXCLUDE_NEWER"] == "false"
@@ -56,4 +64,8 @@ def test_historical_install_environment_rejects_unsafe_cutoffs(
     """Qualification must not accept a missing, malformed, or timezone-free cutoff."""
 
     with pytest.raises(HistoricalReleaseContractError):
-        historical_install_environment({}, published_at=published_at)
+        historical_install_environment(
+            {},
+            published_at=published_at,
+            install_root=Path("historical-install"),
+        )

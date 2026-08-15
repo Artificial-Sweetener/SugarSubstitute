@@ -547,8 +547,13 @@ jobs:
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/readiness/**
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/diagnostics/logs/**
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/runtime_state/setup_transaction.json
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/runtime_state/managed_comfy_process.json
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/user/settings/**
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/managed-comfy-startup.log
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/historical-managed-comfy-startup.log
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/locks/application-launch.lock
+            ${{ runner.temp }}/.historical-certificate/requests.jsonl
+            ${{ runner.temp }}/.candidate-certificate/requests.jsonl
             ${{ runner.temp }}/.SugarSubstitute-${{ matrix.history.version }}-*-installer-qualification.jsonl
             build/historical-channel-reconstituted/historical-reconstitution.json
           if-no-files-found: warn

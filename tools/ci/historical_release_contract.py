@@ -20,9 +20,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
+from pathlib import Path
 
 
 UV_EXCLUDE_NEWER_ENV = "UV_EXCLUDE_NEWER"
+MANAGED_COMFY_OUTPUT_LOG_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
+HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME = "historical-managed-comfy-startup.log"
 
 
 class HistoricalReleaseContractError(ValueError):
@@ -33,12 +36,16 @@ def historical_install_environment(
     environment: Mapping[str, str],
     *,
     published_at: str,
+    install_root: Path,
 ) -> dict[str, str]:
-    """Limit historical installation to artifacts published by release time."""
+    """Prepare publication-time resolution and durable managed-runtime evidence."""
 
     validated_published_at(published_at)
     historical_environment = dict(environment)
     historical_environment[UV_EXCLUDE_NEWER_ENV] = published_at
+    historical_environment[MANAGED_COMFY_OUTPUT_LOG_ENV] = str(
+        (install_root / HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME).resolve()
+    )
     return historical_environment
 
 
@@ -63,7 +70,9 @@ def validated_published_at(value: object) -> str:
 
 
 __all__ = [
+    "HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME",
     "HistoricalReleaseContractError",
+    "MANAGED_COMFY_OUTPUT_LOG_ENV",
     "UV_EXCLUDE_NEWER_ENV",
     "historical_install_environment",
     "validated_published_at",

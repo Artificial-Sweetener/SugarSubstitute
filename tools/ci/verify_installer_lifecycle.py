@@ -206,6 +206,7 @@ def verify_upgrade(
         historical_environment = historical_install_environment(
             os.environ,
             published_at=historical_published_at,
+            install_root=install_root,
         )
         _trust_candidate_source(historical_environment, historical_source)
         if os.name == "nt":
