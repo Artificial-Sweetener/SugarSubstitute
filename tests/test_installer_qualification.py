@@ -50,6 +50,7 @@ from tools.ci.historical_install_qualification import (
     seed_historical_user_configuration,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
+from tools.ci import installer_ui_qualification
 from tools.ci.installer_ui_qualification import (
     InstalledCandidateLaunch,
     assert_qualification_event_sequence,
@@ -489,6 +490,9 @@ def test_qualification_evidence_is_absolute_across_process_working_directories(
     assert plan.managed_workspace_path == (tmp_path / "installed" / "comfyui")
     assert plan.managed_model_root == (tmp_path / "installed" / "qualified-models")
     assert plan.force_cpu_mode is (sys.platform != "darwin")
+    assert evidence.environment[
+        "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
+    ] == str((tmp_path / "installed" / "managed-comfy-startup.log").resolve())
 
 
 def test_clean_qualification_exchanges_only_complete_standalone_artifacts(
@@ -565,6 +569,41 @@ def test_qualification_evidence_preserves_focused_timeout(tmp_path: Path) -> Non
     )
 
     assert evidence.plan.timeout_seconds == 900.0
+
+
+def test_readiness_wait_fails_immediately_on_terminal_startup_trace(
+    tmp_path: Path,
+) -> None:
+    """Qualification should stop once the app records terminal startup failure."""
+
+    trace_path = tmp_path / "startup-trace.jsonl"
+    trace_path.write_text(
+        json.dumps(
+            {
+                "event": "startup.managed.failure",
+                "fields": {},
+                "kind": "mark",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    managed_output_path = tmp_path / "managed-comfy-startup.log"
+    managed_output_path.write_text("fatal comfy traceback", encoding="utf-8")
+
+    with pytest.raises(
+        InstallerLifecycleError,
+        match="terminal startup failure.*startup.managed.failure",
+    ) as captured:
+        installer_ui_qualification._wait_for_readiness_receipt(
+            readiness_path=tmp_path / "missing-readiness.json",
+            token="qualification-token",
+            timeout_seconds=30.0,
+            trace_path=trace_path,
+            diagnostic_paths=(managed_output_path,),
+        )
+
+    assert "fatal comfy traceback" in str(captured.value)
 
 
 def test_installed_candidate_launch_is_observed_without_capture_bound_wait(

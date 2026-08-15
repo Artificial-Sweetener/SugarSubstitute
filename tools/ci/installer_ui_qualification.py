@@ -45,6 +45,8 @@ from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
+_MANAGED_COMFY_OUTPUT_LOG_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
+_TERMINAL_STARTUP_FAILURE_EVENTS = frozenset({"startup.managed.failure"})
 _REQUIRED_STARTUP_EVENTS = (
     "launch_splash.started",
     "launch_splash.closed",
@@ -111,6 +113,9 @@ def prepare_qualification_evidence(
     environment[READINESS_PATH_ENV] = str(readiness_path)
     environment[READINESS_TOKEN_ENV] = token
     environment[INSTALLER_QUALIFICATION_PLAN_ENV] = plan.to_json()
+    environment[_MANAGED_COMFY_OUTPUT_LOG_ENV] = str(
+        layout.root / "managed-comfy-startup.log"
+    )
     environment.setdefault("QT_QPA_PLATFORM", "offscreen")
     return InstallerQualificationEvidence(
         environment=environment,
@@ -236,6 +241,7 @@ def verify_main_shell_evidence(
                 else timeout_seconds
             ),
             candidate_launch=candidate_launch,
+            trace_path=evidence.trace_path,
             diagnostic_paths=_evidence_diagnostic_paths(
                 install_root=install_root,
                 evidence=evidence,
@@ -376,11 +382,13 @@ def _wait_for_readiness_receipt(
     token: str,
     timeout_seconds: float,
     candidate_launch: InstalledCandidateLaunch | None = None,
+    trace_path: Path | None = None,
     diagnostic_paths: tuple[Path, ...] = (),
 ) -> ApplicationReadinessReceipt:
     """Wait for a token-bound main-shell receipt or surface diagnostics."""
 
     deadline = time.monotonic() + timeout_seconds
+    trace_offset = 0
     while time.monotonic() < deadline:
         if candidate_launch is not None:
             return_code = candidate_launch.process.poll()
@@ -389,6 +397,19 @@ def _wait_for_readiness_receipt(
                     f"Installed launcher exited with {return_code} before the "
                     "main-shell receipt.\n"
                     + diagnostic_tail(candidate_launch.output_path)
+                )
+        if trace_path is not None:
+            trace_offset, terminal_event = _read_terminal_startup_failure(
+                trace_path,
+                offset=trace_offset,
+            )
+            if terminal_event is not None:
+                diagnostics = "\n\n".join(
+                    f"{path}:\n{diagnostic_tail(path)}" for path in diagnostic_paths
+                )
+                raise InstallerLifecycleError(
+                    "Application reported a terminal startup failure before the "
+                    f"main-shell receipt: {terminal_event}.\n{diagnostics}"
                 )
         if readiness_path.is_file():
             try:
@@ -419,6 +440,31 @@ def _wait_for_readiness_receipt(
         "Application did not reveal a post-splash window before timeout.\n"
         + diagnostics
     )
+
+
+def _read_terminal_startup_failure(
+    trace_path: Path,
+    *,
+    offset: int,
+) -> tuple[int, str | None]:
+    """Read new trace records and return the first terminal failure event."""
+
+    try:
+        with trace_path.open(encoding="utf-8", errors="replace") as trace:
+            trace.seek(offset)
+            while True:
+                line = trace.readline()
+                if not line:
+                    return trace.tell(), None
+                try:
+                    payload = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                event = payload.get("event") if isinstance(payload, dict) else None
+                if event in _TERMINAL_STARTUP_FAILURE_EVENTS:
+                    return trace.tell(), str(event)
+    except OSError:
+        return offset, None
 
 
 def _evidence_diagnostic_paths(
