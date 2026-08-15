@@ -64,6 +64,7 @@ from tools.ci.local_release_server import (
     LOCAL_RELEASE_BASE_URL,
     LocalReleaseServer,
 )
+from tools.ci.verify_installer_lifecycle import _parse_args
 from tools.ci.standalone_artifact_cache import (
     qualification_standalone_artifact_cache,
     standalone_cache_diagnostic_path,
@@ -660,6 +661,32 @@ def test_installed_candidate_launch_is_observed_without_capture_bound_wait(
     }
 
 
+def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
+    """Focused update qualification must bound history and candidate readiness."""
+
+    arguments = _parse_args(
+        [
+            "upgrade",
+            "--historical-installer",
+            "historical-installer",
+            "--install-root",
+            "installed",
+            "--historical-manifest-url",
+            "https://example.test/history.json",
+            "--historical-version",
+            "0.20.1",
+            "--candidate-manifest-url",
+            "https://example.test/candidate.json",
+            "--candidate-version",
+            "9999.0.93",
+            "--timeout-seconds",
+            "1200",
+        ]
+    )
+
+    assert arguments.timeout_seconds == 1200.0
+
+
 def test_failed_candidate_evidence_wait_terminates_only_owned_launcher(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1064,16 +1091,18 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         def invoke(self) -> None:
             """Advance the production primary route or reveal the main shell."""
 
-            if self.suffix == "OnboardingPrimaryButton":
+            if self.suffix == "OnboardingTargetCardRadio_managed_local":
+                values[self.suffix] = True
+            elif self.suffix == "OnboardingPrimaryButton":
                 if state["page"] == 6:
                     state["main"] = True
                 else:
                     state["page"] += 1
 
         def select(self) -> None:
-            """Record the managed target choice."""
+            """Reject the unsupported SelectionItem route exposed by the wrapper."""
 
-            values[self.suffix] = True
+            raise AssertionError("Qt radio choices must use their Invoke action.")
 
         def set_edit_text(self, value: str) -> None:
             """Record a production line-edit value."""

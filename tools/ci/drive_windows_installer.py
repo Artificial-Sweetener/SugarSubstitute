@@ -482,11 +482,7 @@ def _invoke_choice(window: Any, suffix: str) -> None:
         raise WindowsInstallerAutomationError(
             f"Historical onboarding choice is not actionable: {suffix}."
         )
-    select = getattr(control, "select", None)
-    if callable(select):
-        select()
-    else:
-        control.invoke()
+    control.invoke()
 
 
 def _set_text(window: Any, suffix: str, value: str) -> None:

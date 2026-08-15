@@ -534,6 +534,7 @@ jobs:
             @historicalSource `
             --historical-version "${{ matrix.history.version }}" `
             @candidateSource `
+            --timeout-seconds "$env:QUALIFICATION_TIMEOUT_SECONDS" `
             --candidate-version "$env:CANDIDATE_VERSION"
       - name: Upload historical-update diagnostics
         if: always()
