@@ -552,6 +552,81 @@ def test_launcher_resolves_install_root_from_frozen_invocation_path(
     assert startup_plan.installed_config_valid is True
 
 
+def test_launcher_resolves_install_root_from_nested_frozen_runtime_path(
+    tmp_path: Path,
+) -> None:
+    """Nested PyInstaller paths should find a validated ancestor installation."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    _write_launcher_executable(layout)
+    nested_runtime = layout.launcher_support_path / "runtime" / "nested"
+    nested_runtime.mkdir(parents=True)
+    nested_executable = nested_runtime / layout.executable_path.name
+    nested_executable.write_text("", encoding="utf-8")
+
+    startup_plan = resolve_startup_plan(
+        explicit_install_root=None,
+        executable_path=nested_executable,
+        frozen_support_path=nested_runtime,
+        invocation_path=nested_executable,
+        working_directory_path=tmp_path,
+    )
+
+    assert startup_plan.layout == layout
+    assert startup_plan.installed_config_found is True
+    assert startup_plan.installed_config_valid is True
+
+
+def test_launcher_resolves_installed_root_from_validated_working_directory(
+    tmp_path: Path,
+) -> None:
+    """A process-bound launch should accept its configured installation cwd."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    _write_launcher_executable(layout)
+    unrelated_runtime = tmp_path / "runtime"
+    unrelated_runtime.mkdir()
+    runtime_executable = unrelated_runtime / layout.executable_path.name
+    runtime_executable.write_text("", encoding="utf-8")
+
+    startup_plan = resolve_startup_plan(
+        explicit_install_root=None,
+        executable_path=runtime_executable,
+        frozen_support_path=unrelated_runtime,
+        invocation_path=runtime_executable,
+        working_directory_path=layout.root,
+    )
+
+    assert startup_plan.layout == layout
+    assert startup_plan.installed_config_found is True
+    assert startup_plan.installed_config_valid is True
+
+
+def test_setup_executable_does_not_adopt_ancestor_install_config(
+    tmp_path: Path,
+) -> None:
+    """A setup bundle inside an installation should remain an explicit setup."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    setup_name = f"SugarSubstitute Setup{layout.executable_path.suffix}"
+    setup_executable = layout.root / "downloads" / setup_name
+    setup_executable.parent.mkdir(parents=True)
+    setup_executable.write_text("", encoding="utf-8")
+
+    startup_plan = resolve_startup_plan(
+        explicit_install_root=None,
+        executable_path=setup_executable,
+        invocation_path=setup_executable,
+        working_directory_path=layout.root,
+    )
+
+    assert startup_plan.installed_config_found is False
+    assert startup_plan.layout.root == default_install_root(setup_executable)
+
+
 def test_launcher_ignores_adjacent_app_without_launcher_config(
     tmp_path: Path,
 ) -> None:

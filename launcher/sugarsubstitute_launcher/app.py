@@ -114,6 +114,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         executable_path=Path(sys.executable),
         frozen_support_path=_frozen_support_path(),
         invocation_path=_frozen_invocation_path(),
+        working_directory_path=Path.cwd(),
     )
     layout = startup_plan.layout
     configure_launcher_logging(layout=layout)
