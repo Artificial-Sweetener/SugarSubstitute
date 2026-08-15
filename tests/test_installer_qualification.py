@@ -635,14 +635,29 @@ def test_installed_candidate_launch_is_observed_without_capture_bound_wait(
 
     launch = launch_installed_candidate(
         install_root=install_root,
-        environment={"QUALIFICATION": "1"},
+        environment={
+            "QUALIFICATION": "1",
+            "SSL_CERT_FILE": "candidate-ca.pem",
+            "PYTHONHOME": "hosted-python",
+            "PYTHONPATH": "hosted-packages",
+            "LD_LIBRARY_PATH": "hosted-python/lib",
+            "LD_LIBRARY_PATH_ORIG": "system/lib",
+            "DYLD_LIBRARY_PATH": "hosted-python/lib",
+            "DYLD_FRAMEWORK_PATH": "hosted-python/frameworks",
+            "QT_PLUGIN_PATH": "hosted-qt/plugins",
+            "QML2_IMPORT_PATH": "hosted-qt/qml",
+            "_PYI_ARCHIVE_FILE": "unrelated-frozen-parent",
+        },
     )
 
     assert isinstance(launch, InstalledCandidateLaunch)
     assert launch.process is fake_process
     assert observed["command"] == [str(layout.executable_path)]
     assert observed["stdout"] is observed["stderr"]
-    assert observed["env"] == {"QUALIFICATION": "1"}
+    assert observed["env"] == {
+        "QUALIFICATION": "1",
+        "SSL_CERT_FILE": "candidate-ca.pem",
+    }
 
 
 def test_failed_candidate_evidence_wait_terminates_only_owned_launcher(
@@ -1000,11 +1015,11 @@ def test_historical_installer_exercises_each_primary_phase(
     assert invoked == actions
 
 
-def test_historical_onboarding_reaches_open_button_and_real_main_shell(
+def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Historical qualification must complete onboarding instead of killing it."""
+    """A preset install root must begin at target selection and complete onboarding."""
 
     page_controls = [
         "OnboardingInstallRootEdit",
@@ -1015,7 +1030,7 @@ def test_historical_onboarding_reaches_open_button_and_real_main_shell(
         "OnboardingProgressStatus",
         "OnboardingCompletionSurface",
     ]
-    state = {"page": 0, "main": False}
+    state = {"page": 1, "main": False}
     values: dict[str, object] = {}
 
     class _Control:

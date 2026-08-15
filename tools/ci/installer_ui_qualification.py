@@ -52,6 +52,19 @@ _REQUIRED_STARTUP_EVENTS = (
     "launch_splash.closed",
     "main_shell.shown",
 )
+_FROZEN_LAUNCH_OVERRIDE_VARIABLES = (
+    "PYTHONHOME",
+    "PYTHONPATH",
+    "LD_LIBRARY_PATH",
+    "LD_LIBRARY_PATH_ORIG",
+    "DYLD_LIBRARY_PATH",
+    "DYLD_LIBRARY_PATH_ORIG",
+    "DYLD_FALLBACK_LIBRARY_PATH",
+    "DYLD_FRAMEWORK_PATH",
+    "QT_PLUGIN_PATH",
+    "QML2_IMPORT_PATH",
+    "QML_IMPORT_PATH",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,15 +220,30 @@ def launch_installed_candidate(
     layout = InstallLayout.from_root(install_root)
     output_path = layout.logs_dir / "candidate-update-launch.log"
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    launch_environment = _external_frozen_launch_environment(environment)
     with output_path.open("wb") as output:
         process = subprocess.Popen(
             [str(layout.executable_path)],
             cwd=layout.root,
-            env=environment,
+            env=launch_environment,
             stdout=output,
             stderr=output,
         )
     return InstalledCandidateLaunch(process=process, output_path=output_path)
+
+
+def _external_frozen_launch_environment(
+    environment: dict[str, str],
+) -> dict[str, str]:
+    """Remove host Python and frozen-runtime overrides from a packaged launch."""
+
+    launch_environment = dict(environment)
+    for variable_name in _FROZEN_LAUNCH_OVERRIDE_VARIABLES:
+        launch_environment.pop(variable_name, None)
+    for variable_name in tuple(launch_environment):
+        if variable_name.startswith("_PYI_"):
+            launch_environment.pop(variable_name, None)
+    return launch_environment
 
 
 def verify_main_shell_evidence(

@@ -31,10 +31,10 @@ from tools.ci.reconstitute_historical_macos_release import (
 )
 
 
-def test_reconstitution_builds_runnable_app_from_released_onedir_runtime(
+def test_reconstitution_rebuilds_app_from_released_onedir_runtime(
     tmp_path: Path,
 ) -> None:
-    """Qualification must retain exact released bytes in a runnable app topology."""
+    """Qualification must place exact released bytes in app bootloader paths."""
 
     source_root = tmp_path / "source"
     output_root = tmp_path / "output"
@@ -51,7 +51,10 @@ def test_reconstitution_builds_runnable_app_from_released_onedir_runtime(
             b"framework",
         )
         archive.writestr("SugarSubstitute/SugarSubstitute", b"sibling launcher")
-        archive.writestr("SugarSubstitute/_internal/_struct.so", b"sibling runtime")
+        archive.writestr(
+            "SugarSubstitute/_internal/python3.12/lib-dynload/_struct.so",
+            b"sibling runtime",
+        )
     manifest = {
         "schema_version": 2,
         "version": "0.20.1",
@@ -76,7 +79,10 @@ def test_reconstitution_builds_runnable_app_from_released_onedir_runtime(
             == b"sibling launcher"
         )
         assert (
-            archive.read("SugarSubstitute.app/Contents/MacOS/_internal/_struct.so")
+            archive.read(
+                "SugarSubstitute.app/Contents/Frameworks/"
+                "python3.12/lib-dynload/_struct.so"
+            )
             == b"sibling runtime"
         )
     evidence = json.loads(
@@ -91,6 +97,9 @@ def test_reconstitution_builds_runnable_app_from_released_onedir_runtime(
     assert evidence["removed_roots"] == ["SugarSubstitute"]
     assert evidence["retained_root"] == "SugarSubstitute.app"
     assert evidence["runtime_source_root"] == "SugarSubstitute"
+    assert evidence["runtime_support_root"] == (
+        "SugarSubstitute.app/Contents/Frameworks"
+    )
 
 
 def test_reconstitution_rejects_unreviewed_archive_roots(tmp_path: Path) -> None:
