@@ -453,6 +453,42 @@ def test_tar_extractor_rejects_parent_traversal(tmp_path: Path) -> None:
     assert not (tmp_path / "escaped.txt").exists()
 
 
+def test_tar_extractor_validates_during_single_pass_without_member_prescan(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Large macOS archives should not be decompressed once before extraction."""
+
+    archive_path = tmp_path / "environment.tar.gz"
+    with tarfile.open(archive_path, mode="w:gz") as archive:
+        info = tarfile.TarInfo("nested/payload.txt")
+        payload = b"payload"
+        info.size = len(payload)
+        archive.addfile(info, io.BytesIO(payload))
+    artifact = StandaloneArtifact(
+        filename=archive_path.name,
+        url=archive_path.as_uri(),
+        size_bytes=archive_path.stat().st_size,
+        sha256=hashlib.sha256(archive_path.read_bytes()).hexdigest(),
+    )
+
+    def reject_member_prescan(_archive: tarfile.TarFile) -> list[tarfile.TarInfo]:
+        """Fail if extraction performs the expensive eager member pass."""
+
+        raise AssertionError("tar member prescan is forbidden")
+
+    monkeypatch.setattr(tarfile.TarFile, "getmembers", reject_member_prescan)
+    destination = tmp_path / "extracted"
+
+    StandaloneEnvironmentExtractor().extract(
+        _release(artifact, archive_kind=StandaloneArchiveKind.TAR_GZIP),
+        (archive_path,),
+        destination,
+    )
+
+    assert (destination / "nested" / "payload.txt").read_bytes() == payload
+
+
 def test_migrator_promotes_upstream_layout_without_mixing_runtime_roots(
     tmp_path: Path,
 ) -> None:

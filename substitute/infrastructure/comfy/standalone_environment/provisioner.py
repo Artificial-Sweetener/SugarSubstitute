@@ -52,6 +52,7 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
 from substitute.infrastructure.comfy.standalone_environment.pinned_catalog import (
     PinnedStandaloneEnvironmentCatalog,
 )
+from substitute.shared.startup_trace import trace_span
 
 
 ProvisioningLogCallback = Callable[[str], None]
@@ -91,7 +92,8 @@ class StandaloneEnvironmentProvisioner:
         """Provision a new workspace from checksum-verified relocatable assets."""
 
         self._emit(on_log, f"Resolving standalone environment {variant.value}.")
-        release = self._catalog.resolve(variant)
+        with trace_span("managed_setup.standalone.resolve_release"):
+            release = self._catalog.resolve(variant)
         selected_cache = cache_root or (
             workspace.parent / ".sugarsubstitute-cache" / "standalone"
         )
@@ -99,30 +101,34 @@ class StandaloneEnvironmentProvisioner:
             on_log,
             f"Downloading {release.total_size_bytes} verified environment bytes.",
         )
-        artifacts = self._downloader.download(
-            release,
-            selected_cache,
-            on_progress=on_download_progress,
-        )
+        with trace_span("managed_setup.standalone.acquire_artifacts"):
+            artifacts = self._downloader.download(
+                release,
+                selected_cache,
+                on_progress=on_download_progress,
+            )
         extraction_root = workspace.parent / (
             f".{workspace.name}.standalone-extract-{uuid4().hex}"
         )
         try:
             self._emit(on_log, "Extracting the verified standalone environment.")
             extraction_progress = _ExtractionProgressLog(on_log)
-            self._extractor.extract(
-                release,
-                artifacts,
-                extraction_root,
-                on_extraction_progress=extraction_progress.publish,
-            )
-            layout = self._migrator.promote(extraction_root, workspace, release)
+            with trace_span("managed_setup.standalone.extract"):
+                self._extractor.extract(
+                    release,
+                    artifacts,
+                    extraction_root,
+                    on_extraction_progress=extraction_progress.publish,
+                )
+            with trace_span("managed_setup.standalone.promote"):
+                layout = self._migrator.promote(extraction_root, workspace, release)
             self._emit(on_log, "Hydrating the managed Comfy Python environment.")
             copy_progress = _CopyProgressLog(on_log)
-            return self._environment_builder.build(
-                layout,
-                on_progress=copy_progress.publish,
-            )
+            with trace_span("managed_setup.standalone.hydrate_environment"):
+                return self._environment_builder.build(
+                    layout,
+                    on_progress=copy_progress.publish,
+                )
         except StandaloneArtifactError:
             shutil.rmtree(extraction_root, ignore_errors=True)
             shutil.rmtree(workspace, ignore_errors=True)

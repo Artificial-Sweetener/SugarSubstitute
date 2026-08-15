@@ -79,18 +79,10 @@ class StandaloneEnvironmentExtractor:
         return destination
 
     def _extract_tar(self, archive_path: Path, destination: Path) -> None:
-        """Extract a gzip-compressed tar after validating every member path."""
+        """Validate and extract a gzip-compressed tar in one streaming pass."""
 
         with tarfile.open(archive_path, mode="r:gz") as archive:
-            for member in archive.getmembers():
-                _validate_member_path(member.name)
-                if member.isdev() or member.isfifo():
-                    raise StandaloneArtifactError(
-                        f"Standalone tar contains a special file: {member.name}"
-                    )
-                if member.issym() or member.islnk():
-                    _validate_link_target(member.name, member.linkname)
-            archive.extractall(destination, filter="data")
+            archive.extractall(destination, filter=_validate_tar_member)
 
     def _extract_seven_zip(
         self,
@@ -145,6 +137,22 @@ def _validate_member_path(member_name: str) -> None:
         raise StandaloneArtifactError(
             f"Standalone archive contains a drive-qualified path: {member_name}"
         )
+
+
+def _validate_tar_member(
+    member: tarfile.TarInfo,
+    destination: str,
+) -> tarfile.TarInfo | None:
+    """Validate one tar member immediately before staged extraction."""
+
+    _validate_member_path(member.name)
+    if member.isdev() or member.isfifo():
+        raise StandaloneArtifactError(
+            f"Standalone tar contains a special file: {member.name}"
+        )
+    if member.issym() or member.islnk():
+        _validate_link_target(member.name, member.linkname)
+    return tarfile.data_filter(member, destination)
 
 
 def _validate_link_target(member_name: str, link_name: str) -> None:
