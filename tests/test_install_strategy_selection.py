@@ -220,6 +220,39 @@ def test_hardware_policy_reports_linux_without_accelerator_as_unavailable(
         HardwareAwareManagedRuntimeSelectionPolicy().select_configuration()
 
 
+def test_hardware_policy_skips_accelerator_probe_when_cpu_is_forced(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Forced CPU policy should request platform-only hardware detection."""
+
+    detection = HardwareDetectionResult(
+        platform=ManagedPlatform.WINDOWS,
+        adapters=(),
+        tooling=_tooling(),
+    )
+    force_cpu_requests: list[bool] = []
+
+    def detect_hardware(*, force_cpu: bool = False) -> HardwareDetectionResult:
+        """Record whether selection requested the platform-only path."""
+
+        force_cpu_requests.append(force_cpu)
+        return detection
+
+    monkeypatch.setattr(
+        managed_runtime_selection_policy,
+        "detect_hardware",
+        detect_hardware,
+    )
+
+    configuration = HardwareAwareManagedRuntimeSelectionPolicy().select_configuration(
+        force_cpu_mode=True
+    )
+
+    assert force_cpu_requests == [True]
+    assert configuration.install_target == ManagedInstallTarget.WINDOWS_CPU.value
+    assert configuration.backend_policy == "cpu"
+
+
 def test_select_install_strategy_chooses_linux_amd_stable_rocm() -> None:
     """Linux AMD detection should default to the stable ROCm 7.2 policy."""
 
