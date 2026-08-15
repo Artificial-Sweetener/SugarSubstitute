@@ -113,6 +113,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         explicit_install_root=args.install_root,
         executable_path=Path(sys.executable),
         frozen_support_path=_frozen_support_path(),
+        invocation_path=_frozen_invocation_path(),
     )
     layout = startup_plan.layout
     configure_launcher_logging(layout=layout)
@@ -284,3 +285,11 @@ def _frozen_support_path() -> Path | None:
     if not bool(getattr(sys, "frozen", False)) or not isinstance(raw_path, str):
         return None
     return Path(raw_path)
+
+
+def _frozen_invocation_path() -> Path | None:
+    """Return the packaged launcher path exactly as the operating system invoked it."""
+
+    if not bool(getattr(sys, "frozen", False)) or not sys.argv or not sys.argv[0]:
+        return None
+    return Path(sys.argv[0])
