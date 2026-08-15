@@ -63,6 +63,9 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
 from substitute.infrastructure.comfy.standalone_environment.variant_policy import (
     standalone_variant_for_target,
 )
+from tools.ci.cache_managed_comfy_artifacts import (
+    cache_pinned_managed_comfy_artifacts,
+)
 
 
 class _RecordingSevenZipExtractionProcess:
@@ -245,6 +248,70 @@ def test_downloader_reports_cached_artifact_verification_progress(
 
     assert downloaded == (cached_path,)
     assert progress[-1] == (len(content), len(content))
+
+
+def test_ci_cache_populator_acquires_exact_variant_with_bounded_progress(
+    tmp_path: Path,
+) -> None:
+    """Release qualification should populate its external cache before timing install."""
+
+    artifact = StandaloneArtifact(
+        filename="environment.tar.gz",
+        url="https://example.invalid/environment.tar.gz",
+        size_bytes=10,
+        sha256="a" * 64,
+    )
+    release = _release(artifact, archive_kind=StandaloneArchiveKind.TAR_GZIP)
+    calls: list[tuple[StandaloneVariantId, Path]] = []
+
+    class _Catalog:
+        """Return the one exact release requested by the test."""
+
+        def resolve(self, variant: StandaloneVariantId) -> StandaloneEnvironmentRelease:
+            """Record and return the selected standalone variant."""
+
+            calls.append((variant, tmp_path))
+            return release
+
+    class _Downloader:
+        """Materialize one verified cache artifact without network access."""
+
+        def download(
+            self,
+            selected_release: StandaloneEnvironmentRelease,
+            cache_root: Path,
+            *,
+            on_progress: object = None,
+        ) -> tuple[Path, ...]:
+            """Record acquisition and publish deterministic progress."""
+
+            assert selected_release is release
+            cached = (
+                cache_root
+                / release.release_tag
+                / release.variant.value
+                / artifact.filename
+            )
+            cached.parent.mkdir(parents=True)
+            cached.write_bytes(b"0123456789")
+            assert callable(on_progress)
+            on_progress(5, 10)
+            on_progress(10, 10)
+            return (cached,)
+
+    messages: list[str] = []
+    artifacts = cache_pinned_managed_comfy_artifacts(
+        cache_root=tmp_path,
+        variant=StandaloneVariantId.WINDOWS_CPU,
+        catalog=_Catalog(),
+        downloader=_Downloader(),
+        output=messages.append,
+    )
+
+    assert calls == [(StandaloneVariantId.WINDOWS_CPU, tmp_path)]
+    assert artifacts[0].read_bytes() == b"0123456789"
+    assert any("percentage=50" in message for message in messages)
+    assert messages[-1].startswith("MANAGED_COMFY_CACHE ready")
 
 
 def test_extractor_joins_verified_seven_zip_parts(tmp_path: Path) -> None:
