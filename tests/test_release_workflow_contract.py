@@ -343,6 +343,13 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     )
     assert "process.env.SUGAR_SUBSTITUTE_ASSET_BASE_URL" in preparation_text
     assert 'startsWith("https://")' in preparation_text
+    assert "qualification_timeout_seconds" in qualification_text
+    assert "Published and full qualification require the canonical" in (
+        qualification_text
+    )
+    assert qualification_text.count("timeout-minutes: 75") == 2
+    assert qualification_text.count("Upload clean-install diagnostics") == 2
+    assert "clean-install-diagnostics-${{ runner.os }}" in qualification_text
 
 
 def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:

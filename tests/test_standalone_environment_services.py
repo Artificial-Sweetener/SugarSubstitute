@@ -111,8 +111,10 @@ def test_variant_policy_matches_current_comfy_desktop_catalog() -> None:
         standalone_variant_for_target(ManagedInstallTarget.MACOS_APPLE_SILICON)
         is StandaloneVariantId.MACOS_MPS
     )
-    with pytest.raises(ValueError, match="does not publish"):
+    assert (
         standalone_variant_for_target(ManagedInstallTarget.LINUX_CPU)
+        is StandaloneVariantId.LINUX_NVIDIA
+    )
 
 
 def test_catalog_joins_live_variant_metadata_to_github_sha256() -> None:

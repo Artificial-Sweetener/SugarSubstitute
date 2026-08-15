@@ -32,6 +32,11 @@ on:
         required: false
         default: "complete"
         type: string
+      qualification_timeout_seconds:
+        description: "Total focused installer-chain timeout; full qualification requires 3600"
+        required: false
+        default: "3600"
+        type: string
   workflow_dispatch:
     inputs:
       candidate_version:
@@ -78,6 +83,11 @@ on:
         options:
           - complete
           - latest-only
+      qualification_timeout_seconds:
+        description: "Total focused installer-chain timeout; full qualification requires 3600"
+        required: false
+        default: "3600"
+        type: string
 
 permissions:
   actions: read
@@ -89,6 +99,7 @@ env:
   CANDIDATE_VERSION: ${{ inputs.candidate_version }}
   CANDIDATE_TAG: ${{ inputs.candidate_tag }}
   CANDIDATE_MANIFEST_URL: https://github.com/${{ github.repository }}/releases/download/${{ inputs.candidate_tag }}/manifest.json
+  QUALIFICATION_TIMEOUT_SECONDS: ${{ inputs.qualification_timeout_seconds }}
   LINUX_QT_PACKAGES: >-
     xvfb libegl1 libfontconfig1 libgl1 libpulse0 libxcb-cursor0 libxcb-icccm4
     libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
@@ -185,11 +196,21 @@ jobs:
     steps:
       - name: Require one published or temporary candidate source
         shell: pwsh
+        env:
+          QUALIFICATION_SCOPE: ${{ inputs.qualification_scope }}
         run: |
           $published = "${{ inputs.candidate_tag }}" -ne ""
           $temporary = "${{ inputs.candidate_artifact_name }}" -ne ""
           if ($published -eq $temporary) {
             throw "Provide exactly one candidate_tag or candidate_artifact_name."
+          }
+          $timeout = 0.0
+          if (-not [double]::TryParse($env:QUALIFICATION_TIMEOUT_SECONDS, [ref]$timeout) -or $timeout -le 0) {
+            throw "qualification_timeout_seconds must be a positive number."
+          }
+          $fullQualification = $env:QUALIFICATION_SCOPE -in @("all", "qualification-all")
+          if (($published -or $fullQualification) -and $timeout -ne 3600.0) {
+            throw "Published and full qualification require the canonical 3600-second timeout."
           }
 
   clean-install:
@@ -206,7 +227,7 @@ jobs:
       needs.select-qualification.outputs.clean_enabled == 'true' &&
       needs.validate-candidate-source.result == 'success'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - name: Checkout candidate source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -250,6 +271,7 @@ jobs:
           --installer "build/candidate/${{ matrix.asset }}"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
+          --timeout-seconds "${{ env.QUALIFICATION_TIMEOUT_SECONDS }}"
       - name: Prove temporary clean install and post-splash launch
         if: inputs.candidate_artifact_name != ''
         env:
@@ -261,6 +283,21 @@ jobs:
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
           --candidate-release-root "build/candidate"
+          --timeout-seconds "${{ env.QUALIFICATION_TIMEOUT_SECONDS }}"
+      - name: Upload clean-install diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: clean-install-diagnostics-${{ runner.os }}
+          path: |
+            ${{ runner.temp }}/.SugarSubstitute-clean-clean-installer-qualification.jsonl
+            ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/managed-comfy-startup.log
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
 
   clean-install-macos:
     name: Clean install and launch (macOS Apple Silicon)
@@ -272,7 +309,7 @@ jobs:
       needs.select-qualification.outputs.macos_clean_enabled == 'true' &&
       needs.validate-candidate-source.result == 'success'
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 75
     steps:
       - name: Checkout candidate source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -312,6 +349,7 @@ jobs:
           --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
+          --timeout-seconds "$QUALIFICATION_TIMEOUT_SECONDS"
       - name: Prove temporary clean install and post-splash launch
         if: inputs.candidate_artifact_name != ''
         env:
@@ -322,6 +360,21 @@ jobs:
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
           --candidate-release-root "build/candidate"
+          --timeout-seconds "$QUALIFICATION_TIMEOUT_SECONDS"
+      - name: Upload clean-install diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: clean-install-diagnostics-${{ runner.os }}
+          path: |
+            ${{ runner.temp }}/.SugarSubstitute-clean-clean-installer-qualification.jsonl
+            ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/managed-comfy-startup.log
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
       - name: Unmount candidate DMG
         if: always()
         run: hdiutil detach "${{ runner.temp }}/candidate-dmg" || true
