@@ -362,7 +362,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert "historical-update-diagnostics-${{ matrix.platform }}-" in qualification_text
     assert "historical-managed-comfy-startup.log" in qualification_text
     assert "launcher/locks/application-launch.lock" in qualification_text
-    assert "appdata/runtime_state/managed_comfy_process.json" in qualification_text
+    assert "appdata/runtime_state/**" in qualification_text
     assert ".historical-certificate/requests.jsonl" in qualification_text
     historical_proof = qualification_text.split(
         "- name: Prove historical update, splash, and main shell",
@@ -377,7 +377,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert "managed-comfy-${{ matrix.standalone_variant }}-" in qualification_text
     assert "managed-comfy-mac-mps-" in qualification_text
     assert qualification_text.count("--managed-artifact-cache-root") == 4
-    assert qualification_text.count("appdata/runtime_state/setup_transaction.json") == 3
+    assert qualification_text.count("appdata/runtime_state/setup_transaction.json") == 2
     assert qualification_text.count(".SugarSubstitute-clean-standalone-cache.json") == 2
 
 

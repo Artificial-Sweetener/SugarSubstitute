@@ -45,6 +45,7 @@ from tools.ci.historical_install_qualification import (  # noqa: E402
     assert_historical_user_configuration_preserved,
     prepare_portable_historical_install,
     seed_historical_user_configuration,
+    update_portable_historical_install,
 )
 from tools.ci.historical_launch_qualification import (  # noqa: E402
     assert_historical_installed_launch_contract,
@@ -247,6 +248,7 @@ def verify_upgrade(
             managed_model_root=managed_model_root,
         )
         _verify_portable_candidate_update(
+            historical_installer_path=historical_installer_path,
             install_root=install_root,
             historical_version=historical_version,
             candidate_version=candidate_version,
@@ -388,6 +390,7 @@ def _verify_windows_upgrade_chain(
 
 def _verify_portable_candidate_update(
     *,
+    historical_installer_path: Path,
     install_root: Path,
     historical_version: str,
     candidate_version: str,
@@ -421,7 +424,18 @@ def _verify_portable_candidate_update(
                 ),
             )
             _trust_candidate_source(evidence.environment, candidate_source)
-            set_update_manifest(install_root, candidate_source.manifest_url)
+            update_portable_historical_install(
+                installer_path=historical_installer_path,
+                install_root=install_root,
+                manifest_url=candidate_source.manifest_url,
+                timeout_seconds=_remaining_qualification_timeout(
+                    qualification_deadline,
+                    phase="portable candidate installer update",
+                ),
+                environment=evidence.environment,
+            )
+            assert_installed_version(install_root, candidate_version)
+            assert_historical_installed_launch_contract(install_root)
             candidate_launch = launch_installed_candidate(
                 install_root=install_root,
                 environment=evidence.environment,

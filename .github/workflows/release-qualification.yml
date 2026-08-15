@@ -545,9 +545,10 @@ jobs:
           path: |
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/readiness/**
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/config.json
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/state.json
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/diagnostics/logs/**
-            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/runtime_state/setup_transaction.json
-            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/runtime_state/managed_comfy_process.json
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/runtime_state/**
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/user/settings/**
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/managed-comfy-startup.log
             ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/historical-managed-comfy-startup.log
