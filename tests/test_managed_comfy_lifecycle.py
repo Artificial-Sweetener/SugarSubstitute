@@ -45,6 +45,7 @@ from substitute.domain.onboarding import (
 from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import (
     posix_guardian_containment,
+    posix_guardian_entry,
     managed_launcher,
     managed_shutdown,
     process_manager,
@@ -1304,6 +1305,100 @@ def test_terminate_process_group_yields_between_probes(
 
     assert sent_signals == [signal.SIGTERM]
     assert sleep_calls == [0.1]
+
+
+def test_inaccessible_process_group_is_not_owned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Permission denial must not authorize signaling an unrelated group."""
+
+    def deny_signal(_process_group_id: int, _signum: int) -> None:
+        """Simulate a process group that the current install does not own."""
+
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(
+        posix_guardian_containment,
+        "_kill_process_group",
+        deny_signal,
+    )
+
+    assert posix_guardian_containment.is_process_group_running(123) is False
+
+
+def test_process_group_termination_tolerates_ownership_loss_after_probe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A reused group id must not turn successful cleanup into an exception."""
+
+    monkeypatch.setattr(
+        posix_guardian_containment,
+        "is_process_group_running",
+        lambda _process_group_id: True,
+    )
+
+    def deny_signal(_process_group_id: int, _signum: int) -> None:
+        """Simulate ownership changing between the probe and the signal."""
+
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(
+        posix_guardian_containment,
+        "_kill_process_group",
+        deny_signal,
+    )
+
+    posix_guardian_containment.terminate_process_group(123, timeout_seconds=1.0)
+
+
+def test_guardian_falls_back_to_its_child_when_group_signal_is_denied(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Guardian shutdown must still stop its directly owned managed child."""
+
+    class _ChildProcess:
+        """Expose a directly owned child that exits after SIGTERM."""
+
+        returncode: int | None = None
+
+        def poll(self) -> int | None:
+            """Return the current simulated child state."""
+
+            return self.returncode
+
+        def terminate(self) -> None:
+            """Record orderly direct-child termination."""
+
+            self.returncode = 0
+
+        def kill(self) -> None:
+            """Record forced direct-child termination."""
+
+            self.returncode = -int(getattr(signal, "SIGKILL", signal.SIGTERM))
+
+    def deny_group_signal(_process_group_id: int) -> None:
+        """Simulate macOS denying process-group signaling."""
+
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(
+        posix_guardian_entry,
+        "_terminate_process_group",
+        deny_group_signal,
+    )
+    stop_event = threading.Event()
+    stop_event.set()
+    child = _ChildProcess()
+
+    result = posix_guardian_entry._monitor_child(
+        child_process=cast(subprocess.Popen[bytes], child),
+        process_group_id=123,
+        keepalive_fd=-1,
+        stop_event=stop_event,
+    )
+
+    assert result == 0
+    assert child.returncode == 0
 
 
 def _record_termination(
