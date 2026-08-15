@@ -27,7 +27,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Any, Protocol
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -171,8 +171,9 @@ def drive_windows_installer(
     endpoint_host: str,
     endpoint_port: int,
     environment: dict[str, str] | None = None,
+    before_open_substitute: Callable[[], None] | None = None,
 ) -> int:
-    """Complete installer and onboarding UI through the historical main shell."""
+    """Complete installer and onboarding UI through the installed main shell."""
 
     if os.name != "nt":
         raise WindowsInstallerAutomationError(
@@ -213,6 +214,7 @@ def drive_windows_installer(
             managed_model_root=managed_model_root,
             endpoint_host=endpoint_host,
             endpoint_port=endpoint_port,
+            before_open_substitute=before_open_substitute,
             deadline=deadline,
         )
         if process.poll() is None:
@@ -341,6 +343,7 @@ def _complete_historical_onboarding(
     managed_model_root: Path,
     endpoint_host: str,
     endpoint_port: int,
+    before_open_substitute: Callable[[], None] | None = None,
     deadline: float,
 ) -> int:
     """Drive installed historical onboarding through its Open Substitute action."""
@@ -420,6 +423,8 @@ def _complete_historical_onboarding(
         "Open Substitute",
         _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
     )
+    if before_open_substitute is not None:
+        before_open_substitute()
     _invoke_primary(
         onboarding,
         deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),

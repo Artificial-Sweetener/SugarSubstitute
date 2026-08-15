@@ -153,7 +153,7 @@ def test_historical_shell_rejects_trace_without_live_app_owner(
     )
     clock = iter((0.0, 31.0))
     monkeypatch.setattr(
-        "tools.ci.historical_launch_qualification.time.monotonic",
+        "tools.ci.historical_launch_qualification.monotonic",
         lambda: next(clock),
     )
 
@@ -207,7 +207,7 @@ def test_historical_shell_fails_fast_without_owned_launch_progress(
     progress_path = layout.logs_dir / "launcher.log"
     clock = iter((0.0, 121.0))
     monkeypatch.setattr(
-        "tools.ci.historical_launch_qualification.time.monotonic",
+        "tools.ci.historical_launch_qualification.monotonic",
         lambda: next(clock),
     )
     monkeypatch.setattr(

@@ -64,6 +64,7 @@ def runtime_environment(*, layout: InstallLayout) -> dict[str, str]:
     """Build the environment that keeps uv and Python state deterministic."""
 
     env = dict(os.environ)
+    env.pop("UV_EXCLUDE_NEWER", None)
     env["UV_CACHE_DIR"] = subprocess_path(layout.cache_dir / "uv")
     env["UV_PYTHON_INSTALL_DIR"] = subprocess_path(layout.runtime_dir / "python")
     env["UV_NO_MODIFY_PATH"] = "1"

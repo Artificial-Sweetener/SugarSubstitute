@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import time
+from time import monotonic, sleep
 
 import psutil  # type: ignore[import-untyped]
 
@@ -64,13 +64,13 @@ def wait_for_historical_main_shell(
 
     layout = InstallLayout.from_root(install_root)
     trace_path = layout.appdata_dir / "diagnostics" / "logs" / "startup-trace.jsonl"
-    started_at = time.monotonic()
+    started_at = monotonic()
     deadline = started_at + timeout_seconds
     launch_progress_deadline = min(
         deadline,
         started_at + _LAUNCH_PROGRESS_TIMEOUT_SECONDS,
     )
-    while (now := time.monotonic()) < deadline:
+    while (now := monotonic()) < deadline:
         events = _read_trace_events(trace_path)
         terminal_event = next(
             (event for event in events if event in _TERMINAL_EVENTS),
@@ -103,7 +103,7 @@ def wait_for_historical_main_shell(
                 f"{process_tree_diagnostics(launch.process.pid)}\n\n"
                 f"{_historical_diagnostics(layout, launch)}"
             )
-        time.sleep(0.1)
+        sleep(0.1)
     raise InstallerLifecycleError(
         "Historical installation did not produce a live main-shell process before "
         f"timeout.\n{_historical_diagnostics(layout, launch)}"

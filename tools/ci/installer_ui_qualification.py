@@ -283,6 +283,7 @@ def verify_main_shell_evidence(
     required_qualification_events: tuple[str, ...],
     require_governed_setup_record: bool = True,
     candidate_launch: InstalledCandidateLaunch | None = None,
+    expected_main_pid: int | None = None,
     additional_diagnostic_paths: tuple[Path | None, ...] = (),
     timeout_seconds: float | None = None,
 ) -> None:
@@ -307,6 +308,11 @@ def verify_main_shell_evidence(
                 additional_paths=additional_diagnostic_paths,
             ),
         )
+        if expected_main_pid is not None and receipt.pid != expected_main_pid:
+            raise InstallerLifecycleError(
+                "The completion action and readiness receipt identified different "
+                f"main-shell processes: {expected_main_pid} != {receipt.pid}."
+            )
         assert_installed_version(install_root, expected_version)
         if required_qualification_events:
             assert_qualification_event_sequence(

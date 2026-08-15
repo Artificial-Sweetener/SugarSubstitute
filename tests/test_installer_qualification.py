@@ -36,6 +36,10 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.installer_qualification import (
     InstallerQualificationDriver,
 )
+from sugarsubstitute_shared.application_readiness import (
+    ApplicationReadinessReceipt,
+    ApplicationReadinessSurface,
+)
 from sugarsubstitute_shared.installer_qualification import (
     INSTALLER_QUALIFICATION_PLAN_ENV,
     InstallerQualificationPlan,
@@ -67,7 +71,10 @@ from tools.ci.local_release_server import (
     LOCAL_RELEASE_BASE_URL,
     LocalReleaseServer,
 )
-from tools.ci.verify_installer_lifecycle import _parse_args
+from tools.ci.verify_installer_lifecycle import (
+    _parse_args,
+    _verify_portable_candidate_update,
+)
 from tools.ci.standalone_artifact_cache import (
     qualification_standalone_artifact_cache,
     standalone_cache_diagnostic_path,
@@ -797,6 +804,83 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
     assert arguments.timeout_seconds == 1200.0
 
 
+def test_portable_update_activates_candidate_before_its_only_launch(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Portable history must not open once before the candidate update launch."""
+
+    install_root = tmp_path / "installed"
+    layout = InstallLayout.from_root(install_root)
+    layout.config_path.parent.mkdir(parents=True)
+    layout.config_path.write_text(
+        json.dumps(
+            {
+                "release_source": {
+                    "kind": "github_release_manifest",
+                    "manifest_url": "https://example.test/history.json",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    events: list[tuple[str, str]] = []
+
+    def launch_once(
+        *,
+        install_root: Path,
+        environment: dict[str, str],
+        progress_paths: tuple[Path | None, ...],
+    ) -> object:
+        """Record the manifest visible to the only installed launch."""
+
+        del environment, progress_paths
+        payload = json.loads(
+            InstallLayout.from_root(install_root).config_path.read_text(
+                encoding="utf-8"
+            )
+        )
+        events.append(("launch", payload["release_source"]["manifest_url"]))
+        return object()
+
+    def verify_candidate(**arguments: object) -> None:
+        """Record that readiness follows the single candidate-bound launch."""
+
+        del arguments
+        events.append(("verify", "9999.0.109"))
+
+    monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle.launch_installed_candidate",
+        launch_once,
+    )
+    monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle._verify_candidate_evidence",
+        verify_candidate,
+    )
+    monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle.terminate_owned_managed_comfy",
+        lambda _install_root: None,
+    )
+
+    _verify_portable_candidate_update(
+        install_root=install_root,
+        historical_version="0.20.1",
+        candidate_version="9999.0.109",
+        candidate_manifest_url="https://example.test/candidate.json",
+        candidate_release_root=None,
+        endpoint_port=8188,
+        managed_workspace=install_root / "comfyui",
+        managed_model_root=install_root / "qualified-models",
+        preservation_marker=install_root / "user" / "settings" / "marker.json",
+        timeout_seconds=30.0,
+    )
+
+    assert events == [
+        ("launch", "https://example.test/candidate.json"),
+        ("verify", "9999.0.109"),
+    ]
+
+
 def test_stalled_installed_launcher_fails_at_progress_boundary(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -880,6 +964,45 @@ def test_failed_candidate_evidence_wait_terminates_only_owned_launcher(
         )
 
     assert terminated == [321]
+
+
+def test_completion_action_pid_must_match_readiness_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A visible unrelated process cannot satisfy the completion-button proof."""
+
+    evidence = prepare_qualification_evidence(
+        install_root=tmp_path / "installed",
+        expected_version="1.2.3",
+        endpoint_port=48188,
+        phase="upgrade",
+    )
+    receipt = ApplicationReadinessReceipt(
+        pid=456,
+        token=evidence.token,
+        surface=ApplicationReadinessSurface.MAIN_SHELL,
+    )
+    terminated: list[int] = []
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification._wait_for_readiness_receipt",
+        lambda **_arguments: receipt,
+    )
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification.terminate_verified_process",
+        terminated.append,
+    )
+
+    with pytest.raises(InstallerLifecycleError, match="different main-shell"):
+        verify_main_shell_evidence(
+            install_root=evidence.plan.install_root,
+            expected_version="1.2.3",
+            evidence=evidence,
+            required_qualification_events=(),
+            expected_main_pid=123,
+        )
+
+    assert terminated == [456]
 
 
 def test_portable_historical_path_runs_the_complete_installer_contract(
@@ -1211,6 +1334,7 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         "OnboardingCompletionSurface",
     ]
     state = {"page": 1, "main": False, "force_cpu": False}
+    handoff_events: list[str] = []
     values: dict[str, object] = {}
 
     class _Control:
@@ -1255,6 +1379,7 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
                 values[self.suffix] = True
             elif self.suffix == "OnboardingPrimaryButton":
                 if state["page"] == 6:
+                    handoff_events.append("open")
                     state["main"] = True
                 else:
                     state["page"] += 1
@@ -1317,6 +1442,7 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         managed_model_root=tmp_path / "models",
         endpoint_host="127.0.0.1",
         endpoint_port=8188,
+        before_open_substitute=lambda: handoff_events.append("candidate"),
         deadline=float("inf"),
     )
 
@@ -1330,6 +1456,7 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
     )
     assert values["OnboardingManagedPortSpinBox"] == 8188
     assert state["force_cpu"] is True
+    assert handoff_events == ["candidate", "open"]
 
 
 def test_historical_windows_shell_wait_surfaces_terminal_startup_failure(

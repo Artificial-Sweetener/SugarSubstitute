@@ -227,6 +227,19 @@ def test_runtime_environment_keeps_uv_state_inside_install_root(tmp_path: Path) 
     assert env["PYTHONIOENCODING"] == "utf-8:replace"
 
 
+def test_runtime_environment_ignores_parent_historical_resolver_cutoff(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Candidate requirements must not inherit a prior release's index cutoff."""
+
+    monkeypatch.setenv("UV_EXCLUDE_NEWER", "2026-08-12T00:27:36Z")
+
+    env = runtime_environment(layout=InstallLayout.from_root(tmp_path / "install"))
+
+    assert "UV_EXCLUDE_NEWER" not in env
+
+
 def test_linux_runtime_installs_cpu_pytorch_distributions(tmp_path: Path) -> None:
     """Linux app support avoids downloading CUDA toolkits into the managed runtime."""
 
