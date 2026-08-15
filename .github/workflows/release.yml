@@ -38,6 +38,16 @@ on:
         required: false
         default: ""
         type: string
+      qualification_candidate_run_id:
+        description: "Focused dry-run containing an already-staged candidate channel"
+        required: false
+        default: ""
+        type: string
+      qualification_candidate_version:
+        description: "Exact version inside the already-staged candidate channel"
+        required: false
+        default: ""
+        type: string
       upgrade_selection:
         description: "Focused upgrade depth; full qualification always uses complete"
         required: false
@@ -115,6 +125,7 @@ jobs:
     needs: determine-version
     if: >-
       always() && (
+        github.event.inputs.qualification_candidate_run_id == '' &&
         github.event.inputs.release_input_run_id == '' && (
           needs.determine-version.outputs.should_release == 'true' || (
             github.event_name == 'workflow_dispatch' &&
@@ -168,6 +179,7 @@ jobs:
     needs: determine-version
     if: >-
       always() && (
+        github.event.inputs.qualification_candidate_run_id == '' &&
         github.event.inputs.release_input_run_id == '' && (
           needs.determine-version.outputs.should_release == 'true' || (
             github.event_name == 'workflow_dispatch' &&
@@ -227,6 +239,7 @@ jobs:
     needs: determine-version
     if: >-
       always() && (
+        github.event.inputs.qualification_candidate_run_id == '' &&
         github.event.inputs.release_input_run_id == '' && (
           needs.determine-version.outputs.should_release == 'true' || (
             github.event_name == 'workflow_dispatch' &&
@@ -292,6 +305,12 @@ jobs:
       always() &&
       needs.determine-version.result == 'success' && (
         (
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.dry_run == 'true' &&
+          github.event.inputs.qualification_scope != 'full' &&
+          github.event.inputs.qualification_candidate_run_id != '' &&
+          github.event.inputs.qualification_candidate_version != ''
+        ) || (
           needs.build-windows.result == 'success' &&
           needs.build-macos.result == 'success' &&
           needs.build-linux.result == 'success'
@@ -305,35 +324,41 @@ jobs:
     runs-on: windows-latest
     outputs:
       candidate_tag: ${{ steps.publish.outputs.candidate_tag }}
-      candidate_artifact_name: ${{ steps.publish.outputs.candidate_artifact_name }}
-      candidate_version: ${{ needs.determine-version.outputs.version }}
-      staged: ${{ steps.publish.outputs.staged }}
+      candidate_artifact_name: ${{ steps.reuse.outputs.candidate_artifact_name || steps.publish.outputs.candidate_artifact_name }}
+      candidate_run_id: ${{ github.event.inputs.qualification_candidate_run_id || github.run_id }}
+      candidate_version: ${{ github.event.inputs.qualification_candidate_version || needs.determine-version.outputs.version }}
+      staged: ${{ steps.reuse.outputs.staged || steps.publish.outputs.staged }}
 
     steps:
       - name: Checkout
+        if: github.event.inputs.qualification_candidate_run_id == ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           fetch-tags: true
 
       - name: Setup Node
+        if: github.event.inputs.qualification_candidate_run_id == ''
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Setup Python
+        if: github.event.inputs.qualification_candidate_run_id == ''
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install release dependencies
+        if: github.event.inputs.qualification_candidate_run_id == ''
         shell: pwsh
         run: |
           npm ci
           python -m venv .venv
 
       - name: Download Windows release inputs
+        if: github.event.inputs.qualification_candidate_run_id == ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-inputs-windows
@@ -342,6 +367,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download Apple Silicon release inputs
+        if: github.event.inputs.qualification_candidate_run_id == ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-inputs-macos
@@ -350,6 +376,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Download Linux release inputs
+        if: github.event.inputs.qualification_candidate_run_id == ''
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-inputs-linux
@@ -358,18 +385,19 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Prepare first release candidate assets
-        if: needs.determine-version.outputs.first_release == 'true'
+        if: github.event.inputs.qualification_candidate_run_id == '' && needs.determine-version.outputs.first_release == 'true'
         shell: pwsh
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts\prepare-release-assets.mjs ${{ needs.determine-version.outputs.version }}
 
       - name: Prepare installer release notes
+        if: github.event.inputs.qualification_candidate_run_id == ''
         shell: pwsh
         run: node scripts\release-notes-preamble.cjs --repository "${{ github.repository }}" --version "${{ needs.determine-version.outputs.version }}" --output "build\release-notes.md"
 
       - name: Prepare semantic release commit and tag without publishing stable
-        if: needs.determine-version.outputs.first_release != 'true'
+        if: github.event.inputs.qualification_candidate_run_id == '' && needs.determine-version.outputs.first_release != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SUGAR_SUBSTITUTE_STAGE_ONLY: "true"
@@ -382,7 +410,7 @@ jobs:
           }
 
       - name: Prepare temporary non-release candidate assets
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        if: github.event.inputs.qualification_candidate_run_id == '' && github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           SUGAR_SUBSTITUTE_ASSET_BASE_URL: https://localhost:44443
@@ -390,7 +418,7 @@ jobs:
         run: node scripts\prepare-release-assets.mjs ${{ needs.determine-version.outputs.version }}
 
       - name: Upload temporary non-release candidate channel
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        if: github.event.inputs.qualification_candidate_run_id == '' && github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: non-release-candidate-channel
@@ -401,6 +429,7 @@ jobs:
 
       - name: Publish exact bytes as a visible prerelease candidate
         id: publish
+        if: github.event.inputs.qualification_candidate_run_id == ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
@@ -429,6 +458,22 @@ jobs:
             "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
 
+      - name: Reuse exact temporary candidate channel
+        id: reuse
+        if: github.event.inputs.qualification_candidate_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ github.event.inputs.qualification_candidate_run_id }}
+        shell: pwsh
+        run: |
+          $artifacts = gh api "repos/${{ github.repository }}/actions/runs/$env:CANDIDATE_RUN_ID/artifacts" | ConvertFrom-Json
+          $candidate = @($artifacts.artifacts | Where-Object { $_.name -eq "non-release-candidate-channel" -and -not $_.expired })
+          if ($candidate.Count -ne 1) {
+            throw "The requested run does not contain one live non-release candidate channel."
+          }
+          "candidate_artifact_name=non-release-candidate-channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
   qualify-candidate:
     name: Qualify staged installer and update bytes
     needs: stage-candidate
@@ -441,7 +486,7 @@ jobs:
       candidate_version: ${{ needs.stage-candidate.outputs.candidate_version }}
       candidate_tag: ${{ needs.stage-candidate.outputs.candidate_tag }}
       candidate_artifact_name: ${{ needs.stage-candidate.outputs.candidate_artifact_name }}
-      candidate_run_id: ${{ github.run_id }}
+      candidate_run_id: ${{ needs.stage-candidate.outputs.candidate_run_id }}
       qualification_scope: ${{ inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope }}
       upgrade_selection: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.upgrade_selection || 'complete' }}
       qualification_timeout_seconds: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.qualification_timeout_seconds || '3600' }}
