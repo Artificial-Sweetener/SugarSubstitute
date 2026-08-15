@@ -154,7 +154,12 @@ class _DeferredArtifactCacheStage:
                 source_root=self.source_root,
                 destination_root=self.destination_root,
             )
-            self._write_receipt(state="staged_after_install_layout")
+            staged_inventory = _cache_inventory(self.source_root)
+            self._write_receipt(
+                state="staged_after_install_layout",
+                source_inventory=staged_inventory,
+                destination_inventory=staged_inventory,
+            )
         except Exception as error:
             self._failure = str(error).strip() or type(error).__name__
             self._write_receipt(
@@ -165,15 +170,23 @@ class _DeferredArtifactCacheStage:
         finally:
             self._completed.set()
 
-    def _write_receipt(self, *, state: str, **fields: object) -> None:
+    def _write_receipt(
+        self,
+        *,
+        state: str,
+        source_inventory: dict[str, object] | None = None,
+        destination_inventory: dict[str, object] | None = None,
+        **fields: object,
+    ) -> None:
         """Persist bounded evidence for the external and installed cache roots."""
 
         payload = {
             "schema_version": 1,
             "state": state,
             "ready_path_present": self.ready_path.is_file(),
-            "source": _cache_inventory(self.source_root),
-            "destination": _cache_inventory(self.destination_root),
+            "source": source_inventory or _cache_inventory(self.source_root),
+            "destination": destination_inventory
+            or _cache_inventory(self.destination_root),
             **fields,
         }
         self.diagnostic_path.parent.mkdir(parents=True, exist_ok=True)

@@ -243,7 +243,9 @@ def _wait_for_onboarding_window(
         for window in desktop.windows():
             automation_id = window.element_info.automation_id or ""
             if automation_id.endswith("OnboardingWindow") and window.is_visible():
-                onboarding_pid = int(window.element_info.process_id)
+                onboarding_pid = _window_process_id(window)
+                if onboarding_pid is None:
+                    continue
                 try:
                     process.wait(timeout=30.0)
                 except subprocess.TimeoutExpired:
@@ -297,6 +299,16 @@ def _control_by_suffix(window: Any, suffix: str) -> Any:
             f"found {len(controls)}."
         )
     return controls[0]
+
+
+def _window_process_id(window: Any) -> int | None:
+    """Return a positive UI Automation process ID when one is attributed."""
+
+    try:
+        process_id = int(window.element_info.process_id)
+    except (TypeError, ValueError):
+        return None
+    return process_id if process_id > 0 else None
 
 
 def _complete_historical_onboarding(
@@ -407,7 +419,7 @@ def _wait_for_process_window(
 
     while time.monotonic() < deadline:
         for window in desktop.windows():
-            if int(window.element_info.process_id) != process_id:
+            if _window_process_id(window) != process_id:
                 continue
             if not window.is_visible():
                 continue
@@ -509,8 +521,12 @@ def _wait_for_historical_main_shell(
 
     while time.monotonic() < deadline:
         for window in desktop.windows():
-            process_id = int(window.element_info.process_id)
-            if process_id == excluded_process_id or not window.is_visible():
+            process_id = _window_process_id(window)
+            if (
+                process_id is None
+                or process_id == excluded_process_id
+                or not window.is_visible()
+            ):
                 continue
             try:
                 toolbar = _control_by_suffix(window, "WorkflowChromeToolbar")

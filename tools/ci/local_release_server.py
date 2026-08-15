@@ -19,10 +19,12 @@
 from __future__ import annotations
 
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import json
 from pathlib import Path
 import ssl
 import subprocess
-from threading import Thread
+from threading import Lock, Thread
+import time
 from typing import Any, Self
 
 import certifi
@@ -44,6 +46,9 @@ class LocalReleaseServer:
             )
         certificate_root = certificate_root.resolve()
         certificate_root.mkdir(parents=True, exist_ok=True)
+        self.request_log_path = certificate_root / "requests.jsonl"
+        self.request_log_path.unlink(missing_ok=True)
+        self._request_log_lock = Lock()
         self.certificate_path, key_path = _create_localhost_certificate(
             certificate_root
         )
@@ -89,6 +94,8 @@ class LocalReleaseServer:
         """Bind standard file serving to the exact candidate directory."""
 
         release_root = self.release_root
+        request_log_path = self.request_log_path
+        request_log_lock = self._request_log_lock
 
         class _Handler(SimpleHTTPRequestHandler):
             """Serve candidate files without noisy request logging."""
@@ -100,6 +107,24 @@ class LocalReleaseServer:
 
             def log_message(self, _format: str, *_args: object) -> None:
                 """Suppress routine local qualification request output."""
+
+            def do_GET(self) -> None:
+                """Record candidate-channel access before serving exact bytes."""
+
+                with request_log_lock:
+                    with request_log_path.open("a", encoding="utf-8") as output:
+                        output.write(
+                            json.dumps(
+                                {
+                                    "method": "GET",
+                                    "path": self.path,
+                                    "time_ns": time.time_ns(),
+                                },
+                                sort_keys=True,
+                            )
+                            + "\n"
+                        )
+                super().do_GET()
 
         return _Handler
 

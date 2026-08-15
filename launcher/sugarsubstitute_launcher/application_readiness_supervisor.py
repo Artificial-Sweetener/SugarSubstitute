@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 import json
 from pathlib import Path
 import secrets
@@ -44,6 +45,15 @@ _TERMINATION_TIMEOUT_SECONDS = 5.0
 
 class ApplicationReadinessError(RuntimeError):
     """Report a candidate that exits or stalls before its shell is ready."""
+
+
+@dataclass(frozen=True, slots=True)
+class _ReadinessContract:
+    """Bind one receipt path and token to its lifecycle owner."""
+
+    receipt_path: Path
+    token: str
+    externally_owned: bool
 
 
 class CandidateProcess(Protocol):
@@ -100,12 +110,11 @@ class ApplicationReadinessSupervisor:
     ) -> CandidateProcess:
         """Return the running candidate only after its main shell is responsive."""
 
-        token = self._token_factory()
-        receipt_path = layout.launcher_dir / "readiness" / "candidate.json"
-        try:
-            receipt_path.unlink()
-        except FileNotFoundError:
-            pass
+        contract = self._readiness_contract(layout=layout, environment=environment)
+        receipt_path = contract.receipt_path
+        token = contract.token
+        if not contract.externally_owned:
+            receipt_path.unlink(missing_ok=True)
         child_environment = dict(environment)
         child_environment[READINESS_PATH_ENV] = str(receipt_path)
         child_environment[READINESS_TOKEN_ENV] = token
@@ -128,7 +137,8 @@ class ApplicationReadinessSupervisor:
                         expected_token=token,
                         expected_pid=process.pid,
                     )
-                    receipt_path.unlink()
+                    if not contract.externally_owned:
+                        receipt_path.unlink()
                     return process
                 self._wait(_POLL_INTERVAL_SECONDS)
             raise ApplicationReadinessError(
@@ -138,6 +148,32 @@ class ApplicationReadinessSupervisor:
         except BaseException:
             stop_candidate_process(process)
             raise
+
+    def _readiness_contract(
+        self,
+        *,
+        layout: InstallLayout,
+        environment: Mapping[str, str],
+    ) -> _ReadinessContract:
+        """Adopt a complete outer proof contract or create a private one."""
+
+        external_path = environment.get(READINESS_PATH_ENV)
+        external_token = environment.get(READINESS_TOKEN_ENV)
+        if bool(external_path) != bool(external_token):
+            raise ApplicationReadinessError(
+                "Application readiness path and token must be supplied together."
+            )
+        if external_path and external_token:
+            return _ReadinessContract(
+                receipt_path=Path(external_path).expanduser().resolve(),
+                token=external_token,
+                externally_owned=True,
+            )
+        return _ReadinessContract(
+            receipt_path=layout.launcher_dir / "readiness" / "candidate.json",
+            token=self._token_factory(),
+            externally_owned=False,
+        )
 
     @staticmethod
     def _validate_receipt(

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import ssl
 import subprocess
@@ -457,6 +458,14 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
         assert payload == {"version": "9999.0.1"}
         assert server.certificate_path.is_absolute()
         assert server.trust_bundle_path.is_absolute()
+        requests = [
+            json.loads(line)
+            for line in server.request_log_path.read_text(encoding="utf-8").splitlines()
+        ]
+        assert [request["path"] for request in requests] == [
+            "/manifest.json",
+            "/manifest.json",
+        ]
         assert (
             server.trust_bundle_path.read_text(encoding="ascii").count(
                 "-----BEGIN CERTIFICATE-----"
@@ -655,6 +664,9 @@ def test_installed_candidate_launch_is_observed_without_capture_bound_wait(
     assert launch.process is fake_process
     assert observed["command"] == [str(layout.executable_path)]
     assert observed["stdout"] is observed["stderr"]
+    assert observed["stdin"] is subprocess.DEVNULL
+    assert observed["close_fds"] is True
+    assert observed["start_new_session"] is (os.name != "nt")
     assert observed["env"] == {
         "QUALIFICATION": "1",
         "SSL_CERT_FILE": "candidate-ca.pem",
@@ -685,6 +697,37 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
     )
 
     assert arguments.timeout_seconds == 1200.0
+
+
+def test_stalled_installed_launcher_fails_at_progress_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A launcher that never enters update or app handoff must fail promptly."""
+
+    progress_path = tmp_path / "launcher.log"
+    process = cast(
+        subprocess.Popen[bytes],
+        SimpleNamespace(pid=123, poll=lambda: None),
+    )
+    clock = iter((0.0, 121.0))
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification.time.monotonic",
+        lambda: next(clock),
+    )
+
+    with pytest.raises(InstallerLifecycleError, match="within 120 seconds"):
+        installer_ui_qualification._wait_for_readiness_receipt(
+            readiness_path=tmp_path / "readiness.json",
+            token="qualification-token",
+            timeout_seconds=300.0,
+            candidate_launch=InstalledCandidateLaunch(
+                process=process,
+                output_path=tmp_path / "candidate.log",
+                progress_baselines=((progress_path, (False, 0)),),
+            ),
+            diagnostic_paths=(progress_path,),
+        )
 
 
 def test_failed_candidate_evidence_wait_terminates_only_owned_launcher(
@@ -1129,7 +1172,14 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         is_visible=lambda: state["main"],
         descendants=lambda: [toolbar],
     )
-    desktop = SimpleNamespace(windows=lambda: [onboarding, main_window])
+    unattributed_window = SimpleNamespace(
+        element_info=SimpleNamespace(process_id=None),
+        is_visible=lambda: True,
+        descendants=lambda: [],
+    )
+    desktop = SimpleNamespace(
+        windows=lambda: [unattributed_window, onboarding, main_window]
+    )
     monkeypatch.setattr("tools.ci.drive_windows_installer.time.sleep", lambda _: None)
 
     main_pid = _complete_historical_onboarding(

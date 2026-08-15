@@ -125,6 +125,75 @@ def test_supervisor_returns_only_after_matching_receipt(tmp_path: Path) -> None:
     assert not (layout.launcher_dir / "readiness" / "candidate.json").exists()
 
 
+def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
+    """An outer installer proof must retain the receipt it owns for validation."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    process = _CandidateProcess()
+    receipt_path = tmp_path / "qualification" / "candidate.json"
+
+    def start(
+        _command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Write the outer token to its caller-owned receipt path."""
+
+        receipt_path.parent.mkdir(parents=True, exist_ok=True)
+        receipt_path.write_text(
+            json.dumps(
+                ApplicationReadinessReceipt(
+                    pid=process.pid,
+                    token=environment[READINESS_TOKEN_ENV],
+                    surface=ApplicationReadinessSurface.MAIN_SHELL,
+                ).to_json()
+            ),
+            encoding="utf-8",
+        )
+        return process, tmp_path / "startup.log"
+
+    result = ApplicationReadinessSupervisor(
+        timeout_seconds=5,
+        process_starter=start,
+        monotonic=_increasing_clock(),
+        wait=lambda _seconds: None,
+    ).launch_until_ready(
+        layout=layout,
+        command=["python", "main.py"],
+        environment={
+            READINESS_PATH_ENV: str(receipt_path),
+            READINESS_TOKEN_ENV: "outer-token",
+        },
+    )
+
+    assert result is process
+    assert receipt_path.is_file()
+
+
+def test_supervisor_rejects_partial_outer_readiness_contract(tmp_path: Path) -> None:
+    """A partial outer contract must fail before launching an unverifiable app."""
+
+    started = False
+
+    def start(
+        _command: Sequence[str],
+        _environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Record any forbidden process start."""
+
+        nonlocal started
+        started = True
+        return _CandidateProcess(), tmp_path / "startup.log"
+
+    with pytest.raises(ApplicationReadinessError, match="supplied together"):
+        ApplicationReadinessSupervisor(process_starter=start).launch_until_ready(
+            layout=InstallLayout.from_root(tmp_path / "install"),
+            command=["python", "main.py"],
+            environment={READINESS_PATH_ENV: str(tmp_path / "receipt.json")},
+        )
+
+    assert started is False
+
+
 def test_supervisor_rejects_onboarding_as_candidate_readiness(tmp_path: Path) -> None:
     """Candidate activation must require the real main shell."""
 
