@@ -46,6 +46,7 @@ def resolve_install_root(
     explicit_install_root: Path | None,
     executable_path: Path,
     frozen_support_path: Path | None = None,
+    invocation_path: Path | None = None,
 ) -> Path:
     """Resolve the launcher install root from flags, installed exe, or bundle."""
 
@@ -53,6 +54,7 @@ def resolve_install_root(
         explicit_install_root=explicit_install_root,
         executable_path=executable_path,
         frozen_support_path=frozen_support_path,
+        invocation_path=invocation_path,
     ).layout.root
 
 
@@ -61,6 +63,7 @@ def resolve_startup_plan(
     explicit_install_root: Path | None,
     executable_path: Path,
     frozen_support_path: Path | None = None,
+    invocation_path: Path | None = None,
 ) -> LauncherStartupPlan:
     """Resolve setup, installed, or repair behavior from package-owned paths."""
 
@@ -72,27 +75,30 @@ def resolve_startup_plan(
         )
 
     target = detect_launcher_target()
+    candidate_roots: list[Path] = []
+    if invocation_path is not None:
+        candidate_roots.append(target.install_root_for_invocation(invocation_path))
     if frozen_support_path is not None:
         frozen_install_root = target.install_root_for_support_path(frozen_support_path)
         if frozen_install_root is not None:
-            frozen_layout = InstallLayout.from_root(
-                frozen_install_root,
-                target=target,
-            )
-            if frozen_layout.config_path.is_file():
-                return _resolve_installed_config_plan(frozen_layout)
+            candidate_roots.append(frozen_install_root)
     executable_install_root = target.install_root_for_executable(executable_path)
-    executable_layout = InstallLayout.from_root(
-        executable_install_root,
-        target=target,
+    candidate_roots.append(executable_install_root)
+
+    checked_roots: set[Path] = set()
+    for candidate_root in candidate_roots:
+        candidate_layout = InstallLayout.from_root(candidate_root, target=target)
+        if candidate_layout.root in checked_roots:
+            continue
+        checked_roots.add(candidate_layout.root)
+        if candidate_layout.config_path.is_file():
+            return _resolve_installed_config_plan(candidate_layout)
+
+    return LauncherStartupPlan(
+        layout=InstallLayout.from_root(default_install_root(executable_path)),
+        installed_config_found=False,
+        installed_config_valid=True,
     )
-    if not executable_layout.config_path.is_file():
-        return LauncherStartupPlan(
-            layout=InstallLayout.from_root(default_install_root(executable_path)),
-            installed_config_found=False,
-            installed_config_valid=True,
-        )
-    return _resolve_installed_config_plan(executable_layout)
 
 
 def _resolve_installed_config_plan(layout: InstallLayout) -> LauncherStartupPlan:

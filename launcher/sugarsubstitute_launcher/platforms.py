@@ -101,6 +101,12 @@ class LauncherTarget:
         resolved_path = executable_path.expanduser().resolve()
         return resolved_path.parents[self.executable_install_root_parent]
 
+    def install_root_for_invocation(self, invocation_path: Path) -> Path:
+        """Resolve the install root without dereferencing the invoked bundle path."""
+
+        absolute_path = invocation_path.expanduser().absolute()
+        return absolute_path.parents[self.executable_install_root_parent]
+
     def install_root_for_support_path(self, support_path: Path) -> Path | None:
         """Resolve the install root when a frozen support path matches this target."""
 

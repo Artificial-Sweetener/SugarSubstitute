@@ -169,6 +169,19 @@ def test_macos_target_resolves_install_root_outside_app_bundle(tmp_path: Path) -
     )
 
 
+@pytest.mark.parametrize("target", (LINUX_X64, MACOS_ARM64))
+def test_posix_target_resolves_install_root_from_invocation_path(
+    tmp_path: Path,
+    target: LauncherTarget,
+) -> None:
+    """The operating-system invocation should retain the installed bundle root."""
+
+    install_root = tmp_path / target.key
+    invocation_path = install_root / target.executable_relative_path
+
+    assert target.install_root_for_invocation(invocation_path) == install_root
+
+
 def test_macos_launcher_bundle_installs_app_bundle(tmp_path: Path) -> None:
     """The Apple Silicon launcher should promote one complete app bundle."""
 

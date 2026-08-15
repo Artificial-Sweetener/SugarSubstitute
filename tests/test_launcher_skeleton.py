@@ -527,6 +527,31 @@ def test_launcher_resolves_install_root_from_frozen_support_bundle(
     assert startup_plan.installed_config_valid is True
 
 
+def test_launcher_resolves_install_root_from_frozen_invocation_path(
+    tmp_path: Path,
+) -> None:
+    """The invoked bundle path should survive unrelated frozen runtime paths."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    _write_launcher_executable(layout)
+    unrelated_bundle = tmp_path / "frozen-runtime"
+    unrelated_bundle.mkdir()
+    resolved_executable = unrelated_bundle / layout.executable_path.name
+    resolved_executable.write_text("", encoding="utf-8")
+
+    startup_plan = resolve_startup_plan(
+        explicit_install_root=None,
+        executable_path=resolved_executable,
+        frozen_support_path=unrelated_bundle,
+        invocation_path=layout.executable_path,
+    )
+
+    assert startup_plan.layout == layout
+    assert startup_plan.installed_config_found is True
+    assert startup_plan.installed_config_valid is True
+
+
 def test_launcher_ignores_adjacent_app_without_launcher_config(
     tmp_path: Path,
 ) -> None:
@@ -861,6 +886,58 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     assert started_environments[0][APPLICATION_LAUNCH_TOKEN_ENV] != (
         "inherited-poison-token"
     )
+
+
+def test_frozen_launcher_main_uses_invoked_installed_bundle_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A packaged launch should route from argv when runtime paths are unrelated."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout, release_source=None).save(
+        layout.config_path
+    )
+    _write_launcher_executable(layout)
+    layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
+    layout.app_entrypoint.write_text("", encoding="utf-8")
+    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
+    layout.runtime_python.write_text("", encoding="utf-8")
+    unrelated_bundle = tmp_path / "frozen-runtime"
+    unrelated_bundle.mkdir()
+    resolved_executable = unrelated_bundle / layout.executable_path.name
+    resolved_executable.write_text("", encoding="utf-8")
+    started_commands: list[list[str]] = []
+
+    monkeypatch.setattr(sys, "argv", [str(layout.executable_path)])
+    monkeypatch.setattr(sys, "executable", str(resolved_executable))
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(unrelated_bundle), raising=False)
+    monkeypatch.setattr(
+        launcher_app,
+        "start_launcher_splash_session",
+        lambda *, layout, locale_identifier: None,
+    )
+    monkeypatch.setattr(
+        launcher_app,
+        "start_detached",
+        lambda command, *, environment: started_commands.append(list(command)),
+    )
+    monkeypatch.setattr(
+        launcher_app,
+        "LauncherMainWindow",
+        lambda **_kwargs: pytest.fail("Installed launch must not show setup UI."),
+    )
+
+    assert launcher_app.main([]) == 0
+    assert started_commands == [
+        [
+            subprocess_path(layout.runtime_python),
+            subprocess_path(layout.app_entrypoint),
+            f"--install-root={subprocess_path(layout.root)}",
+            "--locale=en",
+        ]
+    ]
 
 
 @pytest.mark.parametrize(
