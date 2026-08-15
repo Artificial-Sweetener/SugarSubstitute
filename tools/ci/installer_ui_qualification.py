@@ -658,10 +658,16 @@ def process_tree_diagnostics(pid: int) -> str:
     records: list[dict[str, object]] = []
     for process in processes:
         try:
+            opened_files = [
+                str(open_file.path) for open_file in process.open_files()[:20]
+            ]
             records.append(
                 {
+                    "cmdline": [str(argument) for argument in process.cmdline()],
+                    "cwd": str(process.cwd()),
                     "exe": str(process.exe()),
                     "name": str(process.name()),
+                    "open_files": opened_files,
                     "pid": int(process.pid),
                     "ppid": int(process.ppid()),
                     "status": str(process.status()),

@@ -47,6 +47,7 @@ from tools.ci.historical_install_qualification import (  # noqa: E402
     seed_historical_user_configuration,
 )
 from tools.ci.historical_launch_qualification import (  # noqa: E402
+    assert_historical_installed_launch_contract,
     wait_for_historical_main_shell,
 )
 from tools.ci.historical_release_contract import (  # noqa: E402
@@ -240,6 +241,7 @@ def verify_upgrade(
                 environment=historical_environment,
             )
             assert_installed_version(install_root, historical_version)
+            assert_historical_installed_launch_contract(install_root)
             historical_launch_environment = dict(historical_environment)
             historical_launch_environment.pop(UV_EXCLUDE_NEWER_ENV, None)
             _complete_portable_historical_launch(
