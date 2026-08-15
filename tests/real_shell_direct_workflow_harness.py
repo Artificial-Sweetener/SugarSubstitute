@@ -343,14 +343,25 @@ class RealShellDirectWorkflowHarness:
             stack_order=[cube_alias],
         )
         self.activate_cube(animated=False)
-        self._base.wait_until(
-            lambda: any(
+
+        def projection_complete() -> bool:
+            """Finalize the cube projection before exposing rendered geometry."""
+
+            if panel.has_pending_visible_projection_commit():
+                panel.finalize_pending_visible_projection()
+            self.process_events()
+            seed_is_rendered = any(
                 field_key == "seed"
                 for _section, _node_name, field_key in cast(
                     dict[tuple[str, str, str], QWidget],
                     getattr(panel, "input_widgets_by_field_key"),
                 )
             )
+            return seed_is_rendered and not panel.is_projection_active()
+
+        self.wait_until(
+            projection_complete,
+            description="complete cube seed-control projection",
         )
         manager = cast(
             GlobalOverridesManager,

@@ -82,6 +82,7 @@ class _CandidateReleaseSource:
 
     manifest_url: str | None
     certificate_path: Path | None
+    request_log_path: Path | None = None
 
 
 @contextmanager
@@ -106,6 +107,7 @@ def _candidate_release_source(
         yield _CandidateReleaseSource(
             manifest_url=server.manifest_url,
             certificate_path=server.trust_bundle_path,
+            request_log_path=server.request_log_path,
         )
 
 
@@ -337,6 +339,7 @@ def _activate_and_verify_candidate_update(
             candidate_launch = launch_installed_candidate(
                 install_root=install_root,
                 environment=evidence.environment,
+                progress_paths=(candidate_source.request_log_path,),
             )
             verify_main_shell_evidence(
                 install_root=install_root,
@@ -345,6 +348,7 @@ def _activate_and_verify_candidate_update(
                 required_qualification_events=(),
                 require_governed_setup_record=False,
                 candidate_launch=candidate_launch,
+                additional_diagnostic_paths=(candidate_source.request_log_path,),
                 timeout_seconds=_remaining_qualification_timeout(
                     qualification_deadline,
                     phase="candidate main-shell readiness",

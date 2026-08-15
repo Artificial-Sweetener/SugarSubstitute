@@ -29,7 +29,10 @@ import subprocess
 import sys
 import time
 
-from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.install_layout import (
+    InstallLayout,
+    default_install_root,
+)
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.application_readiness import (
     READINESS_PATH_ENV,
@@ -45,6 +48,7 @@ from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
+_LAUNCH_PROGRESS_TIMEOUT_SECONDS = 120.0
 _MANAGED_COMFY_OUTPUT_LOG_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
 _TERMINAL_STARTUP_FAILURE_EVENTS = frozenset({"startup.managed.failure"})
 _REQUIRED_STARTUP_EVENTS = (
@@ -85,6 +89,7 @@ class InstalledCandidateLaunch:
 
     process: subprocess.Popen[bytes]
     output_path: Path
+    progress_baselines: tuple[tuple[Path, tuple[bool, int]], ...] = ()
 
 
 def prepare_qualification_evidence(
@@ -214,6 +219,7 @@ def launch_installed_candidate(
     *,
     install_root: Path,
     environment: dict[str, str],
+    progress_paths: tuple[Path | None, ...] = (),
 ) -> InstalledCandidateLaunch:
     """Launch a historical install and return immediately for evidence polling."""
 
@@ -221,15 +227,31 @@ def launch_installed_candidate(
     output_path = layout.logs_dir / "candidate-update-launch.log"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     launch_environment = _external_frozen_launch_environment(environment)
+    observed_progress_paths = (
+        layout.logs_dir / "launcher.log",
+        layout.logs_dir / "launcher-update.log",
+        layout.logs_dir / "app-startup.log",
+        *(path for path in progress_paths if path is not None),
+    )
+    progress_baselines = tuple(
+        (path, _path_signature(path)) for path in observed_progress_paths
+    )
     with output_path.open("wb") as output:
         process = subprocess.Popen(
             [str(layout.executable_path)],
             cwd=layout.root,
             env=launch_environment,
+            stdin=subprocess.DEVNULL,
             stdout=output,
             stderr=output,
+            close_fds=True,
+            start_new_session=os.name != "nt",
         )
-    return InstalledCandidateLaunch(process=process, output_path=output_path)
+    return InstalledCandidateLaunch(
+        process=process,
+        output_path=output_path,
+        progress_baselines=progress_baselines,
+    )
 
 
 def _external_frozen_launch_environment(
@@ -254,6 +276,7 @@ def verify_main_shell_evidence(
     required_qualification_events: tuple[str, ...],
     require_governed_setup_record: bool = True,
     candidate_launch: InstalledCandidateLaunch | None = None,
+    additional_diagnostic_paths: tuple[Path | None, ...] = (),
     timeout_seconds: float | None = None,
 ) -> None:
     """Require UI events, installed version, splash sequence, and main shell."""
@@ -274,6 +297,7 @@ def verify_main_shell_evidence(
                 install_root=install_root,
                 evidence=evidence,
                 candidate_launch=candidate_launch,
+                additional_paths=additional_diagnostic_paths,
             ),
         )
         assert_installed_version(install_root, expected_version)
@@ -415,9 +439,14 @@ def _wait_for_readiness_receipt(
 ) -> ApplicationReadinessReceipt:
     """Wait for a token-bound main-shell receipt or surface diagnostics."""
 
-    deadline = time.monotonic() + timeout_seconds
+    started_at = time.monotonic()
+    deadline = started_at + timeout_seconds
+    launch_progress_deadline = min(
+        deadline,
+        started_at + _LAUNCH_PROGRESS_TIMEOUT_SECONDS,
+    )
     trace_offset = 0
-    while time.monotonic() < deadline:
+    while (now := time.monotonic()) < deadline:
         if candidate_launch is not None:
             return_code = candidate_launch.process.poll()
             if return_code not in {None, 0}:
@@ -425,6 +454,18 @@ def _wait_for_readiness_receipt(
                     f"Installed launcher exited with {return_code} before the "
                     "main-shell receipt.\n"
                     + diagnostic_tail(candidate_launch.output_path)
+                )
+            if now >= launch_progress_deadline and not _candidate_launch_has_progress(
+                candidate_launch
+            ):
+                diagnostics = "\n\n".join(
+                    f"{path}:\n{diagnostic_tail(path)}" for path in diagnostic_paths
+                )
+                raise InstallerLifecycleError(
+                    "Installed launcher did not begin its configured update or "
+                    "application handoff within 120 seconds. "
+                    f"Launcher PID: {candidate_launch.process.pid}; "
+                    f"return code: {return_code}.\n{diagnostics}"
                 )
         if trace_path is not None:
             trace_offset, terminal_event = _read_terminal_startup_failure(
@@ -500,6 +541,7 @@ def _evidence_diagnostic_paths(
     install_root: Path,
     evidence: InstallerQualificationEvidence,
     candidate_launch: InstalledCandidateLaunch | None,
+    additional_paths: tuple[Path | None, ...] = (),
 ) -> tuple[Path, ...]:
     """Return authoritative logs for one installed splash-to-shell chain."""
 
@@ -514,9 +556,36 @@ def _evidence_diagnostic_paths(
         layout.appdata_dir / "runtime_state" / "setup_transaction.json",
         layout.root / "managed-comfy-startup.log",
     ]
+    inferred_default_log = (
+        default_install_root(layout.executable_path)
+        / "launcher"
+        / "logs"
+        / "launcher.log"
+    )
+    if inferred_default_log != layout.logs_dir / "launcher.log":
+        paths.append(inferred_default_log)
+    paths.extend(path for path in additional_paths if path is not None)
     if candidate_launch is not None:
         paths.insert(0, candidate_launch.output_path)
     return tuple(paths)
+
+
+def _candidate_launch_has_progress(launch: InstalledCandidateLaunch) -> bool:
+    """Return whether the installed launcher touched any owned handoff evidence."""
+
+    return any(
+        _path_signature(path) != baseline
+        for path, baseline in launch.progress_baselines
+    )
+
+
+def _path_signature(path: Path) -> tuple[bool, int]:
+    """Return a race-tolerant existence and size signature for one evidence file."""
+
+    try:
+        return True, path.stat().st_size
+    except OSError:
+        return False, 0
 
 
 def assert_startup_trace_sequence(trace_path: Path) -> None:
