@@ -72,7 +72,9 @@ from tools.ci.standalone_artifact_cache import (
     standalone_cache_diagnostic_path,
 )
 from tools.ci.drive_windows_installer import (
+    WindowsInstallerAutomationError,
     _complete_historical_onboarding,
+    _wait_for_historical_main_shell,
     _wait_for_onboarding_window,
 )
 
@@ -724,7 +726,7 @@ def test_stalled_installed_launcher_fails_at_progress_boundary(
         lambda: next(clock),
     )
     monkeypatch.setattr(
-        "tools.ci.installer_ui_qualification._process_tree_diagnostics",
+        "tools.ci.installer_ui_qualification.process_tree_diagnostics",
         lambda pid: f"pid={pid}",
     )
 
@@ -1202,6 +1204,7 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
     main_pid = _complete_historical_onboarding(
         desktop=desktop,
         onboarding_pid=100,
+        install_root=tmp_path / "installed",
         managed_workspace_path=tmp_path / "comfyui",
         managed_model_root=tmp_path / "models",
         endpoint_host="127.0.0.1",
@@ -1218,6 +1221,37 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         (tmp_path / "models").resolve()
     )
     assert values["OnboardingManagedPortSpinBox"] == 8188
+
+
+def test_historical_windows_shell_wait_surfaces_terminal_startup_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Windows UI qualification must stop when the launched app reports failure."""
+
+    layout = InstallLayout.from_root(tmp_path / "installed")
+    trace_path = layout.appdata_dir / "diagnostics" / "logs" / "startup-trace.jsonl"
+    trace_path.parent.mkdir(parents=True)
+    trace_path.write_text(
+        json.dumps({"event": "startup.managed.failure"}) + "\n",
+        encoding="utf-8",
+    )
+    managed_output = layout.root / "historical-managed-comfy-startup.log"
+    managed_output.write_text("managed Comfy exited with code 1\n", encoding="utf-8")
+    monkeypatch.setattr("tools.ci.drive_windows_installer.time.sleep", lambda _: None)
+
+    with pytest.raises(
+        WindowsInstallerAutomationError,
+        match="startup.managed.failure",
+    ) as error:
+        _wait_for_historical_main_shell(
+            desktop=SimpleNamespace(windows=lambda: []),
+            excluded_process_id=100,
+            install_root=layout.root,
+            deadline=float("inf"),
+        )
+
+    assert "managed Comfy exited with code 1" in str(error.value)
 
 
 def test_verified_process_cleanup_accepts_an_already_exited_root(

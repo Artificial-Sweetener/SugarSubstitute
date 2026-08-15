@@ -360,6 +360,10 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert qualification_text.count("Upload clean-install diagnostics") == 2
     assert "Upload historical-update diagnostics" in qualification_text
     assert "historical-update-diagnostics-${{ matrix.platform }}-" in qualification_text
+    assert "historical-managed-comfy-startup.log" in qualification_text
+    assert "launcher/locks/application-launch.lock" in qualification_text
+    assert "appdata/runtime_state/managed_comfy_process.json" in qualification_text
+    assert ".historical-certificate/requests.jsonl" in qualification_text
     historical_proof = qualification_text.split(
         "- name: Prove historical update, splash, and main shell",
         maxsplit=1,

@@ -514,13 +514,13 @@ def _wait_for_readiness_receipt(
                     "main-shell receipt.\n"
                     + diagnostic_tail(candidate_launch.output_path)
                 )
-            if now >= launch_progress_deadline and not _candidate_launch_has_progress(
+            if now >= launch_progress_deadline and not installed_launch_has_progress(
                 candidate_launch
             ):
                 diagnostics = "\n\n".join(
                     f"{path}:\n{diagnostic_tail(path)}" for path in diagnostic_paths
                 )
-                process_diagnostics = _process_tree_diagnostics(
+                process_diagnostics = process_tree_diagnostics(
                     candidate_launch.process.pid
                 )
                 raise InstallerLifecycleError(
@@ -633,7 +633,7 @@ def _evidence_diagnostic_paths(
     return tuple(paths)
 
 
-def _candidate_launch_has_progress(launch: InstalledCandidateLaunch) -> bool:
+def installed_launch_has_progress(launch: InstalledCandidateLaunch) -> bool:
     """Return whether the installed launcher touched any owned handoff evidence."""
 
     return any(
@@ -642,7 +642,7 @@ def _candidate_launch_has_progress(launch: InstalledCandidateLaunch) -> bool:
     )
 
 
-def _process_tree_diagnostics(pid: int) -> str:
+def process_tree_diagnostics(pid: int) -> str:
     """Render bounded non-secret identity for one qualification process tree."""
 
     try:
@@ -749,8 +749,10 @@ __all__ = [
     "assert_startup_trace_sequence",
     "available_loopback_port",
     "diagnostic_tail",
+    "installed_launch_has_progress",
     "launch_installed_candidate",
     "prepare_qualification_evidence",
+    "process_tree_diagnostics",
     "run_current_installer_ui",
     "terminate_verified_process",
     "verify_main_shell_evidence",

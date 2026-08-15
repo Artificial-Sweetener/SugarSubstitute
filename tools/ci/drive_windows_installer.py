@@ -30,9 +30,28 @@ import time
 from collections.abc import Sequence
 from typing import Any, Protocol
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
+from sugarsubstitute_shared.application_launch_guard import (  # noqa: E402
+    application_launch_lock_path,
+)
+from tools.ci.historical_release_contract import (  # noqa: E402
+    HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME,
+)
+from tools.ci.installer_ui_qualification import diagnostic_tail  # noqa: E402
+
 _UI_PHASE_TIMEOUT_SECONDS = 60.0
 _PROVISIONING_TIMEOUT_SECONDS = 1_800.0
 _MAIN_SHELL_TIMEOUT_SECONDS = 300.0
+_TERMINAL_STARTUP_EVENTS = frozenset(
+    {
+        "startup.gui_task.failure",
+        "startup.managed.failure",
+    }
+)
 
 
 class WindowsInstallerAutomationError(RuntimeError):
@@ -189,6 +208,7 @@ def drive_windows_installer(
         main_pid = _complete_historical_onboarding(
             desktop=desktop,
             onboarding_pid=onboarding_pid,
+            install_root=install_root,
             managed_workspace_path=managed_workspace_path,
             managed_model_root=managed_model_root,
             endpoint_host=endpoint_host,
@@ -316,6 +336,7 @@ def _complete_historical_onboarding(
     *,
     desktop: Any,
     onboarding_pid: int,
+    install_root: Path,
     managed_workspace_path: Path,
     managed_model_root: Path,
     endpoint_host: str,
@@ -405,6 +426,7 @@ def _complete_historical_onboarding(
     return _wait_for_historical_main_shell(
         desktop=desktop,
         excluded_process_id=onboarding_pid,
+        install_root=install_root,
         deadline=_phase_deadline(deadline, _MAIN_SHELL_TIMEOUT_SECONDS),
     )
 
@@ -516,11 +538,20 @@ def _wait_for_historical_main_shell(
     *,
     desktop: Any,
     excluded_process_id: int,
+    install_root: Path,
     deadline: float,
 ) -> int:
     """Require splash completion and the historical workflow toolbar."""
 
     while time.monotonic() < deadline:
+        terminal_event = _historical_terminal_startup_event(install_root)
+        if terminal_event is not None:
+            raise WindowsInstallerAutomationError(
+                "Historical Open Substitute reported terminal startup failure: "
+                f"{terminal_event}.\n"
+                f"{_historical_startup_diagnostics(install_root)}\n\n"
+                f"desktop:\n{_desktop_automation_snapshot(desktop)}"
+            )
         for window in desktop.windows():
             process_id = _window_process_id(window)
             if (
@@ -538,8 +569,46 @@ def _wait_for_historical_main_shell(
         time.sleep(0.2)
     raise TimeoutError(
         "Historical Open Substitute did not reveal the main shell.\n"
+        + _historical_startup_diagnostics(install_root)
+        + "\n\ndesktop:\n"
         + _desktop_automation_snapshot(desktop)
     )
+
+
+def _historical_terminal_startup_event(install_root: Path) -> str | None:
+    """Return the first terminal event reported by the historical application."""
+
+    layout = InstallLayout.from_root(install_root)
+    trace_path = layout.appdata_dir / "diagnostics" / "logs" / "startup-trace.jsonl"
+    try:
+        lines = trace_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        event = payload.get("event") if isinstance(payload, dict) else None
+        if event in _TERMINAL_STARTUP_EVENTS:
+            return str(event)
+    return None
+
+
+def _historical_startup_diagnostics(install_root: Path) -> str:
+    """Render bounded process and runtime evidence for one failed UI handoff."""
+
+    layout = InstallLayout.from_root(install_root)
+    paths = (
+        layout.logs_dir / "launcher.log",
+        layout.logs_dir / "app-startup.log",
+        layout.appdata_dir / "diagnostics" / "logs" / "startup-trace.jsonl",
+        layout.appdata_dir / "diagnostics" / "logs" / "sugarsubstitute.log",
+        layout.appdata_dir / "runtime_state" / "managed_comfy_process.json",
+        layout.root / HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME,
+        application_launch_lock_path(layout.root),
+    )
+    return "\n\n".join(f"{path}:\n{diagnostic_tail(path)}" for path in paths)
 
 
 def _phase_deadline(overall_deadline: float, timeout_seconds: float) -> float:

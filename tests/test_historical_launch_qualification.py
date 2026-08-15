@@ -155,11 +155,50 @@ def test_historical_shell_surfaces_terminal_startup_failure(
         )
 
 
+def test_historical_shell_fails_fast_without_owned_launch_progress(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A silent historical launcher must yield process evidence after 120 seconds."""
+
+    layout = InstallLayout.from_root(tmp_path / "installed")
+    progress_path = layout.logs_dir / "launcher.log"
+    clock = iter((0.0, 121.0))
+    monkeypatch.setattr(
+        "tools.ci.historical_launch_qualification.time.monotonic",
+        lambda: next(clock),
+    )
+    monkeypatch.setattr(
+        "tools.ci.historical_launch_qualification.process_tree_diagnostics",
+        lambda pid: f"process-tree-for-{pid}",
+        raising=False,
+    )
+
+    with pytest.raises(
+        InstallerLifecycleError,
+        match="did not begin.*120 seconds",
+    ) as error:
+        wait_for_historical_main_shell(
+            install_root=layout.root,
+            launch=_launch(
+                pid=123,
+                returncode=0,
+                output_path=layout.logs_dir / "launch.log",
+                progress_baselines=((progress_path, (False, 0)),),
+            ),
+            timeout_seconds=600.0,
+        )
+
+    assert "process-tree-for-123" in str(error.value)
+    assert "return code: 0" in str(error.value)
+
+
 def _launch(
     *,
     pid: int,
     returncode: int | None,
     output_path: Path,
+    progress_baselines: tuple[tuple[Path, tuple[bool, int]], ...] = (),
 ) -> InstalledCandidateLaunch:
     """Build one deterministic installed-launch process fixture."""
 
@@ -167,4 +206,8 @@ def _launch(
         subprocess.Popen[bytes],
         SimpleNamespace(pid=pid, poll=lambda: returncode),
     )
-    return InstalledCandidateLaunch(process=process, output_path=output_path)
+    return InstalledCandidateLaunch(
+        process=process,
+        output_path=output_path,
+        progress_baselines=progress_baselines,
+    )
