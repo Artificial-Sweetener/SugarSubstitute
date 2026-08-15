@@ -382,19 +382,27 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     assert "github.event_name != 'workflow_dispatch'" in tests_guard
     assert "github.event.inputs.dry_run != 'true'" in tests_guard
     assert "github.event.inputs.qualification_scope == 'full'" in tests_guard
-    assert "candidate_run_id: ${{ github.run_id }}" in release_text
+    assert (
+        "candidate_run_id: ${{ needs.stage-candidate.outputs.candidate_run_id }}"
+        in (release_text)
+    )
     assert "  actions: read\n  contents: write" in release_text
     assert "steps.release-version.outputs.should_release ||" in release_text
     assert "format('9999.0.{0}', github.run_number) || ''" in release_text
-    assert release_text.count("github.event.inputs.qualification_scope != 'full'") == 5
+    assert release_text.count("github.event.inputs.qualification_scope != 'full'") == 6
     assert release_text.count("always() &&") >= 6
     assert "release_input_run_id:" in release_text
+    assert "qualification_candidate_run_id:" in release_text
+    assert "qualification_candidate_version:" in release_text
     assert "github.event.inputs.release_input_run_id != ''" in release_text
     assert (
         "run-id: ${{ github.event.inputs.release_input_run_id || github.run_id }}"
         in (release_text)
     )
     assert "needs.stage-candidate.result == 'success'" in release_text
+    assert "Reuse exact temporary candidate channel" in release_text
+    assert "needs.stage-candidate.outputs.candidate_run_id" in release_text
+    assert "github.event.inputs.qualification_candidate_version ||" in release_text
     assert "qualification-all" in release_text
     assert "upgrade_selection:" in release_text
     assert (
