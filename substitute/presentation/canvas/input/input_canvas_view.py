@@ -118,7 +118,7 @@ class InputCanvas(QWidget):
 
         super().__init__(parent)
         self.setStyleSheet("border: none; background-color: transparent;")
-        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         features = _input_canvas_cutecanvas_features()
         if features != _DEFAULT_CUTECANVAS_FEATURES:
             trace_mark(
