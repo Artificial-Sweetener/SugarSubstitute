@@ -2,9 +2,8 @@ name: Comfy compatibility
 
 on:
   push:
-    branches-ignore:
-      - main
-      - "dependabot/**"
+    branches:
+      - canary
     paths-ignore:
       - "**/*.md"
   pull_request:
@@ -16,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: comfy-compatibility-${{ github.workflow }}-${{ github.ref }}
+  group: comfy-compatibility-${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 env:

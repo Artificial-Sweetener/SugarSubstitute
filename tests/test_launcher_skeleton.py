@@ -414,10 +414,10 @@ def test_frozen_installer_uses_production_release_without_embedded_channel(
     assert source.manifest_url != DEFAULT_RELEASE_MANIFEST_URL
 
 
-def test_frozen_canary_installer_uses_exact_canary_release(
+def test_frozen_canary_installer_binds_rolling_canary_release(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A frozen Canary setup must retain its exact build and rolling feed."""
+    """A frozen Canary setup must verify its build on the rolling feed."""
 
     monkeypatch.setattr(
         "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_packaged_release_root",
@@ -430,14 +430,13 @@ def test_frozen_canary_installer_uses_exact_canary_release(
 
     source = resolve_initial_install_release_source(
         frozen_setup=True,
-        release_version="9999.1.42",
+        release_version="0.21.0-canary.42",
     )
 
     assert isinstance(source, VersionBoundReleaseSource)
     assert source.expected_channel == "canary"
-    assert source.manifest_url.endswith(
-        "/releases/download/canary-v9999.1.42/manifest.json"
-    )
+    assert source.expected_version == "0.21.0-canary.42"
+    assert source.manifest_url.endswith("/releases/download/canary/manifest.json")
     assert source.update_manifest_url.endswith(
         "/releases/download/canary/manifest.json"
     )

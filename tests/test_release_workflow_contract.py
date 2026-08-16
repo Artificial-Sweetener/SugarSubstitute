@@ -52,7 +52,7 @@ def test_documentation_only_changes_skip_automatic_ci() -> None:
     }
     triggers = {name: workflow[True] for name, workflow in workflows.items()}
 
-    assert triggers["tests.yml"]["push"]["paths-ignore"] == (_DOCUMENTATION_PATH_FILTER)
+    assert "push" not in triggers["tests.yml"]
     assert triggers["tests.yml"]["pull_request"]["paths-ignore"] == (
         _DOCUMENTATION_PATH_FILTER
     )
@@ -222,14 +222,28 @@ def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
     )
     assert jobs["determine-version"]["needs"] == "tests"
     assert "  workflow_call:" in tests_workflow_text
-    assert (
-        '    branches-ignore:\n      - main\n      - canary\n      - "dependabot/**"'
-        in (tests_workflow_text)
-    )
+    assert "  push:" not in tests_workflow_text.split("permissions:", maxsplit=1)[0]
+
+
+def test_push_and_pull_request_runs_share_commit_concurrency() -> None:
+    """Opening or updating a PR must cancel its duplicate branch-push run."""
+
+    for workflow_name in ("tests.yml", "comfy-compatibility.yml"):
+        workflow = yaml.safe_load(
+            (PROJECT_ROOT / ".github" / "workflows" / workflow_name).read_text(
+                encoding="utf-8"
+            )
+        )
+        concurrency = workflow["concurrency"]
+
+        assert (
+            "github.event.pull_request.head.sha || github.sha" in concurrency["group"]
+        )
+        assert concurrency["cancel-in-progress"] is True
 
 
 def test_canary_isolated_release_train_contract() -> None:
-    """Canary must qualify exact bytes before updating its isolated public feed."""
+    """Canary must validate exact bytes before updating one isolated public feed."""
 
     release_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
         encoding="utf-8"
@@ -242,13 +256,22 @@ def test_canary_isolated_release_train_contract() -> None:
     )
 
     assert "      - main\n      - canary" in release_text
-    assert "format('9999.1.{0}', github.run_number)" in release_text
+    assert "SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER:" in release_text
+    assert "format('9999.1.{0}', github.run_number)" not in release_text
     assert "SUGAR_SUBSTITUTE_RELEASE_CHANNEL: canary" in release_text
-    assert '"canary-v$version"' in release_text
+    assert "releases/download/canary" in release_text
+    assert '"canary-v$version"' not in release_text
     assert "release-qualification.yml" in release_text
+    assert "'canary-fast'" in release_text
+    assert "Upload temporary non-release candidate channel" in release_text
+    assert "validate-candidate-artifact:" in (
+        PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
+    ).read_text(encoding="utf-8")
     promotion = release_text.split("  promote-release:", maxsplit=1)[1]
+    assert "Download qualified Canary candidate" in promotion
     assert "gh release upload canary" in promotion
     assert 'gh release upload canary "$channel_dir/manifest.json"' in promotion
+    assert promotion.count('gh release edit "$CANDIDATE_TAG"') == 1
     assert "--clobber" in promotion
     assert "--prerelease=false --latest" in promotion
     assert "github.ref_name == 'main'" in promotion
@@ -284,7 +307,7 @@ def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
     javascript = (
         f"import {{ updateReleaseVersions }} from {json.dumps(script_url)}; "
         f"updateReleaseVersions(new URL({json.dumps(root_url)}), "
-        '"9999.1.42", "canary");'
+        '"0.21.0-canary.42", "canary");'
     )
 
     subprocess.run(
@@ -298,8 +321,70 @@ def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
     ).read_text(encoding="utf-8") == 'RELEASE_CHANNEL = "canary"\n'
     assert (
         json.loads((tmp_path / "package.json").read_text(encoding="utf-8"))["version"]
-        == "9999.1.42"
+        == "0.21.0-canary.42"
     )
+
+
+def test_canary_version_derives_from_next_stable_release() -> None:
+    """Canary versions should identify their future Stable base and CI build."""
+
+    script = """
+const versions = require('./scripts/canary-release-version.cjs');
+process.stdout.write(JSON.stringify({
+  canary: versions.createCanaryVersion('0.21.0', '142'),
+  fallback: versions.nextPatchVersion(['v0.19.2', 'v0.20.1', 'v0.20.0']),
+}));
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {
+        "canary": "0.21.0-canary.142",
+        "fallback": "0.20.2",
+    }
+
+
+def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> None:
+    """Canary notes should immediately route ordinary users to Stable."""
+
+    output_path = tmp_path / "release-notes.md"
+    result = subprocess.run(
+        [
+            "node",
+            "scripts/release-notes-preamble.cjs",
+            "--repository",
+            "Artificial-Sweetener/Substitute-Test",
+            "--version",
+            "0.21.0-canary.42",
+            "--channel",
+            "canary",
+            "--output",
+            str(output_path),
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    notes = output_path.read_text(encoding="utf-8")
+    stable_url = (
+        "https://github.com/Artificial-Sweetener/Substitute-Test/releases/latest"
+    )
+    assert notes.startswith("> [!WARNING]\n")
+    assert f"[Download the latest Stable release instead]({stable_url})" in notes
+    assert "DO NOT download this Canary build for normal use" in notes
+    assert "Canary builds are intended only for testers" in notes
+    assert "releases/download/canary/SugarSubstitute-0.21.0-canary.42" in notes
 
 
 def test_cross_platform_validation_requires_explicit_invocation() -> None:
@@ -340,6 +425,20 @@ def test_managed_comfy_install_uses_exact_pin_and_artifact_cache() -> None:
     assert "verify_managed_comfy_install.py" in workflow_text
     assert "--variant win-cpu" in workflow_text
     assert "pip install torch" not in workflow_text
+
+
+def test_required_managed_comfy_check_runs_for_every_protected_pr() -> None:
+    """Required branch checks must not disappear behind path filtering."""
+
+    workflow_text = (
+        PROJECT_ROOT / ".github" / "workflows" / "managed-comfy-install.yml"
+    ).read_text(encoding="utf-8")
+    pull_request_trigger = workflow_text.split("  pull_request:", maxsplit=1)[1].split(
+        "  workflow_dispatch:", maxsplit=1
+    )[0]
+
+    assert "    branches:\n      - main\n      - canary\n" in pull_request_trigger
+    assert "paths:" not in pull_request_trigger
 
 
 def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
@@ -971,6 +1070,26 @@ def test_readme_test_badge_tracks_authoritative_main_workflow() -> None:
     )
     assert badge in readme
     assert "actions/workflows/tests.yml/badge.svg" not in readme
+
+
+def test_all_readme_release_badges_exclude_prereleases() -> None:
+    """Release badges must display and navigate only to the latest Stable release."""
+
+    expected_image = (
+        "https://img.shields.io/github/v/release/Artificial-Sweetener/SugarSubstitute"
+    )
+    expected_target = (
+        "https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest"
+    )
+    for readme_path in sorted(PROJECT_ROOT.glob("README*.md")):
+        readme = readme_path.read_text(encoding="utf-8")
+        release_badge_line = next(
+            line for line in readme.splitlines() if expected_image in line
+        )
+
+        assert f'href="{expected_target}"' in release_badge_line
+        assert f'src="{expected_image}"' in release_badge_line
+        assert "include_prereleases" not in release_badge_line
 
 
 def test_readme_explains_comfy_setup_modes_and_remote_requirements() -> None:

@@ -158,15 +158,11 @@ def production_installer_release_source(version: str) -> VersionBoundReleaseSour
 
 
 def canary_installer_release_source(version: str) -> VersionBoundReleaseSource:
-    """Return the immutable Canary build and its rolling update feed."""
+    """Bind one Canary setup to the version currently on its rolling feed."""
 
     normalized_version = safe_launcher_version(version)
-    manifest_url = (
-        "https://github.com/Artificial-Sweetener/SugarSubstitute/"
-        f"releases/download/canary-v{normalized_version}/manifest.json"
-    )
     return VersionBoundReleaseSource(
-        manifest_url=manifest_url,
+        manifest_url=DEFAULT_CANARY_RELEASE_MANIFEST_URL,
         expected_version=normalized_version,
         expected_channel=CANARY_RELEASE_CHANNEL,
         update_manifest_url=DEFAULT_CANARY_RELEASE_MANIFEST_URL,

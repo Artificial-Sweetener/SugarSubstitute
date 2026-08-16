@@ -20,7 +20,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QTimer, Qt
+from PySide6.QtWidgets import QWidget
 
 from substitute.presentation.canvas.host.canvas_host_state import CanvasHostState
 
@@ -49,10 +50,20 @@ class CanvasHostActivationController:
             return False
         self._state.select(route_key)
         self._synchronize_presentation()
-        if keyboard_focus:
-            entry.page.widget.setFocus(Qt.FocusReason.OtherFocusReason)
         self._canvas_activated(route_key)
+        if keyboard_focus:
+            QTimer.singleShot(
+                0,
+                lambda: self._focus_selected_canvas(route_key, entry.page.widget),
+            )
         return True
+
+    def _focus_selected_canvas(self, route_key: str, widget: QWidget) -> None:
+        """Transfer focus after the originating pointer event has settled."""
+
+        if self._state.active_route_key != route_key:
+            return
+        widget.setFocus(Qt.FocusReason.OtherFocusReason)
 
 
 __all__ = ["CanvasHostActivationController"]

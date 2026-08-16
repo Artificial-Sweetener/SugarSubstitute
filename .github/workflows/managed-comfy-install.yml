@@ -3,11 +3,9 @@ name: managed Comfy install
 on:
   workflow_call:
   pull_request:
-    paths:
-      - ".github/workflows/managed-comfy-install.yml"
-      - "substitute/infrastructure/comfy/standalone_environment/**"
-      - "tools/ci/verify_managed_comfy_install.py"
-      - "tests/test_standalone_environment_pin.py"
+    branches:
+      - main
+      - canary
   workflow_dispatch:
 
 permissions:
