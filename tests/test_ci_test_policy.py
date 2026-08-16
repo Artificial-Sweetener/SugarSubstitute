@@ -37,6 +37,7 @@ from tests.ci_test_policy import (
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TESTS_ROOT = PROJECT_ROOT / "tests"
 OUTPUT_NAVIGATION_CONTRACT_MODULE = "tests/test_output_canvas_navigation_contract.py"
+PROJECTION_LAYOUT_CONTRACT_MODULE = "tests/test_prompt_projection_layout_contract.py"
 
 
 @pytest.mark.parametrize(
@@ -118,6 +119,12 @@ def test_serial_inventory_covers_existing_xdist_sensitive_modules() -> None:
         for relative_path in SERIAL_TEST_MODULES
         if not (PROJECT_ROOT / relative_path).is_file()
     } == set()
+
+
+def test_projection_layout_contract_remains_isolated_from_xdist() -> None:
+    """Keep native Qt text-layout ownership out of parallel worker teardown."""
+
+    assert PROJECTION_LAYOUT_CONTRACT_MODULE in SERIAL_TEST_MODULES
 
 
 def test_output_navigation_contract_remains_in_ordinary_parallel_ci() -> None:
