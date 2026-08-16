@@ -421,10 +421,35 @@ jobs:
         shell: pwsh
         run: Copy-Item build\release-notes.md .local-release-channel\.release-notes.md
 
+      - name: Configure authorized Stable release push
+        if: github.event.inputs.qualification_candidate_run_id == '' && needs.determine-version.outputs.channel == 'stable' && needs.determine-version.outputs.first_release != 'true'
+        env:
+          STABLE_RELEASE_DEPLOY_KEY: ${{ secrets.STABLE_RELEASE_DEPLOY_KEY }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          if ([string]::IsNullOrWhiteSpace($env:STABLE_RELEASE_DEPLOY_KEY)) {
+            throw "STABLE_RELEASE_DEPLOY_KEY is required to stage a Stable release."
+          }
+          $keyPath = Join-Path $env:RUNNER_TEMP "stable-release-deploy-key"
+          $keyText = $env:STABLE_RELEASE_DEPLOY_KEY.Trim().Replace("`r", "") + "`n"
+          [System.IO.File]::WriteAllText(
+            $keyPath,
+            $keyText,
+            [System.Text.UTF8Encoding]::new($false)
+          )
+          & icacls.exe $keyPath /inheritance:r /grant:r "$($env:USERNAME):(R)" | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not restrict the Stable release deploy key permissions."
+          }
+          $gitKeyPath = $keyPath.Replace("\", "/")
+          git config --local core.sshCommand "ssh -i `"$gitKeyPath`" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+
       - name: Prepare semantic release commit and tag without publishing stable
         if: github.event.inputs.qualification_candidate_run_id == '' && needs.determine-version.outputs.channel == 'stable' && needs.determine-version.outputs.first_release != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL: git@github.com:${{ github.repository }}.git
           SUGAR_SUBSTITUTE_STAGE_ONLY: "true"
         shell: pwsh
         run: |

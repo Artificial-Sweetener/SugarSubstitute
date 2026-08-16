@@ -17,9 +17,13 @@
 const githubRepository = process.env.GITHUB_REPOSITORY?.trim();
 const releaseRepository =
   githubRepository || "Artificial-Sweetener/SugarSubstitute";
-const repositoryUrl = githubRepository
-  ? `${process.env.GITHUB_SERVER_URL ?? "https://github.com"}/${githubRepository}.git`
-  : "https://github.com/Artificial-Sweetener/SugarSubstitute.git";
+const authorizedRepositoryUrl =
+  process.env.SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL?.trim();
+const repositoryUrl =
+  authorizedRepositoryUrl ||
+  (githubRepository
+    ? `${process.env.GITHUB_SERVER_URL ?? "https://github.com"}/${githubRepository}.git`
+    : "https://github.com/Artificial-Sweetener/SugarSubstitute.git");
 
 module.exports = {
   branches: ["main"],
