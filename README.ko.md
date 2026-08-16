@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest"><img src="https://img.shields.io/github/v/release/Artificial-Sweetener/SugarSubstitute" alt="최신 릴리스"></a>
+  <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest"><img src="https://img.shields.io/github/v/release/Artificial-Sweetener/SugarSubstitute?filter=v%2A" alt="최신 릴리스"></a>
   <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/Artificial-Sweetener/SugarSubstitute/release.yml?branch=main&label=Tests" alt="테스트 상태"></a>
   <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/releases"><img src="https://img.shields.io/github/downloads/Artificial-Sweetener/SugarSubstitute/total" alt="릴리스 다운로드 수"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0.html"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="GPL-3.0-or-later 라이선스"></a>
@@ -230,9 +230,10 @@ SugarSubstitute는 수많은 사람의 놀라운 작업 위에 서 있습니다.
 
 - **ComfyUI:** [comfyanonymous](https://github.com/comfyanonymous), [Comfy Org](https://github.com/Comfy-Org)와 [ComfyUI](https://github.com/Comfy-Org/ComfyUI)에 기여하는 모든 분께 깊이 감사드립니다. ComfyUI는 SugarSubstitute를 가능하게 하는 엔진이자 개방형 워크플로 생태계입니다. 그 유연성 덕분에 사람들이 만들 수 있는 것을 제한하지 않으면서도 새로운 작업 방식을 만들 수 있었습니다.
 - **ComfyUI Prompt Control:** [asagi4](https://github.com/asagi4)와 [ComfyUI Prompt Control](https://github.com/asagi4/comfyui-prompt-control) 기여자 여러분께 감사드립니다. ComfyUI의 고급 프롬프트 편집과 LoRA 제어라는 어려운 작업을 해 주신 덕분에 SugarSubstitute 편집기에도 강력한 기능을 담을 수 있었습니다.
+- **CSV Wildcards:** [comfyui-csvwildcards](https://github.com/illuminatianon/comfyui-csvwildcards)를 만들어 주신 [illuminatianon](https://github.com/illuminatianon)께 감사드립니다. SugarSubstitute는 그 와일드카드 형식을 다시 구현하고 일반 텍스트 및 CSV 기반 와일드카드의 발상을 이어받았습니다. 그 작업에서 배울 수 있었던 것에 감사드립니다.
 - **PySide6-Fluent-Widgets 및 QFramelessWindow:** [zhiyiYo](https://github.com/zhiyiYo)와 [PySide6-Fluent-Widgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets), [QFramelessWindow](https://github.com/zhiyiYo/PyQt-Frameless-Window) 기여자 여러분은 여러 플랫폼에서 Qt 애플리케이션을 완성도 높게 느껴지도록 오랜 시간 정성을 쏟았습니다. 그 작업을 바탕으로 만들 수 있었기에 SugarSubstitute가 진짜 데스크톱 애플리케이션처럼 느껴집니다.
 - **CivitAI:** 모델 생태계를 지원할 가치가 있는 것으로 여겨 주는 [CivitAI](https://civitai.com/) 팀에 감사드립니다. API는 SugarSubstitute가 모델과 사용에 필요한 정보를 연결하도록 돕고, 관대한 호스팅은 제작자가 공유할 여지를 주며, 저렴한 주문형 컴퓨팅은 값비싼 GPU가 없어도 더 많은 사람이 무언가를 만들 수 있게 합니다.
-- **Danbooru:** [Danbooru](https://danbooru.donmai.us/) 팀과 커뮤니티는 이미지를 설명하는 데 쓸 수 있는 놀라울 만큼 세심한 공용 언어를 만들었습니다. API 덕분에 SugarSubstitute 안에서 그 지식을 활용할 수 있지만, 진정한 선물은 태그를 정리하고 문서화하고 다듬는 데 사람들이 계속 쏟는 정성입니다.
+- **Danbooru:** [Danbooru](https://danbooru.donmai.us/) 팀과 커뮤니티는 이미지를 설명하는 데 쓸 수 있는 세심한 공용 언어를 만들었습니다. API 덕분에 SugarSubstitute 안에서 그 지식을 활용할 수 있지만, 진정한 선물은 태그를 정리하고 문서화하고 다듬는 데 사람들이 계속 쏟는 정성입니다.
 - **Qt:** 마지막으로 Qt와 PySide6를 만든 [The Qt Company](https://www.qt.io/)에 감사드립니다. 덕분에 제가 바라던 반응이 빠르고 네이티브이며 여러 플랫폼에서 작동하는 창작 애플리케이션 SugarSubstitute를 만들 수 있습니다.
 
 ## 개발자로부터 💖
