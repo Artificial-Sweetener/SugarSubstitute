@@ -54,9 +54,21 @@ class CanvasHostActivationController:
         if keyboard_focus:
             QTimer.singleShot(
                 0,
-                lambda: self._focus_selected_canvas(route_key, entry.page.widget),
+                lambda: self._settle_selected_canvas_focus(
+                    route_key,
+                    entry.page.widget,
+                ),
             )
         return True
+
+    def _settle_selected_canvas_focus(self, route_key: str, widget: QWidget) -> None:
+        """Focus now and settle behind projections spawned by activation."""
+
+        self._focus_selected_canvas(route_key, widget)
+        QTimer.singleShot(
+            0,
+            lambda: self._focus_selected_canvas(route_key, widget),
+        )
 
     def _focus_selected_canvas(self, route_key: str, widget: QWidget) -> None:
         """Transfer focus after the originating pointer event has settled."""
