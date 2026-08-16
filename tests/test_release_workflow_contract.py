@@ -381,8 +381,9 @@ def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> N
         "https://github.com/Artificial-Sweetener/Substitute-Test/releases/latest"
     )
     assert notes.startswith("> [!WARNING]\n")
-    assert f"[download the latest Stable release]({stable_url})" in notes
-    assert "Canary builds are intended for testers" in notes
+    assert f"[Download the latest Stable release instead]({stable_url})" in notes
+    assert "DO NOT download this Canary build for normal use" in notes
+    assert "Canary builds are intended only for testers" in notes
     assert "releases/download/canary/SugarSubstitute-0.21.0-canary.42" in notes
 
 

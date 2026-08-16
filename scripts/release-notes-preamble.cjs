@@ -44,7 +44,7 @@ function createInstallerReleaseNotes(repository, version, channel = "stable") {
   const canaryWarning = normalizedChannel === "canary"
     ? [
         "> [!WARNING]",
-        `> **Canary builds are intended for testers.** Most users should [download the latest Stable release](${stableReleaseUrl}) instead. This build may contain changes that have not completed Stable release qualification.`,
+        `> **DO NOT download this Canary build for normal use.** Canary builds are intended only for testers and may contain changes that have not completed Stable release qualification. [Download the latest Stable release instead](${stableReleaseUrl}).`,
         "",
       ]
     : [];
