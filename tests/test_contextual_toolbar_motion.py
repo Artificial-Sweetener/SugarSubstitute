@@ -22,7 +22,13 @@ from collections.abc import Callable
 
 from PySide6.QtCore import QPoint, QCoreApplication, QRect, Qt, qInstallMessageHandler
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QPushButton, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QGraphicsOpacityEffect,
+    QHBoxLayout,
+    QPushButton,
+    QWidget,
+)
 
 from substitute.presentation.canvas.shared.canvas_chrome_metrics import (
     CANVAS_CHROME_CONTROL_HEIGHT,
@@ -237,13 +243,24 @@ def test_interrupted_crossfade_never_restores_partial_page_to_full_opacity() -> 
         first = toolbar.set_content("first", lambda parent: _MotionPage(90, parent))
         _wait_until(lambda: _opacity(first) >= 0.99)
         toolbar.set_content("second", lambda parent: _MotionPage(180, parent))
-        _wait_until(lambda: 0.05 < _opacity(first) < 0.95)
-        rendered_opacity = _opacity(first)
+        effect = toolbar.content_host.graphicsEffect()
+        assert isinstance(effect, QGraphicsOpacityEffect)
+        interrupted_opacity: list[tuple[float, float]] = []
 
-        toolbar.set_content("latest", lambda parent: _MotionPage(140, parent))
-        qapp.processEvents()
+        def interrupt_at_partial_opacity(value: float) -> None:
+            """Interrupt synchronously at an observed partial render sample."""
 
-        assert _opacity(first) <= rendered_opacity + 0.05
+            rendered_opacity = float(value)
+            if interrupted_opacity or not 0.05 < rendered_opacity < 0.95:
+                return
+            toolbar.set_content("latest", lambda parent: _MotionPage(140, parent))
+            interrupted_opacity.append((rendered_opacity, float(effect.opacity())))
+
+        effect.opacityChanged.connect(interrupt_at_partial_opacity)
+        _wait_until(lambda: bool(interrupted_opacity))
+
+        rendered_opacity, retained_opacity = interrupted_opacity[0]
+        assert retained_opacity <= rendered_opacity + 0.05
     finally:
         toolbar.close()
         viewport.close()
