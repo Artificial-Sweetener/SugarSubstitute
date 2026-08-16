@@ -187,6 +187,26 @@ def test_host_activation_can_transfer_keyboard_focus_to_selected_canvas() -> Non
         host.close()
 
 
+def test_deferred_focus_does_not_override_a_newer_canvas_activation() -> None:
+    """A queued pointer-event handoff must not focus a superseded route."""
+
+    host, input_canvas, output_canvas = _host()
+    try:
+        input_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocus()
+        _app().processEvents()
+
+        assert host.activate_canvas("Input", keyboard_focus=True)
+        assert host.activate_canvas("Output", keyboard_focus=False)
+        _app().processEvents()
+
+        assert host.is_canvas_visible("Output")
+        assert output_canvas.hasFocus()
+    finally:
+        host.close()
+
+
 def test_selector_opens_shared_anchored_picker() -> None:
     """Clicking the host anchor should use the shared canvas navigation popup."""
 

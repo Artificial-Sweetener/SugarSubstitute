@@ -24,6 +24,7 @@ on:
         type: choice
         options:
           - full
+          - canary-fast
           - qualification-all
           - clean-all
           - clean-windows
@@ -98,9 +99,9 @@ jobs:
       )
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ (github.event_name == 'push' && github.ref_name == 'canary' && format('9999.1.{0}', github.run_number)) || steps.release-version.outputs.version || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && format('9999.0.{0}', github.run_number) || '') }}
-      should_release: ${{ (github.event_name == 'push' && github.ref_name == 'canary' && 'true') || steps.release-version.outputs.should_release || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && 'true' || 'false') }}
-      first_release: ${{ (github.event_name == 'push' && github.ref_name == 'canary' && 'false') || steps.release-version.outputs.first_release }}
+      version: ${{ steps.release-version.outputs.version || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && format('9999.0.{0}', github.run_number) || '') }}
+      should_release: ${{ steps.release-version.outputs.should_release || (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && 'true' || 'false') }}
+      first_release: ${{ steps.release-version.outputs.first_release }}
       channel: ${{ (github.event_name == 'push' && github.ref_name == 'canary' && 'canary') || 'stable' }}
 
     steps:
@@ -111,21 +112,19 @@ jobs:
           fetch-tags: true
 
       - name: Setup Node
-        if: github.event_name != 'push' || github.ref_name != 'canary'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install release dependencies
-        if: github.event_name != 'push' || github.ref_name != 'canary'
         run: npm ci
 
       - name: Resolve next release version
-        if: github.event_name != 'push' || github.ref_name != 'canary'
         id: release-version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER: ${{ github.event_name == 'push' && github.ref_name == 'canary' && github.run_number || '' }}
           SUGAR_SUBSTITUTE_QUALIFICATION_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && format('9999.0.{0}', github.run_number) || '' }}
         run: node scripts/resolve-next-release-version.mjs
 
@@ -333,11 +332,11 @@ jobs:
     runs-on: windows-latest
     outputs:
       candidate_tag: ${{ steps.publish.outputs.candidate_tag }}
-      candidate_artifact_name: ${{ steps.reuse.outputs.candidate_artifact_name || steps.publish.outputs.candidate_artifact_name }}
+      candidate_artifact_name: ${{ steps.reuse.outputs.candidate_artifact_name || steps.stage-artifact.outputs.candidate_artifact_name }}
       candidate_run_id: ${{ github.event.inputs.qualification_candidate_run_id || github.run_id }}
       candidate_version: ${{ github.event.inputs.qualification_candidate_version || needs.determine-version.outputs.version }}
       candidate_channel: ${{ needs.determine-version.outputs.channel }}
-      staged: ${{ steps.reuse.outputs.staged || steps.publish.outputs.staged }}
+      staged: ${{ steps.reuse.outputs.staged || steps.stage-artifact.outputs.staged || steps.publish.outputs.staged }}
 
     steps:
       - name: Checkout
@@ -409,13 +408,18 @@ jobs:
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           SUGAR_SUBSTITUTE_RELEASE_CHANNEL: canary
-          SUGAR_SUBSTITUTE_ASSET_BASE_URL: https://github.com/${{ github.repository }}/releases/download/canary-v${{ needs.determine-version.outputs.version }}
+          SUGAR_SUBSTITUTE_ASSET_BASE_URL: https://github.com/${{ github.repository }}/releases/download/canary
         run: node scripts\prepare-release-assets.mjs ${{ needs.determine-version.outputs.version }}
 
       - name: Prepare installer release notes
         if: github.event.inputs.qualification_candidate_run_id == ''
         shell: pwsh
         run: node scripts\release-notes-preamble.cjs --repository "${{ github.repository }}" --version "${{ needs.determine-version.outputs.version }}" --channel "${{ needs.determine-version.outputs.channel }}" --output "build\release-notes.md"
+
+      - name: Add Canary release notes to the candidate artifact
+        if: github.event.inputs.qualification_candidate_run_id == '' && needs.determine-version.outputs.channel == 'canary'
+        shell: pwsh
+        run: Copy-Item build\release-notes.md .local-release-channel\.release-notes.md
 
       - name: Prepare semantic release commit and tag without publishing stable
         if: github.event.inputs.qualification_candidate_run_id == '' && needs.determine-version.outputs.channel == 'stable' && needs.determine-version.outputs.first_release != 'true'
@@ -439,7 +443,13 @@ jobs:
         run: node scripts\prepare-release-assets.mjs ${{ needs.determine-version.outputs.version }}
 
       - name: Upload temporary non-release candidate channel
-        if: github.event.inputs.qualification_candidate_run_id == '' && github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true'
+        if: >-
+          github.event.inputs.qualification_candidate_run_id == '' && (
+            needs.determine-version.outputs.channel == 'canary' || (
+              github.event_name == 'workflow_dispatch' &&
+              github.event.inputs.dry_run == 'true'
+            )
+          )
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: non-release-candidate-channel
@@ -448,38 +458,49 @@ jobs:
           retention-days: 1
           include-hidden-files: true
 
+      - name: Record temporary candidate channel
+        id: stage-artifact
+        if: >-
+          github.event.inputs.qualification_candidate_run_id == '' && (
+            needs.determine-version.outputs.channel == 'canary' || (
+              github.event_name == 'workflow_dispatch' &&
+              github.event.inputs.dry_run == 'true'
+            )
+          )
+        shell: pwsh
+        run: |
+          "candidate_artifact_name=non-release-candidate-channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Publish exact bytes as a visible prerelease candidate
         id: publish
-        if: github.event.inputs.qualification_candidate_run_id == ''
+        if: >-
+          github.event.inputs.qualification_candidate_run_id == '' &&
+          needs.determine-version.outputs.channel == 'stable' && (
+            github.event_name != 'workflow_dispatch' ||
+            github.event.inputs.dry_run != 'true'
+          )
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
           $version = "${{ needs.determine-version.outputs.version }}"
-          $channel = "${{ needs.determine-version.outputs.channel }}"
-          $tag = if ($channel -eq "canary") { "canary-v$version" } else { "v$version" }
-          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.dry_run }}" -eq "true") {
-            Write-Output "Dry run: qualifying temporary candidate bytes without publishing $tag."
-            "candidate_artifact_name=non-release-candidate-channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          } else {
-            $assets = Get-ChildItem .local-release-channel -File | Select-Object -ExpandProperty FullName
-            $releaseNotes = Get-Content -Raw build\release-notes.md
-            $target = if ($channel -eq "canary" -or "${{ needs.determine-version.outputs.first_release }}" -eq "true") { "${{ github.sha }}" } else { $tag }
-            $title = if ($channel -eq "canary") { "SugarSubstitute Canary $version candidate" } else { "SugarSubstitute $version release candidate" }
-            gh release create $tag $assets --repo "${{ github.repository }}" --target $target --title $title --generate-notes --notes $releaseNotes --prerelease
-            $readback = gh release view $tag --repo "${{ github.repository }}" --json isDraft,isPrerelease,assets | ConvertFrom-Json
-            if ($readback.isDraft -or -not $readback.isPrerelease) {
-              throw "Candidate release was not published as a visible prerelease."
-            }
-            $expected = @(Get-ChildItem .local-release-channel -File | Select-Object -ExpandProperty Name | Sort-Object)
-            $actual = @($readback.assets | ForEach-Object { $_.name } | Sort-Object)
-            if (Compare-Object $expected $actual) {
-              throw "Candidate release assets differ from the qualified local channel."
-            }
-            "candidate_tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $tag = "v$version"
+          $assets = Get-ChildItem .local-release-channel -File | Select-Object -ExpandProperty FullName
+          $releaseNotes = Get-Content -Raw build\release-notes.md
+          $target = if ("${{ needs.determine-version.outputs.first_release }}" -eq "true") { "${{ github.sha }}" } else { $tag }
+          gh release create $tag $assets --repo "${{ github.repository }}" --target $target --title "SugarSubstitute $version release candidate" --generate-notes --notes $releaseNotes --prerelease
+          $readback = gh release view $tag --repo "${{ github.repository }}" --json isDraft,isPrerelease,assets | ConvertFrom-Json
+          if ($readback.isDraft -or -not $readback.isPrerelease) {
+            throw "Candidate release was not published as a visible prerelease."
           }
+          $expected = @(Get-ChildItem .local-release-channel -File | Select-Object -ExpandProperty Name | Sort-Object)
+          $actual = @($readback.assets | ForEach-Object { $_.name } | Sort-Object)
+          if (Compare-Object $expected $actual) {
+            throw "Candidate release assets differ from the qualified local channel."
+          }
+          "candidate_tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Reuse exact temporary candidate channel
         id: reuse
@@ -511,7 +532,7 @@ jobs:
       candidate_channel: ${{ needs.stage-candidate.outputs.candidate_channel }}
       candidate_artifact_name: ${{ needs.stage-candidate.outputs.candidate_artifact_name }}
       candidate_run_id: ${{ needs.stage-candidate.outputs.candidate_run_id }}
-      qualification_scope: ${{ inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope }}
+      qualification_scope: ${{ github.event_name == 'push' && github.ref_name == 'canary' && 'canary-fast' || inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope }}
       upgrade_selection: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.upgrade_selection || 'complete' }}
       qualification_timeout_seconds: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.qualification_timeout_seconds || '3600' }}
 
@@ -532,30 +553,44 @@ jobs:
           gh release edit "$CANDIDATE_TAG" --repo "${{ github.repository }}" --prerelease=false --latest
           gh release view "$CANDIDATE_TAG" --repo "${{ github.repository }}" --json isDraft,isPrerelease --jq 'select(.isDraft == false and .isPrerelease == false)' > /dev/null
 
+      - name: Download qualified Canary candidate
+        if: needs.stage-candidate.outputs.candidate_channel == 'canary'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.stage-candidate.outputs.candidate_artifact_name }}
+          path: build/canary-channel
+          run-id: ${{ needs.stage-candidate.outputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+
       - name: Publish qualified bytes to the rolling Canary feed
         if: needs.stage-candidate.outputs.candidate_channel == 'canary'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CANDIDATE_TAG: ${{ needs.stage-candidate.outputs.candidate_tag }}
           CANDIDATE_VERSION: ${{ needs.stage-candidate.outputs.candidate_version }}
         run: |
           set -euo pipefail
           channel_dir="build/canary-channel"
           readback_dir="build/canary-readback"
-          mkdir -p "$channel_dir" "$readback_dir"
-          gh release download "$CANDIDATE_TAG" --repo "${{ github.repository }}" --dir "$channel_dir"
+          mkdir -p "$readback_dir"
           python -c "import json, os, pathlib; payload=json.loads(pathlib.Path('$channel_dir/manifest.json').read_text()); assert payload['channel']=='canary', payload; assert payload['version']==os.environ['CANDIDATE_VERSION'], payload"
+          (cd "$channel_dir" && sha256sum --check checksums.txt)
 
           if ! gh release view canary --repo "${{ github.repository }}" > /dev/null 2>&1; then
-            gh release create canary --repo "${{ github.repository }}" --target canary --title "SugarSubstitute Canary" --notes "The latest fully qualified Canary installers and update manifest. Canary installations remain on this channel until the user installs Stable explicitly." --prerelease
+            gh release create canary --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "SugarSubstitute Canary $CANDIDATE_VERSION" --notes-file "$channel_dir/.release-notes.md" --prerelease
           fi
 
           for asset in "$channel_dir"/*; do
-            if [ "$(basename "$asset")" != "manifest.json" ]; then
+            case "$(basename "$asset")" in
+              manifest.json|*.exe|*.dmg|*.AppImage|*.deb) continue ;;
+            esac
+            gh release upload canary "$asset" --repo "${{ github.repository }}" --clobber
+          done
+          gh release upload canary "$channel_dir/manifest.json" --repo "${{ github.repository }}" --clobber
+          for asset in "$channel_dir"/*.exe "$channel_dir"/*.dmg "$channel_dir"/*.AppImage "$channel_dir"/*.deb; do
+            if [ -f "$asset" ]; then
               gh release upload canary "$asset" --repo "${{ github.repository }}" --clobber
             fi
           done
-          gh release upload canary "$channel_dir/manifest.json" --repo "${{ github.repository }}" --clobber
 
           while IFS= read -r asset_name; do
             if [ ! -f "$channel_dir/$asset_name" ]; then
@@ -563,8 +598,8 @@ jobs:
             fi
           done < <(gh release view canary --repo "${{ github.repository }}" --json assets --jq '.assets[].name')
 
-          gh release edit canary --repo "${{ github.repository }}" --title "SugarSubstitute Canary $CANDIDATE_VERSION" --prerelease --latest=false
-          gh release edit "$CANDIDATE_TAG" --repo "${{ github.repository }}" --title "SugarSubstitute Canary $CANDIDATE_VERSION (qualified)" --prerelease
+          gh api --method PATCH "repos/${{ github.repository }}/git/refs/tags/canary" -f sha="${{ github.sha }}" -F force=true > /dev/null
+          gh release edit canary --repo "${{ github.repository }}" --title "SugarSubstitute Canary $CANDIDATE_VERSION" --notes-file "$channel_dir/.release-notes.md" --prerelease --latest=false
           gh release download canary --repo "${{ github.repository }}" --pattern manifest.json --dir "$readback_dir"
           cmp "$channel_dir/manifest.json" "$readback_dir/manifest.json"
           gh release view canary --repo "${{ github.repository }}" --json isDraft,isPrerelease --jq 'select(.isDraft == false and .isPrerelease == true)' > /dev/null

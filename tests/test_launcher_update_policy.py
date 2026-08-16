@@ -28,11 +28,11 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.update_policy import (
     AppPayloadUpdateDecision,
     UpdateCheckDecision,
-    compare_release_versions,
     decide_app_payload_update,
     decide_update_check,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from sugarsubstitute_shared.launcher_update.versions import compare_release_versions
 
 
 def test_launcher_update_state_defaults_when_missing(tmp_path: Path) -> None:
@@ -153,12 +153,15 @@ def test_app_payload_update_policy_installs_missing_or_newer_versions() -> None:
     )
 
 
-def test_compare_release_versions_requires_plain_dotted_numeric_versions() -> None:
-    """Release comparison should reject path-like or non-numeric tags."""
+def test_compare_release_versions_supports_semantic_prereleases() -> None:
+    """Release comparison should order stable and Canary semantic versions."""
 
     assert compare_release_versions("v0.10.0", "0.9.9") == 1
     assert compare_release_versions("0.4", "0.4.0") == 0
+    assert compare_release_versions("0.21.0-canary.43", "0.21.0-canary.42") == 1
+    assert compare_release_versions("0.21.0", "0.21.0-canary.43") == 1
+    assert compare_release_versions("0.21.0-canary.1", "0.21.0-beta.1") == 1
     with pytest.raises(ValueError, match="plain tag"):
         compare_release_versions("0.4/evil", "0.4.0")
-    with pytest.raises(ValueError, match="dotted numeric"):
+    with pytest.raises(ValueError, match="semantic"):
         compare_release_versions("latest", "0.4.0")

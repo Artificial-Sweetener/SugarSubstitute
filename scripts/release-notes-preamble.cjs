@@ -22,7 +22,7 @@ const DEFAULT_REPOSITORY = "Artificial-Sweetener/SugarSubstitute";
  * Build the installer guidance prepended to every GitHub Release description.
  *
  * @param {string} repository GitHub repository in owner/name form.
- * @param {string} version Dotted numeric release version without a tag prefix.
+ * @param {string} version Semantic release version without a tag prefix.
  * @param {string} channel Published release channel.
  * @returns {string} Markdown release guidance.
  */
@@ -30,11 +30,10 @@ function createInstallerReleaseNotes(repository, version, channel = "stable") {
   const normalizedRepository = validateRepository(repository);
   const normalizedVersion = validateVersion(version);
   const normalizedChannel = validateChannel(channel);
-  const releaseTag = normalizedChannel === "canary"
-    ? `canary-v${normalizedVersion}`
-    : `v${normalizedVersion}`;
+  const releaseTag = normalizedChannel === "canary" ? "canary" : `v${normalizedVersion}`;
   const assetRoot = `https://github.com/${normalizedRepository}/releases/download/${releaseTag}`;
   const iconRoot = `https://raw.githubusercontent.com/${normalizedRepository}/${releaseTag}/docs/release/platforms`;
+  const stableReleaseUrl = `https://github.com/${normalizedRepository}/releases/latest`;
   const heading = normalizedChannel === "canary"
     ? "## Install SugarSubstitute Canary"
     : "## Install SugarSubstitute";
@@ -42,7 +41,16 @@ function createInstallerReleaseNotes(repository, version, channel = "stable") {
     ? "**Already using Canary?** Open SugarSubstitute normally. This installation follows only the Canary update feed and never switches to Stable automatically."
     : "**Already installed?** Open SugarSubstitute normally. It checks for application updates when it starts, usually once per day, and installs newer application versions automatically. You normally do not need another installer.";
 
+  const canaryWarning = normalizedChannel === "canary"
+    ? [
+        "> [!WARNING]",
+        `> **DO NOT download this Canary build for normal use.** Canary builds are intended only for testers and may contain changes that have not completed Stable release qualification. [Download the latest Stable release instead](${stableReleaseUrl}).`,
+        "",
+      ]
+    : [];
+
   return [
+    ...canaryWarning,
     heading,
     "",
     "Download the installer for your platform:",

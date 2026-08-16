@@ -1,13 +1,6 @@
 name: Tests
 
 on:
-  push:
-    branches-ignore:
-      - main
-      - canary
-      - "dependabot/**"
-    paths-ignore:
-      - "**/*.md"
   pull_request:
     paths-ignore:
       - "**/*.md"
@@ -20,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: tests-${{ github.workflow }}-${{ github.ref }}
+  group: tests-${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 env:

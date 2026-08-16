@@ -22,11 +22,15 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const releaseConfig = require("../.releaserc.cjs");
+const { createCanaryVersion, nextPatchVersion } = require(
+  "./canary-release-version.cjs",
+);
 const { selectVersionResolutionPlugins } = require(
   "./release-version-plugins.cjs",
 );
 const FIRST_RELEASE_VERSION = "0.9.0";
 const qualificationVersion = process.env.SUGAR_SUBSTITUTE_QUALIFICATION_VERSION;
+const canaryRunNumber = process.env.SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER?.trim();
 const projectRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const releaseTags = git(["tag", "--list", "v[0-9]*"])
   .split(/\r?\n/)
@@ -47,18 +51,29 @@ if (qualificationVersion) {
   shouldRelease = true;
   firstRelease = false;
 } else if (releaseTags.length === 0) {
-  version = readFirstReleaseVersion();
+  const firstReleaseVersion = readFirstReleaseVersion();
+  version = canaryRunNumber
+    ? createCanaryVersion(firstReleaseVersion, canaryRunNumber)
+    : firstReleaseVersion;
   shouldRelease = true;
-  firstRelease = true;
+  firstRelease = !canaryRunNumber;
 } else {
   const { default: semanticRelease } = await import("semantic-release");
   const result = await semanticRelease({
+    ...(canaryRunNumber
+      ? { branches: [process.env.GITHUB_REF_NAME ?? "canary"] }
+      : {}),
     ci: false,
     dryRun: true,
     plugins: selectVersionResolutionPlugins(releaseConfig),
   });
-  version = result?.nextRelease?.version ?? "";
-  shouldRelease = version.length > 0;
+  const nextStableVersion =
+    result?.nextRelease?.version ??
+    (canaryRunNumber ? nextPatchVersion(releaseTags) : "");
+  version = canaryRunNumber
+    ? createCanaryVersion(nextStableVersion, canaryRunNumber)
+    : nextStableVersion;
+  shouldRelease = canaryRunNumber ? true : version.length > 0;
   firstRelease = false;
 }
 

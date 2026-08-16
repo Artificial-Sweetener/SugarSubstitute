@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
+from sugarsubstitute_shared.launcher_update.versions import compare_release_versions
 
 
 class UpdateCheckDecision(Enum):
@@ -93,34 +94,3 @@ def decide_app_payload_update(
         AppPayloadUpdateDecision.SKIP,
         "installed_current",
     )
-
-
-def compare_release_versions(left: str, right: str) -> int:
-    """Compare simple release version strings without accepting path-like values."""
-
-    left_parts = _version_parts(left)
-    right_parts = _version_parts(right)
-    maximum_length = max(len(left_parts), len(right_parts))
-    padded_left = [*left_parts, *([0] * (maximum_length - len(left_parts)))]
-    padded_right = [*right_parts, *([0] * (maximum_length - len(right_parts)))]
-    if padded_left > padded_right:
-        return 1
-    if padded_left < padded_right:
-        return -1
-    return 0
-
-
-def _version_parts(version: str) -> list[int]:
-    """Parse one dotted numeric release version."""
-
-    normalized = version.removeprefix("v").strip()
-    if not normalized:
-        raise ValueError("Release version must not be empty.")
-    if any(character in normalized for character in ("/", "\\", ":")):
-        raise ValueError(f"Release version must be a plain tag value: {version}")
-    parts: list[int] = []
-    for raw_part in normalized.split("."):
-        if not raw_part.isdigit():
-            raise ValueError(f"Release version must be dotted numeric: {version}")
-        parts.append(int(raw_part))
-    return parts
