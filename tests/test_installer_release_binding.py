@@ -57,16 +57,16 @@ def test_bound_installer_persists_stable_update_feed() -> None:
 
 
 def test_canary_installer_binds_exact_build_and_persists_canary_feed() -> None:
-    """Canary setup must install exact bytes and retain only its rolling feed."""
+    """Canary setup must bind the rolling manifest to its embedded version."""
 
-    source = canary_installer_release_source("9999.1.42")
+    source = canary_installer_release_source("0.21.0-canary.42")
     config = release_source_config_for(source)
 
     assert source.manifest_url == (
         "https://github.com/Artificial-Sweetener/SugarSubstitute/"
-        "releases/download/canary-v9999.1.42/manifest.json"
+        "releases/download/canary/manifest.json"
     )
-    assert source.expected_version == "9999.1.42"
+    assert source.expected_version == "0.21.0-canary.42"
     assert source.expected_channel == "canary"
     assert config is not None
     assert config.manifest_url == DEFAULT_CANARY_RELEASE_MANIFEST_URL

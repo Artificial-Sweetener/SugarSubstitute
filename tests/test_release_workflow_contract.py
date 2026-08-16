@@ -229,7 +229,7 @@ def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
 
 
 def test_canary_isolated_release_train_contract() -> None:
-    """Canary must qualify exact bytes before updating its isolated public feed."""
+    """Canary must validate exact bytes before updating one isolated public feed."""
 
     release_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
         encoding="utf-8"
@@ -242,13 +242,22 @@ def test_canary_isolated_release_train_contract() -> None:
     )
 
     assert "      - main\n      - canary" in release_text
-    assert "format('9999.1.{0}', github.run_number)" in release_text
+    assert "SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER:" in release_text
+    assert "format('9999.1.{0}', github.run_number)" not in release_text
     assert "SUGAR_SUBSTITUTE_RELEASE_CHANNEL: canary" in release_text
-    assert '"canary-v$version"' in release_text
+    assert "releases/download/canary" in release_text
+    assert '"canary-v$version"' not in release_text
     assert "release-qualification.yml" in release_text
+    assert "'canary-fast'" in release_text
+    assert "Upload temporary non-release candidate channel" in release_text
+    assert "validate-candidate-artifact:" in (
+        PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
+    ).read_text(encoding="utf-8")
     promotion = release_text.split("  promote-release:", maxsplit=1)[1]
+    assert "Download qualified Canary candidate" in promotion
     assert "gh release upload canary" in promotion
     assert 'gh release upload canary "$channel_dir/manifest.json"' in promotion
+    assert promotion.count('gh release edit "$CANDIDATE_TAG"') == 1
     assert "--clobber" in promotion
     assert "--prerelease=false --latest" in promotion
     assert "github.ref_name == 'main'" in promotion
@@ -284,7 +293,7 @@ def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
     javascript = (
         f"import {{ updateReleaseVersions }} from {json.dumps(script_url)}; "
         f"updateReleaseVersions(new URL({json.dumps(root_url)}), "
-        '"9999.1.42", "canary");'
+        '"0.21.0-canary.42", "canary");'
     )
 
     subprocess.run(
@@ -298,8 +307,69 @@ def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
     ).read_text(encoding="utf-8") == 'RELEASE_CHANNEL = "canary"\n'
     assert (
         json.loads((tmp_path / "package.json").read_text(encoding="utf-8"))["version"]
-        == "9999.1.42"
+        == "0.21.0-canary.42"
     )
+
+
+def test_canary_version_derives_from_next_stable_release() -> None:
+    """Canary versions should identify their future Stable base and CI build."""
+
+    script = """
+const versions = require('./scripts/canary-release-version.cjs');
+process.stdout.write(JSON.stringify({
+  canary: versions.createCanaryVersion('0.21.0', '142'),
+  fallback: versions.nextPatchVersion(['v0.19.2', 'v0.20.1', 'v0.20.0']),
+}));
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {
+        "canary": "0.21.0-canary.142",
+        "fallback": "0.20.2",
+    }
+
+
+def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> None:
+    """Canary notes should immediately route ordinary users to Stable."""
+
+    output_path = tmp_path / "release-notes.md"
+    result = subprocess.run(
+        [
+            "node",
+            "scripts/release-notes-preamble.cjs",
+            "--repository",
+            "Artificial-Sweetener/Substitute-Test",
+            "--version",
+            "0.21.0-canary.42",
+            "--channel",
+            "canary",
+            "--output",
+            str(output_path),
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    notes = output_path.read_text(encoding="utf-8")
+    stable_url = (
+        "https://github.com/Artificial-Sweetener/Substitute-Test/releases/latest"
+    )
+    assert notes.startswith("> [!WARNING]\n")
+    assert f"[download the latest Stable release]({stable_url})" in notes
+    assert "Canary builds are intended for testers" in notes
+    assert "releases/download/canary/SugarSubstitute-0.21.0-canary.42" in notes
 
 
 def test_cross_platform_validation_requires_explicit_invocation() -> None:
