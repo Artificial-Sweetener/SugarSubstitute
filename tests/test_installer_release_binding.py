@@ -20,11 +20,15 @@ from __future__ import annotations
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.config import DEFAULT_RELEASE_MANIFEST_URL
+from launcher.sugarsubstitute_launcher.config import (
+    DEFAULT_CANARY_RELEASE_MANIFEST_URL,
+    DEFAULT_RELEASE_MANIFEST_URL,
+)
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
 from launcher.sugarsubstitute_launcher.release_sources import (
     GitHubReleaseSource,
     VersionBoundReleaseSource,
+    canary_installer_release_source,
     production_installer_release_source,
     release_source_config_for,
 )
@@ -52,6 +56,22 @@ def test_bound_installer_persists_stable_update_feed() -> None:
     assert config.manifest_url == DEFAULT_RELEASE_MANIFEST_URL
 
 
+def test_canary_installer_binds_exact_build_and_persists_canary_feed() -> None:
+    """Canary setup must install exact bytes and retain only its rolling feed."""
+
+    source = canary_installer_release_source("9999.1.42")
+    config = release_source_config_for(source)
+
+    assert source.manifest_url == (
+        "https://github.com/Artificial-Sweetener/SugarSubstitute/"
+        "releases/download/canary-v9999.1.42/manifest.json"
+    )
+    assert source.expected_version == "9999.1.42"
+    assert source.expected_channel == "canary"
+    assert config is not None
+    assert config.manifest_url == DEFAULT_CANARY_RELEASE_MANIFEST_URL
+
+
 def test_bound_installer_rejects_manifest_version_mismatch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -71,12 +91,33 @@ def test_bound_installer_rejects_manifest_version_mismatch(
         source.load_manifest()
 
 
-def _manifest(version: str) -> ReleaseManifest:
+def test_bound_installer_rejects_manifest_channel_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An exact Canary endpoint serving stable metadata must fail closed."""
+
+    monkeypatch.setattr(
+        GitHubReleaseSource,
+        "load_manifest",
+        lambda _self: _manifest("9999.1.42", channel="stable"),
+    )
+    source = VersionBoundReleaseSource(
+        manifest_url="https://example.invalid/canary-v9999.1.42/manifest.json",
+        expected_version="9999.1.42",
+        expected_channel="canary",
+        update_manifest_url=DEFAULT_CANARY_RELEASE_MANIFEST_URL,
+    )
+
+    with pytest.raises(ValueError, match="expected canary, got stable"):
+        source.load_manifest()
+
+
+def _manifest(version: str, *, channel: str = "stable") -> ReleaseManifest:
     """Return one valid manifest with the requested version."""
 
     return ReleaseManifest(
         schema_version=2,
-        channel="stable",
+        channel=channel,
         version=version,
         minimum_launcher_version="0.1.0",
         app=ReleaseAsset(

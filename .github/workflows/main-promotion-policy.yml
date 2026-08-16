@@ -1,0 +1,27 @@
+name: Main promotion policy
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+
+jobs:
+  canary-promotion-only:
+    name: Canary promotion only
+    runs-on: ubuntu-24.04
+    env:
+      HEAD_BRANCH: ${{ github.head_ref }}
+    steps:
+      - name: Require the permanent Canary source branch
+        run: |
+          if [ "$HEAD_BRANCH" != "canary" ]; then
+            echo "Pull requests into main must originate from canary."
+            exit 1
+          fi

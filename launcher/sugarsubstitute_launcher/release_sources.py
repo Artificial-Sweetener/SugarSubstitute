@@ -28,8 +28,11 @@ from typing import Mapping, Protocol
 from urllib.parse import urlparse
 
 from launcher.sugarsubstitute_launcher.config import (
+    CANARY_RELEASE_CHANNEL,
+    DEFAULT_CANARY_RELEASE_MANIFEST_URL,
     DEFAULT_RELEASE_MANIFEST_URL,
     RELEASE_SOURCE_KIND_GITHUB,
+    STABLE_RELEASE_CHANNEL,
     ReleaseSourceConfig,
 )
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
@@ -92,10 +95,11 @@ class GitHubReleaseSource:
 
 @dataclass(frozen=True, slots=True)
 class VersionBoundReleaseSource:
-    """Install one exact release while retaining the stable update feed."""
+    """Install one exact release while retaining its channel update feed."""
 
     manifest_url: str
     expected_version: str
+    expected_channel: str = STABLE_RELEASE_CHANNEL
     update_manifest_url: str = DEFAULT_RELEASE_MANIFEST_URL
 
     def load_manifest(self) -> ReleaseManifest:
@@ -106,6 +110,11 @@ class VersionBoundReleaseSource:
             raise ValueError(
                 "Version-bound installer manifest mismatch: "
                 f"expected {self.expected_version}, got {manifest.version}."
+            )
+        if manifest.channel != self.expected_channel:
+            raise ValueError(
+                "Version-bound installer manifest channel mismatch: "
+                f"expected {self.expected_channel}, got {manifest.channel}."
             )
         return manifest
 
@@ -144,6 +153,23 @@ def production_installer_release_source(version: str) -> VersionBoundReleaseSour
     return VersionBoundReleaseSource(
         manifest_url=manifest_url,
         expected_version=normalized_version,
+        expected_channel=STABLE_RELEASE_CHANNEL,
+    )
+
+
+def canary_installer_release_source(version: str) -> VersionBoundReleaseSource:
+    """Return the immutable Canary build and its rolling update feed."""
+
+    normalized_version = safe_launcher_version(version)
+    manifest_url = (
+        "https://github.com/Artificial-Sweetener/SugarSubstitute/"
+        f"releases/download/canary-v{normalized_version}/manifest.json"
+    )
+    return VersionBoundReleaseSource(
+        manifest_url=manifest_url,
+        expected_version=normalized_version,
+        expected_channel=CANARY_RELEASE_CHANNEL,
+        update_manifest_url=DEFAULT_CANARY_RELEASE_MANIFEST_URL,
     )
 
 

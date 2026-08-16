@@ -346,6 +346,31 @@ def test_continue_install_persists_github_release_source(
     )
 
 
+def test_continue_install_persists_manifest_channel(
+    tmp_path: Path,
+) -> None:
+    """First-run installation must bind later updates to the installed channel."""
+
+    release_root = tmp_path / ".local-release-channel"
+    app_zip = _write_valid_payload_zip(release_root / "SugarSubstitute-app-v0.4.0.zip")
+    manifest_path = release_root / "manifest.json"
+    _write_manifest(manifest_path, app_zip=app_zip)
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    payload["channel"] = "canary"
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+    layout = InstallLayout.from_root(tmp_path / "install")
+
+    FirstRunInstaller().continue_install(
+        layout=layout,
+        release_source=LocalFolderReleaseSource(release_root),
+    )
+
+    config = LauncherConfig.load(layout.config_path)
+    state = LauncherUpdateState.load(layout.state_path)
+    assert config.channel == "canary"
+    assert state.last_manifest_channel == "canary"
+
+
 def test_app_launch_command_uses_hidden_console_python(tmp_path: Path) -> None:
     """The app handoff uses python.exe so startup failures can be logged."""
 

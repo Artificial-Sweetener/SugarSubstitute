@@ -222,8 +222,83 @@ def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
     )
     assert jobs["determine-version"]["needs"] == "tests"
     assert "  workflow_call:" in tests_workflow_text
-    assert '    branches-ignore:\n      - main\n      - "dependabot/**"' in (
-        tests_workflow_text
+    assert (
+        '    branches-ignore:\n      - main\n      - canary\n      - "dependabot/**"'
+        in (tests_workflow_text)
+    )
+
+
+def test_canary_isolated_release_train_contract() -> None:
+    """Canary must qualify exact bytes before updating its isolated public feed."""
+
+    release_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    policy_text = (
+        PROJECT_ROOT / ".github" / "workflows" / "main-promotion-policy.yml"
+    ).read_text(encoding="utf-8")
+    dependabot_text = (PROJECT_ROOT / ".github" / "dependabot.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "      - main\n      - canary" in release_text
+    assert "format('9999.1.{0}', github.run_number)" in release_text
+    assert "SUGAR_SUBSTITUTE_RELEASE_CHANNEL: canary" in release_text
+    assert '"canary-v$version"' in release_text
+    assert "release-qualification.yml" in release_text
+    promotion = release_text.split("  promote-release:", maxsplit=1)[1]
+    assert "gh release upload canary" in promotion
+    assert 'gh release upload canary "$channel_dir/manifest.json"' in promotion
+    assert "--clobber" in promotion
+    assert "--prerelease=false --latest" in promotion
+    assert "github.ref_name == 'main'" in promotion
+    assert "HEAD_BRANCH: ${{ github.head_ref }}" in policy_text
+    assert '[ "$HEAD_BRANCH" != "canary" ]' in policy_text
+    assert policy_text.count("branches:\n      - main") == 1
+    assert dependabot_text.count("target-branch: canary") == 3
+
+
+def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
+    """Native Canary installers must receive immutable build-channel metadata."""
+
+    package_payload = {"version": "0.20.1"}
+    lock_payload = {
+        "version": "0.20.1",
+        "packages": {"": {"version": "0.20.1"}},
+    }
+    fixture_files = {
+        "package.json": json.dumps(package_payload),
+        "package-lock.json": json.dumps(lock_payload),
+        "launcher/sugarsubstitute_launcher/__init__.py": '__version__ = "0.20.1"\n',
+        "launcher/sugarsubstitute_launcher/build_metadata.py": (
+            'RELEASE_CHANNEL = "stable"\n'
+        ),
+        "substitute/_version.py": '__version__ = "0.20.1"\n',
+    }
+    for relative_path, content in fixture_files.items():
+        path = tmp_path / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    script_url = (PROJECT_ROOT / "scripts" / "update-release-versions.mjs").as_uri()
+    root_url = f"{tmp_path.as_uri()}/"
+    javascript = (
+        f"import {{ updateReleaseVersions }} from {json.dumps(script_url)}; "
+        f"updateReleaseVersions(new URL({json.dumps(root_url)}), "
+        '"9999.1.42", "canary");'
+    )
+
+    subprocess.run(
+        ["node", "--input-type=module", "--eval", javascript],
+        check=True,
+        cwd=PROJECT_ROOT,
+    )
+
+    assert (
+        tmp_path / "launcher" / "sugarsubstitute_launcher" / "build_metadata.py"
+    ).read_text(encoding="utf-8") == 'RELEASE_CHANNEL = "canary"\n'
+    assert (
+        json.loads((tmp_path / "package.json").read_text(encoding="utf-8"))["version"]
+        == "9999.1.42"
     )
 
 

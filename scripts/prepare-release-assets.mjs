@@ -30,6 +30,9 @@ const repository = process.env.GITHUB_REPOSITORY;
 if (!repository) {
   throw new Error("GITHUB_REPOSITORY must be set to prepare release assets.");
 }
+const releaseChannel = resolveReleaseChannel(
+  process.env.SUGAR_SUBSTITUTE_RELEASE_CHANNEL ?? "stable",
+);
 
 const projectRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const releaseChannelDir = join(projectRoot, ".local-release-channel");
@@ -73,9 +76,9 @@ assertFile(linuxAppImagePath, "Linux AppImage installer");
 assertFile(linuxDebPath, "Linux Debian installer");
 
 rmSync(releaseChannelDir, { force: true, recursive: true });
-updateReleaseVersions(new URL("../", import.meta.url), nextVersion);
+updateReleaseVersions(new URL("../", import.meta.url), nextVersion, releaseChannel);
 
-const assetBaseUrl = resolveAssetBaseUrl(repository, nextVersion);
+const assetBaseUrl = resolveAssetBaseUrl(repository, nextVersion, releaseChannel);
 const buildResult = spawnSync(
   pythonPath,
   [
@@ -83,6 +86,8 @@ const buildResult = spawnSync(
     "build",
     "--version",
     nextVersion,
+    "--channel",
+    releaseChannel,
     "--platform-input",
     "windows_x64",
     windowsInstallerPayload,
@@ -178,15 +183,23 @@ function resolvePythonPath(root) {
   return "python";
 }
 
-function resolveAssetBaseUrl(repositoryName, version) {
+function resolveAssetBaseUrl(repositoryName, version, channel) {
   const configuredBaseUrl = process.env.SUGAR_SUBSTITUTE_ASSET_BASE_URL;
   if (!configuredBaseUrl) {
-    return `https://github.com/${repositoryName}/releases/download/v${version}`;
+    const releaseTag = channel === "canary" ? `canary-v${version}` : `v${version}`;
+    return `https://github.com/${repositoryName}/releases/download/${releaseTag}`;
   }
   if (!configuredBaseUrl.startsWith("https://")) {
     throw new Error("SUGAR_SUBSTITUTE_ASSET_BASE_URL must use HTTPS.");
   }
   return configuredBaseUrl.replace(/\/+$/, "");
+}
+
+function resolveReleaseChannel(value) {
+  if (!new Set(["stable", "canary"]).has(value)) {
+    throw new Error(`Unsupported release channel: ${value}`);
+  }
+  return value;
 }
 
 function assertFile(path, description) {

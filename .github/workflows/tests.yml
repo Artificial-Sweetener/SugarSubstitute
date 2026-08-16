@@ -4,6 +4,7 @@ on:
   push:
     branches-ignore:
       - main
+      - canary
       - "dependabot/**"
     paths-ignore:
       - "**/*.md"
