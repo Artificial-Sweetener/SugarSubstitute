@@ -1055,7 +1055,7 @@ def test_release_pipeline_uses_one_notes_owner_and_updates_the_changelog() -> No
     assert 'changelogFile: "CHANGELOG.md"' in config
     assert "release-notes-preamble.cjs" in workflow
     assert "--generate-notes" in workflow
-    assert "--notes $releaseNotes" in workflow
+    assert '"--notes", $releaseNotes' in workflow
     assert (PROJECT_ROOT / "CHANGELOG.md").is_file()
 
 
@@ -1171,6 +1171,23 @@ def test_stable_release_push_uses_the_authorized_deploy_key() -> None:
     assert "SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL:" in release_workflow
     assert "git@github.com:${{ github.repository }}.git" in release_workflow
     assert "process.env.SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL" in release_config
+
+
+def test_existing_stable_tag_is_published_without_an_invalid_target() -> None:
+    """Publish Semantic Release tags without reusing the tag as a commitish."""
+
+    release_workflow = (
+        PROJECT_ROOT / ".github" / "workflows" / "release.yml"
+    ).read_text(encoding="utf-8")
+    publish_step = release_workflow.split(
+        "      - name: Publish exact bytes as a visible prerelease candidate",
+        maxsplit=1,
+    )[1].split("      - name:", maxsplit=1)[0]
+
+    assert "gh @releaseArguments" in publish_step
+    assert '$releaseArguments += @("--target", "${{ github.sha }}")' in publish_step
+    assert "$target =" not in publish_step
+    assert "--target $target" not in publish_step
 
 
 def test_windows_quality_workflows_fail_fast_on_native_command_errors() -> None:
