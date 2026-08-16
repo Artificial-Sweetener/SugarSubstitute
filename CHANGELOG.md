@@ -1,3 +1,10 @@
+## [0.21.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.21.0...v0.21.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **releases:** publish existing Stable tags correctly ([#68](https://github.com/Artificial-Sweetener/SugarSubstitute/issues/68)) ([d226fc8](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/d226fc88f3f938a99e37d91f1ba2adaf83a6020f))
+
 # [0.21.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.20.1...v0.21.0) (2026-08-16)
 
 
