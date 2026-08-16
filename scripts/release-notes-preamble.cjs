@@ -30,7 +30,7 @@ function createInstallerReleaseNotes(repository, version, channel = "stable") {
   const normalizedRepository = validateRepository(repository);
   const normalizedVersion = validateVersion(version);
   const normalizedChannel = validateChannel(channel);
-  const releaseTag = normalizedChannel === "canary" ? "canary" : `v${normalizedVersion}`;
+  const releaseTag = normalizedChannel === "canary" ? "canary-latest" : `v${normalizedVersion}`;
   const assetRoot = `https://github.com/${normalizedRepository}/releases/download/${releaseTag}`;
   const iconRoot = `https://raw.githubusercontent.com/${normalizedRepository}/${releaseTag}/docs/release/platforms`;
   const stableReleaseUrl = `https://github.com/${normalizedRepository}/releases/latest`;

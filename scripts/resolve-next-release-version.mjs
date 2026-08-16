@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const releaseConfig = require("../.releaserc.cjs");
-const { createCanaryVersion, nextPatchVersion } = require(
+const { createCanaryVersion, latestStableTag, nextStableVersion } = require(
   "./canary-release-version.cjs",
 );
 const { selectVersionResolutionPlugins } = require(
@@ -58,23 +58,42 @@ if (qualificationVersion) {
   shouldRelease = true;
   firstRelease = !canaryRunNumber;
 } else {
+  const resolvedStableVersion = canaryRunNumber
+    ? await resolveCanaryStableVersion(releaseTags)
+    : await resolveStableVersion();
+  version = canaryRunNumber
+    ? createCanaryVersion(resolvedStableVersion, canaryRunNumber)
+    : resolvedStableVersion;
+  shouldRelease = canaryRunNumber ? true : version.length > 0;
+  firstRelease = false;
+}
+
+async function resolveCanaryStableVersion(tags) {
+  const analyzer = selectVersionResolutionPlugins(releaseConfig)[0];
+  const analyzerOptions = Array.isArray(analyzer) ? analyzer[1] : {};
+  const stableTag = latestStableTag(tags);
+  const commits = git(["log", `${stableTag}..HEAD`, "--format=%B%x00"])
+    .split("\0")
+    .map((message) => message.trim())
+    .filter(Boolean)
+    .map((message) => ({ message }));
+  const { analyzeCommits } = await import("@semantic-release/commit-analyzer");
+  const releaseType =
+    (await analyzeCommits(analyzerOptions, {
+      commits,
+      logger: { log() {} },
+    })) ?? "patch";
+  return nextStableVersion(tags, releaseType);
+}
+
+async function resolveStableVersion() {
   const { default: semanticRelease } = await import("semantic-release");
   const result = await semanticRelease({
-    ...(canaryRunNumber
-      ? { branches: [process.env.GITHUB_REF_NAME ?? "canary"] }
-      : {}),
     ci: false,
     dryRun: true,
     plugins: selectVersionResolutionPlugins(releaseConfig),
   });
-  const nextStableVersion =
-    result?.nextRelease?.version ??
-    (canaryRunNumber ? nextPatchVersion(releaseTags) : "");
-  version = canaryRunNumber
-    ? createCanaryVersion(nextStableVersion, canaryRunNumber)
-    : nextStableVersion;
-  shouldRelease = canaryRunNumber ? true : version.length > 0;
-  firstRelease = false;
+  return result?.nextRelease?.version ?? "";
 }
 
 if (process.env.GITHUB_OUTPUT) {

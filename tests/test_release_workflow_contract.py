@@ -259,7 +259,12 @@ def test_canary_isolated_release_train_contract() -> None:
     assert "SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER:" in release_text
     assert "format('9999.1.{0}', github.run_number)" not in release_text
     assert "SUGAR_SUBSTITUTE_RELEASE_CHANNEL: canary" in release_text
-    assert "releases/download/canary" in release_text
+    assert "releases/download/canary-latest" in release_text
+    assert "releases/download/canary/" not in release_text
+    prepare_assets_text = (
+        PROJECT_ROOT / "scripts" / "prepare-release-assets.mjs"
+    ).read_text(encoding="utf-8")
+    assert 'channel === "canary" ? "canary-latest"' in prepare_assets_text
     assert '"canary-v$version"' not in release_text
     assert "release-qualification.yml" in release_text
     assert "'canary-fast'" in release_text
@@ -269,8 +274,10 @@ def test_canary_isolated_release_train_contract() -> None:
     ).read_text(encoding="utf-8")
     promotion = release_text.split("  promote-release:", maxsplit=1)[1]
     assert "Download qualified Canary candidate" in promotion
-    assert "gh release upload canary" in promotion
-    assert 'gh release upload canary "$channel_dir/manifest.json"' in promotion
+    assert "gh release upload canary-latest" in promotion
+    assert 'gh release upload canary-latest "$channel_dir/manifest.json"' in promotion
+    assert "git/refs/tags/canary-latest" in promotion
+    assert 'git/refs/tags/canary"' not in promotion
     assert promotion.count('gh release edit "$CANDIDATE_TAG"') == 1
     assert "--clobber" in promotion
     assert "--prerelease=false --latest" in promotion
@@ -332,7 +339,9 @@ def test_canary_version_derives_from_next_stable_release() -> None:
 const versions = require('./scripts/canary-release-version.cjs');
 process.stdout.write(JSON.stringify({
   canary: versions.createCanaryVersion('0.21.0', '142'),
-  fallback: versions.nextPatchVersion(['v0.19.2', 'v0.20.1', 'v0.20.0']),
+  latest: versions.latestStableTag(['v0.19.2', 'v0.20.1', 'v0.20.0']),
+  patch: versions.nextStableVersion(['v0.19.2', 'v0.20.1'], 'patch'),
+  minor: versions.nextStableVersion(['v0.19.2', 'v0.20.1'], 'minor'),
 }));
 """
     result = subprocess.run(
@@ -347,8 +356,25 @@ process.stdout.write(JSON.stringify({
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == {
         "canary": "0.21.0-canary.142",
-        "fallback": "0.20.2",
+        "latest": "v0.20.1",
+        "patch": "0.20.2",
+        "minor": "0.21.0",
     }
+
+
+def test_canary_version_resolution_does_not_probe_ambiguous_remote_ref() -> None:
+    """Canary analysis must work while the legacy Canary tag still exists."""
+
+    resolver_text = (
+        PROJECT_ROOT / "scripts" / "resolve-next-release-version.mjs"
+    ).read_text(encoding="utf-8")
+
+    canary_resolver = resolver_text.split(
+        "async function resolveCanaryStableVersion", maxsplit=1
+    )[1].split("async function resolveStableVersion", maxsplit=1)[0]
+    assert "analyzeCommits" in canary_resolver
+    assert "semanticRelease" not in canary_resolver
+    assert "branches:" not in canary_resolver
 
 
 def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> None:
@@ -384,7 +410,7 @@ def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> N
     assert f"[Download the latest Stable release instead]({stable_url})" in notes
     assert "DO NOT download this Canary build for normal use" in notes
     assert "Canary builds are intended only for testers" in notes
-    assert "releases/download/canary/SugarSubstitute-0.21.0-canary.42" in notes
+    assert "releases/download/canary-latest/SugarSubstitute-0.21.0-canary.42" in notes
 
 
 def test_cross_platform_validation_requires_explicit_invocation() -> None:

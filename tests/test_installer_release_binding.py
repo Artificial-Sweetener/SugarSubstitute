@@ -64,7 +64,7 @@ def test_canary_installer_binds_exact_build_and_persists_canary_feed() -> None:
 
     assert source.manifest_url == (
         "https://github.com/Artificial-Sweetener/SugarSubstitute/"
-        "releases/download/canary/manifest.json"
+        "releases/download/canary-latest/manifest.json"
     )
     assert source.expected_version == "0.21.0-canary.42"
     assert source.expected_channel == "canary"
@@ -99,11 +99,11 @@ def test_bound_installer_rejects_manifest_channel_mismatch(
     monkeypatch.setattr(
         GitHubReleaseSource,
         "load_manifest",
-        lambda _self: _manifest("9999.1.42", channel="stable"),
+        lambda _self: _manifest("0.21.0-canary.42", channel="stable"),
     )
     source = VersionBoundReleaseSource(
-        manifest_url="https://example.invalid/canary-v9999.1.42/manifest.json",
-        expected_version="9999.1.42",
+        manifest_url="https://example.invalid/canary-latest/manifest.json",
+        expected_version="0.21.0-canary.42",
         expected_channel="canary",
         update_manifest_url=DEFAULT_CANARY_RELEASE_MANIFEST_URL,
     )

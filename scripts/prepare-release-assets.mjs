@@ -186,7 +186,7 @@ function resolvePythonPath(root) {
 function resolveAssetBaseUrl(repositoryName, version, channel) {
   const configuredBaseUrl = process.env.SUGAR_SUBSTITUTE_ASSET_BASE_URL;
   if (!configuredBaseUrl) {
-    const releaseTag = channel === "canary" ? "canary" : `v${version}`;
+    const releaseTag = channel === "canary" ? "canary-latest" : `v${version}`;
     return `https://github.com/${repositoryName}/releases/download/${releaseTag}`;
   }
   if (!configuredBaseUrl.startsWith("https://")) {
