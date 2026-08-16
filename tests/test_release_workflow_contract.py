@@ -427,6 +427,20 @@ def test_managed_comfy_install_uses_exact_pin_and_artifact_cache() -> None:
     assert "pip install torch" not in workflow_text
 
 
+def test_required_managed_comfy_check_runs_for_every_protected_pr() -> None:
+    """Required branch checks must not disappear behind path filtering."""
+
+    workflow_text = (
+        PROJECT_ROOT / ".github" / "workflows" / "managed-comfy-install.yml"
+    ).read_text(encoding="utf-8")
+    pull_request_trigger = workflow_text.split("  pull_request:", maxsplit=1)[1].split(
+        "  workflow_dispatch:", maxsplit=1
+    )[0]
+
+    assert "    branches:\n      - main\n      - canary\n" in pull_request_trigger
+    assert "paths:" not in pull_request_trigger
+
+
 def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     """Release candidates must prove exact installers before stable promotion."""
 
