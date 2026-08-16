@@ -23,8 +23,8 @@ from itertools import pairwise
 import os
 from typing import Any, cast
 
-from PySide6.QtCore import QCoreApplication, QEvent, QPoint, Qt
-from PySide6.QtGui import QFocusEvent, QKeySequence, QTextCursor
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QKeySequence, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLineEdit
 import pytest
@@ -407,16 +407,15 @@ def test_real_shell_region_inline_edit_commits_when_focus_leaves(
     )
 
     assert inline_editor is not None
+    harness.wait_until(inline_editor.hasFocus)
     QTest.keyClicks(inline_editor, "Background")
-    QCoreApplication.sendEvent(
-        inline_editor,
-        QFocusEvent(QEvent.Type.FocusOut, Qt.FocusReason.MouseFocusReason),
-    )
+    field.editor.setFocus(Qt.FocusReason.MouseFocusReason)
     expected_source = "global\n[SEP|Background]\nregion"
     harness.wait_until(
         lambda: (
             field.editor.toPlainText() == expected_source
             and not inline_editor.isVisible()
+            and field.editor.hasFocus()
         )
     )
 
