@@ -90,9 +90,6 @@ from substitute.app.bootstrap.ready_shell_controller import (
     ReadyShellPostShowController,
     ReadyShellPrehydrationStateProtocol,
     ReadyShellPromptEditorWarmupTask,
-    ReadyShellRevealTask,
-    ReadyShellRevealTimerProtocol,
-    ReadyShellSplashProtocol,
     ReadyShellShowGateTask,
     ReadyShellShowStateProtocol,
     StartupSplashLogProtocol,
@@ -108,12 +105,12 @@ from substitute.app.bootstrap.ready_shell_controller import (
     create_ready_shell_metadata_bridge_task,
     create_ready_shell_minimum_ready_task,
     create_ready_shell_prompt_editor_warmup_task,
-    create_ready_shell_reveal_task,
     create_ready_shell_show_gate_task,
     create_ready_shell_startup_diagnostics_update_adapter,
     create_ready_shell_target_activation_task,
     schedule_ready_shell_controller_startup_tasks,
 )
+from substitute.app.bootstrap import ready_shell_reveal
 from substitute.app.bootstrap.ready_shell_startup_tasks import (
     ReadyShellStartupTaskQueueProtocol,
 )
@@ -415,11 +412,11 @@ class ReadyShellRevealTaskFactory(Protocol):
     def __call__(
         self,
         *,
-        splash: Callable[[], ReadyShellSplashProtocol | None],
+        splash: ready_shell_reveal.ReadyShellSplashProvider,
         shell_frame: Callable[[], object | None],
         initial_shell_placement: Callable[[], object | None],
         comfy_http_ready: Callable[[], bool],
-        startup_timer: ReadyShellRevealTimerProtocol,
+        startup_timer: ready_shell_reveal.ReadyShellRevealTimerProtocol,
         show_built_main_window: Callable[..., object],
         set_current_shell: Callable[[object], None],
         update_backend_state: Callable[[str], object],
@@ -428,9 +425,9 @@ class ReadyShellRevealTaskFactory(Protocol):
         request_startup_diagnostics_update: Callable[[object], object],
         schedule_post_show_hydration: Callable[[], object],
         set_shell_frame: Callable[[object], None],
-        set_splash: Callable[[ReadyShellSplashProtocol | None], None],
+        set_splash: ready_shell_reveal.ReadyShellSplashSetter,
         trace_fields: Callable[[], Mapping[str, object]],
-    ) -> ReadyShellRevealTask:
+    ) -> ready_shell_reveal.ReadyShellRevealTask:
         """Return the reveal task for one managed launch."""
 
 
@@ -941,11 +938,11 @@ def create_startup_managed_ready_runtime_resources(
 
     def build_reveal_task(
         *,
-        splash: Callable[[], ReadyShellSplashProtocol | None],
+        splash: ready_shell_reveal.ReadyShellSplashProvider,
         shell_frame: Callable[[], object | None],
         initial_shell_placement: Callable[[], object | None],
         comfy_http_ready: Callable[[], bool],
-        startup_timer: ReadyShellRevealTimerProtocol,
+        startup_timer: ready_shell_reveal.ReadyShellRevealTimerProtocol,
         show_built_main_window: Callable[..., object],
         set_current_shell: Callable[[object], None],
         update_backend_state: Callable[[str], object],
@@ -954,12 +951,12 @@ def create_startup_managed_ready_runtime_resources(
         request_startup_diagnostics_update: Callable[[object], object],
         schedule_post_show_hydration: Callable[[], object],
         set_shell_frame: Callable[[object], None],
-        set_splash: Callable[[ReadyShellSplashProtocol | None], None],
+        set_splash: ready_shell_reveal.ReadyShellSplashSetter,
         trace_fields: Callable[[], Mapping[str, object]],
-    ) -> ReadyShellRevealTask:
+    ) -> ready_shell_reveal.ReadyShellRevealTask:
         """Bind reveal task construction to this managed runtime."""
 
-        return create_ready_shell_reveal_task(
+        return ready_shell_reveal.create_ready_shell_reveal_task(
             splash=splash,
             shell_frame=shell_frame,
             initial_shell_placement=initial_shell_placement,

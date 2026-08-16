@@ -335,6 +335,7 @@ def test_real_shell_double_click_edits_named_separator_in_place(
 
     assert inline_editor is not None
     assert inline_editor.isVisible()
+    harness.wait_until(inline_editor.hasFocus)
     assert inline_editor.selectedText() == "Foreground"
     divider_length = abs(divider[2] - divider[0])
     editor_widths: list[int] = []
@@ -407,11 +408,20 @@ def test_real_shell_region_inline_edit_commits_when_focus_leaves(
     )
 
     assert inline_editor is not None
+    harness.wait_until(inline_editor.hasFocus)
     QTest.keyClicks(inline_editor, "Background")
-    harness.click_away_from_editor()
+    field.editor.setFocus(Qt.FocusReason.MouseFocusReason)
+    expected_source = "global\n[SEP|Background]\nregion"
+    harness.wait_until(
+        lambda: (
+            field.editor.toPlainText() == expected_source
+            and not inline_editor.isVisible()
+            and field.editor.hasFocus()
+        )
+    )
 
     after = harness.capture_state_snapshot(field, label="separator-focus-committed")
-    assert after.source_text == "global\n[SEP|Background]\nregion"
+    assert after.source_text == expected_source
     assert not inline_editor.isVisible()
 
 

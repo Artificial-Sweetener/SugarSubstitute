@@ -25,8 +25,7 @@ from typing import Protocol
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import WorkflowDocumentKind
 
-RESTORE_PROJECTION_CACHE_SCHEMA_VERSION = 2
-APP_PROJECTION_VERSION = 3
+RESTORE_PROJECTION_CACHE_SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,13 +126,11 @@ class RestoreProjectionArtifact:
 
     schema_version: int
     created_at: str
-    app_projection_version: int
     target_key: str
     workspace_fingerprint: str
     active_route: str
     active_workflow_id: str
     workflows: tuple[CachedWorkflowProjection, ...]
-    prompt_editor_feature_profile_fingerprint: str
     node_definition_fingerprints: Mapping[str, str]
     cube_definition_fingerprints: Mapping[str, str]
     projection: JsonObject = field(default_factory=dict)
@@ -153,7 +150,6 @@ class RestoreProjectionCacheRepository(Protocol):
 
 
 __all__ = [
-    "APP_PROJECTION_VERSION",
     "RESTORE_PROJECTION_CACHE_SCHEMA_VERSION",
     "CachedCubeProjection",
     "CachedCubeStackProjection",

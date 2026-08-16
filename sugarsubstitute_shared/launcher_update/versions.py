@@ -18,28 +18,101 @@
 
 from __future__ import annotations
 
+import re
+
+
+_PRERELEASE_IDENTIFIER = re.compile(r"^[0-9A-Za-z-]+$")
+
+
+class _ReleaseVersion:
+    """Represent the precedence-bearing parts of one release version."""
+
+    def __init__(self, release: tuple[int, ...], prerelease: tuple[str, ...] | None):
+        """Store validated release and prerelease components."""
+
+        self.release = release
+        self.prerelease = prerelease
+
 
 def compare_release_versions(left: str, right: str) -> int:
-    """Compare dotted numeric release versions."""
+    """Compare release versions using semantic prerelease precedence."""
 
-    left_parts = _version_parts(left)
-    right_parts = _version_parts(right)
-    width = max(len(left_parts), len(right_parts))
-    padded_left = (*left_parts, *([0] * (width - len(left_parts))))
-    padded_right = (*right_parts, *([0] * (width - len(right_parts))))
-    return (padded_left > padded_right) - (padded_left < padded_right)
+    left_version = _parse_release_version(left)
+    right_version = _parse_release_version(right)
+    release_comparison = _compare_release_parts(
+        left_version.release,
+        right_version.release,
+    )
+    if release_comparison != 0:
+        return release_comparison
+    return _compare_prerelease_parts(
+        left_version.prerelease,
+        right_version.prerelease,
+    )
 
 
-def _version_parts(version: str) -> tuple[int, ...]:
-    """Parse one release version and reject nonnumeric components."""
+def validate_release_version(version: str) -> None:
+    """Reject values that are not safe semantic release identifiers."""
+
+    _parse_release_version(version)
+
+
+def _parse_release_version(version: str) -> _ReleaseVersion:
+    """Parse one release version without accepting path-like values."""
 
     normalized = version.removeprefix("v").strip()
     if not normalized:
         raise ValueError("Release version must not be empty.")
-    parts = normalized.split(".")
-    if any(not part.isdigit() for part in parts):
-        raise ValueError(f"Release version must be numeric: {version}")
-    return tuple(int(part) for part in parts)
+    if any(character in normalized for character in ("/", "\\", ":")):
+        raise ValueError(f"Release version must be a plain tag value: {version}")
+    release_text, separator, prerelease_text = normalized.partition("-")
+    release_parts = release_text.split(".")
+    if len(release_parts) < 2 or any(not part.isdigit() for part in release_parts):
+        raise ValueError(f"Release version must be semantic: {version}")
+    prerelease = None
+    if separator:
+        identifiers = tuple(prerelease_text.split("."))
+        if not identifiers or any(
+            not identifier or _PRERELEASE_IDENTIFIER.fullmatch(identifier) is None
+            for identifier in identifiers
+        ):
+            raise ValueError(f"Release version must be semantic: {version}")
+        prerelease = identifiers
+    return _ReleaseVersion(tuple(int(part) for part in release_parts), prerelease)
 
 
-__all__ = ["compare_release_versions"]
+def _compare_release_parts(left: tuple[int, ...], right: tuple[int, ...]) -> int:
+    """Compare numeric release components after zero-padding."""
+
+    width = max(len(left), len(right))
+    padded_left = (*left, *([0] * (width - len(left))))
+    padded_right = (*right, *([0] * (width - len(right))))
+    return (padded_left > padded_right) - (padded_left < padded_right)
+
+
+def _compare_prerelease_parts(
+    left: tuple[str, ...] | None,
+    right: tuple[str, ...] | None,
+) -> int:
+    """Compare semantic prerelease identifiers."""
+
+    if left is None or right is None:
+        return (left is None) - (right is None)
+    for left_identifier, right_identifier in zip(left, right, strict=False):
+        if left_identifier == right_identifier:
+            continue
+        left_numeric = left_identifier.isdigit()
+        right_numeric = right_identifier.isdigit()
+        if left_numeric and right_numeric:
+            return (int(left_identifier) > int(right_identifier)) - (
+                int(left_identifier) < int(right_identifier)
+            )
+        if left_numeric != right_numeric:
+            return -1 if left_numeric else 1
+        return (left_identifier > right_identifier) - (
+            left_identifier < right_identifier
+        )
+    return (len(left) > len(right)) - (len(left) < len(right))
+
+
+__all__ = ["compare_release_versions", "validate_release_version"]

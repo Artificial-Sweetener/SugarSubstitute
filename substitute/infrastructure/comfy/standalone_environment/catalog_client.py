@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Resolve live Comfy standalone releases to checksum-addressed GitHub assets."""
+"""Resolve live Comfy standalone releases for pin-update automation."""
 
 from __future__ import annotations
 
@@ -43,8 +43,8 @@ GITHUB_RELEASE_API_TEMPLATE = (
 _SHA256_PATTERN = re.compile(r"^sha256:([0-9a-f]{64})$")
 
 
-class StandaloneEnvironmentCatalogClient:
-    """Join Comfy's live variant catalog with GitHub's published asset digests."""
+class LiveStandaloneEnvironmentCatalogClient:
+    """Join Comfy's live catalog with GitHub digests outside production installs."""
 
     def __init__(
         self,

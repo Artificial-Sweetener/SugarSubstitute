@@ -28,11 +28,15 @@ from typing import Mapping, Protocol
 from urllib.parse import urlparse
 
 from launcher.sugarsubstitute_launcher.config import (
+    CANARY_RELEASE_CHANNEL,
+    DEFAULT_CANARY_RELEASE_MANIFEST_URL,
     DEFAULT_RELEASE_MANIFEST_URL,
     RELEASE_SOURCE_KIND_GITHUB,
+    STABLE_RELEASE_CHANNEL,
     ReleaseSourceConfig,
 )
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
+from sugarsubstitute_shared.launcher_version import safe_launcher_version
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 
@@ -89,15 +93,46 @@ class GitHubReleaseSource:
         return ReleaseManifest.from_json(payload)
 
 
+@dataclass(frozen=True, slots=True)
+class VersionBoundReleaseSource:
+    """Install one exact release while retaining its channel update feed."""
+
+    manifest_url: str
+    expected_version: str
+    expected_channel: str = STABLE_RELEASE_CHANNEL
+    update_manifest_url: str = DEFAULT_RELEASE_MANIFEST_URL
+
+    def load_manifest(self) -> ReleaseManifest:
+        """Load the version-specific manifest and reject a mismatched release."""
+
+        manifest = GitHubReleaseSource(self.manifest_url).load_manifest()
+        if manifest.version != self.expected_version:
+            raise ValueError(
+                "Version-bound installer manifest mismatch: "
+                f"expected {self.expected_version}, got {manifest.version}."
+            )
+        if manifest.channel != self.expected_channel:
+            raise ValueError(
+                "Version-bound installer manifest channel mismatch: "
+                f"expected {self.expected_channel}, got {manifest.channel}."
+            )
+        return manifest
+
+
 def release_source_from_config(
     config: ReleaseSourceConfig | None,
+    *,
+    timeout_seconds: float = 30.0,
 ) -> ReleaseSource | None:
-    """Create a concrete release source from persisted launcher config."""
+    """Create a release source with the caller's operation-specific deadline."""
 
     if config is None:
         return None
     if config.kind == RELEASE_SOURCE_KIND_GITHUB:
-        return GitHubReleaseSource(config.manifest_url)
+        return GitHubReleaseSource(
+            config.manifest_url,
+            timeout_seconds=timeout_seconds,
+        )
     raise ValueError(f"Unsupported launcher release source kind: {config.kind}")
 
 
@@ -107,9 +142,41 @@ def default_production_release_source() -> ReleaseSource:
     return GitHubReleaseSource(DEFAULT_RELEASE_MANIFEST_URL)
 
 
+def production_installer_release_source(version: str) -> VersionBoundReleaseSource:
+    """Return the immutable tagged manifest source for one installer release."""
+
+    normalized_version = safe_launcher_version(version)
+    manifest_url = (
+        "https://github.com/Artificial-Sweetener/SugarSubstitute/"
+        f"releases/download/v{normalized_version}/manifest.json"
+    )
+    return VersionBoundReleaseSource(
+        manifest_url=manifest_url,
+        expected_version=normalized_version,
+        expected_channel=STABLE_RELEASE_CHANNEL,
+    )
+
+
+def canary_installer_release_source(version: str) -> VersionBoundReleaseSource:
+    """Bind one Canary setup to the version currently on its rolling feed."""
+
+    normalized_version = safe_launcher_version(version)
+    return VersionBoundReleaseSource(
+        manifest_url=DEFAULT_CANARY_RELEASE_MANIFEST_URL,
+        expected_version=normalized_version,
+        expected_channel=CANARY_RELEASE_CHANNEL,
+        update_manifest_url=DEFAULT_CANARY_RELEASE_MANIFEST_URL,
+    )
+
+
 def release_source_config_for(source: ReleaseSource) -> ReleaseSourceConfig | None:
     """Return persisted config for production release sources."""
 
+    if isinstance(source, VersionBoundReleaseSource):
+        return ReleaseSourceConfig(
+            kind=RELEASE_SOURCE_KIND_GITHUB,
+            manifest_url=source.update_manifest_url,
+        )
     if isinstance(source, GitHubReleaseSource):
         return ReleaseSourceConfig(
             kind=RELEASE_SOURCE_KIND_GITHUB,

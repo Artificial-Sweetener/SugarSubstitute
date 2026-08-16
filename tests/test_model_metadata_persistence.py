@@ -40,10 +40,12 @@ from substitute.domain.model_metadata import (
     ThumbnailVariant,
 )
 from substitute.infrastructure.persistence import (
+    ComposedModelMetadataRepository,
     JsonModelMetadataCatalogQueryRepository,
     JsonModelMetadataCatalogStore,
     ModelThumbnailStore,
     SqliteModelMetadataStore,
+    SqliteModelThumbnailAssetStore,
 )
 from substitute.shared.qt_thumbnail_codec import (
     image_from_qt_thumbnail_payload,
@@ -70,7 +72,7 @@ class _FakeImageResponse:
 def test_catalog_store_writes_records_indexes_and_freshness(tmp_path: Path) -> None:
     """SQLite catalog store should atomically persist records under model_metadata."""
 
-    store = SqliteModelMetadataStore(tmp_path)
+    store = _sqlite_repository(tmp_path)
     evidence = _evidence()
     record = ModelMetadataCacheRecord(
         schema_version=1,
@@ -98,7 +100,8 @@ def test_catalog_store_writes_records_indexes_and_freshness(tmp_path: Path) -> N
     assert store.read_thumbnail_asset("ABC123:standard:128") is not None
     assert store.read_thumbnail_asset("ABC123:banner:768x160") is not None
     assert store.is_fresh(evidence) is True
-    assert (tmp_path / "model_metadata.sqlite3").exists()
+    assert (tmp_path / "metadata" / "model_metadata.sqlite3").exists()
+    assert (tmp_path / "thumbnails" / "model_thumbnails.sqlite3").exists()
 
 
 def test_catalog_store_reprocesses_found_records_without_current_thumbnail_policy(
@@ -106,7 +109,7 @@ def test_catalog_store_reprocesses_found_records_without_current_thumbnail_polic
 ) -> None:
     """Found selected-thumbnail records without variants should be refreshed."""
 
-    store = SqliteModelMetadataStore(tmp_path)
+    store = _sqlite_repository(tmp_path)
     evidence = _evidence()
     store.save_record(
         ModelMetadataCacheRecord(
@@ -126,7 +129,7 @@ def test_catalog_store_reprocesses_found_records_without_current_thumbnail_polic
 def test_catalog_store_records_not_found(tmp_path: Path) -> None:
     """Catalog store should keep provider-not-found results fresh."""
 
-    store = SqliteModelMetadataStore(tmp_path)
+    store = _sqlite_repository(tmp_path)
     evidence = _evidence()
 
     store.save_not_found(evidence, fetched_at="2026-04-14T12:00:00Z")
@@ -139,7 +142,7 @@ def test_catalog_store_records_not_found(tmp_path: Path) -> None:
 def test_catalog_query_repository_reads_records_from_index(tmp_path: Path) -> None:
     """Catalog query repository should read persisted records through the index."""
 
-    store = SqliteModelMetadataStore(tmp_path)
+    store = _sqlite_repository(tmp_path)
     evidence = _evidence()
     store.save_record(
         ModelMetadataCacheRecord(
@@ -165,7 +168,7 @@ def test_catalog_query_repository_reads_records_from_index(tmp_path: Path) -> No
 def test_sqlite_catalog_reads_record_by_sha256(tmp_path: Path) -> None:
     """SQLite catalog should read one cached record by SHA256 for preservation."""
 
-    store = SqliteModelMetadataStore(tmp_path)
+    store = _sqlite_repository(tmp_path)
     evidence = _evidence()
     store.save_record(
         ModelMetadataCacheRecord(
@@ -194,7 +197,7 @@ def test_sqlite_catalog_round_trips_civitai_page_and_source_urls(
 ) -> None:
     """SQLite catalog should preserve public and API CivitAI URLs separately."""
 
-    store = SqliteModelMetadataStore(tmp_path)
+    store = _sqlite_repository(tmp_path)
     store.save_record(
         ModelMetadataCacheRecord(
             schema_version=1,
@@ -226,7 +229,7 @@ def test_sqlite_clear_civitai_metadata_preserves_local_hash_evidence(
 ) -> None:
     """Clearing provider metadata should not delete local model hash records."""
 
-    store = SqliteModelMetadataStore(tmp_path)
+    store = _sqlite_repository(tmp_path)
     evidence = _evidence()
     store.save_record(
         ModelMetadataCacheRecord(
@@ -259,7 +262,7 @@ def test_sqlite_save_local_evidence_preserves_hash_for_resolution(
 ) -> None:
     """Downloaded model evidence should be queryable without provider metadata."""
 
-    store = SqliteModelMetadataStore(tmp_path)
+    store = _sqlite_repository(tmp_path)
     evidence = _evidence()
 
     store.save_local_evidence(evidence, updated_at="2026-05-21T00:00:00Z")
@@ -310,7 +313,7 @@ def test_thumbnail_asset_repository_returns_none_for_missing_asset(
 ) -> None:
     """SQLite thumbnail asset repository should return ``None`` for missing keys."""
 
-    store = SqliteModelMetadataStore(tmp_path)
+    store = _sqlite_repository(tmp_path)
 
     assert store.read_thumbnail_asset("missing") is None
 
@@ -329,7 +332,6 @@ def test_thumbnail_store_writes_images_and_rejects_non_images(tmp_path: Path) ->
         return _FakeImageResponse(content_type="image/jpeg")
 
     store = ModelThumbnailStore(
-        tmp_path,
         http_get=fake_get,
         clock=lambda: "2026-04-14T12:00:00Z",
     )
@@ -371,7 +373,6 @@ def test_thumbnail_store_caches_local_output_thumbnail(tmp_path: Path) -> None:
     """Thumbnail store should prepare standard and banner variants from a local image."""
 
     store = ModelThumbnailStore(
-        tmp_path,
         clock=lambda: "2026-07-03T12:00:00Z",
     )
     image = QImage(96, 64, QImage.Format.Format_ARGB32)
@@ -398,7 +399,7 @@ def test_thumbnail_store_caches_local_output_thumbnail(tmp_path: Path) -> None:
 def test_thumbnail_store_rejects_null_local_output_thumbnail(tmp_path: Path) -> None:
     """Thumbnail store should reject null local images."""
 
-    store = ModelThumbnailStore(tmp_path)
+    store = ModelThumbnailStore()
 
     rejected = store.cache_local_thumbnail(
         sha256="abc123",
@@ -421,7 +422,6 @@ def test_thumbnail_store_accepts_image_url_when_content_type_is_missing(
         return _FakeImageResponse(content_type="")
 
     store = ModelThumbnailStore(
-        tmp_path,
         http_get=fake_get,
         clock=lambda: "2026-04-14T12:00:00Z",
     )
@@ -450,7 +450,6 @@ def test_thumbnail_store_accepts_octet_stream_when_payload_decodes(
         return _FakeImageResponse(content_type="binary/octet-stream")
 
     store = ModelThumbnailStore(
-        tmp_path,
         http_get=fake_get,
         clock=lambda: "2026-04-14T12:00:00Z",
     )
@@ -479,7 +478,6 @@ def test_thumbnail_store_accepts_text_plain_when_payload_decodes(
         return _FakeImageResponse(content_type="text/plain")
 
     store = ModelThumbnailStore(
-        tmp_path,
         http_get=fake_get,
         clock=lambda: "2026-04-14T12:00:00Z",
     )
@@ -508,7 +506,6 @@ def test_thumbnail_store_rejects_text_plain_when_payload_does_not_decode(
         return _FakeImageResponse(content_type="text/plain", content=b"text")
 
     store = ModelThumbnailStore(
-        tmp_path,
         http_get=fake_get,
         clock=lambda: "2026-04-14T12:00:00Z",
     )
@@ -535,6 +532,15 @@ def _evidence() -> LocalModelEvidence:
         size_bytes=123,
         modified_at="2026-04-14T01:00:00Z",
         sha256="ABC123",
+    )
+
+
+def _sqlite_repository(cache_root: Path) -> ComposedModelMetadataRepository:
+    """Return model metadata and thumbnail stores with separate cache roots."""
+
+    return ComposedModelMetadataRepository(
+        metadata=SqliteModelMetadataStore(cache_root / "metadata"),
+        thumbnails=SqliteModelThumbnailAssetStore(cache_root / "thumbnails"),
     )
 
 

@@ -30,6 +30,7 @@ _VARIANT_BY_TARGET = {
     ManagedInstallTarget.WINDOWS_INTEL_XPU: StandaloneVariantId.WINDOWS_INTEL_XPU,
     ManagedInstallTarget.WINDOWS_CPU: StandaloneVariantId.WINDOWS_CPU,
     ManagedInstallTarget.LINUX_NVIDIA: StandaloneVariantId.LINUX_NVIDIA,
+    ManagedInstallTarget.LINUX_CPU: StandaloneVariantId.LINUX_NVIDIA,
     ManagedInstallTarget.LINUX_AMD: StandaloneVariantId.LINUX_AMD,
     ManagedInstallTarget.LINUX_INTEL_XPU: StandaloneVariantId.LINUX_INTEL_XPU,
     ManagedInstallTarget.MACOS_APPLE_SILICON: StandaloneVariantId.MACOS_MPS,

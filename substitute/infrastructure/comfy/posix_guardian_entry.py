@@ -205,14 +205,41 @@ def _monitor_child(
 
     while True:
         if stop_event.is_set():
-            _terminate_process_group(process_group_id)
+            _terminate_managed_child(child_process, process_group_id)
             return 0
         if child_process.poll() is not None:
             return int(child_process.returncode or 0)
         if _keepalive_closed(keepalive_fd):
-            _terminate_process_group(process_group_id)
+            _terminate_managed_child(child_process, process_group_id)
             return 0
         sleep(0.1)
+
+
+def _terminate_managed_child(
+    child_process: subprocess.Popen[bytes],
+    process_group_id: int,
+) -> None:
+    """Stop the group or fall back to the guardian's directly owned child."""
+
+    try:
+        _terminate_process_group(process_group_id)
+    except PermissionError:
+        _terminate_direct_child(child_process)
+
+
+def _terminate_direct_child(child_process: subprocess.Popen[bytes]) -> None:
+    """Terminate only the guardian-owned child when group signaling is denied."""
+
+    if child_process.poll() is not None:
+        return
+    child_process.terminate()
+    deadline = monotonic() + _TERM_TIMEOUT_SECONDS
+    while monotonic() < deadline:
+        if child_process.poll() is not None:
+            return
+        sleep(0.1)
+    if child_process.poll() is None:
+        child_process.kill()
 
 
 def _keepalive_closed(keepalive_fd: int) -> bool:

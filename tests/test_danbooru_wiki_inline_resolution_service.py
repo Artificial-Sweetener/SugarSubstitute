@@ -35,8 +35,8 @@ from substitute.domain.danbooru import (
     DanbooruLookupStatus,
     DanbooruTagRecord,
 )
-from substitute.infrastructure.persistence.danbooru_cache_store import (
-    SqliteDanbooruCacheStore,
+from tests.support.danbooru_cache_repository import (
+    build_danbooru_cache_repository,
 )
 
 
@@ -46,7 +46,7 @@ def test_inline_resolution_service_chipifies_ordinary_wiki_titles_without_lookup
     """Ordinary wiki titles should become chips without extra confirmation work."""
 
     service = DanbooruWikiInlineResolutionService(
-        cache_repository=SqliteDanbooruCacheStore(tmp_path),
+        cache_repository=build_danbooru_cache_repository(tmp_path),
     )
 
     [section] = service.resolve_sections(
@@ -84,7 +84,7 @@ def test_inline_resolution_service_keeps_known_non_tag_namespaces_as_links(
     """Documented Danbooru wiki namespaces should remain normal wiki links."""
 
     service = DanbooruWikiInlineResolutionService(
-        cache_repository=SqliteDanbooruCacheStore(tmp_path),
+        cache_repository=build_danbooru_cache_repository(tmp_path),
     )
 
     [section] = service.resolve_sections(
@@ -145,7 +145,7 @@ def test_inline_resolution_service_handles_mixed_case_and_spaced_namespace_forms
     """Namespace detection should normalize case and underscore/space variants."""
 
     service = DanbooruWikiInlineResolutionService(
-        cache_repository=SqliteDanbooruCacheStore(tmp_path),
+        cache_repository=build_danbooru_cache_repository(tmp_path),
     )
 
     [section] = service.resolve_sections(
@@ -189,7 +189,7 @@ def test_inline_resolution_service_uses_cached_tag_metadata_only_for_category_en
 ) -> None:
     """Cached tag metadata should tint chips without requiring network confirmation."""
 
-    cache_repository = SqliteDanbooruCacheStore(tmp_path)
+    cache_repository = build_danbooru_cache_repository(tmp_path)
     cache_repository.save_cached_tag(
         DanbooruCachedTag(
             name="saber_(fate)",
@@ -238,7 +238,7 @@ def test_inline_resolution_service_leaves_search_links_non_chip(
     """Danbooru search-expression links should never become chips."""
 
     service = DanbooruWikiInlineResolutionService(
-        cache_repository=SqliteDanbooruCacheStore(tmp_path),
+        cache_repository=build_danbooru_cache_repository(tmp_path),
     )
 
     [section] = service.resolve_sections(
@@ -270,7 +270,7 @@ def test_inline_resolution_service_promotes_ordinary_caption_links_to_chips(
     """Image captions should chipify ordinary wiki links through the same rule."""
 
     service = DanbooruWikiInlineResolutionService(
-        cache_repository=SqliteDanbooruCacheStore(tmp_path),
+        cache_repository=build_danbooru_cache_repository(tmp_path),
     )
 
     [section] = service.resolve_sections(

@@ -30,6 +30,9 @@ const repository = process.env.GITHUB_REPOSITORY;
 if (!repository) {
   throw new Error("GITHUB_REPOSITORY must be set to prepare release assets.");
 }
+const releaseChannel = resolveReleaseChannel(
+  process.env.SUGAR_SUBSTITUTE_RELEASE_CHANNEL ?? "stable",
+);
 
 const projectRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const releaseChannelDir = join(projectRoot, ".local-release-channel");
@@ -73,9 +76,9 @@ assertFile(linuxAppImagePath, "Linux AppImage installer");
 assertFile(linuxDebPath, "Linux Debian installer");
 
 rmSync(releaseChannelDir, { force: true, recursive: true });
-updateReleaseVersions(new URL("../", import.meta.url), nextVersion);
+updateReleaseVersions(new URL("../", import.meta.url), nextVersion, releaseChannel);
 
-const assetBaseUrl = `https://github.com/${repository}/releases/download/v${nextVersion}`;
+const assetBaseUrl = resolveAssetBaseUrl(repository, nextVersion, releaseChannel);
 const buildResult = spawnSync(
   pythonPath,
   [
@@ -83,6 +86,8 @@ const buildResult = spawnSync(
     "build",
     "--version",
     nextVersion,
+    "--channel",
+    releaseChannel,
     "--platform-input",
     "windows_x64",
     windowsInstallerPayload,
@@ -124,7 +129,7 @@ if (buildResult.status !== 0) {
 
 const publicInstallerPath = join(
   releaseChannelDir,
-  "SugarSubstitute-Installer-Windows-x64.exe",
+  `SugarSubstitute-${nextVersion}-Windows-x64-Setup.exe`,
 );
 assertFile(publicInstallerPath, "public installer executable");
 assertFile(join(releaseChannelDir, "manifest.json"), "release manifest");
@@ -143,16 +148,16 @@ assertFile(
 assertFile(
   join(
     releaseChannelDir,
-    "SugarSubstitute-Installer-macOS-Apple-Silicon.dmg",
+    `SugarSubstitute-${nextVersion}-macOS-Apple-Silicon.dmg`,
   ),
   "Apple Silicon installer DMG",
 );
 assertFile(
-  join(releaseChannelDir, "SugarSubstitute-Installer-Linux-x86_64.AppImage"),
+  join(releaseChannelDir, `SugarSubstitute-${nextVersion}-Linux-x86_64.AppImage`),
   "Linux AppImage installer",
 );
 assertFile(
-  join(releaseChannelDir, "SugarSubstitute-Installer-Linux-amd64.deb"),
+  join(releaseChannelDir, `SugarSubstitute-${nextVersion}-Linux-amd64.deb`),
   "Linux Debian installer",
 );
 assertFile(
@@ -176,6 +181,25 @@ function resolvePythonPath(root) {
     return venvPython;
   }
   return "python";
+}
+
+function resolveAssetBaseUrl(repositoryName, version, channel) {
+  const configuredBaseUrl = process.env.SUGAR_SUBSTITUTE_ASSET_BASE_URL;
+  if (!configuredBaseUrl) {
+    const releaseTag = channel === "canary" ? "canary-latest" : `v${version}`;
+    return `https://github.com/${repositoryName}/releases/download/${releaseTag}`;
+  }
+  if (!configuredBaseUrl.startsWith("https://")) {
+    throw new Error("SUGAR_SUBSTITUTE_ASSET_BASE_URL must use HTTPS.");
+  }
+  return configuredBaseUrl.replace(/\/+$/, "");
+}
+
+function resolveReleaseChannel(value) {
+  if (!new Set(["stable", "canary"]).has(value)) {
+    throw new Error(`Unsupported release channel: ${value}`);
+  }
+  return value;
 }
 
 function assertFile(path, description) {

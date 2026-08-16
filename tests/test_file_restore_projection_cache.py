@@ -23,7 +23,6 @@ from pathlib import Path
 import pytest
 
 from substitute.application.workspace_state import (
-    APP_PROJECTION_VERSION,
     RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
     RestoreProjectionArtifact,
 )
@@ -117,13 +116,11 @@ def _artifact(
     return RestoreProjectionArtifact(
         schema_version=RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
         created_at="2026-05-10T00:00:00Z",
-        app_projection_version=APP_PROJECTION_VERSION,
         target_key="target",
         workspace_fingerprint=workspace_fingerprint,
         active_route="editor",
         active_workflow_id="workflow",
         workflows=(),
-        prompt_editor_feature_profile_fingerprint="prompt-profile",
         node_definition_fingerprints={},
         cube_definition_fingerprints={},
         projection=projection or {},

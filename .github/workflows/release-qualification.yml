@@ -1,0 +1,654 @@
+name: release qualification
+
+on:
+  workflow_call:
+    inputs:
+      candidate_version:
+        description: "Exact semantic version already staged as a prerelease"
+        required: true
+        type: string
+      candidate_tag:
+        description: "Exact GitHub prerelease tag containing candidate bytes"
+        required: false
+        default: ""
+        type: string
+      candidate_channel:
+        description: "Release channel embedded into the candidate installers"
+        required: false
+        default: "stable"
+        type: string
+      candidate_artifact_name:
+        description: "Same-run artifact containing a temporary candidate channel"
+        required: false
+        default: ""
+        type: string
+      candidate_run_id:
+        description: "Run containing a temporary candidate artifact"
+        required: false
+        default: ""
+        type: string
+      qualification_scope:
+        description: "Exact qualification slice to execute"
+        required: false
+        default: "all"
+        type: string
+      upgrade_selection:
+        description: "Historical upgrade depth for focused remediation"
+        required: false
+        default: "complete"
+        type: string
+      qualification_timeout_seconds:
+        description: "Total focused installer-chain timeout; full qualification requires 3600"
+        required: false
+        default: "3600"
+        type: string
+  workflow_dispatch:
+    inputs:
+      candidate_version:
+        description: "Exact semantic version already staged as a prerelease"
+        required: true
+        type: string
+      candidate_tag:
+        description: "Exact GitHub prerelease tag containing candidate bytes"
+        required: false
+        default: ""
+        type: string
+      candidate_channel:
+        description: "Release channel embedded into the candidate installers"
+        required: false
+        default: "stable"
+        type: choice
+        options:
+          - stable
+          - canary
+      candidate_artifact_name:
+        description: "Same-run artifact containing a temporary candidate channel"
+        required: false
+        default: ""
+        type: string
+      candidate_run_id:
+        description: "Run containing a temporary candidate artifact"
+        required: false
+        default: ""
+        type: string
+      qualification_scope:
+        description: "Exact qualification slice to execute"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - canary-fast
+          - qualification-all
+          - clean-all
+          - clean-windows
+          - clean-linux
+          - clean-macos
+          - updates-all
+          - updates-windows
+          - updates-linux
+          - updates-macos
+          - managed-comfy
+      upgrade_selection:
+        description: "Historical upgrade depth for focused remediation"
+        required: false
+        default: "complete"
+        type: choice
+        options:
+          - complete
+          - latest-only
+      qualification_timeout_seconds:
+        description: "Total focused installer-chain timeout; full qualification requires 3600"
+        required: false
+        default: "3600"
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+  CANDIDATE_VERSION: ${{ inputs.candidate_version }}
+  CANDIDATE_TAG: ${{ inputs.candidate_tag }}
+  CANDIDATE_MANIFEST_URL: https://github.com/${{ github.repository }}/releases/download/${{ inputs.candidate_tag }}/manifest.json
+  EXPECTED_UPDATE_MANIFEST_URL: ${{ inputs.candidate_channel == 'canary' && format('https://github.com/{0}/releases/download/canary-latest/manifest.json', github.repository) || format('https://github.com/{0}/releases/latest/download/manifest.json', github.repository) }}
+  QUALIFICATION_TIMEOUT_SECONDS: ${{ inputs.qualification_timeout_seconds }}
+  STANDALONE_CACHE: build/managed-comfy-cache
+  LINUX_QT_PACKAGES: >-
+    xvfb libegl1 libfontconfig1 libgl1 libpulse0 libxcb-cursor0 libxcb-icccm4
+    libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
+    libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0 libxkbcommon0
+
+jobs:
+  select-qualification:
+    name: Select focused qualification jobs
+    runs-on: ubuntu-24.04
+    outputs:
+      clean_enabled: ${{ steps.selection.outputs.clean_enabled }}
+      clean_matrix: ${{ steps.selection.outputs.clean_matrix }}
+      macos_clean_enabled: ${{ steps.selection.outputs.macos_clean_enabled }}
+      updates_enabled: ${{ steps.selection.outputs.updates_enabled }}
+      update_platforms: ${{ steps.selection.outputs.update_platforms }}
+      managed_comfy_enabled: ${{ steps.selection.outputs.managed_comfy_enabled }}
+    steps:
+      - name: Resolve requested matrix slice
+        id: selection
+        shell: pwsh
+        env:
+          QUALIFICATION_SCOPE: ${{ inputs.qualification_scope }}
+          CANDIDATE_VERSION: ${{ inputs.candidate_version }}
+        run: |
+          $scope = $env:QUALIFICATION_SCOPE
+          $supportedScopes = @(
+            "all", "canary-fast", "qualification-all", "clean-all",
+            "clean-windows", "clean-linux", "clean-macos", "updates-all",
+            "updates-windows", "updates-linux", "updates-macos", "managed-comfy"
+          )
+          if ($scope -notin $supportedScopes) {
+            throw "Unsupported qualification_scope: $scope"
+          }
+          $cleanPlatforms = switch ($scope) {
+            { $_ -in @("all", "qualification-all", "clean-all") } { @("windows", "linux"); break }
+            "clean-windows" { @("windows"); break }
+            "clean-linux" { @("linux"); break }
+            default { @() }
+          }
+          $cleanMatrix = @($cleanPlatforms | ForEach-Object {
+            if ($_ -eq "windows") {
+              @{
+                name = "Windows x64"
+                os = "windows-latest"
+                python_version = "3.12.10"
+                asset = "SugarSubstitute-$env:CANDIDATE_VERSION-Windows-x64-Setup.exe"
+                standalone_variant = "win-cpu"
+              }
+            } else {
+              @{
+                name = "Linux x64"
+                os = "ubuntu-24.04"
+                python_version = "3.12.13"
+                asset = "SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage"
+                standalone_variant = "linux-nvidia"
+              }
+            }
+          }) | ConvertTo-Json -Compress -AsArray
+          $updatePlatforms = switch ($scope) {
+            { $_ -in @("all", "qualification-all", "updates-all") } { @("windows", "linux", "macos"); break }
+            "updates-windows" { @("windows"); break }
+            "updates-linux" { @("linux"); break }
+            "updates-macos" { @("macos"); break }
+            default { @() }
+          }
+          $cleanEnabled = if ($cleanPlatforms.Count -gt 0) { "true" } else { "false" }
+          $macosCleanEnabled = if ($scope -in @("all", "qualification-all", "clean-all", "clean-macos")) { "true" } else { "false" }
+          $updatesEnabled = if ($updatePlatforms.Count -gt 0) { "true" } else { "false" }
+          $managedComfyEnabled = if ($scope -in @("all", "managed-comfy")) { "true" } else { "false" }
+          "clean_enabled=$cleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append
+          "clean_matrix=$cleanMatrix" | Out-File $env:GITHUB_OUTPUT -Append
+          "macos_clean_enabled=$macosCleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append
+          "updates_enabled=$updatesEnabled" | Out-File $env:GITHUB_OUTPUT -Append
+          "update_platforms=$($updatePlatforms | ConvertTo-Json -Compress -AsArray)" | Out-File $env:GITHUB_OUTPUT -Append
+          "managed_comfy_enabled=$managedComfyEnabled" | Out-File $env:GITHUB_OUTPUT -Append
+
+  resolve-upgrades:
+    name: Resolve required historical upgrades
+    needs: select-qualification
+    if: needs.select-qualification.outputs.updates_enabled == 'true'
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.sources.outputs.matrix }}
+    steps:
+      - name: Checkout candidate source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.LINUX_PYTHON_VERSION }}
+      - name: Select latest three releases and fixed canary
+        id: sources
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python -m tools.ci.resolve_upgrade_sources
+          --repository "${{ github.repository }}"
+          --candidate-version "${{ env.CANDIDATE_VERSION }}"
+          --selection "${{ inputs.upgrade_selection }}"
+
+  validate-candidate-source:
+    name: Validate exact candidate source
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require one published or temporary candidate source
+        shell: pwsh
+        env:
+          QUALIFICATION_SCOPE: ${{ inputs.qualification_scope }}
+        run: |
+          $published = "${{ inputs.candidate_tag }}" -ne ""
+          $temporary = "${{ inputs.candidate_artifact_name }}" -ne ""
+          if ($published -eq $temporary) {
+            throw "Provide exactly one candidate_tag or candidate_artifact_name."
+          }
+          $timeout = 0.0
+          if (-not [double]::TryParse($env:QUALIFICATION_TIMEOUT_SECONDS, [ref]$timeout) -or $timeout -le 0) {
+            throw "qualification_timeout_seconds must be a positive number."
+          }
+          $fullQualification = $env:QUALIFICATION_SCOPE -in @("all", "qualification-all")
+          if (($published -or $fullQualification) -and $timeout -ne 3600.0) {
+            throw "Published and full qualification require the canonical 3600-second timeout."
+          }
+
+  validate-candidate-artifact:
+    name: Validate temporary candidate bytes
+    needs: validate-candidate-source
+    if: inputs.candidate_artifact_name != ''
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download exact temporary candidate channel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/candidate
+          run-id: ${{ inputs.candidate_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify manifest identity and every release checksum
+        env:
+          CANDIDATE_CHANNEL: ${{ inputs.candidate_channel }}
+        run: |
+          set -euo pipefail
+          jq --exit-status --arg version "$CANDIDATE_VERSION" --arg channel "$CANDIDATE_CHANNEL" '.version == $version and .channel == $channel' build/candidate/manifest.json > /dev/null
+          (cd build/candidate && sha256sum --check checksums.txt)
+          if [ "$CANDIDATE_CHANNEL" = "canary" ]; then
+            grep --fixed-strings "releases/latest" build/candidate/.release-notes.md > /dev/null
+          fi
+
+  clean-install:
+    name: Clean install and launch (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.select-qualification.outputs.clean_matrix) }}
+    needs:
+      - select-qualification
+      - validate-candidate-source
+    if: >-
+      always() &&
+      needs.select-qualification.outputs.clean_enabled == 'true' &&
+      needs.validate-candidate-source.result == 'success'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    steps:
+      - name: Checkout candidate source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python_version }}
+      - name: Restore checksum-addressed standalone artifact
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.STANDALONE_CACHE }}
+          key: managed-comfy-${{ matrix.standalone_variant }}-${{ hashFiles('substitute/infrastructure/comfy/standalone_environment/standalone_environment_pin.json') }}
+      - name: Install Linux runtime dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
+      - name: Install qualification toolchain
+        run: python -m pip install --requirement requirements-toolchain.txt
+      - name: Populate checksum-addressed standalone artifact
+        run: >-
+          python tools/ci/cache_managed_comfy_artifacts.py
+          --cache-root "${{ env.STANDALONE_CACHE }}"
+          --variant "${{ matrix.standalone_variant }}"
+      - name: Download exact candidate installer
+        if: inputs.candidate_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          New-Item -ItemType Directory -Force build/candidate | Out-Null
+          gh release download $env:CANDIDATE_TAG --repo "${{ github.repository }}" --pattern "${{ matrix.asset }}" --dir build/candidate
+          if ($IsLinux) { chmod +x "build/candidate/${{ matrix.asset }}" }
+      - name: Download exact temporary candidate channel
+        if: inputs.candidate_artifact_name != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/candidate
+          run-id: ${{ inputs.candidate_run_id != '' && inputs.candidate_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+      - name: Make temporary Linux installer executable
+        if: runner.os == 'Linux' && inputs.candidate_artifact_name != ''
+        run: chmod +x "build/candidate/${{ matrix.asset }}"
+      - name: Prove published clean install and post-splash launch
+        if: inputs.candidate_tag != ''
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          QT_QPA_PLATFORM: offscreen
+        run: >-
+          python tools/ci/verify_installer_lifecycle.py clean
+          --installer "build/candidate/${{ matrix.asset }}"
+          --install-root "${{ runner.temp }}/SugarSubstitute-clean"
+          --expected-version "${{ env.CANDIDATE_VERSION }}"
+          --expected-channel "${{ inputs.candidate_channel }}"
+          --expected-update-manifest-url "${{ env.EXPECTED_UPDATE_MANIFEST_URL }}"
+          --managed-artifact-cache-root "${{ env.STANDALONE_CACHE }}"
+          --timeout-seconds "${{ env.QUALIFICATION_TIMEOUT_SECONDS }}"
+      - name: Prove temporary clean install and post-splash launch
+        if: inputs.candidate_artifact_name != ''
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          QT_QPA_PLATFORM: offscreen
+        run: >-
+          python tools/ci/verify_installer_lifecycle.py clean
+          --installer "build/candidate/${{ matrix.asset }}"
+          --install-root "${{ runner.temp }}/SugarSubstitute-clean"
+          --expected-version "${{ env.CANDIDATE_VERSION }}"
+          --candidate-release-root "build/candidate"
+          --managed-artifact-cache-root "${{ env.STANDALONE_CACHE }}"
+          --timeout-seconds "${{ env.QUALIFICATION_TIMEOUT_SECONDS }}"
+      - name: Upload clean-install diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: clean-install-diagnostics-${{ runner.os }}
+          path: |
+            ${{ runner.temp }}/.SugarSubstitute-clean-clean-installer-qualification.jsonl
+            ${{ runner.temp }}/.SugarSubstitute-clean-standalone-cache.json
+            ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/runtime_state/setup_transaction.json
+            ${{ runner.temp }}/SugarSubstitute-clean/managed-comfy-startup.log
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+
+  clean-install-macos:
+    name: Clean install and launch (macOS Apple Silicon)
+    needs:
+      - select-qualification
+      - validate-candidate-source
+    if: >-
+      always() &&
+      needs.select-qualification.outputs.macos_clean_enabled == 'true' &&
+      needs.validate-candidate-source.result == 'success'
+    runs-on: macos-15
+    timeout-minutes: 75
+    steps:
+      - name: Checkout candidate source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Restore checksum-addressed standalone artifact
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.STANDALONE_CACHE }}
+          key: managed-comfy-mac-mps-${{ hashFiles('substitute/infrastructure/comfy/standalone_environment/standalone_environment_pin.json') }}
+      - name: Install qualification toolchain
+        run: python -m pip install --requirement requirements-toolchain.txt
+      - name: Populate checksum-addressed standalone artifact
+        run: >-
+          python tools/ci/cache_managed_comfy_artifacts.py
+          --cache-root "$STANDALONE_CACHE"
+          --variant mac-mps
+      - name: Download and mount exact candidate DMG
+        if: inputs.candidate_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/candidate "${{ runner.temp }}/candidate-dmg"
+          gh release download "$CANDIDATE_TAG" --repo "${{ github.repository }}" --pattern "SugarSubstitute-${CANDIDATE_VERSION}-macOS-Apple-Silicon.dmg" --dir build/candidate
+          hdiutil attach "build/candidate/SugarSubstitute-${CANDIDATE_VERSION}-macOS-Apple-Silicon.dmg" -mountpoint "${{ runner.temp }}/candidate-dmg" -nobrowse
+      - name: Download exact temporary candidate channel
+        if: inputs.candidate_artifact_name != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/candidate
+          run-id: ${{ inputs.candidate_run_id != '' && inputs.candidate_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+      - name: Mount temporary candidate DMG
+        if: inputs.candidate_artifact_name != ''
+        run: |
+          mkdir -p "${{ runner.temp }}/candidate-dmg"
+          hdiutil attach "build/candidate/SugarSubstitute-${CANDIDATE_VERSION}-macOS-Apple-Silicon.dmg" -mountpoint "${{ runner.temp }}/candidate-dmg" -nobrowse
+      - name: Prove published clean install and post-splash launch
+        if: inputs.candidate_tag != ''
+        env:
+          QT_QPA_PLATFORM: cocoa
+        run: >-
+          python tools/ci/verify_installer_lifecycle.py clean
+          --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
+          --install-root "${{ runner.temp }}/SugarSubstitute-clean"
+          --expected-version "$CANDIDATE_VERSION"
+          --expected-channel "${{ inputs.candidate_channel }}"
+          --expected-update-manifest-url "$EXPECTED_UPDATE_MANIFEST_URL"
+          --managed-artifact-cache-root "$STANDALONE_CACHE"
+          --timeout-seconds "$QUALIFICATION_TIMEOUT_SECONDS"
+      - name: Prove temporary clean install and post-splash launch
+        if: inputs.candidate_artifact_name != ''
+        env:
+          QT_QPA_PLATFORM: cocoa
+        run: >-
+          python tools/ci/verify_installer_lifecycle.py clean
+          --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
+          --install-root "${{ runner.temp }}/SugarSubstitute-clean"
+          --expected-version "$CANDIDATE_VERSION"
+          --candidate-release-root "build/candidate"
+          --managed-artifact-cache-root "$STANDALONE_CACHE"
+          --timeout-seconds "$QUALIFICATION_TIMEOUT_SECONDS"
+      - name: Upload clean-install diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: clean-install-diagnostics-${{ runner.os }}
+          path: |
+            ${{ runner.temp }}/.SugarSubstitute-clean-clean-installer-qualification.jsonl
+            ${{ runner.temp }}/.SugarSubstitute-clean-standalone-cache.json
+            ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/runtime_state/setup_transaction.json
+            ${{ runner.temp }}/SugarSubstitute-clean/managed-comfy-startup.log
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+      - name: Unmount candidate DMG
+        if: always()
+        run: hdiutil detach "${{ runner.temp }}/candidate-dmg" || true
+
+  historical-update:
+    name: Update ${{ matrix.history.version }} and launch (${{ matrix.platform }})
+    needs:
+      - select-qualification
+      - resolve-upgrades
+      - validate-candidate-source
+    strategy:
+      fail-fast: false
+      matrix:
+        history: ${{ fromJSON(needs.resolve-upgrades.outputs.matrix) }}
+        platform: ${{ fromJSON(needs.select-qualification.outputs.update_platforms) }}
+    runs-on: ${{ matrix.platform == 'windows' && 'windows-latest' || matrix.platform == 'linux' && 'ubuntu-24.04' || 'macos-15' }}
+    timeout-minutes: 120
+    if: >-
+      always() &&
+      needs.select-qualification.outputs.updates_enabled == 'true' &&
+      needs.resolve-upgrades.result == 'success' &&
+      needs.validate-candidate-source.result == 'success'
+    steps:
+      - name: Checkout candidate source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.platform == 'linux' && env.LINUX_PYTHON_VERSION || env.PYTHON_VERSION }}
+      - name: Install Linux runtime dependencies
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
+      - name: Install qualification toolchain
+        run: python -m pip install --requirement requirements-toolchain.txt
+      - name: Download published candidate installer
+        if: inputs.candidate_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          New-Item -ItemType Directory -Force build/candidate | Out-Null
+          $asset = switch ("${{ matrix.platform }}") {
+            "windows" { "SugarSubstitute-$env:CANDIDATE_VERSION-Windows-x64-Setup.exe" }
+            "linux" { "SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage" }
+            "macos" { "SugarSubstitute-$env:CANDIDATE_VERSION-macOS-Apple-Silicon.dmg" }
+          }
+          gh release download $env:CANDIDATE_TAG --repo "${{ github.repository }}" --pattern $asset --dir build/candidate
+      - name: Download temporary candidate channel
+        if: inputs.candidate_artifact_name != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/candidate
+          run-id: ${{ inputs.candidate_run_id != '' && inputs.candidate_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+      - name: Resolve real candidate installer
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $asset = switch ("${{ matrix.platform }}") {
+            "windows" { "SugarSubstitute-$env:CANDIDATE_VERSION-Windows-x64-Setup.exe" }
+            "linux" { "SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage" }
+            "macos" { "SugarSubstitute-$env:CANDIDATE_VERSION-macOS-Apple-Silicon.dmg" }
+          }
+          $assetPath = (Resolve-Path (Join-Path build/candidate $asset)).Path
+          if ("${{ matrix.platform }}" -eq "linux") {
+            chmod +x $assetPath
+          }
+          if ("${{ matrix.platform }}" -eq "macos") {
+            New-Item -ItemType Directory -Force "${{ runner.temp }}/candidate-update-dmg" | Out-Null
+            hdiutil attach $assetPath -mountpoint "${{ runner.temp }}/candidate-update-dmg" -nobrowse
+            $assetPath = "${{ runner.temp }}/candidate-update-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
+          }
+          "CANDIDATE_INSTALLER=$assetPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Download real historical installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          New-Item -ItemType Directory -Force build/historical-installer | Out-Null
+          $asset = switch ("${{ matrix.platform }}") {
+            "windows" { "SugarSubstitute-Installer-Windows-x64.exe" }
+            "linux" { "SugarSubstitute-Installer-Linux-x86_64.AppImage" }
+            "macos" { "SugarSubstitute-Installer-macOS-Apple-Silicon.dmg" }
+          }
+          gh release download "${{ matrix.history.tag }}" `
+            --repo "${{ github.repository }}" `
+            --pattern $asset `
+            --dir build/historical-installer
+          $path = (Resolve-Path (Join-Path build/historical-installer $asset)).Path
+          if ("${{ matrix.platform }}" -eq "linux") {
+            chmod +x $path
+          }
+          if ("${{ matrix.platform }}" -ne "macos") {
+            "HISTORICAL_INSTALLER=$path" | Out-File -FilePath $env:GITHUB_ENV -Append
+          }
+      - name: Mount real historical macOS installer
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p "${{ runner.temp }}/historical-dmg"
+          hdiutil attach "build/historical-installer/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg" -mountpoint "${{ runner.temp }}/historical-dmg" -nobrowse
+          echo "HISTORICAL_INSTALLER=${{ runner.temp }}/historical-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup" >> "$GITHUB_ENV"
+      - name: Reconstitute exact historical macOS install channel
+        if: matrix.platform == 'macos'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $version = "${{ matrix.history.version }}"
+          New-Item -ItemType Directory -Force build/historical-channel | Out-Null
+          gh release download "${{ matrix.history.tag }}" `
+            --repo "${{ github.repository }}" `
+            --pattern manifest.json `
+            --pattern "SugarSubstitute-app-v$version.zip" `
+            --pattern "SugarSubstitute-installer-payload-macos-arm64-v$version.zip" `
+            --dir build/historical-channel
+          python -m tools.ci.reconstitute_historical_macos_release `
+            --source-root build/historical-channel `
+            --output-root build/historical-channel-reconstituted
+          "HISTORICAL_RELEASE_ROOT=$((Resolve-Path build/historical-channel-reconstituted).Path)" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Prove historical update, splash, and main shell
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          QT_QPA_PLATFORM: ${{ matrix.platform == 'macos' && 'cocoa' || 'offscreen' }}
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $candidateSource = if ("${{ inputs.candidate_artifact_name }}" -ne "") {
+            @("--candidate-release-root", "build/candidate")
+          } else {
+            @()
+          }
+          $publishedChannel = if ("${{ inputs.candidate_tag }}" -ne "") {
+            @(
+              "--candidate-channel", "${{ inputs.candidate_channel }}",
+              "--expected-update-manifest-url", $env:EXPECTED_UPDATE_MANIFEST_URL
+            )
+          } else {
+            @()
+          }
+          $historicalSource = if ($env:HISTORICAL_RELEASE_ROOT) {
+            @("--historical-release-root", $env:HISTORICAL_RELEASE_ROOT)
+          } else {
+            @()
+          }
+          python tools/ci/verify_installer_lifecycle.py upgrade `
+            --historical-installer "$env:HISTORICAL_INSTALLER" `
+            --candidate-installer "$env:CANDIDATE_INSTALLER" `
+            --install-root "${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}" `
+            --historical-manifest-url "https://github.com/${{ github.repository }}/releases/download/${{ matrix.history.tag }}/manifest.json" `
+            @historicalSource `
+            --historical-version "${{ matrix.history.version }}" `
+            --historical-published-at "${{ matrix.history.published_at }}" `
+            @candidateSource `
+            @publishedChannel `
+            --timeout-seconds "$env:QUALIFICATION_TIMEOUT_SECONDS" `
+            --candidate-version "$env:CANDIDATE_VERSION"
+      - name: Upload historical-update diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: historical-update-diagnostics-${{ matrix.platform }}-${{ matrix.history.version }}
+          path: |
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/logs/**
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/readiness/**
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/config.json
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/state.json
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/appdata/runtime_state/**
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/user/settings/**
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/managed-comfy-startup.log
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/historical-managed-comfy-startup.log
+            ${{ runner.temp }}/SugarSubstitute-${{ matrix.history.version }}/launcher/locks/application-launch.lock
+            ${{ runner.temp }}/.historical-certificate/requests.jsonl
+            ${{ runner.temp }}/.candidate-certificate/requests.jsonl
+            ${{ runner.temp }}/.SugarSubstitute-${{ matrix.history.version }}-*-installer-qualification.jsonl
+            build/historical-channel-reconstituted/historical-reconstitution.json
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 7
+      - name: Unmount historical DMG
+        if: always() && matrix.platform == 'macos'
+        run: hdiutil detach "${{ runner.temp }}/historical-dmg" || true
+      - name: Unmount candidate DMG
+        if: always() && matrix.platform == 'macos'
+        run: hdiutil detach "${{ runner.temp }}/candidate-update-dmg" || true
+
+  managed-comfy:
+    name: Pinned managed Comfy qualification
+    needs: select-qualification
+    if: needs.select-qualification.outputs.managed_comfy_enabled == 'true'
+    uses: ./.github/workflows/managed-comfy-install.yml

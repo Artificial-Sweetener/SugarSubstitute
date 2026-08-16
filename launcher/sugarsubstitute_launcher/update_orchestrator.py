@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 import logging
 from pathlib import Path
 from typing import Protocol
+from urllib.error import URLError
 
 from launcher.sugarsubstitute_launcher import __version__ as LAUNCHER_VERSION
 
@@ -43,6 +44,11 @@ from launcher.sugarsubstitute_launcher.runtime_reconciliation import (
 from launcher.sugarsubstitute_launcher.update_lock import (
     LauncherUpdateLock,
     LauncherUpdateLockError,
+)
+from launcher.sugarsubstitute_launcher.update_activation import (
+    PendingUpdateActivation,
+    UpdateRecoveryError,
+    recover_interrupted_update,
 )
 from launcher.sugarsubstitute_launcher.update_policy import (
     AppPayloadUpdateDecision,
@@ -109,6 +115,7 @@ class PreLaunchUpdateResult:
     skipped_reason: str | None = None
     failure_reason: str | None = None
     launcher_update_request_path: str | None = None
+    pending_activation: PendingUpdateActivation | None = None
 
 
 class NullLauncherUpdateProgress:
@@ -185,7 +192,7 @@ class LauncherUpdateOrchestrator:
                 installed_update=False,
                 skipped_reason="update_lock_unavailable",
             )
-        except LauncherMinimumVersionError:
+        except (LauncherMinimumVersionError, UpdateRecoveryError):
             raise
         except Exception as error:
             _LOGGER.warning(
@@ -208,6 +215,7 @@ class LauncherUpdateOrchestrator:
     ) -> PreLaunchUpdateResult:
         """Run the manifest and install sequence while holding the update lock."""
 
+        recover_interrupted_update(layout)
         state = LauncherUpdateState.load(layout.state_path)
         manifest = release_source.load_manifest()
         if manifest.channel != config.channel:
@@ -221,51 +229,71 @@ class LauncherUpdateOrchestrator:
                 skipped_reason="channel_mismatch",
             )
 
+        launcher_request = self._stage_launcher_update(
+            layout=layout,
+            manifest=manifest,
+            progress=progress,
+        )
+        if launcher_request is not None:
+            state.with_update_check(
+                channel=manifest.channel,
+                checked_at=self._now(),
+            ).save(layout.state_path)
+            return PreLaunchUpdateResult(
+                checked_manifest=True,
+                installed_update=False,
+                skipped_reason="launcher_update_staged",
+                launcher_update_request_path=str(launcher_request),
+            )
+
         update_policy = decide_app_payload_update(
             installed_version=state.installed_app_version,
             manifest_version=manifest.version,
         )
-        installed_app_update = False
         if update_policy.decision is AppPayloadUpdateDecision.INSTALL:
             progress.append_log(
                 launcher_text("Installing SugarSubstitute %1.", manifest.version)
             )
-            install_result = self._payload_installer.install(
-                layout=layout,
-                manifest=manifest,
-            )
-            progress.append_log(launcher_text("Preparing SugarSubstitute runtime."))
-            self._runtime_reconciler.reconcile(layout=layout, progress=progress)
-            state = state.with_successful_update(
-                version=install_result.version,
+            successful_state = state.with_successful_update(
+                version=manifest.version,
                 channel=manifest.channel,
                 completed_at=self._now(),
             )
+            activation = PendingUpdateActivation.begin(
+                layout=layout,
+                successful_state=successful_state,
+            )
+            try:
+                install_result = self._payload_installer.install(
+                    layout=layout,
+                    manifest=manifest,
+                )
+                progress.append_log(launcher_text("Preparing SugarSubstitute runtime."))
+                activation.prepare_runtime()
+                self._runtime_reconciler.reconcile(layout=layout, progress=progress)
+            except BaseException:
+                activation.rollback()
+                raise
             progress.append_log(
                 launcher_text(
                     "Installed SugarSubstitute %1.",
                     install_result.version,
                 )
             )
-            installed_app_update = True
-        else:
-            state = state.with_update_check(
-                channel=manifest.channel,
-                checked_at=self._now(),
+            return PreLaunchUpdateResult(
+                checked_manifest=True,
+                installed_update=True,
+                pending_activation=activation,
             )
-        launcher_request = self._stage_launcher_update(
-            layout=layout,
-            manifest=manifest,
-            progress=progress,
-        )
-        state.save(layout.state_path)
+
+        state.with_update_check(
+            channel=manifest.channel,
+            checked_at=self._now(),
+        ).save(layout.state_path)
         return PreLaunchUpdateResult(
             checked_manifest=True,
-            installed_update=installed_app_update,
-            skipped_reason=(None if installed_app_update else update_policy.reason),
-            launcher_update_request_path=(
-                str(launcher_request) if launcher_request is not None else None
-            ),
+            installed_update=False,
+            skipped_reason=update_policy.reason,
         )
 
     def _stage_launcher_update(
@@ -320,6 +348,8 @@ class LauncherUpdateOrchestrator:
                     size_bytes=release_asset.size_bytes,
                 ),
             )
+        except (ConnectionError, TimeoutError, URLError):
+            raise
         except Exception as error:
             if minimum_comparison < 0:
                 raise LauncherMinimumVersionError(

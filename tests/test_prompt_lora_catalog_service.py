@@ -160,7 +160,7 @@ def test_lora_catalog_inserts_relative_prompt_names_and_tracks_collisions(
             ),
         )
     )
-    service = _service(backend=backend, catalog=catalog, model_metadata_root=tmp_path)
+    service = _service(backend=backend, catalog=catalog)
 
     items = service.list_loras()
 
@@ -207,7 +207,6 @@ def test_lora_catalog_cached_loras_is_non_loading_when_cold(
     service = _service(
         backend=backend,
         catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     assert service.cached_loras() is None
@@ -223,7 +222,6 @@ def test_lora_catalog_cached_loras_returns_installed_snapshot(
     model_catalog = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
     model_snapshot = model_catalog.refresh_snapshot("loras")
     service = PromptLoraCatalogService(model_catalog=model_catalog)
@@ -259,7 +257,6 @@ def test_lora_catalog_bootstraps_cached_metadata_without_backend(
                 ),
             )
         ),
-        model_metadata_root=tmp_path,
     )
 
     cached = service.cached_loras()
@@ -283,7 +280,6 @@ def test_lora_catalog_cold_find_lora_does_not_load_backend(
     service = _service(
         backend=backend,
         catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     assert service.find_lora("models/available") is None
@@ -300,7 +296,6 @@ def test_lora_catalog_refresh_loras_uses_backend_refresh(
     service = _service(
         backend=backend,
         catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     items = service.refresh_loras()
@@ -326,7 +321,7 @@ def test_lora_catalog_keeps_storage_key_thumbnail_variants(
             ),
         )
     )
-    service = _service(backend=backend, catalog=catalog, model_metadata_root=tmp_path)
+    service = _service(backend=backend, catalog=catalog)
 
     item = service.list_loras()[0]
 
@@ -349,7 +344,7 @@ def test_lora_catalog_explicit_refresh_shows_empty_when_backend_returns_empty(
             ),
         )
     )
-    service = _service(backend=backend, catalog=catalog, model_metadata_root=tmp_path)
+    service = _service(backend=backend, catalog=catalog)
 
     items = service.refresh_loras()
 
@@ -376,7 +371,7 @@ def test_lora_catalog_keeps_page_name_and_version_names(
             ),
         )
     )
-    service = _service(backend=backend, catalog=catalog, model_metadata_root=tmp_path)
+    service = _service(backend=backend, catalog=catalog)
 
     item = service.list_loras()[0]
 
@@ -402,7 +397,7 @@ def test_lora_catalog_keeps_descriptive_version_name_as_subtitle(
             ),
         )
     )
-    service = _service(backend=backend, catalog=catalog, model_metadata_root=tmp_path)
+    service = _service(backend=backend, catalog=catalog)
 
     item = service.list_loras()[0]
 
@@ -441,7 +436,7 @@ def test_lora_catalog_keeps_duplicate_page_names_with_version_subtitles(
             ),
         )
     )
-    service = _service(backend=backend, catalog=catalog, model_metadata_root=tmp_path)
+    service = _service(backend=backend, catalog=catalog)
 
     items = service.list_loras()
 
@@ -468,7 +463,6 @@ def test_lora_catalog_resolves_unique_bare_prompt_name_to_nested_item(
     service = _service(
         backend=backend,
         catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     service.list_loras()
@@ -489,7 +483,6 @@ def test_lora_catalog_repairs_stale_prompt_path_by_unique_basename(
     service = _service(
         backend=backend,
         catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     service.list_loras()
@@ -514,7 +507,6 @@ def test_lora_catalog_find_lora_does_not_require_backend_refresh(
     service = _service(
         backend=backend,
         catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     service.list_loras()
@@ -540,7 +532,6 @@ def test_lora_catalog_uses_first_ranked_duplicate_bare_prompt_name(
     service = _service(
         backend=backend,
         catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     service.list_loras()
@@ -563,7 +554,6 @@ def test_lora_catalog_installs_prepared_snapshot_and_advances_revision(
     model_catalog = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
     service = PromptLoraCatalogService(model_catalog=model_catalog)
     initial_revision = service.cache_revision
@@ -601,7 +591,6 @@ def test_lora_catalog_prepares_snapshot_from_canonical_model_generation(
                 ),
             )
         ),
-        model_metadata_root=tmp_path,
     )
     model_snapshot = model_catalog.refresh_snapshot("loras")
     service = PromptLoraCatalogService(model_catalog=model_catalog)
@@ -629,7 +618,6 @@ def test_lora_catalog_reinstalling_same_generation_keeps_revision(
     model_catalog = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
     model_snapshot = model_catalog.refresh_snapshot("loras")
     service = PromptLoraCatalogService(model_catalog=model_catalog)
@@ -654,7 +642,6 @@ def test_lora_catalog_invalidate_preserves_authoritative_snapshot(
     model_catalog = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
     service = PromptLoraCatalogService(model_catalog=model_catalog)
     service.refresh_loras()
@@ -674,7 +661,6 @@ def test_lora_catalog_uses_indexed_backend_value_matches(
     service = _service(
         backend=backend,
         catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
 
     service.list_loras()
@@ -717,7 +703,6 @@ def test_lora_lookup_diagnostic_reports_match_sources(tmp_path: Path) -> None:
     model_catalog = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
     model_snapshot = model_catalog.refresh_snapshot("loras")
     service = PromptLoraCatalogService(model_catalog=model_catalog)
@@ -760,7 +745,6 @@ def test_lora_lookup_diagnostic_reports_ranked_duplicate_selection(
     model_catalog = ModelCatalogService(
         backend=backend,
         metadata_catalog=_FakeCatalog(()),
-        model_metadata_root=tmp_path,
     )
     model_snapshot = model_catalog.refresh_snapshot("loras")
     service = PromptLoraCatalogService(model_catalog=model_catalog)
@@ -828,7 +812,6 @@ def _service(
     *,
     backend: _FakeBackend,
     catalog: _FakeCatalog,
-    model_metadata_root: Path,
 ) -> PromptLoraCatalogService:
     """Return a LoRA catalog service using the shared generic model catalog."""
 
@@ -836,7 +819,6 @@ def _service(
         model_catalog=ModelCatalogService(
             backend=backend,
             metadata_catalog=catalog,
-            model_metadata_root=model_metadata_root,
         )
     )
 

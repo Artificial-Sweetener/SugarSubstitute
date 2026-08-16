@@ -31,6 +31,7 @@ from substitute.app.bootstrap import (
     pre_show_restore_projection,
     ready_shell_controller,
     ready_shell_minimum_ready,
+    ready_shell_reveal,
     ready_shell_restore_controller,
     startup_model_metadata,
     startup_warmup_controller,
@@ -2077,7 +2078,7 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
     calls: list[str] = []
     logs: list[dict[str, object]] = []
     monkeypatch.setattr(
-        ready_shell_controller,
+        ready_shell_reveal,
         "log_info",
         lambda _logger, message, **fields: logs.append({"message": message, **fields}),
     )
@@ -2093,7 +2094,7 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
         calls.append("show")
         return shown_shell_frame
 
-    result = ready_shell_controller.reveal_ready_shell_main_window(
+    result = ready_shell_reveal.reveal_ready_shell_main_window(
         splash=_CloseSplash(calls),
         shell_frame=shell_frame,
         initial_shell_placement=placement,
@@ -2153,12 +2154,12 @@ def test_reveal_ready_shell_main_window_tolerates_splash_close_failure(
     calls: list[str] = []
     exceptions: list[str] = []
     monkeypatch.setattr(
-        ready_shell_controller,
+        ready_shell_reveal,
         "log_exception",
         lambda _logger, message, **_fields: exceptions.append(message),
     )
     monkeypatch.setattr(
-        ready_shell_controller,
+        ready_shell_reveal,
         "log_info",
         lambda _logger, _message, **_fields: None,
     )
@@ -2166,7 +2167,7 @@ def test_reveal_ready_shell_main_window_tolerates_splash_close_failure(
     shown_shell_frame = object()
     splash = _CloseSplash(calls, fail=True)
 
-    result = ready_shell_controller.reveal_ready_shell_main_window(
+    result = ready_shell_reveal.reveal_ready_shell_main_window(
         splash=splash,
         shell_frame=shell_frame,
         initial_shell_placement=None,
@@ -2213,7 +2214,7 @@ def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
     _patch_trace(monkeypatch, events)
     calls: list[str] = []
     monkeypatch.setattr(
-        ready_shell_controller,
+        ready_shell_reveal,
         "log_info",
         lambda _logger, _message, **_fields: None,
     )
@@ -2246,7 +2247,7 @@ def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
         )
         return shown_shell_frame
 
-    task = ready_shell_controller.ReadyShellRevealTask(
+    task = ready_shell_reveal.ReadyShellRevealTask(
         splash=lambda: splash_state[0],
         shell_frame=lambda: shell_state[0],
         initial_shell_placement=lambda: placement,
@@ -2313,7 +2314,7 @@ def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
 def test_create_ready_shell_reveal_task_returns_task() -> None:
     """Reveal task construction should live in its owner."""
 
-    task = ready_shell_controller.create_ready_shell_reveal_task(
+    task = ready_shell_reveal.create_ready_shell_reveal_task(
         splash=lambda: None,
         shell_frame=lambda: object(),
         initial_shell_placement=lambda: None,
@@ -2331,7 +2332,7 @@ def test_create_ready_shell_reveal_task_returns_task() -> None:
         trace_fields=lambda: {"route": "ready"},
     )
 
-    assert isinstance(task, ready_shell_controller.ReadyShellRevealTask)
+    assert isinstance(task, ready_shell_reveal.ReadyShellRevealTask)
 
 
 def test_connect_ready_shell_restore_finalized_warmups_delegates_wiring(
@@ -2345,7 +2346,7 @@ def test_connect_ready_shell_restore_finalized_warmups_delegates_wiring(
     signal = _Signal()
     scheduled_reasons: list[str] = []
 
-    ready_shell_controller.connect_ready_shell_restore_finalized_warmups(
+    ready_shell_reveal.connect_ready_shell_restore_finalized_warmups(
         state=state,
         main_window=_RestoreFinalizedMainWindow(signal),
         schedule_warmups=scheduled_reasons.append,
@@ -3509,6 +3510,11 @@ def _patch_trace(
         lambda event_name, **fields: events.append((event_name, fields)),
     )
     monkeypatch.setattr(
+        ready_shell_reveal,
+        "trace_mark",
+        lambda event_name, **fields: events.append((event_name, fields)),
+    )
+    monkeypatch.setattr(
         ready_shell_restore_controller,
         "trace_mark",
         lambda event_name, **fields: events.append((event_name, fields)),
@@ -3542,6 +3548,7 @@ def _patch_trace(
         calls.append(f"span:end:{name}")
 
     monkeypatch.setattr(ready_shell_controller, "trace_span", fake_span)
+    monkeypatch.setattr(ready_shell_reveal, "trace_span", fake_span)
     monkeypatch.setattr(ready_shell_restore_controller, "trace_span", fake_span)
 
 

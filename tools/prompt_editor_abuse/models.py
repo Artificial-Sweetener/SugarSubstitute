@@ -49,6 +49,8 @@ type PromptAbuseActionKind = Literal[
     "mouse_caret",
     "mouse_drag_selection",
     "wheel_weight",
+    "step_weight",
+    "edit_weight_exact",
     "lora_picker_open",
     "lora_picker_activate",
     "refresh_diagnostics",
@@ -59,6 +61,12 @@ type PromptAbuseActionKind = Literal[
     "drain_events",
 ]
 type PromptAbuseEditorKind = Literal["prompt", "wildcard_txt", "wildcard_csv"]
+type PromptAbuseMountSource = Literal[
+    "fresh",
+    "workspace_cache",
+    "workspace_cache_0_19_2",
+    "image_sugar_script",
+]
 type PromptAbuseWheelMode = Literal["hover_dwell", "focus_required"]
 type PromptAbuseFixtureFeature = Literal[
     "wildcard_catalog",
@@ -111,6 +119,8 @@ class PromptAbuseAction:
                 "reorder_drag_press",
                 "reorder_drag_move",
                 "wheel_weight",
+                "step_weight",
+                "edit_weight_exact",
             }
             and not self.value
         ):
@@ -137,6 +147,8 @@ class PromptAbuseAction:
             )
         if self.kind == "wheel_weight" and self.value not in {"up", "down"}:
             raise ValueError("Prompt abuse wheel-weight action requires up or down.")
+        if self.kind == "step_weight" and self.value not in {"up", "down"}:
+            raise ValueError("Prompt abuse step-weight action requires up or down.")
         if (
             self.kind in {"select", "mouse_drag_selection"}
             and self.selection_end is None
@@ -172,6 +184,7 @@ class PromptAbuseScenario:
     cursor_position: int = 0
     viewport_size: tuple[int, int] = (720, 240)
     editor_kind: PromptAbuseEditorKind = "prompt"
+    mount_source: PromptAbuseMountSource = "fresh"
     fixture_features: tuple[PromptAbuseFixtureFeature, ...] = ()
     wheel_mode: PromptAbuseWheelMode = "hover_dwell"
     seed: int | None = None
@@ -477,6 +490,7 @@ __all__ = [
     "PromptAbuseLatencySummary",
     "PromptAbuseLatencyBreakdown",
     "PromptAbuseLatencyClass",
+    "PromptAbuseMountSource",
     "PromptAbuseScenario",
     "PromptAbuseScenarioResult",
     "PromptAbuseSystemLoad",

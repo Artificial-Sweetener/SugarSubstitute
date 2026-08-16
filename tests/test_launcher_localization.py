@@ -18,18 +18,23 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QApplication, QWidget
 
+from launcher.sugarsubstitute_launcher.application.installation.workflow import (
+    InstallationWorkflow,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.localization import (
     build_launcher_localization_runtime,
     resolve_launcher_locale,
     seed_headless_locale_preference,
 )
+from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
 from sugarsubstitute_shared.localization import (
     LanguagePreference,
@@ -95,12 +100,16 @@ def test_launcher_runtime_installs_spanish_before_window_construction(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=GitHubReleaseSource(
+            "https://example.invalid/manifest.json"
+        ),
+        workflow_factory=_unused_workflow_factory,
     )
 
     try:
         assert runtime.initial_snapshot.effective_language_identifier == "es"
         assert window.windowTitle() == "Instalación de SugarSubstitute"
-        assert window.progress_title_label.text() == "Elige una carpeta"
+        assert window.view.progress_title_label.text() == "Elige una carpeta"
         assert QCoreApplication.translate("SwitchButton", "On") == "Activado"
     finally:
         window.close()
@@ -124,11 +133,15 @@ def test_launcher_uses_startup_locale_without_exposing_a_language_selector(
         continue_install=False,
         repair=False,
         update_check_enabled=True,
+        initial_release_source=GitHubReleaseSource(
+            "https://example.invalid/manifest.json"
+        ),
+        workflow_factory=_unused_workflow_factory,
     )
 
     try:
         assert window.windowTitle() == "SugarSubstitute 安装程序"
-        assert window.progress_title_label.text() == "选择文件夹"
+        assert window.view.progress_title_label.text() == "选择文件夹"
         assert window.findChild(QWidget, "LauncherLanguageSelector") is None
     finally:
         window.close()
@@ -147,6 +160,14 @@ def test_headless_locale_override_seeds_shared_durable_preference(
     assert LocalizationPreferenceStore.for_install_root(layout.root).load() == (
         LanguagePreference.explicit("zh-Hans")
     )
+
+
+def _unused_workflow_factory(
+    _output_callback: Callable[[str], None],
+) -> InstallationWorkflow:
+    """Reject installation work in localization-only window tests."""
+
+    raise AssertionError("Localization tests should not start installation work.")
 
 
 def _application() -> QApplication:

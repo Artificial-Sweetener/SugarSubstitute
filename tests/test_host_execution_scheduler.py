@@ -77,6 +77,45 @@ def test_affinity_reuse_stays_on_bounded_stable_host_threads() -> None:
         scheduler.shutdown(wait=True)
 
 
+def test_detached_future_callbacks_observe_fully_settled_scheduler_state() -> None:
+    """Publish detached completion only after releasing physical accounting."""
+
+    scheduler = _scheduler(native_workers=1)
+    observed_snapshots: list[HostExecutionSnapshot] = []
+    callback_finished = Event()
+    try:
+        future = scheduler.submit_detached(
+            lambda: 42,
+            operation="settlement_snapshot",
+            requirements=_native_requirements(),
+        )
+
+        def capture_snapshot(_future: Future[int]) -> None:
+            """Record scheduler state visible at lifecycle completion."""
+
+            observed_snapshots.append(scheduler.snapshot())
+            callback_finished.set()
+
+        future.add_done_callback(capture_snapshot)
+
+        assert future.result(timeout=1.0) == 42
+        assert callback_finished.wait(timeout=1.0)
+        assert observed_snapshots == [
+            HostExecutionSnapshot(
+                accepted=0,
+                pending=0,
+                running=0,
+                retained_bytes=0,
+                rejected=0,
+                completed=1,
+                cancelled_before_start=0,
+                worker_threads=1,
+            )
+        ]
+    finally:
+        scheduler.shutdown(wait=True)
+
+
 def test_settlement_held_exclusive_waits_for_owner_adoption() -> None:
     """Block conflicting work until the lifecycle owner reports settlement."""
 

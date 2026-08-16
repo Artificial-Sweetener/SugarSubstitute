@@ -21,6 +21,9 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+from launcher.sugarsubstitute_launcher.application.installation.workflow import (
+    InstallationWorkflow,
+)
 from launcher.sugarsubstitute_launcher.connectivity import (
     ReleaseConnectivityVerifier,
 )
@@ -30,10 +33,11 @@ from launcher.sugarsubstitute_launcher.first_run import (
 )
 from launcher.sugarsubstitute_launcher.headless_install import HeadlessInstallService
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
 from launcher.sugarsubstitute_launcher.platforms import detect_launcher_target
 from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
-from launcher.sugarsubstitute_launcher.runtime import RuntimeProvisioningResult
+from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
 
 
 class StaticReleaseSource:
@@ -138,9 +142,14 @@ def test_headless_install_runs_launcher_app_and_runtime_stages(tmp_path: Path) -
     first_run = RecordingFirstRunInstaller(layout)
     runtime = RecordingRuntimeProvisioner(layout.runtime_python)
 
-    result = HeadlessInstallService(
-        first_run_installer=first_run,
+    workflow = InstallationWorkflow(
+        layout_preparer=LayoutInstaller(),
+        artifact_installer=first_run,
         runtime_provisioner=runtime,
+        process_starter=lambda _command: None,
+    )
+    result = HeadlessInstallService(
+        workflow=workflow,
     ).install(
         install_root=layout.root,
         release_source=release_source,
@@ -148,8 +157,8 @@ def test_headless_install_runs_launcher_app_and_runtime_stages(tmp_path: Path) -
 
     assert first_run.calls == ["launcher", "app"]
     assert runtime.layouts == [layout]
-    assert result.layout == layout
-    assert result.app_version == "1.2.3"
+    assert result.application.layout == layout
+    assert result.application.app_version == "1.2.3"
     assert result.runtime_python == layout.runtime_python
 
 

@@ -49,7 +49,9 @@ class HardwareAwareManagedRuntimeSelectionPolicy(ManagedRuntimeSelectionPolicy):
     ) -> ManagedRuntimeConfiguration:
         """Return the managed runtime configuration selected for this machine."""
 
-        detection = detect_hardware()
+        detection = (
+            detect_hardware(force_cpu=True) if force_cpu_mode else detect_hardware()
+        )
         try:
             strategy = select_install_strategy(
                 detection=detection,

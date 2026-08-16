@@ -33,7 +33,7 @@ from substitute.infrastructure.comfy.install_targets import ManagedInstallTarget
 from substitute.infrastructure.comfy.standalone_environment.catalog_client import (
     GITHUB_RELEASE_API_TEMPLATE,
     LATEST_CATALOG_URL,
-    StandaloneEnvironmentCatalogClient,
+    LiveStandaloneEnvironmentCatalogClient,
 )
 from substitute.infrastructure.comfy.standalone_environment.downloader import (
     StandaloneArtifactDownloader,
@@ -45,6 +45,9 @@ from substitute.infrastructure.comfy.standalone_environment.extraction_process i
 )
 from substitute.infrastructure.comfy.standalone_environment.extractor import (
     StandaloneEnvironmentExtractor,
+)
+from substitute.infrastructure.comfy.standalone_environment.tar_extraction_process import (
+    NativeTarExtractionProcess,
 )
 from substitute.infrastructure.comfy.standalone_environment.layout import (
     ManagedStandaloneLayout,
@@ -62,6 +65,9 @@ from substitute.infrastructure.comfy.standalone_environment.models import (
 )
 from substitute.infrastructure.comfy.standalone_environment.variant_policy import (
     standalone_variant_for_target,
+)
+from tools.ci.cache_managed_comfy_artifacts import (
+    cache_pinned_managed_comfy_artifacts,
 )
 
 
@@ -96,6 +102,23 @@ class _RecordingSevenZipExtractionProcess:
         )
 
 
+class _RecordingTarExtractionProcess:
+    """Record delegated tar extraction and materialize a deterministic marker."""
+
+    def __init__(self) -> None:
+        """Initialize an empty call record."""
+
+        self.calls: list[tuple[Path, Path]] = []
+
+    def extract(self, archive_path: Path, destination: Path) -> None:
+        """Record extraction and write one representative extracted file."""
+
+        self.calls.append((archive_path, destination))
+        nested = destination / "nested"
+        nested.mkdir(parents=True)
+        (nested / "payload.txt").write_text("delegated", encoding="utf-8")
+
+
 def test_variant_policy_matches_current_comfy_desktop_catalog() -> None:
     """Every supported managed target should map to its published catalog ID."""
 
@@ -111,8 +134,10 @@ def test_variant_policy_matches_current_comfy_desktop_catalog() -> None:
         standalone_variant_for_target(ManagedInstallTarget.MACOS_APPLE_SILICON)
         is StandaloneVariantId.MACOS_MPS
     )
-    with pytest.raises(ValueError, match="does not publish"):
+    assert (
         standalone_variant_for_target(ManagedInstallTarget.LINUX_CPU)
+        is StandaloneVariantId.LINUX_NVIDIA
+    )
 
 
 def test_catalog_joins_live_variant_metadata_to_github_sha256() -> None:
@@ -147,7 +172,7 @@ def test_catalog_joins_live_variant_metadata_to_github_sha256() -> None:
         }
     )
 
-    release = StandaloneEnvironmentCatalogClient(
+    release = LiveStandaloneEnvironmentCatalogClient(
         session=cast(requests.Session, session)
     ).resolve(StandaloneVariantId.MACOS_MPS)
 
@@ -189,7 +214,7 @@ def test_catalog_rejects_assets_without_sha256_digest() -> None:
     )
 
     with pytest.raises(StandaloneCatalogError, match="SHA256"):
-        StandaloneEnvironmentCatalogClient(
+        LiveStandaloneEnvironmentCatalogClient(
             session=cast(requests.Session, session)
         ).resolve(StandaloneVariantId.WINDOWS_CPU)
 
@@ -243,6 +268,70 @@ def test_downloader_reports_cached_artifact_verification_progress(
 
     assert downloaded == (cached_path,)
     assert progress[-1] == (len(content), len(content))
+
+
+def test_ci_cache_populator_acquires_exact_variant_with_bounded_progress(
+    tmp_path: Path,
+) -> None:
+    """Release qualification should populate its external cache before timing install."""
+
+    artifact = StandaloneArtifact(
+        filename="environment.tar.gz",
+        url="https://example.invalid/environment.tar.gz",
+        size_bytes=10,
+        sha256="a" * 64,
+    )
+    release = _release(artifact, archive_kind=StandaloneArchiveKind.TAR_GZIP)
+    calls: list[tuple[StandaloneVariantId, Path]] = []
+
+    class _Catalog:
+        """Return the one exact release requested by the test."""
+
+        def resolve(self, variant: StandaloneVariantId) -> StandaloneEnvironmentRelease:
+            """Record and return the selected standalone variant."""
+
+            calls.append((variant, tmp_path))
+            return release
+
+    class _Downloader:
+        """Materialize one verified cache artifact without network access."""
+
+        def download(
+            self,
+            selected_release: StandaloneEnvironmentRelease,
+            cache_root: Path,
+            *,
+            on_progress: object = None,
+        ) -> tuple[Path, ...]:
+            """Record acquisition and publish deterministic progress."""
+
+            assert selected_release is release
+            cached = (
+                cache_root
+                / release.release_tag
+                / release.variant.value
+                / artifact.filename
+            )
+            cached.parent.mkdir(parents=True)
+            cached.write_bytes(b"0123456789")
+            assert callable(on_progress)
+            on_progress(5, 10)
+            on_progress(10, 10)
+            return (cached,)
+
+    messages: list[str] = []
+    artifacts = cache_pinned_managed_comfy_artifacts(
+        cache_root=tmp_path,
+        variant=StandaloneVariantId.WINDOWS_CPU,
+        catalog=_Catalog(),
+        downloader=_Downloader(),
+        output=messages.append,
+    )
+
+    assert calls == [(StandaloneVariantId.WINDOWS_CPU, tmp_path)]
+    assert artifacts[0].read_bytes() == b"0123456789"
+    assert any("percentage=50" in message for message in messages)
+    assert messages[-1].startswith("MANAGED_COMFY_CACHE ready")
 
 
 def test_extractor_joins_verified_seven_zip_parts(tmp_path: Path) -> None:
@@ -382,6 +471,96 @@ def test_tar_extractor_rejects_parent_traversal(tmp_path: Path) -> None:
         )
 
     assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_tar_extractor_rejects_member_nested_under_archive_link(
+    tmp_path: Path,
+) -> None:
+    """Native extraction must not materialize members through archive links."""
+
+    archive_path = tmp_path / "environment.tar.gz"
+    with tarfile.open(archive_path, mode="w:gz") as archive:
+        link = tarfile.TarInfo("safe/link")
+        link.type = tarfile.SYMTYPE
+        link.linkname = "../target"
+        archive.addfile(link)
+        info = tarfile.TarInfo("safe/link/payload.txt")
+        payload = b"payload"
+        info.size = len(payload)
+        archive.addfile(info, io.BytesIO(payload))
+    artifact = StandaloneArtifact(
+        filename=archive_path.name,
+        url=archive_path.as_uri(),
+        size_bytes=archive_path.stat().st_size,
+        sha256=hashlib.sha256(archive_path.read_bytes()).hexdigest(),
+    )
+    process = _RecordingTarExtractionProcess()
+
+    with pytest.raises(StandaloneArtifactError, match="archive link"):
+        StandaloneEnvironmentExtractor(tar_process=process).extract(
+            _release(artifact, archive_kind=StandaloneArchiveKind.TAR_GZIP),
+            (archive_path,),
+            tmp_path / "extracted",
+        )
+
+    assert process.calls == []
+
+
+def test_tar_extractor_validates_then_delegates_file_materialization(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Large macOS archives should avoid Python's per-file extraction path."""
+
+    archive_path = tmp_path / "environment.tar.gz"
+    with tarfile.open(archive_path, mode="w:gz") as archive:
+        info = tarfile.TarInfo("nested/payload.txt")
+        payload = b"payload"
+        info.size = len(payload)
+        archive.addfile(info, io.BytesIO(payload))
+    artifact = StandaloneArtifact(
+        filename=archive_path.name,
+        url=archive_path.as_uri(),
+        size_bytes=archive_path.stat().st_size,
+        sha256=hashlib.sha256(archive_path.read_bytes()).hexdigest(),
+    )
+
+    def reject_python_extraction(*_args: object, **_kwargs: object) -> None:
+        """Fail if materialization remains inside Python's tar implementation."""
+
+        raise AssertionError("Python tar extraction is forbidden")
+
+    monkeypatch.setattr(tarfile.TarFile, "extractall", reject_python_extraction)
+    destination = tmp_path / "extracted"
+    process = _RecordingTarExtractionProcess()
+
+    StandaloneEnvironmentExtractor(tar_process=process).extract(
+        _release(artifact, archive_kind=StandaloneArchiveKind.TAR_GZIP),
+        (archive_path,),
+        destination,
+    )
+
+    assert process.calls == [(archive_path, destination)]
+    assert (destination / "nested" / "payload.txt").read_text(
+        encoding="utf-8"
+    ) == "delegated"
+
+
+def test_native_tar_process_materializes_validated_archive(tmp_path: Path) -> None:
+    """Supported hosts should provide a native tar with the required safe flags."""
+
+    archive_path = tmp_path / "environment.tar.gz"
+    with tarfile.open(archive_path, mode="w:gz") as archive:
+        info = tarfile.TarInfo("nested/payload.txt")
+        payload = b"payload"
+        info.size = len(payload)
+        archive.addfile(info, io.BytesIO(payload))
+    destination = tmp_path / "extracted"
+    destination.mkdir()
+
+    NativeTarExtractionProcess().extract(archive_path, destination)
+
+    assert (destination / "nested" / "payload.txt").read_bytes() == payload
 
 
 def test_migrator_promotes_upstream_layout_without_mixing_runtime_roots(

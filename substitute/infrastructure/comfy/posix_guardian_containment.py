@@ -40,7 +40,7 @@ from substitute.infrastructure.comfy.managed_process_metadata import (
     ManagedProcessMetadata,
 )
 from substitute.infrastructure.comfy.managed_process_probe import is_process_running
-from substitute.shared.logging.logger import get_logger, log_info
+from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 _LOGGER = get_logger("infrastructure.comfy.posix_guardian_containment")
 _GUARDIAN_READY_TIMEOUT_SECONDS = 10.0
@@ -247,7 +247,16 @@ def terminate_process_group(
         return
     if not is_process_group_running(process_group_id):
         return
-    _kill_process_group(process_group_id, signal.SIGTERM)
+    try:
+        _kill_process_group(process_group_id, signal.SIGTERM)
+    except PermissionError:
+        log_warning(
+            _LOGGER,
+            "Skipped inaccessible POSIX process group during shutdown.",
+            process_group_id=process_group_id,
+            termination_phase="term",
+        )
+        return
     from time import monotonic, sleep
 
     deadline = monotonic() + timeout_seconds
@@ -256,10 +265,18 @@ def terminate_process_group(
             return
         sleep(0.1)
     if is_process_group_running(process_group_id):
-        _kill_process_group(
-            process_group_id,
-            getattr(signal, "SIGKILL", signal.SIGTERM),
-        )
+        try:
+            _kill_process_group(
+                process_group_id,
+                getattr(signal, "SIGKILL", signal.SIGTERM),
+            )
+        except PermissionError:
+            log_warning(
+                _LOGGER,
+                "Skipped inaccessible POSIX process group during shutdown.",
+                process_group_id=process_group_id,
+                termination_phase="kill",
+            )
 
 
 def describe_posix_guardian_runtime(
@@ -284,7 +301,12 @@ def is_process_group_running(process_group_id: int | None) -> bool:
     except ProcessLookupError:
         return False
     except PermissionError:
-        return True
+        log_info(
+            _LOGGER,
+            "Process group exists but is not owned by this runtime.",
+            process_group_id=process_group_id,
+        )
+        return False
     except OSError:
         return False
     return True

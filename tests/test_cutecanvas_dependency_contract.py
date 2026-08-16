@@ -49,14 +49,14 @@ def test_canvas_boundary_never_imports_qpane_directly() -> None:
     assert direct_imports == ()
 
 
-def test_runtime_requirements_do_not_pin_qpane_directly() -> None:
-    """Let CuteCanvas declare and resolve its renderer dependency."""
+def test_runtime_requirements_pin_the_complete_canvas_stack() -> None:
+    """Keep the verified editor, renderer, and native engine stack atomic."""
 
     requirements = (_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-    assert not any(
-        line.strip().lower().startswith("qpane") for line in requirements.splitlines()
-    )
+    assert "cutecanvas[sam]==1.0.3" in requirements
+    assert "qpane==3.0.2" in requirements
+    assert "ferrastra==1.0.1" in requirements
 
 
 def test_cutecanvas_exposes_the_required_edit_session_facade() -> None:

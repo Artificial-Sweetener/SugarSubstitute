@@ -298,6 +298,7 @@ def reconcile_managed_local_owned_dependencies(
 
     ensure_managed_comfy_setup(
         workspace=workspace,
+        repair_existing_runtime=True,
         refresh_core_nodepacks=nodepacks,
         on_status=emit_log,
         on_log=emit_log,

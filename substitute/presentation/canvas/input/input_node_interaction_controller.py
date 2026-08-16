@@ -164,8 +164,8 @@ class InputNodeInteractionController:
                     workflow,
                     mask_entry.mask_id,
                 )
-        self._activate_input_canvas()
         QTimer.singleShot(0, self._refresh_mask_pickers)
+        self._activate_input_canvas()
 
     def handle_mask_clicked(
         self,

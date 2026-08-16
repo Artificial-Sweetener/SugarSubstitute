@@ -200,10 +200,10 @@ def test_installation_service_moves_orphan_saved_masks_to_legacy_user_area(
     assert (tmp_path / "user" / "legacy" / "saved_masks" / "mask.png").exists()
 
 
-def test_installation_service_materializes_user_cache_directories(
+def test_installation_service_leaves_cache_namespaces_to_lifecycle_owner(
     tmp_path: Path,
 ) -> None:
-    """Saving the default configuration should create user-data landing spots."""
+    """Installation setup should create only the cache root, not cache internals."""
 
     repository = FileInstallationConfigurationRepository(tmp_path)
     configuration = InstallationService(repository).save(repository.load())
@@ -216,14 +216,13 @@ def test_installation_service_materializes_user_cache_directories(
     assert configuration.outputs_dir.is_dir()
     assert configuration.appdata_dir.is_dir()
     assert configuration.session_dir.is_dir()
-    assert (configuration.cache_dir / "cube").is_dir()
-    assert (configuration.cache_dir / "danbooru" / "images").is_dir()
+    assert configuration.cache_dir.is_dir()
+    assert not (configuration.cache_dir / "cube").exists()
+    assert not (configuration.cache_dir / "danbooru").exists()
     assert configuration.runtime_state_dir.is_dir()
     assert configuration.diagnostics_dir.is_dir()
     assert configuration.logs_dir.is_dir()
-    assert (configuration.model_metadata_dir / "catalog").is_dir()
-    assert (configuration.model_metadata_dir / "thumbnails").is_dir()
-    assert (configuration.model_metadata_dir / "fingerprints").is_dir()
+    assert not configuration.model_metadata_dir.exists()
     assert configuration.wildcards_dir.is_dir()
     assert not (tmp_path / "user" / "sugarscripts").exists()
     assert not (tmp_path / "config").exists()
@@ -232,10 +231,10 @@ def test_installation_service_materializes_user_cache_directories(
     assert not (tmp_path / "custom_nodes").exists()
 
 
-def test_installation_service_migrates_legacy_layout_files(
+def test_installation_service_preserves_legacy_caches_for_lifecycle_migration(
     tmp_path: Path,
 ) -> None:
-    """Legacy config and state files should move into user/appdata ownership roots."""
+    """Installation migration should leave cache adoption to cache governance."""
 
     repository = FileInstallationConfigurationRepository(tmp_path)
     _write_legacy_installation_config(tmp_path)
@@ -276,19 +275,17 @@ def test_installation_service_migrates_legacy_layout_files(
     assert (configuration.user_settings_dir / "runtime.json").exists()
     assert (configuration.user_settings_dir / "appearance.json").exists()
     assert (configuration.session_dir / "session.json").exists()
-    assert (configuration.cache_dir / "restore-projection-cache.json").exists()
-    assert (configuration.cache_dir / "cube" / "cube_icon_cache.sqlite3").exists()
-    assert (
-        configuration.cache_dir / "cube" / "cube_classification_cache.sqlite3"
-    ).exists()
-    assert (configuration.cache_dir / "danbooru" / "danbooru_cache.sqlite3").exists()
-    assert (configuration.cache_dir / "danbooru" / "images" / "image.webp").exists()
+    assert (tmp_path / "state" / "restore-projection-cache.json").exists()
+    assert (tmp_path / "state" / "cube_icon_cache.sqlite3").exists()
+    assert (tmp_path / "state" / "cube_classification_cache.sqlite3").exists()
+    assert (tmp_path / "state" / "danbooru_cache.sqlite3").exists()
+    assert (tmp_path / "state" / "danbooru_images" / "image.webp").exists()
     assert (configuration.runtime_state_dir / "managed_runtime.json").exists()
     assert (configuration.runtime_state_dir / "managed_comfy_process.json").exists()
     assert (configuration.runtime_state_dir / "setup_transaction.json").exists()
     assert (configuration.diagnostics_dir / "startup_diagnostics_ignores.json").exists()
     assert (configuration.logs_dir / "sugarsubstitute.log").exists()
-    assert (configuration.model_metadata_dir / "model_metadata.sqlite3").exists()
+    assert (tmp_path / "user" / "model_metadata" / "model_metadata.sqlite3").exists()
 
 
 def test_installation_service_preserves_project_sugar_scripts(

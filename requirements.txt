@@ -7,13 +7,15 @@
 
 # UI toolkit and widgets
 PySide6==6.11.1
-PySide6-Fluent-Widgets[full]==1.11.2
-PySideSix-Frameless-Window==0.8.1
-cutecanvas[sam]==1.0.1
+PySide6-Fluent-Widgets[full]==1.11.3
+PySideSix-Frameless-Window==0.8.2
+ferrastra==1.0.1
+qpane==3.0.2
+cutecanvas[sam]==1.0.3
 
 # Networking and IO
 requests==2.34.2
-ijson==3.4.0
+ijson==3.5.1
 truststore==0.10.4
 websocket-client==1.9.0  # Provides the `websocket` import; do NOT add the legacy `websocket` package
 keyring==25.7.0
@@ -29,6 +31,6 @@ pyenchant==3.3.0; sys_platform != "win32"
 
 # Windows accent color helper (used on Windows only)
 winaccent==2.1.0; sys_platform == "win32"
-pygit2==1.19.3
+pygit2==1.20.0
 py7zr==1.1.3
 psutil==7.2.2

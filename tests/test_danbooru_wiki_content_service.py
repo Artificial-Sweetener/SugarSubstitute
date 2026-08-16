@@ -42,8 +42,8 @@ from substitute.domain.danbooru import (
     DanbooruWikiPageLookupResult,
     DanbooruWikiPageRecord,
 )
-from substitute.infrastructure.persistence.danbooru_cache_store import (
-    SqliteDanbooruCacheStore,
+from tests.support.danbooru_cache_repository import (
+    build_danbooru_cache_repository,
 )
 
 
@@ -147,7 +147,7 @@ def test_wiki_content_service_returns_stale_cache_and_refreshes_in_background(
 ) -> None:
     """Stale cached wiki content should render immediately and refresh later."""
 
-    store = SqliteDanbooruCacheStore(tmp_path)
+    store = build_danbooru_cache_repository(tmp_path)
     store.save_cached_wiki_page(
         DanbooruCachedWikiPage(
             title="saber_(fate)",
@@ -235,7 +235,7 @@ def _service(
     preference_service = DanbooruPreferenceService(
         _MemoryDanbooruPreferenceRepository()
     )
-    cache_repository = SqliteDanbooruCacheStore(tmp_path)
+    cache_repository = build_danbooru_cache_repository(tmp_path)
     return DanbooruWikiContentService(
         client=client,
         cache_repository=cache_repository,

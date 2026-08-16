@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from pathlib import PurePosixPath, PureWindowsPath
 from threading import RLock
 from typing import Protocol
 
@@ -115,14 +115,12 @@ class ModelCatalogService:
         *,
         backend: BackendModelMetadataGateway,
         metadata_catalog: ModelMetadataCatalogQueryRepository,
-        model_metadata_root: Path,
         snapshot_store: ModelCatalogSnapshotStore | None = None,
     ) -> None:
         """Store catalog collaborators for model metadata lookup."""
 
         self._backend = backend
         self._metadata_catalog = metadata_catalog
-        self._model_metadata_root = model_metadata_root.resolve()
         self._snapshot_store = snapshot_store
         self._snapshots: dict[str, ModelCatalogSnapshot] = {}
         self._generations: dict[str, int] = {}

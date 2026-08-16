@@ -28,6 +28,10 @@ from substitute.application.onboarding.readiness_service import (
 )
 from substitute.application.onboarding.comfy_target_service import ComfyTargetService
 from substitute.application.onboarding.installation_service import InstallationService
+from substitute.application.onboarding.legacy_attached_target_recovery_service import (
+    discard_stale_attached_pending_for_active_managed_target,
+    recover_legacy_attached_managed_target,
+)
 from substitute.application.onboarding.managed_runtime_service import (
     ManagedRuntimeService,
 )
@@ -42,12 +46,9 @@ from substitute.app.bootstrap.runtime_compatibility import (
 )
 from substitute.application.runtime_mode import ApplicationRuntimeModeService
 from substitute.domain.onboarding import (
-    ComfyTargetConfiguration,
-    ComfyTargetMode,
     InstallationConfiguration,
     InstallationContext,
 )
-from substitute.domain.onboarding.setup_transaction_models import SetupTransaction
 from substitute.infrastructure.onboarding import (
     FileComfyTargetConfigurationRepository,
     FileInstallationConfigurationRepository,
@@ -66,7 +67,7 @@ from substitute.infrastructure.external.backend_model_root_provider import (
 from substitute.infrastructure.onboarding.readiness_checks import (
     FileSystemReadinessChecks,
 )
-from substitute.shared.logging.logger import get_logger, log_info, log_warning
+from substitute.shared.logging.logger import get_logger
 from sugarsubstitute_shared.windows_long_paths import operational_path
 
 if TYPE_CHECKING:
@@ -230,13 +231,13 @@ def _build_core_onboarding_services(
         managed_runtime_service=managed_runtime_service,
     )
     readiness_checks = FileSystemReadinessChecks()
-    _recover_legacy_attached_managed_target(
+    recover_legacy_attached_managed_target(
         comfy_target_service=comfy_target_service,
         managed_runtime_service=managed_runtime_service,
         setup_transaction_service=setup_transaction_service,
         checks=readiness_checks,
     )
-    _discard_stale_attached_pending_for_active_managed_target(
+    discard_stale_attached_pending_for_active_managed_target(
         comfy_target_service=comfy_target_service,
         setup_transaction_service=setup_transaction_service,
     )
@@ -348,118 +349,6 @@ def _build_preference_setup_services(
         civitai_credential_service,
         preference_setup_service,
     )
-
-
-def _recover_legacy_attached_managed_target(
-    *,
-    comfy_target_service: ComfyTargetService,
-    managed_runtime_service: ManagedRuntimeService,
-    setup_transaction_service: SetupTransactionService,
-    checks: FileSystemReadinessChecks,
-) -> None:
-    """Recover old interrupted setup state that saved managed Comfy as attached-local."""
-
-    target = comfy_target_service.load_persisted()
-    if target is None or target.mode is not ComfyTargetMode.ATTACHED_LOCAL:
-        return
-    workspace = target.workspace_path
-    if workspace is None or not _is_localhost(target.endpoint.host):
-        return
-    managed_runtime = managed_runtime_service.load_persisted()
-    if managed_runtime is None:
-        return
-    if checks.is_target_endpoint_reachable(target):
-        return
-    if not checks.is_managed_workspace_launchable(workspace):
-        return
-    managed_runtime_service.save_active_configuration(
-        managed_runtime.for_workspace(workspace)
-    )
-    recovered_target = ComfyTargetConfiguration(
-        mode=ComfyTargetMode.MANAGED_LOCAL,
-        endpoint=target.endpoint,
-        workspace_path=workspace,
-        install_owned=True,
-        launch_owned=True,
-    )
-    comfy_target_service.configure(recovered_target)
-    _discard_matching_attached_pending_transaction(
-        setup_transaction_service=setup_transaction_service,
-        recovered_target=recovered_target,
-    )
-    log_warning(
-        _LOGGER,
-        "Recovered stale attached-local target as managed-local.",
-        workspace=workspace,
-        host=target.endpoint.host,
-        port=target.endpoint.port,
-    )
-
-
-def _discard_matching_attached_pending_transaction(
-    *,
-    setup_transaction_service: SetupTransactionService,
-    recovered_target: ComfyTargetConfiguration,
-) -> None:
-    """Discard stale pending attached-local state superseded by target recovery."""
-
-    try:
-        transaction = setup_transaction_service.load()
-    except Exception as error:
-        log_info(
-            _LOGGER,
-            "Could not load pending setup transaction during target recovery.",
-            error=error,
-        )
-        return
-    if transaction is None or not _pending_matches_recovered_target(
-        transaction=transaction,
-        recovered_target=recovered_target,
-    ):
-        return
-    setup_transaction_service.discard(transaction.transaction_id)
-
-
-def _discard_stale_attached_pending_for_active_managed_target(
-    *,
-    comfy_target_service: ComfyTargetService,
-    setup_transaction_service: SetupTransactionService,
-) -> None:
-    """Discard stale attached-local pending state after active target recovery."""
-
-    recovered_target = comfy_target_service.load_persisted()
-    if (
-        recovered_target is None
-        or recovered_target.mode is not ComfyTargetMode.MANAGED_LOCAL
-    ):
-        return
-    _discard_matching_attached_pending_transaction(
-        setup_transaction_service=setup_transaction_service,
-        recovered_target=recovered_target,
-    )
-
-
-def _pending_matches_recovered_target(
-    *,
-    transaction: SetupTransaction,
-    recovered_target: ComfyTargetConfiguration,
-) -> bool:
-    """Return whether pending state repeats the stale attached-local target."""
-
-    pending_target = transaction.target
-    if pending_target is None:
-        return False
-    return (
-        pending_target.mode is ComfyTargetMode.ATTACHED_LOCAL
-        and pending_target.workspace_path == recovered_target.workspace_path
-        and pending_target.endpoint == recovered_target.endpoint
-    )
-
-
-def _is_localhost(host: str) -> bool:
-    """Return whether one host string points at this machine."""
-
-    return host.strip().lower() in {"127.0.0.1", "localhost", "::1"}
 
 
 def load_persisted_installation_context(

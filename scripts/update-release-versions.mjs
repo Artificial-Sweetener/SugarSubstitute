@@ -65,8 +65,12 @@ export function replaceVersionField(filePath, pattern, replacement) {
  *
  * @param {URL} projectRoot Repository root URL.
  * @param {string} nextVersion Semantic release version.
+ * @param {string} releaseChannel Embedded launcher release channel.
  */
-export function updateReleaseVersions(projectRoot, nextVersion) {
+export function updateReleaseVersions(projectRoot, nextVersion, releaseChannel = "stable") {
+  if (!new Set(["stable", "canary"]).has(releaseChannel)) {
+    throw new Error(`Unsupported release channel: ${releaseChannel}`);
+  }
   writeJsonVersion(new URL("package.json", projectRoot), nextVersion);
   writeJsonVersion(new URL("package-lock.json", projectRoot), nextVersion);
 
@@ -81,16 +85,23 @@ export function updateReleaseVersions(projectRoot, nextVersion) {
     /^__version__ = "[^"]+"\r?$/m,
     `__version__ = "${nextVersion}"`,
   );
+
+  replaceVersionField(
+    new URL("launcher/sugarsubstitute_launcher/build_metadata.py", projectRoot),
+    /^RELEASE_CHANNEL = "[^"]+"\r?$/m,
+    `RELEASE_CHANNEL = "${releaseChannel}"`,
+  );
 }
 
 const invokedPath = process.argv[1] ? resolve(process.argv[1]) : "";
 
 if (invokedPath === fileURLToPath(import.meta.url)) {
   const nextVersion = process.argv[2];
+  const releaseChannel = process.argv[3] ?? "stable";
 
   if (!nextVersion) {
     throw new Error("Expected the next release version as the first argument.");
   }
 
-  updateReleaseVersions(new URL("../", import.meta.url), nextVersion);
+  updateReleaseVersions(new URL("../", import.meta.url), nextVersion, releaseChannel);
 }

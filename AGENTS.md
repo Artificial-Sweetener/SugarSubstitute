@@ -17,6 +17,43 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 - Preserve compatibility for persisted files and project data unless explicitly approved to change.
 - Treat current behavior and persisted formats as the contract; change internals freely within that boundary.
 
+## Cache Architecture and Governance
+
+- Classify stored or retained data before implementation as persistent cache,
+  process-lifetime memoization, or authoritative application/user state.
+- Register every persistent cache in the authoritative application cache
+  catalog. The catalog owns persistent cache identifiers, storage namespaces,
+  compatibility inputs, retention, recovery, and invalidation policy.
+- Obtain persistent cache storage through the prepared catalog namespace. Do
+  not construct persistent cache paths directly from an installation cache
+  root or create cache-owned directories during general installation setup.
+- Give each persistent cache one non-overlapping namespace and one cohesive
+  domain owner. Split caches whose records have independent compatibility,
+  retention, or lifecycle requirements instead of coordinating them through a
+  shared incidental directory.
+- Declare storage schema, semantic producer inputs, relevant runtime or asset
+  dependencies, entry-level freshness rules, and an emergency compatibility
+  epoch. An application version alone is not a cache compatibility input.
+- Invalidate only the incompatible cache owner. Preserve compatible cache
+  generations across releases and development branch changes, and bound old
+  generations through explicit age, count, or size retention.
+- Treat unreadable, corrupt, incomplete, or incompatible cache data as an
+  observable cache miss. Quarantine or replace it safely; a disposable cache
+  must not abort application startup or permit stale data to be read.
+- Never register preferences, sessions, projects, outputs, user-authored
+  artifacts, trust state, or other authoritative state as cache. Cache cleanup
+  must remain incapable of deleting authoritative data.
+- Keep process-only memoization with its runtime owner. It does not receive a
+  persistent namespace, but it must still define input identity and explicit
+  invalidation where stale reuse is possible.
+- Add or change a persistent cache atomically with its catalog registration,
+  compatibility and recovery behavior, structured diagnostics, architecture
+  enforcement, and tests for reuse, relevant and unrelated changes,
+  corruption, upgrade, and cross-platform path safety.
+- Unknown cache-root content is not proof of ownership. Report it and leave it
+  intact until a verified migration identifies its producer and safe
+  disposition.
+
 ## Localization Policy
 
 - Route all SugarSubstitute-owned user-facing text, including installer text, through its explicit localization owner. Hard-coded visible copy is not allowed.
@@ -33,25 +70,38 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 
 - All verification commands must run against the repository virtual environment at `.venv`.
 - Do not run quality gates with global/system Python.
-- If `.venv` is missing or stale, bootstrap with `.\venv.bat` first.
-- Run all commands from repo root in PowerShell.
+- If `.venv` is missing or stale, recreate it with a supported Python version
+  and install `requirements-toolchain.txt`.
+- Run all commands from the repository root using the platform-appropriate
+  shell and the repository virtual environment's Python interpreter.
 
-### Required command forms (PowerShell)
+### Required gate commands
 
-- Focused tests: `.\.venv\Scripts\python.exe -m pytest -n auto -q <paths>`
-- Full parallel tests: `.\.venv\Scripts\python.exe -m pytest -n auto -q -m "not serial"`
-- Full serial tests: `.\.venv\Scripts\python.exe -m tools.ci.run_serial_test_modules --junit-dir=build\test-results\local-serial`
-- Lint: `.\.venv\Scripts\ruff.exe check .`
-- Format: `.\.venv\Scripts\ruff.exe format .`
-- Type check: `.\.venv\Scripts\mypy.exe --strict substitute tests`
+The commands below assume the repository virtual environment is active or that
+`python` otherwise resolves to its interpreter.
+
+- Focused tests: `python -m pytest -n auto -q <paths>`
+- Full parallel tests: `python -m pytest -n auto -q -m "not serial"`
+- Full serial tests: `python -m tools.ci.run_serial_test_modules --junit-dir=build/test-results/local-serial`
+- Architecture: `python -m tools.check_architecture`
+- Lint: `python -m ruff check .`
+- Format: `python -m ruff format .`
+- Type check: `python -m mypy --strict substitute tests`
 
 ## Core Engineering Principles
 
 - Use strict object-oriented design.
 - Enforce strong separation of concerns as the primary architecture objective.
 - Keep modules cohesive and boundaries explicit.
-- Assign one authoritative owner per concern; other components may participate, but must derive their behavior, state, and geometry from that owner rather than re-implementing the concern in parallel.
-- Reassess ownership before extending an existing structure; if a change introduces a distinct responsibility, change cadence, or collaboration boundary, split or extract it as part of the change instead of deferring cleanup.
+- Assign one authoritative owner per concern; other components may participate,
+  but must derive their behavior, state, and geometry from that owner rather
+  than re-implementing the concern in parallel.
+- Before extending a module, class, subsystem, or workflow, identify its
+  concern, authoritative state owner, dependency direction, public boundary,
+  behavior and performance contracts, and change cadence.
+- Reassess ownership before extending an existing structure. If a change
+  introduces a distinct responsibility, change cadence, lifecycle, or
+  collaboration boundary, extract it as part of the same change.
 - Prefer clean replacement over compatibility layers in internal code.
 - Structural changes must be complete: update callsites, remove dead code, remove temporary bridges.
 - Favor DRY when it reduces repeated change risk.
@@ -69,6 +119,10 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 - Place code by ownership and dependency direction, not convenience or proximity.
 - Avoid god classes and monolithic files; split by responsibility, not by convenience.
 
+DRY means single ownership, not merely fewer lines. Consumers may observe,
+delegate, adapt, or cache derived results, but must not reproduce authoritative
+rules or state.
+
 ## Structural Change Rules
 
 - For behavior-critical areas, work in two steps:
@@ -81,6 +135,74 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 - Current module layout does not constrain improvement; reorganize freely when it improves architecture.
 - Align touched modules with the ownership and dependency rules in this file.
 
+Do not add behavior to a mixed-responsibility file. If existing code touched by
+the work mixes responsibilities:
+
+1. Characterize the existing behavior with tests.
+2. Identify the authoritative owners.
+3. Extract each touched responsibility into cohesive, focused files.
+4. Migrate every caller completely.
+5. Remove replaced code and temporary bridges.
+6. Verify behavior and the resulting ownership boundaries.
+
+Do not defer this blast-area work, hide it behind a forwarding shim, move lines
+into a generic dumping ground, or duplicate ownership during the migration. A
+structural waiver can exempt a justified size gate; it never authorizes mixed
+ownership or new behavior in a mixed file.
+
+## Architecture Governance
+
+`ARCHITECTURE_POLICY.toml` defines the enforced authored-runtime scope. The
+structural soft ceiling is 350 nonblank, noncomment lines and the hard gate is
+500. Generated Qt resource modules are exact policy exclusions because their
+shape is owned by the resource compiler. File size is an ownership alarm, not
+proof that a file is mixed or cohesive.
+
+The current repository has two explicit state mechanisms:
+
+- `ARCHITECTURE_DEBT.toml` records assessed current mixed ownership. Each debt
+  names the owner, exact paths and fingerprint, distinct responsibilities,
+  tracking issue, review date, and next extraction. It is a current-state
+  snapshot, not a historical ledger.
+- `ARCHITECTURE_WAIVERS.toml` records exact, bounded hard-gate exceptions. A
+  `structural` waiver is reserved for a genuinely cohesive owner whose size is
+  justified. A `remediation` waiver must link assessed debt, cap the current
+  line count, and name a lower next limit.
+
+A structural waiver is exceptional, not the default disposition for an
+existing large file. It requires a source-level review and a file-specific
+rationale that:
+
+- names the concrete authoritative state, contract, algorithm, or mounted
+  control;
+- identifies the operations and invariants that require the contents to change
+  together;
+- explains why a plausible extraction would divide authority, duplicate an
+  invariant, or fragment one atomic contract; and
+- distinguishes supporting private parts from independently changing
+  collaborators.
+
+A module docstring, one broad feature theme, one large class, or the fact that
+code currently lives together is not evidence of cohesion. When independent
+change cadences, lifecycles, policies, adapters, projections, or reusable
+collaborators are present, record debt and a concrete next extraction. The
+checker validates registry completeness and bounds; it cannot make this human
+architectural judgment.
+
+Every file above the hard gate must receive an explicit ownership assessment.
+There is no legacy, grandfathered, frozen, or unassessed exception. After a
+change, reassess the file and choose the truthful current state: reduce it below
+the hard gate, record updated debt with a tightening remediation waiver, or
+justify a structural waiver for one cohesive owner. Delete resolved and unused
+records. Debt and waivers expire; raising a limit or extending a review date
+solely to pass the gate is prohibited. Every waiver limit must equal the exact
+current production line count, so any growth forces a new source-level review.
+
+Run `python -m tools.check_architecture` after changing authored runtime
+structure or architecture state. The checker runs in pre-commit and CI and
+rejects new hard-gate overages, stale fingerprints, expired records, unbounded
+remediation, invalid links, duplicate dispositions, and unused waivers.
+
 ## Code Organization and Readability
 
 - Write self-documenting code with expressive, concise names.
@@ -89,8 +211,8 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 - Keep source files focused on one coherent responsibility and one primary
   reason to change.
 - Split mixed-concern files as part of the change that exposes the mixed
-  concern; do not add new behavior to broad files merely because they are
-  nearby.
+  concern. Adding behavior to a broad mixed file because it is nearby is not
+  allowed.
 - Do not place code opportunistically "where it works".
 - Remove obsolete code paths when replacements are complete.
 
@@ -196,10 +318,22 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 - Run focused tests continuously during development.
 - Before ending a normal implementation turn, run tests covering the changed behavior and its blast area, plus targeted formatting, lint, and strict typing checks for changed files.
 - Report the checks run and state when full commit gates remain pending.
-- Run the complete repository format, lint, strict type, parallel test, and serial test gates before committing, not merely because a turn is ending.
+- A documentation-only change modifies Markdown (`*.md`) files and nothing
+  else. Review its rendered content and diff, run `git diff --check`, and run
+  any documentation-specific validator that governs the changed files.
+  Documentation-only commits do not require the repository format, lint,
+  type, or test gates. A push whose complete changed-file set is
+  documentation-only may proceed without CI; automatic push and pull-request
+  workflows must ignore it.
+- A commit containing any non-Markdown file is not documentation-only,
+  including changes to workflows, dependency or release metadata,
+  architecture registries, scripts, tests, resources, or generated artifacts.
+  Run the complete repository format, lint, strict type, parallel test, and
+  serial test gates before committing it, not merely because a turn is ending.
 - Full-gate results remain valid for the exact commit-relevant worktree they verified and may be reused if that content has not changed. Staging, unstaging, and ignored verification artifacts do not invalidate them.
 - After a commit-relevant change, rerun every affected gate; rerun all gates when impact is uncertain.
-- CI must run the complete applicable suite on Windows, Linux, and macOS.
+- CI must run the complete applicable suite on Windows, Linux, and macOS for
+  every change that is not documentation-only.
 - Report which platforms were actually verified; do not infer cross-platform success from one operating system.
 - Failing and flaky applicable tests are blocking.
 
@@ -229,14 +363,35 @@ Engineering priority is strict architecture, strong separation of concerns, beha
 - Required docstrings are present and meaningful.
 - Logging/error handling is actionable.
 - A normal implementation handoff has passing focused tests and targeted format, lint, and strict typing checks for the blast area.
-- A commit has passing full repository format, lint, strict typing, parallel test, and serial test gates for its exact contents.
+- Architecture governance passes for the exact current source and registry state.
+- A non-documentation-only commit has passing full repository format, lint,
+  strict typing, parallel test, and serial test gates for its exact contents.
+- A documentation-only commit has an inspected diff, clean `git diff --check`,
+  and passing applicable documentation-specific validation.
 
 ## Commit Policy
 
-- Use Conventional Commits: `type(scope): subject`.
-- Allowed types: `feat`, `fix`, `refactor`, `test`, `chore`, `docs`, `build`, `ci`.
-- Keep commits atomic and cohesive.
-- Breaking structural changes should be clearly labeled.
+- Commit only when explicitly asked. Each commit must deliver one coherent
+  user- or integrator-meaningful outcome and be independently releasable.
+- Commit subjects feed generated changelogs. Use
+  `type(scope): changelog-ready outcome`, with the scope naming the primary
+  product or repository concern.
+- `feat`, `fix`, and `perf` subjects must describe the delivered capability,
+  corrected behavior, or measurable improvement in audience-facing product
+  language. A changelog reader must be able to understand the outcome without
+  knowing the affected files, classes, adapters, internal architecture, or
+  implementation technique.
+- Use `refactor`, `test`, `docs`, `build`, `ci`, or `chore` only for a coherent
+  internal outcome. Choose the type according to the actual release impact; do
+  not present internal maintenance as a user-facing feature or bug fix.
+- Include supporting tests, documentation, cleanup, and refactoring in the
+  outcome commit they support. Do not create WIP, checkpoint, miscellaneous,
+  mechanical file-movement, or implementation-diary commits.
+- Mark a public breaking change with `!`. Explain its compatibility impact and
+  migration path in the commit body.
+- Use the commit body when the subject cannot carry essential context. Explain
+  why the outcome matters, its behavioral constraints, and coordinated product
+  effects rather than listing implementation steps.
 
 ## Maintainer Authority
 

@@ -22,7 +22,7 @@ import zipfile
 from collections.abc import Iterable
 from pathlib import Path
 
-from tools.release_assets.zip_support import iter_directory_files, write_file_to_zip
+from tools.release_assets.zip_support import iter_directory_entries, write_path_to_zip
 
 
 APP_PAYLOAD_PREFIX = "SugarSubstitute-app-v"
@@ -101,7 +101,7 @@ def build_app_payload_zip(*, repo_root: Path, output_path: Path) -> Path:
         compresslevel=9,
     ) as archive:
         for source_path, archive_name in iter_payload_entries(resolved_repo_root):
-            write_file_to_zip(
+            write_path_to_zip(
                 archive=archive,
                 source_path=source_path,
                 archive_name=archive_name,
@@ -117,7 +117,7 @@ def iter_payload_entries(repo_root: Path) -> Iterable[tuple[Path, str]]:
         if root_path.is_file():
             yield root_path, root_name
             continue
-        for file_path in iter_directory_files(root_path):
+        for file_path in iter_directory_entries(root_path):
             relative_path = file_path.relative_to(repo_root)
             if not is_excluded(relative_path):
                 yield file_path, relative_path.as_posix()

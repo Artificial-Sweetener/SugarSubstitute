@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import stat
 import subprocess
 import sys
 import zipfile
@@ -55,8 +56,23 @@ def test_release_builder_rejects_launcher_unsafe_version(tmp_path: Path) -> None
         build_local_release_channel(
             repo_root=repo_root,
             output_dir=repo_root / ".local-release-channel",
-            version="0.10.0-local.20260716",
+            version="../0.10.0",
         )
+
+
+def test_release_builder_accepts_semantic_prerelease_version(tmp_path: Path) -> None:
+    """Canary semantic versions must remain safe for release payload paths."""
+
+    repo_root = _write_fixture_repo(tmp_path)
+
+    result = build_local_release_channel(
+        repo_root=repo_root,
+        output_dir=repo_root / ".local-release-channel",
+        version="0.21.0-canary.42",
+    )
+
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["version"] == "0.21.0-canary.42"
 
 
 def test_release_payload_cli_runs_by_file_path(tmp_path: Path) -> None:
@@ -212,13 +228,13 @@ def test_local_release_channel_writes_optional_launcher_bundle_asset(
     )
     assert launcher["url"] == launcher_zip.as_uri()
     assert launcher["sha256"] == sha256_file(launcher_zip)
-    assert installer["filename"] == "SugarSubstitute-Installer-Windows-x64.exe"
+    assert installer["filename"] == "SugarSubstitute-0.4.0-Windows-x64-Setup.exe"
     assert installer["url"] == installer_exe.as_uri()
     assert installer["sha256"] == sha256_file(installer_exe)
     assert "SugarSubstitute-installer-payload-windows-x64-v0.4.0.zip" in (
         result.checksums_path.read_text(encoding="utf-8")
     )
-    assert "SugarSubstitute-Installer-Windows-x64.exe" in (
+    assert "SugarSubstitute-0.4.0-Windows-x64-Setup.exe" in (
         result.checksums_path.read_text(encoding="utf-8")
     )
     with zipfile.ZipFile(launcher_zip) as archive:
@@ -230,7 +246,7 @@ def test_local_release_channel_writes_optional_launcher_bundle_asset(
         "SugarSubstitute-installer-payload-macos-arm64-v0.4.0.zip"
     )
     assert macos_installer_asset["filename"] == (
-        "SugarSubstitute-Installer-macOS-Apple-Silicon.dmg"
+        "SugarSubstitute-0.4.0-macOS-Apple-Silicon.dmg"
     )
 
 
@@ -286,6 +302,59 @@ def test_installed_launcher_zip_requires_onedir_support_dir(tmp_path: Path) -> N
         assert "launcher-bin" in str(error)
     else:
         raise AssertionError("Expected launcher bundle validation to fail.")
+
+
+def test_macos_launcher_zip_rejects_pyinstaller_sibling_output(
+    tmp_path: Path,
+) -> None:
+    """The macOS update archive must contain only the signed app replacement."""
+
+    launcher_bundle = _write_fixture_macos_launcher_bundle(tmp_path / "macos-dist")
+    _write_file(launcher_bundle / "SugarSubstitute" / "launcher-bin" / "Python", "x")
+
+    with pytest.raises(ValueError, match="unexpected roots: SugarSubstitute"):
+        build_installed_launcher_zip(
+            launcher_bundle_dir=launcher_bundle,
+            output_path=tmp_path / "launcher.zip",
+            target=MACOS_ARM64,
+        )
+
+
+@pytest.mark.platforms("linux", "macos")
+def test_macos_launcher_zip_preserves_pyinstaller_bundle_symlinks(
+    tmp_path: Path,
+) -> None:
+    """The updater archive must retain the framework links PyInstaller requires."""
+
+    launcher_bundle = _write_fixture_macos_launcher_bundle(tmp_path / "macos-dist")
+    framework_root = (
+        launcher_bundle
+        / "SugarSubstitute.app"
+        / "Contents"
+        / "Frameworks"
+        / "Python.framework"
+    )
+    _write_file(framework_root / "Versions" / "3.13" / "Python", "runtime")
+    (framework_root / "Versions" / "Current").symlink_to("3.13")
+    (framework_root / "Python").symlink_to("Versions/Current/Python")
+
+    archive_path = build_installed_launcher_zip(
+        launcher_bundle_dir=launcher_bundle,
+        output_path=tmp_path / "launcher.zip",
+        target=MACOS_ARM64,
+    )
+
+    with zipfile.ZipFile(archive_path) as archive:
+        current = archive.getinfo(
+            "SugarSubstitute.app/Contents/Frameworks/Python.framework/Versions/Current"
+        )
+        python_link = archive.getinfo(
+            "SugarSubstitute.app/Contents/Frameworks/Python.framework/Python"
+        )
+        assert stat.S_IFMT(current.external_attr >> 16) == stat.S_IFLNK
+        assert stat.S_IFMT(python_link.external_attr >> 16) == stat.S_IFLNK
+        assert archive.read(current).decode("utf-8") == "3.13"
+        assert archive.read(python_link).decode("utf-8") == ("Versions/Current/Python")
 
 
 def test_linux_launcher_zip_restores_executable_mode(tmp_path: Path) -> None:
@@ -393,14 +462,13 @@ def test_project_requirements_do_not_install_sugar_dsl() -> None:
 
 
 def test_project_requirements_pin_cutecanvas_as_the_canvas_boundary() -> None:
-    """Frontend installs CuteCanvas and receives QPane through that package."""
+    """Frontend payloads install the exact verified canvas package stack."""
 
     requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-    assert "cutecanvas[sam]==1.0.1" in requirements
-    assert not any(
-        line.strip().lower().startswith("qpane") for line in requirements.splitlines()
-    )
+    assert "cutecanvas[sam]==1.0.3" in requirements
+    assert "qpane==3.0.2" in requirements
+    assert "ferrastra==1.0.1" in requirements
 
 
 def _write_fixture_repo(tmp_path: Path) -> Path:

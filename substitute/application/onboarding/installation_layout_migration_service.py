@@ -85,28 +85,6 @@ class InstallationLayoutMigrationService:
                 self.configuration.session_dir / "session.json.bak",
             ),
             (
-                root / "state" / "restore-projection-cache.json",
-                self.configuration.cache_dir / "restore-projection-cache.json",
-            ),
-            (
-                root / "state" / "cube_icon_cache.sqlite3",
-                self.configuration.cache_dir / "cube" / "cube_icon_cache.sqlite3",
-            ),
-            (
-                root / "state" / "cube_classification_cache.sqlite3",
-                self.configuration.cache_dir
-                / "cube"
-                / "cube_classification_cache.sqlite3",
-            ),
-            (
-                root / "state" / "danbooru_cache.sqlite3",
-                self.configuration.cache_dir / "danbooru" / "danbooru_cache.sqlite3",
-            ),
-            (
-                root / "state" / "danbooru_images",
-                self.configuration.cache_dir / "danbooru" / "images",
-            ),
-            (
                 root / "state" / "managed_runtime.json",
                 self.configuration.runtime_state_dir / "managed_runtime.json",
             ),
@@ -123,7 +101,6 @@ class InstallationLayoutMigrationService:
                 self.configuration.diagnostics_dir / "startup_diagnostics_ignores.json",
             ),
             (root / "state" / "logs", self.configuration.logs_dir),
-            (root / "user" / "model_metadata", self.configuration.model_metadata_dir),
         )
         for source, destination in moves:
             self._move_if_available(source=source, destination=destination)

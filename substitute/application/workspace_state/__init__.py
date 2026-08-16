@@ -87,7 +87,6 @@ from substitute.application.workspace_state.restore_projection_codec import (
     restore_projection_artifact_to_json,
 )
 from substitute.application.workspace_state.restore_projection_models import (
-    APP_PROJECTION_VERSION,
     RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
     CachedCubeProjection,
     CachedCubeStackProjection,
@@ -171,7 +170,6 @@ __all__ = [
     "WorkspacePrehydrationPort",
     "WorkspacePrehydrationResult",
     "WorkspacePrehydrationService",
-    "APP_PROJECTION_VERSION",
     "RESTORE_PROJECTION_CACHE_SCHEMA_VERSION",
     "CachedCubeProjection",
     "CachedCubeStackProjection",

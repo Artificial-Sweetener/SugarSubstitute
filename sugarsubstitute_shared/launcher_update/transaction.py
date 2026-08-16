@@ -234,7 +234,7 @@ def _copy_path(*, source: Path, destination: Path) -> None:
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     if source.is_dir():
-        shutil.copytree(source, destination)
+        shutil.copytree(source, destination, symlinks=True)
     else:
         shutil.copy2(source, destination)
 

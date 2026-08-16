@@ -31,6 +31,7 @@ from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
     subprocess_working_directory,
 )
+from sugarsubstitute_shared.startup_remote_access import StartupConnectivityError
 
 
 def test_manager_requirements_install_uses_checkout_file_exactly(
@@ -103,8 +104,39 @@ def test_pygit2_backend_is_an_explicit_separate_transaction(
     )
 
     assert observed == [
-        [subprocess_path(python), "-m", "pip", "install", "pygit2==1.19.3"]
+        [subprocess_path(python), "-m", "pip", "install", "pygit2==1.20.0"]
     ]
+
+
+def test_manager_requirements_promote_connectivity_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Manager pip transport evidence must activate startup degradation."""
+
+    def fake_run(
+        command: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        """Return one deterministic pip connection failure."""
+
+        return subprocess.CompletedProcess(
+            command,
+            1,
+            stdout="",
+            stderr="NewConnectionError: network is unreachable",
+        )
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.manager_requirements_installer.subprocess.run",
+        fake_run,
+    )
+
+    with pytest.raises(StartupConnectivityError):
+        manager_requirements_installer.ComfyManagerRequirementsInstaller().install_requirements(
+            workspace=tmp_path,
+            python_executable=tmp_path / "python.exe",
+            requirements_path=tmp_path / "requirements.txt",
+        )
 
 
 @pytest.mark.platforms("windows")
