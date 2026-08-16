@@ -117,6 +117,8 @@ SERIAL_TEST_MODULES = frozenset(
         "tests/test_prompt_projection_input_method.py",
         "tests/test_prompt_projection_layout_surface.py",
         "tests/test_prompt_projection_literal_normalization.py",
+        # Projection layout owns native Qt text geometry that can terminate xdist.
+        "tests/test_prompt_projection_layout_contract.py",
         "tests/test_prompt_projection_lora_surface.py",
         # Paint-cache tests construct Qt text layouts that are not xdist-safe.
         "tests/test_prompt_projection_paint_cache.py",
