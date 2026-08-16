@@ -48,7 +48,7 @@ install_qfluentwidgets_banner_filter()
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QT_OPENGL", "software")
 os.environ.setdefault("SUBSTITUTE_DISABLE_APP_USER_MODEL_ID", "1")
-os.environ.setdefault("SUBSTITUTE_DISABLE_QPANE_SAM_WARMUP", "1")
+os.environ.setdefault("SUBSTITUTE_DISABLE_CUTECANVAS_SAM_WARMUP", "1")
 
 _TEST_PROCESS_MEMORY_LIMIT_BYTES = int(
     os.environ.get("SUBSTITUTE_TEST_PROCESS_MEMORY_LIMIT_BYTES", str(8 * 1024**3))

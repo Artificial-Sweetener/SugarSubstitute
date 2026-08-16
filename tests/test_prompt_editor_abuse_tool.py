@@ -924,9 +924,20 @@ def test_hostile_workloads_cover_typing_edits_lifecycle_and_layout_pressure() ->
         "request_paint",
         "event_turn",
         "drain_events",
+        "step_weight",
+        "edit_weight_exact",
     } <= action_kinds
     assert by_name["wildcard-txt-zebra-typing"].editor_kind == "wildcard_txt"
     assert by_name["wildcard-csv-quoted-typing"].editor_kind == "wildcard_csv"
+    assert by_name["cache-restored-lora-pointer-step"].mount_source == "workspace_cache"
+    assert (
+        by_name["v0-19-2-cache-restored-lora-exact-edit-pointer"].mount_source
+        == "workspace_cache_0_19_2"
+    )
+    assert (
+        by_name["image-sugar-script-restored-emphasis-exact-edit-pointer"].mount_source
+        == "image_sugar_script"
+    )
     seeded = by_name["seeded-mixed-abuse"]
     assert seeded.seed == 7
     assert len(seeded.actions) >= 48
@@ -965,6 +976,10 @@ def test_operation_coverage_requires_every_editor_feature() -> None:
     assert "autocomplete.accept" in coverage.covered
     assert "diagnostic.context_menu" in coverage.covered
     assert "diagnostic.action" in coverage.covered
+    assert "emphasis.pointer_step" in coverage.covered
+    assert "emphasis.exact_edit" in coverage.covered
+    assert "lora.pointer_step" in coverage.covered
+    assert "lora.exact_edit" in coverage.covered
     assert "reorder.pointer_cancel" in coverage.covered
     assert coverage.missing == ()
 

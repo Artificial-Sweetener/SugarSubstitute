@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.error import URLError
 
 import pytest
 
@@ -27,7 +28,7 @@ from launcher.sugarsubstitute_launcher.config import LauncherConfig, UpdateCheck
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
 from launcher.sugarsubstitute_launcher.payload import AppPayloadInstallResult
-from launcher.sugarsubstitute_launcher.runtime import RuntimeProvisioningResult
+from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherMinimumVersionError,
     LauncherUpdateOrchestrator,
@@ -55,7 +56,7 @@ def test_pre_launch_update_skips_without_release_source(tmp_path: Path) -> None:
     assert not layout.state_path.exists()
 
 
-def test_pre_launch_update_installs_newer_manifest_and_writes_state(
+def test_pre_launch_update_commits_new_version_only_after_launch_readiness(
     tmp_path: Path,
 ) -> None:
     """A newer manifest should install the payload and persist the new version."""
@@ -83,6 +84,9 @@ def test_pre_launch_update_installs_newer_manifest_and_writes_state(
     assert result.installed_update is True
     assert installer.installed_layouts == [layout]
     assert runtime_reconciler.reconciled_layouts == [layout]
+    assert not layout.state_path.exists()
+    assert result.pending_activation is not None
+    result.pending_activation.commit()
     assert LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
     assert progress.lines == [
         "Checking for SugarSubstitute updates.",
@@ -124,6 +128,39 @@ def test_pre_launch_update_skips_current_manifest_and_records_check(
     assert runtime_reconciler.reconciled_layouts == []
     assert state.installed_app_version == "0.4.0"
     assert state.last_update_check_utc == _fixed_now()
+
+
+@pytest.mark.parametrize(
+    ("installed_channel", "manifest_channel"),
+    (("stable", "canary"), ("canary", "stable")),
+)
+def test_pre_launch_update_never_crosses_release_channels(
+    tmp_path: Path,
+    installed_channel: str,
+    manifest_channel: str,
+) -> None:
+    """Stable and Canary installations must reject each other's manifests."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    config = LauncherConfig.from_layout(layout=layout, channel=installed_channel)
+    installer = _PayloadInstaller(version="9999.1.42")
+
+    result = LauncherUpdateOrchestrator(
+        payload_installer=installer,
+        runtime_reconciler=_RuntimeReconciler(),
+        now=_fixed_now,
+    ).run(
+        layout=layout,
+        config=config,
+        release_source=_ReleaseSource(
+            _manifest(version="9999.1.42", channel=manifest_channel)
+        ),
+        no_update_check=False,
+    )
+
+    assert result.skipped_reason == "channel_mismatch"
+    assert result.installed_update is False
+    assert installer.installed_layouts == []
 
 
 def test_pre_launch_update_respects_disabled_policy(tmp_path: Path) -> None:
@@ -277,6 +314,50 @@ def test_pre_launch_update_blocks_app_below_unavailable_launcher_minimum(
     assert not layout.state_path.exists()
 
 
+def test_required_launcher_network_failure_still_launches_installed_app(
+    tmp_path: Path,
+) -> None:
+    """Network loss while staging a required launcher must degrade, not block."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
+    layout.runtime_python.write_text("python", encoding="utf-8")
+    config = LauncherConfig.from_layout(layout=layout)
+    base = _manifest(version="0.11.0")
+    manifest = ReleaseManifest(
+        schema_version=base.schema_version,
+        channel=base.channel,
+        version=base.version,
+        minimum_launcher_version="0.11.0",
+        app=base.app,
+        launchers={
+            layout.target.key: ReleaseAsset(
+                filename="launcher.zip",
+                url="https://example.invalid/launcher.zip",
+                sha256="1" * 64,
+                size_bytes=42,
+            )
+        },
+        installers={},
+    )
+
+    result = LauncherUpdateOrchestrator(
+        payload_installer=_PayloadInstaller(version="0.11.0"),
+        runtime_reconciler=_RuntimeReconciler(),
+        launcher_bundle_stager=_OfflineLauncherStager(),
+        launcher_version="0.10.0",
+        now=_fixed_now,
+    ).run(
+        layout=layout,
+        config=config,
+        release_source=_ReleaseSource(manifest),
+        no_update_check=False,
+    )
+
+    assert result.failure_reason == "URLError"
+    assert result.launcher_update_request_path is None
+
+
 def _fixed_now() -> datetime:
     """Return a deterministic UTC timestamp."""
 
@@ -425,3 +506,12 @@ class _LauncherStager:
         self.versions.append(version)
         self.assets.append(asset)
         return self._request_path
+
+
+class _OfflineLauncherStager:
+    """Represent network loss while staging a launcher bundle."""
+
+    def stage(self, **_kwargs: object) -> Path:
+        """Raise the urllib connectivity error used by the production downloader."""
+
+        raise URLError("offline")

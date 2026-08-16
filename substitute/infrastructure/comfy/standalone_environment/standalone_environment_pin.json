@@ -1,0 +1,187 @@
+{
+  "releases": {
+    "linux-amd": {
+      "archive_kind": "7z",
+      "artifacts": [
+        {
+          "filename": "comfyui-standalone-linux-amd-v0.29.0-env1.7z.001",
+          "sha256": "5c050c5a652de6437861ab213add232f792df23fcfbba99884d9bac2139d190f",
+          "size_bytes": 1992294400,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-linux-amd-v0.29.0-env1.7z.001"
+        },
+        {
+          "filename": "comfyui-standalone-linux-amd-v0.29.0-env1.7z.002",
+          "sha256": "a674f2bdcf6a0144d4e6ee8e53019bb1223b1a66814d0f7578e0303e680040b0",
+          "size_bytes": 1992294400,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-linux-amd-v0.29.0-env1.7z.002"
+        },
+        {
+          "filename": "comfyui-standalone-linux-amd-v0.29.0-env1.7z.003",
+          "sha256": "f754de923e483aff7a76a38093c623380a48eb2bbdcbd7e8cbdb9d9e7af5b4ee",
+          "size_bytes": 1992294400,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-linux-amd-v0.29.0-env1.7z.003"
+        },
+        {
+          "filename": "comfyui-standalone-linux-amd-v0.29.0-env1.7z.004",
+          "sha256": "4f7205f7672b78cc94c6cd8621b39c56406929342fe1254d1302726eb4bb1e6e",
+          "size_bytes": 1992294400,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-linux-amd-v0.29.0-env1.7z.004"
+        },
+        {
+          "filename": "comfyui-standalone-linux-amd-v0.29.0-env1.7z.005",
+          "sha256": "928006744362871c2c37ba369c394feb508f59696c2cef546fba57a478b038f3",
+          "size_bytes": 954543047,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-linux-amd-v0.29.0-env1.7z.005"
+        }
+      ],
+      "comfyui_commit": "700821e1364eaab0e8f21c538a2131719fec57bf",
+      "comfyui_version": "v0.28.0",
+      "python_version": "3.13.12",
+      "release_tag": "v0.29.0-env1",
+      "torch_version": "2.12.0+rocm7.14.0"
+    },
+    "linux-intel-xpu": {
+      "archive_kind": "7z",
+      "artifacts": [
+        {
+          "filename": "comfyui-standalone-linux-intel-xpu-v0.29.0-env1.7z.001",
+          "sha256": "490900e27847049b645d43da0d2c25fa22f395c5218fb2c1ec70cdb02377449f",
+          "size_bytes": 1992294400,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-linux-intel-xpu-v0.29.0-env1.7z.001"
+        },
+        {
+          "filename": "comfyui-standalone-linux-intel-xpu-v0.29.0-env1.7z.002",
+          "sha256": "8ad9b4b2c958a4b38ecc6e9cb82e8a75ca37f50bd775deab305d0e9595cddb50",
+          "size_bytes": 256944722,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-linux-intel-xpu-v0.29.0-env1.7z.002"
+        }
+      ],
+      "comfyui_commit": "700821e1364eaab0e8f21c538a2131719fec57bf",
+      "comfyui_version": "v0.28.0",
+      "python_version": "3.13.12",
+      "release_tag": "v0.29.0-env1",
+      "torch_version": "2.12.1+xpu"
+    },
+    "linux-nvidia": {
+      "archive_kind": "7z",
+      "artifacts": [
+        {
+          "filename": "comfyui-standalone-linux-nvidia-v0.29.0-env1.7z.001",
+          "sha256": "32b2b99db55cbedd7eb572cc75cb1fd2c0e3c19d579c8e97adef5e1b96c766fa",
+          "size_bytes": 1992294400,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-linux-nvidia-v0.29.0-env1.7z.001"
+        },
+        {
+          "filename": "comfyui-standalone-linux-nvidia-v0.29.0-env1.7z.002",
+          "sha256": "8ddacdda6becb0234e0771575a5e783a5480704f414fbb87dba6769a5b23a4c2",
+          "size_bytes": 941736683,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-linux-nvidia-v0.29.0-env1.7z.002"
+        }
+      ],
+      "comfyui_commit": "700821e1364eaab0e8f21c538a2131719fec57bf",
+      "comfyui_version": "v0.28.0",
+      "python_version": "3.13.12",
+      "release_tag": "v0.29.0-env1",
+      "torch_version": "2.12.1+cu130"
+    },
+    "mac-mps": {
+      "archive_kind": "tar.gz",
+      "artifacts": [
+        {
+          "filename": "comfyui-standalone-mac-mps-v0.29.0-env1.tar.gz",
+          "sha256": "772e9707953f5f847c867cb1343d2627ad487f5c64662ac8c1d9596203c04c3a",
+          "size_bytes": 687334315,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-mac-mps-v0.29.0-env1.tar.gz"
+        }
+      ],
+      "comfyui_commit": "700821e1364eaab0e8f21c538a2131719fec57bf",
+      "comfyui_version": "v0.28.0",
+      "python_version": "3.13.12",
+      "release_tag": "v0.29.0-env1",
+      "torch_version": "2.12.1"
+    },
+    "win-amd": {
+      "archive_kind": "7z",
+      "artifacts": [
+        {
+          "filename": "comfyui-standalone-win-amd-v0.29.0-env1.7z.001",
+          "sha256": "9de49f3bbb4615c883f5ec5ebfdb8c23f5f03964ba41f5f217e22e4035bca812",
+          "size_bytes": 1992294400,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-win-amd-v0.29.0-env1.7z.001"
+        },
+        {
+          "filename": "comfyui-standalone-win-amd-v0.29.0-env1.7z.002",
+          "sha256": "a42898535ba0d4cd9d2e8456791f64b5d6760d9bb219b292d73fee7857d76141",
+          "size_bytes": 1992294400,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-win-amd-v0.29.0-env1.7z.002"
+        },
+        {
+          "filename": "comfyui-standalone-win-amd-v0.29.0-env1.7z.003",
+          "sha256": "000aaa216eb1ef91ce7b55a36464edac18a50ba7386cd7c5617a9d3f1f783077",
+          "size_bytes": 1397667426,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-win-amd-v0.29.0-env1.7z.003"
+        }
+      ],
+      "comfyui_commit": "700821e1364eaab0e8f21c538a2131719fec57bf",
+      "comfyui_version": "v0.28.0",
+      "python_version": "3.13.12",
+      "release_tag": "v0.29.0-env1",
+      "torch_version": "2.12.0+rocm7.14.0"
+    },
+    "win-cpu": {
+      "archive_kind": "7z",
+      "artifacts": [
+        {
+          "filename": "comfyui-standalone-win-cpu-v0.29.0-env1.7z.001",
+          "sha256": "f0749a910e86bcfbe2c7a2fe97ea872478ac72cf771b06415748e72144c95003",
+          "size_bytes": 694720284,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-win-cpu-v0.29.0-env1.7z.001"
+        }
+      ],
+      "comfyui_commit": "700821e1364eaab0e8f21c538a2131719fec57bf",
+      "comfyui_version": "v0.28.0",
+      "python_version": "3.13.12",
+      "release_tag": "v0.29.0-env1",
+      "torch_version": "2.12.1+cpu"
+    },
+    "win-intel-xpu": {
+      "archive_kind": "7z",
+      "artifacts": [
+        {
+          "filename": "comfyui-standalone-win-intel-xpu-v0.29.0-env1.7z.001",
+          "sha256": "3827328c17ee53373a4f120ce611f1749b70ec769317fd617fa3fd99ff4985ae",
+          "size_bytes": 1833628064,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-win-intel-xpu-v0.29.0-env1.7z.001"
+        }
+      ],
+      "comfyui_commit": "700821e1364eaab0e8f21c538a2131719fec57bf",
+      "comfyui_version": "v0.28.0",
+      "python_version": "3.13.12",
+      "release_tag": "v0.29.0-env1",
+      "torch_version": "2.12.1+xpu"
+    },
+    "win-nvidia": {
+      "archive_kind": "7z",
+      "artifacts": [
+        {
+          "filename": "comfyui-standalone-win-nvidia-v0.29.0-env1.7z.001",
+          "sha256": "01059183a2a34f252e1f0170636ac595e8e0b6630f9776ceec4e74e6d8647323",
+          "size_bytes": 1992294400,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-win-nvidia-v0.29.0-env1.7z.001"
+        },
+        {
+          "filename": "comfyui-standalone-win-nvidia-v0.29.0-env1.7z.002",
+          "sha256": "9f5472f70feecc6d5a12dbb90f851ba77ee736273fa589dd92c7ab84823c6883",
+          "size_bytes": 314918844,
+          "url": "https://github.com/Comfy-Org/ComfyUI-Standalone-Environments/releases/download/v0.29.0-env1/comfyui-standalone-win-nvidia-v0.29.0-env1.7z.002"
+        }
+      ],
+      "comfyui_commit": "700821e1364eaab0e8f21c538a2131719fec57bf",
+      "comfyui_version": "v0.28.0",
+      "python_version": "3.13.12",
+      "release_tag": "v0.29.0-env1",
+      "torch_version": "2.12.1+cu130"
+    }
+  },
+  "schema_version": 1
+}

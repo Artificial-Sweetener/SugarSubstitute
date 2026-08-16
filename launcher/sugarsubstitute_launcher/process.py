@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import contextlib
 import ctypes
-import os
 import subprocess
 import sys
 from collections.abc import Iterator, Mapping, Sequence
@@ -28,6 +27,9 @@ from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
+from sugarsubstitute_shared.subprocess_environment import (
+    clean_frozen_parent_environment,
+)
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
     subprocess_path,
@@ -82,6 +84,38 @@ def start_detached(
 ) -> None:
     """Start a child process hidden and fail if it exits during startup."""
 
+    process, startup_log_path = spawn_detached_process(
+        command,
+        environment=environment,
+    )
+    try:
+        return_code = process.wait(timeout=startup_timeout_seconds)
+    except subprocess.TimeoutExpired:
+        return
+
+    startup_detail = _tail_text(startup_log_path)
+    compatibility_error = external_long_path_error(
+        component="Python",
+        path=_command_working_directory(command) or startup_log_path.parent,
+        detail=startup_detail,
+    )
+    if compatibility_error is not None:
+        raise compatibility_error
+    raise ProcessStartupError(
+        "SugarSubstitute exited before the setup window opened. "
+        f"Exit code: {return_code}. "
+        f"Startup log: {startup_log_path}. "
+        f"{startup_detail}"
+    )
+
+
+def spawn_detached_process(
+    command: Sequence[str],
+    *,
+    environment: Mapping[str, str] | None = None,
+) -> tuple[subprocess.Popen[bytes], Path]:
+    """Start a hidden app child and return its process and diagnostic log path."""
+
     startupinfo = None
     creationflags = 0
     if sys.platform == "win32":
@@ -106,7 +140,7 @@ def start_detached(
                         if working_directory is not None
                         else None
                     ),
-                    env=_child_process_environment(environment),
+                    env=clean_frozen_parent_environment(environment),
                     stdin=subprocess.DEVNULL,
                     stdout=log_file,
                     stderr=subprocess.STDOUT,
@@ -124,25 +158,7 @@ def start_detached(
             if compatibility_error is not None:
                 raise compatibility_error from error
             raise
-        try:
-            return_code = process.wait(timeout=startup_timeout_seconds)
-        except subprocess.TimeoutExpired:
-            return
-
-    startup_detail = _tail_text(startup_log_path)
-    compatibility_error = external_long_path_error(
-        component="Python",
-        path=_command_working_directory(command) or startup_log_path.parent,
-        detail=startup_detail,
-    )
-    if compatibility_error is not None:
-        raise compatibility_error
-    raise ProcessStartupError(
-        "SugarSubstitute exited before the setup window opened. "
-        f"Exit code: {return_code}. "
-        f"Startup log: {startup_log_path}. "
-        f"{startup_detail}"
-    )
+    return process, startup_log_path
 
 
 def start_detached_handoff(command: Sequence[str]) -> None:
@@ -178,34 +194,6 @@ def _standard_child_process_dll_search_path() -> Iterator[None]:
     finally:
         if isinstance(meipass, str) and meipass:
             kernel32.SetDllDirectoryW(meipass)
-
-
-def _child_process_environment(
-    environment: Mapping[str, str] | None = None,
-) -> dict[str, str]:
-    """Return a subprocess environment independent from PyInstaller internals."""
-
-    child_environment = dict(os.environ if environment is None else environment)
-    meipass = getattr(sys, "_MEIPASS", None)
-    if isinstance(meipass, str) and meipass:
-        child_environment["PATH"] = os.pathsep.join(
-            path
-            for path in child_environment.get("PATH", "").split(os.pathsep)
-            if path and not _is_relative_to(Path(path), Path(meipass))
-        )
-    return child_environment
-
-
-def _is_relative_to(path: Path, parent: Path) -> bool:
-    """Return whether `path` is inside `parent` without requiring Python 3.9 APIs."""
-
-    try:
-        path.resolve().relative_to(parent.resolve())
-    except OSError:
-        return False
-    except ValueError:
-        return False
-    return True
 
 
 def _app_startup_log_path(command: Sequence[str]) -> Path:

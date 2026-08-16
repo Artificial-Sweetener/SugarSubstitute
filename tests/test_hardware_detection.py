@@ -248,6 +248,44 @@ def test_detect_hardware_routes_by_current_platform(
     assert result == expected
 
 
+@pytest.mark.parametrize(
+    ("platform_name", "expected_platform"),
+    (
+        ("win32", ManagedPlatform.WINDOWS),
+        ("linux", ManagedPlatform.LINUX),
+        ("darwin", ManagedPlatform.MACOS),
+    ),
+)
+def test_forced_cpu_detection_skips_accelerator_probes(
+    monkeypatch: pytest.MonkeyPatch,
+    platform_name: str,
+    expected_platform: ManagedPlatform,
+) -> None:
+    """Forced CPU selection should not execute irrelevant accelerator tooling."""
+
+    monkeypatch.setattr(sys, "platform", platform_name)
+
+    def unexpected_probe() -> HardwareDetectionResult:
+        """Fail if forced CPU detection delegates to a platform probe."""
+
+        raise AssertionError("accelerator probe should not run")
+
+    monkeypatch.setattr(hardware_detection, "detect_windows_hardware", unexpected_probe)
+    monkeypatch.setattr(hardware_detection, "detect_linux_hardware", unexpected_probe)
+    monkeypatch.setattr(hardware_detection, "detect_macos_hardware", unexpected_probe)
+
+    result = hardware_detection.detect_hardware(force_cpu=True)
+
+    assert result.platform is expected_platform
+    assert result.adapters == ()
+    assert result.preferred_accelerator is AcceleratorClass.CPU
+    assert result.tooling == HardwareToolingAvailability(
+        nvidia_smi=False,
+        amd_tooling=False,
+        intel_xpu_tooling=False,
+    )
+
+
 def test_detect_macos_hardware_selects_apple_silicon_mps() -> None:
     """Apple ARM hardware should normalize to the MPS accelerator class."""
 

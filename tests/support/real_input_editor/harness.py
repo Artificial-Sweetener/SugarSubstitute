@@ -22,9 +22,10 @@ import copy
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import patch
 from uuid import UUID
 
-from PySide6.QtCore import QPoint, QRectF, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QRectF, Qt
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
@@ -75,7 +76,15 @@ class RealShellInputEditorHarness:
     ) -> None:
         """Build a deterministic shell, project boundary, and inpaint editor panel."""
         self.root = Path(root)
-        self._base = RealShellPromptEditorHarness()
+        self._closed = False
+        with patch.dict(
+            "os.environ",
+            {
+                "SUGAR_SUBSTITUTE_STARTUP_HARNESS": "1",
+                "SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM": "1",
+            },
+        ):
+            self._base = RealShellPromptEditorHarness()
         self.shell = cast(Any, self._base.shell)
         self.shell.path_bundle = self._path_bundle(self.root)
         self.shell.node_definition_gateway.install_recorded_definitions(
@@ -236,7 +245,23 @@ class RealShellInputEditorHarness:
 
     def close(self) -> None:
         """Release every real shell widget and document runtime."""
+
+        if self._closed:
+            return
+        self._closed = True
+        input_document = self.input_canvas.document
+        output_document = self.shell.output_canvas.document
+        execution_runtimes = (
+            input_document.runtime.execution_runtime,
+            output_document.runtime.execution_runtime,
+        )
         self._base.close()
+        input_document.close()
+        output_document.close()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        self.process_events(8)
+        for execution_runtime in execution_runtimes:
+            execution_runtime.shutdown(wait=True)
 
     def _mount_workflow(self, workflow: WorkflowState) -> None:
         """Install one workflow and its real editor-panel surface."""

@@ -30,6 +30,14 @@ from substitute.app.bootstrap.localization_composition import (
     ComfyNodeLocalizationRuntime,
     build_comfy_node_localization_runtime,
 )
+from substitute.app.bootstrap.persistent_cache_catalog import (
+    CACHE_ID_COMFY_I18N,
+    CACHE_ID_RESTORE_PROJECTION,
+)
+from substitute.app.bootstrap.persistent_cache_runtime import (
+    PersistentCacheRuntime,
+    prepare_persistent_cache_runtime,
+)
 from substitute.application.appearance import ActiveAppearanceBaseline
 from substitute.application.execution import (
     ExecutionContext,
@@ -68,6 +76,7 @@ class ApplicationRuntimeServices:
     comfy_node_localization: ComfyNodeLocalizationRuntime
     appearance_runtime: AppearanceRuntimeController
     active_appearance_baseline: ActiveAppearanceBaseline
+    persistent_cache_runtime: PersistentCacheRuntime
     session_snapshot_repository: SessionSnapshotRepository
     restore_projection_cache_repository: RestoreProjectionCacheRepository
     session_autosave_service: SessionAutosaveService
@@ -85,9 +94,14 @@ def build_application_runtime_services(
 ) -> ApplicationRuntimeServices:
     """Compose process-lifetime services available to shell construction."""
 
+    persistent_cache_runtime = prepare_persistent_cache_runtime(
+        context.cache_dir,
+        installation_root=context.install_root,
+        legacy_model_metadata_root=context.model_metadata_dir,
+    )
     session_snapshot_repository = FileSessionSnapshotRepository(context.session_dir)
     restore_projection_cache_repository = FileRestoreProjectionCacheRepository(
-        context.cache_dir
+        persistent_cache_runtime.prepared.namespace(CACHE_ID_RESTORE_PROJECTION).path
     )
     execution_runtime = ExecutionRuntime()
     qt_owner = _application_qt_owner()
@@ -103,7 +117,9 @@ def build_application_runtime_services(
         qt_owner,
         manager=localization_manager,
         endpoint=context.comfy_target.endpoint,
-        cache_root=context.cache_dir,
+        cache_root=persistent_cache_runtime.prepared.namespace(
+            CACHE_ID_COMFY_I18N
+        ).path,
         background_scheduler=comfy_catalog_scheduler.schedule,
     )
     autosave_scheduler = QtUiScheduler(qt_owner)
@@ -128,6 +144,7 @@ def build_application_runtime_services(
         active_appearance_baseline=ActiveAppearanceBaseline(
             appearance_runtime.load_preferences()
         ),
+        persistent_cache_runtime=persistent_cache_runtime,
         session_snapshot_repository=session_snapshot_repository,
         restore_projection_cache_repository=restore_projection_cache_repository,
         session_autosave_service=SessionAutosaveService(

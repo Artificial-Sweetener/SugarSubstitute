@@ -239,7 +239,12 @@ class StartupManagedReadyShellLauncher:
                 registry=self.startup_resources,
                 model_metadata_refreshes=self.startup_resources.metadata_refreshes,
                 model_metadata_service_factory=lambda: (
-                    self.shell_ports.build_model_metadata_refresh_service(context)
+                    self.shell_ports.build_model_metadata_refresh_service(
+                        context,
+                        cast(
+                            Any, self.runtime_services
+                        ).persistent_cache_runtime.prepared,
+                    )
                 ),
                 model_metadata_refresh_handle_factory=(
                     self._create_model_metadata_refresh_handle

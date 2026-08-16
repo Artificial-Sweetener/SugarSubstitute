@@ -28,6 +28,7 @@ from sugarsubstitute_shared.launcher_update.targets import (
     MACOS_ARM64_BUNDLE,
     WINDOWS_X64_BUNDLE,
 )
+from sugarsubstitute_shared.launcher_version import safe_launcher_version
 
 
 class LauncherOperatingSystem(str, Enum):
@@ -63,7 +64,12 @@ class InstallerSpecification:
     """Own the release filename for one native installer format."""
 
     format: InstallerFormat
-    filename: str
+    filename_template: str
+
+    def filename_for(self, version: str) -> str:
+        """Return the public installer filename bound to one safe version."""
+
+        return self.filename_template.format(version=safe_launcher_version(version))
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +100,28 @@ class LauncherTarget:
 
         resolved_path = executable_path.expanduser().resolve()
         return resolved_path.parents[self.executable_install_root_parent]
+
+    def install_root_for_invocation(self, invocation_path: Path) -> Path:
+        """Resolve the install root without dereferencing the invoked bundle path."""
+
+        absolute_path = invocation_path.expanduser().absolute()
+        return absolute_path.parents[self.executable_install_root_parent]
+
+    def install_root_for_support_path(self, support_path: Path) -> Path | None:
+        """Resolve the install root when a frozen support path matches this target."""
+
+        resolved_support_path = support_path.expanduser().resolve()
+        support_parts = self.support_relative_path.parts
+        if len(resolved_support_path.parts) <= len(support_parts):
+            return None
+        install_root = resolved_support_path
+        for _part in support_parts:
+            install_root = install_root.parent
+        if (
+            install_root / self.support_relative_path
+        ).resolve() != resolved_support_path:
+            return None
+        return install_root
 
     def installer(self, installer_format: InstallerFormat) -> InstallerSpecification:
         """Return the native installer specification for one supported format."""
@@ -130,7 +158,7 @@ WINDOWS_X64 = LauncherTarget(
     installers=(
         InstallerSpecification(
             InstallerFormat.WINDOWS_EXE,
-            "SugarSubstitute-Installer-Windows-x64.exe",
+            "SugarSubstitute-{version}-Windows-x64-Setup.exe",
         ),
     ),
     installer_payload_archive_prefix=(
@@ -152,7 +180,7 @@ MACOS_ARM64 = LauncherTarget(
     installers=(
         InstallerSpecification(
             InstallerFormat.DMG,
-            "SugarSubstitute-Installer-macOS-Apple-Silicon.dmg",
+            "SugarSubstitute-{version}-macOS-Apple-Silicon.dmg",
         ),
     ),
     installer_payload_archive_prefix=(
@@ -174,11 +202,11 @@ LINUX_X64 = LauncherTarget(
     installers=(
         InstallerSpecification(
             InstallerFormat.APPIMAGE,
-            "SugarSubstitute-Installer-Linux-x86_64.AppImage",
+            "SugarSubstitute-{version}-Linux-x86_64.AppImage",
         ),
         InstallerSpecification(
             InstallerFormat.DEB,
-            "SugarSubstitute-Installer-Linux-amd64.deb",
+            "SugarSubstitute-{version}-Linux-amd64.deb",
         ),
     ),
     installer_payload_archive_prefix="SugarSubstitute-installer-payload-linux-x64-v",

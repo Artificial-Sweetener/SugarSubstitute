@@ -21,7 +21,6 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from substitute.application.workspace_state.restore_projection_models import (
-    APP_PROJECTION_VERSION,
     RESTORE_PROJECTION_CACHE_SCHEMA_VERSION,
     CachedCubeProjection,
     CachedCubeStackProjection,
@@ -43,15 +42,11 @@ def restore_projection_artifact_to_json(
     return {
         "schema_version": artifact.schema_version,
         "created_at": artifact.created_at,
-        "app_projection_version": artifact.app_projection_version,
         "target_key": artifact.target_key,
         "workspace_fingerprint": artifact.workspace_fingerprint,
         "active_route": artifact.active_route,
         "active_workflow_id": artifact.active_workflow_id,
         "workflows": [_workflow_to_json(item) for item in artifact.workflows],
-        "prompt_editor_feature_profile_fingerprint": (
-            artifact.prompt_editor_feature_profile_fingerprint
-        ),
         "node_definition_fingerprints": dict(artifact.node_definition_fingerprints),
         "cube_definition_fingerprints": dict(artifact.cube_definition_fingerprints),
         "projection": artifact.projection,
@@ -67,16 +62,9 @@ def restore_projection_artifact_from_json(value: object) -> RestoreProjectionArt
         raise ValueError(
             f"Unsupported restore projection schema_version {schema_version}."
         )
-    app_projection_version = _required_int(payload, "app_projection_version")
-    if app_projection_version != APP_PROJECTION_VERSION:
-        raise ValueError(
-            "Unsupported restore projection app_projection_version "
-            f"{app_projection_version}."
-        )
     return RestoreProjectionArtifact(
         schema_version=schema_version,
         created_at=_required_str(payload, "created_at"),
-        app_projection_version=app_projection_version,
         target_key=_required_str(payload, "target_key"),
         workspace_fingerprint=_required_str(payload, "workspace_fingerprint"),
         active_route=_required_str(payload, "active_route"),
@@ -84,9 +72,6 @@ def restore_projection_artifact_from_json(value: object) -> RestoreProjectionArt
         workflows=tuple(
             _workflow_from_json(item)
             for item in _sequence(payload.get("workflows"), "workflows")
-        ),
-        prompt_editor_feature_profile_fingerprint=_required_str(
-            payload, "prompt_editor_feature_profile_fingerprint"
         ),
         node_definition_fingerprints=_str_mapping(
             payload.get("node_definition_fingerprints"),

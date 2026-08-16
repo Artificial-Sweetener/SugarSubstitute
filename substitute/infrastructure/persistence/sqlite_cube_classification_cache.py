@@ -25,9 +25,15 @@ from pathlib import Path
 import sqlite3
 from typing import Iterator
 
+from substitute.application.cache_lifecycle.cache_ids import (
+    CACHE_ID_CUBE_CLASSIFICATIONS,
+)
 from substitute.application.ports import (
     CachedCubePickerClassification,
     CubeClassificationCacheKey,
+)
+from substitute.infrastructure.cache_lifecycle.sqlite_recovery import (
+    initialize_recoverable_sqlite,
 )
 from substitute.shared.logging.logger import get_logger, log_info, log_debug
 
@@ -51,7 +57,17 @@ class SqliteCubeClassificationCache:
         self._database_path = Path(cache_dir) / filename
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
         self._clock = clock or _utc_now
-        self._initialize_database()
+        initialize_recoverable_sqlite(
+            self._database_path,
+            cache_id=CACHE_ID_CUBE_CLASSIFICATIONS,
+            initialize=self._create_or_validate_database,
+            select_database=self._select_database,
+        )
+
+    def _select_database(self, database_path: Path) -> None:
+        """Select a recovery database when the invalid file remains locked."""
+
+        self._database_path = database_path
 
     def read_classification(
         self,
@@ -199,7 +215,7 @@ class SqliteCubeClassificationCache:
         finally:
             connection.close()
 
-    def _initialize_database(self) -> None:
+    def _create_or_validate_database(self) -> None:
         """Create cache schema and validate stored schema version."""
 
         with self._connect() as connection:

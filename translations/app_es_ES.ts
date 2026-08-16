@@ -295,7 +295,7 @@ Vista previa del prompt:
       <translation>%1% completado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="726"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="732"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
     </message>
@@ -525,7 +525,7 @@ Vista previa del prompt:
       <translation>Cubos afectados</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="625"></location>
+      <location filename="../substitute/presentation/canvas/output/output_canvas_navigation_bar.py" line="616"></location>
       <source>All</source>
       <translation>Todo</translation>
     </message>
@@ -1475,7 +1475,7 @@ Vista previa del prompt:
       <translation>Comfy ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="844"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="841"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy no está disponible</translation>
     </message>
@@ -1895,12 +1895,12 @@ Vista previa del prompt:
       <translation>Continua</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="488"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="486"></location>
       <source>Continuous generation prepared no jobs.</source>
       <translation>La generación continua no preparó ninguna tarea.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="479"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="477"></location>
       <source>Continuous generation requires the generation queue.</source>
       <translation>La generación continua necesita la cola de generación.</translation>
     </message>
@@ -1965,7 +1965,7 @@ Vista previa del prompt:
       <translation>No se pudieron instalar los nodos necesarios de la biblioteca de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="965"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1048"></location>
       <source>Could not load image: %1</source>
       <translation>No se pudo cargar la imagen: %1</translation>
     </message>
@@ -2110,7 +2110,7 @@ Vista previa del prompt:
       <translation>La reparación de las dependencias de cubos modificó el entorno de destino. Reinicia ComfyUI antes de generar con los cubos reparados.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="973"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="979"></location>
       <source>Cube disabled</source>
       <translation>Cubo desactivado</translation>
     </message>
@@ -2623,7 +2623,7 @@ Install these nodes now?</source>
       <translation>Ha fallado: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="906"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="905"></location>
       <source>Failed to allocate output run number.</source>
       <translation>No se pudo asignar el número de ejecución de salida.</translation>
     </message>
@@ -2633,7 +2633,7 @@ Install these nodes now?</source>
       <translation>No se pudo capturar el contenido del lienzo de entrada para la generación.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="502"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="500"></location>
       <source>Failed to connect generation listener session</source>
       <translation>No se pudo conectar la sesión de escucha de generación</translation>
     </message>
@@ -2693,12 +2693,12 @@ Install these nodes now?</source>
       <translation>No se pudo actualizar la visibilidad del editor tras insertar el cubo de forma incremental</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>No se pudo preparar el recurso del flujo de trabajo %1.%2: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="641"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="635"></location>
       <source>Failed to start generation listener</source>
       <translation>No se pudo iniciar la escucha de generación</translation>
     </message>
@@ -2773,12 +2773,12 @@ Install these nodes now?</source>
       <translation>Corrige la instalación guardada para que Substitute pueda volver a abrirse.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="68"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="71"></location>
       <source>Flip horizontal</source>
       <translation>Voltear horizontalmente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="73"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="76"></location>
       <source>Flip vertical</source>
       <translation>Voltear verticalmente</translation>
     </message>
@@ -2833,12 +2833,12 @@ Install these nodes now?</source>
       <translation>Generar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="522"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="489"></location>
       <source>Generate scene could not find runnable scene: %1</source>
       <translation>La generación de escena no encontró ninguna escena ejecutable: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="977"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1060"></location>
       <source>Generated image load failed</source>
       <translation>No se pudo cargar la imagen generada</translation>
     </message>
@@ -2863,7 +2863,7 @@ Install these nodes now?</source>
       <translation>No se puede generar porque todos los cubos tienen un error de ejecución.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1097"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1096"></location>
       <source>Generation dispatch failed.</source>
       <translation>No se pudo enviar la generación.</translation>
     </message>
@@ -2883,12 +2883,12 @@ Install these nodes now?</source>
       <translation>La generación ha fallado durante %1: %2</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="881"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="878"></location>
       <source>Generation preflight failed</source>
       <translation>La comprobación previa a la generación ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="697"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="695"></location>
       <source>Generation preparation failed</source>
       <translation>No se pudo preparar la generación</translation>
     </message>
@@ -2918,12 +2918,12 @@ Install these nodes now?</source>
       <translation>Cola de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="534"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="532"></location>
       <source>Generation queue preparation bindings are unavailable.</source>
       <translation>Las integraciones de preparación de la cola de generación no están disponibles.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="528"></location>
+      <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="526"></location>
       <source>Generation queue snapshot bindings are unavailable.</source>
       <translation>Las integraciones de instantáneas de la cola de generación no están disponibles.</translation>
     </message>
@@ -3423,7 +3423,7 @@ Install these nodes now?</source>
       <translation>Palabras de activación de LoRA</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="969"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1052"></location>
       <source>Load Error</source>
       <translation>Error de carga</translation>
     </message>
@@ -3878,7 +3878,7 @@ Install these nodes now?</source>
       <translation>No se encontraron cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="189"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_view.py" line="198"></location>
       <source>No input canvas nodes</source>
       <translation>No hay nodos de lienzo de entrada</translation>
     </message>
@@ -4033,7 +4033,7 @@ Install these nodes now?</source>
       <translation>Sin asignar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_context_projection.py" line="68"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_tool_context_projection.py" line="76"></location>
       <source>Nothing to transform!</source>
       <translation>¡No hay nada que transformar!</translation>
     </message>
@@ -4618,7 +4618,7 @@ Install these nodes now?</source>
       <translation>Añadir esta escena a la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="424"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="392"></location>
       <source>Queue this scene requires the generation queue.</source>
       <translation>Para añadir esta escena se necesita la cola de generación.</translation>
     </message>
@@ -4703,7 +4703,7 @@ Install these nodes now?</source>
       <translation>Rojo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="528"></location>
+      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/history_controls.py" line="50"></location>
       <source>Redo</source>
       <translation>Rehacer</translation>
     </message>
@@ -4758,7 +4758,7 @@ Install these nodes now?</source>
       <translation>Vuelve a instalar la dependencia nativa que falla para esta configuración de Python, PyTorch, CUDA y Windows.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="346"></location>
+      <location filename="../substitute/app/bootstrap/shell_reload_adapter.py" line="335"></location>
       <source>Reload GUI</source>
       <translation>Recargar la interfaz</translation>
     </message>
@@ -5052,7 +5052,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reintentar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="790"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="796"></location>
       <source>Reveal Hidden Cards</source>
       <translation>Mostrar tarjetas ocultas</translation>
     </message>
@@ -5142,12 +5142,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Presentación enriquecida de prompts</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="58"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="61"></location>
       <source>Rotate left</source>
       <translation>Girar a la izquierda</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="63"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="66"></location>
       <source>Rotate right</source>
       <translation>Girar a la derecha</translation>
     </message>
@@ -5342,12 +5342,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Escena</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="481"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="448"></location>
       <source>Scene generation requires an active workflow prompt index.</source>
       <translation>La generación de escenas necesita un índice de prompts activo en el flujo de trabajo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="494"></location>
+      <location filename="../substitute/presentation/shell/workspace_scene_generation_controller.py" line="461"></location>
       <source>Scene generation requires at least one **scene marker in the first positive prompt.</source>
       <translation>La generación de escenas necesita al menos un marcador **scene en el primer prompt positivo.</translation>
     </message>
@@ -5667,12 +5667,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>El cierre se completó correctamente.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="314"></location>
+      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="316"></location>
       <source>Shutdown returned an invalid cleanup result.</source>
       <translation>El cierre devolvió un resultado de limpieza no válido.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="452"></location>
+      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="454"></location>
       <source>Shutdown timed out before cleanup could finish.</source>
       <translation>Se agotó el tiempo de espera del cierre antes de que terminara la limpieza.</translation>
     </message>
@@ -6262,7 +6262,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración de carpetas guardada de Substitute necesita corrección</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2859"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2860"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -7002,7 +7002,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Transformar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="51"></location>
+      <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="54"></location>
       <source>Transform selection</source>
       <translation>Transformar selección</translation>
     </message>
@@ -7097,7 +7097,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Subraya los segmentos repetidos del prompt y ofrece acciones para corregirlos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="518"></location>
+      <location filename="../substitute/presentation/canvas/shared/contextual_toolbar/history_controls.py" line="45"></location>
       <source>Undo</source>
       <translation>Deshacer</translation>
     </message>
@@ -7712,12 +7712,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>modelo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="287"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="294"></location>
       <source>node missing from cube buffer</source>
       <translation>falta el nodo en el búfer del cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="308"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_build_session.py" line="315"></location>
       <source>node payload is not a mapping</source>
       <translation>la carga útil del nodo no es una asignación</translation>
     </message>
@@ -7727,7 +7727,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>ninguno</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="548"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="546"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>queue_prompt no devolvió prompt_id</translation>
     </message>

@@ -34,8 +34,8 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.payload import safe_extract_zip
 from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.domain.onboarding import ComfyEndpoint
-from substitute.infrastructure.comfy.managed_launcher import (
-    _build_managed_launch_command,
+from substitute.infrastructure.comfy.managed_launch_command import (
+    build_managed_launch_command,
 )
 from substitute.infrastructure.comfy.standalone_environment.extraction_process import (
     NativeSevenZipExtractionProcess,
@@ -283,7 +283,7 @@ def test_managed_comfy_bootstrap_enters_long_workspace(tmp_path: Path) -> None:
         "Path('cwd-proof.txt').write_text('|'.join(sys.argv[1:]), encoding='utf-8')\n",
         encoding="utf-8",
     )
-    command = _build_managed_launch_command(
+    command = build_managed_launch_command(
         venv_python=Path(sys.executable),
         endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
         workspace=workspace,
@@ -292,6 +292,7 @@ def test_managed_comfy_bootstrap_enters_long_workspace(tmp_path: Path) -> None:
             workspace=workspace,
             python_executable=Path(sys.executable),
         ),
+        force_cpu_mode=False,
     )
 
     result = run_command(command, cwd=workspace, check=True)

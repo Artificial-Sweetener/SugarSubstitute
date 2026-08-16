@@ -464,12 +464,12 @@ def test_lazy_model_catalog_snapshot_store_defers_sqlite_setup() -> None:
         import tempfile
         from pathlib import Path
 
-        from substitute.app.bootstrap.composition import (
-            _LazyModelCatalogSnapshotStore,
+        from substitute.app.bootstrap.persistent_cache_composition import (
+            LazyModelCatalogSnapshotStore,
         )
 
         root = Path(tempfile.mkdtemp())
-        store = _LazyModelCatalogSnapshotStore(root)
+        store = LazyModelCatalogSnapshotStore(root)
         module_name = (
             "substitute.infrastructure.persistence."
             "sqlite_model_catalog_snapshot_store"
@@ -491,7 +491,7 @@ def test_lazy_model_catalog_snapshot_store_defers_sqlite_setup() -> None:
     )
 
     assert json.loads(completed.stdout.strip()) == {
-        "class": "_LazyModelCatalogSnapshotStore",
+        "class": "LazyModelCatalogSnapshotStore",
         "module_loaded": False,
         "database_exists": False,
     }
@@ -721,11 +721,11 @@ def test_lazy_model_thumbnail_store_defers_thumbnail_caching_imports() -> None:
         """
         import json
         import sys
-        from pathlib import Path
+        from substitute.app.bootstrap.persistent_cache_composition import (
+            LazyModelThumbnailStore,
+        )
 
-        from substitute.app.bootstrap.composition import _LazyModelThumbnailStore
-
-        store = _LazyModelThumbnailStore(Path("."))
+        store = LazyModelThumbnailStore()
         forbidden = {
             "requests",
             "substitute.infrastructure.persistence.model_thumbnail_store",
@@ -745,7 +745,7 @@ def test_lazy_model_thumbnail_store_defers_thumbnail_caching_imports() -> None:
         text=True,
     )
 
-    assert completed.stdout.strip() == '["_LazyModelThumbnailStore", []]'
+    assert completed.stdout.strip() == '["LazyModelThumbnailStore", []]'
 
 
 def test_lazy_model_thumbnail_store_cache_calls_do_not_evaluate_type_only_names(
@@ -753,7 +753,9 @@ def test_lazy_model_thumbnail_store_cache_calls_do_not_evaluate_type_only_names(
 ) -> None:
     """Lazy thumbnail cache casts should not require type-only imports at runtime."""
 
-    from substitute.app.bootstrap.composition import _LazyModelThumbnailStore
+    from substitute.app.bootstrap.persistent_cache_composition import (
+        LazyModelThumbnailStore,
+    )
 
     remote_result = object()
     local_result = object()
@@ -797,7 +799,7 @@ def test_lazy_model_thumbnail_store_cache_calls_do_not_evaluate_type_only_names(
             )
             return local_result
 
-    store = _LazyModelThumbnailStore(Path("."))
+    store = LazyModelThumbnailStore()
     monkeypatch.setattr(store, "_resolve", lambda: _Store())
 
     assert (

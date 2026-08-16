@@ -57,7 +57,9 @@ def test_create_startup_shell_runtime_graph_wires_shutdown_and_reload(
         show_main_window=lambda **_kwargs: object(),
         show_built_main_window=lambda _shell_frame, **_kwargs: _shell_frame,
         main_window_for_shell=lambda _shell_frame: object(),
-        build_model_metadata_refresh_service=lambda _context: object(),
+        build_model_metadata_refresh_service=(
+            lambda _context, _prepared_caches: object()
+        ),
         is_comfy_http_ready=lambda _host, _port: False,
     )
     shutdown_runtime_obj = _ShutdownRuntime(managed_lease=managed_lease)

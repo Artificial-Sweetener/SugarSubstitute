@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Contract tests for the paired local canvas editable-installation tool."""
+"""Contract tests for the complete local canvas editable-installation tool."""
 
 from __future__ import annotations
 
@@ -28,19 +28,23 @@ from tools.install_local_canvas_editables import (
 )
 
 
-def test_install_uses_one_paired_no_dependency_editable_overlay(tmp_path: Path) -> None:
-    """The development installer must overlay both split packages together."""
+def test_install_uses_one_cohesive_no_dependency_editable_overlay(
+    tmp_path: Path,
+) -> None:
+    """The development installer must overlay the complete canvas stack together."""
 
-    qpane_root = _write_qpane_checkout(tmp_path / "qpane")
+    canvas_root = _write_canvas_checkout(tmp_path / "CuteCanvas")
     commands: list[tuple[str, ...]] = []
 
     install_local_canvas_editables(
         python_executable=tmp_path / "venv" / "python.exe",
-        qpane_root=qpane_root,
+        canvas_root=canvas_root,
         runner=lambda command: commands.append(tuple(command)),
     )
 
-    qpane_package, cutecanvas_package = local_canvas_package_roots(qpane_root)
+    ferrastra_package, qpane_package, cutecanvas_package = local_canvas_package_roots(
+        canvas_root
+    )
     assert commands[0][:5] == (
         str((tmp_path / "venv" / "python.exe").resolve()),
         "-m",
@@ -49,9 +53,19 @@ def test_install_uses_one_paired_no_dependency_editable_overlay(tmp_path: Path) 
         "PySide6==6.11.1",
     )
     assert not any(
-        requirement.startswith(("qpane", "cutecanvas")) for requirement in commands[0]
+        requirement.startswith(("ferrastra", "qpane", "cutecanvas"))
+        for requirement in commands[0]
     )
-    assert commands[1:3] == [
+    assert commands[1:4] == [
+        (
+            str((tmp_path / "venv" / "python.exe").resolve()),
+            "-m",
+            "pip",
+            "install",
+            "--no-deps",
+            "--editable",
+            str(ferrastra_package),
+        ),
         (
             str((tmp_path / "venv" / "python.exe").resolve()),
             "-m",
@@ -71,8 +85,8 @@ def test_install_uses_one_paired_no_dependency_editable_overlay(tmp_path: Path) 
             f"{cutecanvas_package}[sam]",
         ),
     ]
-    assert commands[3][1] == "-c"
-    assert "import cutecanvas, qpane" in commands[3][2]
+    assert commands[4][1] == "-c"
+    assert "import cutecanvas, ferrastra, qpane" in commands[4][2]
 
 
 def test_package_root_validation_rejects_an_incomplete_checkout(tmp_path: Path) -> None:
@@ -82,10 +96,10 @@ def test_package_root_validation_rejects_an_incomplete_checkout(tmp_path: Path) 
         local_canvas_package_roots(tmp_path / "missing")
 
 
-def _write_qpane_checkout(root: Path) -> Path:
-    """Create the minimal paired package structure used by this contract test."""
+def _write_canvas_checkout(root: Path) -> Path:
+    """Create the minimal canvas-stack package structure used by this test."""
 
-    for package in ("qpane", "cutecanvas"):
+    for package in ("ferrastra", "qpane", "cutecanvas"):
         package_root = root / "packages" / package
         package_root.mkdir(parents=True)
         (package_root / "pyproject.toml").write_text("[project]\n", encoding="utf-8")

@@ -684,6 +684,7 @@ class OnboardingFlowService:
                     SetupTransactionStatus.MANAGED_WORKSPACE_PROVISIONING,
                 )
                 managed_model_root = self._managed_model_root_for_save(draft)
+                is_repair = self.transaction_mode is SetupTransactionMode.REPAIR
                 self.managed_workspace_provisioner(
                     workspace=(
                         pending_context.comfy_target.workspace_path
@@ -694,10 +695,9 @@ class OnboardingFlowService:
                     force_cpu_mode=draft.force_cpu_mode,
                     prefer_edge_torch=draft.prefer_edge_torch,
                     prefer_edge_comfy_channel=draft.prefer_edge_comfy_channel,
+                    repair_existing_runtime=is_repair,
                     refresh_core_nodepacks=(
-                        frozenset(CoreNodepackId)
-                        if self.transaction_mode is SetupTransactionMode.REPAIR
-                        else frozenset()
+                        frozenset(CoreNodepackId) if is_repair else frozenset()
                     ),
                     on_status=on_status,
                     on_log=on_log,
@@ -944,13 +944,16 @@ class OnboardingFlowService:
                 error=error,
             ) from error
 
-    @staticmethod
     def _recover_stale_attached_managed_draft(
+        self,
         *,
         bundle: OnboardingBundleProtocol,
         draft: OnboardingDraftState,
     ) -> OnboardingDraftState:
-        """Prefer recovered managed-local state over stale attached-local UI drafts."""
+        """Prefer recovered managed-local state for stale repair retries only."""
+
+        if self.transaction_mode is not SetupTransactionMode.REPAIR:
+            return draft
 
         if ComfyTargetMode(draft.target_mode) is not ComfyTargetMode.ATTACHED_LOCAL:
             return draft

@@ -49,7 +49,7 @@ class ComfyI18nCache:
         fingerprint = sha256(
             f"{endpoint.host.casefold()}:{endpoint.port}".encode("utf-8")
         ).hexdigest()[:24]
-        self._directory = cache_root / "comfy_i18n"
+        self._directory = cache_root
         self._path = self._directory / f"{fingerprint}.json"
         self._temp_path = self._directory / f"{fingerprint}.tmp"
 

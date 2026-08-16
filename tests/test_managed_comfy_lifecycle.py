@@ -28,9 +28,6 @@ from typing import IO, Any, cast
 
 import pytest
 
-from substitute.application.onboarding.managed_runtime_service import (
-    ManagedRuntimeService,
-)
 from substitute.application.execution import (
     CancellationSource,
     ExecutionContext,
@@ -44,11 +41,11 @@ from substitute.app.bootstrap.lifecycle import ManagedComfyCleanupOutcome
 from substitute.domain.onboarding import (
     ComfyEndpoint,
     ManagedRuntimeConfiguration,
-    SetupTransactionStatus,
 )
 from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import (
     posix_guardian_containment,
+    posix_guardian_entry,
     managed_launcher,
     managed_shutdown,
     process_manager,
@@ -70,6 +67,10 @@ from substitute.infrastructure.comfy.managed_process_registry import (
 from substitute.infrastructure.comfy.managed_startup_monitor import (
     ManagedStartupReadinessResult,
 )
+from substitute.infrastructure.comfy.managed_validation import (
+    workspace_main_path,
+    workspace_python_path,
+)
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedContainmentLaunchRequest,
     ManagedContainmentLaunchResult,
@@ -86,9 +87,6 @@ from substitute.infrastructure.comfy.windows_job_containment import (
 )
 from substitute.infrastructure.onboarding.file_managed_runtime_repository import (
     FileManagedRuntimeConfigurationRepository,
-)
-from substitute.infrastructure.onboarding.file_setup_transaction_repository import (
-    FileSetupTransactionRepository,
 )
 
 
@@ -344,79 +342,39 @@ def test_cleanup_handler_without_managed_state_maps_to_no_action_required() -> N
     assert result.outcome is ManagedComfyCleanupOutcome.NO_ACTION_REQUIRED
 
 
-def test_startup_revalidation_transaction_created_for_missing_workspace(
+def test_normal_managed_launch_never_runs_setup_reconciliation(tmp_path: Path) -> None:
+    """Ordinary launch should start the installed runtime without mutating it."""
+
+    workspace = _write_launchable_workspace(tmp_path / "comfyui")
+    python_executable = workspace_python_path(workspace)
+
+    resolved = managed_launcher._resolve_launch_python(
+        workspace=workspace,
+        python_executable=None,
+    )
+
+    assert resolved == python_executable
+    source = Path(managed_launcher.__file__).read_text(encoding="utf-8")
+    assert "ensure_managed_comfy_setup" not in source
+    assert "prepare_attached_comfy_setup" not in source
+    assert "startup_revalidation" not in source
+
+
+def test_normal_managed_launch_fails_closed_when_workspace_is_incomplete(
     tmp_path: Path,
 ) -> None:
-    """Launcher setup work should leave pending state if startup is interrupted."""
+    """Ordinary launch should route incomplete setup to recovery without mutation."""
 
-    state_dir = tmp_path / "state"
-    runtime_service = ManagedRuntimeService(
-        FileManagedRuntimeConfigurationRepository(state_dir),
-        selection_policy=_StaticSelectionPolicy(),
-    )
+    workspace = tmp_path / "comfyui"
 
-    transaction = managed_launcher._begin_startup_revalidation_transaction_if_needed(
-        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
-        workspace=tmp_path / "comfyui",
-        runtime_state_dir=state_dir,
-        runtime_service=runtime_service,
-    )
+    with pytest.raises(FileNotFoundError) as error:
+        managed_launcher._resolve_launch_python(
+            workspace=workspace,
+            python_executable=None,
+        )
 
-    assert transaction is not None
-    saved = FileSetupTransactionRepository(state_dir).load()
-    assert saved is not None
-    assert saved.status is SetupTransactionStatus.MANAGED_WORKSPACE_PROVISIONING
-
-
-def test_startup_revalidation_transaction_cleared_after_success(
-    tmp_path: Path,
-) -> None:
-    """Successful startup revalidation should remove pending setup state."""
-
-    state_dir = tmp_path / "state"
-    runtime_service = ManagedRuntimeService(
-        FileManagedRuntimeConfigurationRepository(state_dir),
-        selection_policy=_StaticSelectionPolicy(),
-    )
-    transaction = managed_launcher._begin_startup_revalidation_transaction_if_needed(
-        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
-        workspace=tmp_path / "comfyui",
-        runtime_state_dir=state_dir,
-        runtime_service=runtime_service,
-    )
-
-    managed_launcher._finish_startup_revalidation_transaction(transaction)
-
-    assert FileSetupTransactionRepository(state_dir).exists() is False
-
-
-def test_startup_revalidation_transaction_records_failure(
-    tmp_path: Path,
-) -> None:
-    """Failed startup revalidation should persist recoverable failure detail."""
-
-    state_dir = tmp_path / "state"
-    runtime_service = ManagedRuntimeService(
-        FileManagedRuntimeConfigurationRepository(state_dir),
-        selection_policy=_StaticSelectionPolicy(),
-    )
-    transaction = managed_launcher._begin_startup_revalidation_transaction_if_needed(
-        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
-        workspace=tmp_path / "comfyui",
-        runtime_state_dir=state_dir,
-        runtime_service=runtime_service,
-    )
-
-    managed_launcher._fail_startup_revalidation_transaction(
-        transaction,
-        RuntimeError("interrupted"),
-    )
-
-    saved = FileSetupTransactionRepository(state_dir).load()
-    assert saved is not None
-    assert saved.status is SetupTransactionStatus.FAILED
-    assert saved.failure is not None
-    assert saved.failure.message == "interrupted"
+    assert error.value.args == (workspace_main_path(workspace),)
+    assert workspace.exists() is False
 
 
 def test_cleanup_handler_maps_termination_timeout_to_failure(tmp_path: Path) -> None:
@@ -632,11 +590,7 @@ def test_background_start_returns_before_listener_probe_completes(
         "probe_managed_listener",
         probe_managed_listener,
     )
-    monkeypatch.setattr(
-        managed_launcher,
-        "ensure_managed_comfy_setup",
-        lambda **kwargs: tmp_path / ".venv" / "Scripts" / "python.exe",
-    )
+    _write_launchable_workspace(tmp_path / "comfyui")
     monkeypatch.setattr(
         managed_launcher,
         "wait_for_managed_startup_ready",
@@ -709,11 +663,7 @@ def test_background_start_reaps_stale_owned_listener_before_spawn(
             None if metadata is None else metadata.pid,
         ),
     )
-    monkeypatch.setattr(
-        managed_launcher,
-        "ensure_managed_comfy_setup",
-        lambda **kwargs: tmp_path / ".venv" / "Scripts" / "python.exe",
-    )
+    _write_launchable_workspace(tmp_path / "comfyui")
     monkeypatch.setattr(
         managed_launcher,
         "wait_for_managed_startup_ready",
@@ -758,11 +708,7 @@ def test_background_start_uses_utf8_for_managed_output_stream(
             reason="absent",
         ),
     )
-    monkeypatch.setattr(
-        managed_launcher,
-        "ensure_managed_comfy_setup",
-        lambda **kwargs: tmp_path / ".venv" / "Scripts" / "python.exe",
-    )
+    _write_launchable_workspace(tmp_path / "comfyui")
     monkeypatch.setattr(
         managed_launcher,
         "wait_for_managed_startup_ready",
@@ -810,6 +756,133 @@ def test_background_start_uses_utf8_for_managed_output_stream(
     assert env["CM_USE_PYGIT2"] == "1"
 
 
+def test_background_start_launches_force_cpu_runtime_with_comfy_cpu_flag(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A managed CPU-only Torch runtime must launch ComfyUI in CPU mode."""
+
+    workspace = _write_launchable_workspace(tmp_path / "comfyui")
+    FileManagedRuntimeConfigurationRepository(tmp_path).save(
+        ManagedRuntimeConfiguration(
+            workspace_path=str(workspace.resolve()),
+            force_cpu_mode=True,
+        )
+    )
+    monkeypatch.setattr(
+        managed_launcher,
+        "probe_managed_listener",
+        lambda **kwargs: ManagedListenerProbeResult(
+            status=ManagedListenerStatus.ABSENT,
+            reason="absent",
+        ),
+    )
+    monkeypatch.setattr(
+        managed_launcher,
+        "wait_for_managed_startup_ready",
+        lambda **kwargs: ManagedStartupReadinessResult(ready=False),
+    )
+    observed_request: dict[str, object] = {}
+
+    class _SpawnedProcess:
+        """Provide the minimal process handle used by managed startup."""
+
+        pid = 791
+        stdout = None
+
+        def poll(self) -> int | None:
+            """Behave like a still-running managed process."""
+
+            return None
+
+    monkeypatch.setattr(
+        managed_launcher,
+        "launch_managed_process",
+        lambda **kwargs: _record_launch_request(
+            observed_request,
+            kwargs["request"],
+            _SpawnedProcess(),
+        ),
+    )
+
+    state = managed_launcher.start_managed_comfy_background(
+        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
+        workspace=workspace,
+        runtime_state_dir=tmp_path,
+        launch_task_factory=_managed_task_factory,
+        process_pump_task_factory=_managed_task_factory,
+    )
+    state.wait_until_finished(timeout=2)
+
+    command = cast(tuple[str, ...], observed_request["command"])
+    assert "--cpu" in command
+
+
+@pytest.mark.parametrize("install_target", ["windows_cpu", "linux_cpu"])
+def test_background_start_preserves_historical_cpu_target_launch_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    install_target: str,
+) -> None:
+    """Historical CPU targets must retain ComfyUI CPU mode after an update."""
+
+    workspace = _write_launchable_workspace(tmp_path / "comfyui")
+    FileManagedRuntimeConfigurationRepository(tmp_path).save(
+        ManagedRuntimeConfiguration(
+            workspace_path=str(workspace.resolve()),
+            install_target=install_target,
+            force_cpu_mode=False,
+        )
+    )
+    monkeypatch.setattr(
+        managed_launcher,
+        "probe_managed_listener",
+        lambda **kwargs: ManagedListenerProbeResult(
+            status=ManagedListenerStatus.ABSENT,
+            reason="absent",
+        ),
+    )
+    monkeypatch.setattr(
+        managed_launcher,
+        "wait_for_managed_startup_ready",
+        lambda **kwargs: ManagedStartupReadinessResult(ready=False),
+    )
+    observed_request: dict[str, object] = {}
+
+    class _SpawnedProcess:
+        """Provide the minimal process handle used by managed startup."""
+
+        pid = 792
+        stdout = None
+
+        def poll(self) -> int | None:
+            """Behave like a still-running managed process."""
+
+            return None
+
+    monkeypatch.setattr(
+        managed_launcher,
+        "launch_managed_process",
+        lambda **kwargs: _record_launch_request(
+            observed_request,
+            kwargs["request"],
+            _SpawnedProcess(),
+        ),
+    )
+
+    state = managed_launcher.start_managed_comfy_background(
+        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
+        workspace=workspace,
+        runtime_state_dir=tmp_path,
+        launch_task_factory=_managed_task_factory,
+        process_pump_task_factory=_managed_task_factory,
+    )
+    state.wait_until_finished(timeout=2)
+
+    command = cast(tuple[str, ...], observed_request["command"])
+    assert "--cpu" in command
+
+
 def test_background_start_traces_managed_startup_phases(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -850,11 +923,7 @@ def test_background_start_traces_managed_startup_phases(
             reason="absent",
         ),
     )
-    monkeypatch.setattr(
-        managed_launcher,
-        "ensure_managed_comfy_setup",
-        lambda **kwargs: tmp_path / ".venv" / "Scripts" / "python.exe",
-    )
+    _write_launchable_workspace(tmp_path / "comfyui")
     monkeypatch.setattr(
         managed_launcher,
         "wait_for_managed_startup_ready",
@@ -895,12 +964,8 @@ def test_background_start_traces_managed_startup_phases(
         "managed_comfy.startup_task.start",
         "span:start:managed_comfy.resolve_listener",
         "span:end:managed_comfy.resolve_listener",
-        "span:start:managed_comfy.startup_revalidation.begin",
-        "span:end:managed_comfy.startup_revalidation.begin",
-        "span:start:managed_comfy.ensure_setup",
-        "span:end:managed_comfy.ensure_setup",
-        "span:start:managed_comfy.startup_revalidation.finish",
-        "span:end:managed_comfy.startup_revalidation.finish",
+        "span:start:managed_comfy.resolve_launch_workspace",
+        "span:end:managed_comfy.resolve_launch_workspace",
         "span:start:managed_comfy.launch_process",
         "span:end:managed_comfy.launch_process",
         "managed_comfy.process_launched",
@@ -1307,6 +1372,100 @@ def test_terminate_process_group_yields_between_probes(
     assert sleep_calls == [0.1]
 
 
+def test_inaccessible_process_group_is_not_owned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Permission denial must not authorize signaling an unrelated group."""
+
+    def deny_signal(_process_group_id: int, _signum: int) -> None:
+        """Simulate a process group that the current install does not own."""
+
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(
+        posix_guardian_containment,
+        "_kill_process_group",
+        deny_signal,
+    )
+
+    assert posix_guardian_containment.is_process_group_running(123) is False
+
+
+def test_process_group_termination_tolerates_ownership_loss_after_probe(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A reused group id must not turn successful cleanup into an exception."""
+
+    monkeypatch.setattr(
+        posix_guardian_containment,
+        "is_process_group_running",
+        lambda _process_group_id: True,
+    )
+
+    def deny_signal(_process_group_id: int, _signum: int) -> None:
+        """Simulate ownership changing between the probe and the signal."""
+
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(
+        posix_guardian_containment,
+        "_kill_process_group",
+        deny_signal,
+    )
+
+    posix_guardian_containment.terminate_process_group(123, timeout_seconds=1.0)
+
+
+def test_guardian_falls_back_to_its_child_when_group_signal_is_denied(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Guardian shutdown must still stop its directly owned managed child."""
+
+    class _ChildProcess:
+        """Expose a directly owned child that exits after SIGTERM."""
+
+        returncode: int | None = None
+
+        def poll(self) -> int | None:
+            """Return the current simulated child state."""
+
+            return self.returncode
+
+        def terminate(self) -> None:
+            """Record orderly direct-child termination."""
+
+            self.returncode = 0
+
+        def kill(self) -> None:
+            """Record forced direct-child termination."""
+
+            self.returncode = -int(getattr(signal, "SIGKILL", signal.SIGTERM))
+
+    def deny_group_signal(_process_group_id: int) -> None:
+        """Simulate macOS denying process-group signaling."""
+
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(
+        posix_guardian_entry,
+        "_terminate_process_group",
+        deny_group_signal,
+    )
+    stop_event = threading.Event()
+    stop_event.set()
+    child = _ChildProcess()
+
+    result = posix_guardian_entry._monitor_child(
+        child_process=cast(subprocess.Popen[bytes], child),
+        process_group_id=123,
+        keepalive_fd=-1,
+        stop_event=stop_event,
+    )
+
+    assert result == 0
+    assert child.returncode == 0
+
+
 def _record_termination(
     calls: list[int | None],
     pid: int | None,
@@ -1391,6 +1550,16 @@ def _raise_taskkill_timeout(*args: object, **kwargs: object) -> object:
         cmd=command,
         timeout=timeout if isinstance(timeout, int | float) else 5.0,
     )
+
+
+def _write_launchable_workspace(workspace: Path) -> Path:
+    """Create the installed artifacts required by ordinary Comfy launch."""
+
+    python_executable = workspace_python_path(workspace)
+    python_executable.parent.mkdir(parents=True)
+    python_executable.write_text("", encoding="utf-8")
+    workspace_main_path(workspace).write_text("", encoding="utf-8")
+    return workspace
 
 
 def _record_launch_request(

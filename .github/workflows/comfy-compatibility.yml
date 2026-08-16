@@ -2,26 +2,30 @@ name: Comfy compatibility
 
 on:
   push:
-    branches-ignore:
-      - main
-      - "dependabot/**"
+    branches:
+      - canary
+    paths-ignore:
+      - "**/*.md"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: comfy-compatibility-${{ github.workflow }}-${{ github.ref }}
+  group: comfy-compatibility-${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 env:
   PYTHON_VERSION: "3.12.10"
   LINUX_PYTHON_VERSION: "3.12.13"
+  PYTHONUTF8: "1"
   QT_QPA_PLATFORM: offscreen
   QT_OPENGL: software
   SUBSTITUTE_DISABLE_APP_USER_MODEL_ID: "1"
-  SUBSTITUTE_DISABLE_QPANE_SAM_WARMUP: "1"
+  SUBSTITUTE_DISABLE_CUTECANVAS_SAM_WARMUP: "1"
 
 jobs:
   real-tag-probe:
@@ -70,9 +74,9 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout SugarSubstitute
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Create project virtual environment
@@ -130,9 +134,9 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout SugarSubstitute
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Create project virtual environment

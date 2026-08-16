@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from typing import IO, Any
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.runtime import runtime_environment
+from launcher.sugarsubstitute_launcher.runtime_policy import runtime_environment
 from sugarsubstitute_shared.application_launch_guard import (
     clear_inherited_application_launch_token,
 )

@@ -19,7 +19,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from PySide6.QtCore import QRect, Signal, Qt
+from PySide6.QtCore import QRect, QTimer, Signal, Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import Pivot, SegmentedItem  # type: ignore[import-untyped]
 import pytest
@@ -183,6 +184,78 @@ def test_host_activation_can_transfer_keyboard_focus_to_selected_canvas() -> Non
 
         assert host.is_canvas_visible("Input")
         assert input_canvas.hasFocus()
+    finally:
+        host.close()
+
+
+def test_deferred_focus_does_not_override_a_newer_canvas_activation() -> None:
+    """A queued pointer-event handoff must not focus a superseded route."""
+
+    host, input_canvas, output_canvas = _host()
+    try:
+        input_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocus()
+        _app().processEvents()
+
+        assert host.activate_canvas("Input", keyboard_focus=True)
+        assert host.activate_canvas("Output", keyboard_focus=False)
+        _app().processEvents()
+
+        assert host.is_canvas_visible("Output")
+        assert output_canvas.hasFocus()
+    finally:
+        host.close()
+
+
+def test_activation_focus_settles_after_nested_same_event_projections() -> None:
+    """Nested toolbar projections must not steal picker-requested canvas focus."""
+
+    host, input_canvas, output_canvas = _host()
+    try:
+        input_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocus()
+        _app().processEvents()
+
+        host.canvas_activated.connect(
+            lambda _route_key: QTimer.singleShot(
+                0,
+                lambda: QTimer.singleShot(
+                    0,
+                    lambda: QTimer.singleShot(0, output_canvas.setFocus),
+                ),
+            )
+        )
+
+        assert host.activate_canvas("Input", keyboard_focus=True)
+        for _cycle in range(4):
+            _app().processEvents()
+
+        assert input_canvas.hasFocus()
+    finally:
+        host.close()
+
+
+def test_activation_focus_handoff_yields_to_later_user_intent() -> None:
+    """A later keyboard event must release picker-requested focus ownership."""
+
+    host, input_canvas, _output_canvas = _host()
+    other_focus = QWidget(host)
+    try:
+        input_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        other_focus.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        other_focus.show()
+
+        assert host.activate_canvas("Input", keyboard_focus=True)
+        _app().processEvents()
+        assert input_canvas.hasFocus()
+
+        QTest.keyClick(input_canvas, Qt.Key.Key_Tab)
+        other_focus.setFocus()
+        _app().processEvents()
+
+        assert other_focus.hasFocus()
     finally:
         host.close()
 

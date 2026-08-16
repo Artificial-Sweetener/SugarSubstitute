@@ -43,7 +43,6 @@ from launcher.sugarsubstitute_launcher.payload import (
     PayloadInstallError,
     safe_extract_zip,
 )
-from launcher.sugarsubstitute_launcher import process
 from launcher.sugarsubstitute_launcher.process import (
     ProcessStartupError,
     build_app_launch_command,
@@ -56,6 +55,9 @@ from launcher.sugarsubstitute_launcher.release_sources import (
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
+from sugarsubstitute_shared.subprocess_environment import (
+    clean_frozen_parent_environment,
+)
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
@@ -344,6 +346,31 @@ def test_continue_install_persists_github_release_source(
     )
 
 
+def test_continue_install_persists_manifest_channel(
+    tmp_path: Path,
+) -> None:
+    """First-run installation must bind later updates to the installed channel."""
+
+    release_root = tmp_path / ".local-release-channel"
+    app_zip = _write_valid_payload_zip(release_root / "SugarSubstitute-app-v0.4.0.zip")
+    manifest_path = release_root / "manifest.json"
+    _write_manifest(manifest_path, app_zip=app_zip)
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    payload["channel"] = "canary"
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+    layout = InstallLayout.from_root(tmp_path / "install")
+
+    FirstRunInstaller().continue_install(
+        layout=layout,
+        release_source=LocalFolderReleaseSource(release_root),
+    )
+
+    config = LauncherConfig.load(layout.config_path)
+    state = LauncherUpdateState.load(layout.state_path)
+    assert config.channel == "canary"
+    assert state.last_manifest_channel == "canary"
+
+
 def test_app_launch_command_uses_hidden_console_python(tmp_path: Path) -> None:
     """The app handoff uses python.exe so startup failures can be logged."""
 
@@ -376,11 +403,11 @@ def test_start_detached_reports_immediate_app_startup_exit(tmp_path: Path) -> No
     assert "RuntimeError: boom" in startup_log.read_text(encoding="utf-8")
 
 
-def test_child_process_environment_removes_pyinstaller_temp_path(
+def test_child_process_environment_removes_pyinstaller_runtime_state(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Child app launches must not inherit PyInstaller's temp DLL search path."""
+    """Child app launches must not inherit PyInstaller or bundled Qt state."""
 
     meipass = tmp_path / "_MEI12345"
     bundled_bin = meipass / "PySide6"
@@ -388,16 +415,24 @@ def test_child_process_environment_removes_pyinstaller_temp_path(
     monkeypatch.setattr(sys, "_MEIPASS", str(meipass), raising=False)
     parent_environment = {
         "PATH": f"{bundled_bin}{os.pathsep}{normal_bin}",
+        "LD_LIBRARY_PATH": f"{bundled_bin}{os.pathsep}{normal_bin}",
+        "LD_LIBRARY_PATH_ORIG": str(normal_bin),
+        "DYLD_LIBRARY_PATH": str(bundled_bin),
+        "QT_PLUGIN_PATH": str(meipass / "PySide6" / "Qt" / "plugins"),
+        "_PYI_APPLICATION_HOME_DIR": str(meipass),
         "HANDOFF": "private",
     }
 
-    environment = process._child_process_environment(  # noqa: SLF001
-        parent_environment
-    )
+    environment = clean_frozen_parent_environment(parent_environment)
 
     path_entries = environment["PATH"].split(os.pathsep)
     assert str(bundled_bin) not in path_entries
     assert str(normal_bin) in path_entries
+    assert environment["LD_LIBRARY_PATH"] == str(normal_bin)
+    assert "LD_LIBRARY_PATH_ORIG" not in environment
+    assert "DYLD_LIBRARY_PATH" not in environment
+    assert "QT_PLUGIN_PATH" not in environment
+    assert "_PYI_APPLICATION_HOME_DIR" not in environment
     assert environment["HANDOFF"] == "private"
     assert str(bundled_bin) in parent_environment["PATH"]
 

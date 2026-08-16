@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from tests.execution_testing import ImmediateTaskSubmitter
@@ -29,6 +31,27 @@ from substitute.app.bootstrap.cutecanvas_sam_startup_warmup import (
 from substitute.shared.cutecanvas_sam_warmup_state import (
     cutecanvas_sam_warmup_is_terminal,
 )
+
+
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        Path("tests/conftest.py"),
+        Path(".github/workflows/tests.yml"),
+        Path(".github/workflows/comfy-compatibility.yml"),
+    ),
+)
+def test_test_runners_disable_only_the_default_cutecanvas_sam_warmup(
+    relative_path: Path,
+) -> None:
+    """Test runners must use the production warmup guard's current identity."""
+
+    content = (_REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8")
+    assert "SUBSTITUTE_DISABLE_CUTECANVAS_SAM_WARMUP" in content
+    assert "SUBSTITUTE_DISABLE_QPANE_SAM_WARMUP" not in content
 
 
 def test_cutecanvas_sam_warmup_records_completed_state() -> None:

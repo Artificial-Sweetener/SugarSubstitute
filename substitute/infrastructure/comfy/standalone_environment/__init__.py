@@ -16,14 +16,17 @@
 
 """Expose verified standalone Comfy environment provisioning services."""
 
-from substitute.infrastructure.comfy.standalone_environment.catalog_client import (
-    StandaloneEnvironmentCatalogClient,
+from substitute.infrastructure.comfy.standalone_environment.catalog import (
+    StandaloneEnvironmentCatalog,
 )
 from substitute.infrastructure.comfy.standalone_environment.models import (
     StandaloneArchiveKind,
     StandaloneArtifact,
     StandaloneEnvironmentRelease,
     StandaloneVariantId,
+)
+from substitute.infrastructure.comfy.standalone_environment.pinned_catalog import (
+    PinnedStandaloneEnvironmentCatalog,
 )
 from substitute.infrastructure.comfy.standalone_environment.variant_policy import (
     standalone_variant_for_target,
@@ -32,7 +35,8 @@ from substitute.infrastructure.comfy.standalone_environment.variant_policy impor
 __all__ = [
     "StandaloneArchiveKind",
     "StandaloneArtifact",
-    "StandaloneEnvironmentCatalogClient",
+    "PinnedStandaloneEnvironmentCatalog",
+    "StandaloneEnvironmentCatalog",
     "StandaloneEnvironmentRelease",
     "StandaloneVariantId",
     "standalone_variant_for_target",

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
+from sugarsubstitute_shared.startup_remote_access import StartupRemoteAccess
 
 
 def enter_installed_application_launch(
@@ -33,4 +34,17 @@ def enter_installed_application_launch(
     )
 
 
-__all__ = ["enter_installed_application_launch"]
+def installed_application_environment(
+    launch_guard: ApplicationLaunchGuard,
+    *,
+    remote_failure_reason: str | None,
+) -> dict[str, str]:
+    """Build one app-child environment with the launcher's remote outcome."""
+
+    remote_access = StartupRemoteAccess()
+    if remote_failure_reason is not None:
+        remote_access.degrade(reason=remote_failure_reason)
+    return remote_access.child_environment(launch_guard.initial_handoff_environment())
+
+
+__all__ = ["enter_installed_application_launch", "installed_application_environment"]

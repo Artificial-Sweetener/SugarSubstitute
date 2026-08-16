@@ -32,6 +32,10 @@ from tests.real_shell_prompt_editor_harness import (
 from .fixture_bundle import build_fixture_bundle
 from .fixture_preparation import prepare_prompt_abuse_fixture_state
 from .models import PromptAbuseScenario
+from .restored_mounts import (
+    mount_cached_workspace_prompt,
+    mount_image_sugar_script_prompt,
+)
 from .shell_action_host import RealShellPromptAbuseActionHost
 
 
@@ -83,10 +87,7 @@ def prepare_prompt_abuse_real_shell_mount(
         max(760, requested_height + 240),
     )
     harness.process_events(cycles=8)
-    field = harness.add_prompt_workflow(
-        alias=alias,
-        initial_text=scenario.initial_text,
-    )
+    field = _mount_prompt_field(harness, scenario, alias=alias)
     _apply_requested_editor_panel_width(harness, requested_width=requested_width)
     field.editor.setManualScrollHeight(requested_height)
     harness.process_events(cycles=8)
@@ -99,6 +100,24 @@ def prepare_prompt_abuse_real_shell_mount(
         field=field,
         target=target,
         action_host=action_host,
+    )
+
+
+def _mount_prompt_field(
+    harness: RealShellPromptEditorHarness,
+    scenario: PromptAbuseScenario,
+    *,
+    alias: str,
+) -> PromptFieldHandle:
+    """Mount the prompt field through the scenario's requested lifecycle owner."""
+
+    if scenario.mount_source in {"workspace_cache", "workspace_cache_0_19_2"}:
+        return mount_cached_workspace_prompt(harness, scenario, alias=alias)
+    if scenario.mount_source == "image_sugar_script":
+        return mount_image_sugar_script_prompt(harness, scenario, alias=alias)
+    return harness.add_prompt_workflow(
+        alias=alias,
+        initial_text=scenario.initial_text,
     )
 
 

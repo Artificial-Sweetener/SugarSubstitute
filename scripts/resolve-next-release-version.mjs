@@ -22,10 +22,15 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const releaseConfig = require("../.releaserc.cjs");
+const { createCanaryVersion, latestStableTag, nextStableVersion } = require(
+  "./canary-release-version.cjs",
+);
 const { selectVersionResolutionPlugins } = require(
   "./release-version-plugins.cjs",
 );
 const FIRST_RELEASE_VERSION = "0.9.0";
+const qualificationVersion = process.env.SUGAR_SUBSTITUTE_QUALIFICATION_VERSION;
+const canaryRunNumber = process.env.SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER?.trim();
 const projectRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const releaseTags = git(["tag", "--list", "v[0-9]*"])
   .split(/\r?\n/)
@@ -36,20 +41,59 @@ let version;
 let shouldRelease;
 let firstRelease;
 
-if (releaseTags.length === 0) {
-  version = readFirstReleaseVersion();
+if (qualificationVersion) {
+  if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(qualificationVersion)) {
+    throw new Error(
+      "SUGAR_SUBSTITUTE_QUALIFICATION_VERSION must be an exact semantic version.",
+    );
+  }
+  version = qualificationVersion;
   shouldRelease = true;
-  firstRelease = true;
+  firstRelease = false;
+} else if (releaseTags.length === 0) {
+  const firstReleaseVersion = readFirstReleaseVersion();
+  version = canaryRunNumber
+    ? createCanaryVersion(firstReleaseVersion, canaryRunNumber)
+    : firstReleaseVersion;
+  shouldRelease = true;
+  firstRelease = !canaryRunNumber;
 } else {
+  const resolvedStableVersion = canaryRunNumber
+    ? await resolveCanaryStableVersion(releaseTags)
+    : await resolveStableVersion();
+  version = canaryRunNumber
+    ? createCanaryVersion(resolvedStableVersion, canaryRunNumber)
+    : resolvedStableVersion;
+  shouldRelease = canaryRunNumber ? true : version.length > 0;
+  firstRelease = false;
+}
+
+async function resolveCanaryStableVersion(tags) {
+  const analyzer = selectVersionResolutionPlugins(releaseConfig)[0];
+  const analyzerOptions = Array.isArray(analyzer) ? analyzer[1] : {};
+  const stableTag = latestStableTag(tags);
+  const commits = git(["log", `${stableTag}..HEAD`, "--format=%B%x00"])
+    .split("\0")
+    .map((message) => message.trim())
+    .filter(Boolean)
+    .map((message) => ({ message }));
+  const { analyzeCommits } = await import("@semantic-release/commit-analyzer");
+  const releaseType =
+    (await analyzeCommits(analyzerOptions, {
+      commits,
+      logger: { log() {} },
+    })) ?? "patch";
+  return nextStableVersion(tags, releaseType);
+}
+
+async function resolveStableVersion() {
   const { default: semanticRelease } = await import("semantic-release");
   const result = await semanticRelease({
     ci: false,
     dryRun: true,
     plugins: selectVersionResolutionPlugins(releaseConfig),
   });
-  version = result?.nextRelease?.version ?? "";
-  shouldRelease = version.length > 0;
-  firstRelease = false;
+  return result?.nextRelease?.version ?? "";
 }
 
 if (process.env.GITHUB_OUTPUT) {

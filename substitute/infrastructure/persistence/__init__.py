@@ -22,8 +22,14 @@ from importlib import import_module
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from substitute.infrastructure.persistence.danbooru_cache_repository import (
+        ComposedDanbooruCacheRepository,
+    )
     from substitute.infrastructure.persistence.danbooru_cache_store import (
-        SqliteDanbooruCacheStore,
+        SqliteDanbooruMetadataStore,
+    )
+    from substitute.infrastructure.persistence.danbooru_image_cache_store import (
+        SqliteDanbooruImageCacheStore,
     )
     from substitute.infrastructure.persistence.file_appearance_preference_repository import (
         FileAppearancePreferenceRepository,
@@ -84,6 +90,9 @@ if TYPE_CHECKING:
     from substitute.infrastructure.persistence.model_thumbnail_store import (
         ModelThumbnailStore,
     )
+    from substitute.infrastructure.persistence.model_metadata_repository import (
+        ComposedModelMetadataRepository,
+    )
     from substitute.infrastructure.persistence.output_run_number_allocator import (
         FileOutputRunNumberAllocator,
     )
@@ -98,6 +107,9 @@ if TYPE_CHECKING:
     )
     from substitute.infrastructure.persistence.sqlite_model_metadata_store import (
         SqliteModelMetadataStore,
+    )
+    from substitute.infrastructure.persistence.sqlite_model_thumbnail_asset_store import (
+        SqliteModelThumbnailAssetStore,
     )
     from substitute.infrastructure.persistence.user_presets_json_repository import (
         JsonUserPresetRepository,
@@ -187,6 +199,10 @@ _LAZY_EXPORTS = {
         "substitute.infrastructure.persistence.model_thumbnail_store",
         "ModelThumbnailStore",
     ),
+    "ComposedModelMetadataRepository": (
+        "substitute.infrastructure.persistence.model_metadata_repository",
+        "ComposedModelMetadataRepository",
+    ),
     "QtImageStore": (
         "substitute.infrastructure.persistence.image_store",
         "QtImageStore",
@@ -199,9 +215,17 @@ _LAZY_EXPORTS = {
         "substitute.infrastructure.persistence.sqlite_cube_icon_cache",
         "SqliteCubeIconCache",
     ),
-    "SqliteDanbooruCacheStore": (
+    "ComposedDanbooruCacheRepository": (
+        "substitute.infrastructure.persistence.danbooru_cache_repository",
+        "ComposedDanbooruCacheRepository",
+    ),
+    "SqliteDanbooruMetadataStore": (
         "substitute.infrastructure.persistence.danbooru_cache_store",
-        "SqliteDanbooruCacheStore",
+        "SqliteDanbooruMetadataStore",
+    ),
+    "SqliteDanbooruImageCacheStore": (
+        "substitute.infrastructure.persistence.danbooru_image_cache_store",
+        "SqliteDanbooruImageCacheStore",
     ),
     "SqliteModelCatalogSnapshotStore": (
         "substitute.infrastructure.persistence.sqlite_model_catalog_snapshot_store",
@@ -210,6 +234,10 @@ _LAZY_EXPORTS = {
     "SqliteModelMetadataStore": (
         "substitute.infrastructure.persistence.sqlite_model_metadata_store",
         "SqliteModelMetadataStore",
+    ),
+    "SqliteModelThumbnailAssetStore": (
+        "substitute.infrastructure.persistence.sqlite_model_thumbnail_asset_store",
+        "SqliteModelThumbnailAssetStore",
     ),
     "dump_workflow_raw": (
         "substitute.infrastructure.persistence.workflow_debug_dump",
@@ -259,12 +287,16 @@ __all__ = [
     "JsonModelMetadataCatalogQueryRepository",
     "JsonUserPresetRepository",
     "ModelThumbnailStore",
+    "ComposedModelMetadataRepository",
     "QtImageStore",
-    "SqliteDanbooruCacheStore",
+    "ComposedDanbooruCacheRepository",
+    "SqliteDanbooruMetadataStore",
+    "SqliteDanbooruImageCacheStore",
     "SqliteCubeClassificationCache",
     "SqliteCubeIconCache",
     "SqliteModelCatalogSnapshotStore",
     "SqliteModelMetadataStore",
+    "SqliteModelThumbnailAssetStore",
     "dump_workflow_raw",
     "get_next_bucket_run_number",
     "get_next_image_counter",

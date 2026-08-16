@@ -31,6 +31,15 @@ from substitute.domain.onboarding.managed_runtime_models import (
     ManagedRuntimeStability,
     ManagedRuntimeValidationStatus,
 )
+from substitute.infrastructure.comfy.install_targets import ManagedInstallTarget
+
+
+_CPU_INSTALL_TARGETS = frozenset(
+    {
+        ManagedInstallTarget.WINDOWS_CPU.value,
+        ManagedInstallTarget.LINUX_CPU.value,
+    }
+)
 
 
 @dataclass
@@ -80,7 +89,7 @@ class FileManagedRuntimeConfigurationRepository(ManagedRuntimeConfigurationRepos
             prefer_edge_comfy_channel=bool(
                 payload.get("prefer_edge_comfy_channel", False)
             ),
-            force_cpu_mode=bool(payload.get("force_cpu_mode", False)),
+            force_cpu_mode=_read_force_cpu_mode(payload),
             validation_status=ManagedRuntimeValidationStatus(
                 payload.get("validation_status", "unknown")
             ),
@@ -142,6 +151,14 @@ def _optional_string(value: object) -> str | None:
         return None
     normalized = str(value).strip()
     return normalized or None
+
+
+def _read_force_cpu_mode(payload: dict[str, object]) -> bool:
+    """Preserve CPU launch semantics from explicit or historical target state."""
+
+    return bool(payload.get("force_cpu_mode", False)) or (
+        payload.get("install_target") in _CPU_INSTALL_TARGETS
+    )
 
 
 __all__ = ["FileManagedRuntimeConfigurationRepository"]

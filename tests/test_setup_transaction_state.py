@@ -52,9 +52,9 @@ from substitute.application.ports.runtime_provisioner import RuntimeProvisioner
 from substitute.application.ports.setup_transaction_repository import (
     SetupTransactionRepositoryError,
 )
-from substitute.app.bootstrap.installation_context import (
-    _discard_stale_attached_pending_for_active_managed_target,
-    _recover_legacy_attached_managed_target,
+from substitute.application.onboarding.legacy_attached_target_recovery_service import (
+    discard_stale_attached_pending_for_active_managed_target,
+    recover_legacy_attached_managed_target,
 )
 from substitute.domain.onboarding import (
     BootstrapRoute,
@@ -745,7 +745,7 @@ def test_legacy_attached_managed_target_recovery_restores_managed_mode(
         ),
     )
 
-    _recover_legacy_attached_managed_target(
+    recover_legacy_attached_managed_target(
         comfy_target_service=target_service,
         managed_runtime_service=managed_runtime_service,
         setup_transaction_service=setup_transaction_service,
@@ -763,6 +763,54 @@ def test_legacy_attached_managed_target_recovery_restores_managed_mode(
     )
     assert not (stale_target.workspace_path / ".comfy_installed").exists()
     assert setup_transaction_service.load() is None
+
+
+def test_legacy_recovery_preserves_completed_attached_local_target(
+    tmp_path: Path,
+) -> None:
+    """Completed attached-local setup must remain attached while Comfy is offline."""
+
+    installation = InstallationConfiguration.create_default(tmp_path)
+    installation_service = InstallationService(
+        FileInstallationConfigurationRepository(tmp_path)
+    )
+    target_service = ComfyTargetService(
+        FileComfyTargetConfigurationRepository(installation)
+    )
+    managed_runtime_service = ManagedRuntimeService(
+        FileManagedRuntimeConfigurationRepository(installation.runtime_state_dir),
+        selection_policy=_StaticSelectionPolicy(_valid_managed_runtime()),
+    )
+    setup_transaction_service = SetupTransactionService(
+        repository=FileSetupTransactionRepository(installation.runtime_state_dir),
+        installation_service=installation_service,
+        runtime_service=RuntimeService(
+            FileRuntimeConfigurationRepository(installation)
+        ),
+        comfy_target_service=target_service,
+        managed_runtime_service=managed_runtime_service,
+    )
+    attached_target = ComfyTargetConfiguration(
+        mode=ComfyTargetMode.ATTACHED_LOCAL,
+        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
+        workspace_path=tmp_path / "ComfyUI",
+        install_owned=False,
+        launch_owned=True,
+    )
+    installation_service.save(installation)
+    assert attached_target.workspace_path is not None
+    attached_target.workspace_path.mkdir(parents=True, exist_ok=True)
+    target_service.configure(attached_target)
+    managed_runtime_service.save_active_configuration(_valid_managed_runtime())
+
+    recover_legacy_attached_managed_target(
+        comfy_target_service=target_service,
+        managed_runtime_service=managed_runtime_service,
+        setup_transaction_service=setup_transaction_service,
+        checks=cast(FileSystemReadinessChecks, _LegacyRecoveryChecks()),
+    )
+
+    assert target_service.load_persisted() == attached_target
 
 
 def test_stale_attached_pending_is_discarded_when_active_target_is_managed(
@@ -811,7 +859,7 @@ def test_stale_attached_pending_is_discarded_when_active_target_is_managed(
         ),
     )
 
-    _discard_stale_attached_pending_for_active_managed_target(
+    discard_stale_attached_pending_for_active_managed_target(
         comfy_target_service=target_service,
         setup_transaction_service=setup_transaction_service,
     )

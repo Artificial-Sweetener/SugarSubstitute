@@ -18,12 +18,16 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.launcher_update.versions import validate_release_version
+
 
 def safe_launcher_version(version: str) -> str:
     """Return a filesystem-safe launcher release version identifier."""
 
-    if not version or any(character not in "0123456789.-" for character in version):
-        raise ValueError(f"Unsafe launcher version: {version!r}")
+    try:
+        validate_release_version(version)
+    except ValueError as error:
+        raise ValueError(f"Unsafe launcher version: {version!r}") from error
     return version
 
 

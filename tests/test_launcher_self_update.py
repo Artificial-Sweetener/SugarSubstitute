@@ -21,11 +21,14 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import ssl
+import stat
 import subprocess
 import sys
 import time
+from typing import cast
 import zipfile
 
 import pytest
@@ -43,6 +46,7 @@ from sugarsubstitute_shared.launcher_update.models import (
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import (
     LINUX_X64_BUNDLE,
+    MACOS_ARM64_BUNDLE,
     WINDOWS_X64_BUNDLE,
 )
 from sugarsubstitute_shared.launcher_update.transaction import (
@@ -50,6 +54,7 @@ from sugarsubstitute_shared.launcher_update.transaction import (
     LauncherUpdateTransactionError,
 )
 import sugarsubstitute_shared.launcher_update.transaction as transaction_module
+import sugarsubstitute_shared.launcher_update.process as update_process_module
 
 
 def test_launcher_bundle_download_uses_explicit_system_trust_context(
@@ -94,6 +99,60 @@ def test_launcher_bundle_download_uses_explicit_system_trust_context(
     assert observed == [(15.0, tls_context)]
 
 
+def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The runtime-Python updater helper must not inherit PyInstaller libraries."""
+
+    meipass = tmp_path / "_MEI-update"
+    bundled_library = meipass / "libpython.dylib"
+    system_library = tmp_path / "system-library"
+    monkeypatch.setattr(sys, "_MEIPASS", str(meipass), raising=False)
+    monkeypatch.setattr(
+        "sugarsubstitute_shared.subprocess_environment.os.environ",
+        {
+            "PATH": f"{meipass}{os.pathsep}{tmp_path}",
+            "DYLD_LIBRARY_PATH": str(bundled_library),
+            "DYLD_LIBRARY_PATH_ORIG": str(system_library),
+            "_PYI_APPLICATION_HOME_DIR": str(meipass),
+            "QUALIFICATION_TOKEN": "preserved",
+        },
+    )
+    observed_environment: dict[str, str] = {}
+
+    class _Process:
+        """Represent the scheduled updater helper."""
+
+        pid = 42
+
+    def fake_popen(*_args: object, **kwargs: object) -> _Process:
+        """Capture the environment passed across the helper boundary."""
+
+        observed_environment.update(cast(dict[str, str], kwargs["env"]))
+        return _Process()
+
+    monkeypatch.setattr(
+        "sugarsubstitute_shared.launcher_update.process.subprocess.Popen",
+        fake_popen,
+    )
+    request_path, runtime_python, app_dir = _write_scheduled_update_request(tmp_path)
+
+    update_process_module.schedule_launcher_update(
+        request_path=request_path,
+        runtime_python=runtime_python,
+        app_dir=app_dir,
+        relaunch=True,
+        wait_pid=123,
+    )
+
+    assert str(meipass) not in observed_environment["PATH"].split(os.pathsep)
+    assert observed_environment["DYLD_LIBRARY_PATH"] == str(system_library)
+    assert "DYLD_LIBRARY_PATH_ORIG" not in observed_environment
+    assert "_PYI_APPLICATION_HOME_DIR" not in observed_environment
+    assert observed_environment["QUALIFICATION_TOKEN"] == "preserved"
+
+
 def test_stager_verifies_and_persists_complete_bundle(tmp_path: Path) -> None:
     """A checksum-pinned target bundle should become one pending request."""
 
@@ -130,6 +189,121 @@ def test_stager_rejects_archive_path_traversal(tmp_path: Path) -> None:
         )
 
     assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_stager_rejects_symlink_target_that_escapes_bundle(tmp_path: Path) -> None:
+    """A launcher symlink may never resolve outside its staged bundle."""
+
+    archive = tmp_path / "unsafe-link.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        link = zipfile.ZipInfo("SugarSubstitute.app/Contents/Frameworks/Python")
+        link.create_system = 3
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        bundle.writestr(link, "../../../../outside")
+
+    with pytest.raises(SecureArchiveError, match="target escapes"):
+        LauncherBundleStager().stage(
+            install_root=tmp_path / "SugarSubstitute",
+            version="0.11.0",
+            target=MACOS_ARM64_BUNDLE,
+            asset=_asset(archive),
+        )
+
+    assert not (tmp_path / "outside").exists()
+
+
+@pytest.mark.platforms("linux", "macos")
+def test_stager_restores_safe_relative_macos_symlinks(tmp_path: Path) -> None:
+    """Staging should reconstruct a PyInstaller-style macOS framework link."""
+
+    archive = tmp_path / "macos-launcher.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr(
+            "SugarSubstitute.app/Contents/MacOS/SugarSubstitute",
+            "launcher",
+        )
+        bundle.writestr(
+            "SugarSubstitute.app/Contents/Frameworks/"
+            "Python.framework/Versions/3.13/Python",
+            "runtime",
+        )
+        link = zipfile.ZipInfo(
+            "SugarSubstitute.app/Contents/Frameworks/Python.framework/Versions/Current"
+        )
+        link.create_system = 3
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        bundle.writestr(link, "3.13")
+
+    request_path = LauncherBundleStager().stage(
+        install_root=tmp_path / "SugarSubstitute",
+        version="0.11.0",
+        target=MACOS_ARM64_BUNDLE,
+        asset=_asset(archive),
+    )
+    request = LauncherUpdateRequest.load(request_path)
+    restored_link = (
+        request.staged_bundle_dir
+        / "SugarSubstitute.app"
+        / "Contents"
+        / "Frameworks"
+        / "Python.framework"
+        / "Versions"
+        / "Current"
+    )
+
+    assert restored_link.is_symlink()
+    assert restored_link.readlink() == Path("3.13")
+
+
+@pytest.mark.platforms("linux", "macos")
+def test_transaction_preserves_macos_symlinks_during_promotion(tmp_path: Path) -> None:
+    """Promotion must retain the staged PyInstaller bundle topology."""
+
+    install_root = tmp_path / "SugarSubstitute"
+    old_app = install_root / "SugarSubstitute.app" / "Contents"
+    (old_app / "MacOS").mkdir(parents=True)
+    (old_app / "MacOS" / "SugarSubstitute").write_text(
+        "old launcher",
+        encoding="utf-8",
+    )
+    (old_app / "Frameworks").mkdir()
+    archive = tmp_path / "macos-launcher.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr(
+            "SugarSubstitute.app/Contents/MacOS/SugarSubstitute",
+            "new launcher",
+        )
+        bundle.writestr(
+            "SugarSubstitute.app/Contents/Frameworks/"
+            "Python.framework/Versions/3.13/Python",
+            "runtime",
+        )
+        link = zipfile.ZipInfo(
+            "SugarSubstitute.app/Contents/Frameworks/Python.framework/Versions/Current"
+        )
+        link.create_system = 3
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        bundle.writestr(link, "3.13")
+
+    request_path = LauncherBundleStager().stage(
+        install_root=install_root,
+        version="0.11.0",
+        target=MACOS_ARM64_BUNDLE,
+        asset=_asset(archive),
+    )
+    LauncherUpdateTransaction(wait_timeout_seconds=0).apply(request_path=request_path)
+    promoted_link = (
+        install_root
+        / "SugarSubstitute.app"
+        / "Contents"
+        / "Frameworks"
+        / "Python.framework"
+        / "Versions"
+        / "Current"
+    )
+
+    assert promoted_link.is_symlink()
+    assert promoted_link.readlink() == Path("3.13")
 
 
 @pytest.mark.platforms("linux", "macos")
@@ -428,6 +602,28 @@ def _write_installed_layout(root: Path) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("preserved", encoding="utf-8")
     return root.resolve()
+
+
+def _write_scheduled_update_request(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """Write the minimum valid request needed to schedule an updater helper."""
+
+    install_root = tmp_path / "SugarSubstitute"
+    app_dir = install_root / "app"
+    runtime_python = install_root / "runtime" / ".venv" / "bin" / "python"
+    request_path = install_root / "launcher" / "updates" / "pending.json"
+    staged_bundle = install_root / "launcher" / "updates" / "staged"
+    app_dir.mkdir(parents=True)
+    runtime_python.parent.mkdir(parents=True)
+    runtime_python.write_text("python", encoding="utf-8")
+    staged_bundle.mkdir(parents=True)
+    LauncherUpdateRequest(
+        install_root=install_root,
+        version="9999.0.1",
+        target_key="linux_x64",
+        staged_bundle_dir=staged_bundle,
+        relaunch=False,
+    ).save(request_path)
+    return request_path, runtime_python, app_dir
 
 
 def _write_bundle(path: Path, *, marker: str) -> Path:

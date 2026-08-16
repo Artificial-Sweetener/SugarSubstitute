@@ -20,14 +20,12 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from codecs import getincrementaldecoder
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from itertools import count
 import os
 from pathlib import Path
 from threading import Lock
 from time import perf_counter
-from uuid import uuid4
 from typing import IO, Callable, Protocol, TypeVar
 
 from substitute.application.execution import (
@@ -41,31 +39,19 @@ from substitute.application.comfy_startup_diagnostics import (
 from substitute.application.onboarding.managed_runtime_service import (
     ManagedRuntimeService,
 )
-from substitute.application.onboarding.managed_runtime_state_recorder import (
-    ActiveSafeManagedRuntimeStateRecorder,
-)
 from substitute.domain.onboarding import (
     ComfyEndpoint,
-    ComfyTargetConfiguration,
-    ComfyTargetMode,
     ManagedRuntimeConfiguration,
     ManagedRuntimeValidationStatus,
 )
 from substitute.domain.onboarding import ManagedRuntimeLaunchStatus
-from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
-from substitute.domain.onboarding.setup_transaction_models import (
-    SetupTransaction,
-    SetupTransactionFailure,
-    SetupTransactionMode,
-    SetupTransactionStatus,
-)
+from substitute.domain.comfy_manager import ComfyManagerKind
 from substitute.infrastructure.comfy.managed_install import (
     emit_log,
     emit_status,
-    ensure_managed_comfy_setup,
 )
-from substitute.infrastructure.comfy.attached_install import (
-    prepare_attached_comfy_setup,
+from substitute.infrastructure.comfy.managed_launch_command import (
+    build_managed_launch_command,
 )
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
@@ -109,21 +95,13 @@ from substitute.shared.startup_trace import trace_mark, trace_span
 from substitute.infrastructure.onboarding.file_managed_runtime_repository import (
     FileManagedRuntimeConfigurationRepository,
 )
-from substitute.infrastructure.onboarding.file_setup_transaction_repository import (
-    FileSetupTransactionRepository,
-)
 from substitute.shared.logging.logger import (
     get_logger,
-    log_error,
     log_exception,
     log_info,
     log_warning_exception,
 )
-from sugarsubstitute_shared.windows_long_paths import (
-    exceeds_windows_legacy_path_limit,
-    operational_path,
-    subprocess_path,
-)
+from sugarsubstitute_shared.windows_long_paths import operational_path
 
 StatusCallback = Callable[[str], None]
 LogCallback = Callable[[str], None]
@@ -133,12 +111,6 @@ LongLivedWork = Callable[[CancellationSource], TResult]
 _LOGGER = get_logger("infrastructure.comfy.managed_launcher")
 _MANAGED_LAUNCH_REQUEST_IDS = count(1)
 _STARTUP_HARNESS_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS"
-_LONG_WORKSPACE_BOOTSTRAP = (
-    "import os, runpy, sys; "
-    "root = sys.argv.pop(1); script = sys.argv.pop(1); "
-    "os.chdir(root); sys.argv[0] = script; "
-    "runpy.run_path(script, run_name='__main__')"
-)
 
 
 class ManagedLongLivedTaskHandle(Protocol):
@@ -281,7 +253,7 @@ def start_managed_comfy_subprocess(
     runtime_state_dir: Path,
     python_executable: Path | None = None,
 ) -> ManagedProcessHandle:
-    """Ensure setup and launch a foreground managed Comfy subprocess."""
+    """Launch a foreground Comfy subprocess from an installed workspace."""
 
     workspace = operational_path(workspace)
     runtime_state_dir = operational_path(runtime_state_dir)
@@ -298,26 +270,10 @@ def start_managed_comfy_subprocess(
         registry=registry,
         runtime_service=runtime_service,
     )
-    startup_transaction = (
-        None
-        if python_executable is not None
-        else _begin_startup_revalidation_transaction_if_needed(
-            endpoint=endpoint,
-            workspace=workspace,
-            runtime_state_dir=runtime_state_dir,
-            runtime_service=runtime_service,
-        )
+    venv_python = _resolve_launch_python(
+        workspace=workspace,
+        python_executable=python_executable,
     )
-    try:
-        venv_python = _ensure_launch_workspace(
-            workspace=workspace,
-            python_executable=python_executable,
-            runtime_service=runtime_service,
-        )
-    except Exception as error:
-        _fail_startup_revalidation_transaction(startup_transaction, error)
-        raise
-    _finish_startup_revalidation_transaction(startup_transaction)
     manager_runtime = detect_workspace_manager_runtime(
         workspace,
         python_executable=venv_python,
@@ -335,11 +291,12 @@ def start_managed_comfy_subprocess(
         endpoint=endpoint,
         workspace=workspace,
         request=build_launch_request(
-            command=_build_managed_launch_command(
+            command=build_managed_launch_command(
                 venv_python=venv_python,
                 endpoint=endpoint,
                 workspace=workspace,
                 manager_runtime=manager_runtime,
+                force_cpu_mode=_managed_force_cpu_mode(runtime_service),
             ),
             cwd=workspace,
             env=env,
@@ -349,29 +306,19 @@ def start_managed_comfy_subprocess(
     return launch_result.process
 
 
-def _ensure_launch_workspace(
+def _resolve_launch_python(
     *,
     workspace: Path,
     python_executable: Path | None,
-    runtime_service: ManagedRuntimeService,
-    on_status: StatusCallback | None = None,
-    on_log: LogCallback | None = None,
 ) -> Path:
-    """Prepare managed or attached workspace through its authoritative owner."""
+    """Return installed launch artifacts without reconciling or mutating them."""
 
-    if python_executable is not None:
-        return prepare_attached_comfy_setup(
-            workspace=workspace,
-            python_executable=python_executable,
-            on_status=on_status,
-            on_log=on_log,
-        ).executable
-    return ensure_managed_comfy_setup(
-        workspace=workspace,
-        on_status=on_status,
-        on_log=on_log,
-        state_recorder=ActiveSafeManagedRuntimeStateRecorder(runtime_service),
-    )
+    entrypoint = workspace_main_path(workspace)
+    resolved_python = python_executable or workspace_python_path(workspace)
+    for required_path in (entrypoint, resolved_python):
+        if not required_path.is_file():
+            raise FileNotFoundError(required_path)
+    return resolved_python
 
 
 def start_managed_comfy_background(
@@ -404,7 +351,6 @@ def start_managed_comfy_background(
     def run_startup(cancellation: CancellationSource) -> None:
         """Run managed startup work on the supplied execution task."""
 
-        startup_transaction: _StartupRevalidationTransaction | None = None
         trace_mark("managed_comfy.startup_task.start", request_id=request_id)
         try:
             with trace_span("managed_comfy.resolve_listener"):
@@ -428,26 +374,11 @@ def start_managed_comfy_background(
                 )
                 return
 
-            with trace_span("managed_comfy.startup_revalidation.begin"):
-                if python_executable is None:
-                    startup_transaction = (
-                        _begin_startup_revalidation_transaction_if_needed(
-                            endpoint=endpoint,
-                            workspace=workspace,
-                            runtime_state_dir=runtime_state_dir,
-                            runtime_service=runtime_service,
-                        )
-                    )
-            with trace_span("managed_comfy.ensure_setup"):
-                venv_python = _ensure_launch_workspace(
+            with trace_span("managed_comfy.resolve_launch_workspace"):
+                venv_python = _resolve_launch_python(
                     workspace=workspace,
                     python_executable=python_executable,
-                    runtime_service=runtime_service,
-                    on_status=on_status,
-                    on_log=on_log,
                 )
-            with trace_span("managed_comfy.startup_revalidation.finish"):
-                _finish_startup_revalidation_transaction(startup_transaction)
             manager_runtime = detect_workspace_manager_runtime(
                 workspace,
                 python_executable=venv_python,
@@ -478,11 +409,12 @@ def start_managed_comfy_background(
                     endpoint=endpoint,
                     workspace=workspace,
                     request=build_launch_request(
-                        command=_build_managed_launch_command(
+                        command=build_managed_launch_command(
                             venv_python=venv_python,
                             endpoint=endpoint,
                             workspace=workspace,
                             manager_runtime=manager_runtime,
+                            force_cpu_mode=_managed_force_cpu_mode(runtime_service),
                         ),
                         cwd=workspace,
                         env=env,
@@ -566,7 +498,6 @@ def start_managed_comfy_background(
                 )
                 emit_log(on_log, f"[ERROR] {startup_result.fatal_incident.message}")
         except Exception as error:
-            _fail_startup_revalidation_transaction(startup_transaction, error)
             runtime_service.record_launch(
                 status=ManagedRuntimeLaunchStatus.FAILED,
                 detail=str(error).strip() or type(error).__name__,
@@ -732,133 +663,6 @@ def _managed_runtime_claims_workspace(
     return claimed_workspace == configured_workspace
 
 
-@dataclass(frozen=True)
-class _StartupRevalidationTransaction:
-    """Track one pending startup revalidation file created by the launcher."""
-
-    repository: FileSetupTransactionRepository
-    transaction_id: str
-
-
-def _begin_startup_revalidation_transaction_if_needed(
-    *,
-    endpoint: ComfyEndpoint,
-    workspace: Path,
-    runtime_state_dir: Path,
-    runtime_service: ManagedRuntimeService,
-) -> _StartupRevalidationTransaction | None:
-    """Create pending startup revalidation state when setup work is required."""
-
-    managed_runtime = runtime_service.load_persisted()
-    if (
-        workspace.exists()
-        and workspace_main_path(workspace).exists()
-        and workspace_python_path(workspace).exists()
-        and managed_runtime is not None
-        and _managed_runtime_claims_workspace(managed_runtime, workspace)
-    ):
-        return None
-    repository = FileSetupTransactionRepository(runtime_state_dir)
-    now = datetime.now(UTC)
-    transaction = SetupTransaction(
-        schema_version=1,
-        transaction_id=str(uuid4()),
-        mode=SetupTransactionMode.STARTUP_REVALIDATION,
-        status=SetupTransactionStatus.MANAGED_WORKSPACE_PROVISIONING,
-        created_at=now,
-        updated_at=now,
-        target=ComfyTargetConfiguration(
-            mode=ComfyTargetMode.MANAGED_LOCAL,
-            endpoint=endpoint,
-            workspace_path=workspace,
-            install_owned=True,
-            launch_owned=True,
-        ),
-        managed_runtime=managed_runtime,
-        workspace_path=workspace,
-        endpoint_host=endpoint.host,
-        endpoint_port=endpoint.port,
-    )
-    repository.save(transaction)
-    log_info(
-        _LOGGER,
-        "Startup revalidation transaction created.",
-        transaction_id=transaction.transaction_id,
-        workspace=workspace,
-    )
-    return _StartupRevalidationTransaction(
-        repository=repository,
-        transaction_id=transaction.transaction_id,
-    )
-
-
-def _finish_startup_revalidation_transaction(
-    transaction: _StartupRevalidationTransaction | None,
-) -> None:
-    """Clear startup revalidation state after setup succeeds."""
-
-    if transaction is None:
-        return
-    transaction.repository.delete()
-    log_info(
-        _LOGGER,
-        "Startup revalidation transaction cleared.",
-        transaction_id=transaction.transaction_id,
-    )
-
-
-def _fail_startup_revalidation_transaction(
-    transaction: _StartupRevalidationTransaction | None,
-    error: Exception,
-) -> None:
-    """Mark startup revalidation as failed without hiding launch errors."""
-
-    if transaction is None:
-        return
-    try:
-        current = transaction.repository.load()
-        if current is None:
-            return
-        transaction.repository.save(
-            SetupTransaction(
-                schema_version=current.schema_version,
-                transaction_id=current.transaction_id,
-                mode=current.mode,
-                status=SetupTransactionStatus.FAILED,
-                created_at=current.created_at,
-                updated_at=datetime.now(UTC),
-                installation=current.installation,
-                runtime=current.runtime,
-                target=current.target,
-                managed_runtime=current.managed_runtime,
-                workspace_path=current.workspace_path,
-                endpoint_host=current.endpoint_host,
-                endpoint_port=current.endpoint_port,
-                force_cpu_mode=current.force_cpu_mode,
-                prefer_edge_torch=current.prefer_edge_torch,
-                prefer_edge_comfy_channel=current.prefer_edge_comfy_channel,
-                failure=SetupTransactionFailure(
-                    code=type(error).__name__,
-                    message=str(error).strip() or type(error).__name__,
-                    recoverable=True,
-                    diagnostic_detail=str(error).strip() or type(error).__name__,
-                ),
-            )
-        )
-        log_info(
-            _LOGGER,
-            "Startup revalidation transaction failed.",
-            transaction_id=transaction.transaction_id,
-            error=error,
-        )
-    except Exception as transaction_error:
-        log_error(
-            _LOGGER,
-            "Failed to update startup revalidation transaction.",
-            error=transaction_error,
-        )
-
-
 def _resolve_listener_state(
     *,
     endpoint: ComfyEndpoint,
@@ -924,36 +728,11 @@ def _timestamp_now() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def _build_managed_launch_command(
-    *,
-    venv_python: Path,
-    endpoint: ComfyEndpoint,
-    workspace: Path,
-    manager_runtime: ComfyManagerRuntime,
-) -> tuple[str, ...]:
-    """Build the authoritative managed ComfyUI launch command."""
+def _managed_force_cpu_mode(runtime_service: ManagedRuntimeService) -> bool:
+    """Return whether the active managed runtime requires ComfyUI CPU mode."""
 
-    arguments = (
-        "--listen",
-        str(endpoint.host),
-        "--port",
-        str(endpoint.port),
-        *manager_runtime.launch_arguments,
-    )
-    if exceeds_windows_legacy_path_limit(workspace):
-        return (
-            subprocess_path(venv_python),
-            "-c",
-            _LONG_WORKSPACE_BOOTSTRAP,
-            subprocess_path(workspace),
-            subprocess_path(workspace / "main.py"),
-            *arguments,
-        )
-    return (
-        subprocess_path(venv_python),
-        subprocess_path(workspace / "main.py"),
-        *arguments,
-    )
+    configuration = runtime_service.load_persisted()
+    return configuration.force_cpu_mode if configuration is not None else False
 
 
 def _iter_output_records(
