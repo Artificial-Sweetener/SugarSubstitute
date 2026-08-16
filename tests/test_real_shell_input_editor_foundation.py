@@ -617,7 +617,6 @@ def test_real_picker_interactions_select_masks_without_changing_held_tool(
                 and harness.workflow.canvas.active_input_mask_uuid == harness.mask_id
                 and harness.shell.input_canvas_tool_controller.palette.active_tool_id
                 == InputCanvasToolId.MASK_RECTANGLE
-                and _focus_belongs_to(harness.input_canvas)
             )
         )
         assert harness.workflow.canvas.input_image_uuid == harness.image_id
@@ -626,6 +625,7 @@ def test_real_picker_interactions_select_masks_without_changing_held_tool(
             harness.shell.input_canvas_tool_controller.palette.active_tool_id
             == InputCanvasToolId.MASK_RECTANGLE
         )
+        harness.wait_until(lambda: _focus_belongs_to(harness.input_canvas))
         assert _focus_belongs_to(harness.input_canvas)
         assert image_preview.binding.source != mask_preview.binding.source
     finally:
