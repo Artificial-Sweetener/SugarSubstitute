@@ -1158,6 +1158,21 @@ def test_release_configuration_targets_the_active_github_repository() -> None:
     assert "https://github.com/Artificial-Sweetener/SugarSubstitute.git" in config
 
 
+def test_stable_release_push_uses_the_authorized_deploy_key() -> None:
+    """Keep generated Stable commits on the narrowly authorized push identity."""
+
+    release_workflow = (
+        PROJECT_ROOT / ".github" / "workflows" / "release.yml"
+    ).read_text(encoding="utf-8")
+    release_config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
+
+    assert "Configure authorized Stable release push" in release_workflow
+    assert "secrets.STABLE_RELEASE_DEPLOY_KEY" in release_workflow
+    assert "SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL:" in release_workflow
+    assert "git@github.com:${{ github.repository }}.git" in release_workflow
+    assert "process.env.SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL" in release_config
+
+
 def test_windows_quality_workflows_fail_fast_on_native_command_errors() -> None:
     """Dependency and gate failures should stop their PowerShell steps immediately."""
 
