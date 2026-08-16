@@ -335,6 +335,7 @@ def test_real_shell_double_click_edits_named_separator_in_place(
 
     assert inline_editor is not None
     assert inline_editor.isVisible()
+    harness.wait_until(inline_editor.hasFocus)
     assert inline_editor.selectedText() == "Foreground"
     divider_length = abs(divider[2] - divider[0])
     editor_widths: list[int] = []
