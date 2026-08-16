@@ -1,3 +1,47 @@
+# [0.21.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.20.1...v0.21.0) (2026-08-16)
+
+
+### Bug Fixes
+
+* **cache:** keep compatible data reusable across upgrades ([fdf7e24](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/fdf7e243b50070a028cf6928b671f8ae857c106d))
+* **canvas:** make Canary focus and test execution deterministic ([#56](https://github.com/Artificial-Sweetener/SugarSubstitute/issues/56)) ([3ac8f53](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3ac8f53e4eba2287070ea494498333aad221096b))
+* **ci:** stabilize native canvas release checks ([#54](https://github.com/Artificial-Sweetener/SugarSubstitute/issues/54)) ([3cd8934](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3cd8934f6f6966049187ba5b647843235a2d00f2))
+* **comfy:** cleanly stop managed runtimes on macOS ([a87492e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a87492e09194c27c28dfe960ec84f1b2014d1747))
+* **comfy:** launch CPU-only managed runtimes in CPU mode ([9034a04](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9034a04cb0748c949f788d81ac5cebbe171f5523))
+* **execution:** publish detached completion after settlement ([b97a09d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b97a09df0a12c353ddb793e596ff8ff309ffca3d))
+* **installer:** complete managed setup across supported platforms ([e877358](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e877358e6ccfb926b1b1235e2dedcd025d7f2440))
+* **installer:** complete native install and update qualification ([56c0265](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/56c0265101a8789d166ceaed11ea7766e102dd23))
+* **installer:** complete staged install qualification ([fe711a2](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/fe711a2512fc2210c95a08d3e34e242809eebf7e))
+* **installer:** preserve CPU and portable update launches ([02b1849](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/02b1849bd33dc6af3d748d6c93e42bc4c0db09e2))
+* **installer:** preserve trust and qualify existing runtimes ([5600b37](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/5600b379ce903eef689a685d94007101db5b96a8))
+* **installer:** qualify real installs and updates across platforms ([3333379](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3333379fde939c55049850b02d5634ff63b96b47))
+* **installer:** qualify safe installs, updates, and startup ([6e77f76](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6e77f76b889bb735fb389f78c8f83b448039afce))
+* **installer:** qualify updates with candidate installers ([df62251](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/df622514b411d6a8ca6cebe68b8b64c2c0276740))
+* **launcher:** accept managed runtime symlinks ([9b19878](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9b19878b32b566ec0987ffdc78354a20e896407d))
+* **launcher:** preserve installed POSIX launch routing ([fd95ac3](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/fd95ac3390ea3b71af4553c0960387bf84278a13))
+* **launcher:** preserve packaged invocation routing ([6c20d9f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/6c20d9f438d6115a43cd24ed9b10f7dfe8a38378))
+* **launcher:** recover validated packaged install roots ([f65ec0e](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f65ec0e7a3443486a6dd38864d891be0ab3bac82))
+* **launcher:** retain packaged bootstrap failures ([cf37f96](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/cf37f962fbc2dc35a826a52f7a4eb0425d4aae78))
+* **launcher:** route Linux from native process image ([05656c0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/05656c06b0dfafd14f1bba60026289ca1b9c9d7c))
+* **release:** package installable macOS launchers ([882baa3](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/882baa340613c80a85c73f75de5f05084a5553e1))
+* **releases:** publish Canary through an unambiguous rolling feed ([#55](https://github.com/Artificial-Sweetener/SugarSubstitute/issues/55)) ([108542b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/108542bc2d2db375e4b240499b82518810afd2ac))
+* **startup:** allow installed applications to launch offline ([a2abf8a](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/a2abf8a6b388af59448d14b6891bf2dacd027589))
+* **startup:** keep offline fallback from masking local failures ([7e82593](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/7e8259332ab69ea24868eae8f2104d864f0f3b4f))
+* **updater:** complete historical updates from the installer open action ([f6771e3](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f6771e3cce298f3b5c1c4d579fb687b2939db88e))
+* **updates:** qualify releases and roll back failed launches ([23d00b4](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/23d00b4e528ad77b5673c8445db98a1b87bf478a))
+
+
+### Features
+
+* **releases:** promote verified Canary changes to Stable ([#62](https://github.com/Artificial-Sweetener/SugarSubstitute/issues/62)) ([5424bd0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/5424bd06696133c47fa5b48202dca111c689bc1c))
+* **releases:** provide an isolated Canary install and update channel ([cfa4406](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/cfa4406a0b9a733be00ca5983b6c556450fa94ff))
+
+
+### Performance Improvements
+
+* **installer:** extract macOS managed runtime in one pass ([11d5c86](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/11d5c86308fdf616e44319b80ba412a905bfb330))
+* **installer:** skip forced-CPU accelerator probes ([10f80b9](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/10f80b936749583aa652df826173de2b5b295a62))
+
 ## [0.20.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.20.0...v0.20.1) (2026-08-12)
 
 
