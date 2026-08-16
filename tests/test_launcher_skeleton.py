@@ -436,9 +436,11 @@ def test_frozen_canary_installer_binds_rolling_canary_release(
     assert isinstance(source, VersionBoundReleaseSource)
     assert source.expected_channel == "canary"
     assert source.expected_version == "0.21.0-canary.42"
-    assert source.manifest_url.endswith("/releases/download/canary/manifest.json")
+    assert source.manifest_url.endswith(
+        "/releases/download/canary-latest/manifest.json"
+    )
     assert source.update_manifest_url.endswith(
-        "/releases/download/canary/manifest.json"
+        "/releases/download/canary-latest/manifest.json"
     )
 
 

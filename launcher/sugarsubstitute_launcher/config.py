@@ -35,7 +35,7 @@ DEFAULT_RELEASE_MANIFEST_URL = (
 )
 DEFAULT_CANARY_RELEASE_MANIFEST_URL = (
     "https://github.com/Artificial-Sweetener/SugarSubstitute/"
-    "releases/download/canary/manifest.json"
+    "releases/download/canary-latest/manifest.json"
 )
 RELEASE_SOURCE_KIND_GITHUB: Literal["github_release_manifest"] = (
     "github_release_manifest"

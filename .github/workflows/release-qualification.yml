@@ -113,7 +113,7 @@ env:
   CANDIDATE_VERSION: ${{ inputs.candidate_version }}
   CANDIDATE_TAG: ${{ inputs.candidate_tag }}
   CANDIDATE_MANIFEST_URL: https://github.com/${{ github.repository }}/releases/download/${{ inputs.candidate_tag }}/manifest.json
-  EXPECTED_UPDATE_MANIFEST_URL: ${{ inputs.candidate_channel == 'canary' && format('https://github.com/{0}/releases/download/canary/manifest.json', github.repository) || format('https://github.com/{0}/releases/latest/download/manifest.json', github.repository) }}
+  EXPECTED_UPDATE_MANIFEST_URL: ${{ inputs.candidate_channel == 'canary' && format('https://github.com/{0}/releases/download/canary-latest/manifest.json', github.repository) || format('https://github.com/{0}/releases/latest/download/manifest.json', github.repository) }}
   QUALIFICATION_TIMEOUT_SECONDS: ${{ inputs.qualification_timeout_seconds }}
   STANDALONE_CACHE: build/managed-comfy-cache
   LINUX_QT_PACKAGES: >-
