@@ -143,7 +143,7 @@ def test_dependency_audits_run_without_repository_changes() -> None:
 
 
 def test_release_and_dependabot_branches_run_one_authoritative_suite() -> None:
-    """Avoid duplicate push and pull-request matrices for owned branch trains."""
+    """Run topic-branch matrices through their pull request only."""
 
     workflow = yaml.safe_load(
         (PROJECT_ROOT / ".github" / "workflows" / "tests.yml").read_text(
@@ -151,11 +151,7 @@ def test_release_and_dependabot_branches_run_one_authoritative_suite() -> None:
         )
     )
 
-    assert workflow[True]["push"]["branches-ignore"] == [
-        "main",
-        "canary",
-        "dependabot/**",
-    ]
+    assert "push" not in workflow[True]
 
 
 def _job_script(job: dict[str, object]) -> str:

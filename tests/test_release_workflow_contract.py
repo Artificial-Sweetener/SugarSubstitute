@@ -52,7 +52,7 @@ def test_documentation_only_changes_skip_automatic_ci() -> None:
     }
     triggers = {name: workflow[True] for name, workflow in workflows.items()}
 
-    assert triggers["tests.yml"]["push"]["paths-ignore"] == (_DOCUMENTATION_PATH_FILTER)
+    assert "push" not in triggers["tests.yml"]
     assert triggers["tests.yml"]["pull_request"]["paths-ignore"] == (
         _DOCUMENTATION_PATH_FILTER
     )
@@ -222,10 +222,24 @@ def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
     )
     assert jobs["determine-version"]["needs"] == "tests"
     assert "  workflow_call:" in tests_workflow_text
-    assert (
-        '    branches-ignore:\n      - main\n      - canary\n      - "dependabot/**"'
-        in (tests_workflow_text)
-    )
+    assert "  push:" not in tests_workflow_text.split("permissions:", maxsplit=1)[0]
+
+
+def test_push_and_pull_request_runs_share_commit_concurrency() -> None:
+    """Opening or updating a PR must cancel its duplicate branch-push run."""
+
+    for workflow_name in ("tests.yml", "comfy-compatibility.yml"):
+        workflow = yaml.safe_load(
+            (PROJECT_ROOT / ".github" / "workflows" / workflow_name).read_text(
+                encoding="utf-8"
+            )
+        )
+        concurrency = workflow["concurrency"]
+
+        assert (
+            "github.event.pull_request.head.sha || github.sha" in concurrency["group"]
+        )
+        assert concurrency["cancel-in-progress"] is True
 
 
 def test_canary_isolated_release_train_contract() -> None:
