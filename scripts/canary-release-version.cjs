@@ -36,12 +36,13 @@ function createCanaryVersion(nextStableVersion, runNumber) {
 }
 
 /**
- * Return the patch release following the greatest Stable tag.
+ * Return the Stable version implied by a semantic-release change type.
  *
  * @param {string[]} releaseTags Stable tags in vMAJOR.MINOR.PATCH form.
- * @returns {string} Next patch version.
+ * @param {"major" | "minor" | "patch"} releaseType Semantic release type.
+ * @returns {string} Next Stable version.
  */
-function nextPatchVersion(releaseTags) {
+function nextStableVersion(releaseTags, releaseType) {
   const versions = releaseTags.map((tag) => {
     const match = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(tag);
     if (!match) {
@@ -61,7 +62,30 @@ function nextPatchVersion(releaseTags) {
     return 0;
   });
   const [major, minor, patch] = versions.at(-1);
-  return `${major}.${minor}.${patch + 1}`;
+  if (releaseType === "major") {
+    return `${major + 1}.0.0`;
+  }
+  if (releaseType === "minor") {
+    return `${major}.${minor + 1}.0`;
+  }
+  if (releaseType === "patch") {
+    return `${major}.${minor}.${patch + 1}`;
+  }
+  throw new Error(`Expected a semantic release type: ${releaseType}`);
 }
 
-module.exports = { createCanaryVersion, nextPatchVersion };
+/**
+ * Return the greatest Stable tag by semantic version precedence.
+ *
+ * @param {string[]} releaseTags Stable tags in vMAJOR.MINOR.PATCH form.
+ * @returns {string} Greatest Stable tag.
+ */
+function latestStableTag(releaseTags) {
+  const version = nextStableVersion(releaseTags, "patch")
+    .split(".")
+    .map(Number);
+  version[2] -= 1;
+  return `v${version.join(".")}`;
+}
+
+module.exports = { createCanaryVersion, latestStableTag, nextStableVersion };

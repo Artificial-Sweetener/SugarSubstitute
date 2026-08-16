@@ -408,7 +408,7 @@ jobs:
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           SUGAR_SUBSTITUTE_RELEASE_CHANNEL: canary
-          SUGAR_SUBSTITUTE_ASSET_BASE_URL: https://github.com/${{ github.repository }}/releases/download/canary
+          SUGAR_SUBSTITUTE_ASSET_BASE_URL: https://github.com/${{ github.repository }}/releases/download/canary-latest
         run: node scripts\prepare-release-assets.mjs ${{ needs.determine-version.outputs.version }}
 
       - name: Prepare installer release notes
@@ -575,31 +575,31 @@ jobs:
           python -c "import json, os, pathlib; payload=json.loads(pathlib.Path('$channel_dir/manifest.json').read_text()); assert payload['channel']=='canary', payload; assert payload['version']==os.environ['CANDIDATE_VERSION'], payload"
           (cd "$channel_dir" && sha256sum --check checksums.txt)
 
-          if ! gh release view canary --repo "${{ github.repository }}" > /dev/null 2>&1; then
-            gh release create canary --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "SugarSubstitute Canary $CANDIDATE_VERSION" --notes-file "$channel_dir/.release-notes.md" --prerelease
+          if ! gh release view canary-latest --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            gh release create canary-latest --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "SugarSubstitute Canary $CANDIDATE_VERSION" --notes-file "$channel_dir/.release-notes.md" --prerelease
           fi
 
           for asset in "$channel_dir"/*; do
             case "$(basename "$asset")" in
               manifest.json|*.exe|*.dmg|*.AppImage|*.deb) continue ;;
             esac
-            gh release upload canary "$asset" --repo "${{ github.repository }}" --clobber
+            gh release upload canary-latest "$asset" --repo "${{ github.repository }}" --clobber
           done
-          gh release upload canary "$channel_dir/manifest.json" --repo "${{ github.repository }}" --clobber
+          gh release upload canary-latest "$channel_dir/manifest.json" --repo "${{ github.repository }}" --clobber
           for asset in "$channel_dir"/*.exe "$channel_dir"/*.dmg "$channel_dir"/*.AppImage "$channel_dir"/*.deb; do
             if [ -f "$asset" ]; then
-              gh release upload canary "$asset" --repo "${{ github.repository }}" --clobber
+              gh release upload canary-latest "$asset" --repo "${{ github.repository }}" --clobber
             fi
           done
 
           while IFS= read -r asset_name; do
             if [ ! -f "$channel_dir/$asset_name" ]; then
-              gh release delete-asset canary "$asset_name" --repo "${{ github.repository }}" --yes
+              gh release delete-asset canary-latest "$asset_name" --repo "${{ github.repository }}" --yes
             fi
-          done < <(gh release view canary --repo "${{ github.repository }}" --json assets --jq '.assets[].name')
+          done < <(gh release view canary-latest --repo "${{ github.repository }}" --json assets --jq '.assets[].name')
 
-          gh api --method PATCH "repos/${{ github.repository }}/git/refs/tags/canary" -f sha="${{ github.sha }}" -F force=true > /dev/null
-          gh release edit canary --repo "${{ github.repository }}" --title "SugarSubstitute Canary $CANDIDATE_VERSION" --notes-file "$channel_dir/.release-notes.md" --prerelease --latest=false
-          gh release download canary --repo "${{ github.repository }}" --pattern manifest.json --dir "$readback_dir"
+          gh api --method PATCH "repos/${{ github.repository }}/git/refs/tags/canary-latest" -f sha="${{ github.sha }}" -F force=true > /dev/null
+          gh release edit canary-latest --repo "${{ github.repository }}" --title "SugarSubstitute Canary $CANDIDATE_VERSION" --notes-file "$channel_dir/.release-notes.md" --prerelease --latest=false
+          gh release download canary-latest --repo "${{ github.repository }}" --pattern manifest.json --dir "$readback_dir"
           cmp "$channel_dir/manifest.json" "$readback_dir/manifest.json"
-          gh release view canary --repo "${{ github.repository }}" --json isDraft,isPrerelease --jq 'select(.isDraft == false and .isPrerelease == true)' > /dev/null
+          gh release view canary-latest --repo "${{ github.repository }}" --json isDraft,isPrerelease --jq 'select(.isDraft == false and .isPrerelease == true)' > /dev/null
