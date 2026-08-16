@@ -34,6 +34,7 @@ if str(REPOSITORY_ROOT) not in sys.path:
 
 from launcher.sugarsubstitute_launcher.config import (  # noqa: E402
     RELEASE_SOURCE_KIND_GITHUB,
+    LauncherConfig,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
 from sugarsubstitute_shared.tls import EXTRA_CA_FILE_ENV  # noqa: E402
@@ -117,6 +118,8 @@ def verify_clean_install(
     expected_version: str,
     candidate_release_root: Path | None = None,
     managed_artifact_cache_root: Path | None = None,
+    expected_channel: str | None = None,
+    expected_update_manifest_url: str | None = None,
     timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
 ) -> None:
     """Install and prove the completion button reveals the post-splash shell."""
@@ -163,6 +166,11 @@ def verify_clean_install(
                         phase="main-shell readiness",
                     ),
                 )
+                assert_installed_release_channel(
+                    install_root=install_root,
+                    expected_channel=expected_channel,
+                    expected_update_manifest_url=expected_update_manifest_url,
+                )
             finally:
                 terminate_owned_managed_comfy(install_root)
     print(f"INSTALLER_CLEAN_READY version={expected_version}", flush=True)
@@ -178,6 +186,8 @@ def verify_upgrade(
     historical_published_at: str,
     candidate_manifest_url: str | None,
     candidate_version: str,
+    candidate_channel: str | None = None,
+    expected_update_manifest_url: str | None = None,
     candidate_release_root: Path | None = None,
     historical_release_root: Path | None = None,
     timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
@@ -229,6 +239,8 @@ def verify_upgrade(
         install_root=install_root,
         historical_version=historical_version,
         candidate_version=candidate_version,
+        candidate_channel=candidate_channel,
+        expected_update_manifest_url=expected_update_manifest_url,
         candidate_manifest_url=candidate_manifest_url,
         candidate_release_root=candidate_release_root,
         endpoint_port=historical_port,
@@ -252,6 +264,8 @@ def _verify_candidate_installer_update(
     install_root: Path,
     historical_version: str,
     candidate_version: str,
+    candidate_channel: str | None = None,
+    expected_update_manifest_url: str | None = None,
     candidate_manifest_url: str | None,
     candidate_release_root: Path | None,
     endpoint_port: int,
@@ -268,8 +282,6 @@ def _verify_candidate_installer_update(
         manifest_url=candidate_manifest_url,
         certificate_root=install_root.parent / ".candidate-certificate",
     ) as candidate_source:
-        if candidate_source.manifest_url is None:
-            raise InstallerLifecycleError("Candidate update source is missing.")
         try:
             evidence = prepare_qualification_evidence(
                 install_root=install_root,
@@ -293,6 +305,11 @@ def _verify_candidate_installer_update(
                 environment=evidence.environment,
             )
             assert_installed_version(install_root, candidate_version)
+            assert_installed_release_channel(
+                install_root=install_root,
+                expected_channel=candidate_channel,
+                expected_update_manifest_url=expected_update_manifest_url,
+            )
             assert_historical_installed_launch_contract(install_root)
             candidate_launch = launch_installed_candidate(
                 install_root=install_root,
@@ -383,6 +400,37 @@ def set_update_manifest(install_root: Path, manifest_url: str) -> None:
     )
 
 
+def assert_installed_release_channel(
+    *,
+    install_root: Path,
+    expected_channel: str | None,
+    expected_update_manifest_url: str | None,
+) -> None:
+    """Require a published installer to persist its authoritative update feed."""
+
+    if expected_channel is None and expected_update_manifest_url is None:
+        return
+    if expected_channel is None or expected_update_manifest_url is None:
+        raise InstallerLifecycleError(
+            "Release-channel qualification requires both channel and manifest URL."
+        )
+    layout = InstallLayout.from_root(install_root)
+    config = LauncherConfig.load(layout.config_path)
+    if config.channel != expected_channel:
+        raise InstallerLifecycleError(
+            "Installed release channel mismatch: "
+            f"expected {expected_channel}, got {config.channel}."
+        )
+    if config.release_source is None:
+        raise InstallerLifecycleError("Installed release update source is missing.")
+    if config.release_source.manifest_url != expected_update_manifest_url:
+        raise InstallerLifecycleError(
+            "Installed release manifest URL mismatch: "
+            f"expected {expected_update_manifest_url}, "
+            f"got {config.release_source.manifest_url}."
+        )
+
+
 def _require_empty_install_root(install_root: Path) -> None:
     """Reject reuse so every qualification begins from a real clean install."""
 
@@ -426,6 +474,8 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     clean.add_argument("--expected-version", required=True)
     clean.add_argument("--candidate-release-root", type=Path)
     clean.add_argument("--managed-artifact-cache-root", type=Path)
+    clean.add_argument("--expected-channel")
+    clean.add_argument("--expected-update-manifest-url")
     clean.add_argument(
         "--timeout-seconds",
         type=_positive_timeout,
@@ -442,6 +492,8 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     upgrade.add_argument("--candidate-manifest-url")
     upgrade.add_argument("--candidate-release-root", type=Path)
     upgrade.add_argument("--candidate-version", required=True)
+    upgrade.add_argument("--candidate-channel")
+    upgrade.add_argument("--expected-update-manifest-url")
     upgrade.add_argument(
         "--timeout-seconds",
         type=_positive_timeout,
@@ -461,6 +513,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             expected_version=args.expected_version,
             candidate_release_root=args.candidate_release_root,
             managed_artifact_cache_root=args.managed_artifact_cache_root,
+            expected_channel=args.expected_channel,
+            expected_update_manifest_url=args.expected_update_manifest_url,
             timeout_seconds=args.timeout_seconds,
         )
     else:
@@ -474,6 +528,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             historical_release_root=args.historical_release_root,
             candidate_manifest_url=args.candidate_manifest_url,
             candidate_version=args.candidate_version,
+            candidate_channel=args.candidate_channel,
+            expected_update_manifest_url=args.expected_update_manifest_url,
             candidate_release_root=args.candidate_release_root,
             timeout_seconds=args.timeout_seconds,
         )

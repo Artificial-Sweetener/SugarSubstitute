@@ -23,16 +23,27 @@ const DEFAULT_REPOSITORY = "Artificial-Sweetener/SugarSubstitute";
  *
  * @param {string} repository GitHub repository in owner/name form.
  * @param {string} version Dotted numeric release version without a tag prefix.
+ * @param {string} channel Published release channel.
  * @returns {string} Markdown release guidance.
  */
-function createInstallerReleaseNotes(repository, version) {
+function createInstallerReleaseNotes(repository, version, channel = "stable") {
   const normalizedRepository = validateRepository(repository);
   const normalizedVersion = validateVersion(version);
-  const assetRoot = `https://github.com/${normalizedRepository}/releases/download/v${normalizedVersion}`;
-  const iconRoot = `https://raw.githubusercontent.com/${normalizedRepository}/v${normalizedVersion}/docs/release/platforms`;
+  const normalizedChannel = validateChannel(channel);
+  const releaseTag = normalizedChannel === "canary"
+    ? `canary-v${normalizedVersion}`
+    : `v${normalizedVersion}`;
+  const assetRoot = `https://github.com/${normalizedRepository}/releases/download/${releaseTag}`;
+  const iconRoot = `https://raw.githubusercontent.com/${normalizedRepository}/${releaseTag}/docs/release/platforms`;
+  const heading = normalizedChannel === "canary"
+    ? "## Install SugarSubstitute Canary"
+    : "## Install SugarSubstitute";
+  const updateGuidance = normalizedChannel === "canary"
+    ? "**Already using Canary?** Open SugarSubstitute normally. This installation follows only the Canary update feed and never switches to Stable automatically."
+    : "**Already installed?** Open SugarSubstitute normally. It checks for application updates when it starts, usually once per day, and installs newer application versions automatically. You normally do not need another installer.";
 
   return [
-    "## Install SugarSubstitute",
+    heading,
     "",
     "Download the installer for your platform:",
     "",
@@ -42,9 +53,23 @@ function createInstallerReleaseNotes(repository, version) {
     "",
     "The macOS installer is ad-hoc signed but not notarized. macOS will warn that it cannot verify the developer, so allow it through Privacy & Security after downloading it from this repository.",
     "",
-    "**Already installed?** Open SugarSubstitute normally. It checks for application updates when it starts, usually once per day, and installs newer application versions automatically. You normally do not need another installer.",
+    updateGuidance,
     "",
   ].join("\n");
+}
+
+/**
+ * Require one supported release channel.
+ *
+ * @param {string} channel Candidate release channel.
+ * @returns {string} Validated channel.
+ */
+function validateChannel(channel) {
+  const normalized = String(channel).trim();
+  if (!new Set(["stable", "canary"]).has(normalized)) {
+    throw new Error(`Unsupported release channel: ${channel}`);
+  }
+  return normalized;
 }
 
 /**
@@ -79,7 +104,7 @@ function validateVersion(version) {
  * Parse the small command surface used by the first-release workflow.
  *
  * @param {string[]} args Process arguments following the script path.
- * @returns {{repository: string, version: string, output: string}} Parsed options.
+ * @returns {{repository: string, version: string, output: string, channel: string}} Parsed options.
  */
 function parseArguments(args) {
   const values = new Map();
@@ -97,14 +122,19 @@ function parseArguments(args) {
   if (!repository || !version || !output) {
     throw new Error("Expected --repository, --version, and --output values.");
   }
-  return { repository, version, output };
+  return {
+    repository,
+    version,
+    output,
+    channel: values.get("--channel") ?? "stable",
+  };
 }
 
 if (require.main === module) {
   const options = parseArguments(process.argv.slice(2));
   writeFileSync(
     options.output,
-    createInstallerReleaseNotes(options.repository, options.version),
+    createInstallerReleaseNotes(options.repository, options.version, options.channel),
     "utf8",
   );
 }

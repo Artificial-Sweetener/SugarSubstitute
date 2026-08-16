@@ -135,7 +135,7 @@ def install_candidate_over_historical_install(
     *,
     installer_path: Path,
     install_root: Path,
-    manifest_url: str,
+    manifest_url: str | None,
     timeout_seconds: float,
     environment: dict[str, str],
 ) -> None:
@@ -145,8 +145,9 @@ def install_candidate_over_historical_install(
         str(installer_path.resolve()),
         "--headless-install",
         f"--install-root={install_root.resolve()}",
-        f"--manifest-url={manifest_url}",
     ]
+    if manifest_url is not None:
+        command.append(f"--manifest-url={manifest_url}")
     result = subprocess.run(
         command,
         cwd=installer_path.resolve().parent,

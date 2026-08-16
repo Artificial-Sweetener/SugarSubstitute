@@ -19,6 +19,11 @@
 from __future__ import annotations
 
 from launcher.sugarsubstitute_launcher import __version__ as LAUNCHER_VERSION
+from launcher.sugarsubstitute_launcher.build_metadata import RELEASE_CHANNEL
+from launcher.sugarsubstitute_launcher.config import (
+    CANARY_RELEASE_CHANNEL,
+    STABLE_RELEASE_CHANNEL,
+)
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     ApplicationInstallationRequest,
     InstallationPreparation,
@@ -31,6 +36,7 @@ from launcher.sugarsubstitute_launcher.release_discovery import (
 )
 from launcher.sugarsubstitute_launcher.release_sources import (
     LocalFolderReleaseSource,
+    canary_installer_release_source,
     production_installer_release_source,
 )
 
@@ -46,7 +52,11 @@ def resolve_initial_install_release_source(
     if packaged_release_root is not None:
         return LocalFolderReleaseSource(packaged_release_root)
     if frozen_setup:
-        return production_installer_release_source(release_version)
+        if RELEASE_CHANNEL == STABLE_RELEASE_CHANNEL:
+            return production_installer_release_source(release_version)
+        if RELEASE_CHANNEL == CANARY_RELEASE_CHANNEL:
+            return canary_installer_release_source(release_version)
+        raise ValueError(f"Unsupported embedded release channel: {RELEASE_CHANNEL}")
     return LocalFolderReleaseSource(discover_local_release_root())
 
 

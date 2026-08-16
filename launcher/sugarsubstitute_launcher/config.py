@@ -27,9 +27,15 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 
 
 CONFIG_SCHEMA_VERSION = 1
+STABLE_RELEASE_CHANNEL = "stable"
+CANARY_RELEASE_CHANNEL = "canary"
 DEFAULT_RELEASE_MANIFEST_URL = (
     "https://github.com/Artificial-Sweetener/SugarSubstitute/"
     "releases/latest/download/manifest.json"
+)
+DEFAULT_CANARY_RELEASE_MANIFEST_URL = (
+    "https://github.com/Artificial-Sweetener/SugarSubstitute/"
+    "releases/download/canary/manifest.json"
 )
 RELEASE_SOURCE_KIND_GITHUB: Literal["github_release_manifest"] = (
     "github_release_manifest"
@@ -121,7 +127,7 @@ class LauncherConfig:
         cls,
         *,
         layout: InstallLayout,
-        channel: str = "stable",
+        channel: str = STABLE_RELEASE_CHANNEL,
         update_check: UpdateCheckConfig | None = None,
         release_source: ReleaseSourceConfig | None = ReleaseSourceConfig.default(),
     ) -> Self:
@@ -158,7 +164,7 @@ class LauncherConfig:
             install_root=Path(_required_string(payload, "install_root")),
             app_dir=Path(_required_string(payload, "app_dir")),
             runtime_python=Path(_required_string(payload, "runtime_python")),
-            channel=_optional_string(payload, "channel", "stable"),
+            channel=_optional_string(payload, "channel", STABLE_RELEASE_CHANNEL),
             update_check=UpdateCheckConfig.from_json(payload.get("update_check")),
             release_source=_release_source_from_payload(payload),
         )

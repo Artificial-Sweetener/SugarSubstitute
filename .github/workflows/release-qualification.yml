@@ -12,6 +12,11 @@ on:
         required: false
         default: ""
         type: string
+      candidate_channel:
+        description: "Release channel embedded into the candidate installers"
+        required: false
+        default: "stable"
+        type: string
       candidate_artifact_name:
         description: "Same-run artifact containing a temporary candidate channel"
         required: false
@@ -48,6 +53,14 @@ on:
         required: false
         default: ""
         type: string
+      candidate_channel:
+        description: "Release channel embedded into the candidate installers"
+        required: false
+        default: "stable"
+        type: choice
+        options:
+          - stable
+          - canary
       candidate_artifact_name:
         description: "Same-run artifact containing a temporary candidate channel"
         required: false
@@ -99,6 +112,7 @@ env:
   CANDIDATE_VERSION: ${{ inputs.candidate_version }}
   CANDIDATE_TAG: ${{ inputs.candidate_tag }}
   CANDIDATE_MANIFEST_URL: https://github.com/${{ github.repository }}/releases/download/${{ inputs.candidate_tag }}/manifest.json
+  EXPECTED_UPDATE_MANIFEST_URL: ${{ inputs.candidate_channel == 'canary' && format('https://github.com/{0}/releases/download/canary/manifest.json', github.repository) || format('https://github.com/{0}/releases/latest/download/manifest.json', github.repository) }}
   QUALIFICATION_TIMEOUT_SECONDS: ${{ inputs.qualification_timeout_seconds }}
   STANDALONE_CACHE: build/managed-comfy-cache
   LINUX_QT_PACKAGES: >-
@@ -284,6 +298,8 @@ jobs:
           --installer "build/candidate/${{ matrix.asset }}"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
+          --expected-channel "${{ inputs.candidate_channel }}"
+          --expected-update-manifest-url "${{ env.EXPECTED_UPDATE_MANIFEST_URL }}"
           --managed-artifact-cache-root "${{ env.STANDALONE_CACHE }}"
           --timeout-seconds "${{ env.QUALIFICATION_TIMEOUT_SECONDS }}"
       - name: Prove temporary clean install and post-splash launch
@@ -376,6 +392,8 @@ jobs:
           --installer "${{ runner.temp }}/candidate-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup"
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
+          --expected-channel "${{ inputs.candidate_channel }}"
+          --expected-update-manifest-url "$EXPECTED_UPDATE_MANIFEST_URL"
           --managed-artifact-cache-root "$STANDALONE_CACHE"
           --timeout-seconds "$QUALIFICATION_TIMEOUT_SECONDS"
       - name: Prove temporary clean install and post-splash launch
@@ -539,7 +557,15 @@ jobs:
           $candidateSource = if ("${{ inputs.candidate_artifact_name }}" -ne "") {
             @("--candidate-release-root", "build/candidate")
           } else {
-            @("--candidate-manifest-url", $env:CANDIDATE_MANIFEST_URL)
+            @()
+          }
+          $publishedChannel = if ("${{ inputs.candidate_tag }}" -ne "") {
+            @(
+              "--candidate-channel", "${{ inputs.candidate_channel }}",
+              "--expected-update-manifest-url", $env:EXPECTED_UPDATE_MANIFEST_URL
+            )
+          } else {
+            @()
           }
           $historicalSource = if ($env:HISTORICAL_RELEASE_ROOT) {
             @("--historical-release-root", $env:HISTORICAL_RELEASE_ROOT)
@@ -555,6 +581,7 @@ jobs:
             --historical-version "${{ matrix.history.version }}" `
             --historical-published-at "${{ matrix.history.published_at }}" `
             @candidateSource `
+            @publishedChannel `
             --timeout-seconds "$env:QUALIFICATION_TIMEOUT_SECONDS" `
             --candidate-version "$env:CANDIDATE_VERSION"
       - name: Upload historical-update diagnostics

@@ -130,6 +130,39 @@ def test_pre_launch_update_skips_current_manifest_and_records_check(
     assert state.last_update_check_utc == _fixed_now()
 
 
+@pytest.mark.parametrize(
+    ("installed_channel", "manifest_channel"),
+    (("stable", "canary"), ("canary", "stable")),
+)
+def test_pre_launch_update_never_crosses_release_channels(
+    tmp_path: Path,
+    installed_channel: str,
+    manifest_channel: str,
+) -> None:
+    """Stable and Canary installations must reject each other's manifests."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    config = LauncherConfig.from_layout(layout=layout, channel=installed_channel)
+    installer = _PayloadInstaller(version="9999.1.42")
+
+    result = LauncherUpdateOrchestrator(
+        payload_installer=installer,
+        runtime_reconciler=_RuntimeReconciler(),
+        now=_fixed_now,
+    ).run(
+        layout=layout,
+        config=config,
+        release_source=_ReleaseSource(
+            _manifest(version="9999.1.42", channel=manifest_channel)
+        ),
+        no_update_check=False,
+    )
+
+    assert result.skipped_reason == "channel_mismatch"
+    assert result.installed_update is False
+    assert installer.installed_layouts == []
+
+
 def test_pre_launch_update_respects_disabled_policy(tmp_path: Path) -> None:
     """Disabled update checks should not load the manifest."""
 

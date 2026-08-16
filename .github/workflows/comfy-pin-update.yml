@@ -25,7 +25,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout main
+      - name: Checkout Canary
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -85,7 +85,7 @@ jobs:
           if ($existing) {
             gh pr edit $existing --title "chore(comfy): qualify standalone $env:PROPOSED_TAGS" --body-file $bodyPath
           } else {
-            gh pr create --base main --head $env:UPDATE_BRANCH --title "chore(comfy): qualify standalone $env:PROPOSED_TAGS" --body-file $bodyPath
+            gh pr create --base canary --head $env:UPDATE_BRANCH --title "chore(comfy): qualify standalone $env:PROPOSED_TAGS" --body-file $bodyPath
           }
       - name: Dispatch PR checks suppressed for bot-created events
         if: steps.pin.outputs.changed == 'true'

@@ -414,6 +414,35 @@ def test_frozen_installer_uses_production_release_without_embedded_channel(
     assert source.manifest_url != DEFAULT_RELEASE_MANIFEST_URL
 
 
+def test_frozen_canary_installer_uses_exact_canary_release(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A frozen Canary setup must retain its exact build and rolling feed."""
+
+    monkeypatch.setattr(
+        "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.discover_packaged_release_root",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        "launcher.sugarsubstitute_launcher.application.installation.release_source_policy.RELEASE_CHANNEL",
+        "canary",
+    )
+
+    source = resolve_initial_install_release_source(
+        frozen_setup=True,
+        release_version="9999.1.42",
+    )
+
+    assert isinstance(source, VersionBoundReleaseSource)
+    assert source.expected_channel == "canary"
+    assert source.manifest_url.endswith(
+        "/releases/download/canary-v9999.1.42/manifest.json"
+    )
+    assert source.update_manifest_url.endswith(
+        "/releases/download/canary/manifest.json"
+    )
+
+
 def test_source_installer_uses_worktree_release_channel(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
