@@ -612,6 +612,27 @@ def test_readme_test_badge_tracks_authoritative_main_workflow() -> None:
     assert "actions/workflows/tests.yml/badge.svg" not in readme
 
 
+def test_all_readme_release_badges_exclude_prereleases() -> None:
+    """Release badges must display and navigate only to the latest Stable release."""
+
+    release_badge_endpoint = (
+        "https://img.shields.io/github/v/release/Artificial-Sweetener/SugarSubstitute"
+    )
+    expected_image = f"{release_badge_endpoint}?filter=v%2A"
+    expected_target = (
+        "https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest"
+    )
+    for readme_path in sorted(PROJECT_ROOT.glob("README*.md")):
+        readme = readme_path.read_text(encoding="utf-8")
+        release_badge_line = next(
+            line for line in readme.splitlines() if release_badge_endpoint in line
+        )
+
+        assert f'href="{expected_target}"' in release_badge_line
+        assert f'src="{expected_image}"' in release_badge_line
+        assert f'src="{release_badge_endpoint}"' not in release_badge_line
+
+
 def test_readme_explains_comfy_setup_modes_and_remote_requirements() -> None:
     """Keep setup ownership and remote requirements visible to installers."""
 

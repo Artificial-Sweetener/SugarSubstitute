@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/releases"><img src="https://img.shields.io/github/v/release/Artificial-Sweetener/SugarSubstitute?include_prereleases" alt="最新リリース"></a>
+  <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest"><img src="https://img.shields.io/github/v/release/Artificial-Sweetener/SugarSubstitute?filter=v%2A" alt="最新リリース"></a>
   <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/Artificial-Sweetener/SugarSubstitute/release.yml?branch=main&label=Tests" alt="テスト状況"></a>
   <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/releases"><img src="https://img.shields.io/github/downloads/Artificial-Sweetener/SugarSubstitute/total" alt="リリースのダウンロード数"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0.html"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="GPL-3.0-or-later ライセンス"></a>
