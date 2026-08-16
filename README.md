@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest"><img src="https://img.shields.io/github/v/release/Artificial-Sweetener/SugarSubstitute" alt="Latest release"></a>
+  <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest"><img src="https://img.shields.io/github/v/release/Artificial-Sweetener/SugarSubstitute?filter=v%2A" alt="Latest release"></a>
   <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/Artificial-Sweetener/SugarSubstitute/release.yml?branch=main&label=Tests" alt="Test status"></a>
   <a href="https://github.com/Artificial-Sweetener/SugarSubstitute/releases"><img src="https://img.shields.io/github/downloads/Artificial-Sweetener/SugarSubstitute/total" alt="Release downloads"></a>
   <a href="https://www.gnu.org/licenses/gpl-3.0.html"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="GPL-3.0-or-later license"></a>
@@ -230,9 +230,10 @@ SugarSubstitute stands on an extraordinary amount of work from other people. I a
 
 - **ComfyUI:** I owe an enormous thank-you to [comfyanonymous](https://github.com/comfyanonymous), [Comfy Org](https://github.com/Comfy-Org), and everyone who contributes to [ComfyUI](https://github.com/Comfy-Org/ComfyUI). ComfyUI is the engine and open workflow ecosystem that makes SugarSubstitute possible. Its flexibility is the reason I can build a different way to work without limiting what people can create.
 - **ComfyUI Prompt Control:** I'm grateful to [asagi4](https://github.com/asagi4) and the contributors to [ComfyUI Prompt Control](https://github.com/asagi4/comfyui-prompt-control). They did the hard work behind advanced prompt editing and LoRA control in ComfyUI, giving SugarSubstitute powerful behavior to bring into its own editor.
+- **CSV Wildcards:** Thank you to [illuminatianon](https://github.com/illuminatianon) for creating [comfyui-csvwildcards](https://github.com/illuminatianon/comfyui-csvwildcards). SugarSubstitute reimplements its wildcard format and builds on its ideas for plain-text and CSV-backed wildcards. I'm grateful to have had their work to learn from.
 - **PySide6-Fluent-Widgets and QFramelessWindow:** [zhiyiYo](https://github.com/zhiyiYo) and the contributors to [PySide6-Fluent-Widgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets) and [QFramelessWindow](https://github.com/zhiyiYo/PyQt-Frameless-Window) have put years of care into making Qt applications feel polished across platforms. SugarSubstitute feels more like a real desktop application because that work was there to build on.
 - **CivitAI:** I'm grateful to the [CivitAI](https://civitai.com/) team for treating the model ecosystem like something worth supporting. Their API helps SugarSubstitute connect models with the information people need to use them, their permissive hosting gives creators room to share, and their affordable on-demand compute helps more people make things without owning an expensive GPU.
-- **Danbooru:** The [Danbooru](https://danbooru.donmai.us/) team and community have built an unusually thoughtful shared language for describing images. Their API makes that knowledge useful inside SugarSubstitute, but the real gift is the care people continue to put into organizing, documenting, and refining the tags themselves.
+- **Danbooru:** The [Danbooru](https://danbooru.donmai.us/) team and community have built a thoughtful shared language for describing images. Their API makes that knowledge useful inside SugarSubstitute, but the real gift is the care people continue to put into organizing, documenting, and refining the tags themselves.
 - **Qt:** Finally, thank you to [The Qt Company](https://www.qt.io/) for Qt and PySide6. They make it possible for me to build the responsive, native, cross-platform creative application I wanted SugarSubstitute to be.
 
 ## From the Developer 💖
