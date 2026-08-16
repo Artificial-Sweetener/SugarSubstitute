@@ -713,16 +713,17 @@ def test_two_real_picker_pairs_route_exact_image_and_mask_identity(
             ImagePicker,
             harness.picker(ImagePicker, harness.CUBE_ALIAS, harness.IMAGE_NODE),
         )
+        harness.shell.editor_panel.setFocus()
         QTest.mouseClick(first_image_picker.preview_surface, Qt.MouseButton.LeftButton)
         harness.wait_until(
             lambda: (
                 workflow.canvas.input_image_uuid == first_image_id
                 and workflow.canvas.active_input_mask_uuid == first_mask_id
-                and _focus_belongs_to(harness.input_canvas)
             )
         )
         assert workflow.canvas.input_image_uuid == first_image_id
         assert workflow.canvas.active_input_mask_uuid == first_mask_id
+        harness.wait_until(lambda: _focus_belongs_to(harness.input_canvas))
         assert _focus_belongs_to(harness.input_canvas)
 
         assert harness.shell.input_canvas_tool_controller.request_tool(
@@ -732,6 +733,7 @@ def test_two_real_picker_pairs_route_exact_image_and_mask_identity(
             MaskPicker,
             harness.picker(MaskPicker, second_alias, harness.MASK_NODE),
         )
+        harness.shell.editor_panel.setFocus()
         QTest.mouseClick(second_mask_picker.preview_surface, Qt.MouseButton.LeftButton)
         harness.wait_until(
             lambda: (
@@ -739,7 +741,6 @@ def test_two_real_picker_pairs_route_exact_image_and_mask_identity(
                 and workflow.canvas.active_input_mask_uuid == second_mask_id
                 and harness.shell.input_canvas_tool_controller.palette.active_tool_id
                 == InputCanvasToolId.MOVE
-                and _focus_belongs_to(harness.input_canvas)
             )
         )
         assert workflow.canvas.input_image_uuid == second_image_id
@@ -748,6 +749,7 @@ def test_two_real_picker_pairs_route_exact_image_and_mask_identity(
             harness.shell.input_canvas_tool_controller.palette.active_tool_id
             == InputCanvasToolId.MOVE
         )
+        harness.wait_until(lambda: _focus_belongs_to(harness.input_canvas))
         assert _focus_belongs_to(harness.input_canvas)
     finally:
         harness.close()
