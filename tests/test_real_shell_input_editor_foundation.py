@@ -600,12 +600,10 @@ def test_real_picker_interactions_select_masks_without_changing_held_tool(
             harness.image_picker.preview_surface, Qt.MouseButton.LeftButton
         )
         harness.wait_until(
-            lambda: (
-                harness.workflow.canvas.input_image_uuid == harness.image_id
-                and _focus_belongs_to(harness.input_canvas)
-            )
+            lambda: harness.workflow.canvas.input_image_uuid == harness.image_id
         )
         assert harness.workflow.canvas.input_image_uuid == harness.image_id
+        harness.wait_until(lambda: _focus_belongs_to(harness.input_canvas))
         assert _focus_belongs_to(harness.input_canvas)
 
         assert harness.shell.input_canvas_tool_controller.request_tool(

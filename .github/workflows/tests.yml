@@ -26,7 +26,7 @@ env:
   QT_QPA_PLATFORM: offscreen
   QT_OPENGL: software
   SUBSTITUTE_DISABLE_APP_USER_MODEL_ID: "1"
-  SUBSTITUTE_DISABLE_QPANE_SAM_WARMUP: "1"
+  SUBSTITUTE_DISABLE_CUTECANVAS_SAM_WARMUP: "1"
   LINUX_QT_PACKAGES: >-
     xvfb libegl1 libfontconfig1 libgl1 libpulse0 libxcb-cursor0 libxcb-icccm4
     libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
