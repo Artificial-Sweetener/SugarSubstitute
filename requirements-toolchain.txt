@@ -4,14 +4,14 @@
 
 -r requirements.txt
 
-certifi==2026.6.17
+certifi==2026.7.22
 pip==26.2.1
 pip-audit==2.10.1
-pre-commit==4.6.1
+pre-commit==4.6.2
 pytest==9.1.1
 pytest-xdist==3.8.0
-ruff==0.16.2
+ruff==0.16.3
 mypy==2.3.0
 pyinstaller==6.22.0
 pywinauto==0.6.9; sys_platform == "win32"
-uv==0.12.3
+uv==0.12.4
