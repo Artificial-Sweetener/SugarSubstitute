@@ -548,7 +548,11 @@ jobs:
             --repo "${{ github.repository }}" `
             --pattern $assetPattern `
             --dir build/historical-installer
-          $path = (Get-ChildItem build/historical-installer -File | Select-Object -Single).FullName
+          $historicalInstallers = @(Get-ChildItem build/historical-installer -File)
+          if ($historicalInstallers.Count -ne 1) {
+            throw "Expected exactly one historical installer matching '$assetPattern' for ${{ matrix.history.tag }} on ${{ matrix.platform }}; found $($historicalInstallers.Count)."
+          }
+          $path = $historicalInstallers[0].FullName
           if ("${{ matrix.platform }}" -eq "linux") {
             chmod +x $path
           }
