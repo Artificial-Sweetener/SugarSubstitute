@@ -539,27 +539,25 @@ jobs:
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           New-Item -ItemType Directory -Force build/historical-installer | Out-Null
-          $asset = switch ("${{ matrix.platform }}") {
-            "windows" { "SugarSubstitute-Installer-Windows-x64.exe" }
-            "linux" { "SugarSubstitute-Installer-Linux-x86_64.AppImage" }
-            "macos" { "SugarSubstitute-Installer-macOS-Apple-Silicon.dmg" }
+          $assetPattern = switch ("${{ matrix.platform }}") {
+            "windows" { "SugarSubstitute-*-Windows-x64.exe" }
+            "linux" { "SugarSubstitute-*-Linux-x86_64.AppImage" }
+            "macos" { "SugarSubstitute-*-macOS-Apple-Silicon.dmg" }
           }
           gh release download "${{ matrix.history.tag }}" `
             --repo "${{ github.repository }}" `
-            --pattern $asset `
+            --pattern $assetPattern `
             --dir build/historical-installer
-          $path = (Resolve-Path (Join-Path build/historical-installer $asset)).Path
+          $path = (Get-ChildItem build/historical-installer -File | Select-Object -Single).FullName
           if ("${{ matrix.platform }}" -eq "linux") {
             chmod +x $path
           }
-          if ("${{ matrix.platform }}" -ne "macos") {
-            "HISTORICAL_INSTALLER=$path" | Out-File -FilePath $env:GITHUB_ENV -Append
-          }
+          "HISTORICAL_INSTALLER=$path" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Mount real historical macOS installer
         if: matrix.platform == 'macos'
         run: |
           mkdir -p "${{ runner.temp }}/historical-dmg"
-          hdiutil attach "build/historical-installer/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg" -mountpoint "${{ runner.temp }}/historical-dmg" -nobrowse
+          hdiutil attach "$HISTORICAL_INSTALLER" -mountpoint "${{ runner.temp }}/historical-dmg" -nobrowse
           echo "HISTORICAL_INSTALLER=${{ runner.temp }}/historical-dmg/SugarSubstitute Setup.app/Contents/MacOS/SugarSubstitute Setup" >> "$GITHUB_ENV"
       - name: Reconstitute exact historical macOS install channel
         if: matrix.platform == 'macos'
