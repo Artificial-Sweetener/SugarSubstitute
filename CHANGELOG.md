@@ -1,3 +1,10 @@
+## [0.21.3](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.21.2...v0.21.3) (2026-08-21)
+
+
+### Bug Fixes
+
+* **releases:** qualify versioned historical installers ([2211e40](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/2211e4092282a2c6aeffb610a3e6abf0088be4e9))
+
 ## [0.21.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.21.1...v0.21.2) (2026-08-21)
 
 
