@@ -136,6 +136,46 @@ def test_reconstitution_rejects_unreviewed_archive_roots(tmp_path: Path) -> None
         )
 
 
+def test_reconstitution_preserves_self_contained_historical_app(tmp_path: Path) -> None:
+    """Qualification must retain exact bundles that need no onedir repair."""
+
+    source_root = tmp_path / "source"
+    output_root = tmp_path / "output"
+    app_path = _write_asset(source_root / "app.zip", b"historical app")
+    launcher_path = source_root / "launcher.zip"
+    launcher_path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(launcher_path, "w") as archive:
+        archive.writestr(
+            "SugarSubstitute.app/Contents/MacOS/SugarSubstitute",
+            b"app launcher",
+        )
+        archive.writestr(
+            "SugarSubstitute.app/Contents/Frameworks/python3.12/lib-dynload/_struct.so",
+            b"app runtime",
+        )
+    (source_root / "manifest.json").write_text(
+        json.dumps(
+            {
+                "version": "0.21.1",
+                "app": _asset_metadata(app_path),
+                "launchers": {"macos_arm64": _asset_metadata(launcher_path)},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    reconstitute_historical_macos_release(
+        source_root=source_root,
+        output_root=output_root,
+    )
+
+    assert (output_root / "launcher.zip").read_bytes() == launcher_path.read_bytes()
+    evidence = json.loads(
+        (output_root / "historical-reconstitution.json").read_text(encoding="utf-8")
+    )
+    assert evidence["removed_roots"] == []
+
+
 def _write_asset(path: Path, content: bytes) -> Path:
     """Write one fixture release asset."""
 
