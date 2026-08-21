@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import ast
 import json
 from pathlib import Path
 import re
@@ -1203,22 +1202,6 @@ def test_windows_quality_workflows_fail_fast_on_native_command_errors() -> None:
     fail_fast_setting = "$PSNativeCommandUseErrorActionPreference = $true"
     assert release_workflow.count(fail_fast_setting) >= 2
     assert fail_fast_setting in test_workflow
-
-
-def test_production_python_contains_no_system_git_command() -> None:
-    """Supported runtime paths should never execute a system Git binary."""
-
-    offenders: list[str] = []
-    for source_root in (PROJECT_ROOT / "substitute", PROJECT_ROOT / "launcher"):
-        for path in source_root.rglob("*.py"):
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            for node in ast.walk(tree):
-                if not isinstance(node, (ast.List, ast.Tuple)) or not node.elts:
-                    continue
-                first = node.elts[0]
-                if isinstance(first, ast.Constant) and first.value == "git":
-                    offenders.append(str(path.relative_to(PROJECT_ROOT)))
-    assert offenders == []
 
 
 def test_installer_sources_do_not_reference_obsolete_comfy_desktop_repository() -> None:

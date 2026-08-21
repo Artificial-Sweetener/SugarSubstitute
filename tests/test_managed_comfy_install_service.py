@@ -31,6 +31,7 @@ from substitute.application.onboarding.managed_runtime_service import (
     ManagedRuntimeService,
 )
 from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_existing_setup
 from substitute.infrastructure.comfy import managed_existing_setup_operations
@@ -70,6 +71,17 @@ def _managed_setup_record_path(workspace: Path) -> Path:
         return cache.record_path
     finally:
         cache.close()
+
+
+def _manager_runtime(workspace: Path) -> ComfyManagerRuntime:
+    """Build one validated integrated Manager runtime fixture."""
+
+    return ComfyManagerRuntime(
+        kind=ComfyManagerKind.INTEGRATED,
+        workspace=workspace,
+        python_executable=workspace_python_path(workspace),
+        version="4.1",
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -181,12 +193,16 @@ def _disable_shared_models_link(
     monkeypatch.setattr(
         managed_install,
         "ensure_core_comfy_nodepacks",
-        lambda workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: None,
+        lambda manager_runtime, refresh_nodepacks=frozenset(), on_log=None, env=None: (
+            None
+        ),
     )
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_core_comfy_nodepacks",
-        lambda workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: None,
+        lambda manager_runtime, refresh_nodepacks=frozenset(), on_log=None, env=None: (
+            None
+        ),
     )
     monkeypatch.setattr(
         managed_install,
@@ -251,20 +267,20 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
         workspace: Path,
         on_log: object | None = None,
         env: object | None = None,
-    ) -> Path:
+    ) -> ComfyManagerRuntime:
         _ = on_log, env
         provision_calls.append(workspace)
-        return workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
+        return _manager_runtime(workspace)
 
     def _record_nodepack_install(
-        workspace: Path,
+        manager_runtime: ComfyManagerRuntime,
         refresh_nodepacks: frozenset[CoreNodepackId] = frozenset(),
         on_log: object | None = None,
         env: object | None = None,
     ) -> None:
         """Record nodepack convergence before model-root configuration."""
 
-        _ = workspace, on_log, env
+        _ = manager_runtime, on_log, env
         refresh_targets.append(frozenset(refresh_nodepacks))
         mutation_order.append("nodepacks")
 
@@ -515,22 +531,22 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         workspace: Path,
         on_log: object | None = None,
         env: object | None = None,
-    ) -> Path:
+    ) -> ComfyManagerRuntime:
         """Record manager provisioning."""
 
         _ = on_log, env
         calls.append("manager")
-        return workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
+        return _manager_runtime(workspace)
 
     def _fake_ensure_core_comfy_nodepacks(
-        workspace: Path,
+        manager_runtime: ComfyManagerRuntime,
         refresh_nodepacks: object = frozenset(),
         on_log: object | None = None,
         env: object | None = None,
     ) -> None:
         """Record nodepack reconciliation."""
 
-        _ = workspace, on_log, env
+        _ = manager_runtime, on_log, env
         calls.append("nodepacks")
         refresh_targets.append(frozenset(cast(set[CoreNodepackId], refresh_nodepacks)))
 
@@ -659,7 +675,7 @@ def test_existing_setup_repairs_torch_only_when_explicitly_authorized(
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: workspace / "manager.py",
+        lambda workspace, on_log=None, env=None: _manager_runtime(workspace),
     )
 
     first = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
@@ -758,12 +774,12 @@ def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: manager_dir / "cm-cli.py",
+        lambda workspace, on_log=None, env=None: _manager_runtime(workspace),
     )
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_core_comfy_nodepacks",
-        lambda workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: (
+        lambda manager_runtime, refresh_nodepacks=frozenset(), on_log=None, env=None: (
             reconciliation_calls.append("nodepacks")
         ),
     )
@@ -1049,7 +1065,7 @@ def test_ensure_managed_comfy_setup_does_not_fallback_after_storage_error(
         python_runtime: str | None = None,
         on_log: object | None = None,
         env: object | None = None,
-    ) -> Path:
+    ) -> ComfyManagerRuntime:
         _ = workspace, python_runtime, on_log, env
         workspace_python.parent.mkdir(parents=True, exist_ok=True)
         workspace_python.write_text("", encoding="utf-8")
@@ -1167,7 +1183,7 @@ def test_ensure_managed_comfy_setup_installs_and_marks_workspace(
     ) -> Path:
         _ = on_log, env
         provision_calls.append(workspace)
-        return workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
+        return _manager_runtime(workspace)
 
     monkeypatch.setattr(
         managed_install,
@@ -1290,9 +1306,7 @@ def test_new_stable_workspace_uses_verified_standalone_environment(
     monkeypatch.setattr(
         managed_install,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: (
-            workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        ),
+        lambda workspace, on_log=None, env=None: _manager_runtime(workspace),
     )
 
     result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
@@ -1401,9 +1415,7 @@ def test_ensure_managed_comfy_setup_falls_back_to_stable_when_nightly_validation
     monkeypatch.setattr(
         managed_install,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: (
-            workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        ),
+        lambda workspace, on_log=None, env=None: _manager_runtime(workspace),
     )
     validations = iter(
         (
@@ -1497,9 +1509,7 @@ def test_ensure_managed_comfy_setup_removes_incomplete_workspace_before_install(
     monkeypatch.setattr(
         managed_install,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: (
-            workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        ),
+        lambda workspace, on_log=None, env=None: _manager_runtime(workspace),
     )
 
     result = managed_install.ensure_managed_comfy_setup(
@@ -1575,9 +1585,7 @@ def test_ensure_managed_comfy_setup_accepts_owned_model_paths_bootstrap_file(
     monkeypatch.setattr(
         managed_install,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: (
-            workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        ),
+        lambda workspace, on_log=None, env=None: _manager_runtime(workspace),
     )
     monkeypatch.setattr(
         managed_install,
@@ -1630,9 +1638,7 @@ def test_ensure_managed_comfy_setup_migrates_legacy_nested_workspace(
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: (
-            workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        ),
+        lambda workspace, on_log=None, env=None: _manager_runtime(workspace),
     )
 
     result = managed_install.ensure_managed_comfy_setup(

@@ -107,7 +107,7 @@ def prepare_verified_attached_comfy_setup(
         )
     if on_status is not None:
         on_status(app_text("Provisioning ComfyUI-Manager."))
-    ensure_attached_workspace_manager(
+    manager_runtime = ensure_attached_workspace_manager(
         workspace,
         python_executable=binding.executable,
         on_log=on_log,
@@ -115,8 +115,7 @@ def prepare_verified_attached_comfy_setup(
     if on_status is not None:
         on_status(app_text("Installing Substitute Comfy nodepacks."))
     ensure_core_comfy_nodepacks(
-        workspace,
-        python_executable=binding.executable,
+        manager_runtime=manager_runtime,
         on_log=on_log,
     )
     if configure_model_root:

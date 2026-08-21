@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Callable
 
 from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy.backend_model_root_configurator import (
     configure_backend_model_root,
 )
@@ -103,10 +104,14 @@ class ManagedExistingSetupOperations(ExistingManagedSetupOperations):
             env=env,
         )
 
-    def provision_manager(self, workspace: Path, env: Mapping[str, str]) -> None:
+    def provision_manager(
+        self,
+        workspace: Path,
+        env: Mapping[str, str],
+    ) -> ComfyManagerRuntime:
         """Converge the integrated Manager runtime."""
 
-        ensure_managed_workspace_manager(
+        return ensure_managed_workspace_manager(
             workspace,
             on_log=self._on_log,
             env=dict(env),
@@ -150,14 +155,14 @@ class ManagedExistingSetupOperations(ExistingManagedSetupOperations):
 
     def ensure_nodepacks(
         self,
-        workspace: Path,
+        manager_runtime: ComfyManagerRuntime,
         refresh_nodepacks: Collection[CoreNodepackId],
         env: Mapping[str, str],
     ) -> None:
         """Converge required SugarSubstitute nodepacks."""
 
         ensure_core_comfy_nodepacks(
-            workspace,
+            manager_runtime=manager_runtime,
             refresh_nodepacks=refresh_nodepacks,
             on_log=self._on_log,
             env=env,

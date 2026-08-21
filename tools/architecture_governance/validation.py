@@ -65,6 +65,11 @@ def validate_repository(
         *_validate_state(root, policy, state, current_date),
     ]
     diagnostics.extend(_validate_structure(root, policy, state, current_date))
+    from tools.architecture_governance.system_git_policy import (
+        validate_system_git_policy,
+    )
+
+    diagnostics.extend(validate_system_git_policy(root))
     if (root / "substitute/app/bootstrap/persistent_cache_catalog.py").is_file():
         from tools.cache_governance.validation import validate_cache_governance
 
