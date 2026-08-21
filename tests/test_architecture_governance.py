@@ -237,3 +237,36 @@ def test_current_repository_has_no_architecture_governance_errors() -> None:
     errors = [item for item in validate_repository(root) if item.severity == "error"]
 
     assert errors == []
+
+
+def test_system_git_policy_rejects_direct_git_processes(tmp_path: Path) -> None:
+    """Fail with an actionable error when authored runtime code invokes Git."""
+
+    _write_policy(tmp_path)
+    _write(
+        tmp_path / "substitute/infrastructure/unsafe.py",
+        "import subprocess\nsubprocess.run(['git', 'status'])\n",
+    )
+
+    diagnostics = validate_repository(tmp_path, today=date(2026, 8, 11))
+
+    error = next(item for item in diagnostics if item.rule == "GIT001")
+    assert error.path == "substitute/infrastructure/unsafe.py"
+    assert "System Git is forbidden" in error.message
+    assert "pygit2" in error.message
+
+
+def test_system_git_policy_rejects_unguarded_comfy_cli_calls(tmp_path: Path) -> None:
+    """Keep every ComfyCLI invocation behind the protected command owner."""
+
+    _write_policy(tmp_path)
+    _write(
+        tmp_path / "launcher/unsafe.py",
+        "COMMAND = ['python', '-m', 'cm_cli', 'install', 'node']\n",
+    )
+
+    diagnostics = validate_repository(tmp_path, today=date(2026, 8, 11))
+
+    error = next(item for item in diagnostics if item.rule == "GIT002")
+    assert error.path == "launcher/unsafe.py"
+    assert "protected Comfy Manager command owner" in error.message

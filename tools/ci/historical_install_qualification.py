@@ -223,14 +223,13 @@ def _prepare_qualified_existing_managed_workspace(
 
     python_executable = workspace_python_path(workspace)
     environment = dict(os.environ)
-    ensure_managed_workspace_manager(
+    manager_runtime = ensure_managed_workspace_manager(
         workspace,
         python_executable=python_executable,
         env=environment,
     )
     ensure_core_comfy_nodepacks(
-        workspace,
-        python_executable=python_executable,
+        manager_runtime=manager_runtime,
         env=environment,
     )
     run_sugarcubes_baseline_maintenance(

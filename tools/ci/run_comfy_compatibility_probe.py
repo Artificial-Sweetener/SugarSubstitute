@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 import json
+import os
 from pathlib import Path
 
 from substitute.infrastructure.comfy.core_nodepack_reconciler import (
@@ -72,10 +73,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         entry.manager_version,
         entry.supports_pygit2,
     )
+    git_free_environment = _git_free_cli_environment(python_executable)
     ensure_core_comfy_nodepacks(
-        workspace,
-        python_executable=python_executable,
+        manager_runtime=managed_runtime,
         on_log=log,
+        env=git_free_environment,
     )
 
     preservation_marker = workspace / "custom_nodes" / "User-Owned-Node" / "data.txt"
@@ -87,9 +89,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         on_log=log,
     )
     ensure_core_comfy_nodepacks(
-        workspace,
-        python_executable=python_executable,
+        manager_runtime=attached_runtime,
         on_log=log,
+        env=git_free_environment,
     )
     if preservation_marker.read_text(encoding="utf-8") != "preserve attached content":
         raise RuntimeError(
@@ -141,6 +143,16 @@ def _parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--comfyui-tag", required=True)
     parser.add_argument("--workspace", type=Path)
     return parser.parse_args(argv)
+
+
+def _git_free_cli_environment(python_executable: Path) -> dict[str, str]:
+    """Remove system executables while proving the protected ComfyCLI boundary."""
+
+    environment = dict(os.environ)
+    environment["PATH"] = str(python_executable.resolve().parent)
+    environment["GIT_PYTHON_REFRESH"] = "error"
+    environment.pop("GIT_PYTHON_GIT_EXECUTABLE", None)
+    return environment
 
 
 if __name__ == "__main__":
