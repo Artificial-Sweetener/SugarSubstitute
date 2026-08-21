@@ -80,6 +80,7 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
         "GHSA-mh99-v99m-4gvg",
         "GHSA-rgw5-rvv9-x895",
         "GHSA-mwp4-54f8-5fhr",
+        "GHSA-r292-9mhp-454m",
     } <= set(re.findall(r"GHSA-[a-z0-9-]+", audit_source))
     assert "!ignoredAdvisoryUrls.has(finding.url)" in audit_source
     release_configuration = (PROJECT_ROOT / ".releaserc.cjs").read_text(
