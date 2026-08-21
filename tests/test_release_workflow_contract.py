@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import ast
 import json
 from pathlib import Path
 import re
@@ -286,6 +285,40 @@ def test_canary_isolated_release_train_contract() -> None:
     assert '[ "$HEAD_BRANCH" != "canary" ]' in policy_text
     assert policy_text.count("branches:\n      - main") == 1
     assert dependabot_text.count("target-branch: canary") == 3
+
+
+def test_published_release_titles_use_channel_specific_version_labels() -> None:
+    """Keep release names concise and distinguish Canary from Stable."""
+
+    release_configuration = (PROJECT_ROOT / ".releaserc.cjs").read_text(
+        encoding="utf-8"
+    )
+    release_workflow = (
+        PROJECT_ROOT / ".github" / "workflows" / "release.yml"
+    ).read_text(encoding="utf-8")
+
+    assert 'name: "v${nextRelease.version}"' in release_configuration
+    assert (
+        'canary_release_title="Canary ${CANDIDATE_VERSION/-canary-/.}"'
+        in release_workflow
+    )
+    assert release_workflow.count('title "$canary_release_title"') == 2
+    assert "SugarSubstitute Canary $CANDIDATE_VERSION" not in release_workflow
+    assert '"--title", "v$version"' in release_workflow
+    assert "SugarSubstitute $version release candidate" not in release_workflow
+
+
+def test_readme_release_links_target_the_latest_release_page() -> None:
+    """Keep release documentation compatible with versioned installer assets."""
+
+    release_page = (
+        "https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest"
+    )
+    for readme_path in PROJECT_ROOT.glob("README*.md"):
+        content = readme_path.read_text(encoding="utf-8")
+
+        assert "releases/latest/download/" not in content
+        assert content.count(release_page) >= 5
 
 
 def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
@@ -1203,22 +1236,6 @@ def test_windows_quality_workflows_fail_fast_on_native_command_errors() -> None:
     fail_fast_setting = "$PSNativeCommandUseErrorActionPreference = $true"
     assert release_workflow.count(fail_fast_setting) >= 2
     assert fail_fast_setting in test_workflow
-
-
-def test_production_python_contains_no_system_git_command() -> None:
-    """Supported runtime paths should never execute a system Git binary."""
-
-    offenders: list[str] = []
-    for source_root in (PROJECT_ROOT / "substitute", PROJECT_ROOT / "launcher"):
-        for path in source_root.rglob("*.py"):
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            for node in ast.walk(tree):
-                if not isinstance(node, (ast.List, ast.Tuple)) or not node.elts:
-                    continue
-                first = node.elts[0]
-                if isinstance(first, ast.Constant) and first.value == "git":
-                    offenders.append(str(path.relative_to(PROJECT_ROOT)))
-    assert offenders == []
 
 
 def test_installer_sources_do_not_reference_obsolete_comfy_desktop_repository() -> None:

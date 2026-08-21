@@ -64,7 +64,7 @@ El instalador puede crear un entorno administrado de ComfyUI o conectarse a uno 
 
 ### <img src="docs/release/platforms/windows.svg" width="22" height="22" alt=""> Windows x64
 
-**[Descarga el último instalador para Windows x64](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Windows-x64.exe)**
+**[Descarga el último instalador para Windows x64](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**
 
 Ejecuta el instalador y elige una carpeta normal con permisos de escritura, como `C:\SugarSubstitute`. Evita Archivos de programa, ya que los permisos de Windows pueden interferir con la instalación y las actualizaciones.
 
@@ -74,7 +74,7 @@ Siguiente paso: [elige cómo debe usar ComfyUI SugarSubstitute](#elige-tu-instal
 
 ### <img src="docs/release/platforms/apple.svg" width="22" height="22" alt=""> macOS Apple Silicon
 
-**[Descarga el último instalador para macOS Apple Silicon](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg)**
+**[Descarga el último instalador para macOS Apple Silicon](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**
 
 Abre el DMG, inicia SugarSubstitute Setup y usa la carpeta predeterminada `~/Applications/SugarSubstitute` u otra carpeta que te pertenezca. La instalación administrada utiliza la aceleración MPS de Apple en Apple Silicon. Los Mac con Intel no son compatibles.
 
@@ -88,8 +88,8 @@ Siguiente paso: [elige cómo debe usar ComfyUI SugarSubstitute](#elige-tu-instal
 
 Elige el paquete adecuado para tu sistema:
 
-- **[Descarga la última AppImage para Linux x86_64](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-x86_64.AppImage)** si quieres un instalador portátil. Márcala como ejecutable y ábrela.
-- **[Descarga el último paquete Debian para Linux amd64](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-amd64.deb)** para Debian, Ubuntu y distribuciones relacionadas. Instala el paquete y ejecuta `sugarsubstitute-setup`.
+- **[Descarga la última AppImage para Linux x86_64](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)** si quieres un instalador portátil. Márcala como ejecutable y ábrela.
+- **[Descarga el último paquete Debian para Linux amd64](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)** para Debian, Ubuntu y distribuciones relacionadas. Instala el paquete y ejecuta `sugarsubstitute-setup`.
 
 La carpeta de instalación predeterminada es `~/.local/share/SugarSubstitute`. La instalación administrada admite NVIDIA mediante CUDA, AMD mediante ROCm y GPU Intel mediante XPU. Actualmente no hay disponible ningún entorno administrado de Linux que funcione solo con CPU.
 

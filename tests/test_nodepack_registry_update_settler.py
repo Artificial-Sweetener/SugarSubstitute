@@ -24,7 +24,7 @@ from typing import Any
 
 import pytest
 
-from substitute.infrastructure.comfy import nodepack_registry_update_settler
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
 from substitute.infrastructure.comfy.nodepack_registry_update_settler import (
     ComfyNodepackRegistryUpdateSettler,
@@ -41,9 +41,8 @@ def test_settler_runs_manager_prestartup_in_selected_cli_session(
     python = tmp_path / ".venv" / "Scripts" / "python.exe"
     observed: dict[str, object] = {}
     monkeypatch.setattr(
-        nodepack_registry_update_settler,
-        "python_module_available",
-        lambda **kwargs: True,
+        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
+        lambda self, module_name: True,
     )
 
     def fake_stream(
@@ -61,14 +60,12 @@ def test_settler_runs_manager_prestartup_in_selected_cli_session(
         return 0, ("[ComfyUI-Manager] Startup script completed.",)
 
     monkeypatch.setattr(
-        nodepack_registry_update_settler,
-        "stream_command_collecting_output",
+        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
         fake_stream,
     )
 
     result = ComfyNodepackRegistryUpdateSettler().settle(
-        workspace=tmp_path,
-        python_executable=python,
+        manager_runtime=_runtime(tmp_path, python),
         nodepack=CORE_COMFY_NODEPACKS[0],
         on_log=None,
         env={"CONDA_PREFIX": "wrong"},
@@ -85,6 +82,7 @@ def test_settler_runs_manager_prestartup_in_selected_cli_session(
     assert selected_env["VIRTUAL_ENV"] == str(python.parent.parent)
     assert selected_env["COMFYUI_PATH"] == str(tmp_path.resolve())
     assert selected_env["COMFYUI_FOLDERS_BASE_PATH"] == str(tmp_path.resolve())
+    assert selected_env["GIT_PYTHON_REFRESH"] == "quiet"
     assert "CONDA_PREFIX" not in selected_env
 
 
@@ -95,14 +93,12 @@ def test_settler_rejects_missing_manager_prestartup_owner(
     """Do not invent replacement update mechanics when Manager cannot settle work."""
 
     monkeypatch.setattr(
-        nodepack_registry_update_settler,
-        "python_module_available",
-        lambda **kwargs: False,
+        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
+        lambda self, module_name: False,
     )
 
     result = ComfyNodepackRegistryUpdateSettler().settle(
-        workspace=tmp_path,
-        python_executable=tmp_path / "python.exe",
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
         nodepack=CORE_COMFY_NODEPACKS[0],
         on_log=None,
         env={},
@@ -110,3 +106,14 @@ def test_settler_rejects_missing_manager_prestartup_owner(
 
     assert not result.succeeded
     assert "pre-startup executor is unavailable" in result.output[0]
+
+
+def _runtime(workspace: Path, python: Path) -> ComfyManagerRuntime:
+    """Build one validated integrated Manager runtime fixture."""
+
+    return ComfyManagerRuntime(
+        kind=ComfyManagerKind.INTEGRATED,
+        workspace=workspace,
+        python_executable=python,
+        version="4.1",
+    )
