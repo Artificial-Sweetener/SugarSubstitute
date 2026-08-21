@@ -517,7 +517,7 @@ jobs:
             "release", "create", $tag
           ) + $assets + @(
             "--repo", "${{ github.repository }}",
-            "--title", "SugarSubstitute $version release candidate",
+            "--title", "v$version",
             "--generate-notes",
             "--notes", $releaseNotes,
             "--prerelease"
@@ -607,12 +607,13 @@ jobs:
           set -euo pipefail
           channel_dir="build/canary-channel"
           readback_dir="build/canary-readback"
+          canary_release_title="Canary ${CANDIDATE_VERSION/-canary-/.}"
           mkdir -p "$readback_dir"
           python -c "import json, os, pathlib; payload=json.loads(pathlib.Path('$channel_dir/manifest.json').read_text()); assert payload['channel']=='canary', payload; assert payload['version']==os.environ['CANDIDATE_VERSION'], payload"
           (cd "$channel_dir" && sha256sum --check checksums.txt)
 
           if ! gh release view canary-latest --repo "${{ github.repository }}" > /dev/null 2>&1; then
-            gh release create canary-latest --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "SugarSubstitute Canary $CANDIDATE_VERSION" --notes-file "$channel_dir/.release-notes.md" --prerelease
+            gh release create canary-latest --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "$canary_release_title" --notes-file "$channel_dir/.release-notes.md" --prerelease
           fi
 
           for asset in "$channel_dir"/*; do
@@ -635,7 +636,7 @@ jobs:
           done < <(gh release view canary-latest --repo "${{ github.repository }}" --json assets --jq '.assets[].name')
 
           gh api --method PATCH "repos/${{ github.repository }}/git/refs/tags/canary-latest" -f sha="${{ github.sha }}" -F force=true > /dev/null
-          gh release edit canary-latest --repo "${{ github.repository }}" --title "SugarSubstitute Canary $CANDIDATE_VERSION" --notes-file "$channel_dir/.release-notes.md" --prerelease --latest=false
+          gh release edit canary-latest --repo "${{ github.repository }}" --title "$canary_release_title" --notes-file "$channel_dir/.release-notes.md" --prerelease --latest=false
           gh release download canary-latest --repo "${{ github.repository }}" --pattern manifest.json --dir "$readback_dir"
           cmp "$channel_dir/manifest.json" "$readback_dir/manifest.json"
           gh release view canary-latest --repo "${{ github.repository }}" --json isDraft,isPrerelease --jq 'select(.isDraft == false and .isPrerelease == true)' > /dev/null

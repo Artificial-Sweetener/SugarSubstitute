@@ -70,6 +70,7 @@ module.exports = {
       "./scripts/github-release-publisher.cjs",
       {
         repository: releaseRepository,
+        name: "v${nextRelease.version}",
         assets: [
           {
             path: ".local-release-channel/SugarSubstitute-*-Windows-x64-Setup.exe",

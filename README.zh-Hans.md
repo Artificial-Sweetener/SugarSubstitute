@@ -64,7 +64,7 @@ SugarSubstitute 目前是公开测试版。我确实用它干活，但我也知�
 
 ### <img src="docs/release/platforms/windows.svg" width="22" height="22" alt=""> Windows x64
 
-**[下载最新 Windows x64 安装程序](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Windows-x64.exe)**
+**[下载最新 Windows x64 安装程序](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**
 
 运行安装程序，选择一个普通的可写文件夹，例如 `C:\SugarSubstitute`。请避开 Program Files，因为 Windows 权限可能会干扰设置和更新。
 
@@ -74,7 +74,7 @@ SugarSubstitute 目前是公开测试版。我确实用它干活，但我也知�
 
 ### <img src="docs/release/platforms/apple.svg" width="22" height="22" alt=""> macOS Apple Silicon
 
-**[下载最新 macOS Apple Silicon 安装程序](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg)**
+**[下载最新 macOS Apple Silicon 安装程序](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**
 
 打开 DMG，启动 SugarSubstitute Setup，然后使用默认的 `~/Applications/SugarSubstitute` 文件夹，或者选择另一个归你所有的文件夹。托管设置会在 Apple Silicon 上使用 Apple 的 MPS 加速。不支持 Intel Mac。
 
@@ -88,8 +88,8 @@ SugarSubstitute 采用临时签名，但没有经过公证，因为本项目没�
 
 选择适合你系统的软件包：
 
-- **[下载最新 Linux x86_64 AppImage](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-x86_64.AppImage)**，作为便携式安装程序使用。将它标记为可执行文件，然后运行。
-- **[下载最新 Linux amd64 Debian 软件包](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-amd64.deb)**，适用于 Debian、Ubuntu 及相关发行版。安装软件包，然后运行 `sugarsubstitute-setup`。
+- **[下载最新 Linux x86_64 AppImage](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**，作为便携式安装程序使用。将它标记为可执行文件，然后运行。
+- **[下载最新 Linux amd64 Debian 软件包](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**，适用于 Debian、Ubuntu 及相关发行版。安装软件包，然后运行 `sugarsubstitute-setup`。
 
 默认安装文件夹是 `~/.local/share/SugarSubstitute`。托管设置支持通过 CUDA 使用 NVIDIA、通过 ROCm 使用 AMD，以及通过 XPU 使用 Intel GPU。目前还没有可用的 Linux 托管纯 CPU 环境。
 
