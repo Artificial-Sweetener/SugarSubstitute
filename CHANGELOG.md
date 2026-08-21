@@ -1,3 +1,11 @@
+## [0.21.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.21.1...v0.21.2) (2026-08-21)
+
+
+### Bug Fixes
+
+* **installer:** install managed nodepacks without system Git ([029de3d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/029de3d421aba9f3fac36f9e9aef27c3cad1e01d))
+* **releases:** restore reliable release links and titles ([da8df40](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/da8df403d506fe9100bf7f9b92fcdb4add3ce1c4))
+
 ## [0.21.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.21.0...v0.21.1) (2026-08-16)
 
 
