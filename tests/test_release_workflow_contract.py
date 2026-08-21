@@ -542,6 +542,12 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert '"SugarSubstitute-*-Windows-x64.exe"' in workflow_text
     assert '"SugarSubstitute-*-Linux-x86_64.AppImage"' in workflow_text
     assert '"SugarSubstitute-*-macOS-Apple-Silicon.dmg"' in workflow_text
+    assert "Select-Object -Single" not in workflow_text
+    assert (
+        "$historicalInstallers = @(Get-ChildItem build/historical-installer -File)"
+    ) in workflow_text
+    assert "$historicalInstallers.Count -ne 1" in workflow_text
+    assert "Expected exactly one historical installer matching" in workflow_text
     assert 'hdiutil attach "$HISTORICAL_INSTALLER"' in workflow_text
     assert "Reconstitute exact historical macOS install channel" in workflow_text
     assert "python -m tools.ci.reconstitute_historical_macos_release" in workflow_text
