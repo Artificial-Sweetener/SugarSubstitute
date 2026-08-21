@@ -304,7 +304,7 @@ def _ensure_managed_comfy_setup(
         emit_status(on_status, "Provisioning ComfyUI-Manager.")
         trace_mark("managed_setup.manager.start")
         with trace_span("managed_setup.manager"):
-            ensure_managed_workspace_manager(
+            manager_runtime = ensure_managed_workspace_manager(
                 workspace,
                 on_log=on_log,
                 env=managed_env,
@@ -313,7 +313,7 @@ def _ensure_managed_comfy_setup(
         trace_mark("managed_setup.nodepacks.start")
         with trace_span("managed_setup.nodepacks"):
             ensure_core_comfy_nodepacks(
-                workspace,
+                manager_runtime=manager_runtime,
                 refresh_nodepacks=refresh_core_nodepacks,
                 on_log=on_log,
                 env=managed_env,
