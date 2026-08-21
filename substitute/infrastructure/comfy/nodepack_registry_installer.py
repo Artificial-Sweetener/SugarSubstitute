@@ -20,24 +20,19 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from pathlib import Path
 
 from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan import (
     RegistryInstallOutcome,
 )
+from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy.comfy_manager_runtime import (
-    python_module_available,
-    selected_comfy_environment,
+    ComfyManagerCommandRunner,
 )
 from substitute.infrastructure.comfy.nodepack_manifest import (
     CLI_INSTALL_TIMEOUT_SECONDS,
     CoreComfyNodepack,
 )
-from substitute.infrastructure.process.hidden_process_runner import (
-    stream_command_collecting_output,
-)
 from substitute.shared.logging.logger import get_logger, log_info
-from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 LogCallback = Callable[[str], None]
 _LOGGER = get_logger("infrastructure.comfy.nodepack_registry_installer")
@@ -57,21 +52,30 @@ class ComfyNodepackRegistryInstaller:
     def install_exact(
         self,
         *,
-        workspace: Path,
-        python_executable: Path,
+        manager_runtime: ComfyManagerRuntime,
         nodepack: CoreComfyNodepack,
         on_log: LogCallback | None,
         env: Mapping[str, str] | None,
     ) -> RegistryInstallResult:
         """Ask Comfy Manager to install one exact Registry nodepack release."""
 
-        command = self._command(
-            workspace=workspace,
-            python_executable=python_executable,
-            nodepack=nodepack,
+        command_runner = ComfyManagerCommandRunner(
+            runtime=manager_runtime,
             env=env,
         )
-        if command is None:
+        self._emit(
+            on_log,
+            (
+                f"[ComfyNodepacks] Asking Comfy Registry for "
+                f"{nodepack.registry_id}@{nodepack.required_version}."
+            ),
+        )
+        process_result = command_runner.install_registry_nodepack(
+            node_spec=f"{nodepack.registry_id}@{nodepack.required_version}",
+            on_line=on_log,
+            timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
+        )
+        if process_result is None:
             output: tuple[str, ...] = (
                 "The selected Comfy environment exposes no supported Manager CLI.",
             )
@@ -80,92 +84,11 @@ class ComfyNodepackRegistryInstaller:
                 RegistryInstallOutcome.REGISTRY_UNREACHABLE,
                 output,
             )
-        self._emit(
-            on_log,
-            (
-                f"[ComfyNodepacks] Asking Comfy Registry for "
-                f"{nodepack.registry_id}@{nodepack.required_version}."
-            ),
-        )
-        exit_code, output = stream_command_collecting_output(
-            command,
-            cwd=workspace,
-            on_line=on_log,
-            timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
-            env=selected_comfy_environment(
-                workspace=workspace,
-                python_executable=python_executable,
-                env=env,
-            ),
-        )
+        exit_code, output = process_result
         return RegistryInstallResult(
             _classify_registry_result(exit_code=exit_code, output=output),
             output,
         )
-
-    def _command(
-        self,
-        *,
-        workspace: Path,
-        python_executable: Path,
-        nodepack: CoreComfyNodepack,
-        env: Mapping[str, str] | None,
-    ) -> list[str] | None:
-        """Resolve integrated comfy-cli first and legacy Manager CLI second."""
-
-        node_spec = f"{nodepack.registry_id}@{nodepack.required_version}"
-        if python_module_available(
-            module_name="comfy_cli",
-            workspace=workspace,
-            python_executable=python_executable,
-            env=env,
-        ):
-            return [
-                subprocess_path(python_executable),
-                "-m",
-                "comfy_cli",
-                "--workspace",
-                subprocess_path(workspace),
-                "--skip-prompt",
-                "node",
-                "install",
-                "--exit-on-fail",
-                "--no-deps",
-                node_spec,
-                "--mode",
-                "remote",
-            ]
-        if python_module_available(
-            module_name="cm_cli",
-            workspace=workspace,
-            python_executable=python_executable,
-            env=env,
-        ):
-            return [
-                subprocess_path(python_executable),
-                "-m",
-                "cm_cli",
-                "install",
-                "--exit-on-fail",
-                "--no-deps",
-                node_spec,
-                "--mode",
-                "remote",
-            ]
-        legacy_cli = workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        if not legacy_cli.is_file():
-            legacy_cli = workspace / "custom_nodes" / "comfyui-manager" / "cm-cli.py"
-        if not legacy_cli.is_file():
-            return None
-        return [
-            subprocess_path(python_executable),
-            subprocess_path(legacy_cli),
-            "install",
-            "--no-deps",
-            node_spec,
-            "--mode",
-            "remote",
-        ]
 
     @staticmethod
     def _emit(callback: LogCallback | None, message: str) -> None:

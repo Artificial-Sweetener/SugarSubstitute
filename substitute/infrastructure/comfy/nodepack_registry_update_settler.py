@@ -23,19 +23,15 @@ from dataclasses import dataclass
 from pathlib import Path
 import tempfile
 
+from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy.comfy_manager_runtime import (
-    python_module_available,
-    selected_comfy_environment,
+    ComfyManagerCommandRunner,
 )
 from substitute.infrastructure.comfy.nodepack_manifest import (
     CLI_INSTALL_TIMEOUT_SECONDS,
     CoreComfyNodepack,
 )
-from substitute.infrastructure.process.hidden_process_runner import (
-    stream_command_collecting_output,
-)
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
-from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 LogCallback = Callable[[str], None]
 _LOGGER = get_logger("infrastructure.comfy.nodepack_registry_update_settler")
@@ -55,52 +51,38 @@ class ComfyNodepackRegistryUpdateSettler:
     def settle(
         self,
         *,
-        workspace: Path,
-        python_executable: Path,
+        manager_runtime: ComfyManagerRuntime,
         nodepack: CoreComfyNodepack,
         on_log: LogCallback | None,
         env: Mapping[str, str] | None,
     ) -> RegistryUpdateSettlement:
         """Execute Manager's queued switch before Comfy imports custom nodes."""
 
-        if not python_module_available(
-            module_name="comfyui_manager.prestartup_script",
-            workspace=workspace,
-            python_executable=python_executable,
-            env=env,
-        ):
-            message = (
-                "Comfy-Manager deferred the Registry update, but its pre-startup "
-                "executor is unavailable in the selected Python environment."
-            )
-            self._emit_warning(on_log, message, nodepack=nodepack)
-            return RegistryUpdateSettlement(False, (message,))
-
         message = (
             f"[ComfyNodepacks] Applying Comfy-Manager's queued update for "
             f"{nodepack.registry_id}@{nodepack.required_version}."
         )
         self._emit_info(on_log, message, nodepack=nodepack)
+        command_runner = ComfyManagerCommandRunner(
+            runtime=manager_runtime,
+            env=env,
+        )
         with tempfile.TemporaryDirectory(prefix="substitute-comfy-manager-") as temp:
             session_path = Path(temp) / "session"
-            process_env = selected_comfy_environment(
-                workspace=workspace,
-                python_executable=python_executable,
-                env=env,
-            )
-            process_env["__COMFY_CLI_SESSION__"] = str(session_path)
-            exit_code, output = stream_command_collecting_output(
-                [
-                    subprocess_path(python_executable),
-                    "-m",
-                    "comfyui_manager.prestartup_script",
-                ],
-                cwd=workspace,
+            process_result = command_runner.settle_registry_updates(
+                session_path=session_path,
                 on_line=on_log,
                 timeout_seconds=CLI_INSTALL_TIMEOUT_SECONDS,
-                env=process_env,
             )
             reboot_requested = session_path.with_suffix(".reboot").is_file()
+        if process_result is None:
+            unavailable = (
+                "Comfy-Manager deferred the Registry update, but its pre-startup "
+                "executor is unavailable in the selected Python environment."
+            )
+            self._emit_warning(on_log, unavailable, nodepack=nodepack)
+            return RegistryUpdateSettlement(False, (unavailable,))
+        exit_code, output = process_result
 
         succeeded = exit_code == 0 and reboot_requested
         if not succeeded:
