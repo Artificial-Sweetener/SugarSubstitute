@@ -36,6 +36,7 @@ from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
 )
 from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.domain.onboarding import (
     ComfyEndpoint,
     ComfyPythonBinding,
@@ -187,16 +188,15 @@ def test_reconcile_owned_dependencies_for_attached_target_runs_nodepack_policy(
     baseline_calls: list[tuple[Path, object]] = []
 
     def fake_ensure_core_nodepacks(
-        workspace: Path,
         *,
+        manager_runtime: ComfyManagerRuntime,
         refresh_nodepacks: frozenset[CoreNodepackId],
-        python_executable: Path,
         on_log: object,
     ) -> None:
         """Record core nodepack reconciliation arguments."""
 
-        core_calls.append((workspace, refresh_nodepacks, on_log))
-        assert python_executable.name == "python.exe"
+        core_calls.append((manager_runtime.workspace, refresh_nodepacks, on_log))
+        assert manager_runtime.python_executable.name == "python.exe"
         assert callable(on_log)
         on_log("core ready")
 
@@ -236,7 +236,12 @@ def test_reconcile_owned_dependencies_for_attached_target_runs_nodepack_policy(
     monkeypatch.setattr(
         managed_recovery_adapters,
         "ensure_attached_workspace_manager",
-        lambda *_args, **_kwargs: None,
+        lambda workspace, python_executable, **_kwargs: ComfyManagerRuntime(
+            kind=ComfyManagerKind.INTEGRATED,
+            workspace=workspace,
+            python_executable=python_executable,
+            version="4.1",
+        ),
     )
     logs: list[str] = []
 

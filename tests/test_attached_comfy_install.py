@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import pytest
 
@@ -27,6 +28,7 @@ from substitute.domain.onboarding import (
     ComfyPythonBinding,
     ComfyPythonSelectionSource,
 )
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import attached_install
 
 
@@ -101,8 +103,27 @@ def test_attached_preparation_passes_one_verified_python_to_every_consumer(
         lambda *_args, **_kwargs: binding,
     )
 
-    def record(name: str) -> Any:
-        """Build one dependency consumer that records its explicit Python."""
+    manager_runtime = ComfyManagerRuntime(
+        kind=ComfyManagerKind.INTEGRATED,
+        workspace=workspace,
+        python_executable=executable,
+        version="4.1",
+    )
+
+    def provision_manager(_workspace: Path, **kwargs: object) -> ComfyManagerRuntime:
+        """Record Manager provisioning and return its validated runtime."""
+
+        calls.append(("manager", cast(Path, kwargs["python_executable"])))
+        return manager_runtime
+
+    def reconcile_nodepacks(**kwargs: object) -> None:
+        """Record the Python carried by the validated Manager runtime."""
+
+        runtime = cast(ComfyManagerRuntime, kwargs["manager_runtime"])
+        calls.append(("nodepacks", runtime.python_executable))
+
+    def record_python_consumer(name: str) -> Callable[..., None]:
+        """Build one remaining dependency consumer that records its Python."""
 
         def operation(_workspace: Path, **kwargs: object) -> None:
             calls.append((name, cast(Path | None, kwargs.get("python_executable"))))
@@ -110,15 +131,15 @@ def test_attached_preparation_passes_one_verified_python_to_every_consumer(
         return operation
 
     monkeypatch.setattr(
-        attached_install, "ensure_attached_workspace_manager", record("manager")
+        attached_install, "ensure_attached_workspace_manager", provision_manager
     )
     monkeypatch.setattr(
-        attached_install, "ensure_core_comfy_nodepacks", record("nodepacks")
+        attached_install, "ensure_core_comfy_nodepacks", reconcile_nodepacks
     )
     monkeypatch.setattr(
         attached_install,
         "attempt_sugarcubes_startup_maintenance",
-        record("sugarcubes"),
+        record_python_consumer("sugarcubes"),
     )
     monkeypatch.setattr(attached_install, "detect_hardware", lambda: object())
     monkeypatch.setattr(

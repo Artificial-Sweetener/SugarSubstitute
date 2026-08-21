@@ -26,6 +26,7 @@ import pytest
 from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan import (
     RegistryInstallOutcome,
 )
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
 from substitute.infrastructure.comfy.nodepack_registry_installer import (
     ComfyNodepackRegistryInstaller,
@@ -42,8 +43,8 @@ def test_integrated_cli_installs_exact_registry_release_without_manager_deps(
     python = tmp_path / ".venv" / "Scripts" / "python.exe"
     observed: dict[str, object] = {}
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_registry_installer.python_module_available",
-        lambda **kwargs: True,
+        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
+        lambda self, module_name: True,
     )
 
     def fake_stream(command: list[str], **kwargs: Any) -> tuple[int, tuple[str, ...]]:
@@ -54,13 +55,12 @@ def test_integrated_cli_installs_exact_registry_release_without_manager_deps(
         return 0, ("[INSTALLED] substitute-backend [1.9.1]",)
 
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_registry_installer.stream_command_collecting_output",
+        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
         fake_stream,
     )
 
     result = ComfyNodepackRegistryInstaller().install_exact(
-        workspace=tmp_path,
-        python_executable=python,
+        manager_runtime=_runtime(tmp_path, python),
         nodepack=CORE_COMFY_NODEPACKS[0],
         on_log=None,
         env={"VIRTUAL_ENV": "wrong", "CONDA_PREFIX": "also-wrong"},
@@ -87,6 +87,7 @@ def test_integrated_cli_installs_exact_registry_release_without_manager_deps(
     assert selected_env["VIRTUAL_ENV"] == str(python.parent.parent)
     assert selected_env["COMFYUI_PATH"] == str(tmp_path.resolve())
     assert selected_env["COMFYUI_FOLDERS_BASE_PATH"] == str(tmp_path.resolve())
+    assert selected_env["GIT_PYTHON_REFRESH"] == "quiet"
     assert "CONDA_PREFIX" not in selected_env
 
 
@@ -98,8 +99,8 @@ def test_integrated_manager_module_is_used_when_comfy_cli_is_absent(
 
     probe_results = iter((False, True))
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_registry_installer.python_module_available",
-        lambda **kwargs: next(probe_results),
+        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
+        lambda self, module_name: next(probe_results),
     )
     observed: list[str] = []
 
@@ -114,13 +115,12 @@ def test_integrated_manager_module_is_used_when_comfy_cli_is_absent(
         return 0, ("[INSTALLED] substitute-backend [1.9.1]",)
 
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_registry_installer.stream_command_collecting_output",
+        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
         fake_stream,
     )
 
     result = ComfyNodepackRegistryInstaller().install_exact(
-        workspace=tmp_path,
-        python_executable=tmp_path / "python.exe",
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
         nodepack=CORE_COMFY_NODEPACKS[0],
         on_log=None,
         env={},
@@ -158,11 +158,11 @@ def test_registry_failures_are_classified_for_safe_fallback_policy(
     """Distinguish availability failures from arbitrary Manager failures."""
 
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_registry_installer.python_module_available",
-        lambda **kwargs: True,
+        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
+        lambda self, module_name: True,
     )
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_registry_installer.stream_command_collecting_output",
+        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
         lambda *args, **kwargs: (
             0 if expected is RegistryInstallOutcome.PENDING_STARTUP else 1,
             output,
@@ -170,8 +170,7 @@ def test_registry_failures_are_classified_for_safe_fallback_policy(
     )
 
     result = ComfyNodepackRegistryInstaller().install_exact(
-        workspace=tmp_path,
-        python_executable=tmp_path / "python.exe",
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
         nodepack=CORE_COMFY_NODEPACKS[0],
         on_log=None,
         env={},
@@ -187,16 +186,26 @@ def test_missing_manager_cli_is_an_availability_failure(
     """Allow pinned fallback when an existing Comfy lacks callable Manager tooling."""
 
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.nodepack_registry_installer.python_module_available",
-        lambda **kwargs: False,
+        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
+        lambda self, module_name: False,
     )
 
     result = ComfyNodepackRegistryInstaller().install_exact(
-        workspace=tmp_path,
-        python_executable=tmp_path / "python.exe",
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
         nodepack=CORE_COMFY_NODEPACKS[0],
         on_log=None,
         env={},
     )
 
     assert result.outcome is RegistryInstallOutcome.REGISTRY_UNREACHABLE
+
+
+def _runtime(workspace: Path, python: Path) -> ComfyManagerRuntime:
+    """Build one validated integrated Manager runtime fixture."""
+
+    return ComfyManagerRuntime(
+        kind=ComfyManagerKind.INTEGRATED,
+        workspace=workspace,
+        python_executable=python,
+        version="4.1",
+    )
