@@ -1065,7 +1065,7 @@ def test_ensure_managed_comfy_setup_does_not_fallback_after_storage_error(
         python_runtime: str | None = None,
         on_log: object | None = None,
         env: object | None = None,
-    ) -> ComfyManagerRuntime:
+    ) -> Path:
         _ = workspace, python_runtime, on_log, env
         workspace_python.parent.mkdir(parents=True, exist_ok=True)
         workspace_python.write_text("", encoding="utf-8")
@@ -1180,7 +1180,7 @@ def test_ensure_managed_comfy_setup_installs_and_marks_workspace(
         workspace: Path,
         on_log: object | None = None,
         env: object | None = None,
-    ) -> Path:
+    ) -> ComfyManagerRuntime:
         _ = on_log, env
         provision_calls.append(workspace)
         return _manager_runtime(workspace)
