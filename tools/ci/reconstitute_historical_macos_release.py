@@ -145,6 +145,9 @@ def _write_reconstituted_launcher(
             )
             written_names.add(destination_name.as_posix())
             retained_members += 1
+    if encountered_roots == {_APP_ROOT}:
+        shutil.copy2(source, destination)
+        return ()
     expected_roots = {_APP_ROOT, _PYINSTALLER_SIBLING_ROOT}
     if encountered_roots != expected_roots:
         raise ValueError(
