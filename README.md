@@ -64,7 +64,7 @@ Setup can create a managed ComfyUI environment or connect to one you already use
 
 ### <img src="docs/release/platforms/windows.svg" width="22" height="22" alt=""> Windows x64
 
-**[Download the latest Windows x64 installer](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Windows-x64.exe)**
+**[Download the latest Windows x64 installer](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**
 
 Run the installer and choose a normal writable folder, such as `C:\SugarSubstitute`. Avoid Program Files because Windows permissions can interfere with setup and updates.
 
@@ -74,7 +74,7 @@ Next: [choose how SugarSubstitute should use ComfyUI](#choose-your-comfyui-setup
 
 ### <img src="docs/release/platforms/apple.svg" width="22" height="22" alt=""> macOS Apple Silicon
 
-**[Download the latest macOS Apple Silicon installer](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg)**
+**[Download the latest macOS Apple Silicon installer](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**
 
 Open the DMG, launch SugarSubstitute Setup, and use the default `~/Applications/SugarSubstitute` folder or another folder you own. Managed setup uses Apple's MPS acceleration on Apple Silicon. Intel Macs are not supported.
 
@@ -88,8 +88,8 @@ Next: [choose how SugarSubstitute should use ComfyUI](#choose-your-comfyui-setup
 
 Choose the package that fits your system:
 
-- **[Download the latest Linux x86_64 AppImage](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-x86_64.AppImage)** for a portable installer. Mark it as executable, then run it.
-- **[Download the latest Linux amd64 Debian package](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-amd64.deb)** for Debian, Ubuntu, and related distributions. Install the package, then run `sugarsubstitute-setup`.
+- **[Download the latest Linux x86_64 AppImage](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)** for a portable installer. Mark it as executable, then run it.
+- **[Download the latest Linux amd64 Debian package](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)** for Debian, Ubuntu, and related distributions. Install the package, then run `sugarsubstitute-setup`.
 
 The default install folder is `~/.local/share/SugarSubstitute`. Managed setup supports NVIDIA through CUDA, AMD through ROCm, and Intel GPUs through XPU. A managed CPU-only Linux environment is not currently available.
 

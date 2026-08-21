@@ -287,6 +287,40 @@ def test_canary_isolated_release_train_contract() -> None:
     assert dependabot_text.count("target-branch: canary") == 3
 
 
+def test_published_release_titles_use_channel_specific_version_labels() -> None:
+    """Keep release names concise and distinguish Canary from Stable."""
+
+    release_configuration = (PROJECT_ROOT / ".releaserc.cjs").read_text(
+        encoding="utf-8"
+    )
+    release_workflow = (
+        PROJECT_ROOT / ".github" / "workflows" / "release.yml"
+    ).read_text(encoding="utf-8")
+
+    assert 'name: "v${nextRelease.version}"' in release_configuration
+    assert (
+        'canary_release_title="Canary ${CANDIDATE_VERSION/-canary-/.}"'
+        in release_workflow
+    )
+    assert release_workflow.count('title "$canary_release_title"') == 2
+    assert "SugarSubstitute Canary $CANDIDATE_VERSION" not in release_workflow
+    assert '"--title", "v$version"' in release_workflow
+    assert "SugarSubstitute $version release candidate" not in release_workflow
+
+
+def test_readme_release_links_target_the_latest_release_page() -> None:
+    """Keep release documentation compatible with versioned installer assets."""
+
+    release_page = (
+        "https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest"
+    )
+    for readme_path in PROJECT_ROOT.glob("README*.md"):
+        content = readme_path.read_text(encoding="utf-8")
+
+        assert "releases/latest/download/" not in content
+        assert content.count(release_page) >= 5
+
+
 def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
     """Native Canary installers must receive immutable build-channel metadata."""
 
