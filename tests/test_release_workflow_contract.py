@@ -255,10 +255,21 @@ def test_canary_isolated_release_train_contract() -> None:
     )
 
     assert "      - main\n      - canary" in release_text
-    assert "SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER:" in release_text
+    assert (
+        "SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER: "
+        "${{ github.ref_name == 'canary' && github.run_number || '' }}"
+    ) in release_text
+    assert (
+        "channel: ${{ (github.ref_name == 'canary' && 'canary') || 'stable' }}"
+    ) in release_text
+    assert "github.event_name == 'push' && github.ref_name == 'canary'" not in (
+        release_text
+    )
     assert "format('9999.1.{0}', github.run_number)" not in release_text
-    assert "SUGAR_SUBSTITUTE_RELEASE_CHANNEL: canary" in release_text
-    assert "releases/download/canary-latest" in release_text
+    assert (
+        "SUGAR_SUBSTITUTE_RELEASE_CHANNEL: "
+        "${{ needs.determine-version.outputs.channel }}"
+    ) in release_text
     assert "releases/download/canary/" not in release_text
     prepare_assets_text = (
         PROJECT_ROOT / "scripts" / "prepare-release-assets.mjs"
@@ -267,20 +278,19 @@ def test_canary_isolated_release_train_contract() -> None:
     assert '"canary-v$version"' not in release_text
     assert "release-qualification.yml" in release_text
     assert "'canary-fast'" in release_text
-    assert "Upload temporary non-release candidate channel" in release_text
+    assert "Upload private non-release candidate channel" in release_text
     assert "validate-candidate-artifact:" in (
         PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
     ).read_text(encoding="utf-8")
-    promotion = release_text.split("  promote-release:", maxsplit=1)[1]
-    assert "Download qualified Canary candidate" in promotion
-    assert "gh release upload canary-latest" in promotion
-    assert 'gh release upload canary-latest "$channel_dir/manifest.json"' in promotion
-    assert "git/refs/tags/canary-latest" in promotion
-    assert 'git/refs/tags/canary"' not in promotion
-    assert promotion.count('gh release edit "$CANDIDATE_TAG"') == 1
-    assert "--clobber" in promotion
-    assert "--prerelease=false --latest" in promotion
-    assert "github.ref_name == 'main'" in promotion
+    publication = release_text.split("  publish-release:", maxsplit=1)[1]
+    assert "Download qualified Canary candidate" in publication
+    assert "gh release upload canary-latest" in publication
+    assert 'gh release upload canary-latest "$channel_dir/manifest.json"' in publication
+    assert "git/refs/tags/canary-latest" in publication
+    assert 'git/refs/tags/canary"' not in publication
+    assert "--clobber" in publication
+    assert "--prerelease --latest=false" in publication
+    assert "github.ref_name == 'main'" in publication
     assert "HEAD_BRANCH: ${{ github.head_ref }}" in policy_text
     assert '[ "$HEAD_BRANCH" != "canary" ]' in policy_text
     assert policy_text.count("branches:\n      - main") == 1
@@ -304,7 +314,6 @@ def test_published_release_titles_use_channel_specific_version_labels() -> None:
     )
     assert release_workflow.count('title "$canary_release_title"') == 2
     assert "SugarSubstitute Canary $CANDIDATE_VERSION" not in release_workflow
-    assert '"--title", "v$version"' in release_workflow
     assert "SugarSubstitute $version release candidate" not in release_workflow
 
 
@@ -575,7 +584,8 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
         PROJECT_ROOT / "scripts" / "prepare-release-assets.mjs"
     ).read_text(encoding="utf-8")
 
-    assert "SUGAR_SUBSTITUTE_ASSET_BASE_URL: https://localhost:44443" in release_text
+    assert "SUGAR_SUBSTITUTE_ASSET_BASE_URL:" in release_text
+    assert "'https://localhost:44443'" in release_text
     assert "include-hidden-files: true" in release_text
     assert "SUGAR_SUBSTITUTE_QUALIFICATION_VERSION:" in release_text
     assert "format('9999.0.{0}', github.run_number)" in release_text
@@ -643,7 +653,10 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
         "candidate_run_id: ${{ needs.stage-candidate.outputs.candidate_run_id }}"
         in (release_text)
     )
-    assert "  actions: read\n  contents: write" in release_text
+    assert "  actions: read\n  contents: read" in release_text
+    assert (
+        "    permissions:\n      actions: read\n      contents: write" in release_text
+    )
     assert "steps.release-version.outputs.should_release ||" in release_text
     assert "format('9999.0.{0}', github.run_number) || ''" in release_text
     assert release_text.count("github.event.inputs.qualification_scope != 'full'") == 6
@@ -712,6 +725,44 @@ def test_cross_platform_validation_proves_packaged_linux_system_trust() -> None:
     assert "APPIMAGE_EXTRACT_AND_RUN=1" in job_script
 
 
+def test_cross_platform_validation_always_cleans_its_temporary_release() -> None:
+    """Synthetic validation releases must be removed after failure or cancellation."""
+
+    workflow_path = (
+        PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml"
+    )
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
+    cleanup = workflow["jobs"]["cleanup-test-release"]
+    reconciler = (
+        PROJECT_ROOT / ".github" / "workflows" / "validation-release-cleanup.yml"
+    ).read_text(encoding="utf-8")
+
+    assert workflow["permissions"]["contents"] == "read"
+    assert workflow["jobs"]["assemble-release"]["permissions"]["contents"] == "write"
+    assert set(cleanup["needs"]) == {
+        "assemble-release",
+        "linux-distro-trust",
+        "installed-app-smoke",
+    }
+    assert "always()" in cleanup["if"]
+    assert cleanup["permissions"]["contents"] == "write"
+    cleanup_script = _job_script(cleanup)
+    assert "--jq '.isPrerelease'" in cleanup_script
+    assert '= "true"' in cleanup_script
+    assert "select(" not in cleanup_script
+    assert "gh release delete" in cleanup_script
+    assert "--cleanup-tag --yes" in cleanup_script
+    assert "workflow_run:" in reconciler
+    assert "cross-platform validation" in reconciler
+    assert "ci-${{ github.event.workflow_run.id }}-" in reconciler
+    assert "--jq '.isPrerelease'" in reconciler
+    assert '= "true"' in reconciler
+    assert "select(" not in reconciler
+    assert "gh release delete" in reconciler
+    assert "git/refs/tags/$TEST_TAG" in reconciler
+
+
 def test_release_workflow_builds_every_published_platform_after_version_resolution() -> (
     None
 ):
@@ -731,7 +782,7 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
         "build-linux",
         "stage-candidate",
         "qualify-candidate",
-        "promote-release",
+        "publish-release",
     }
     for job_name in ("build-windows", "build-macos", "build-linux"):
         job = jobs[job_name]
@@ -748,26 +799,37 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
     assert jobs["qualify-candidate"]["uses"] == (
         "./.github/workflows/release-qualification.yml"
     )
-    assert set(jobs["promote-release"]["needs"]) == {
+    assert set(jobs["publish-release"]["needs"]) == {
         "stage-candidate",
         "qualify-candidate",
     }
 
 
-def test_release_stages_then_promotes_the_same_candidate_bytes() -> None:
-    """Stable publication must be promotion after qualification, never a rebuild."""
+def test_release_qualifies_private_bytes_before_any_stable_publication() -> None:
+    """Stable qualification must precede every tag, commit, and release mutation."""
 
     workflow_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
         encoding="utf-8"
     )
 
-    assert "--prerelease" in workflow_text
     assert "release-qualification.yml" in workflow_text
-    assert "--prerelease=false --latest" in workflow_text
-    assert "SUGAR_SUBSTITUTE_STAGE_ONLY" in workflow_text
-    promotion = workflow_text.split("  promote-release:", maxsplit=1)[1]
-    assert "prepare-release-assets" not in promotion
-    assert "PyInstaller" not in promotion
+    stage = workflow_text.split("  stage-candidate:", maxsplit=1)[1].split(
+        "  qualify-candidate:", maxsplit=1
+    )[0]
+    publication = workflow_text.split("  publish-release:", maxsplit=1)[1]
+    assert "Upload private non-release candidate channel" in stage
+    assert "npx semantic-release" not in stage
+    assert "gh release" not in stage
+    assert "contents: write" not in stage
+    assert "needs.qualify-candidate.result == 'success'" in publication
+    assert "Download exact qualified Stable channel" in publication
+    assert "Re-resolve semantic release version after qualification" in publication
+    assert "npx semantic-release" in publication
+    assert "select(" not in publication
+    assert '= "false:false"' in publication
+    assert '= "false:true"' in publication
+    assert "prepare-release-assets" not in publication
+    assert "PyInstaller" not in publication
 
 
 def test_first_release_publishes_version_090_without_adding_a_commit() -> None:
@@ -783,7 +845,6 @@ def test_first_release_publishes_version_090_without_adding_a_commit() -> None:
     assert 'const FIRST_RELEASE_VERSION = "0.9.0"' in resolver_text
     assert "result?.nextRelease?.version" in resolver_text
     assert "first_release=${firstRelease}" in resolver_text
-    assert "gh release create" in workflow_text
     assert "prepare-release-assets.mjs" in workflow_text
     assert "prime-first-release-tag" not in workflow_text
 
@@ -1026,30 +1087,14 @@ process.stdout.write(JSON.stringify({
     assert notes["original"] == "## Features\n\n* Added Cubes."
 
 
-def test_semantic_release_stage_mode_does_not_publish_stable() -> None:
-    """Semantic release should prepare its commit and tag while GitHub stays staged."""
+def test_semantic_release_publisher_has_no_prequalification_bypass() -> None:
+    """The GitHub publisher must not retain an early staging publication mode."""
 
-    script = """
-process.env.SUGAR_SUBSTITUTE_STAGE_ONLY = 'true';
-const publisher = require('./scripts/github-release-publisher.cjs');
-publisher.publish(
-  {repository: 'Artificial-Sweetener/Substitute-Test'},
-  {nextRelease: {version: '1.2.3'}},
-).then((result) => process.stdout.write(JSON.stringify(result)));
-"""
-    result = subprocess.run(
-        ["node", "-e", script],
-        cwd=PROJECT_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
+    publisher = (PROJECT_ROOT / "scripts" / "github-release-publisher.cjs").read_text(
+        encoding="utf-8"
     )
 
-    assert result.returncode == 0, result.stderr
-    staged = json.loads(result.stdout)
-    assert staged["name"] == "Staged SugarSubstitute 1.2.3"
-    assert staged["url"].endswith("/releases/tag/v1.2.3")
+    assert "SUGAR_SUBSTITUTE_STAGE_ONLY" not in publisher
 
 
 def test_release_notes_generator_rejects_unsafe_versions(tmp_path: Path) -> None:
@@ -1094,8 +1139,11 @@ def test_release_pipeline_uses_one_notes_owner_and_updates_the_changelog() -> No
     assert config.index(changelog_plugin) < config.index(github_publisher)
     assert 'changelogFile: "CHANGELOG.md"' in config
     assert "release-notes-preamble.cjs" in workflow
-    assert "--generate-notes" in workflow
-    assert '"--notes", $releaseNotes' in workflow
+    publisher = (PROJECT_ROOT / "scripts" / "github-release-publisher.cjs").read_text(
+        encoding="utf-8"
+    )
+    assert "createInstallerReleaseNotes" in publisher
+    assert "withInstallerReleaseNotes" in publisher
     assert (PROJECT_ROOT / "CHANGELOG.md").is_file()
 
 
@@ -1213,21 +1261,20 @@ def test_stable_release_push_uses_the_authorized_deploy_key() -> None:
     assert "process.env.SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL" in release_config
 
 
-def test_existing_stable_tag_is_published_without_an_invalid_target() -> None:
-    """Publish Semantic Release tags without reusing the tag as a commitish."""
+def test_stable_release_is_created_only_by_postqualification_semantic_release() -> None:
+    """Keep Stable publication under semantic-release after qualification."""
 
     release_workflow = (
         PROJECT_ROOT / ".github" / "workflows" / "release.yml"
     ).read_text(encoding="utf-8")
-    publish_step = release_workflow.split(
-        "      - name: Publish exact bytes as a visible prerelease candidate",
-        maxsplit=1,
-    )[1].split("      - name:", maxsplit=1)[0]
+    stage = release_workflow.split("  stage-candidate:", maxsplit=1)[1].split(
+        "  qualify-candidate:", maxsplit=1
+    )[0]
+    publication = release_workflow.split("  publish-release:", maxsplit=1)[1]
 
-    assert "gh @releaseArguments" in publish_step
-    assert '$releaseArguments += @("--target", "${{ github.sha }}")' in publish_step
-    assert "$target =" not in publish_step
-    assert "--target $target" not in publish_step
+    assert "gh release create" not in stage
+    assert "npx semantic-release" not in stage
+    assert publication.count("npx semantic-release") == 1
 
 
 def test_windows_quality_workflows_fail_fast_on_native_command_errors() -> None:
