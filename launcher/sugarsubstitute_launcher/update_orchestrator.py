@@ -28,7 +28,10 @@ from urllib.error import URLError
 
 from launcher.sugarsubstitute_launcher import __version__ as LAUNCHER_VERSION
 
-from launcher.sugarsubstitute_launcher.config import LauncherConfig
+from launcher.sugarsubstitute_launcher.config import (
+    STABLE_RELEASE_CHANNEL,
+    LauncherConfig,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
@@ -63,7 +66,10 @@ from sugarsubstitute_shared.launcher_update.targets import (
     LauncherBundleTarget,
     launcher_bundle_target_for_key,
 )
-from sugarsubstitute_shared.launcher_update.versions import compare_release_versions
+from sugarsubstitute_shared.launcher_update.versions import (
+    compare_release_versions,
+    is_prerelease_version,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -227,6 +233,18 @@ class LauncherUpdateOrchestrator:
                 checked_manifest=True,
                 installed_update=False,
                 skipped_reason="channel_mismatch",
+            )
+        if config.channel == STABLE_RELEASE_CHANNEL and is_prerelease_version(
+            manifest.version
+        ):
+            state.with_update_check(
+                channel=manifest.channel,
+                checked_at=self._now(),
+            ).save(layout.state_path)
+            return PreLaunchUpdateResult(
+                checked_manifest=True,
+                installed_update=False,
+                skipped_reason="stable_prerelease_rejected",
             )
 
         launcher_request = self._stage_launcher_update(
