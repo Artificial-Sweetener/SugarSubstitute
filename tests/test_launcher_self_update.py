@@ -584,6 +584,37 @@ def test_legacy_bridge_does_not_reschedule_current_launcher(tmp_path: Path) -> N
     assert scheduled == []
 
 
+def test_legacy_bridge_rejects_stable_prerelease(tmp_path: Path) -> None:
+    """Legacy Stable installations must not migrate to prerelease launchers."""
+
+    install_root = _write_installed_layout(tmp_path / "SugarSubstitute")
+    runtime_python = install_root / "runtime" / ".venv" / "Scripts" / "python.exe"
+    runtime_python.parent.mkdir(parents=True, exist_ok=True)
+    runtime_python.write_text("python", encoding="utf-8")
+    (install_root / "app" / "main.py").write_text("", encoding="utf-8")
+    _write_launcher_config(install_root, runtime_python=runtime_python)
+    archive = _write_bundle(tmp_path / "launcher.zip", marker="new")
+    scheduled: list[dict[str, object]] = []
+
+    def schedule(**kwargs: object) -> int:
+        """Record any unexpected helper scheduling request."""
+
+        scheduled.append(kwargs)
+        return 1234
+
+    bridge = LegacyLauncherUpdateBridge(
+        target_detector=lambda: WINDOWS_X64_BUNDLE,
+        manifest_loader=lambda _url: _manifest_payload(
+            archive,
+            version="0.21.2-canary.149",
+        ),
+        scheduler=schedule,
+    )
+
+    assert bridge.run(install_root=install_root) is False
+    assert scheduled == []
+
+
 def _write_installed_layout(root: Path) -> Path:
     """Create an old Windows launcher plus unrelated preserved install content."""
 
@@ -655,14 +686,18 @@ def _asset(path: Path) -> LauncherBundleAsset:
     )
 
 
-def _manifest_payload(archive: Path) -> dict[str, object]:
+def _manifest_payload(
+    archive: Path,
+    *,
+    version: str = "0.11.0",
+) -> dict[str, object]:
     """Create the launcher portion of a production manifest."""
 
     asset = _asset(archive)
     return {
         "schema_version": 2,
         "channel": "stable",
-        "version": "0.11.0",
+        "version": version,
         "minimum_launcher_version": "0.10.0",
         "launchers": {
             "windows_x64": {
