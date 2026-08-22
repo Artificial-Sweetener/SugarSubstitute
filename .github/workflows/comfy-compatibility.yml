@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: comfy-compatibility-${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
+  group: comfy-compatibility-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 env:
@@ -30,6 +30,7 @@ env:
 jobs:
   real-tag-probe:
     name: ${{ matrix.comfyui }} / ${{ matrix.manager }} (${{ matrix.name }})
+    if: github.event_name != 'pull_request' || github.head_ref != 'canary' || github.base_ref != 'main'
     strategy:
       fail-fast: false
       matrix:
@@ -90,6 +91,7 @@ jobs:
 
   real-update-probe:
     name: ${{ matrix.source }} -> ${{ matrix.target }} (${{ matrix.name }})
+    if: github.event_name != 'pull_request' || github.head_ref != 'canary' || github.base_ref != 'main'
     strategy:
       fail-fast: false
       matrix:
