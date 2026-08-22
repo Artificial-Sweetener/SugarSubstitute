@@ -568,7 +568,8 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert "prepare_portable_historical_install" in lifecycle_text
     assert '"--headless-install"' in historical_qualification_text
     assert "Download real historical installer" in workflow_text
-    assert '"SugarSubstitute-*-Windows-x64.exe"' in workflow_text
+    assert '"SugarSubstitute-*-Windows-x64*.exe"' in workflow_text
+    assert '"SugarSubstitute-*-Windows-x64.exe"' not in workflow_text
     assert '"SugarSubstitute-*-Linux-x86_64.AppImage"' in workflow_text
     assert '"SugarSubstitute-*-macOS-Apple-Silicon.dmg"' in workflow_text
     assert "Select-Object -Single" not in workflow_text
