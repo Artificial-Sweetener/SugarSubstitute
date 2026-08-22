@@ -439,10 +439,52 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
 
     release_root = tmp_path / "candidate"
     release_root.mkdir()
-    (release_root / "manifest.json").write_text(
-        '{"version":"9999.0.1"}\n',
-        encoding="utf-8",
+    asset_names = {
+        "app": "SugarSubstitute-app-v9999.0.1.zip",
+        "launcher": "SugarSubstitute-installer-payload-windows-x64-v9999.0.1.zip",
+        "installer": "SugarSubstitute-9999.0.1-Windows-x64.exe",
+    }
+    for name in asset_names.values():
+        (release_root / name).write_bytes(f"exact bytes for {name}".encode())
+    public_root = (
+        "https://github.com/Artificial-Sweetener/SugarSubstitute/"
+        "releases/download/v9999.0.1"
     )
+
+    def asset(name: str) -> dict[str, str | int]:
+        """Build one production-addressed staged asset fixture."""
+
+        path = release_root / name
+        return {
+            "filename": name,
+            "url": f"{public_root}/{name}",
+            "sha256": "a" * 64,
+            "size_bytes": path.stat().st_size,
+        }
+
+    source_manifest = (
+        json.dumps(
+            {
+                "schema_version": 2,
+                "channel": "stable",
+                "version": "9999.0.1",
+                "minimum_launcher_version": "0.1.0",
+                "release_metadata": {"publication": "pending"},
+                "app": asset(asset_names["app"]),
+                "launchers": {
+                    "windows_x64": asset(asset_names["launcher"]),
+                },
+                "installers": {
+                    "windows_x64_exe": asset(asset_names["installer"]),
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
+    manifest_path = release_root / "manifest.json"
+    manifest_path.write_text(source_manifest, encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     with LocalReleaseServer(
         release_root=release_root,
@@ -465,9 +507,26 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
             context=legacy_context,
         ) as response:
             assert response.status == 200
+        with urllib.request.urlopen(
+            payload["app"]["url"],
+            timeout=5.0,
+            context=legacy_context,
+        ) as response:
+            assert response.read() == (release_root / asset_names["app"]).read_bytes()
 
         assert server.manifest_url == f"{LOCAL_RELEASE_BASE_URL}/manifest.json"
-        assert payload == {"version": "9999.0.1"}
+        assert payload["version"] == "9999.0.1"
+        assert payload["release_metadata"] == {"publication": "pending"}
+        assert payload["app"]["url"] == (
+            f"{LOCAL_RELEASE_BASE_URL}/{asset_names['app']}"
+        )
+        assert payload["launchers"]["windows_x64"]["url"] == (
+            f"{LOCAL_RELEASE_BASE_URL}/{asset_names['launcher']}"
+        )
+        assert payload["installers"]["windows_x64_exe"]["url"] == (
+            f"{LOCAL_RELEASE_BASE_URL}/{asset_names['installer']}"
+        )
+        assert manifest_path.read_text(encoding="utf-8") == source_manifest
         assert server.certificate_path.is_absolute()
         assert server.trust_bundle_path.is_absolute()
         requests = [
@@ -477,6 +536,7 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
         assert [request["path"] for request in requests] == [
             "/manifest.json",
             "/manifest.json",
+            f"/{asset_names['app']}",
         ]
         assert (
             server.trust_bundle_path.read_text(encoding="ascii").count(
