@@ -585,7 +585,7 @@ jobs:
           set -euo pipefail
           channel_dir="build/canary-channel"
           readback_dir="build/canary-readback"
-          canary_release_title="Canary ${CANDIDATE_VERSION/-canary-/.}"
+          canary_release_title="Canary ${CANDIDATE_VERSION/-canary./.}"
           mkdir -p "$readback_dir"
           python -c "import json, os, pathlib; payload=json.loads(pathlib.Path('$channel_dir/manifest.json').read_text()); assert payload['channel']=='canary', payload; assert payload['version']==os.environ['CANDIDATE_VERSION'], payload"
           (cd "$channel_dir" && sha256sum --check checksums.txt)
