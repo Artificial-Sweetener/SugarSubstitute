@@ -102,8 +102,10 @@ class _CanvasFocusHandoff(QObject):
         """Store the authoritative route and target for one focus intent."""
 
         application = QApplication.instance()
+        if not isinstance(application, QApplication):
+            application = None
         super().__init__(application)
-        self._application = application
+        self._application: QApplication | None = application
         self._state = state
         self._route_key = route_key
         self._widget = widget
@@ -121,6 +123,7 @@ class _CanvasFocusHandoff(QObject):
         application = self._application
         if application is not None:
             application.installEventFilter(self)
+            application.focusChanged.connect(self._focus_changed)
         self._restore_focus()
         self._queue_focus_restore()
 
@@ -132,6 +135,7 @@ class _CanvasFocusHandoff(QObject):
         self._active = False
         application = self._application
         if application is not None:
+            application.focusChanged.disconnect(self._focus_changed)
             application.removeEventFilter(self)
         self._finished(self)
         self.deleteLater()
@@ -146,19 +150,24 @@ class _CanvasFocusHandoff(QObject):
         if event_type == QEvent.Type.ApplicationDeactivate:
             self.stop()
             return False
-        if event_type == QEvent.Type.FocusOut and isinstance(watched, QWidget):
-            if self._belongs_to_target(watched):
-                self._queue_focus_restore()
-            return False
-        if event_type != QEvent.Type.FocusIn or not isinstance(watched, QWidget):
-            return False
-        if self._belongs_to_target(watched):
-            return False
-        if watched.window() is not self._widget.window():
-            self.stop()
-            return False
-        self._queue_focus_restore()
         return False
+
+    def _focus_changed(
+        self,
+        _previous: QWidget | None,
+        current: QWidget | None,
+    ) -> None:
+        """Restore same-window projection focus before its transfer returns."""
+
+        if not self._active:
+            return
+        if current is not None and self._belongs_to_target(current):
+            return
+        if current is not None and current.window() is not self._widget.window():
+            self.stop()
+            return
+        self._restore_focus()
+        self._queue_focus_restore()
 
     def _queue_focus_restore(self) -> None:
         """Coalesce competing projections into one queued restoration."""
