@@ -309,6 +309,27 @@ def test_activation_focus_recovers_after_projection_temporarily_clears_focus() -
         host.close()
 
 
+def test_activation_focus_restores_before_projection_transfer_returns() -> None:
+    """A same-window projection must not expose a transient competing focus."""
+
+    host, input_canvas, _output_canvas = _host()
+    projection_focus = QWidget(host)
+    try:
+        input_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        projection_focus.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        projection_focus.show()
+
+        assert host.activate_canvas("Input", keyboard_focus=True)
+        _app().processEvents()
+        assert input_canvas.hasFocus()
+
+        projection_focus.setFocus()
+
+        assert input_canvas.hasFocus()
+    finally:
+        host.close()
+
+
 def test_activation_focus_handoff_yields_to_later_user_intent() -> None:
     """A later keyboard event must release picker-requested focus ownership."""
 
