@@ -237,6 +237,28 @@ def test_activation_focus_settles_after_nested_same_event_projections() -> None:
         host.close()
 
 
+def test_activation_focus_recovers_after_projection_temporarily_clears_focus() -> None:
+    """A focusless projection frame must preserve picker-requested canvas focus."""
+
+    host, input_canvas, output_canvas = _host()
+    try:
+        input_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocus()
+        _app().processEvents()
+
+        assert host.activate_canvas("Input", keyboard_focus=True)
+        _app().processEvents()
+        assert input_canvas.hasFocus()
+
+        input_canvas.clearFocus()
+        _app().processEvents()
+
+        assert input_canvas.hasFocus()
+    finally:
+        host.close()
+
+
 def test_activation_focus_handoff_yields_to_later_user_intent() -> None:
     """A later keyboard event must release picker-requested focus ownership."""
 
