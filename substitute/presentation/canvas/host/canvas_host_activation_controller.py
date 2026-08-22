@@ -145,6 +145,10 @@ class _CanvasFocusHandoff(QObject):
         if event_type == QEvent.Type.ApplicationDeactivate:
             self.stop()
             return False
+        if event_type == QEvent.Type.FocusOut and isinstance(watched, QWidget):
+            if self._belongs_to_target(watched):
+                self._queue_focus_restore()
+            return False
         if event_type != QEvent.Type.FocusIn or not isinstance(watched, QWidget):
             return False
         if self._belongs_to_target(watched):
@@ -171,6 +175,9 @@ class _CanvasFocusHandoff(QObject):
             return
         if self._state.active_route_key != self._route_key:
             self.stop()
+            return
+        focus_widget = QApplication.focusWidget()
+        if focus_widget is not None and self._belongs_to_target(focus_widget):
             return
         self._widget.setFocus(Qt.FocusReason.OtherFocusReason)
 
