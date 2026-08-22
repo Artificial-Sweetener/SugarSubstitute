@@ -540,7 +540,7 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           New-Item -ItemType Directory -Force build/historical-installer | Out-Null
           $assetPattern = switch ("${{ matrix.platform }}") {
-            "windows" { "SugarSubstitute-*-Windows-x64.exe" }
+            "windows" { "SugarSubstitute-*-Windows-x64*.exe" }
             "linux" { "SugarSubstitute-*-Linux-x86_64.AppImage" }
             "macos" { "SugarSubstitute-*-macOS-Apple-Silicon.dmg" }
           }
