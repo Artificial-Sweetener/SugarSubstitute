@@ -122,6 +122,7 @@ class _CanvasFocusHandoff(QObject):
         if application is not None:
             application.installEventFilter(self)
         self._restore_focus()
+        self._queue_focus_restore()
 
     def stop(self) -> None:
         """Release this handoff after superseding user or lifecycle intent."""
