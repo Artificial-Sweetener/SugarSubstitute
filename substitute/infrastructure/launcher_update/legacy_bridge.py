@@ -36,7 +36,10 @@ from sugarsubstitute_shared.launcher_update.targets import (
     LauncherBundleTarget,
     detect_launcher_bundle_target,
 )
-from sugarsubstitute_shared.launcher_update.versions import compare_release_versions
+from sugarsubstitute_shared.launcher_update.versions import (
+    compare_release_versions,
+    is_prerelease_version,
+)
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 
@@ -90,6 +93,8 @@ class LegacyLauncherUpdateBridge:
             target_key=target.key,
         )
         if release.channel != _string(config, "channel", default="stable"):
+            return False
+        if release.channel == "stable" and is_prerelease_version(release.version):
             return False
         installation_path = root / "launcher" / "installation.json"
         installed = LauncherInstallationRecord.load(installation_path)

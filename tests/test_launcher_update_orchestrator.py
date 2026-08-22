@@ -163,6 +163,29 @@ def test_pre_launch_update_never_crosses_release_channels(
     assert installer.installed_layouts == []
 
 
+def test_stable_update_rejects_prerelease_manifest(tmp_path: Path) -> None:
+    """Stable installations must never install a semantic prerelease."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    config = LauncherConfig.from_layout(layout=layout, channel="stable")
+    installer = _PayloadInstaller(version="0.21.2-canary.149")
+
+    result = LauncherUpdateOrchestrator(
+        payload_installer=installer,
+        runtime_reconciler=_RuntimeReconciler(),
+        now=_fixed_now,
+    ).run(
+        layout=layout,
+        config=config,
+        release_source=_ReleaseSource(_manifest(version="0.21.2-canary.149")),
+        no_update_check=False,
+    )
+
+    assert result.skipped_reason == "stable_prerelease_rejected"
+    assert result.installed_update is False
+    assert installer.installed_layouts == []
+
+
 def test_pre_launch_update_respects_disabled_policy(tmp_path: Path) -> None:
     """Disabled update checks should not load the manifest."""
 
