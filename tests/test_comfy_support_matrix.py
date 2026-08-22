@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from tools.ci.comfy_support_matrix import (
@@ -25,6 +27,9 @@ from tools.ci.comfy_support_matrix import (
     COMFY_UPDATE_MATRIX,
     matrix_entry,
 )
+
+
+_COMPATIBILITY_WORKFLOW = Path(".github/workflows/comfy-compatibility.yml")
 
 
 def test_comfy_support_matrix_starts_at_explicit_floor_and_ends_at_current() -> None:
@@ -69,3 +74,18 @@ def test_update_matrix_covers_incremental_and_direct_manager_transitions() -> No
     ]
     assert matrix_entry("v0.24.0").manager_version == "4.2.1"
     assert matrix_entry("v0.25.0").manager_version == "4.2.2"
+
+
+def test_canary_promotion_preserves_its_completed_compatibility_proof() -> None:
+    """A Main promotion must not cancel or duplicate its Canary push matrix."""
+
+    workflow_text = _COMPATIBILITY_WORKFLOW.read_text(encoding="utf-8")
+    assert (
+        "group: comfy-compatibility-${{ github.workflow }}-${{ github.event_name }}-"
+        "${{ github.event.pull_request.head.sha || github.sha }}" in workflow_text
+    )
+    promotion_guard = (
+        "    if: github.event_name != 'pull_request' || github.head_ref != 'canary' || "
+        "github.base_ref != 'main'"
+    )
+    assert workflow_text.count(promotion_guard) == 2

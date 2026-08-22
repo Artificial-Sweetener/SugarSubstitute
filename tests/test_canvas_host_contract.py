@@ -67,6 +67,26 @@ class _Canvas(QWidget):
         self.availability.append((available, reason))
 
 
+class _DefersFirstFocusCanvas(_Canvas):
+    """Reject the synchronous focus request made inside an activation event."""
+
+    def __init__(self) -> None:
+        """Create a canvas that accepts focus after the current event dispatch."""
+
+        super().__init__()
+        self.focus_requests = 0
+
+    def setFocus(  # noqa: N802
+        self,
+        reason: Qt.FocusReason = Qt.FocusReason.OtherFocusReason,
+    ) -> None:
+        """Accept every focus request after the first synchronous attempt."""
+
+        self.focus_requests += 1
+        if self.focus_requests > 1:
+            super().setFocus(reason)
+
+
 class _FloatingWindow(QWidget):
     """Provide deterministic floating-window behavior for host docking tests."""
 
@@ -188,6 +208,36 @@ def test_host_activation_can_transfer_keyboard_focus_to_selected_canvas() -> Non
         host.close()
 
 
+def test_host_activation_verifies_focus_after_current_event_dispatch() -> None:
+    """Picker activation must recover when synchronous focus is not accepted."""
+
+    _app()
+    input_canvas = _DefersFirstFocusCanvas()
+    output_canvas = _Canvas()
+    host = CanvasHost(
+        pages=(
+            CanvasHostPage("Input", app_text("Input"), input_canvas),
+            CanvasHostPage("Output", app_text("Output"), output_canvas),
+        )
+    )
+    try:
+        input_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        host.show()
+        output_canvas.setFocus()
+        _app().processEvents()
+
+        assert host.activate_canvas("Input", keyboard_focus=True)
+        assert input_canvas.focus_requests == 1
+
+        _app().processEvents()
+
+        assert input_canvas.focus_requests >= 2
+        assert input_canvas.hasFocus()
+    finally:
+        host.close()
+
+
 def test_deferred_focus_does_not_override_a_newer_canvas_activation() -> None:
     """A queued pointer-event handoff must not focus a superseded route."""
 
@@ -231,6 +281,49 @@ def test_activation_focus_settles_after_nested_same_event_projections() -> None:
         assert host.activate_canvas("Input", keyboard_focus=True)
         for _cycle in range(4):
             _app().processEvents()
+
+        assert input_canvas.hasFocus()
+    finally:
+        host.close()
+
+
+def test_activation_focus_recovers_after_projection_temporarily_clears_focus() -> None:
+    """A focusless projection frame must preserve picker-requested canvas focus."""
+
+    host, input_canvas, output_canvas = _host()
+    try:
+        input_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        output_canvas.setFocus()
+        _app().processEvents()
+
+        assert host.activate_canvas("Input", keyboard_focus=True)
+        _app().processEvents()
+        assert input_canvas.hasFocus()
+
+        input_canvas.clearFocus()
+        _app().processEvents()
+
+        assert input_canvas.hasFocus()
+    finally:
+        host.close()
+
+
+def test_activation_focus_restores_before_projection_transfer_returns() -> None:
+    """A same-window projection must not expose a transient competing focus."""
+
+    host, input_canvas, _output_canvas = _host()
+    projection_focus = QWidget(host)
+    try:
+        input_canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        projection_focus.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        projection_focus.show()
+
+        assert host.activate_canvas("Input", keyboard_focus=True)
+        _app().processEvents()
+        assert input_canvas.hasFocus()
+
+        projection_focus.setFocus()
 
         assert input_canvas.hasFocus()
     finally:
