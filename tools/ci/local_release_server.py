@@ -25,9 +25,11 @@ import ssl
 import subprocess
 from threading import Lock, Thread
 import time
-from typing import Any, Self
+from typing import Any, Self, cast
 
 import certifi
+
+from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
 
 LOCAL_RELEASE_PORT = 44_443
 LOCAL_RELEASE_BASE_URL = f"https://localhost:{LOCAL_RELEASE_PORT}"
@@ -49,6 +51,10 @@ class LocalReleaseServer:
         self.request_log_path = certificate_root / "requests.jsonl"
         self.request_log_path.unlink(missing_ok=True)
         self._request_log_lock = Lock()
+        self._qualification_manifest = _qualification_manifest_bytes(
+            manifest_path=self.release_root / "manifest.json",
+            release_root=self.release_root,
+        )
         self.certificate_path, key_path = _create_localhost_certificate(
             certificate_root
         )
@@ -94,6 +100,7 @@ class LocalReleaseServer:
         """Bind standard file serving to the exact candidate directory."""
 
         release_root = self.release_root
+        qualification_manifest = self._qualification_manifest
         request_log_path = self.request_log_path
         request_log_lock = self._request_log_lock
 
@@ -109,7 +116,7 @@ class LocalReleaseServer:
                 """Suppress routine local qualification request output."""
 
             def do_GET(self) -> None:
-                """Record candidate-channel access before serving exact bytes."""
+                """Record access and serve the loopback-qualified manifest view."""
 
                 with request_log_lock:
                     with request_log_path.open("a", encoding="utf-8") as output:
@@ -124,9 +131,53 @@ class LocalReleaseServer:
                             )
                             + "\n"
                         )
+                if self.path.partition("?")[0] == "/manifest.json":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Length", str(len(qualification_manifest)))
+                    self.end_headers()
+                    self.wfile.write(qualification_manifest)
+                    return
                 super().do_GET()
 
         return _Handler
+
+
+def _qualification_manifest_bytes(*, manifest_path: Path, release_root: Path) -> bytes:
+    """Build an in-memory manifest view that resolves staged assets locally."""
+
+    decoded: object = json.loads(manifest_path.read_text(encoding="utf-8"))
+    ReleaseManifest.from_json(decoded)
+    if not isinstance(decoded, dict):
+        raise ValueError("Candidate release manifest must be a JSON object.")
+    payload = cast(dict[str, object], decoded)
+    _rewrite_qualification_asset(payload.get("app"), release_root)
+    for collection_name in ("launchers", "installers"):
+        collection = payload.get(collection_name)
+        if not isinstance(collection, dict):
+            raise ValueError(
+                f"Candidate release manifest field must be an object: {collection_name}"
+            )
+        for asset_payload in collection.values():
+            _rewrite_qualification_asset(asset_payload, release_root)
+    return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _rewrite_qualification_asset(asset_payload: object, release_root: Path) -> None:
+    """Point one present staged asset at the trusted loopback server."""
+
+    asset = ReleaseAsset.from_json(asset_payload)
+    if Path(asset.filename).name != asset.filename:
+        raise ValueError(
+            f"Candidate release asset filename must not contain a path: {asset.filename}"
+        )
+    asset_path = release_root / asset.filename
+    if not asset_path.is_file():
+        return
+    if not isinstance(asset_payload, dict):
+        raise ValueError("Candidate release asset must be a JSON object.")
+    mutable_payload = cast(dict[str, object], asset_payload)
+    mutable_payload["url"] = f"{LOCAL_RELEASE_BASE_URL}/{asset.filename}"
 
 
 def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:
