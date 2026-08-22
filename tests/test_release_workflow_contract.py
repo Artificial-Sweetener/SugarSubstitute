@@ -309,9 +309,10 @@ def test_published_release_titles_use_channel_specific_version_labels() -> None:
 
     assert 'name: "v${nextRelease.version}"' in release_configuration
     assert (
-        'canary_release_title="Canary ${CANDIDATE_VERSION/-canary-/.}"'
+        'canary_release_title="Canary ${CANDIDATE_VERSION/-canary./.}"'
         in release_workflow
     )
+    assert "${CANDIDATE_VERSION/-canary-/.}" not in release_workflow
     assert release_workflow.count('title "$canary_release_title"') == 2
     assert "SugarSubstitute Canary $CANDIDATE_VERSION" not in release_workflow
     assert "SugarSubstitute $version release candidate" not in release_workflow
