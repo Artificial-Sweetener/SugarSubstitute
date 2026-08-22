@@ -412,12 +412,31 @@ def test_canary_version_resolution_does_not_probe_ambiguous_remote_ref() -> None
         PROJECT_ROOT / "scripts" / "resolve-next-release-version.mjs"
     ).read_text(encoding="utf-8")
 
-    canary_resolver = resolver_text.split(
-        "async function resolveCanaryStableVersion", maxsplit=1
-    )[1].split("async function resolveStableVersion", maxsplit=1)[0]
-    assert "analyzeCommits" in canary_resolver
-    assert "semanticRelease" not in canary_resolver
-    assert "branches:" not in canary_resolver
+    assert "analyzeCommits" in resolver_text
+    assert "branches:" not in resolver_text
+
+
+def test_read_only_version_resolution_never_probes_remote_push_permission() -> None:
+    """Keep pre-publication version calculation independent of repository writes."""
+
+    resolver_text = (
+        PROJECT_ROOT / "scripts" / "resolve-next-release-version.mjs"
+    ).read_text(encoding="utf-8")
+    release_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
+        encoding="utf-8"
+    )
+    determine_version = release_text.split("  determine-version:", maxsplit=1)[1].split(
+        "  build-windows:", maxsplit=1
+    )[0]
+
+    assert 'import("semantic-release")' not in resolver_text, (
+        "Read-only version resolution must not invoke semantic-release core because "
+        "its dry run probes remote push permission."
+    )
+    assert "contents: write" not in determine_version, (
+        "Version resolution must remain read-only; write access belongs only to "
+        "post-qualification publication."
+    )
 
 
 def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> None:
@@ -844,7 +863,7 @@ def test_first_release_publishes_version_090_without_adding_a_commit() -> None:
     ).read_text(encoding="utf-8")
 
     assert 'const FIRST_RELEASE_VERSION = "0.9.0"' in resolver_text
-    assert "result?.nextRelease?.version" in resolver_text
+    assert "resolveStableVersion" in resolver_text
     assert "first_release=${firstRelease}" in resolver_text
     assert "prepare-release-assets.mjs" in workflow_text
     assert "prime-first-release-tag" not in workflow_text
