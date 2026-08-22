@@ -1,0 +1,43 @@
+name: validation release cleanup
+
+on:
+  workflow_run:
+    workflows:
+      - cross-platform validation
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+
+concurrency:
+  group: validation-release-cleanup-${{ github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Reconcile temporary validation release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete a release or orphan tag owned by the completed run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          TEST_TAG: ci-${{ github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TEST_TAG" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            test "$(gh release view "$TEST_TAG" --repo "${{ github.repository }}" --json isPrerelease --jq '.isPrerelease')" = "true"
+            gh release delete "$TEST_TAG" --repo "${{ github.repository }}" --cleanup-tag --yes
+            exit 0
+          fi
+
+          tag_sha="$(gh api "repos/${{ github.repository }}/git/ref/tags/$TEST_TAG" --jq '.object.sha' 2>/dev/null || true)"
+          if [ -n "$tag_sha" ]; then
+            test "$tag_sha" = "$RUN_HEAD_SHA"
+            gh api --method DELETE "repos/${{ github.repository }}/git/refs/tags/$TEST_TAG"
+          fi

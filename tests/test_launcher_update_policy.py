@@ -32,7 +32,10 @@ from launcher.sugarsubstitute_launcher.update_policy import (
     decide_update_check,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
-from sugarsubstitute_shared.launcher_update.versions import compare_release_versions
+from sugarsubstitute_shared.launcher_update.versions import (
+    compare_release_versions,
+    is_prerelease_version,
+)
 
 
 def test_launcher_update_state_defaults_when_missing(tmp_path: Path) -> None:
@@ -165,3 +168,10 @@ def test_compare_release_versions_supports_semantic_prereleases() -> None:
         compare_release_versions("0.4/evil", "0.4.0")
     with pytest.raises(ValueError, match="semantic"):
         compare_release_versions("latest", "0.4.0")
+
+
+def test_release_version_identifies_prerelease_suffixes() -> None:
+    """Stable update policy must distinguish full and prerelease versions."""
+
+    assert is_prerelease_version("0.21.2-canary.149") is True
+    assert is_prerelease_version("v0.21.2") is False

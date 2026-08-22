@@ -39,16 +39,6 @@ async function verifyConditions(pluginConfig, context) {
  * @returns {Promise<Record<string, unknown>>} Published release metadata.
  */
 async function publish(pluginConfig, context) {
-  if (process.env.SUGAR_SUBSTITUTE_STAGE_ONLY === "true") {
-    const version = context.nextRelease?.version;
-    if (typeof version !== "string" || !version) {
-      throw new Error("Semantic-release context is missing nextRelease.version.");
-    }
-    return {
-      name: `Staged SugarSubstitute ${version}`,
-      url: `https://github.com/${pluginConfig.repository}/releases/tag/v${version}`,
-    };
-  }
   const github = await loadGitHubPlugin();
   return github.publish(
     githubConfig(pluginConfig),
