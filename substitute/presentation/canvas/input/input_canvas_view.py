@@ -111,7 +111,7 @@ class InputCanvas(QWidget):
         self,
         parent: QWidget | None = None,
         *,
-        execution_runtime: ExecutionRuntime | None = None,
+        execution_runtime: ExecutionRuntime,
         route_session_boundary: CanvasRouteSessionBoundaryPort | None = None,
     ) -> None:
         """Initialize the Input document host and context-menu wiring."""

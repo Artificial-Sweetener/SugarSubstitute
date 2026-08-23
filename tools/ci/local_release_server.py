@@ -29,12 +29,11 @@ from typing import Any, Self
 
 import certifi
 
-LOCAL_RELEASE_PORT = 44_443
-LOCAL_RELEASE_BASE_URL = f"https://localhost:{LOCAL_RELEASE_PORT}"
+LOCAL_RELEASE_BASE_URL_PLACEHOLDER = "https://localhost.invalid"
 
 
 class LocalReleaseServer:
-    """Serve immutable candidate artifacts from a fixed CI-only HTTPS origin."""
+    """Serve immutable candidate artifacts from one owned loopback HTTPS origin."""
 
     def __init__(self, *, release_root: Path, certificate_root: Path) -> None:
         """Validate the release root and prepare its trusted localhost endpoint."""
@@ -57,9 +56,10 @@ class LocalReleaseServer:
             certificate_path=self.certificate_path,
         )
         self._server = ThreadingHTTPServer(
-            ("127.0.0.1", LOCAL_RELEASE_PORT),
-            self._handler_class(),
+            ("127.0.0.1", 0),
+            SimpleHTTPRequestHandler,
         )
+        self._server.RequestHandlerClass = self._handler_class()
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         tls.load_cert_chain(certfile=self.certificate_path, keyfile=key_path)
         self._server.socket = tls.wrap_socket(self._server.socket, server_side=True)
@@ -67,9 +67,16 @@ class LocalReleaseServer:
 
     @property
     def manifest_url(self) -> str:
-        """Return the fixed manifest URL encoded into non-release candidate assets."""
+        """Return the manifest URL served by this exact loopback endpoint."""
 
-        return f"{LOCAL_RELEASE_BASE_URL}/manifest.json"
+        return f"{self.base_url}/manifest.json"
+
+    @property
+    def base_url(self) -> str:
+        """Return the HTTPS origin allocated to this server instance."""
+
+        host, port = self._server.server_address[:2]
+        return f"https://localhost:{port}" if host == "127.0.0.1" else ""
 
     def __enter__(self) -> Self:
         """Start serving the candidate channel."""
@@ -96,6 +103,7 @@ class LocalReleaseServer:
         release_root = self.release_root
         request_log_path = self.request_log_path
         request_log_lock = self._request_log_lock
+        base_url = self.base_url
 
         class _Handler(SimpleHTTPRequestHandler):
             """Serve candidate files without noisy request logging."""
@@ -124,7 +132,27 @@ class LocalReleaseServer:
                             )
                             + "\n"
                         )
+                if self.path == "/manifest.json":
+                    self._serve_manifest()
+                    return
                 super().do_GET()
+
+            def _serve_manifest(self) -> None:
+                """Resolve the owned endpoint placeholder without mutating candidates."""
+
+                payload = (
+                    (release_root / "manifest.json")
+                    .read_bytes()
+                    .replace(
+                        LOCAL_RELEASE_BASE_URL_PLACEHOLDER.encode("ascii"),
+                        base_url.encode("ascii"),
+                    )
+                )
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
 
         return _Handler
 
@@ -199,4 +227,4 @@ def _create_qualification_trust_bundle(
     return bundle_path.resolve()
 
 
-__all__ = ["LOCAL_RELEASE_BASE_URL", "LOCAL_RELEASE_PORT", "LocalReleaseServer"]
+__all__ = ["LOCAL_RELEASE_BASE_URL_PLACEHOLDER", "LocalReleaseServer"]

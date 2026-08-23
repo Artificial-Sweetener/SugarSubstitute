@@ -218,6 +218,7 @@ class PromptProjectionUpdateScheduler(QObject):
         scheduling_policy: PromptProjectionSchedulingPolicy | None = None,
         prompt_activity_elapsed_ms: Callable[[], float | None] | None = None,
         output_activity_elapsed_ms: Callable[[], float | None] | None = None,
+        now: Callable[[], float] | None = None,
         parent: QObject | None = None,
     ) -> None:
         """Create a latest-wins scheduler for prompt projection updates."""
@@ -242,6 +243,7 @@ class PromptProjectionUpdateScheduler(QObject):
             output_activity_elapsed_ms
             or default_prompt_projection_ui_load_activity().output_activity_elapsed_ms
         )
+        self._now = now or perf_counter
         self._pending_update: PendingProjectionUpdate | None = None
         self._pending_started_at: float | None = None
         self._pending_superseded_count = 0
@@ -467,7 +469,7 @@ class PromptProjectionUpdateScheduler(QObject):
         """Return elapsed milliseconds since the oldest pending projection update."""
 
         started_at = self._pending_started_at or update.queued_at
-        return max(0.0, (perf_counter() - started_at) * 1000.0)
+        return max(0.0, (self._now() - started_at) * 1000.0)
 
 
 def _prompt_activity_elapsed_unknown() -> float | None:

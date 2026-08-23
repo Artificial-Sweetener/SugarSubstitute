@@ -267,7 +267,7 @@ def _build_workflow_tabbar(
 def _build_canvas_scaffold(
     window: object,
     *,
-    canvas_execution_runtime: ExecutionRuntime | None = None,
+    canvas_execution_runtime: ExecutionRuntime,
     output_preview_registry: OutputPreviewRegistry,
     open_single_external_editor: OutputSingleExternalEditor | None,
     open_all_external_editor: OutputAllExternalEditor | None,
@@ -399,7 +399,7 @@ def _build_progress_overlay(
 def build_main_window_workspace(
     window: QMainWindow,
     *,
-    canvas_execution_runtime: ExecutionRuntime | None = None,
+    canvas_execution_runtime: ExecutionRuntime,
     backdrop_mode: ShellBackdropMode | None = None,
     menu_container: QWidget,
     comfy_output_stream: TerminalOutputStream,

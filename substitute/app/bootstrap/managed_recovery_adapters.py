@@ -313,14 +313,15 @@ def reconcile_attached_local_owned_dependencies(
 ) -> None:
     """Refresh only Substitute-owned nodepacks in an attached local workspace."""
 
-    manager_runtime = ensure_attached_workspace_manager(
+    ensure_attached_workspace_manager(
         workspace,
         python_executable=python_executable,
         on_log=emit_log,
     )
     emit_log("Updating Substitute Comfy nodepacks.")
     ensure_core_comfy_nodepacks(
-        manager_runtime=manager_runtime,
+        workspace,
+        python_executable=python_executable,
         refresh_nodepacks=nodepacks,
         on_log=emit_log,
     )

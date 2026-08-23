@@ -934,7 +934,11 @@ class TabBar(ReorderableTabBarBase):
         )
         self._syncOrbAdjacentTab(animated=False)
         self._syncCornerOverlay()
-        QTimer.singleShot(0, self._sync_tab_visibility_chrome)
+        QTimer.singleShot(
+            0,
+            cast(QObject, self),
+            self._sync_tab_visibility_chrome,
+        )
         return item
 
     def is_settings_route(self, route_key: str | None) -> bool:
@@ -1318,7 +1322,11 @@ class TabBar(ReorderableTabBarBase):
                 QEvent.Type.ShowToParent,
                 QEvent.Type.HideToParent,
             }:
-                QTimer.singleShot(0, self._sync_tab_visibility_chrome)
+                QTimer.singleShot(
+                    0,
+                    cast(QObject, self),
+                    self._sync_tab_visibility_chrome,
+                )
             if isinstance(event, QMouseEvent):
                 self._handle_tab_mouse_event(
                     self._tab_item_mouse_event(watched, event),

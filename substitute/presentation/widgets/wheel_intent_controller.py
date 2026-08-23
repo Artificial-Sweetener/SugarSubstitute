@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import QElapsedTimer, QEvent, QObject, QPoint, QPointF
@@ -50,13 +51,19 @@ class WheelIntentController(QObject):
         wheel_adjustment_mode: PromptWheelAdjustmentMode = (
             PromptWheelAdjustmentMode.HOVER_DWELL
         ),
+        wheel_intent_now_ms: Callable[[], int] | None = None,
     ) -> None:
-        """Create the controller state used by configured widget subtrees."""
+        """Create controller state with an optional monotonic intent clock."""
 
         super().__init__(parent)
         self._wheel_adjustment_mode = wheel_adjustment_mode
         self._wheel_intent_clock = QElapsedTimer()
         self._wheel_intent_clock.start()
+        self._wheel_intent_now = (
+            wheel_intent_now_ms
+            if wheel_intent_now_ms is not None
+            else lambda: int(self._wheel_intent_clock.elapsed())
+        )
         self._wheel_intent_arbiter = WheelIntentArbiter()
         self._prompt_weight_pointer_positions: dict[int, QPoint] = {}
         self._active_prompt_weight_targets: dict[int, WheelIntentTarget] = {}
@@ -365,7 +372,7 @@ class WheelIntentController(QObject):
     def _wheel_intent_now_ms(self) -> int:
         """Return the controller-local timestamp used for wheel intent policy."""
 
-        return int(self._wheel_intent_clock.elapsed())
+        return self._wheel_intent_now()
 
     def _record_prompt_weight_pointer_move(
         self,

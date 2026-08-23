@@ -18,12 +18,10 @@ import { spawnSync } from "node:child_process";
 
 const ignoredAdvisoryIds = new Set([1124334]);
 const ignoredAdvisoryUrls = new Set([
-  // These affect the embedded npm runtime of @semantic-release/npm, which the
-  // configured release lifecycle does not load.
+  // These affect runtime paths in npm, an unused nested semantic-release plugin.
   "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
   "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
   "https://github.com/advisories/GHSA-mwp4-54f8-5fhr",
-  "https://github.com/advisories/GHSA-r292-9mhp-454m",
 ]);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const audit = spawnSync(npmCommand, ["audit", "--json"], {

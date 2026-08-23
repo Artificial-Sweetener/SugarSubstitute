@@ -19,7 +19,9 @@
 from __future__ import annotations
 
 import sys
+from logging import getLogger
 from collections.abc import Callable
+from pathlib import Path
 from types import TracebackType
 from typing import Self
 
@@ -27,6 +29,8 @@ type ExceptionHook = Callable[
     [type[BaseException], BaseException, TracebackType | None],
     None,
 ]
+
+_LOGGER = getLogger(__name__)
 
 
 class PromptAbuseQtExceptionCapture:
@@ -75,13 +79,30 @@ class PromptAbuseQtExceptionCapture:
     ) -> None:
         """Record one uncaught callback exception without serializing prompt text."""
 
-        del traceback
+        _LOGGER.error(
+            "Captured uncaught Qt callback during prompt abuse verification",
+            exc_info=(exception_type, exception, traceback),
+        )
         message = str(exception).strip().replace("\n", " ")
         if len(message) > 160:
             message = f"{message[:157]}..."
+        source = _callback_source(traceback)
+        suffix = "" if source is None else f":source={source}"
         self._violations.append(
-            f"uncaught_qt_callback:{exception_type.__name__}:{message}"
+            f"uncaught_qt_callback:{exception_type.__name__}:{message}{suffix}"
         )
+
+
+def _callback_source(traceback: TracebackType | None) -> str | None:
+    """Return a compact source location for an uncaught Qt callback."""
+
+    if traceback is None:
+        return None
+    final_frame = traceback
+    while final_frame.tb_next is not None:
+        final_frame = final_frame.tb_next
+    code = final_frame.tb_frame.f_code
+    return f"{Path(code.co_filename).name}:{final_frame.tb_lineno}:{code.co_name}"
 
 
 __all__ = ["PromptAbuseQtExceptionCapture"]

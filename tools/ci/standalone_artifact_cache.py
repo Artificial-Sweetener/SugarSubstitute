@@ -38,11 +38,11 @@ def qualification_standalone_artifact_cache(
     install_root: Path,
     external_cache_root: Path | None,
     timeout_seconds: float,
-) -> Iterator[None]:
+) -> Iterator[DeferredArtifactCacheStage | None]:
     """Stage CI artifacts after layout creation and retain verified results."""
 
     if external_cache_root is None:
-        yield
+        yield None
         return
     resolved_install_root = install_root.resolve()
     resolved_external_root = external_cache_root.resolve()
@@ -56,7 +56,7 @@ def qualification_standalone_artifact_cache(
     installed_cache_root = (
         resolved_install_root / ".sugarsubstitute-cache" / "standalone"
     )
-    stage = _DeferredArtifactCacheStage(
+    stage = DeferredArtifactCacheStage(
         ready_path=resolved_install_root / "launcher" / "config.json",
         source_root=resolved_external_root,
         destination_root=installed_cache_root,
@@ -66,7 +66,7 @@ def qualification_standalone_artifact_cache(
     stage.start()
     succeeded = False
     try:
-        yield
+        yield stage
         succeeded = True
     finally:
         if succeeded:
@@ -89,7 +89,7 @@ def standalone_cache_diagnostic_path(install_root: Path) -> Path:
 
 
 @dataclass(slots=True)
-class _DeferredArtifactCacheStage:
+class DeferredArtifactCacheStage:
     """Stage restored artifacts after the installer owns its selected layout."""
 
     ready_path: Path
@@ -265,6 +265,7 @@ def _mirror_complete_files(*, source_root: Path, destination_root: Path) -> None
 
 
 __all__ = [
+    "DeferredArtifactCacheStage",
     "qualification_standalone_artifact_cache",
     "standalone_cache_diagnostic_path",
 ]

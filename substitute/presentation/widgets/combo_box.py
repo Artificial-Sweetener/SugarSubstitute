@@ -14,12 +14,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Provide typed ComboBox facades and deterministic item-list helpers."""
+"""Provide the searchable combo-box presentation control."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol, Sequence, cast
+from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from PySide6.QtCore import QEvent, QRect, QSize, Qt
 from PySide6.QtGui import (
@@ -30,27 +29,17 @@ from PySide6.QtGui import (
     QPainter,
     QPalette,
 )
-from PySide6.QtWidgets import QStyle, QStyleOptionFrame
+from PySide6.QtWidgets import QSizePolicy, QStyle, QStyleOptionFrame, QWidget
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QLineEdit as _RuntimeComboBox
-    from PySide6.QtWidgets import QSizePolicy
-    from PySide6.QtWidgets import QWidget
-
-    from .searchable_combo_popup import SearchableComboPopup
 else:
-    try:
-        from qfluentwidgets import EditableComboBox as _RuntimeComboBox
-    except ImportError:  # pragma: no cover - runtime fallback only
-        from PySide6.QtWidgets import QComboBox as _RuntimeComboBox
-    from PySide6.QtWidgets import QSizePolicy, QWidget
-
-    try:
-        from .searchable_combo_popup import SearchableComboPopup
-    except ImportError:  # pragma: no cover - qfluentwidgets fallback only
-        SearchableComboPopup = None
+    from qfluentwidgets import (  # type: ignore[import-untyped]
+        EditableComboBox as _RuntimeComboBox,
+    )
 
 from .inline_completion import inline_completion_suffix
+from .searchable_combo_popup import SearchableComboPopup
 from .searchable_combo_helpers import filtered_combo_indexes
 
 _COMBO_TEXT_CHROME_WIDTH = 44
@@ -59,155 +48,6 @@ _COMBO_SHRINKABLE_MINIMUM_WIDTH = _COMBO_TEXT_CHROME_WIDTH + _COMBO_MINIMUM_TEXT
 _COMBO_TEXT_FIT_SLACK = 2
 _COMBO_DROPDOWN_TEXT_MARGIN = 29
 _COMBO_DROPDOWN_TEXT_GAP = 4
-
-
-class _SignalEmitter(Protocol):
-    """Define the minimal signal emitter contract used by ComboBoxBase."""
-
-    def emit(self, *args: object) -> None: ...
-
-
-class _ComboState(Protocol):
-    """Define storage/state requirements consumed by ComboBoxBase helpers."""
-
-    items: list["ComboItem"]
-    _currentIndex: int
-    currentTextChanged: _SignalEmitter
-    currentIndexChanged: _SignalEmitter
-
-
-@dataclass(slots=True)
-class ComboItem:
-    """Represent a single combo option used by deterministic helper tests."""
-
-    text: str
-    userData: object | None = None
-
-
-def _clamp_index(index: int, lower: int, upper: int) -> int:
-    """Clamp an index into an inclusive numeric range."""
-
-    return max(lower, min(upper, index))
-
-
-class ComboBoxBase:
-    """Provide list/index mechanics for contract tests and lightweight doubles."""
-
-    def addItem(self, text: str, userData: object | None = None) -> None:
-        """Append a single item and initialize selection when first item appears."""
-
-        state = cast(_ComboState, self)
-        state.items.append(ComboItem(text=text, userData=userData))
-        if len(state.items) == 1:
-            self.setCurrentIndex(0)
-
-    def addItems(self, texts: list[str]) -> None:
-        """Append all items in order."""
-
-        for text in texts:
-            self.addItem(text)
-
-    def insertItems(self, index: int, texts: list[str]) -> None:
-        """Insert items and shift current selection when insertion is before it."""
-
-        if not texts:
-            return
-        state = cast(_ComboState, self)
-        target_index = _clamp_index(index, 0, len(state.items))
-        inserted_items = [ComboItem(text=text) for text in texts]
-        state.items[target_index:target_index] = inserted_items
-        if state._currentIndex >= target_index:
-            state._currentIndex += len(inserted_items)
-
-    def removeItem(self, index: int) -> None:
-        """Remove item at index and keep selection semantics deterministic."""
-
-        state = cast(_ComboState, self)
-        if index < 0 or index >= len(state.items):
-            return
-
-        del state.items[index]
-        if not state.items:
-            state._currentIndex = -1
-            return
-
-        if index < state._currentIndex:
-            self.setCurrentIndex(state._currentIndex - 1)
-            return
-
-        if index == state._currentIndex:
-            replacement_index = _clamp_index(index, 0, len(state.items) - 1)
-            self.setCurrentIndex(replacement_index)
-
-    def clear(self) -> None:
-        """Remove all items and reset selection."""
-
-        state = cast(_ComboState, self)
-        state.items.clear()
-        state._currentIndex = -1
-
-    def count(self) -> int:
-        """Return item count."""
-
-        state = cast(_ComboState, self)
-        return len(state.items)
-
-    def itemText(self, index: int) -> str:
-        """Return item text or empty string when index is invalid."""
-
-        state = cast(_ComboState, self)
-        if index < 0 or index >= len(state.items):
-            return ""
-        return state.items[index].text
-
-    def itemData(self, index: int) -> object | None:
-        """Return item user data or None when index is invalid."""
-
-        state = cast(_ComboState, self)
-        if index < 0 or index >= len(state.items):
-            return None
-        return state.items[index].userData
-
-    def findText(self, text: str) -> int:
-        """Return the first index matching text, or -1 when not found."""
-
-        state = cast(_ComboState, self)
-        for index, item in enumerate(state.items):
-            if item.text == text:
-                return index
-        return -1
-
-    def currentIndex(self) -> int:
-        """Return current selected index."""
-
-        state = cast(_ComboState, self)
-        return state._currentIndex
-
-    def currentText(self) -> str:
-        """Return text for current index, or empty string for no selection."""
-
-        state = cast(_ComboState, self)
-        if state._currentIndex < 0 or state._currentIndex >= len(state.items):
-            return ""
-        return state.items[state._currentIndex].text
-
-    def setCurrentIndex(self, index: int) -> None:
-        """Set selected index and emit index/text change signals when it changes."""
-
-        state = cast(_ComboState, self)
-        next_index = _clamp_index(index, -1, len(state.items) - 1)
-        if next_index == state._currentIndex:
-            return
-        state._currentIndex = next_index
-        state.currentTextChanged.emit(self.currentText())
-        state.currentIndexChanged.emit(next_index)
-
-    def setCurrentText(self, text: str) -> None:
-        """Set selection to the first matching text."""
-
-        index = self.findText(text)
-        if index >= 0:
-            self.setCurrentIndex(index)
 
 
 class ComboBox(_RuntimeComboBox):
@@ -570,9 +410,6 @@ class ComboBox(_RuntimeComboBox):
     def _connect_popup(self) -> None:
         """Create and connect the popup once for this combo."""
 
-        if SearchableComboPopup is None:
-            self._popup = None
-            return
         self._popup = SearchableComboPopup(self)
         self._popup.activatedIndex.connect(self._commit_user_index)
         self._popup.dismissedByOutsideClick.connect(
@@ -928,7 +765,5 @@ EditableComboBox = ComboBox
 
 __all__ = [
     "ComboBox",
-    "ComboBoxBase",
-    "ComboItem",
     "EditableComboBox",
 ]

@@ -35,13 +35,20 @@ from .model import (
 def load_policy(path: Path) -> ArchitecturePolicy:
     """Load one schema-versioned architecture policy."""
 
-    data = _document(path, expected_version=1)
+    data = _document(path, expected_version=2)
     _exact_keys(data, {"schema_version", "structure", "registries"}, str(path))
     structure = _mapping(data, "structure")
     registries = _mapping(data, "registries")
     _exact_keys(
         structure,
-        {"soft_lines", "hard_lines", "source_roots", "excluded_paths"},
+        {
+            "soft_lines",
+            "hard_lines",
+            "source_roots",
+            "source_files",
+            "source_extensions",
+            "excluded_paths",
+        },
         "structure policy",
     )
     _exact_keys(
@@ -55,6 +62,10 @@ def load_policy(path: Path) -> ArchitecturePolicy:
         source_roots=tuple(
             Path(value) for value in _strings(structure, "source_roots")
         ),
+        source_files=tuple(
+            Path(value) for value in _strings(structure, "source_files")
+        ),
+        source_extensions=frozenset(_strings(structure, "source_extensions")),
         excluded_paths=frozenset(_strings(structure, "excluded_paths")),
         debt_registry=Path(_string(registries, "debt")),
         waiver_registry=Path(_string(registries, "waivers")),

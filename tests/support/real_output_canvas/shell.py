@@ -174,15 +174,22 @@ class _HarnessShell(QMainWindow):
         self._menu_container.setLayout(QHBoxLayout())
         workspace_parts = build_main_window_workspace(
             self,
+            canvas_execution_runtime=self.execution_runtime.canvas_execution_runtime,
             backdrop_mode=None,
             menu_container=self._menu_container,
             comfy_output_stream=self._comfy_output_stream,
             output_preview_registry=self.output_preview_registry,
             open_single_external_editor=(
-                self.workspace_canvas_actions.open_image_in_external_editor
+                cast(
+                    Any,
+                    self.workspace_canvas_actions.open_image_in_external_editor,
+                )
             ),
             open_all_external_editor=(
-                self.workspace_canvas_actions.open_images_in_external_editor
+                cast(
+                    Any,
+                    self.workspace_canvas_actions.open_images_in_external_editor,
+                )
             ),
         )
         self.setMenuWidget(self._menu_container)

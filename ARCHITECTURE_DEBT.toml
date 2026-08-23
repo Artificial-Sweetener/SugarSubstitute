@@ -743,13 +743,13 @@ next_extraction = "Extract runtime-issue cards and update/issue overlays from th
 id = "SS-ARCH-053"
 owner = "editor field rows"
 paths = ["substitute/presentation/editor/panel/widgets/field_row.py"]
-fingerprint = "sha256:1f3e03d5ca53ef5dcc51261030081346ba43f311b2676e3b1ba88d43397f38b1"
+fingerprint = "sha256:d931dfbaf3fd25cabe9ccb963851b888b7b0df07148385f2dd59b4c0a620f4e4"
 issue = "chore:SS-ARCH-053"
 review_by = 2026-12-15
 responsibilities = [
   "scalar and grouped row construction",
   "field label/control sizing policy",
-  "visibility and layout selection",
+  "field visibility application",
   "divider styling",
   "dynamic relayout event filtering and parent invalidation",
 ]
@@ -759,7 +759,7 @@ next_extraction = "Extract relayout observation and sizing policy from field-row
 id = "SS-ARCH-054"
 owner = "prompt editor composition"
 paths = ["substitute/presentation/editor/prompt_editor/composition/factory.py"]
-fingerprint = "sha256:fd20a88f5457b8e6691e3d7f3cda2ebc1ea98b85b5a7fc3354cde37dcd61edda"
+fingerprint = "sha256:c584ab294b615e0345c9f284a5bdf4a913ea31945e6c1603e089285fbb386cfb"
 issue = "chore:SS-ARCH-054"
 review_by = 2026-12-15
 responsibilities = [
@@ -959,7 +959,7 @@ next_extraction = "Extract managed-asset commands and editor persistence from mo
 id = "SS-ARCH-066"
 owner = "onboarding presentation flow"
 paths = ["substitute/presentation/onboarding/onboarding_controller.py"]
-fingerprint = "sha256:f9baf49e438ce2240b4c9f8a247bd67f8b0b5d9721e371af9e8589875f20a43f"
+fingerprint = "sha256:71c820b918174adc5318a2a181303cf449bdf1fae65fd8316437575a61ad5020"
 issue = "chore:SS-ARCH-066"
 review_by = 2026-12-15
 responsibilities = [
@@ -991,7 +991,7 @@ next_extraction = "Split independently changing onboarding pages into focused mo
 id = "SS-ARCH-068"
 owner = "onboarding window"
 paths = ["substitute/presentation/onboarding/onboarding_window.py"]
-fingerprint = "sha256:4b1702734c56c2b696a12dbc4bf92069d58f6ebf4e53c06be3d026333e0bd630"
+fingerprint = "sha256:1cdbb7143d1e2058be3efa3e06abe1069023a8099a7a9d19ef0754f29151a707"
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
 responsibilities = [
@@ -1157,7 +1157,7 @@ next_extraction = "Extract injected web scripts and accent-theme generation from
 id = "SS-ARCH-078"
 owner = "shell cube loading"
 paths = ["substitute/presentation/shell/cube_loader.py"]
-fingerprint = "sha256:385ec462f4aee077fa14767260f2300985be691f2ac80e8129b7953b39ee6211"
+fingerprint = "sha256:6d52e7d69313815b9c728ff95bc24de02b3f165e8331fb2b3ca348d80002eadf"
 issue = "chore:SS-ARCH-078"
 review_by = 2026-12-15
 responsibilities = [
@@ -1208,7 +1208,7 @@ next_extraction = "Split feature-specific composition modules behind a narrow ma
 id = "SS-ARCH-081"
 owner = "main window workspace scaffold"
 paths = ["substitute/presentation/shell/main_window_workspace.py"]
-fingerprint = "sha256:c22446221ea262a15aa7cd6356c22c4f1a22daf6447a7c837e0228099bf27914"
+fingerprint = "sha256:eeb0414a3d0004dd9af9aa9b2e164c1474e65c973505391d1a019d5b395e7ad6"
 issue = "chore:SS-ARCH-081"
 review_by = 2026-12-15
 responsibilities = [
@@ -1339,23 +1339,6 @@ responsibilities = [
 next_extraction = "Extract recipe model acquisition and output restoration from file-dialog and workspace persistence presentation."
 
 [[debts]]
-id = "SS-ARCH-089"
-owner = "toggle menu buttons"
-paths = ["substitute/presentation/widgets/menu_buttons.py"]
-fingerprint = "sha256:2f57bcaca580fb7b3424bb3c8bca281a210238de4c913c5194d7de1cf9e98229"
-issue = "chore:SS-ARCH-089"
-review_by = 2026-12-15
-responsibilities = [
-  "headless fallback signal and Qt object model",
-  "fallback popup button implementations",
-  "popup lifecycle diagnostics",
-  "dropdown toggle behavior",
-  "split-button toggle behavior",
-  "concrete QFluent button variants",
-]
-next_extraction = "Extract fallback widget emulation and popup diagnostics from production toggle-button behavior."
-
-[[debts]]
 id = "SS-ARCH-090"
 owner = "model picker field"
 paths = ["substitute/presentation/widgets/model_picker/model_picker_field.py"]
@@ -1376,7 +1359,7 @@ next_extraction = "Extract thumbnail/metadata coordination and catalog resolutio
 id = "SS-ARCH-091"
 owner = "workflow tabs"
 paths = ["substitute/presentation/workflows/workflow_tabs_view.py"]
-fingerprint = "sha256:e2700522a6bb0c91926df416d45d95e76ac37fbb81e4ebf414555373d964edfc"
+fingerprint = "sha256:1526be237950dfc882f581db9ae727e2e643dbda5914397139c763ee2f1113ba"
 issue = "chore:SS-ARCH-091"
 review_by = 2026-12-15
 responsibilities = [
@@ -1388,3 +1371,101 @@ responsibilities = [
   "layout, visibility, and theme chrome",
 ]
 next_extraction = "Extract tab-item visuals, corner overlay, and drag-session coordination from workflow tabbar commands and layout."
+
+[[debts]]
+id = "SS-ARCH-092"
+owner = "startup measurement harness"
+paths = ["tools/startup_harness.py"]
+fingerprint = "sha256:0ef8e0ae56440f7a2e33db02a4bb157b2b480801db5e8bada239a2e53cc27cf6"
+issue = "chore:SS-ARCH-092"
+review_by = 2026-12-15
+responsibilities = [
+  "direct, managed, and maintenance startup-cycle orchestration",
+  "startup trace, console timeline, and diagnostic parsing",
+  "measurement correlation and summary projection",
+  "HTTP readiness and route probing",
+  "manager configuration mutation and subprocess lifecycle",
+  "command-line configuration",
+]
+next_extraction = "Extract process/configuration control and trace interpretation into focused collaborators behind the startup-cycle harness."
+
+[[debts]]
+id = "SS-ARCH-093"
+owner = "production editor projection trace"
+paths = ["tools/editor_projection_rig/production_trace.py"]
+fingerprint = "sha256:023fead3f3c7c7f4c69913453a45773494da545e768afdfdf837cc2e91825b65"
+issue = "chore:SS-ARCH-093"
+review_by = 2026-12-15
+responsibilities = [
+  "scenario and workflow fixture orchestration",
+  "production editor-panel and shell construction",
+  "runtime projection instrumentation",
+  "widget and field invariant analysis",
+  "trace aggregation and budget summaries",
+]
+next_extraction = "Extract production mounting/instrumentation and invariant/report analysis from scenario execution."
+
+[[debts]]
+id = "SS-ARCH-094"
+owner = "prompt abuse action dispatch"
+paths = ["tools/prompt_editor_abuse/action_driver.py"]
+fingerprint = "sha256:d4862be0e7fc09969f24dd2662af5c1f1e68a68d24f26fe195b299a2083f0eb0"
+issue = "chore:SS-ARCH-094"
+review_by = 2026-12-15
+responsibilities = [
+  "mounted prompt-editor action host state",
+  "keyboard, text, pointer, and event-drain dispatch",
+  "source selection and caret projection",
+  "context-menu discovery and invocation",
+  "token-weight control discovery and interaction",
+]
+next_extraction = "Extract input-family dispatchers and menu/weight-control interaction adapters from the mounted action host."
+
+[[debts]]
+id = "SS-ARCH-095"
+owner = "localization source catalog"
+paths = ["tools/localization_catalog.py"]
+fingerprint = "sha256:71f64bd45530acc438a4fa14d1f04cbe86dbc394bd3e1420661b3b1ad210d401"
+issue = "chore:SS-ARCH-095"
+review_by = 2026-12-15
+responsibilities = [
+  "application, shared, and launcher message extraction",
+  "dynamic and unmarked visible-text validation",
+  "presentation assignment and return classification",
+  "pseudo-localization transformation",
+  "AST source ownership and literal-discovery heuristics",
+]
+next_extraction = "Extract visible-source AST classification and pseudo-localization from catalog extraction and surface-specific source configuration."
+
+[[debts]]
+id = "SS-ARCH-096"
+owner = "Windows installer automation"
+paths = ["tools/ci/drive_windows_installer.py"]
+fingerprint = "sha256:ca0b426ab46ab9e344c8edac4ba612a830a18c99e32e97b4846d40c34529ce56"
+issue = "chore:SS-ARCH-096"
+review_by = 2026-12-15
+responsibilities = [
+  "native Windows process and structure bindings",
+  "installer and onboarding UI automation",
+  "historical shell and diagnostic evidence collection",
+  "isolated desktop launch and process termination",
+  "command-line orchestration",
+]
+next_extraction = "Extract native process/desktop control and historical evidence projection from installer UI workflow automation."
+
+[[debts]]
+id = "SS-ARCH-097"
+owner = "installer UI qualification"
+paths = ["tools/ci/installer_ui_qualification.py"]
+fingerprint = "sha256:75beac8c3396dad23eb76e2d848e4e78e3ac0d640f8d2a2dad8a86499d50d722"
+issue = "chore:SS-ARCH-097"
+review_by = 2026-12-15
+responsibilities = [
+  "qualification evidence preparation",
+  "current installer execution",
+  "installed candidate launch",
+  "shell, version, and event-sequence verification",
+  "cross-platform process termination and diagnostics",
+  "readiness receipt and startup trace interpretation",
+]
+next_extraction = "Extract installed-process lifecycle and evidence/trace verification from qualification workflow orchestration."

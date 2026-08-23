@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   PYTHON_VERSION: "3.12.10"
@@ -187,11 +187,9 @@ jobs:
           retention-days: 1
 
   assemble-release:
-    name: Assemble and publish temporary test prerelease
+    name: Assemble and publish private test release
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
     outputs:
       release-url: ${{ steps.publish.outputs.url }}
     steps:
@@ -215,12 +213,12 @@ jobs:
       - name: Build release channel
         run: |
           python tools/build_release_payload.py build --version ${{ env.TEST_VERSION }} --channel test --output-dir .local-release-channel --asset-base-url "https://github.com/${{ github.repository }}/releases/download/${{ env.TEST_TAG }}" --platform-input windows_x64 build/native/windows/launcher/SugarSubstitute --installer-input windows_x64 exe build/native/windows/installer/SugarSubstitute-Installer-Windows-x64.exe --platform-input macos_arm64 build/native/macos/launcher --installer-input macos_arm64 dmg build/native/macos/installer/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg --platform-input linux_x64 build/native/linux/launcher/SugarSubstitute --installer-input linux_x64 appimage build/native/linux/installer/SugarSubstitute-Installer-Linux-x86_64.AppImage --installer-input linux_x64 deb build/native/linux/installer/SugarSubstitute-Installer-Linux-amd64.deb
-      - name: Publish and read back temporary prerelease
+      - name: Publish and read back private prerelease
         id: publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ env.TEST_TAG }}" .local-release-channel/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Cross-platform validation ${{ env.TEST_VERSION }}" --notes "Automated temporary installer validation release for run ${{ github.run_id }}, attempt ${{ github.run_attempt }}." --prerelease
+          gh release create "${{ env.TEST_TAG }}" .local-release-channel/* --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Cross-platform validation ${{ env.TEST_VERSION }}" --notes "Automated private installer validation release." --prerelease
           gh release view "${{ env.TEST_TAG }}" --repo "${{ github.repository }}" --json url,assets > build/release-readback.json
           python -c 'import json; from pathlib import Path; p=json.loads(Path("build/release-readback.json").read_text()); names={a["name"] for a in p["assets"]}; expected={x.name for x in Path(".local-release-channel").iterdir() if x.is_file()}; assert names==expected,(names,expected); print("RELEASE_READBACK_OK",p["url"]); print("url="+p["url"], file=open("$GITHUB_OUTPUT","a"))'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -320,22 +318,3 @@ jobs:
           path: .local-release-channel
       - name: Prove clean install and production onboarding composition
         run: python -m launcher.sugarsubstitute_launcher.dev_install --install-root "${{ runner.temp }}/SugarSubstitute" --release-root .local-release-channel --allow-non-default-clean
-
-  cleanup-test-release:
-    name: Remove temporary test prerelease
-    needs: [assemble-release, linux-distro-trust, installed-app-smoke]
-    if: always() && needs.assemble-release.result != 'skipped'
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - name: Delete the exact automation-owned release and tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          tag="${{ env.TEST_TAG }}"
-          if gh release view "$tag" --repo "${{ github.repository }}" > /dev/null 2>&1; then
-            test "$(gh release view "$tag" --repo "${{ github.repository }}" --json isPrerelease --jq '.isPrerelease')" = "true"
-            gh release delete "$tag" --repo "${{ github.repository }}" --cleanup-tag --yes
-          fi

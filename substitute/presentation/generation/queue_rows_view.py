@@ -18,58 +18,22 @@
 
 from __future__ import annotations
 
-from sugarsubstitute_shared.presentation.localization import app_text
-from substitute.presentation.localization import LocalizedCaptionLabel
-
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
-try:
-    from PySide6.QtCore import Qt, Signal
-except ImportError:  # pragma: no cover - lightweight test stubs
-    from PySide6.QtCore import Signal
-
-    Qt = object()  # type: ignore[assignment,misc]
-
-try:
-    from PySide6.QtGui import QPixmap
-except ImportError:  # pragma: no cover - lightweight test stubs
-    QPixmap = object  # type: ignore[assignment,misc]
-
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
-
-try:
-    from qfluentwidgets import CaptionLabel  # type: ignore[import-untyped]
-except ImportError:  # pragma: no cover - lightweight test stubs
-    CaptionLabel = QLabel
-
-try:
-    from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
-except ImportError:  # pragma: no cover - lightweight test stubs
-
-    def isDarkTheme() -> bool:
-        """Return the default queue theme for lightweight test stubs."""
-
-        return True
-
-
-from substitute.presentation.shell.chrome_style import connect_theme_refresh
-
-try:
-    from PySide6.QtWidgets import QApplication, QGraphicsDropShadowEffect
-except ImportError:  # pragma: no cover - lightweight test stubs
-
-    class QApplication:  # type: ignore[no-redef]
-        """Fallback QApplication API for lightweight queue row tests."""
-
-        @staticmethod
-        def startDragDistance() -> int:
-            """Return the standard minimum drag distance."""
-
-            return 10
-
-    QGraphicsDropShadowEffect = None  # type: ignore[assignment,misc]
-
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QGraphicsDropShadowEffect,
+    QHBoxLayout,
+    QLabel,
+    QVBoxLayout,
+    QWidget,
+)
+from qfluentwidgets import CaptionLabel  # type: ignore[import-untyped]
+from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
 
 from substitute.presentation.generation.queue_item_row import (
     GenerationQueueItemRow,
@@ -88,6 +52,9 @@ from substitute.presentation.generation.queue_reorder_controller import (
     pending_drop_insertion_index_for_y,
     service_target_index_for_drop,
 )
+from substitute.presentation.localization import LocalizedCaptionLabel
+from substitute.presentation.shell.chrome_style import connect_theme_refresh
+from sugarsubstitute_shared.presentation.localization import app_text
 
 
 QueueDropSurface = Literal["panel", "flyout"]
@@ -241,22 +208,11 @@ class GenerationQueueDragProxy(QLabel):
     def _apply_lift_effect(self) -> None:
         """Add a restrained shadow so the proxy reads as lifted."""
 
-        if QGraphicsDropShadowEffect is None:
-            return
         effect = QGraphicsDropShadowEffect(self)
         effect.setBlurRadius(18)
         effect.setOffset(0, 8)
-        set_color = getattr(effect, "setColor", None)
-        if callable(set_color):
-            try:
-                from PySide6.QtGui import QColor
-
-                set_color(QColor(0, 0, 0, 115))
-            except ImportError:
-                pass
-        set_graphics_effect = getattr(self, "setGraphicsEffect", None)
-        if callable(set_graphics_effect):
-            set_graphics_effect(effect)
+        effect.setColor(QColor(0, 0, 0, 115))
+        self.setGraphicsEffect(effect)
 
 
 class GenerationQueueRowsView(QWidget):
@@ -594,10 +550,7 @@ class GenerationQueueRowsView(QWidget):
     def _drag_threshold() -> int:
         """Return the platform drag threshold."""
 
-        start_drag_distance = getattr(QApplication, "startDragDistance", None)
-        if callable(start_drag_distance):
-            return int(start_drag_distance())
-        return 10
+        return QApplication.startDragDistance()
 
     def _height(self) -> int:
         """Return current container height for drag bounds."""

@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QWidget
 
 from substitute.presentation.shell.window_frame import ShellBackdropMode
 
-class SplashWindow:
+class SplashWindow(QWidget):
     def __init__(
         self,
         icon: QIcon | None = ...,
@@ -34,4 +34,3 @@ class SplashWindow:
     def __getattr__(self, name: str) -> Any: ...
     def center_on_screen(self) -> None: ...
     def append_log(self, line: str) -> None: ...
-    def close(self) -> None: ...

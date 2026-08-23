@@ -219,6 +219,12 @@ class PromptAutocompleteTimingController:
 
         return self._EDIT_SETTLE_DELAY_MS
 
+    @property
+    def has_pending_refresh(self) -> bool:
+        """Return whether a revisioned autocomplete refresh remains scheduled."""
+
+        return self._pending_refresh_revision is not None
+
     def refresh_from_current_state(self) -> None:
         """Refresh autocomplete from a prepared source snapshot immediately."""
 
