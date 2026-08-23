@@ -24,7 +24,9 @@ from typing import Any, cast
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtGui import QGuiApplication
 
-from tests.real_shell_prompt_editor_harness import RealShellPromptEditorHarness
+from tests.support.prompt_editor.real_shell.reorder_rendering import (
+    capture_source_line_chrome,
+)
 
 from .action_driver import dispatch_action
 from .models import PromptAbuseAction, PromptAbuseScenario
@@ -99,7 +101,7 @@ def _capture_visual_checkpoint(
     preview_expected = _preview_expected(scenario, action_index, action)
     if preview_expected:
         _wait_for_preview(editor)
-    probe = RealShellPromptEditorHarness.capture_source_line_chrome_render_probe(
+    probe = capture_source_line_chrome(
         cast(Any, editor),
         label=f"{scenario.name}-action-{action_index}",
     )

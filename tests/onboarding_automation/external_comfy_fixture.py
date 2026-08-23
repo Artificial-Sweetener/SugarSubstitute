@@ -18,13 +18,12 @@
 
 from __future__ import annotations
 
-import argparse
 from collections.abc import Callable
 from dataclasses import dataclass
 import os
 from pathlib import Path
 import shutil
-import sys
+from socket import AF_INET, SOCK_STREAM, socket
 
 from substitute.domain.onboarding import ComfyEndpoint
 from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy_setup
@@ -35,10 +34,9 @@ from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
 )
 from substitute.infrastructure.comfy.managed_readiness import wait_for_ready
-from tests.onboarding_automation.fixture_paths import resolve_scenario_paths
+from tests.onboarding_automation.fixture_paths import ScenarioPaths
 
 _DEFAULT_EXTERNAL_HOST = "127.0.0.1"
-_DEFAULT_EXTERNAL_PORT = 8190
 
 
 @dataclass(frozen=True)
@@ -49,23 +47,33 @@ class ExternalComfyFixture:
     endpoint: ComfyEndpoint
 
 
-def build_external_fixture() -> ExternalComfyFixture:
-    """Return the deterministic external Comfy fixture configuration."""
+def _allocate_loopback_port() -> int:
+    """Ask the operating system for one available loopback port."""
 
-    paths = resolve_scenario_paths()
+    with socket(AF_INET, SOCK_STREAM) as probe:
+        probe.bind((_DEFAULT_EXTERNAL_HOST, 0))
+        return int(probe.getsockname()[1])
+
+
+def build_external_fixture(
+    paths: ScenarioPaths,
+    *,
+    port_factory: Callable[[], int] = _allocate_loopback_port,
+) -> ExternalComfyFixture:
+    """Create one run-owned external-Comfy fixture with an allocated endpoint."""
+
     return ExternalComfyFixture(
         workspace_root=paths.external_comfy_root,
         endpoint=ComfyEndpoint(
             host=_DEFAULT_EXTERNAL_HOST,
-            port=_DEFAULT_EXTERNAL_PORT,
+            port=port_factory(),
         ),
     )
 
 
-def reset_external_comfy_root() -> Path:
-    """Delete and recreate the external Comfy test root."""
+def reset_external_comfy_root(fixture: ExternalComfyFixture) -> Path:
+    """Delete and recreate one externally owned Comfy workspace."""
 
-    fixture = build_external_fixture()
     if fixture.workspace_root.exists():
         shutil.rmtree(fixture.workspace_root, onexc=_clear_readonly_and_retry)
     fixture.workspace_root.mkdir(parents=True, exist_ok=True)
@@ -84,20 +92,20 @@ def _clear_readonly_and_retry(
     func(path)
 
 
-def provision_external_comfy_workspace() -> Path:
-    """Provision the deterministic external Comfy workspace contents."""
+def provision_external_comfy_workspace(fixture: ExternalComfyFixture) -> Path:
+    """Provision one run-owned external Comfy workspace."""
 
-    fixture = build_external_fixture()
     fixture.workspace_root.parent.mkdir(parents=True, exist_ok=True)
     return ensure_managed_comfy_setup(
         workspace=fixture.workspace_root,
     )
 
 
-def launch_external_comfy_fixture() -> ManagedProcessHandle:
-    """Launch the deterministic external Comfy fixture and wait for readiness."""
+def launch_external_comfy_fixture(
+    fixture: ExternalComfyFixture,
+) -> ManagedProcessHandle:
+    """Launch one run-owned fixture and wait for its allocated endpoint."""
 
-    fixture = build_external_fixture()
     process = start_managed_comfy_subprocess(
         endpoint=fixture.endpoint,
         workspace=fixture.workspace_root,
@@ -108,36 +116,3 @@ def launch_external_comfy_fixture() -> ManagedProcessHandle:
             "External Comfy fixture did not become ready before the timeout."
         )
     return process
-
-
-def build_argument_parser() -> argparse.ArgumentParser:
-    """Build the command-line parser for external Comfy fixture tasks."""
-
-    parser = argparse.ArgumentParser(
-        description="Manage the external Comfy fixture used by attach-local tests.",
-    )
-    parser.add_argument(
-        "command",
-        choices=("reset", "provision", "launch"),
-        help="Fixture command to run.",
-    )
-    return parser
-
-
-def main(argv: list[str] | None = None) -> int:
-    """Run one external Comfy fixture command."""
-
-    args = build_argument_parser().parse_args(argv)
-    if args.command == "reset":
-        print(reset_external_comfy_root())
-        return 0
-    if args.command == "provision":
-        print(provision_external_comfy_workspace())
-        return 0
-    process = launch_external_comfy_fixture()
-    print(process.pid)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))

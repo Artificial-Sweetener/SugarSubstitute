@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, cast
 
-from PySide6.QtCore import QCoreApplication, QEvent, QObject
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Slot
 
 _APPLICATION_CONTEXT = "AppText"
 _BINDINGS_ATTRIBUTE = "_sugarsubstitute_localized_property_bindings"
@@ -40,12 +40,13 @@ class LocalizedPropertyBinding(QObject):
     ) -> None:
         """Bind one source message without inspecting unrelated widget state."""
 
-        super().__init__(owner)
-        self._owner = owner
-        self._setter = setter
+        self._owner: QObject | None = owner
+        self._setter: Callable[[str], None] | None = setter
         self._source_text = source_text
         self._arguments = arguments
+        super().__init__(owner)
         owner.installEventFilter(self)
+        owner.destroyed.connect(self._release)
         self.retranslate()
 
     def set_message(self, source_text: str, arguments: tuple[object, ...]) -> None:
@@ -58,14 +59,30 @@ class LocalizedPropertyBinding(QObject):
     def retranslate(self) -> None:
         """Render the source message through the active application translator."""
 
-        self._setter(translate_application_message(self._source_text, *self._arguments))
+        setter = self._setter
+        if setter is None:
+            return
+        setter(translate_application_message(self._source_text, *self._arguments))
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         """Refresh only this registered property on a language change."""
 
-        if watched is self._owner and event.type() == QEvent.Type.LanguageChange:
+        if watched is getattr(self, "_owner", None) and (
+            event.type() == QEvent.Type.LanguageChange
+        ):
             self.retranslate()
         return False
+
+    @Slot()
+    def _release(self) -> None:
+        """Release target callbacks before Qt destroys the owning object."""
+
+        if hasattr(self, "_owner"):
+            self._owner = None
+        if hasattr(self, "_setter"):
+            self._setter = None
+        if hasattr(self, "_arguments"):
+            self._arguments = ()
 
 
 def translate_application_text(source_text: str) -> str:
@@ -263,6 +280,7 @@ def clear_localized_property(target: QObject, property_name: str) -> None:
     if not isinstance(binding, LocalizedPropertyBinding):
         return
     target.removeEventFilter(binding)
+    binding._release()
     binding.setParent(None)
     binding.deleteLater()
 

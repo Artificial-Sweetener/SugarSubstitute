@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Literal, Protocol, cast
 
-from substitute.shared.logging.logger import log_timing
+from substitute.shared.logging.logger import Clock, log_timing
 
 from ..qt_lifecycle import qt_object_is_alive
 from ..shell import (
@@ -111,15 +111,18 @@ class PromptEditorConstructionObserver:
     def __init__(
         self,
         logger: logging.Logger,
+        *,
+        clock: Clock = perf_counter,
     ) -> None:
         """Store the logger used by constructor phase timing records."""
 
         self._logger = logger
+        self._clock = clock
 
     def started_at(self) -> float:
         """Return a monotonic timestamp for one constructor phase."""
 
-        return perf_counter()
+        return self._clock()
 
     def log_timing(
         self,
@@ -139,6 +142,7 @@ class PromptEditorConstructionObserver:
             message,
             started_at=started_at,
             level=level,
+            clock=self._clock,
             **validated_context,
         )
 

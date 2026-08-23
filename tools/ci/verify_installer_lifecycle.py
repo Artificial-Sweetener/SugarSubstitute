@@ -213,6 +213,7 @@ def verify_upgrade(
         )
         _trust_candidate_source(historical_environment, historical_source)
         prepare_portable_historical_install(
+            repository_root=REPOSITORY_ROOT,
             installer_path=historical_installer_path,
             install_root=install_root,
             manifest_url=historical_source.manifest_url,

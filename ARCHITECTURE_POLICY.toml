@@ -1,12 +1,28 @@
-schema_version = 1
+schema_version = 2
 
 [structure]
 soft_lines = 350
 hard_lines = 500
 source_roots = [
   "substitute",
-  "launcher/sugarsubstitute_launcher",
+  "launcher",
   "sugarsubstitute_shared",
+  "tests",
+  "tools",
+  "scripts",
+]
+source_files = [
+  ".releaserc.cjs",
+  "main.py",
+  "sitecustomize.py",
+]
+source_extensions = [
+  ".cjs",
+  ".js",
+  ".mjs",
+  ".py",
+  ".pyi",
+  ".spec",
 ]
 excluded_paths = [
   "substitute/presentation/resources/app_icons_rc.py",

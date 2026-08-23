@@ -1,0 +1,27 @@
+schema_version = 1
+
+[scope]
+test_root = "tests"
+root_source_extensions = [".py", ".pyi"]
+allowed_root_source_paths = [
+  "tests/__init__.py",
+  "tests/ci_test_policy.py",
+  "tests/conftest.py",
+]
+
+[discovery]
+serial_policy = "tests/ci_test_policy.py"
+wait_calls = ["QTest.qWait", "time.sleep"]
+wall_clock_calls = [
+  "QElapsedTimer",
+  "monotonic",
+  "perf_counter",
+  "time.monotonic",
+  "time.perf_counter",
+]
+xdist_environment_name = "PYTEST_XDIST_WORKER"
+repository_scratch_name = ".pytest-tmp"
+
+[registries]
+debt = "TEST_DEBT.toml"
+waivers = "TEST_WAIVERS.toml"

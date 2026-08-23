@@ -20,9 +20,9 @@ from __future__ import annotations
 
 from time import perf_counter
 
-from tests.real_shell_prompt_editor_harness import (
-    PromptFieldHandle,
-    RealShellPromptEditorHarness,
+from tests.support.prompt_editor.real_shell.models import PromptFieldHandle
+from tests.support.prompt_editor.real_shell.scenario import (
+    PromptEditorRealShellScenario,
 )
 
 from .models import PromptAbuseScenario
@@ -34,7 +34,7 @@ class RealShellPromptAbuseActionHost(PromptReorderAbuseActionHost):
 
     def __init__(
         self,
-        harness: RealShellPromptEditorHarness,
+        harness: PromptEditorRealShellScenario,
         field: PromptFieldHandle,
     ) -> None:
         """Bind lifecycle actions to one mounted production prompt field."""
@@ -47,18 +47,22 @@ class RealShellPromptAbuseActionHost(PromptReorderAbuseActionHost):
         """Prepare lifecycle fixtures before any measured action dispatch."""
 
         if any(action.kind == "workflow_round_trip" for action in scenario.actions):
-            self._harness.prepare_workflow_round_trip(self._field)
+            self._harness.workflows.prepare_workflow_round_trip(self._field)
 
     def workflow_round_trip(self) -> tuple[tuple[str, float], ...]:
         """Switch away and back while timing each visible workflow transition."""
 
-        secondary_alias = self._harness.prepare_workflow_round_trip(self._field)
+        secondary_alias = self._harness.workflows.prepare_workflow_round_trip(
+            self._field
+        )
         started_at = perf_counter()
-        self._harness.activate_workflow_for_trace(secondary_alias)
+        self._harness.workflows.activate_workflow_for_trace(secondary_alias)
         away_ms = (perf_counter() - started_at) * 1_000.0
         started_at = perf_counter()
-        self._harness.activate_workflow_for_trace(self._field.workflow.alias)
-        returned_field = self._harness.prompt_field(self._field.workflow.alias)
+        self._harness.workflows.activate_workflow_for_trace(self._field.workflow.alias)
+        returned_field = self._harness.workflows.prompt_field(
+            self._field.workflow.alias
+        )
         return_ms = (perf_counter() - started_at) * 1_000.0
         if returned_field.editor is not self._field.editor:
             raise RuntimeError("Workflow round trip replaced the measured editor.")
@@ -69,11 +73,11 @@ class RealShellPromptAbuseActionHost(PromptReorderAbuseActionHost):
         """Switch away and back while timing each visible canvas transition."""
 
         started_at = perf_counter()
-        self._harness.switch_canvas("Output")
+        self._harness.input.switch_canvas("Output")
         away_ms = (perf_counter() - started_at) * 1_000.0
         started_at = perf_counter()
-        self._harness.switch_canvas("Input")
-        self._harness.focus_editor(self._field)
+        self._harness.input.switch_canvas("Input")
+        self._harness.input.focus_editor(self._field)
         return_ms = (perf_counter() - started_at) * 1_000.0
         return (("canvas:switch-away", away_ms), ("canvas:return", return_ms))
 

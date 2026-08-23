@@ -30,17 +30,10 @@ from typing import TYPE_CHECKING, Any, cast
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
 from qfluentwidgets import ScrollArea  # type: ignore[import-untyped]
-
-try:
-    from qfluentwidgets import BodyLabel, StrongBodyLabel
-except ImportError:  # pragma: no cover - lightweight test stubs
-    BodyLabel = QLabel
-    StrongBodyLabel = QLabel
 from qfluentwidgets.components.material import (  # type: ignore[import-untyped]
     AcrylicFlyout,
     AcrylicFlyoutViewBase,

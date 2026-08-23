@@ -69,7 +69,7 @@ def create_output_floating_chrome_factory(
 
 def create_canvas_host(
     *,
-    execution_runtime: ExecutionRuntime | None = None,
+    execution_runtime: ExecutionRuntime,
     output_preview_registry: OutputPreviewRegistry,
     open_single_external_editor: (
         Callable[[object, OutputImageMeta], bool] | None

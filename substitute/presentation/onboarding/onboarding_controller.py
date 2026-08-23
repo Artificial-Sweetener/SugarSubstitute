@@ -231,7 +231,7 @@ class OnboardingController(QObject):
             submitter=submitter,
             scope_id="onboarding_controller",
         )
-        self.destroyed.connect(lambda _obj=None: self.shutdown())
+        self.destroyed.connect(self.shutdown)
 
     @property
     def flow_mode(self) -> OnboardingFlowMode:

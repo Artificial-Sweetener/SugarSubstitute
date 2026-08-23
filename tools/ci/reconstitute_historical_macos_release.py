@@ -28,7 +28,7 @@ from collections.abc import Sequence
 import zipfile
 
 from launcher.sugarsubstitute_launcher.platforms import MACOS_ARM64
-from tools.ci.local_release_server import LOCAL_RELEASE_BASE_URL
+from tools.ci.local_release_server import LOCAL_RELEASE_BASE_URL_PLACEHOLDER
 from tools.release_assets.launcher_archive import (
     validate_installed_launcher_archive,
 )
@@ -67,10 +67,10 @@ def reconstitute_historical_macos_release(
     validate_installed_launcher_archive(launcher_output, target=MACOS_ARM64)
 
     original_launcher_sha256 = _sha256(launcher_source)
-    app_asset["url"] = f"{LOCAL_RELEASE_BASE_URL}/{app_output.name}"
+    app_asset["url"] = f"{LOCAL_RELEASE_BASE_URL_PLACEHOLDER}/{app_output.name}"
     launcher_asset.update(
         {
-            "url": f"{LOCAL_RELEASE_BASE_URL}/{launcher_output.name}",
+            "url": f"{LOCAL_RELEASE_BASE_URL_PLACEHOLDER}/{launcher_output.name}",
             "sha256": _sha256(launcher_output),
             "size_bytes": launcher_output.stat().st_size,
         }
@@ -145,9 +145,6 @@ def _write_reconstituted_launcher(
             )
             written_names.add(destination_name.as_posix())
             retained_members += 1
-    if encountered_roots == {_APP_ROOT}:
-        shutil.copy2(source, destination)
-        return ()
     expected_roots = {_APP_ROOT, _PYINSTALLER_SIBLING_ROOT}
     if encountered_roots != expected_roots:
         raise ValueError(

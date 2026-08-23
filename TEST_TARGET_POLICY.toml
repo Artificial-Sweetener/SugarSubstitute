@@ -1,0 +1,24 @@
+schema_version = 1
+
+[scope]
+test_root = "tests"
+
+[[owners]]
+source_prefix = "substitute/app/bootstrap"
+test_target = "tests/app/bootstrap"
+
+[[owners]]
+source_prefix = "substitute/application"
+test_target = "tests/application"
+
+[[owners]]
+source_prefix = "substitute/domain"
+test_target = "tests/domain"
+
+[[owners]]
+source_prefix = "substitute/infrastructure"
+test_target = "tests/infrastructure"
+
+[[owners]]
+source_prefix = "substitute/presentation"
+test_target = "tests/presentation"

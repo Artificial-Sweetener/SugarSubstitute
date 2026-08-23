@@ -28,9 +28,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QEventLoop
 from PySide6.QtGui import QGuiApplication
-from tests.real_shell_prompt_editor_harness import (
-    PromptFieldHandle,
-    RealShellPromptEditorHarness,
+from tests.support.prompt_editor.real_shell.invariants.snapshot import (
+    snapshot_invariant_violations,
+)
+from tests.support.prompt_editor.real_shell.models import PromptFieldHandle
+from tests.support.prompt_editor.real_shell.scenario import (
+    PromptEditorRealShellScenario,
 )
 
 from .execution import execute_mounted_scenario
@@ -95,7 +98,7 @@ def run_real_shell_scenario(
                 deep_trace_enabled=deep_trace,
                 action_host=mounted.action_host,
             )
-            harness.process_events(cycles=4)
+            harness.wait_for_queued_delivery()
     finally:
         harness.close()
     visual_violations = capture_prompt_reorder_visual_violations(
@@ -182,7 +185,7 @@ def _editor_is_current(editor: object, expected_source: str) -> bool:
 
 
 def _capture_real_shell_correctness(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     field: PromptFieldHandle,
     *,
     scenario: PromptAbuseScenario,
@@ -190,7 +193,7 @@ def _capture_real_shell_correctness(
 ) -> PromptAbuseCorrectnessSnapshot:
     """Capture authoritative real-shell editor state and invariant failures."""
 
-    snapshot = harness.capture_state_snapshot(
+    snapshot = harness.snapshots.capture(
         field,
         label=f"{scenario.name}-repetition-{repetition}",
     )
@@ -205,7 +208,7 @@ def _capture_real_shell_correctness(
             prompt_editor._surface.editor_state.semantic.document.source_text
             == scenario.expected_text
         ),
-        invariant_violations=harness.invariant_violations(snapshot),
+        invariant_violations=snapshot_invariant_violations(snapshot),
     )
 
 

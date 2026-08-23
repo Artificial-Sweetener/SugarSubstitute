@@ -35,7 +35,6 @@ def manager_environment(
     environment["COMFYUI_PATH"] = subprocess_path(workspace)
     environment.setdefault("PYTHONUTF8", "1")
     environment.setdefault("PYTHONIOENCODING", "utf-8:replace")
-    environment["GIT_PYTHON_REFRESH"] = "quiet"
     environment.pop("CM_USE_PYGIT2", None)
     return environment
 

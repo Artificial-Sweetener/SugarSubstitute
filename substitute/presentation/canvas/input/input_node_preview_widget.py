@@ -26,7 +26,7 @@ from cutecanvas import (
     CuteCanvas,
 )
 from PySide6.QtCore import QSize
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QResizeEvent
 from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 
 from .input_preview_binding import InputPreviewBinding
@@ -39,6 +39,17 @@ class _ThumbnailCuteCanvas(CuteCanvas):
         """Return the smallest paintable viewport for thumbnail presentation."""
 
         return QSize(1, 1)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
+        """Refit locked thumbnail content to the newly committed viewport size."""
+
+        super().resizeEvent(event)
+        spec = self.viewportSpec()
+        if spec is None or spec.interaction is not CanvasViewportInteraction.FIT_ONLY:
+            return
+        self.setPanZoomLocked(False)
+        self.setZoomFit()
+        self.setPanZoomLocked(True)
 
 
 class InputNodePreviewWidget(QWidget):

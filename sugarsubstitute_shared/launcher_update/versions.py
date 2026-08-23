@@ -57,12 +57,6 @@ def validate_release_version(version: str) -> None:
     _parse_release_version(version)
 
 
-def is_prerelease_version(version: str) -> bool:
-    """Return whether a validated release version has a prerelease suffix."""
-
-    return _parse_release_version(version).prerelease is not None
-
-
 def _parse_release_version(version: str) -> _ReleaseVersion:
     """Parse one release version without accepting path-like values."""
 
@@ -121,8 +115,4 @@ def _compare_prerelease_parts(
     return (len(left) > len(right)) - (len(left) < len(right))
 
 
-__all__ = [
-    "compare_release_versions",
-    "is_prerelease_version",
-    "validate_release_version",
-]
+__all__ = ["compare_release_versions", "validate_release_version"]

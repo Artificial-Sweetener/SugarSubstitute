@@ -85,6 +85,7 @@ from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 
 def prepare_portable_historical_install(
     *,
+    repository_root: Path,
     installer_path: Path,
     install_root: Path,
     manifest_url: str,
@@ -120,6 +121,7 @@ def prepare_portable_historical_install(
             f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
     materialize_historical_managed_configuration(
+        repository_root=repository_root,
         install_root=install_root,
         endpoint_port=endpoint_port,
         managed_workspace=managed_workspace,
@@ -168,6 +170,7 @@ def install_candidate_over_historical_install(
 
 def materialize_historical_managed_configuration(
     *,
+    repository_root: Path,
     install_root: Path,
     endpoint_port: int,
     managed_workspace: Path,
@@ -205,7 +208,7 @@ def materialize_historical_managed_configuration(
     )
     qualification_release = COMFY_SUPPORT_MATRIX[-1]
     prepare_checkout(managed_workspace, qualification_release.comfyui_tag)
-    prepare_environment(Path.cwd().resolve(), managed_workspace)
+    prepare_environment(repository_root, managed_workspace)
     _prepare_qualified_existing_managed_workspace(
         workspace=managed_workspace,
         model_root=managed_model_root,
@@ -223,13 +226,14 @@ def _prepare_qualified_existing_managed_workspace(
 
     python_executable = workspace_python_path(workspace)
     environment = dict(os.environ)
-    manager_runtime = ensure_managed_workspace_manager(
+    ensure_managed_workspace_manager(
         workspace,
         python_executable=python_executable,
         env=environment,
     )
     ensure_core_comfy_nodepacks(
-        manager_runtime=manager_runtime,
+        workspace,
+        python_executable=python_executable,
         env=environment,
     )
     run_sugarcubes_baseline_maintenance(

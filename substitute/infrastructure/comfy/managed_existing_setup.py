@@ -29,7 +29,6 @@ from substitute.application.onboarding.managed_runtime_state_recorder import (
     ManagedRuntimeStateRecorder,
 )
 from substitute.domain.comfy_nodepacks import CoreNodepackId
-from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.domain.onboarding import ManagedRuntimeValidationStatus
 from substitute.infrastructure.comfy.hardware_models import HardwareDetectionResult
 from substitute.infrastructure.comfy.install_strategy import ManagedInstallStrategy
@@ -93,11 +92,7 @@ class ExistingManagedSetupOperations(Protocol):
     ) -> None:
         """Converge checkout-declared Python requirements."""
 
-    def provision_manager(
-        self,
-        workspace: Path,
-        env: Mapping[str, str],
-    ) -> ComfyManagerRuntime:
+    def provision_manager(self, workspace: Path, env: Mapping[str, str]) -> None:
         """Converge the checkout-declared Manager runtime."""
 
     def configure_model_root(
@@ -123,7 +118,7 @@ class ExistingManagedSetupOperations(Protocol):
 
     def ensure_nodepacks(
         self,
-        manager_runtime: ComfyManagerRuntime,
+        workspace: Path,
         refresh_nodepacks: Collection[CoreNodepackId],
         env: Mapping[str, str],
     ) -> None:
@@ -223,7 +218,7 @@ def reconcile_existing_managed_setup(
     )
     if not remote_steps.degraded:
         operations.emit_status("Provisioning ComfyUI-Manager.")
-    manager_step = remote_steps.run(
+    remote_steps.run(
         operation="provision_manager",
         action=lambda: _provision_manager(
             operations=operations,
@@ -231,7 +226,6 @@ def reconcile_existing_managed_setup(
             managed_env=request.managed_env,
         ),
     )
-    manager_runtime = manager_step.value
     with trace_span("managed_setup.detect_hardware"):
         detection = operations.detect_hardware()
     with trace_span("managed_setup.select_install_strategy"):
@@ -290,7 +284,6 @@ def reconcile_existing_managed_setup(
             action=lambda: _ensure_nodepacks(
                 operations=operations,
                 request=request,
-                manager_runtime=manager_runtime,
             ),
         )
         if not remote_steps.degraded:
@@ -381,28 +374,23 @@ def _provision_manager(
     operations: ExistingManagedSetupOperations,
     workspace: Path,
     managed_env: Mapping[str, str],
-) -> ComfyManagerRuntime:
+) -> None:
     """Run Manager provisioning inside its startup trace span."""
 
     with trace_span("managed_setup.existing.provision_manager"):
-        return operations.provision_manager(workspace, managed_env)
+        operations.provision_manager(workspace, managed_env)
 
 
 def _ensure_nodepacks(
     *,
     operations: ExistingManagedSetupOperations,
     request: ExistingManagedSetupRequest,
-    manager_runtime: ComfyManagerRuntime | None,
 ) -> None:
     """Run core nodepack reconciliation inside its startup trace span."""
 
     with trace_span("managed_setup.existing.ensure_nodepacks"):
-        if manager_runtime is None:
-            raise RuntimeError(
-                "Managed nodepack setup requires a validated Manager runtime."
-            )
         operations.ensure_nodepacks(
-            manager_runtime,
+            request.workspace,
             request.refresh_core_nodepacks,
             request.managed_env,
         )

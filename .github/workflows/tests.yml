@@ -64,6 +64,8 @@ jobs:
         run: .\.venv\Scripts\python.exe tools\license_headers.py --check
       - name: Check architecture governance
         run: .\.venv\Scripts\python.exe tools\check_architecture.py
+      - name: Check test governance
+        run: .\.venv\Scripts\python.exe tools\check_test_governance.py
       - name: Check formatting
         run: .\.venv\Scripts\ruff.exe format --check .
       - name: Lint
@@ -122,8 +124,13 @@ jobs:
           "from pathlib import Path; Path('build/test-results').mkdir(parents=True, exist_ok=True)"
       - name: Run parallel-safe test partition
         run: >-
-          ${{ matrix.python }} -m pytest -n auto -q -m "not serial"
+          ${{ matrix.python }} -m pytest -n auto -q -m "not serial and not isolated"
           --junitxml=build/test-results/${{ matrix.artifact }}-parallel.xml
+      - name: Run fresh-process test partition
+        if: ${{ !cancelled() }}
+        run: >-
+          ${{ matrix.python }} -m tools.ci.run_isolated_test_modules
+          --junit-dir=build/test-results/${{ matrix.artifact }}-isolated
       - name: Run serial test partition
         if: ${{ !cancelled() }}
         run: >-

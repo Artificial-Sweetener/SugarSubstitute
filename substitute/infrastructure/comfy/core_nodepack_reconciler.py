@@ -27,7 +27,6 @@ from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan im
     plan_initial_reconciliation,
 )
 from substitute.domain.comfy_nodepacks import CoreNodepackId, NodepackManagementKind
-from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy.legacy_nodepack_distribution import (
     LegacyNodepackDistributionCleaner,
 )
@@ -63,8 +62,8 @@ from substitute.infrastructure.comfy.nodepack_registry_update_settler import (
 from substitute.infrastructure.comfy.pinned_nodepack_source import (
     PinnedNodepackSourceInstaller,
 )
-from substitute.infrastructure.comfy.manager_runtime_probe import (
-    detect_workspace_manager_runtime,
+from substitute.infrastructure.comfy.workspace_python_resolver import (
+    resolve_workspace_python,
 )
 from substitute.infrastructure.version_control import (
     RepositoryService,
@@ -103,20 +102,18 @@ class CoreNodepackReconciler:
 
     def ensure(
         self,
+        workspace: Path,
         *,
-        manager_runtime: ComfyManagerRuntime,
+        python_executable: Path,
         refresh_nodepacks: Collection[CoreNodepackId],
         on_log: LogCallback | None,
         env: Mapping[str, str] | None,
     ) -> None:
         """Converge every required nodepack through the Registry-first policy."""
 
-        workspace = manager_runtime.workspace
-        python_executable = manager_runtime.python_executable
         refresh_targets = frozenset(refresh_nodepacks)
         for nodepack in CORE_COMFY_NODEPACKS:
             self._ensure_one(
-                manager_runtime=manager_runtime,
                 workspace=workspace,
                 python_executable=python_executable,
                 nodepack=nodepack,
@@ -128,7 +125,6 @@ class CoreNodepackReconciler:
     def _ensure_one(
         self,
         *,
-        manager_runtime: ComfyManagerRuntime,
         workspace: Path,
         python_executable: Path,
         nodepack: CoreComfyNodepack,
@@ -229,7 +225,8 @@ class CoreNodepackReconciler:
             snapshot = self._inspector.inspect(workspace=workspace, nodepack=nodepack)
         if action is CoreNodepackAction.INSTALL_REGISTRY:
             registry_result = self._registry.install_exact(
-                manager_runtime=manager_runtime,
+                workspace=workspace,
+                python_executable=python_executable,
                 nodepack=nodepack,
                 on_log=on_log,
                 env=env,
@@ -245,7 +242,8 @@ class CoreNodepackReconciler:
             changed = True
         if action is CoreNodepackAction.SETTLE_REGISTRY_UPDATE:
             self._registry_update_settler.settle(
-                manager_runtime=manager_runtime,
+                workspace=workspace,
+                python_executable=python_executable,
                 nodepack=nodepack,
                 on_log=on_log,
                 env=env,
@@ -350,17 +348,20 @@ class CoreNodepackReconciler:
 
 
 def ensure_core_comfy_nodepacks(
+    workspace: Path,
     *,
-    manager_runtime: ComfyManagerRuntime,
     refresh_nodepacks: Collection[CoreNodepackId] = frozenset(),
     on_log: LogCallback | None = None,
     env: Mapping[str, str] | None = None,
+    python_executable: Path | None = None,
     repositories: RepositoryService | None = None,
 ) -> None:
     """Ensure required core nodepacks through the production composition."""
 
+    resolved_python = python_executable or resolve_workspace_python(workspace)
     CoreNodepackReconciler(repositories=repositories or repository_service()).ensure(
-        manager_runtime=manager_runtime,
+        workspace,
+        python_executable=resolved_python,
         refresh_nodepacks=refresh_nodepacks,
         on_log=on_log,
         env=env,
@@ -376,9 +377,8 @@ def refresh_core_comfy_nodepacks(
 ) -> None:
     """Refresh selected core nodepacks through Registry-first reconciliation."""
 
-    manager_runtime = detect_workspace_manager_runtime(workspace)
     ensure_core_comfy_nodepacks(
-        manager_runtime=manager_runtime,
+        workspace,
         refresh_nodepacks=nodepacks,
         on_log=on_log,
         env=env,

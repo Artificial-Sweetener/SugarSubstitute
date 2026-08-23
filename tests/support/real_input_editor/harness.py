@@ -25,7 +25,7 @@ from typing import Any, cast
 from unittest.mock import patch
 from uuid import UUID
 
-from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QRectF, Qt
+from PySide6.QtCore import QPoint, QRectF, Qt
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
@@ -57,7 +57,9 @@ from substitute.presentation.shell.input_canvas_composition import (
 from substitute.presentation.shell.main_window_dependencies import (
     InstallationPathBundle,
 )
-from tests.real_shell_prompt_editor_harness import RealShellPromptEditorHarness
+from tests.support.prompt_editor.real_shell.scenario import (
+    PromptEditorRealShellScenario,
+)
 
 
 class RealShellInputEditorHarness:
@@ -84,7 +86,9 @@ class RealShellInputEditorHarness:
                 "SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM": "1",
             },
         ):
-            self._base = RealShellPromptEditorHarness()
+            self._base = PromptEditorRealShellScenario(
+                artifact_root=self.root / "prompt-editor-artifacts"
+            )
         self.shell = cast(Any, self._base.shell)
         self.shell.path_bundle = self._path_bundle(self.root)
         self.shell.node_definition_gateway.install_recorded_definitions(
@@ -198,7 +202,7 @@ class RealShellInputEditorHarness:
         self.process_events(12)
 
     def add_brush_dab(self, point: QPoint, *, brush_size: int) -> None:
-        """Commit one brush dab through the mounted production canvas widget."""
+        """Commit one brush dab after the mounted canvas receives its press delivery."""
 
         input_canvas = self.input_canvas
         input_canvas.resize(400, 300)
@@ -206,14 +210,29 @@ class RealShellInputEditorHarness:
         assert input_canvas.document.set_active_mask_id(self.mask_id)
         input_canvas.canvas.setBrushSize(brush_size)
         input_canvas.canvas.setControlMode(input_canvas.canvas.CONTROL_MODE_DRAW_BRUSH)
-        self.process_events(12)
-        QTest.mouseClick(
+        self.wait_until(
+            lambda: (
+                input_canvas.canvas.isVisible()
+                and input_canvas.canvas.isEnabled()
+                and input_canvas.canvas.size() == input_canvas.size()
+                and input_canvas.canvas.rect().contains(point)
+                and input_canvas.canvas.getControlMode()
+                == input_canvas.canvas.CONTROL_MODE_DRAW_BRUSH
+            )
+        )
+        QTest.mousePress(
             input_canvas.canvas,
             Qt.MouseButton.LeftButton,
             Qt.KeyboardModifier.NoModifier,
             point,
         )
-        self.process_events(12)
+        self.process_events()
+        QTest.mouseRelease(
+            input_canvas.canvas,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            point,
+        )
 
     def prepare_generation(self) -> WorkflowState:
         """Capture and materialize one execution-only workflow revision."""
@@ -237,7 +256,8 @@ class RealShellInputEditorHarness:
 
     def process_events(self, cycles: int = 4) -> None:
         """Drain bounded queued shell and renderer work."""
-        self._base.process_events(cycles=cycles)
+        _ = cycles
+        self._base.wait_for_queued_delivery()
 
     def wait_until(self, predicate: Callable[[], bool]) -> None:
         """Wait for one observable production-shell condition with a bound."""
@@ -251,17 +271,9 @@ class RealShellInputEditorHarness:
         self._closed = True
         input_document = self.input_canvas.document
         output_document = self.shell.output_canvas.document
-        execution_runtimes = (
-            input_document.runtime.execution_runtime,
-            output_document.runtime.execution_runtime,
-        )
-        self._base.close()
         input_document.close()
         output_document.close()
-        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
-        self.process_events(8)
-        for execution_runtime in execution_runtimes:
-            execution_runtime.shutdown(wait=True)
+        self._base.close()
 
     def _mount_workflow(self, workflow: WorkflowState) -> None:
         """Install one workflow and its real editor-panel surface."""
