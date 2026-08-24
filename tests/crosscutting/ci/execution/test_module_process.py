@@ -141,3 +141,33 @@ def test_run_test_module_promotes_failed_module_artifacts(
     assert result.started_at_utc
     assert result.duration_seconds >= 0.0
     assert result.runner_slot
+
+
+def test_run_test_module_does_not_advertise_empty_failure_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Report no artifact path when a failed module produced no diagnostic files."""
+
+    def fail_without_artifacts(
+        command: tuple[str, ...], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        """Create only pytest's empty base-temp directory before failing."""
+
+        base_temp_argument = next(
+            argument for argument in command if argument.startswith("--basetemp=")
+        )
+        Path(base_temp_argument.removeprefix("--basetemp=")).mkdir(parents=True)
+        return subprocess.CompletedProcess(command, 1, stdout="failed test output")
+
+    monkeypatch.setattr(subprocess, "run", fail_without_artifacts)
+
+    result = test_module_process.run_test_module(
+        project_root=tmp_path,
+        module_path="tests/test_failed_without_artifacts.py",
+        junit_directory=tmp_path / "results",
+        base_temp_root=tmp_path / "temporary",
+    )
+
+    assert result.failure_artifact_path is None
+    assert not (tmp_path / "results/failure-artifacts").exists()

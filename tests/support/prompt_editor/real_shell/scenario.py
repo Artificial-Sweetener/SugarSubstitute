@@ -48,6 +48,9 @@ from substitute.application.prompt_editor.lora.catalog_models import (
 from substitute.application.user_presets import UserPresetService
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
+from substitute.presentation.editor.panel.widgets.scroll_surface import (
+    EditorPanelScrollSurface,
+)
 from tests.support.prompt_editor.autocomplete_support import (
     RecordingPromptAutocompleteGateway,
 )
@@ -167,7 +170,7 @@ class PromptEditorRealShellScenario:
         self.input = PromptEditorInputDriver(
             shell=self.shell,
             shell_activator=self.shell.activate_for_input,
-            click_away_target_provider=lambda: self.shell.canvas_host.selector.button,
+            click_away_surface_provider=self._click_away_surface,
             canvas_provider=lambda label: cast(
                 QWidget | None, self.shell.canvas_host.canvas_for(label)
             ),
@@ -216,6 +219,14 @@ class PromptEditorRealShellScenario:
             ),
         )
         self._closed = False
+
+    def _click_away_surface(self) -> QWidget:
+        """Return the active production panel viewport outside the prompt field."""
+
+        panel = self.shell.active_editor_panel
+        if panel is None:
+            raise RuntimeError("Click-away input requires an active editor panel.")
+        return cast(EditorPanelScrollSurface, panel.scroll).viewport()
 
     def close(self) -> None:
         """Stop canvas work before synchronously destroying the mounted shell."""
