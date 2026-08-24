@@ -372,6 +372,8 @@ class PromptEditorRealShell(QMainWindow):
         """Own the active top-level precondition for native harness input."""
 
         self.show()
+        if QApplication.activeWindow() is self:
+            return
         self.raise_()
         self.activateWindow()
         if QApplication.activeWindow() is self:

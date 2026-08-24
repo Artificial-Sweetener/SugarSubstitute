@@ -18,7 +18,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
+from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import QWidget
+import pytest
 
 from tests.support.prompt_editor.real_shell.scenario import (
     PromptEditorRealShellScenario,
@@ -72,3 +76,36 @@ def test_real_shell_uses_composed_prompt_editor_collaborators(
 
     assert real_shell_scenario.autocomplete_gateway.calls[-1][0] == "re"
     assert getattr(editor, "_autocomplete_panel", None) is not None
+
+
+def test_active_real_shell_does_not_request_reactivation(
+    real_shell_scenario: PromptEditorRealShellScenario,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Preserve child focus by making repeated shell activation idempotent."""
+
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
+    focused_widget = real_shell_scenario.input.focus_editor(field)
+    activation_requests: list[str] = []
+
+    def record_activation(name: str) -> Callable[[], None]:
+        """Return a spy that records a redundant top-level activation request."""
+
+        return lambda: activation_requests.append(name)
+
+    monkeypatch.setattr(
+        real_shell_scenario.shell,
+        "raise_",
+        record_activation("raise"),
+    )
+    monkeypatch.setattr(
+        real_shell_scenario.shell,
+        "activateWindow",
+        record_activation("activate"),
+    )
+
+    real_shell_scenario.shell.activate_for_input()
+
+    assert QApplication.activeWindow() is real_shell_scenario.shell
+    assert QApplication.focusWidget() is focused_widget
+    assert activation_requests == []

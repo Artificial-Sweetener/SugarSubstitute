@@ -196,7 +196,13 @@ def test_real_shell_space_clears_stale_whitespace_leading_preview(
         after=after,
         snapshot_violations=snapshot_invariant_violations,
     )
-    if violations or after.cursor_position != len("backpack "):
+    if (
+        violations
+        or after.cursor_position != len("backpack ")
+        or not after.autocomplete_preview_active
+        or after.autocomplete_preview_suffix != "basket"
+        or after.autocomplete_preview_source_position != len("backpack ")
+    ):
         artifact = real_shell_scenario.artifacts.save(
             "space-retargeted-stale-backpack-preview",
             before=before,
