@@ -41,6 +41,8 @@ from tests.presentation.editor.prompt_editor.caret_navigation.support import (
     _surface_should_paint_caret,
 )
 
+_STABLE_CURSOR_FLASH_TIME_MS = 60_000
+
 
 def test_projection_surface_focused_caret_starts_visible(
     widgets: list[QWidget],
@@ -85,7 +87,7 @@ def test_projection_surface_caret_blinks_after_half_cycle(
     monkeypatch.setattr(
         PromptProjectionSurface,
         "_cursor_flash_time_ms",
-        lambda self: 40,
+        lambda self: _STABLE_CURSOR_FLASH_TIME_MS,
     )
     box = show_prompt_editor(
         widgets,
@@ -114,7 +116,7 @@ def test_projection_surface_caret_move_resets_blink_to_visible(
     monkeypatch.setattr(
         PromptProjectionSurface,
         "_cursor_flash_time_ms",
-        lambda self: 40,
+        lambda self: _STABLE_CURSOR_FLASH_TIME_MS,
     )
     box = show_prompt_editor(
         widgets,
@@ -197,7 +199,7 @@ def test_projection_surface_text_edit_resets_blink_to_visible(
     monkeypatch.setattr(
         PromptProjectionSurface,
         "_cursor_flash_time_ms",
-        lambda self: 40,
+        lambda self: _STABLE_CURSOR_FLASH_TIME_MS,
     )
     box = show_prompt_editor(
         widgets,
@@ -224,7 +226,7 @@ def test_projection_surface_focus_loss_hides_caret(
     monkeypatch.setattr(
         PromptProjectionSurface,
         "_cursor_flash_time_ms",
-        lambda self: 40,
+        lambda self: _STABLE_CURSOR_FLASH_TIME_MS,
     )
     box = show_prompt_editor(
         widgets,
