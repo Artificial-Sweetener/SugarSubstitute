@@ -31,6 +31,7 @@ from substitute.presentation.editor.panel.widgets.fields.native import (
     AudioRecordField,
     BoundingBoxField,
     ColorField,
+    ColorsField,
     CurveField,
 )
 from tests.support.qt.lifecycle import destroy_qt_object
@@ -55,6 +56,7 @@ def _ensure_qapp() -> QApplication:
             BoundingBoxField,
         ),
         ("COLOR", "#123456", ColorField),
+        ("COLORS", ["#123456", "#abcdef"], ColorsField),
         (
             "CURVE",
             {"points": [[0.0, 0.0], [1.0, 1.0]], "interpolation": "linear"},

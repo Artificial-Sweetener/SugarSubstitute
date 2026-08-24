@@ -19,18 +19,31 @@
 from __future__ import annotations
 
 
-from tests.qualification.release.workflow.support import PROJECT_ROOT
+from tests.qualification.release.workflow.support import (
+    PROJECT_ROOT,
+    workflow_text,
+)
 
 
 def test_cross_platform_validation_requires_explicit_invocation() -> None:
-    """Keep prerelease publication behind an explicit workflow dispatch."""
+    """Keep manual validation private and behind an explicit dispatch."""
 
-    workflow_text = (
+    orchestrator_text = (
         PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml"
     ).read_text(encoding="utf-8")
+    validation_text = workflow_text(
+        "cross-platform-validation.yml",
+        "cross-platform-build.yml",
+        "linux-system-trust.yml",
+        "installed-app-smoke.yml",
+    )
 
-    assert "  workflow_dispatch:" in workflow_text
-    assert "  push:" not in workflow_text
+    assert "  workflow_dispatch:" in orchestrator_text
+    assert "  push:" not in orchestrator_text
+    assert "contents: write" not in validation_text
+    assert "gh release create" not in validation_text
+    assert "gh release edit" not in validation_text
+    assert "name: release-channel" in validation_text
 
 
 def test_managed_comfy_pin_automation_opens_pr_before_qualification() -> None:
@@ -79,23 +92,28 @@ def test_required_managed_comfy_check_runs_for_every_protected_pr() -> None:
 def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     """Release candidates must prove exact installers before stable promotion."""
 
-    workflow_text = (
-        PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
-    ).read_text(encoding="utf-8")
-
-    assert "verify_installer_lifecycle.py clean" in workflow_text
-    assert "verify_installer_lifecycle.py upgrade" in workflow_text
-    assert "python -m tools.ci.resolve_upgrade_sources" in workflow_text
-    assert '--historical-published-at "${{ matrix.history.published_at }}"' in (
-        workflow_text
+    orchestration_text = workflow_text("release-qualification.yml")
+    current_text = workflow_text("release-current-install-qualification.yml")
+    update_text = workflow_text("release-update-qualification.yml")
+    qualification_text = workflow_text(
+        "release-qualification.yml",
+        "release-current-install-qualification.yml",
+        "release-update-qualification.yml",
     )
-    assert "Windows x64" in workflow_text
-    assert "Linux x64" in workflow_text
-    assert "macOS Apple Silicon" in workflow_text
-    assert '@("windows", "linux", "macos")' in workflow_text
-    assert "update_platforms" in workflow_text
-    assert "./.github/workflows/managed-comfy-install.yml" in workflow_text
-    assert "gh release edit" not in workflow_text
+
+    assert "verify_installer_lifecycle.py clean" in current_text
+    assert "verify_installer_lifecycle.py upgrade" in update_text
+    assert "python -m tools.ci.resolve_upgrade_sources" in orchestration_text
+    assert '--historical-published-at "${{ matrix.history.published_at }}"' in (
+        update_text
+    )
+    assert "Windows x64" in orchestration_text
+    assert "Linux x64" in orchestration_text
+    assert "macOS Apple Silicon" in current_text
+    assert '@("windows", "linux", "macos")' in orchestration_text
+    assert "update_platforms" in orchestration_text
+    assert "./.github/workflows/managed-comfy-install.yml" in orchestration_text
+    assert "gh release edit" not in qualification_text
     lifecycle_text = (
         PROJECT_ROOT / "tools" / "ci" / "verify_installer_lifecycle.py"
     ).read_text(encoding="utf-8")
@@ -114,42 +132,46 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert '"--headless-install"' not in current_installer_path
     assert "prepare_portable_historical_install" in lifecycle_text
     assert '"--headless-install"' in historical_qualification_text
-    assert "Download real historical installer" in workflow_text
-    assert '"SugarSubstitute-Installer-Windows-x64.exe"' in workflow_text
-    assert '"SugarSubstitute-Installer-Linux-x86_64.AppImage"' in workflow_text
-    assert '"SugarSubstitute-Installer-macOS-Apple-Silicon.dmg"' in workflow_text
-    assert "Reconstitute exact historical macOS install channel" in workflow_text
-    assert "python -m tools.ci.reconstitute_historical_macos_release" in workflow_text
-    assert workflow_text.count("QT_QPA_PLATFORM: cocoa") == 2
+    assert "Download real historical installer" in update_text
+    assert '"SugarSubstitute-*-Windows-x64*.exe"' in update_text
+    assert '"SugarSubstitute-*-Windows-x64.exe"' not in update_text
+    assert '"SugarSubstitute-*-Linux-x86_64.AppImage"' in update_text
+    assert '"SugarSubstitute-*-macOS-Apple-Silicon.dmg"' in update_text
+    assert "Reconstitute exact historical macOS install channel" in update_text
+    assert "python -m tools.ci.reconstitute_historical_macos_release" in update_text
+    assert qualification_text.count("QT_QPA_PLATFORM: cocoa") == 2
     assert (
         "QT_QPA_PLATFORM: ${{ matrix.platform == 'macos' && 'cocoa' || 'offscreen' }}"
-    ) in workflow_text
-    assert '"--historical-release-root"' in workflow_text
-    assert '--candidate-installer "$env:CANDIDATE_INSTALLER"' in workflow_text
-    assert "CANDIDATE_INSTALLER=" in workflow_text
-    assert "Build version-pinned historical Windows setup" not in workflow_text
-    assert "SugarSubstitute-Local-Test-Installer" not in workflow_text
+    ) in update_text
+    assert '"--historical-release-root"' in update_text
+    assert '--candidate-installer "$env:CANDIDATE_INSTALLER"' in update_text
+    assert "CANDIDATE_INSTALLER=" in update_text
+    assert "Build version-pinned historical Windows setup" not in update_text
+    assert "SugarSubstitute-Local-Test-Installer" not in update_text
 
 
 def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     """Manual dry runs should exercise release qualification without a release."""
 
-    release_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
+    release_text = workflow_text("release.yml")
+    version_text = workflow_text("release-version.yml")
+    candidate_text = workflow_text("release-candidate.yml")
+    qualification_text = workflow_text(
+        "release-qualification.yml",
+        "release-current-install-qualification.yml",
+        "release-update-qualification.yml",
     )
-    qualification_text = (
-        PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
-    ).read_text(encoding="utf-8")
     preparation_text = (
         PROJECT_ROOT / "scripts" / "prepare-release-assets.mjs"
     ).read_text(encoding="utf-8")
 
-    assert "SUGAR_SUBSTITUTE_ASSET_BASE_URL: https://localhost.invalid" in release_text
-    assert "include-hidden-files: true" in release_text
-    assert "SUGAR_SUBSTITUTE_QUALIFICATION_VERSION:" in release_text
+    assert "SUGAR_SUBSTITUTE_ASSET_BASE_URL" not in candidate_text
+    assert "Prepare private release candidate assets" in candidate_text
+    assert "include-hidden-files: true" in candidate_text
+    assert "SUGAR_SUBSTITUTE_QUALIFICATION_VERSION:" in version_text
     assert "format('9999.0.{0}', github.run_number)" in release_text
-    assert "name: non-release-candidate-channel" in release_text
-    assert "candidate_artifact_name:" in release_text
+    assert "name: non-release-candidate-channel" in candidate_text
+    assert "candidate_artifact_name:" in candidate_text
     assert "github.event.inputs.dry_run != 'true'" in release_text
     assert '--candidate-release-root "build/candidate"' in qualification_text
     assert "Provide exactly one candidate_tag or candidate_artifact_name" in (
@@ -195,12 +217,12 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
 def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     """Only manual non-publishing runs may bypass unchanged repository gates."""
 
-    release_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
-    qualification_text = (
-        PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
-    ).read_text(encoding="utf-8")
+    release_text = workflow_text("release.yml")
+    version_text = workflow_text("release-version.yml")
+    candidate_text = workflow_text("release-candidate.yml")
+    publication_text = workflow_text("release-publication.yml")
+    qualification_text = workflow_text("release-qualification.yml")
+    update_text = workflow_text("release-update-qualification.yml")
 
     tests_guard = release_text.split("  tests:", maxsplit=1)[1].split(
         "  determine-version:", maxsplit=1
@@ -212,21 +234,20 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
         "candidate_run_id: ${{ needs.stage-candidate.outputs.candidate_run_id }}"
         in (release_text)
     )
-    assert "  actions: read\n  contents: write" in release_text
-    assert "steps.release-version.outputs.should_release ||" in release_text
-    assert "format('9999.0.{0}', github.run_number) || ''" in release_text
-    assert release_text.count("github.event.inputs.qualification_scope != 'full'") == 6
-    assert release_text.count("always() &&") >= 6
+    assert "      actions: read\n      contents: write" in release_text
+    assert "permissions:\n  actions: read\n  contents: write" in publication_text
+    assert "steps.release-version.outputs.should_release" in version_text
+    assert "steps.release-version.outputs.should_release ||" not in version_text
+    assert "format('9999.0.{0}', github.run_number)" in release_text
     assert "release_input_run_id:" in release_text
     assert "qualification_candidate_run_id:" in release_text
     assert "qualification_candidate_version:" in release_text
     assert "github.event.inputs.release_input_run_id != ''" in release_text
     assert (
-        "run-id: ${{ github.event.inputs.release_input_run_id || github.run_id }}"
-        in (release_text)
+        "run-id: ${{ inputs.release_input_run_id || github.run_id }}" in candidate_text
     )
     assert "needs.stage-candidate.result == 'success'" in release_text
-    assert "Reuse exact temporary candidate channel" in release_text
+    assert "Reuse exact temporary candidate channel" in candidate_text
     assert "needs.stage-candidate.outputs.candidate_run_id" in release_text
     assert "github.event.inputs.qualification_candidate_version ||" in release_text
     assert "qualification-all" in release_text
@@ -248,5 +269,5 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     assert "select-qualification:" in qualification_text
     assert "clean_matrix" in qualification_text
     assert "update_platforms" in qualification_text
-    assert "run-id: ${{ inputs.candidate_run_id" in qualification_text
+    assert "run-id: ${{ inputs.candidate_run_id" in update_text
     assert "managed_comfy_enabled" in qualification_text

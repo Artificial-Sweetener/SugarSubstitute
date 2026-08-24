@@ -22,6 +22,7 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
+WORKFLOW_ROOT = PROJECT_ROOT / ".github" / "workflows"
 EXPECTED_ACTIONS = frozenset(
     {
         "actions/checkout",
@@ -33,8 +34,20 @@ EXPECTED_ACTIONS = frozenset(
         "actions/upload-artifact",
     }
 )
-WORKFLOW_PATHS = tuple((PROJECT_ROOT / ".github" / "workflows").glob("*.yml"))
+WORKFLOW_PATHS = tuple(WORKFLOW_ROOT.glob("*.yml"))
 DOCUMENTATION_PATH_FILTER = ["**/*.md"]
+
+
+def workflow_path(name: str) -> Path:
+    """Return one workflow owner's repository path."""
+
+    return WORKFLOW_ROOT / name
+
+
+def workflow_text(*names: str) -> str:
+    """Combine exact workflow owners participating in one tested contract."""
+
+    return "\n".join(workflow_path(name).read_text(encoding="utf-8") for name in names)
 
 
 def job_script(job: dict[str, object]) -> str:

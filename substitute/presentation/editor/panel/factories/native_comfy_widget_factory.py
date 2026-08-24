@@ -30,6 +30,7 @@ from substitute.presentation.editor.panel.widgets.fields.native import (
     AudioRecordField,
     BoundingBoxField,
     ColorField,
+    ColorsField,
     CurveField,
 )
 
@@ -43,6 +44,7 @@ class NativeComfyWidgetFactory:
         "AUDIO_RECORD": AudioRecordField,
         "BOUNDING_BOX": BoundingBoxField,
         "COLOR": ColorField,
+        "COLORS": ColorsField,
         "CURVE": CurveField,
     }
 

@@ -26,6 +26,7 @@ import pytest
 from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan import (
     RegistryInstallOutcome,
 )
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import core_nodepack_reconciler
 from substitute.infrastructure.comfy.core_nodepack_reconciler import (
     CoreNodepackReconciler,
@@ -63,15 +64,15 @@ class _RegistryInstaller:
     def install_exact(
         self,
         *,
-        workspace: Path,
-        python_executable: Path,
+        manager_runtime: ComfyManagerRuntime,
         nodepack: CoreComfyNodepack,
         on_log: object | None,
         env: object | None,
     ) -> RegistryInstallResult:
         """Materialize exact CNR state only for successful Registry results."""
 
-        _ = python_executable, on_log, env
+        workspace = manager_runtime.workspace
+        _ = on_log, env
         self.calls.append((workspace, nodepack))
         if self.outcome in {
             RegistryInstallOutcome.INSTALLED,
@@ -129,15 +130,15 @@ class _RegistryUpdateSettler:
     def settle(
         self,
         *,
-        workspace: Path,
-        python_executable: Path,
+        manager_runtime: ComfyManagerRuntime,
         nodepack: CoreComfyNodepack,
         on_log: object | None,
         env: object | None,
     ) -> RegistryUpdateSettlement:
         """Apply the queued Registry fixture when configured to succeed."""
 
-        _ = python_executable, on_log, env
+        workspace = manager_runtime.workspace
+        _ = on_log, env
         self.calls.append((workspace, nodepack))
         if self.materialize:
             root = _existing_or_canonical_root(workspace, nodepack)
@@ -178,6 +179,17 @@ def _reconciler(
             else None
         ),
         legacy_cleaner=cast(LegacyNodepackDistributionCleaner, selected_cleaner),
+    )
+
+
+def _runtime(workspace: Path, python: Path) -> ComfyManagerRuntime:
+    """Build one validated integrated Manager runtime fixture."""
+
+    return ComfyManagerRuntime(
+        kind=ComfyManagerKind.INTEGRATED,
+        workspace=workspace,
+        python_executable=python,
+        version="4.1",
     )
 
 

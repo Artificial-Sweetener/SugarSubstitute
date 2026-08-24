@@ -22,15 +22,16 @@ import json
 from pathlib import Path
 import subprocess
 
-from tests.qualification.release.workflow.support import PROJECT_ROOT
+from tests.qualification.release.workflow.support import PROJECT_ROOT, workflow_text
 
 
 def test_canary_isolated_release_train_contract() -> None:
     """Canary must validate exact bytes before updating one isolated public feed."""
 
-    release_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
+    release_text = workflow_text("release.yml")
+    version_text = workflow_text("release-version.yml")
+    candidate_text = workflow_text("release-candidate.yml")
+    publication_text = workflow_text("release-publication.yml")
     policy_text = (
         PROJECT_ROOT / ".github" / "workflows" / "main-promotion-policy.yml"
     ).read_text(encoding="utf-8")
@@ -39,32 +40,36 @@ def test_canary_isolated_release_train_contract() -> None:
     )
 
     assert "      - main\n      - canary" in release_text
-    assert "SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER:" in release_text
+    assert "SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER:" in version_text
     assert "format('9999.1.{0}', github.run_number)" not in release_text
-    assert "SUGAR_SUBSTITUTE_RELEASE_CHANNEL: canary" in release_text
-    assert "releases/download/canary-latest" in release_text
-    assert "releases/download/canary/" not in release_text
+    assert "SUGAR_SUBSTITUTE_RELEASE_CHANNEL: ${{ inputs.channel }}" in candidate_text
+    assert "canary-latest" in publication_text
+    assert "releases/download/canary/" not in publication_text
     prepare_assets_text = (
         PROJECT_ROOT / "scripts" / "prepare-release-assets.mjs"
     ).read_text(encoding="utf-8")
     assert 'channel === "canary" ? "canary-latest"' in prepare_assets_text
-    assert '"canary-v$version"' not in release_text
+    assert '"canary-v$version"' not in publication_text
     assert "release-qualification.yml" in release_text
     assert "'canary-fast'" in release_text
-    assert "Upload temporary non-release candidate channel" in release_text
+    assert "Upload private non-release candidate channel" in candidate_text
     assert "validate-candidate-artifact:" in (
         PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
     ).read_text(encoding="utf-8")
-    promotion = release_text.split("  promote-release:", maxsplit=1)[1]
-    assert "Download qualified Canary candidate" in promotion
-    assert "gh release upload canary-latest" in promotion
-    assert 'gh release upload canary-latest "$channel_dir/manifest.json"' in promotion
-    assert "git/refs/tags/canary-latest" in promotion
-    assert 'git/refs/tags/canary"' not in promotion
-    assert promotion.count('gh release edit "$CANDIDATE_TAG"') == 1
-    assert "--clobber" in promotion
-    assert "--prerelease=false --latest" in promotion
-    assert "github.ref_name == 'main'" in promotion
+    assert "Download qualified Canary candidate" in publication_text
+    assert "gh release upload canary-latest" in publication_text
+    assert (
+        'gh release upload canary-latest "$channel_dir/manifest.json"'
+        in publication_text
+    )
+    assert "git/refs/tags/canary-latest" in publication_text
+    assert 'git/refs/tags/canary"' not in publication_text
+    assert "--clobber" in publication_text
+    assert 'canary_release_title="Canary ${CANDIDATE_VERSION/-canary./.}"' in (
+        publication_text
+    )
+    assert "${CANDIDATE_VERSION/-canary-/.}" not in publication_text
+    assert "github.ref_name == 'main'" in publication_text
     assert "HEAD_BRANCH: ${{ github.head_ref }}" in policy_text
     assert '[ "$HEAD_BRANCH" != "canary" ]' in policy_text
     assert policy_text.count("branches:\n      - main") == 1
@@ -155,12 +160,26 @@ def test_canary_version_resolution_does_not_probe_ambiguous_remote_ref() -> None
         PROJECT_ROOT / "scripts" / "resolve-next-release-version.mjs"
     ).read_text(encoding="utf-8")
 
-    canary_resolver = resolver_text.split(
-        "async function resolveCanaryStableVersion", maxsplit=1
-    )[1].split("async function resolveStableVersion", maxsplit=1)[0]
-    assert "analyzeCommits" in canary_resolver
-    assert "semanticRelease" not in canary_resolver
-    assert "branches:" not in canary_resolver
+    assert "analyzeCommits" in resolver_text
+    assert "branches:" not in resolver_text
+
+
+def test_read_only_version_resolution_never_probes_remote_push_permission() -> None:
+    """Keep pre-publication version calculation independent of repository writes."""
+
+    resolver_text = (
+        PROJECT_ROOT / "scripts" / "resolve-next-release-version.mjs"
+    ).read_text(encoding="utf-8")
+    orchestrator = workflow_text("release.yml")
+    version_owner = workflow_text("release-version.yml")
+
+    assert 'import("semantic-release")' not in resolver_text
+    assert "contents: write" not in version_owner
+    assert "contents: read" in version_owner
+    determine_call = orchestrator.split("  determine-version:", maxsplit=1)[1].split(
+        "  build-release:", maxsplit=1
+    )[0]
+    assert "permissions:" not in determine_call
 
 
 def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> None:

@@ -25,15 +25,17 @@ import ssl
 import subprocess
 from threading import Lock, Thread
 import time
-from typing import Any, Self
+from typing import Any, Self, cast
 
 import certifi
+
+from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
 
 LOCAL_RELEASE_BASE_URL_PLACEHOLDER = "https://localhost.invalid"
 
 
 class LocalReleaseServer:
-    """Serve immutable candidate artifacts from one owned loopback HTTPS origin."""
+    """Serve immutable candidate artifacts from one owned loopback origin."""
 
     def __init__(self, *, release_root: Path, certificate_root: Path) -> None:
         """Validate the release root and prepare its trusted localhost endpoint."""
@@ -59,6 +61,11 @@ class LocalReleaseServer:
             ("127.0.0.1", 0),
             SimpleHTTPRequestHandler,
         )
+        self._qualification_manifest = _qualification_manifest_bytes(
+            manifest_path=self.release_root / "manifest.json",
+            release_root=self.release_root,
+            base_url=self.base_url,
+        )
         self._server.RequestHandlerClass = self._handler_class()
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         tls.load_cert_chain(certfile=self.certificate_path, keyfile=key_path)
@@ -67,13 +74,13 @@ class LocalReleaseServer:
 
     @property
     def manifest_url(self) -> str:
-        """Return the manifest URL served by this exact loopback endpoint."""
+        """Return the manifest URL for this exact loopback endpoint."""
 
         return f"{self.base_url}/manifest.json"
 
     @property
     def base_url(self) -> str:
-        """Return the HTTPS origin allocated to this server instance."""
+        """Return the dynamically allocated HTTPS origin."""
 
         host, port = self._server.server_address[:2]
         return f"https://localhost:{port}" if host == "127.0.0.1" else ""
@@ -90,7 +97,7 @@ class LocalReleaseServer:
         return self
 
     def __exit__(self, *_args: object) -> None:
-        """Stop the endpoint and release its fixed port."""
+        """Stop the endpoint and release its allocated port."""
 
         self._server.shutdown()
         self._server.server_close()
@@ -101,9 +108,9 @@ class LocalReleaseServer:
         """Bind standard file serving to the exact candidate directory."""
 
         release_root = self.release_root
+        qualification_manifest = self._qualification_manifest
         request_log_path = self.request_log_path
         request_log_lock = self._request_log_lock
-        base_url = self.base_url
 
         class _Handler(SimpleHTTPRequestHandler):
             """Serve candidate files without noisy request logging."""
@@ -117,7 +124,7 @@ class LocalReleaseServer:
                 """Suppress routine local qualification request output."""
 
             def do_GET(self) -> None:
-                """Record candidate-channel access before serving exact bytes."""
+                """Record access and serve the loopback-qualified manifest view."""
 
                 with request_log_lock:
                     with request_log_path.open("a", encoding="utf-8") as output:
@@ -132,29 +139,62 @@ class LocalReleaseServer:
                             )
                             + "\n"
                         )
-                if self.path == "/manifest.json":
-                    self._serve_manifest()
+                if self.path.partition("?")[0] == "/manifest.json":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Length", str(len(qualification_manifest)))
+                    self.end_headers()
+                    self.wfile.write(qualification_manifest)
                     return
                 super().do_GET()
 
-            def _serve_manifest(self) -> None:
-                """Resolve the owned endpoint placeholder without mutating candidates."""
-
-                payload = (
-                    (release_root / "manifest.json")
-                    .read_bytes()
-                    .replace(
-                        LOCAL_RELEASE_BASE_URL_PLACEHOLDER.encode("ascii"),
-                        base_url.encode("ascii"),
-                    )
-                )
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(payload)))
-                self.end_headers()
-                self.wfile.write(payload)
-
         return _Handler
+
+
+def _qualification_manifest_bytes(
+    *,
+    manifest_path: Path,
+    release_root: Path,
+    base_url: str,
+) -> bytes:
+    """Build an in-memory manifest view that resolves staged assets locally."""
+
+    decoded: object = json.loads(manifest_path.read_text(encoding="utf-8"))
+    ReleaseManifest.from_json(decoded)
+    if not isinstance(decoded, dict):
+        raise ValueError("Candidate release manifest must be a JSON object.")
+    payload = cast(dict[str, object], decoded)
+    _rewrite_qualification_asset(payload.get("app"), release_root, base_url)
+    for collection_name in ("launchers", "installers"):
+        collection = payload.get(collection_name)
+        if not isinstance(collection, dict):
+            raise ValueError(
+                f"Candidate release manifest field must be an object: {collection_name}"
+            )
+        for asset_payload in collection.values():
+            _rewrite_qualification_asset(asset_payload, release_root, base_url)
+    return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _rewrite_qualification_asset(
+    asset_payload: object,
+    release_root: Path,
+    base_url: str,
+) -> None:
+    """Point one present staged asset at the trusted loopback server."""
+
+    asset = ReleaseAsset.from_json(asset_payload)
+    if Path(asset.filename).name != asset.filename:
+        raise ValueError(
+            f"Candidate release asset filename must not contain a path: {asset.filename}"
+        )
+    asset_path = release_root / asset.filename
+    if not asset_path.is_file():
+        return
+    if not isinstance(asset_payload, dict):
+        raise ValueError("Candidate release asset must be a JSON object.")
+    mutable_payload = cast(dict[str, object], asset_payload)
+    mutable_payload["url"] = f"{base_url}/{asset.filename}"
 
 
 def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:

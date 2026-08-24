@@ -41,6 +41,54 @@ from tools.ci.standalone_artifact_cache import (
 )
 
 
+def _write_release_channel(release_root: Path) -> tuple[dict[str, str], str]:
+    """Write one production-addressed candidate channel with exact local bytes."""
+
+    release_root.mkdir()
+    asset_names = {
+        "app": "SugarSubstitute-app-v9999.0.1.zip",
+        "launcher": "SugarSubstitute-installer-payload-windows-x64-v9999.0.1.zip",
+        "installer": "SugarSubstitute-9999.0.1-Windows-x64.exe",
+    }
+    for name in asset_names.values():
+        (release_root / name).write_bytes(f"exact bytes for {name}".encode())
+    public_root = (
+        "https://github.com/Artificial-Sweetener/SugarSubstitute/"
+        "releases/download/v9999.0.1"
+    )
+
+    def asset(name: str) -> dict[str, str | int]:
+        """Describe one staged asset through its future production URL."""
+
+        path = release_root / name
+        return {
+            "filename": name,
+            "url": f"{public_root}/{name}",
+            "sha256": "a" * 64,
+            "size_bytes": path.stat().st_size,
+        }
+
+    source_manifest = (
+        json.dumps(
+            {
+                "schema_version": 2,
+                "channel": "stable",
+                "version": "9999.0.1",
+                "minimum_launcher_version": "0.1.0",
+                "release_metadata": {"publication": "pending"},
+                "app": asset(asset_names["app"]),
+                "launchers": {"windows_x64": asset(asset_names["launcher"])},
+                "installers": {"windows_x64_exe": asset(asset_names["installer"])},
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
+    (release_root / "manifest.json").write_text(source_manifest, encoding="utf-8")
+    return asset_names, source_manifest
+
+
 def test_local_candidate_channel_uses_trusted_https_and_exact_files(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -48,11 +96,8 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
     """Temporary non-release assets should use the launcher's real HTTPS path."""
 
     release_root = tmp_path / "candidate"
-    release_root.mkdir()
-    (release_root / "manifest.json").write_text(
-        '{"asset":"https://localhost.invalid/asset.zip","version":"9999.0.1"}\n',
-        encoding="utf-8",
-    )
+    asset_names, source_manifest = _write_release_channel(release_root)
+    manifest_path = release_root / "manifest.json"
     monkeypatch.chdir(tmp_path)
     with LocalReleaseServer(
         release_root=release_root,
@@ -75,12 +120,24 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
             context=legacy_context,
         ) as response:
             assert response.status == 200
+        with urllib.request.urlopen(
+            payload["app"]["url"],
+            timeout=5.0,
+            context=legacy_context,
+        ) as response:
+            assert response.read() == (release_root / asset_names["app"]).read_bytes()
 
         assert server.manifest_url == f"{server.base_url}/manifest.json"
-        assert payload == {
-            "asset": f"{server.base_url}/asset.zip",
-            "version": "9999.0.1",
-        }
+        assert payload["version"] == "9999.0.1"
+        assert payload["release_metadata"] == {"publication": "pending"}
+        assert payload["app"]["url"] == f"{server.base_url}/{asset_names['app']}"
+        assert payload["launchers"]["windows_x64"]["url"] == (
+            f"{server.base_url}/{asset_names['launcher']}"
+        )
+        assert payload["installers"]["windows_x64_exe"]["url"] == (
+            f"{server.base_url}/{asset_names['installer']}"
+        )
+        assert manifest_path.read_text(encoding="utf-8") == source_manifest
         assert server.certificate_path.is_absolute()
         assert server.trust_bundle_path.is_absolute()
         requests = [
@@ -90,6 +147,7 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
         assert [request["path"] for request in requests] == [
             "/manifest.json",
             "/manifest.json",
+            f"/{asset_names['app']}",
         ]
         assert (
             server.trust_bundle_path.read_text(encoding="ascii").count(
@@ -97,6 +155,27 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
             )
             > 1
         )
+
+
+def test_local_candidate_channels_use_independent_dynamic_ports(tmp_path: Path) -> None:
+    """Concurrent qualification owners must never contend for a fixed port."""
+
+    first_root = tmp_path / "first"
+    second_root = tmp_path / "second"
+    _write_release_channel(first_root)
+    _write_release_channel(second_root)
+
+    with LocalReleaseServer(
+        release_root=first_root,
+        certificate_root=tmp_path / "first-certificate",
+    ) as first_server:
+        with LocalReleaseServer(
+            release_root=second_root,
+            certificate_root=tmp_path / "second-certificate",
+        ) as second_server:
+            assert first_server.base_url != second_server.base_url
+            assert first_server.manifest_url.endswith("/manifest.json")
+            assert second_server.manifest_url.endswith("/manifest.json")
 
 
 def test_qualification_evidence_is_absolute_across_process_working_directories(

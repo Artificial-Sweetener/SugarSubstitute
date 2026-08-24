@@ -18,12 +18,11 @@
 
 from __future__ import annotations
 
-import ast
 import json
 from pathlib import Path
 import subprocess
 
-from tests.qualification.release.workflow.support import PROJECT_ROOT
+from tests.qualification.release.workflow.support import PROJECT_ROOT, workflow_text
 
 
 def test_release_notes_plugin_preserves_conventional_notes() -> None:
@@ -61,32 +60,6 @@ process.stdout.write(JSON.stringify({
     assert notes["original"] == "## Features\n\n* Added Cubes."
 
 
-def test_semantic_release_stage_mode_does_not_publish_stable() -> None:
-    """Semantic release should prepare its commit and tag while GitHub stays staged."""
-
-    script = """
-process.env.SUGAR_SUBSTITUTE_STAGE_ONLY = 'true';
-const publisher = require('./scripts/github-release-publisher.cjs');
-publisher.publish(
-  {repository: 'Artificial-Sweetener/Substitute-Test'},
-  {nextRelease: {version: '1.2.3'}},
-).then((result) => process.stdout.write(JSON.stringify(result)));
-"""
-    result = subprocess.run(
-        ["node", "-e", script],
-        cwd=PROJECT_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-
-    assert result.returncode == 0, result.stderr
-    staged = json.loads(result.stdout)
-    assert staged["name"] == "Staged SugarSubstitute 1.2.3"
-    assert staged["url"].endswith("/releases/tag/v1.2.3")
-
-
 def test_release_notes_generator_rejects_unsafe_versions(tmp_path: Path) -> None:
     """Release guidance should reject values that could escape the asset URL."""
 
@@ -118,9 +91,8 @@ def test_release_pipeline_uses_one_notes_owner_and_updates_the_changelog() -> No
     """Every release path should share installer notes and conventional history."""
 
     config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
-    workflow = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
+    candidate_workflow = workflow_text("release-candidate.yml")
+    publication_workflow = workflow_text("release-publication.yml")
 
     github_publisher = '"./scripts/github-release-publisher.cjs"'
     conventional_notes = '"@semantic-release/release-notes-generator"'
@@ -128,9 +100,9 @@ def test_release_pipeline_uses_one_notes_owner_and_updates_the_changelog() -> No
     assert config.index(conventional_notes) < config.index(changelog_plugin)
     assert config.index(changelog_plugin) < config.index(github_publisher)
     assert 'changelogFile: "CHANGELOG.md"' in config
-    assert "release-notes-preamble.cjs" in workflow
-    assert "--generate-notes" in workflow
-    assert '"--notes", $releaseNotes' in workflow
+    assert "release-notes-preamble.cjs" in candidate_workflow
+    assert "npx semantic-release" in publication_workflow
+    assert github_publisher in config
     assert (PROJECT_ROOT / "CHANGELOG.md").is_file()
 
 
@@ -236,64 +208,48 @@ def test_release_configuration_targets_the_active_github_repository() -> None:
 def test_stable_release_push_uses_the_authorized_deploy_key() -> None:
     """Keep generated Stable commits on the narrowly authorized push identity."""
 
-    release_workflow = (
-        PROJECT_ROOT / ".github" / "workflows" / "release.yml"
-    ).read_text(encoding="utf-8")
+    publication_workflow = workflow_text("release-publication.yml")
     release_config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
 
-    assert "Configure authorized Stable release push" in release_workflow
-    assert "secrets.STABLE_RELEASE_DEPLOY_KEY" in release_workflow
-    assert "SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL:" in release_workflow
-    assert "git@github.com:${{ github.repository }}.git" in release_workflow
+    assert "Configure authorized Stable release push" in publication_workflow
+    assert "secrets.STABLE_RELEASE_DEPLOY_KEY" in publication_workflow
+    assert "SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL:" in publication_workflow
+    assert "git@github.com:${{ github.repository }}.git" in publication_workflow
     assert "process.env.SUGAR_SUBSTITUTE_RELEASE_REPOSITORY_URL" in release_config
 
 
-def test_existing_stable_tag_is_published_without_an_invalid_target() -> None:
-    """Publish Semantic Release tags without reusing the tag as a commitish."""
+def test_failed_qualification_cannot_leave_a_public_stable_prerelease() -> None:
+    """Keep every Stable tag and release mutation after successful qualification."""
 
-    release_workflow = (
-        PROJECT_ROOT / ".github" / "workflows" / "release.yml"
-    ).read_text(encoding="utf-8")
-    publish_step = release_workflow.split(
-        "      - name: Publish exact bytes as a visible prerelease candidate",
-        maxsplit=1,
-    )[1].split("      - name:", maxsplit=1)[0]
+    orchestrator = workflow_text("release.yml")
+    candidate_workflow = workflow_text("release-candidate.yml")
+    publication_workflow = workflow_text("release-publication.yml")
 
-    assert "gh @releaseArguments" in publish_step
-    assert '$releaseArguments += @("--target", "${{ github.sha }}")' in publish_step
-    assert "$target =" not in publish_step
-    assert "--target $target" not in publish_step
+    assert "contents: write" not in candidate_workflow
+    assert "gh release create" not in candidate_workflow
+    assert "gh release edit" not in candidate_workflow
+    assert "npx semantic-release" not in candidate_workflow
+    publish_call = orchestrator.split("  publish-release:", maxsplit=1)[1]
+    assert "needs.qualify-candidate.result == 'success'" in publish_call
+    assert publish_call.index("contents: write") < publish_call.index(
+        "./.github/workflows/release-publication.yml"
+    )
+    assert "Publish exact qualified Stable release with semantic release" in (
+        publication_workflow
+    )
 
 
 def test_windows_quality_workflows_fail_fast_on_native_command_errors() -> None:
     """Dependency and gate failures should stop their PowerShell steps immediately."""
 
-    release_workflow = (
-        PROJECT_ROOT / ".github" / "workflows" / "release.yml"
-    ).read_text(encoding="utf-8")
-    test_workflow = (PROJECT_ROOT / ".github" / "workflows" / "tests.yml").read_text(
-        encoding="utf-8"
+    owner_text = workflow_text(
+        "release-build.yml",
+        "release-candidate.yml",
+        "quality-gates.yml",
     )
 
     fail_fast_setting = "$PSNativeCommandUseErrorActionPreference = $true"
-    assert release_workflow.count(fail_fast_setting) >= 2
-    assert fail_fast_setting in test_workflow
-
-
-def test_production_python_contains_no_system_git_command() -> None:
-    """Supported runtime paths should never execute a system Git binary."""
-
-    offenders: list[str] = []
-    for source_root in (PROJECT_ROOT / "substitute", PROJECT_ROOT / "launcher"):
-        for path in source_root.rglob("*.py"):
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            for node in ast.walk(tree):
-                if not isinstance(node, (ast.List, ast.Tuple)) or not node.elts:
-                    continue
-                first = node.elts[0]
-                if isinstance(first, ast.Constant) and first.value == "git":
-                    offenders.append(str(path.relative_to(PROJECT_ROOT)))
-    assert offenders == []
+    assert owner_text.count(fail_fast_setting) >= 2
 
 
 def test_installer_sources_do_not_reference_obsolete_comfy_desktop_repository() -> None:

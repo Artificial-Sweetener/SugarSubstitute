@@ -61,13 +61,18 @@ def test_dependabot_maintains_every_repository_dependency_ecosystem() -> None:
 def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
     """Audit resolved platform graphs and release tooling before tests can pass."""
 
-    workflow = yaml.safe_load(
-        (PROJECT_ROOT / ".github" / "workflows" / "tests.yml").read_text(
+    quality_workflow = yaml.safe_load(
+        (PROJECT_ROOT / ".github" / "workflows" / "quality-gates.yml").read_text(
             encoding="utf-8"
         )
     )
-    quality_script = _job_script(workflow["jobs"]["quality"])
-    platform_script = _job_script(workflow["jobs"]["platform-tests"])
+    platform_workflow = yaml.safe_load(
+        (PROJECT_ROOT / ".github" / "workflows" / "platform-tests.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    quality_script = _job_script(quality_workflow["jobs"]["quality"])
+    platform_script = _job_script(platform_workflow["jobs"]["platform-tests"])
 
     assert "npm run audit:release" in quality_script
     release_audit_script = PROJECT_ROOT / "scripts" / "audit-release-dependencies.mjs"
@@ -88,7 +93,9 @@ def test_authoritative_ci_blocks_known_dependency_vulnerabilities() -> None:
     assert '"@semantic-release/npm"' not in release_configuration
     assert "-m pip_audit" in platform_script
     assert "--local --strict --progress-spinner off" in platform_script
-    assert workflow["env"]["PIP_AUDIT_IGNORED_VULNERABILITY"] == "CVE-2026-24049"
+    assert platform_workflow["env"]["PIP_AUDIT_IGNORED_VULNERABILITY"] == (
+        "CVE-2026-24049"
+    )
     assert "--ignore-vuln ${{ env.PIP_AUDIT_IGNORED_VULNERABILITY }}" in platform_script
 
 
@@ -98,9 +105,9 @@ def test_python_audit_exception_remains_tied_to_photoshop_constraint() -> None:
     runtime_requirements = (PROJECT_ROOT / "requirements.txt").read_text(
         encoding="utf-8"
     )
-    workflow = (PROJECT_ROOT / ".github" / "workflows" / "tests.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = (
+        PROJECT_ROOT / ".github" / "workflows" / "platform-tests.yml"
+    ).read_text(encoding="utf-8")
 
     assert "PIP_AUDIT_IGNORED_VULNERABILITY: CVE-2026-24049" in workflow
     assert 'photoshop==0.21.9; sys_platform == "win32"' in runtime_requirements
@@ -111,19 +118,26 @@ def test_python_audit_exception_remains_tied_to_photoshop_constraint() -> None:
 def test_dependency_review_rejects_new_moderate_vulnerabilities() -> None:
     """Review dependency changes with an immutable official action revision."""
 
-    workflow = yaml.safe_load(
+    owner = yaml.safe_load(
+        (PROJECT_ROOT / ".github" / "workflows" / "dependency-review.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    orchestrator = yaml.safe_load(
         (PROJECT_ROOT / ".github" / "workflows" / "tests.yml").read_text(
             encoding="utf-8"
         )
     )
-    job = workflow["jobs"]["dependency-review"]
+    job = owner["jobs"]["dependency-review"]
     action_step = next(
         step
         for step in job["steps"]
         if str(step.get("uses", "")).startswith("actions/dependency-review-action@")
     )
 
-    assert job["if"] == "github.event_name == 'pull_request'"
+    dependency_call = orchestrator["jobs"]["dependency-review"]
+    assert dependency_call["if"] == "github.event_name == 'pull_request'"
+    assert dependency_call["uses"] == "./.github/workflows/dependency-review.yml"
     action, revision = action_step["uses"].rsplit("@", maxsplit=1)
     assert action == "actions/dependency-review-action"
     assert re.fullmatch(r"[0-9a-f]{40}", revision)

@@ -9,7 +9,7 @@
       <translation>SugarSubstitute では処理できるこの長い Windows パスを、%1 は使用できませんでした: %2。この操作には短いフォルダーを選択するか、Windows で Win32 の長いパスを有効にしてから、もう一度お試しください。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="298"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="308"></location>
       <source>App entrypoint: %1</source>
       <translation>アプリのエントリーポイント：%1</translation>
     </message>
@@ -19,7 +19,7 @@
       <translation>参照...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="172"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="179"></location>
       <source>Checking for SugarSubstitute updates.</source>
       <translation>SugarSubstitute のアップデートを確認しています。</translation>
     </message>
@@ -54,27 +54,27 @@
       <translation>続行</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="123"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="126"></location>
       <source>Continuing install from installed launcher.</source>
       <translation>インストール済みのランチャーからインストールを続行しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="312"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="322"></location>
       <source>Could not install the Python runtime.</source>
       <translation>Python ランタイムをインストールできませんでした。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="315"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="325"></location>
       <source>Could not start SugarSubstitute setup.</source>
       <translation>SugarSubstitute のセットアップを起動できませんでした。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="147"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="151"></location>
       <source>Created install root: %1</source>
       <translation>インストール先のルートフォルダーを作成しました：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="271"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="281"></location>
       <source>Details: %1</source>
       <translation>詳細：%1</translation>
     </message>
@@ -94,7 +94,7 @@
       <translation>インストール</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="215"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="225"></location>
       <source>Install root is not prepared yet.</source>
       <translation>インストール先のルートフォルダーはまだ準備されていません。</translation>
     </message>
@@ -104,32 +104,32 @@
       <translation>ランタイムをインストール</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="245"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="278"></location>
       <source>Installed SugarSubstitute %1.</source>
       <translation>SugarSubstitute %1 をインストールしました。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="292"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="302"></location>
       <source>Installed app payload version: %1</source>
       <translation>インストールしたアプリのバージョン：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="134"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="138"></location>
       <source>Installed launcher: %1</source>
       <translation>ランチャーをインストールしました：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="281"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="291"></location>
       <source>Installer returned an invalid layout.</source>
       <translation>インストーラーから無効なディレクトリ構成が返されました。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="229"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="239"></location>
       <source>Installing Python runtime and app dependencies.</source>
       <translation>Python ランタイムとアプリの依存関係をインストールしています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="231"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="255"></location>
       <source>Installing SugarSubstitute %1.</source>
       <translation>SugarSubstitute %1 をインストールしています。</translation>
     </message>
@@ -154,32 +154,32 @@
       <translation>Substitute のファイルを保存するメインフォルダーを選択します。Substitute に ComfyUI のインストールを任せる場合、デフォルトでは ComfyUI もこのフォルダーに配置されます。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="186"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="195"></location>
       <source>Preparing SugarSubstitute install.</source>
       <translation>SugarSubstitute のインストールを準備しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="237"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="271"></location>
       <source>Preparing SugarSubstitute runtime.</source>
       <translation>SugarSubstitute のランタイムを準備しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="310"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="338"></location>
       <source>Preparing launcher %1.</source>
       <translation>ランチャー %1 を準備しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="120"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="123"></location>
       <source>Ready.</source>
       <translation>準備ができました。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="126"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="129"></location>
       <source>Repair mode requested.</source>
       <translation>修復モードが要求されました。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="81"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="82"></location>
       <source>Runtime ready: %1</source>
       <translation>ランタイムの準備ができました：%1</translation>
     </message>
@@ -189,12 +189,12 @@
       <translation>セットアップ</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="220"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="230"></location>
       <source>Setup command is not available yet.</source>
       <translation>セットアップコマンドはまだ使用できません。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="269"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="279"></location>
       <source>Setup failed. Check the details below and try again.</source>
       <translation>セットアップに失敗しました。以下の詳細を確認して、もう一度お試しください。</translation>
     </message>
@@ -204,7 +204,7 @@
       <translation>セットアップを開始しました</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="141"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="145"></location>
       <source>Source-run launcher detected; skipped executable self-copy.</source>
       <translation>ソースから実行されたランチャーを検出したため、実行ファイルの自己コピーを省略しました。</translation>
     </message>
@@ -214,12 +214,12 @@
       <translation>ここから開始</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="90"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="91"></location>
       <source>Started SugarSubstitute setup.</source>
       <translation>SugarSubstitute のセットアップを起動しました。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="82"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="83"></location>
       <source>Starting SugarSubstitute setup.</source>
       <translation>SugarSubstitute のセットアップを起動しています。</translation>
     </message>
@@ -234,22 +234,22 @@
       <translation>Substitute は、デスクトップランチャー、アプリ本体のソース、ローカルランタイム、設定、ユーザーデータをこのフォルダーに保存します。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="139"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="148"></location>
       <source>SugarSubstitute Setup</source>
       <translation>SugarSubstitute セットアップ</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="330"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="360"></location>
       <source>The launcher will restart to finish updating.</source>
       <translation>アップデートを完了するため、ランチャーを再起動します。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="231"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="241"></location>
       <source>This can take a while the first time.</source>
       <translation>初回は時間がかかることがあります。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="128"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="131"></location>
       <source>Update check disabled for this launch.</source>
       <translation>今回の起動では更新の確認が無効になっています。</translation>
     </message>
@@ -269,7 +269,7 @@
       <translation>~/Applications/SugarSubstitute など、ホームディレクトリ内の書き込み可能なフォルダーを使用してください。システムの「アプリケーション」フォルダーでは、更新やランタイムのセットアップに管理者権限が必要になる場合があります。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="91"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="92"></location>
       <source>Waiting for the setup window to open.</source>
       <translation>セットアップウィンドウが開くのを待っています。</translation>
     </message>
@@ -279,12 +279,12 @@
       <translation>Windows では、各ファイル名またはフォルダー名は 255 文字までに制限されています。%1 にある名前を短くしてから、もう一度お試しください。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="184"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="193"></location>
       <source>Working...</source>
       <translation>処理中...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="150"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="154"></location>
       <source>Wrote launcher config: %1</source>
       <translation>ランチャー設定を書き込みました：%1</translation>
     </message>

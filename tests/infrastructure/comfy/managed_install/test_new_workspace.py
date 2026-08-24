@@ -23,6 +23,7 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace
 import pytest
+from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_torch_reconciliation
 from substitute.infrastructure.comfy import managed_workspace_provisioning
@@ -39,6 +40,7 @@ from sugarsubstitute_shared.external_scratch import ExternalScratchWorkspace
 
 from .orchestration_support import (
     configure_managed_install,
+    manager_runtime,
 )
 
 
@@ -113,10 +115,10 @@ def test_ensure_managed_comfy_setup_installs_and_marks_workspace(
         workspace: Path,
         on_log: object | None = None,
         env: object | None = None,
-    ) -> Path:
+    ) -> ComfyManagerRuntime:
         _ = on_log, env
         provision_calls.append(workspace)
-        return workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
+        return manager_runtime(workspace)
 
     monkeypatch.setattr(
         managed_install,
@@ -241,9 +243,7 @@ def test_new_stable_workspace_uses_verified_standalone_environment(
     monkeypatch.setattr(
         managed_install,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: (
-            workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        ),
+        lambda workspace, on_log=None, env=None: manager_runtime(workspace),
     )
 
     result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
@@ -354,9 +354,7 @@ def test_ensure_managed_comfy_setup_falls_back_to_stable_when_nightly_validation
     monkeypatch.setattr(
         managed_install,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: (
-            workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        ),
+        lambda workspace, on_log=None, env=None: manager_runtime(workspace),
     )
     validations = iter(
         (
@@ -453,9 +451,7 @@ def test_ensure_managed_comfy_setup_accepts_owned_model_paths_bootstrap_file(
     monkeypatch.setattr(
         managed_install,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: (
-            workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        ),
+        lambda workspace, on_log=None, env=None: manager_runtime(workspace),
     )
     monkeypatch.setattr(
         managed_install,

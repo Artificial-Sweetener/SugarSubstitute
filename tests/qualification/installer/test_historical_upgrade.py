@@ -26,6 +26,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationPlan,
 )
@@ -188,9 +189,21 @@ def test_existing_historical_runtime_is_converged_before_readiness_is_recorded(
     workspace.mkdir()
     operations: list[str] = []
 
+    def _manager_runtime(*_args: object, **_kwargs: object) -> ComfyManagerRuntime:
+        """Record provisioning and return the runtime qualified downstream."""
+
+        operations.append("manager")
+        executable = workspace / ("python.exe" if sys.platform == "win32" else "python")
+        return ComfyManagerRuntime(
+            kind=ComfyManagerKind.INTEGRATED,
+            workspace=workspace,
+            python_executable=executable,
+            version="4.1",
+        )
+
     monkeypatch.setattr(
         "tools.ci.historical_install_qualification.ensure_managed_workspace_manager",
-        lambda *_args, **_kwargs: operations.append("manager"),
+        _manager_runtime,
     )
     monkeypatch.setattr(
         "tools.ci.historical_install_qualification.ensure_core_comfy_nodepacks",

@@ -24,6 +24,7 @@ import sys
 
 import pytest
 
+from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import managed_existing_setup_operations
 from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_torch_reconciliation
@@ -44,6 +45,7 @@ from substitute.infrastructure.comfy.managed_environment_validator import (
 from substitute.infrastructure.comfy.managed_setup_cache_storage import (
     prepare_managed_setup_cache,
 )
+from substitute.infrastructure.comfy.managed_validation import workspace_python_path
 from substitute.infrastructure.comfy.python_policy import PythonRuntimeSelection
 from substitute.infrastructure.comfy.torch_policy import (
     TorchBackendPolicy,
@@ -60,6 +62,17 @@ def managed_setup_record_path(workspace: Path) -> Path:
         return cache.record_path
     finally:
         cache.close()
+
+
+def manager_runtime(workspace: Path) -> ComfyManagerRuntime:
+    """Build one validated integrated Manager runtime fixture."""
+
+    return ComfyManagerRuntime(
+        kind=ComfyManagerKind.INTEGRATED,
+        workspace=workspace,
+        python_executable=workspace_python_path(workspace),
+        version="4.1",
+    )
 
 
 _NVIDIA_DETECTION = HardwareDetectionResult(
@@ -165,12 +178,16 @@ def configure_managed_install(
     monkeypatch.setattr(
         managed_install,
         "ensure_core_comfy_nodepacks",
-        lambda _workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: None,
+        lambda manager_runtime, refresh_nodepacks=frozenset(), on_log=None, env=None: (
+            None
+        ),
     )
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_core_comfy_nodepacks",
-        lambda _workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: None,
+        lambda manager_runtime, refresh_nodepacks=frozenset(), on_log=None, env=None: (
+            None
+        ),
     )
     monkeypatch.setattr(
         managed_install,
@@ -199,4 +216,4 @@ def configure_managed_install(
     )
 
 
-__all__ = ["configure_managed_install", "managed_setup_record_path"]
+__all__ = ["configure_managed_install", "managed_setup_record_path", "manager_runtime"]

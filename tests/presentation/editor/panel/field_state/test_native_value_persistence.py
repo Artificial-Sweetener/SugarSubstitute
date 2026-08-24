@@ -25,7 +25,10 @@ from PySide6.QtWidgets import QApplication
 from substitute.presentation.editor.panel.field_state_controller import (
     EditorPanelFieldStateController,
 )
-from substitute.presentation.editor.panel.widgets.fields.native import ColorField
+from substitute.presentation.editor.panel.widgets.fields.native import (
+    ColorField,
+    ColorsField,
+)
 from tests.support.qt.lifecycle import destroy_qt_object
 
 
@@ -67,6 +70,43 @@ def test_native_semantic_value_signal_persists_through_field_state_owner() -> No
         field.valueChanged.emit("#abcdef")
 
         assert cube_state.buffer["nodes"]["node"]["inputs"]["color"] == "#abcdef"
+        assert cube_state.dirty is True
+    finally:
+        destroy_qt_object(field)
+
+
+def test_native_palette_value_persists_as_an_ordered_graph_list() -> None:
+    """Persist a COLORS value without flattening its ordered semantic shape."""
+
+    _ensure_qapp()
+    field = ColorsField(["#000000"])
+    field.setProperty(
+        "input_metadata",
+        {
+            "cube_alias": "A",
+            "node_name": "node",
+            "key": "color_palette",
+            "type": "COLORS",
+        },
+    )
+    cube_state = SimpleNamespace(
+        buffer={"nodes": {"node": {"inputs": {"color_palette": ["#000000"]}}}},
+        dirty=False,
+        field_control_states={},
+    )
+    controller = EditorPanelFieldStateController()
+    try:
+        controller.bind_node_widget_state(
+            field,
+            cube_state,
+            {"node_name": "node", "key": "color_palette"},
+        )
+        field.valueChanged.emit(["#abcdef", "#ffffff"])
+
+        assert cube_state.buffer["nodes"]["node"]["inputs"]["color_palette"] == [
+            "#abcdef",
+            "#ffffff",
+        ]
         assert cube_state.dirty is True
     finally:
         destroy_qt_object(field)

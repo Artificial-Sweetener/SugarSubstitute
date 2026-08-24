@@ -22,6 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 import pytest
 from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_existing_setup
 from substitute.infrastructure.comfy import managed_existing_setup_operations
@@ -34,6 +35,7 @@ from sugarsubstitute_shared.startup_remote_access import (
 
 from .orchestration_support import (
     configure_managed_install,
+    manager_runtime,
     managed_setup_record_path,
 )
 
@@ -76,20 +78,20 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
         workspace: Path,
         on_log: object | None = None,
         env: object | None = None,
-    ) -> Path:
+    ) -> ComfyManagerRuntime:
         _ = on_log, env
         provision_calls.append(workspace)
-        return workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
+        return manager_runtime(workspace)
 
     def _record_nodepack_install(
-        workspace: Path,
+        manager_runtime: ComfyManagerRuntime,
         refresh_nodepacks: frozenset[CoreNodepackId] = frozenset(),
         on_log: object | None = None,
         env: object | None = None,
     ) -> None:
         """Record nodepack convergence before model-root configuration."""
 
-        _ = workspace, on_log, env
+        _ = manager_runtime, on_log, env
         refresh_targets.append(frozenset(refresh_nodepacks))
         mutation_order.append("nodepacks")
 

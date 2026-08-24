@@ -32,6 +32,7 @@ from substitute.infrastructure.comfy.managed_validation import (
 
 from .orchestration_support import (
     configure_managed_install,
+    manager_runtime,
 )
 
 
@@ -101,9 +102,7 @@ def test_ensure_managed_comfy_setup_removes_incomplete_workspace_before_install(
     monkeypatch.setattr(
         managed_install,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: (
-            workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        ),
+        lambda workspace, on_log=None, env=None: manager_runtime(workspace),
     )
 
     result = managed_install.ensure_managed_comfy_setup(
@@ -147,9 +146,7 @@ def test_ensure_managed_comfy_setup_migrates_legacy_nested_workspace(
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: (
-            workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
-        ),
+        lambda workspace, on_log=None, env=None: manager_runtime(workspace),
     )
 
     result = managed_install.ensure_managed_comfy_setup(

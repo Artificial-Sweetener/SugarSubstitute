@@ -27,6 +27,7 @@ from types import SimpleNamespace
 from typing import cast
 import pytest
 from substitute.domain.comfy_nodepacks import CoreNodepackId
+from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_existing_setup_operations
 from substitute.infrastructure.comfy import managed_setup_freshness_cache
@@ -39,6 +40,7 @@ from substitute.infrastructure.comfy.torch_policy import TorchReleaseChannel
 
 from .orchestration_support import (
     configure_managed_install,
+    manager_runtime,
     managed_setup_record_path,
 )
 
@@ -102,22 +104,22 @@ def test_ensure_managed_comfy_setup_skips_fresh_installed_checks(
         workspace: Path,
         on_log: object | None = None,
         env: object | None = None,
-    ) -> Path:
+    ) -> ComfyManagerRuntime:
         """Record manager provisioning."""
 
         _ = on_log, env
         calls.append("manager")
-        return workspace / "custom_nodes" / "ComfyUI-Manager" / "cm-cli.py"
+        return manager_runtime(workspace)
 
     def _fake_ensure_core_comfy_nodepacks(
-        workspace: Path,
+        manager_runtime: ComfyManagerRuntime,
         refresh_nodepacks: object = frozenset(),
         on_log: object | None = None,
         env: object | None = None,
     ) -> None:
         """Record nodepack reconciliation."""
 
-        _ = workspace, on_log, env
+        _ = manager_runtime, on_log, env
         calls.append("nodepacks")
         refresh_targets.append(frozenset(cast(set[CoreNodepackId], refresh_nodepacks)))
 
@@ -248,7 +250,7 @@ def test_existing_setup_repairs_torch_only_when_explicitly_authorized(
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: workspace / "manager.py",
+        lambda workspace, on_log=None, env=None: manager_runtime(workspace),
     )
 
     first = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
@@ -349,12 +351,12 @@ def test_ensure_managed_comfy_setup_retries_after_state_commit_failure(
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_managed_workspace_manager",
-        lambda workspace, on_log=None, env=None: manager_dir / "cm-cli.py",
+        lambda workspace, on_log=None, env=None: manager_runtime(workspace),
     )
     monkeypatch.setattr(
         managed_existing_setup_operations,
         "ensure_core_comfy_nodepacks",
-        lambda workspace, refresh_nodepacks=frozenset(), on_log=None, env=None: (
+        lambda manager_runtime, refresh_nodepacks=frozenset(), on_log=None, env=None: (
             reconciliation_calls.append("nodepacks")
         ),
     )
