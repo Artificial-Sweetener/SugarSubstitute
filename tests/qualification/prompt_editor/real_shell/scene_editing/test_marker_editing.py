@@ -25,6 +25,9 @@ from PySide6.QtWidgets import QApplication
 from tests.support.prompt_editor.real_shell.invariants.snapshot import (
     snapshot_invariant_violations,
 )
+from tests.support.prompt_editor.real_shell.models import (
+    PromptSceneProjectionTimelineSample,
+)
 from tests.support.prompt_editor.real_shell.scenario import (
     PromptEditorRealShellScenario,
 )
@@ -39,7 +42,6 @@ def test_real_shell_typed_scene_marker_projects_on_first_title_character(
 
     timeline = real_shell_scenario.projection_probes.typed_scene(field)
 
-    initial_sample = timeline[0]
     first_title_sample = next(
         sample for sample in timeline if sample.label == "character-2:S"
     )
@@ -68,7 +70,7 @@ def test_real_shell_typed_scene_marker_projects_on_first_title_character(
     assert settled_sample.semantic_refresh_pending is False
     assert settled_sample.semantic_refresh_active is False
     assert settled_sample.cursor_position == len("**Scene")
-    assert settled_sample.focus_active is initial_sample.focus_active
+    _assert_typing_preserved_focus(timeline)
 
 
 def test_real_shell_typed_scene_marker_projects_after_existing_prompt_line(
@@ -82,7 +84,6 @@ def test_real_shell_typed_scene_marker_projects_after_existing_prompt_line(
 
     timeline = real_shell_scenario.projection_probes.typed_scene(field)
 
-    initial_sample = timeline[0]
     first_title_sample = next(
         sample for sample in timeline if sample.label == "character-2:S"
     )
@@ -96,7 +97,25 @@ def test_real_shell_typed_scene_marker_projects_after_existing_prompt_line(
     assert settled_sample.semantic_refresh_pending is False
     assert settled_sample.semantic_refresh_active is False
     assert settled_sample.cursor_position == len(settled_sample.source_text)
-    assert settled_sample.focus_active is initial_sample.focus_active
+    _assert_typing_preserved_focus(timeline)
+
+
+def _assert_typing_preserved_focus(
+    timeline: tuple[PromptSceneProjectionTimelineSample, ...],
+) -> None:
+    """Require every key boundary to preserve prompt input ownership."""
+
+    initial_focus = timeline[0].focus_active
+    typing_samples = tuple(
+        sample for sample in timeline if sample.label.startswith("character-")
+    )
+    assert typing_samples
+    assert all(sample.focus_active is initial_focus for sample in typing_samples), (
+        tuple(
+            (sample.label, sample.focus_active, sample.focus_widget_path)
+            for sample in typing_samples
+        )
+    )
 
 
 def test_real_shell_scene_marker_typing_preserves_unmapped_source_caret(

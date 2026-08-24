@@ -40,7 +40,11 @@ def test_real_shell_autocomplete_tab_does_not_insert_literal_tab(
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
     real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
-    before = real_shell_scenario.snapshots.capture(field, label="before-tab")
+    before = real_shell_scenario.snapshots.capture(
+        field,
+        label="before-tab",
+        settle=False,
+    )
     route = real_shell_scenario.input.press_key(field, Qt.Key.Key_Tab, text="\t")
     after = real_shell_scenario.snapshots.capture(field, label="after-tab")
     violations = _transition_violations("tab", before=before, after=after)
