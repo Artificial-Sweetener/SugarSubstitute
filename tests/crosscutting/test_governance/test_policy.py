@@ -26,6 +26,7 @@ from tools.test_governance.ownership_patterns import (
     MODULE_RESOURCE_RULE,
     SIBLING_IMPORT_RULE,
 )
+from tools.test_governance.node_process_patterns import NODE_PROCESS_RULE
 from tools.test_governance.semantic_patterns import (
     DRAIN_RULE,
     NETWORK_RULE,
@@ -308,6 +309,38 @@ def bounded(worker: object, barrier: object) -> None:
     ]
 
     assert len(candidates) == 4
+
+
+def test_discovery_rejects_unowned_real_node_processes(tmp_path: Path) -> None:
+    """Resolve aliases and local command data flow without banning other tools."""
+
+    _write_fixture(tmp_path)
+    _write(
+        tmp_path / "tests/capability/test_node_processes.py",
+        """import subprocess as process
+from subprocess import check_output as invoke
+from tests.support.execution.node_runtime import run_node
+
+def bypass_owner() -> None:
+    command = ["node", "--eval", "ready()"]
+    process.run(command, timeout=30)
+    invoke(("C:\\\\Program Files\\\\nodejs\\\\node.exe", "script.cjs"), timeout=30)
+
+def use_owned_or_unrelated_process() -> None:
+    run_node(("--eval", "ready()"), cwd=project_root())
+    process.run(["python", "script.py"], timeout=30)
+""",
+    )
+
+    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    candidates = [
+        candidate
+        for candidate in discover_test_candidates(tmp_path, policy)
+        if candidate.rule == NODE_PROCESS_RULE
+    ]
+
+    assert len(candidates) == 2
+    assert {candidate.line for candidate in candidates} == {7, 8}
 
 
 def test_discovery_rejects_silent_broad_failure_suppression(tmp_path: Path) -> None:

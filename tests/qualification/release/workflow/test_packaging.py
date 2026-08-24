@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import subprocess
 
 import yaml  # type: ignore[import-untyped]
 
@@ -30,6 +29,7 @@ from tests.qualification.release.workflow.support import (
     workflow_path,
     workflow_text,
 )
+from tests.support.execution.node_runtime import run_node
 
 
 def test_cross_platform_validation_proves_packaged_linux_system_trust() -> None:
@@ -151,12 +151,10 @@ const {selectVersionResolutionPlugins} = require(
 );
 process.stdout.write(JSON.stringify(selectVersionResolutionPlugins(releaseConfig)));
 """
-    result = subprocess.run(
-        ["node", "-e", script],
+    result = run_node(
+        ("-e", script),
         cwd=PROJECT_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=30,
+        timeout_seconds=30,
         check=False,
     )
 
@@ -299,9 +297,8 @@ def test_release_notes_link_directly_to_tagged_platform_installers(
     """Release descriptions should route users to immutable installer assets."""
 
     output_path = tmp_path / "release-notes.md"
-    result = subprocess.run(
-        [
-            "node",
+    result = run_node(
+        (
             "scripts/release-notes-preamble.cjs",
             "--repository",
             "Artificial-Sweetener/Substitute-Test",
@@ -309,11 +306,9 @@ def test_release_notes_link_directly_to_tagged_platform_installers(
             "1.2.3",
             "--output",
             str(output_path),
-        ],
+        ),
         cwd=PROJECT_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=30,
+        timeout_seconds=30,
         check=False,
     )
 

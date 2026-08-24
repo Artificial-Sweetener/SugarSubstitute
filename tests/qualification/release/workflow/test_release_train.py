@@ -20,9 +20,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import subprocess
 
 from tests.qualification.release.workflow.support import PROJECT_ROOT, workflow_text
+from tests.support.execution.node_runtime import run_node
 
 
 def test_canary_isolated_release_train_contract() -> None:
@@ -105,13 +105,11 @@ def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
         '"0.21.0-canary.42", "canary");'
     )
 
-    subprocess.run(
-        ["node", "--input-type=module", "--eval", javascript],
+    run_node(
+        ("--input-type=module", "--eval", javascript),
         check=True,
         cwd=PROJECT_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=30,
+        timeout_seconds=30,
     )
 
     assert (
@@ -135,12 +133,10 @@ process.stdout.write(JSON.stringify({
   minor: versions.nextStableVersion(['v0.19.2', 'v0.20.1'], 'minor'),
 }));
 """
-    result = subprocess.run(
-        ["node", "-e", script],
+    result = run_node(
+        ("-e", script),
         cwd=PROJECT_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=30,
+        timeout_seconds=30,
         check=False,
     )
 
@@ -186,9 +182,8 @@ def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> N
     """Canary notes should immediately route ordinary users to Stable."""
 
     output_path = tmp_path / "release-notes.md"
-    result = subprocess.run(
-        [
-            "node",
+    result = run_node(
+        (
             "scripts/release-notes-preamble.cjs",
             "--repository",
             "Artificial-Sweetener/Substitute-Test",
@@ -198,11 +193,9 @@ def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> N
             "canary",
             "--output",
             str(output_path),
-        ],
+        ),
         cwd=PROJECT_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=30,
+        timeout_seconds=30,
         check=False,
     )
 

@@ -24,6 +24,7 @@ from pathlib import Path
 from .ast_analysis import import_aliases
 from .execution_patterns import execution_pattern_candidates, reads_environment_name
 from .model import TestCandidate, TestPolicy
+from .node_process_patterns import node_process_pattern_candidates
 from .ownership_patterns import ownership_pattern_candidates
 from .semantic_patterns import semantic_pattern_candidates
 
@@ -248,6 +249,13 @@ def _python_source_candidates(
             aliases=aliases,
         )
     )
+    candidates.extend(
+        node_process_pattern_candidates(
+            path=relative_path,
+            tree=tree,
+            aliases=aliases,
+        )
+    )
     return candidates
 
 
@@ -256,11 +264,19 @@ def _semantic_support_source_candidates(root: Path, path: Path) -> list[TestCand
 
     relative_path = path.relative_to(root).as_posix()
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    return semantic_pattern_candidates(
-        relative_path=relative_path,
-        tree=tree,
-        aliases=import_aliases(tree),
-    )
+    aliases = import_aliases(tree)
+    return [
+        *semantic_pattern_candidates(
+            relative_path=relative_path,
+            tree=tree,
+            aliases=aliases,
+        ),
+        *node_process_pattern_candidates(
+            path=relative_path,
+            tree=tree,
+            aliases=aliases,
+        ),
+    ]
 
 
 __all__ = [

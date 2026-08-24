@@ -1153,3 +1153,16 @@ fingerprint = "sha256:65cd2e1c1c90ae8e92d32fb6b94c7431c7473726e45e711b83d8c115de
 rationale = "This two-test model-picker owner proves that real clicks retain the open picker and its search text, and that native drag selection remains inside the search surface. A complete ordinary run replaced the open popup after prior native Qt work in a reused worker, while five fresh-process runs pass. Its host, field, popup, catalog, input events, and cleanup are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
 issue = "chore:SS-TEST-WAIVER-C0266"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0268"
+owner = "Bounded real-Node test execution"
+kind = "classification"
+disposition = "resource_locked"
+rule = "NODE001"
+candidates = ["NODE001|tests/support/execution/node_runtime.py|<module>:unowned-node-process:1"]
+paths = ["tests/support/execution/node_runtime.py"]
+fingerprint = "sha256:66adc0acf6728a4ff920522d4c3c571ead90b925355cbd76d2fd5bb5b0cdfa16"
+rationale = "This test-support module is the sole real-Node subprocess owner. It preserves the command's explicit timeout and captures its output while a bounded Windows named mutex prevents the concurrent cold-start pressure observed across independent xdist workers; non-Windows execution remains parallel. Every test caller must use this owner, and NODE001 keeps any direct bypass mechanically reviewable."
+issue = "chore:SS-TEST-WAIVER-C0268"
+review_by = 2026-12-15
