@@ -195,7 +195,9 @@ def _terminal_run(
 def _preserve_failure_artifacts(*, base_temp: Path, destination: Path) -> Path | None:
     """Copy failed-module temporary evidence into the persistent result owner."""
 
-    if not base_temp.is_dir():
+    if not base_temp.is_dir() or not any(
+        path.is_file() for path in base_temp.rglob("*")
+    ):
         return None
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists():
