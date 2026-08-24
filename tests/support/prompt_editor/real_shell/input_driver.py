@@ -232,7 +232,11 @@ class PromptEditorInputDriver:
         """Send one key event and return a before/after route diagnostic."""
 
         target = self.focus_editor(field)
-        before = self._capture_state_snapshot(field, label="before-key")
+        before = self._capture_state_snapshot(
+            field,
+            label="before-key",
+            settle=False,
+        )
         QTest.keyClick(target, key, modifiers)
         self._trace_actions.append(
             PromptEditorTraceAction(
