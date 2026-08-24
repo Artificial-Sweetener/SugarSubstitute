@@ -75,12 +75,28 @@ def test_editor_descendant_focus_does_not_clean_up(
     assert cleanup_calls == []
 
 
+def test_deleted_editor_drops_queued_focus_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Queued focus cleanup must not access a host deleted during teardown."""
+
+    cleanup_calls = _schedule_focus_cleanup(
+        monkeypatch,
+        focus_widget=None,
+        reason=Qt.FocusReason.MouseFocusReason,
+        host_alive=False,
+    )
+
+    assert cleanup_calls == []
+
+
 def _schedule_focus_cleanup(
     monkeypatch: pytest.MonkeyPatch,
     *,
     focus_widget: QWidget | None,
     reason: Qt.FocusReason,
     owns_focus: Callable[[QWidget], bool] = lambda _widget: False,
+    host_alive: bool = True,
 ) -> list[bool]:
     """Resolve one deferred focus transition through the chrome owner."""
 
@@ -98,6 +114,7 @@ def _schedule_focus_cleanup(
         "QTimer",
         SimpleNamespace(singleShot=lambda _delay, callback: callback()),
     )
+    monkeypatch.setattr(module, "qt_object_is_alive", lambda _host: host_alive)
     cleanup_calls: list[bool] = []
     host = cast(
         Any,

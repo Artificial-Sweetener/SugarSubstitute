@@ -57,6 +57,7 @@ def test_manual_height_reapply_ignores_deleted_qt_wrappers(
     sizing = support.cast(support.Any, editor._sizing)
     sizing._manual_height_layout_reapply_pending = True
     sizing._manual_scroll_height = box.height()
+    assert sizing.layout_work_pending is True
     monkeypatch.setattr(
         support.sizing_controller_module,
         "qt_object_is_alive",
@@ -67,6 +68,31 @@ def test_manual_height_reapply_ignores_deleted_qt_wrappers(
 
     assert sizing._manual_height_layout_reapply_pending is False
     assert sizing._manual_scroll_height == box.height()
+    assert sizing.layout_work_pending is False
+
+
+def test_unchanged_manual_height_bounds_do_not_requeue_shell_layout(
+    prompt_editors: list[support.PromptEditor],
+) -> None:
+    """Stable parent bounds must not sustain a manual-height geometry loop."""
+
+    box = support.show_prompt_editor(
+        prompt_editors,
+        text="\n".join(f"line {index}" for index in range(40)),
+        width=320,
+    )
+    support.set_manual_scroll_height(
+        box,
+        support.default_scroll_height(box) + box.lineHeight() * 2,
+    )
+    support.wait_for_prompt_sizing_idle(box)
+    editor = support.cast(support.Any, box)
+
+    editor._sizing.schedule_manual_height_layout_reapply()
+
+    assert editor._sizing.layout_work_pending is False
+    assert editor._scroll_delegate.geometry_sync_pending is False
+    assert editor._scroll_delegate.geometry_follow_up_pending is False
 
 
 def test_prompt_editor_recomputes_height_when_width_increases_without_typing(

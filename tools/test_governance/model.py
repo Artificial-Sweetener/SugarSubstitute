@@ -30,6 +30,7 @@ class TestPolicy:
     """Define exact test discovery inputs and registry locations."""
 
     test_root: Path
+    semantic_support_roots: tuple[Path, ...]
     root_source_extensions: frozenset[str]
     allowed_root_source_paths: frozenset[str]
     serial_policy: Path

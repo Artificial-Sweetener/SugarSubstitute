@@ -156,9 +156,7 @@ def wait_for_prompt_sizing_idle(box: PromptEditor) -> None:
         lambda: (
             not surface.has_pending_projection_update()
             and not surface.has_stale_projection_geometry()
-            and not sizing._height_commit_pending
-            and sizing._pending_content_height is None
-            and not sizing._manual_height_layout_reapply_pending
+            and not sizing.layout_work_pending
             and not scroll_delegate.geometry_sync_pending
             and not scroll_delegate.geometry_follow_up_pending
         )

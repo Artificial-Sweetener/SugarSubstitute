@@ -22,8 +22,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, cast
 
-from PySide6.QtCore import QEventLoop
-from PySide6.QtGui import QGuiApplication
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 from .action_driver import dispatch_action
 from .models import PromptAbuseFreshnessSample, PromptAbuseScenario
@@ -87,40 +86,45 @@ def _wait_for_current_owners(
     projection_ms: float | None = None
     semantic_ms: float | None = None
     prompt_editor = cast(Any, editor)
-    while True:
+
+    def observe_current_owners() -> bool:
+        """Record each owner's first current observation and report completion."""
+
+        nonlocal projection_ms, semantic_ms
         elapsed_ms = (perf_counter() - started_at) * 1_000.0
         source_text = str(prompt_editor.toPlainText())
         if projection_ms is None and _projection_is_current(prompt_editor, source_text):
             projection_ms = elapsed_ms
         if semantic_ms is None and _semantics_are_current(prompt_editor, source_text):
             semantic_ms = elapsed_ms
-        if projection_ms is not None and semantic_ms is not None:
-            return PromptAbuseFreshnessSample(
-                action_index=action_index,
-                label=label,
-                projection_ms=projection_ms,
-                semantic_ms=semantic_ms,
-                fully_current_ms=max(projection_ms, semantic_ms),
-                projection_was_immediate=projection_ms < 0.1,
-                semantic_was_immediate=semantic_ms < 0.1,
-                timed_out=False,
-            )
-        if elapsed_ms >= _FRESHNESS_TIMEOUT_MS:
-            return PromptAbuseFreshnessSample(
-                action_index=action_index,
-                label=label,
-                projection_ms=(elapsed_ms if projection_ms is None else projection_ms),
-                semantic_ms=(elapsed_ms if semantic_ms is None else semantic_ms),
-                fully_current_ms=elapsed_ms,
-                projection_was_immediate=(
-                    projection_ms is not None and projection_ms < 0.1
-                ),
-                semantic_was_immediate=(semantic_ms is not None and semantic_ms < 0.1),
-                timed_out=True,
-            )
-        app = QGuiApplication.instance()
-        if app is not None:
-            app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 1)
+        return projection_ms is not None and semantic_ms is not None
+
+    timed_out = False
+    try:
+        wait_for_qt_condition(
+            observe_current_owners,
+            timeout_ms=int(_FRESHNESS_TIMEOUT_MS),
+            description="prompt projection and semantic owners to become current",
+            state=lambda: {
+                "projection_ms": projection_ms,
+                "semantic_ms": semantic_ms,
+            },
+        )
+    except AssertionError:
+        timed_out = True
+    elapsed_ms = (perf_counter() - started_at) * 1_000.0
+    resolved_projection_ms = elapsed_ms if projection_ms is None else projection_ms
+    resolved_semantic_ms = elapsed_ms if semantic_ms is None else semantic_ms
+    return PromptAbuseFreshnessSample(
+        action_index=action_index,
+        label=label,
+        projection_ms=resolved_projection_ms,
+        semantic_ms=resolved_semantic_ms,
+        fully_current_ms=max(resolved_projection_ms, resolved_semantic_ms),
+        projection_was_immediate=(projection_ms is not None and projection_ms < 0.1),
+        semantic_was_immediate=semantic_ms is not None and semantic_ms < 0.1,
+        timed_out=timed_out,
+    )
 
 
 def _projection_is_current(editor: Any, source_text: str) -> bool:

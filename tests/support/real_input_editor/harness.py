@@ -224,8 +224,8 @@ class RealShellInputEditorHarness:
         if item_id is None:
             raise RuntimeError("Production Input canvas rejected retained rectangle")
 
-    def add_brush_dab(self, point: QPoint, *, brush_size: int) -> None:
-        """Commit one brush dab after the mounted canvas receives its press delivery."""
+    def add_brush_dab(self, *, brush_size: int) -> None:
+        """Commit one brush dab at the active scene center after press delivery."""
 
         input_canvas = self.input_canvas
         input_canvas.resize(400, 300)
@@ -235,16 +235,34 @@ class RealShellInputEditorHarness:
         input_canvas.canvas.setControlMode(input_canvas.canvas.CONTROL_MODE_DRAW_BRUSH)
         mask_changes = QSignalSpy(input_canvas.document.maskContentChanged)
         press_observer = _MousePressObserver()
+
+        def active_scene_center() -> QPoint | None:
+            """Map the authoritative rendered scene center into panel coordinates."""
+
+            scene = input_canvas.canvas.currentScene()
+            if scene is None:
+                return None
+            panel_bounds = input_canvas.canvas.sceneToPanelRect(QRectF(scene.bounds))
+            if panel_bounds is None:
+                return None
+            point = panel_bounds.center().toPoint()
+            return point if input_canvas.canvas.rect().contains(point) else None
+
         self.wait_until(
             lambda: (
                 input_canvas.canvas.isVisible()
                 and input_canvas.canvas.isEnabled()
                 and input_canvas.canvas.size() == input_canvas.size()
-                and input_canvas.canvas.rect().contains(point)
+                and active_scene_center() is not None
                 and input_canvas.canvas.getControlMode()
                 == input_canvas.canvas.CONTROL_MODE_DRAW_BRUSH
             )
         )
+        point = active_scene_center()
+        if point is None:
+            raise RuntimeError(
+                "Production Input canvas exposed no drawable scene center"
+            )
         input_canvas.canvas.installEventFilter(press_observer)
         try:
             QTest.mousePress(

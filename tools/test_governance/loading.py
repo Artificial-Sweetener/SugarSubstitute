@@ -37,7 +37,12 @@ def load_test_policy(path: Path) -> TestPolicy:
     registries = _mapping(data, "registries")
     _exact_keys(
         scope,
-        {"test_root", "root_source_extensions", "allowed_root_source_paths"},
+        {
+            "test_root",
+            "semantic_support_roots",
+            "root_source_extensions",
+            "allowed_root_source_paths",
+        },
         "test scope",
     )
     _exact_keys(
@@ -54,6 +59,9 @@ def load_test_policy(path: Path) -> TestPolicy:
     _exact_keys(registries, {"debt", "waivers"}, "test registries")
     return TestPolicy(
         test_root=Path(_string(scope, "test_root")),
+        semantic_support_roots=tuple(
+            Path(value) for value in _strings(scope, "semantic_support_roots")
+        ),
         root_source_extensions=frozenset(_strings(scope, "root_source_extensions")),
         allowed_root_source_paths=frozenset(
             _strings(scope, "allowed_root_source_paths")

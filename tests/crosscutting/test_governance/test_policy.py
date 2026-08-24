@@ -37,48 +37,8 @@ from tools.test_governance.semantic_patterns import (
 from tools.test_governance.loading import load_test_policy
 from tools.test_governance.metrics import reviewed_state_fingerprint
 from tools.test_governance.validation import validate_test_governance
-
-
-def _write(path: Path, content: str) -> None:
-    """Write one UTF-8 fixture after creating its parent."""
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
-def _write_fixture(root: Path) -> None:
-    """Write a minimal valid test-governance repository."""
-
-    _write(
-        root / "TEST_POLICY.toml",
-        """schema_version = 1
-[scope]
-test_root = "tests"
-root_source_extensions = [".py", ".pyi"]
-allowed_root_source_paths = [
-  "tests/__init__.py",
-  "tests/ci_test_policy.py",
-  "tests/conftest.py",
-]
-[discovery]
-serial_policy = "tests/ci_test_policy.py"
-wait_calls = ["QTest.qWait", "time.sleep"]
-wall_clock_calls = ["monotonic", "perf_counter", "time.monotonic", "time.perf_counter"]
-xdist_environment_name = "PYTEST_XDIST_WORKER"
-repository_scratch_name = ".pytest-tmp"
-[registries]
-debt = "TEST_DEBT.toml"
-waivers = "TEST_WAIVERS.toml"
-""",
-    )
-    _write(root / "tests/__init__.py", "\n")
-    _write(root / "tests/conftest.py", "\n")
-    _write(
-        root / "tests/ci_test_policy.py",
-        "ISOLATED_TEST_MODULES = frozenset()\nSERIAL_TEST_MODULES = frozenset()\n",
-    )
-    _write(root / "TEST_DEBT.toml", "schema_version = 1\ndebts = []\n")
-    _write(root / "TEST_WAIVERS.toml", "schema_version = 1\nwaivers = []\n")
+from .support import write as _write
+from .support import write_fixture as _write_fixture
 
 
 def test_discovery_reports_layout_stub_execution_time_and_resource_candidates(

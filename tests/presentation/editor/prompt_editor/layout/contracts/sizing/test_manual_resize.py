@@ -361,10 +361,16 @@ def test_prompt_editor_manual_resize_refreshes_editor_panel_scroll_metrics(
     layout.addWidget(box)
     scroll_area.setWidgetResizable(True)
     scroll_area.setWidget(content)
-    scroll_area.resize(360, support.default_scroll_height(box) + box.lineHeight())
+    scroll_area.resize(360, max(1, support.default_scroll_height(box) // 2))
     scroll_area.show()
     support.semantic_wait.wait_for_qt_condition(
-        lambda: scroll_area.verticalScrollBar().maximum() > 0
+        lambda: scroll_area.verticalScrollBar().maximum() > 0,
+        description="editor panel to expose initial prompt overflow",
+        state=lambda: {
+            "viewport_height": scroll_area.viewport().height(),
+            "content_height": content.height(),
+            "scroll_maximum": scroll_area.verticalScrollBar().maximum(),
+        },
     )
     refresh_count = 0
 
@@ -380,7 +386,13 @@ def test_prompt_editor_manual_resize_refreshes_editor_panel_scroll_metrics(
         lambda: (
             refresh_count > 0
             and scroll_area.verticalScrollBar().maximum() > original_maximum
-        )
+        ),
+        description="editor panel metrics to reflect manual prompt growth",
+        state=lambda: {
+            "refresh_count": refresh_count,
+            "original_maximum": original_maximum,
+            "scroll_maximum": scroll_area.verticalScrollBar().maximum(),
+        },
     )
 
     assert refresh_count > 0
