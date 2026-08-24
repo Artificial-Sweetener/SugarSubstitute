@@ -29,6 +29,7 @@ from tests.qualification.release.workflow.support import (
     PROJECT_ROOT,
     WORKFLOW_PATHS,
     job_script as workflow_job_script,
+    workflow_path,
 )
 
 
@@ -61,9 +62,7 @@ def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
     """Require every supported operating system to run parallel and serial tests."""
 
     workflow = yaml.safe_load(
-        (PROJECT_ROOT / ".github" / "workflows" / "tests.yml").read_text(
-            encoding="utf-8"
-        )
+        workflow_path("platform-tests.yml").read_text(encoding="utf-8")
     )
     platform_job = workflow["jobs"]["platform-tests"]
     matrix = platform_job["strategy"]["matrix"]["include"]
@@ -93,15 +92,28 @@ def test_ci_uses_exact_language_and_package_toolchains() -> None:
         for path in WORKFLOW_PATHS
     }
 
-    assert all(
-        workflow["env"]["PYTHON_VERSION"] == "3.12.10"
+    python_versions = {
+        workflow["env"]["PYTHON_VERSION"]
         for workflow in workflows.values()
-    )
-    assert all(
-        workflow["env"]["LINUX_PYTHON_VERSION"] == "3.12.13"
+        if "PYTHON_VERSION" in workflow.get("env", {})
+    }
+    linux_versions = {
+        workflow["env"]["LINUX_PYTHON_VERSION"]
         for workflow in workflows.values()
-    )
-    assert workflows["release.yml"]["env"]["NODE_VERSION"] == "22.14.0"
+        if "LINUX_PYTHON_VERSION" in workflow.get("env", {})
+    }
+    node_versions = {
+        workflow["env"]["NODE_VERSION"]
+        for workflow in workflows.values()
+        if "NODE_VERSION" in workflow.get("env", {})
+    }
+
+    assert python_versions == {"3.12.10"}
+    assert linux_versions == {"3.12.13"}
+    assert node_versions == {"22.14.0"}
+    assert workflows["quality-gates.yml"]["env"]["PYTHON_VERSION"] == "3.12.10"
+    assert workflows["platform-tests.yml"]["env"]["LINUX_PYTHON_VERSION"] == ("3.12.13")
+    assert workflows["release-version.yml"]["env"]["NODE_VERSION"] == "22.14.0"
 
     workflow_text = "\n".join(
         path.read_text(encoding="utf-8") for path in WORKFLOW_PATHS
@@ -121,8 +133,8 @@ def test_strategy_matrices_use_literal_toolchain_versions() -> None:
         "macos-15": "3.12.10",
     }
     observed_entries = 0
-    for workflow_path in WORKFLOW_PATHS:
-        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    for path in WORKFLOW_PATHS:
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
         for job in workflow["jobs"].values():
             strategy = job.get("strategy", {})
             matrix = strategy.get("matrix", {})
@@ -133,15 +145,15 @@ def test_strategy_matrices_use_literal_toolchain_versions() -> None:
                 assert "${{" not in entry["python-version"]
                 observed_entries += 1
 
-    assert observed_entries == 24
+    assert observed_entries == 21
 
 
 def test_ci_actions_use_immutable_verified_revisions() -> None:
     """Prevent mutable action tags from changing the CI toolchain silently."""
 
     observed_revisions: dict[str, set[str]] = {}
-    for workflow_path in WORKFLOW_PATHS:
-        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    for path in WORKFLOW_PATHS:
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
         for job in workflow["jobs"].values():
             for step in job.get("steps", ()):
                 action_reference = step.get("uses", "")
@@ -215,18 +227,49 @@ def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
     assert "  push:" not in tests_workflow_text.split("permissions:", maxsplit=1)[0]
 
 
-def test_push_and_pull_request_runs_share_commit_concurrency() -> None:
-    """Opening or updating a PR must cancel its duplicate branch-push run."""
+def test_ci_orchestrators_delegate_to_cohesive_workflow_owners() -> None:
+    """Keep event workflows free from platform, packaging, and publication steps."""
 
-    for workflow_name in ("tests.yml", "comfy-compatibility.yml"):
+    expected_calls = {
+        "tests.yml": {
+            "./.github/workflows/quality-gates.yml",
+            "./.github/workflows/platform-tests.yml",
+            "./.github/workflows/dependency-review.yml",
+        },
+        "comfy-compatibility.yml": {
+            "./.github/workflows/comfy-runtime-compatibility.yml",
+            "./.github/workflows/comfy-update-compatibility.yml",
+        },
+        "release.yml": {
+            "./.github/workflows/tests.yml",
+            "./.github/workflows/release-version.yml",
+            "./.github/workflows/release-build.yml",
+            "./.github/workflows/release-candidate.yml",
+            "./.github/workflows/release-qualification.yml",
+            "./.github/workflows/release-publication.yml",
+        },
+        "cross-platform-validation.yml": {
+            "./.github/workflows/tests.yml",
+            "./.github/workflows/cross-platform-build.yml",
+            "./.github/workflows/linux-system-trust.yml",
+            "./.github/workflows/installed-app-smoke.yml",
+        },
+    }
+    for workflow_name, calls in expected_calls.items():
         workflow = yaml.safe_load(
-            (PROJECT_ROOT / ".github" / "workflows" / workflow_name).read_text(
-                encoding="utf-8"
-            )
+            workflow_path(workflow_name).read_text(encoding="utf-8")
         )
-        concurrency = workflow["concurrency"]
+        jobs = workflow["jobs"].values()
 
-        assert (
-            "github.event.pull_request.head.sha || github.sha" in concurrency["group"]
-        )
-        assert concurrency["cancel-in-progress"] is True
+        assert {job["uses"] for job in jobs} == calls
+        assert all("steps" not in job for job in jobs)
+
+
+def test_pull_request_runs_share_commit_concurrency() -> None:
+    """Updating a pull request must cancel its duplicate test run."""
+
+    workflow = yaml.safe_load(workflow_path("tests.yml").read_text(encoding="utf-8"))
+    concurrency = workflow["concurrency"]
+
+    assert "github.event.pull_request.head.sha || github.sha" in concurrency["group"]
+    assert concurrency["cancel-in-progress"] is True

@@ -49,7 +49,7 @@ module.exports = {
         verifyReleaseCmd:
           "node scripts/verify-beta-release-version.mjs ${nextRelease.version}",
         prepareCmd:
-          "node scripts/prepare-release-assets.mjs ${nextRelease.version}",
+          "node scripts/update-release-versions.mjs ${nextRelease.version} stable",
       },
     ],
     [
@@ -70,6 +70,7 @@ module.exports = {
       "./scripts/github-release-publisher.cjs",
       {
         repository: releaseRepository,
+        name: "v${nextRelease.version}",
         assets: [
           {
             path: ".local-release-channel/SugarSubstitute-*-Windows-x64-Setup.exe",

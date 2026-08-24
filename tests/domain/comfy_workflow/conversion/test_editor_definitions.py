@@ -245,3 +245,41 @@ def test_converter_honors_native_widget_type_override_for_union_socket() -> None
             "native_socket_type": "STRING,FILE_3D",
         },
     ]
+
+
+def test_converter_preserves_native_palette_documents() -> None:
+    """Decode a structured COLORS value without shifting later scalar fields."""
+
+    definitions: dict[str, Mapping[str, object]] = {
+        "PaletteNode": {
+            "input": {
+                "required": {
+                    "color_palette": ["COLORS", {"default": []}],
+                    "width": ["INT", {"default": 1024}],
+                }
+            }
+        }
+    }
+    workflow = {
+        "nodes": [
+            {
+                "id": 1,
+                "type": "PaletteNode",
+                "inputs": [],
+                "outputs": [],
+                "widgets_values": [["#112233", "#abcdef"], 768],
+            }
+        ],
+        "links": [],
+    }
+
+    graph = ComfyWorkflowConverter().convert(
+        workflow,
+        node_definitions=definitions,
+    )
+
+    node = graph["nodes"]["1"]  # type: ignore[index]
+    assert node["inputs"] == {
+        "color_palette": ["#112233", "#abcdef"],
+        "width": 768,
+    }

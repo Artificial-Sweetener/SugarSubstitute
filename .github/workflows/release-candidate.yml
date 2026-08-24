@@ -1,0 +1,167 @@
+name: private release candidate
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Exact semantic version embedded into the staged channel"
+        required: true
+        type: string
+      channel:
+        description: "Stable or Canary channel embedded into staged assets"
+        required: true
+        type: string
+      release_input_run_id:
+        description: "Optional run containing reusable native build inputs"
+        required: false
+        default: ""
+        type: string
+      existing_candidate_run_id:
+        description: "Optional run containing an existing private candidate"
+        required: false
+        default: ""
+        type: string
+    outputs:
+      candidate_artifact_name:
+        description: "Private artifact containing the complete candidate channel"
+        value: ${{ jobs.stage.outputs.candidate_artifact_name }}
+      candidate_run_id:
+        description: "Run containing the private candidate artifact"
+        value: ${{ jobs.stage.outputs.candidate_run_id }}
+      candidate_version:
+        description: "Version embedded into candidate assets"
+        value: ${{ jobs.stage.outputs.candidate_version }}
+      candidate_channel:
+        description: "Channel embedded into candidate assets"
+        value: ${{ jobs.stage.outputs.candidate_channel }}
+      staged:
+        description: "Whether one exact candidate is ready for qualification"
+        value: ${{ jobs.stage.outputs.staged }}
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  NODE_VERSION: "22.14.0"
+  PYTHON_VERSION: "3.12.10"
+
+jobs:
+  stage:
+    name: Stage exact release candidate
+    runs-on: windows-latest
+    outputs:
+      candidate_artifact_name: ${{ steps.reuse.outputs.candidate_artifact_name || steps.stage-artifact.outputs.candidate_artifact_name }}
+      candidate_run_id: ${{ inputs.existing_candidate_run_id || github.run_id }}
+      candidate_version: ${{ inputs.version }}
+      candidate_channel: ${{ inputs.channel }}
+      staged: ${{ steps.reuse.outputs.staged || steps.stage-artifact.outputs.staged }}
+
+    steps:
+      - name: Checkout
+        if: inputs.existing_candidate_run_id == ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node
+        if: inputs.existing_candidate_run_id == ''
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Setup Python
+        if: inputs.existing_candidate_run_id == ''
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install release dependencies
+        if: inputs.existing_candidate_run_id == ''
+        shell: pwsh
+        run: |
+          if ("${{ inputs.channel }}" -eq "stable") {
+            npm ci
+          }
+          python -m venv .venv
+
+      - name: Download Windows release inputs
+        if: inputs.existing_candidate_run_id == ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-inputs-windows
+          path: build/release-inputs/windows
+          run-id: ${{ inputs.release_input_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Download Apple Silicon release inputs
+        if: inputs.existing_candidate_run_id == ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-inputs-macos
+          path: build/release-inputs/macos
+          run-id: ${{ inputs.release_input_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Download Linux release inputs
+        if: inputs.existing_candidate_run_id == ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-inputs-linux
+          path: build/release-inputs/linux
+          run-id: ${{ inputs.release_input_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Prepare private release candidate assets
+        if: inputs.existing_candidate_run_id == ''
+        shell: pwsh
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SUGAR_SUBSTITUTE_RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: node scripts\prepare-release-assets.mjs ${{ inputs.version }}
+
+      - name: Prepare installer release notes
+        if: inputs.existing_candidate_run_id == ''
+        shell: pwsh
+        run: node scripts\release-notes-preamble.cjs --repository "${{ github.repository }}" --version "${{ inputs.version }}" --channel "${{ inputs.channel }}" --output "build\release-notes.md"
+
+      - name: Add release notes to the private candidate artifact
+        if: inputs.existing_candidate_run_id == ''
+        shell: pwsh
+        run: Copy-Item build\release-notes.md .local-release-channel\.release-notes.md
+
+      - name: Upload private non-release candidate channel
+        if: inputs.existing_candidate_run_id == ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: non-release-candidate-channel
+          path: .local-release-channel
+          if-no-files-found: error
+          retention-days: 1
+          include-hidden-files: true
+
+      - name: Record temporary candidate channel
+        id: stage-artifact
+        if: inputs.existing_candidate_run_id == ''
+        shell: pwsh
+        run: |
+          "candidate_artifact_name=non-release-candidate-channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Reuse exact temporary candidate channel
+        id: reuse
+        if: inputs.existing_candidate_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.existing_candidate_run_id }}
+        shell: pwsh
+        run: |
+          $artifacts = gh api "repos/${{ github.repository }}/actions/runs/$env:CANDIDATE_RUN_ID/artifacts" | ConvertFrom-Json
+          $candidate = @($artifacts.artifacts | Where-Object { $_.name -eq "non-release-candidate-channel" -and -not $_.expired })
+          if ($candidate.Count -ne 1) {
+            throw "The requested run does not contain one live non-release candidate channel."
+          }
+          "candidate_artifact_name=non-release-candidate-channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append

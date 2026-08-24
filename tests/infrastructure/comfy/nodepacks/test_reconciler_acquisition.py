@@ -54,6 +54,7 @@ from tests.infrastructure.comfy.nodepacks.reconciler_support import (
     _patch_dependencies,
     _project_version,
     _reconciler,
+    _runtime,
     _select_nodepacks,
     _write,
 )
@@ -73,8 +74,9 @@ def test_missing_nodepack_installs_through_registry_and_only_then_dependencies(
     _patch_dependencies(monkeypatch, dependency_installs, satisfied=True)
 
     _reconciler(registry=registry, cleaner=cleaner).ensure(
-        tmp_path,
-        python_executable=tmp_path / ".venv" / "Scripts" / "python.exe",
+        manager_runtime=_runtime(
+            tmp_path, tmp_path / ".venv" / "Scripts" / "python.exe"
+        ),
         refresh_nodepacks=(),
         on_log=None,
         env=None,
@@ -102,8 +104,7 @@ def test_exact_registry_installation_is_idempotent(
     _patch_dependencies(monkeypatch, dependency_installs, satisfied=True)
 
     _reconciler(registry=registry).ensure(
-        tmp_path,
-        python_executable=tmp_path / "python.exe",
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
         refresh_nodepacks=(),
         on_log=None,
         env=None,
@@ -146,8 +147,7 @@ def test_existing_clean_official_git_install_migrates_then_registry_updates(
         ),
         legacy_cleaner=cast(LegacyNodepackDistributionCleaner, _LegacyCleaner()),
     ).ensure(
-        tmp_path,
-        python_executable=tmp_path / "python.exe",
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
         refresh_nodepacks=(),
         on_log=None,
         env=None,
@@ -182,8 +182,7 @@ def test_fallback_install_is_later_adopted_by_exact_registry_update(
     _patch_dependencies(monkeypatch, [], satisfied=True)
 
     _reconciler(registry=unavailable_registry, fallback=fallback).ensure(
-        tmp_path,
-        python_executable=tmp_path / "python.exe",
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
         refresh_nodepacks=(),
         on_log=None,
         env=None,
@@ -198,8 +197,7 @@ def test_fallback_install_is_later_adopted_by_exact_registry_update(
     _select_nodepacks(monkeypatch, next_release)
     available_registry = _RegistryInstaller(RegistryInstallOutcome.INSTALLED)
     _reconciler(registry=available_registry).ensure(
-        tmp_path,
-        python_executable=tmp_path / "python.exe",
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
         refresh_nodepacks=(),
         on_log=None,
         env=None,
@@ -233,8 +231,7 @@ def test_queued_registry_update_must_reach_exact_disk_state(
                 settler,
             ),
         ).ensure(
-            tmp_path,
-            python_executable=tmp_path / "python.exe",
+            manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
             refresh_nodepacks=(),
             on_log=None,
             env=None,

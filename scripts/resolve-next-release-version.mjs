@@ -58,9 +58,10 @@ if (qualificationVersion) {
   shouldRelease = true;
   firstRelease = !canaryRunNumber;
 } else {
-  const resolvedStableVersion = canaryRunNumber
-    ? await resolveCanaryStableVersion(releaseTags)
-    : await resolveStableVersion();
+  const resolvedStableVersion = await resolveStableVersion(
+    releaseTags,
+    canaryRunNumber ? "patch" : undefined,
+  );
   version = canaryRunNumber
     ? createCanaryVersion(resolvedStableVersion, canaryRunNumber)
     : resolvedStableVersion;
@@ -68,7 +69,14 @@ if (qualificationVersion) {
   firstRelease = false;
 }
 
-async function resolveCanaryStableVersion(tags) {
+/**
+ * Resolve the next Stable version through semantic-release's configured analyzer.
+ *
+ * @param {string[]} tags Existing Stable release tags.
+ * @param {"patch" | undefined} fallbackReleaseType Canary's rolling fallback.
+ * @returns {Promise<string>} Next Stable version, or empty when no release is due.
+ */
+async function resolveStableVersion(tags, fallbackReleaseType) {
   const analyzer = selectVersionResolutionPlugins(releaseConfig)[0];
   const analyzerOptions = Array.isArray(analyzer) ? analyzer[1] : {};
   const stableTag = latestStableTag(tags);
@@ -78,22 +86,12 @@ async function resolveCanaryStableVersion(tags) {
     .filter(Boolean)
     .map((message) => ({ message }));
   const { analyzeCommits } = await import("@semantic-release/commit-analyzer");
-  const releaseType =
-    (await analyzeCommits(analyzerOptions, {
-      commits,
-      logger: { log() {} },
-    })) ?? "patch";
-  return nextStableVersion(tags, releaseType);
-}
-
-async function resolveStableVersion() {
-  const { default: semanticRelease } = await import("semantic-release");
-  const result = await semanticRelease({
-    ci: false,
-    dryRun: true,
-    plugins: selectVersionResolutionPlugins(releaseConfig),
+  const analyzedReleaseType = await analyzeCommits(analyzerOptions, {
+    commits,
+    logger: { log() {} },
   });
-  return result?.nextRelease?.version ?? "";
+  const releaseType = analyzedReleaseType ?? fallbackReleaseType;
+  return releaseType ? nextStableVersion(tags, releaseType) : "";
 }
 
 if (process.env.GITHUB_OUTPUT) {

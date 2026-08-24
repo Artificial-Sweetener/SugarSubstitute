@@ -40,8 +40,9 @@ _REPOSITORY_ROOT = Path(warmup_module.__file__).resolve().parents[3]
     "relative_path",
     (
         Path("tests/conftest.py"),
-        Path(".github/workflows/tests.yml"),
-        Path(".github/workflows/comfy-compatibility.yml"),
+        Path(".github/workflows/platform-tests.yml"),
+        Path(".github/workflows/comfy-runtime-compatibility.yml"),
+        Path(".github/workflows/comfy-update-compatibility.yml"),
     ),
 )
 def test_test_runners_disable_only_the_default_cutecanvas_sam_warmup(

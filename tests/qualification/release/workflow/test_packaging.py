@@ -27,6 +27,8 @@ import yaml  # type: ignore[import-untyped]
 from tests.qualification.release.workflow.support import (
     PROJECT_ROOT,
     job_script as workflow_job_script,
+    workflow_path,
+    workflow_text,
 )
 
 
@@ -34,9 +36,7 @@ def test_cross_platform_validation_proves_packaged_linux_system_trust() -> None:
     """Require the frozen Linux installer to verify releases across distro families."""
 
     workflow = yaml.safe_load(
-        (
-            PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml"
-        ).read_text(encoding="utf-8")
+        workflow_path("linux-system-trust.yml").read_text(encoding="utf-8")
     )
     job = workflow["jobs"]["linux-distro-trust"]
     matrix = job["strategy"]["matrix"]["include"]
@@ -64,75 +64,81 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
 ):
     """Native builders should share one semantic-release version decision."""
 
-    workflow = yaml.safe_load(
-        (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
-            encoding="utf-8"
-        )
+    orchestrator = yaml.safe_load(
+        workflow_path("release.yml").read_text(encoding="utf-8")
     )
-    jobs = workflow["jobs"]
+    build_owner = yaml.safe_load(
+        workflow_path("release-build.yml").read_text(encoding="utf-8")
+    )
+    jobs = orchestrator["jobs"]
     assert set(jobs) == {
         "tests",
         "determine-version",
-        "build-windows",
-        "build-macos",
-        "build-linux",
+        "build-release",
         "stage-candidate",
         "qualify-candidate",
-        "promote-release",
+        "publish-release",
     }
+    assert (
+        jobs["determine-version"]["uses"] == "./.github/workflows/release-version.yml"
+    )
+    assert jobs["build-release"]["uses"] == "./.github/workflows/release-build.yml"
+    assert jobs["build-release"]["needs"] == "determine-version"
     for job_name in ("build-windows", "build-macos", "build-linux"):
-        job = jobs[job_name]
-        assert job["needs"] == "determine-version"
-        assert "needs.determine-version.outputs.version" in workflow_job_script(job)
-    assert jobs["build-macos"]["runs-on"] == "macos-latest"
-    assert jobs["build-linux"]["runs-on"] == "ubuntu-24.04"
+        assert "inputs.version" in workflow_job_script(build_owner["jobs"][job_name])
+    assert build_owner["jobs"]["build-macos"]["runs-on"] == "macos-latest"
+    assert build_owner["jobs"]["build-linux"]["runs-on"] == "ubuntu-24.04"
     assert set(jobs["stage-candidate"]["needs"]) == {
         "determine-version",
-        "build-windows",
-        "build-macos",
-        "build-linux",
+        "build-release",
     }
+    assert jobs["stage-candidate"]["uses"] == (
+        "./.github/workflows/release-candidate.yml"
+    )
     assert jobs["qualify-candidate"]["uses"] == (
         "./.github/workflows/release-qualification.yml"
     )
-    assert set(jobs["promote-release"]["needs"]) == {
+    assert set(jobs["publish-release"]["needs"]) == {
         "stage-candidate",
         "qualify-candidate",
     }
+    assert jobs["publish-release"]["uses"] == (
+        "./.github/workflows/release-publication.yml"
+    )
 
 
 def test_release_stages_then_promotes_the_same_candidate_bytes() -> None:
     """Stable publication must be promotion after qualification, never a rebuild."""
 
-    workflow_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
+    orchestrator = workflow_text("release.yml")
+    candidate = workflow_text("release-candidate.yml")
+    publication = workflow_text("release-publication.yml")
 
-    assert "--prerelease" in workflow_text
-    assert "release-qualification.yml" in workflow_text
-    assert "--prerelease=false --latest" in workflow_text
-    assert "SUGAR_SUBSTITUTE_STAGE_ONLY" in workflow_text
-    promotion = workflow_text.split("  promote-release:", maxsplit=1)[1]
-    assert "prepare-release-assets" not in promotion
-    assert "PyInstaller" not in promotion
+    assert "Upload private non-release candidate channel" in candidate
+    assert "gh release create" not in candidate
+    assert "gh release edit" not in candidate
+    assert "release-qualification.yml" in orchestrator
+    assert "needs.qualify-candidate.result == 'success'" in orchestrator
+    assert "Publish exact qualified Stable release with semantic release" in publication
+    assert "prepare-release-assets" not in publication
+    assert "PyInstaller" not in publication
 
 
 def test_first_release_publishes_version_090_without_adding_a_commit() -> None:
     """The flattened root release should publish directly from its existing tree."""
 
-    workflow_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
+    candidate_text = workflow_text("release-candidate.yml")
+    publication_text = workflow_text("release-publication.yml")
     resolver_text = (
         PROJECT_ROOT / "scripts" / "resolve-next-release-version.mjs"
     ).read_text(encoding="utf-8")
 
     assert 'const FIRST_RELEASE_VERSION = "0.9.0"' in resolver_text
-    assert "result?.nextRelease?.version" in resolver_text
+    assert "resolveStableVersion" in resolver_text
     assert "first_release=${firstRelease}" in resolver_text
-    assert "gh release create" in workflow_text
-    assert "prepare-release-assets.mjs" in workflow_text
-    assert "prime-first-release-tag" not in workflow_text
+    assert "prepare-release-assets.mjs" in candidate_text
+    assert "npx semantic-release" in publication_text
+    assert "prime-first-release-tag" not in candidate_text
 
 
 def test_version_resolution_excludes_publishing_plugins() -> None:
@@ -164,15 +170,13 @@ process.stdout.write(JSON.stringify(selectVersionResolutionPlugins(releaseConfig
 def test_macos_release_requires_no_paid_apple_credentials() -> None:
     """macOS artifacts should use verifiable ad-hoc signatures without notarization."""
 
-    workflow_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
+    build_text = workflow_text("release-build.yml")
 
-    assert "codesign --force --deep --sign -" in workflow_text
-    assert "codesign --verify --deep --strict" in workflow_text
-    assert "secrets.APPLE_" not in workflow_text
-    assert "notarytool" not in workflow_text
-    assert "stapler" not in workflow_text
+    assert "codesign --force --deep --sign -" in build_text
+    assert "codesign --verify --deep --strict" in build_text
+    assert "secrets.APPLE_" not in build_text
+    assert "notarytool" not in build_text
+    assert "stapler" not in build_text
 
 
 def test_pyinstaller_specs_share_launcher_runtime_data_ownership() -> None:
@@ -193,39 +197,38 @@ def test_pyinstaller_specs_share_launcher_runtime_data_ownership() -> None:
 def test_linux_workflow_pins_appimagetool_and_builds_both_native_formats() -> None:
     """Linux packaging should verify its tool and publish AppImage plus Debian."""
 
-    workflow_text = (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
-        encoding="utf-8"
-    )
+    build_text = workflow_text("release-build.yml")
     assert "a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0" in (
-        workflow_text
+        build_text
     )
-    assert "SugarSubstitute-Installer-Linux-x86_64.AppImage" in workflow_text
-    assert "SugarSubstitute-Installer-Linux-amd64.deb" in workflow_text
-    assert "sha256sum --check" in workflow_text
+    assert "SugarSubstitute-Installer-Linux-x86_64.AppImage" in build_text
+    assert "SugarSubstitute-Installer-Linux-amd64.deb" in build_text
+    assert "sha256sum --check" in build_text
 
 
 def test_linux_workflows_retry_appimagetool_transport_failures() -> None:
     """Production and validation builds should recover from reset downloads."""
 
     workflow_paths = (
-        PROJECT_ROOT / ".github" / "workflows" / "release.yml",
-        PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml",
+        workflow_path("release-build.yml"),
+        workflow_path("cross-platform-build.yml"),
     )
-    for workflow_path in workflow_paths:
-        workflow_text = workflow_path.read_text(encoding="utf-8")
-        assert "--retry 5 --retry-all-errors --connect-timeout 30" in workflow_text
+    for path in workflow_paths:
+        owner_text = path.read_text(encoding="utf-8")
+        assert "--retry 5 --retry-all-errors --connect-timeout 30" in owner_text
 
 
 def test_linux_qt_workflows_install_multimedia_runtime() -> None:
     """Provide PulseAudio wherever Linux imports Qt Multimedia widgets."""
 
     workflow_paths = (
-        PROJECT_ROOT / ".github" / "workflows" / "tests.yml",
-        PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml",
+        workflow_path("platform-tests.yml"),
+        workflow_path("cross-platform-build.yml"),
+        workflow_path("installed-app-smoke.yml"),
         PROJECT_ROOT / ".github" / "workflows" / "native-appearance-screenshots.yml",
     )
-    for workflow_path in workflow_paths:
-        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    for path in workflow_paths:
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
         assert "libpulse0" in workflow["env"]["LINUX_QT_PACKAGES"].split()
 
 
@@ -233,9 +236,10 @@ def test_large_workflow_artifacts_expire_after_handoff() -> None:
     """Large native build handoffs should not consume long-term Actions storage."""
 
     workflow_limits = (
-        (PROJECT_ROOT / ".github" / "workflows" / "release.yml", 1),
+        (workflow_path("release-build.yml"), 1),
+        (workflow_path("release-candidate.yml"), 1),
         (
-            PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml",
+            workflow_path("cross-platform-build.yml"),
             1,
         ),
         (
@@ -246,8 +250,8 @@ def test_large_workflow_artifacts_expire_after_handoff() -> None:
             7,
         ),
     )
-    for workflow_path, maximum_retention_days in workflow_limits:
-        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    for path, maximum_retention_days in workflow_limits:
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
         upload_steps = [
             step
             for job in workflow["jobs"].values()
@@ -265,12 +269,12 @@ def test_native_build_workflows_do_not_cache_large_python_wheels() -> None:
     """Native matrices should reinstall dependencies instead of retaining huge caches."""
 
     workflow_paths = (
-        PROJECT_ROOT / ".github" / "workflows" / "cross-platform-validation.yml",
+        workflow_path("cross-platform-build.yml"),
         PROJECT_ROOT / ".github" / "workflows" / "native-appearance-screenshots.yml",
     )
-    for workflow_path in workflow_paths:
-        workflow_text = workflow_path.read_text(encoding="utf-8")
-        assert "cache: pip" not in workflow_text
+    for path in workflow_paths:
+        owner_text = path.read_text(encoding="utf-8")
+        assert "cache: pip" not in owner_text
 
 
 def test_release_publisher_includes_installer_and_managed_payload_artifacts() -> None:

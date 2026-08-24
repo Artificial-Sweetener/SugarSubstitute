@@ -19,12 +19,14 @@
 from .audio_record_field import AudioRecordField
 from .bounding_box_field import BoundingBoxField
 from .color_field import ColorField
+from .colors_field import ColorsField
 from .curve_field import CurveCanvas, CurveField
 
 __all__ = [
     "AudioRecordField",
     "BoundingBoxField",
     "ColorField",
+    "ColorsField",
     "CurveCanvas",
     "CurveField",
 ]

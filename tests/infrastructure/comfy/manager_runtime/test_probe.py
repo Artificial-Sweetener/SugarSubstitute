@@ -28,11 +28,49 @@ import pytest
 
 from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.infrastructure.comfy import manager_runtime_probe
+from substitute.infrastructure.comfy.comfy_manager_runtime import (
+    selected_comfy_environment,
+)
 from substitute.infrastructure.comfy.manager_contract import ComfyManagerContract
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
     subprocess_working_directory,
 )
+from tools.ci.comfy_support_matrix import (
+    COMFY_RELEASE_CONTRACTS,
+    ComfySupportMatrixEntry,
+)
+
+
+@pytest.mark.parametrize(
+    "entry",
+    COMFY_RELEASE_CONTRACTS,
+    ids=lambda entry: entry.comfyui_tag,
+)
+def test_comfy_cli_environment_never_requires_system_git(
+    tmp_path: Path,
+    entry: ComfySupportMatrixEntry,
+) -> None:
+    """Protect every supported Manager runtime from a system-Git dependency."""
+
+    python = tmp_path / ".venv" / "Scripts" / "python.exe"
+    runtime = ComfyManagerRuntime(
+        kind=ComfyManagerKind.INTEGRATED,
+        workspace=tmp_path,
+        python_executable=python,
+        version=entry.manager_version,
+        supports_pygit2=entry.supports_pygit2,
+        uses_pygit2=entry.supports_pygit2,
+    )
+
+    environment = selected_comfy_environment(
+        runtime=runtime,
+        env={"PATH": "", "GIT_PYTHON_REFRESH": "error"},
+    )
+
+    assert environment["PATH"] == ""
+    assert environment["GIT_PYTHON_REFRESH"] == "quiet"
+    assert environment.get("CM_USE_PYGIT2") == ("1" if entry.supports_pygit2 else None)
 
 
 def test_integrated_manager_4_1_probe_requires_no_pygit2_api(

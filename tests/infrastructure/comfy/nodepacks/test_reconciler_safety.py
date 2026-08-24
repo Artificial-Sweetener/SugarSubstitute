@@ -44,6 +44,7 @@ from tests.infrastructure.comfy.nodepacks.reconciler_support import (
     _patch_dependencies,
     _project_version,
     _reconciler,
+    _runtime,
     _select_nodepacks,
 )
 
@@ -70,8 +71,7 @@ def test_dirty_outdated_git_checkout_is_preserved_and_blocks_repair(
             repositories=repositories,
             registry_installer=cast(ComfyNodepackRegistryInstaller, registry),
         ).ensure(
-            tmp_path,
-            python_executable=tmp_path / "python.exe",
+            manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
             refresh_nodepacks=(),
             on_log=None,
             env=None,
@@ -99,8 +99,7 @@ def test_explicit_local_source_bypasses_registry_acquisition(
     assert env_name is not None
 
     _reconciler(registry=registry).ensure(
-        tmp_path,
-        python_executable=tmp_path / "python.exe",
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
         refresh_nodepacks=(),
         on_log=None,
         env={env_name: str(source)},
