@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
 from PySide6.QtCore import QPoint, Qt
@@ -57,14 +56,6 @@ class StateSnapshotCapture(Protocol):
         """Capture the mounted editor state."""
 
 
-@dataclass(frozen=True, slots=True)
-class PromptEditorClickAwayTarget:
-    """Bind one production focus owner to its visible pointer event surface."""
-
-    focus_owner: QWidget
-    event_surface: QWidget
-
-
 class PromptEditorInputDriver:
     """Drive input through the production prompt-editor event surfaces."""
 
@@ -73,7 +64,7 @@ class PromptEditorInputDriver:
         *,
         shell: QWidget,
         shell_activator: Callable[[], None],
-        click_away_target_provider: Callable[[], PromptEditorClickAwayTarget],
+        click_away_target_provider: Callable[[], QWidget],
         canvas_provider: Callable[[str], QWidget | None],
         canvas_activator: Callable[[str], None],
         trace_actions: list[PromptEditorTraceAction],
@@ -368,33 +359,20 @@ class PromptEditorInputDriver:
         wait_for_queued_qt_turn()
 
     def click_away_from_editor(self, field: PromptFieldHandle) -> None:
-        """Click the production editor-panel surface outside the prompt field."""
+        """Drive the Qt focus transition produced by a click outside the editor."""
 
         self._shell_activator()
-        target = self._click_away_target_provider()
-        target.focus_owner.setFocus(Qt.FocusReason.MouseFocusReason)
-        wait_for_qt_condition(
-            lambda: (
-                target.focus_owner.hasFocus() and not _focus_belongs_to(field.editor)
-            ),
-            description="prompt-editor focus to leave before click-away delivery",
-            state=lambda: _click_away_state(field.editor, target),
-        )
-        QTest.mouseClick(
-            target.event_surface,
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-            target.event_surface.rect().center(),
-        )
+        focus_target = self._click_away_target_provider()
+        focus_target.setFocus(Qt.FocusReason.MouseFocusReason)
         self._trace_actions.append(PromptEditorTraceAction("click_away", ""))
         wait_for_qt_condition(
             lambda: (
                 not _focus_belongs_to(field.editor)
-                and target.focus_owner.hasFocus()
+                and focus_target.hasFocus()
                 and _autocomplete_is_dismissed(field.editor)
             ),
             description="prompt-editor click-away completion",
-            state=lambda: _click_away_state(field.editor, target),
+            state=lambda: _click_away_state(field.editor, focus_target),
         )
 
     def switch_canvas(self, label: str) -> None:
@@ -437,7 +415,7 @@ def _autocomplete_is_dismissed(editor: PromptEditor) -> bool:
 
 def _click_away_state(
     editor: PromptEditor,
-    target: PromptEditorClickAwayTarget,
+    focus_target: QWidget,
 ) -> object:
     """Return actionable focus and autocomplete state for click-away timeouts."""
 
@@ -447,9 +425,8 @@ def _click_away_state(
         "active_window": QApplication.activeWindow(),
         "focus_widget": QApplication.focusWidget(),
         "editor_owns_focus": _focus_belongs_to(editor),
-        "outside_target_owns_focus": target.focus_owner.hasFocus(),
-        "outside_target_visible": target.focus_owner.isVisible(),
-        "outside_event_surface_visible": target.event_surface.isVisible(),
+        "outside_target_owns_focus": focus_target.hasFocus(),
+        "outside_target_visible": focus_target.isVisible(),
         "preview": autocomplete_preview_state(editor),
         "session_active": autocomplete["has_active"],
         "panel_visible": autocomplete["presenter_panel_visible"],
