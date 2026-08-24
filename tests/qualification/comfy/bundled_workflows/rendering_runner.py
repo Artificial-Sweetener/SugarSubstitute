@@ -36,6 +36,40 @@ if TYPE_CHECKING:
         WorkflowAuditResult,
     )
 
+_DEFERRED_PROBE_REASONS = {
+    "api_ideogram_p_image_t2i": (
+        "CreateBoundingBoxes BOUNDING_BOXES editing is deferred until it is "
+        "implemented through the existing Input Canvas owner."
+    ),
+}
+
+
+def bundled_workflow_probe_deferment(workflow_name: str) -> str | None:
+    """Return the reviewed reason for deferring one exact live workflow probe."""
+
+    return _DEFERRED_PROBE_REASONS.get(workflow_name)
+
+
+def _parse_args() -> argparse.Namespace:
+    """Parse the requested bundled-workflow audit scope."""
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("template_root", type=Path)
+    parser.add_argument(
+        "--object-info-url", default="http://127.0.0.1:8188/object_info"
+    )
+    parser.add_argument(
+        "--artifact-root",
+        type=Path,
+        default=Path("build/test-results/bundled-workflow-production-audit"),
+    )
+    parser.add_argument("--shell-batch-size", type=int, default=25)
+    parser.add_argument("--workflow-timeout-ms", type=int, default=30_000)
+    parser.add_argument("--progress-log", type=Path)
+    parser.add_argument("--probe-workflow", default="default")
+    parser.add_argument("--probe-only", action="store_true")
+    return parser.parse_args()
+
 
 def _configure_offscreen_environment() -> None:
     """Set fail-closed Qt variables before any PySide6 module can load."""
@@ -148,6 +182,14 @@ def _write_probe(path: Path, result: WorkflowAuditResult, qt_platform: str) -> N
 def main() -> int:
     """Bootstrap offscreen Qt, prove it, then run the requested audit scope."""
 
+    args = _parse_args()
+    deferment = bundled_workflow_probe_deferment(args.probe_workflow)
+    if args.probe_only and deferment is not None:
+        print(  # noqa: T201
+            f"SKIP|workflow={args.probe_workflow}|reason={deferment}",
+            flush=True,
+        )
+        return 0
     _configure_offscreen_environment()
     _lower_process_priority()
     from PySide6.QtWidgets import QApplication
@@ -164,22 +206,6 @@ def main() -> int:
             f"Refusing audit on interactive Qt platform {app.platformName()!r}."
         )
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("template_root", type=Path)
-    parser.add_argument(
-        "--object-info-url", default="http://127.0.0.1:8188/object_info"
-    )
-    parser.add_argument(
-        "--artifact-root",
-        type=Path,
-        default=Path("build/test-results/bundled-workflow-production-audit"),
-    )
-    parser.add_argument("--shell-batch-size", type=int, default=25)
-    parser.add_argument("--workflow-timeout-ms", type=int, default=30_000)
-    parser.add_argument("--progress-log", type=Path)
-    parser.add_argument("--probe-workflow", default="default")
-    parser.add_argument("--probe-only", action="store_true")
-    args = parser.parse_args()
     definitions = _load_object_info(args.object_info_url)
     probe_harness = BundledComfyWorkflowRenderingHarness(
         template_root=args.template_root,
