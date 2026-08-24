@@ -2,6 +2,7 @@ schema_version = 1
 
 [scope]
 test_root = "tests"
+semantic_support_roots = ["tools/prompt_editor_abuse"]
 root_source_extensions = [".py", ".pyi"]
 allowed_root_source_paths = [
   "tests/__init__.py",

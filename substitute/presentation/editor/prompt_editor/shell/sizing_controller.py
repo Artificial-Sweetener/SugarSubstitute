@@ -130,6 +130,7 @@ class PromptShellSizingController:
         self._pending_content_height: float | None = None
         self._height_commit_pending = False
         self._manual_height_layout_reapply_pending = False
+        self._manual_height_layout_signature: tuple[int, int, int] | None = None
         self._manual_resize_bounds_viewport_filter: QWidget | None = None
 
     @property
@@ -137,6 +138,16 @@ class PromptShellSizingController:
         """Return the last content-fitted shell height."""
 
         return self._last_natural_height
+
+    @property
+    def layout_work_pending(self) -> bool:
+        """Return whether queued sizing work can still change shell geometry."""
+
+        return (
+            self._height_commit_pending
+            or self._pending_content_height is not None
+            or self._manual_height_layout_reapply_pending
+        )
 
     def line_height(self) -> int:
         """Return the projection-owned single-line text height used by grow policy."""
@@ -167,6 +178,7 @@ class PromptShellSizingController:
         else:
             minimum_height, _maximum_height = self._manual_resize_bounds()
             self._manual_scroll_height = max(minimum_height, int(height))
+        self._manual_height_layout_signature = None
         if self._manual_scroll_height != previous_height:
             self._manual_scroll_height_changed.emit(self._manual_scroll_height)
         self.handle_surface_content_height_changed(content_height)
@@ -209,6 +221,11 @@ class PromptShellSizingController:
             return
         if self._manual_scroll_height is None:
             return
+        if (
+            self._manual_layout_bounds_signature()
+            == self._manual_height_layout_signature
+        ):
+            return
         if self._manual_height_layout_reapply_pending:
             return
         self._manual_height_layout_reapply_pending = True
@@ -224,6 +241,7 @@ class PromptShellSizingController:
             return
         if self._manual_scroll_height is None:
             return
+        self._manual_height_layout_signature = self._manual_layout_bounds_signature()
         content_height = (
             self._last_content_height
             if self._last_content_height > 0
@@ -442,6 +460,14 @@ class PromptShellSizingController:
         viewport_method = getattr(scroll, "viewport", None)
         viewport = viewport_method() if callable(viewport_method) else None
         return viewport if isinstance(viewport, QWidget) else None
+
+    def _manual_layout_bounds_signature(self) -> tuple[int, int, int]:
+        """Return the parent viewport identity and size governing manual height."""
+
+        viewport = self._manual_resize_bounds_viewport()
+        if viewport is None:
+            return (0, 0, 0)
+        return (id(viewport), viewport.width(), viewport.height())
 
 
 __all__ = [

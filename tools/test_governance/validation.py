@@ -92,6 +92,15 @@ def _validate_policy(root: Path, policy: TestPolicy) -> list[Diagnostic]:
         diagnostics.append(
             Diagnostic("TPOLICY001", "TEST_POLICY.toml", "test_root must exist")
         )
+    for support_root in policy.semantic_support_roots:
+        if not (root / support_root).is_dir():
+            diagnostics.append(
+                Diagnostic(
+                    "TPOLICY004",
+                    "TEST_POLICY.toml",
+                    f"semantic support root {support_root.as_posix()} must exist",
+                )
+            )
     if not (root / policy.serial_policy).is_file():
         diagnostics.append(
             Diagnostic("TPOLICY002", "TEST_POLICY.toml", "serial_policy must exist")

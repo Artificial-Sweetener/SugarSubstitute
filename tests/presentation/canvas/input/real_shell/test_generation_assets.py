@@ -99,7 +99,7 @@ def test_brand_new_inpaint_workflow_materializes_mask_for_long_source_name(
                 and nonzero_red_bounds(exported) is not None
             )
 
-        harness.add_brush_dab(QPoint(200, 150), brush_size=80)
+        harness.add_brush_dab(brush_size=80)
         harness.wait_until(drawn_mask_is_available)
         mask = harness.input_canvas.document.export_mask_image(harness.mask_id)
         assert isinstance(mask, QImage)

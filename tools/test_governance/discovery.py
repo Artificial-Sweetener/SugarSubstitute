@@ -65,6 +65,11 @@ def discover_test_candidates(
         if "__pycache__" in path.parts:
             continue
         candidates.extend(_python_source_candidates(root, path, policy))
+    for support_root in policy.semantic_support_roots:
+        for path in sorted((root / support_root).rglob("*.py")):
+            if "__pycache__" in path.parts or path.is_relative_to(test_root):
+                continue
+            candidates.extend(_semantic_support_source_candidates(root, path))
     return tuple(
         sorted(candidates, key=lambda item: (item.path, item.rule, item.locator))
     )
@@ -244,6 +249,18 @@ def _python_source_candidates(
         )
     )
     return candidates
+
+
+def _semantic_support_source_candidates(root: Path, path: Path) -> list[TestCandidate]:
+    """Discover semantic reliability risks in test-owned support tooling."""
+
+    relative_path = path.relative_to(root).as_posix()
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    return semantic_pattern_candidates(
+        relative_path=relative_path,
+        tree=tree,
+        aliases=import_aliases(tree),
+    )
 
 
 __all__ = [

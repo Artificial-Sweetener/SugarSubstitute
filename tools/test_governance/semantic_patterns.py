@@ -109,6 +109,7 @@ def semantic_pattern_candidates(
             tree=tree,
             aliases=aliases,
         ),
+        *_manual_qt_event_poll_candidates(path=relative_path, tree=tree),
         *_optional_proof_candidates(
             path=relative_path,
             tree=tree,
@@ -386,6 +387,44 @@ def _count_shaped_queued_turn_candidates(
                     line=function.lineno,
                 )
             )
+    return candidates
+
+
+def _manual_qt_event_poll_candidates(
+    *,
+    path: str,
+    tree: ast.Module,
+) -> list[TestCandidate]:
+    """Find polling loops that manually pump Qt instead of observing owner state."""
+
+    candidates: list[TestCandidate] = []
+    ordinal = 0
+    for loop in (node for node in ast.walk(tree) if isinstance(node, ast.While)):
+        process_events_call = next(
+            (
+                node
+                for node in ast.walk(loop)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "processEvents"
+            ),
+            None,
+        )
+        if process_events_call is None:
+            continue
+        ordinal += 1
+        candidates.append(
+            TestCandidate(
+                rule=DRAIN_RULE,
+                path=path,
+                locator=f"<module>:manual-qt-event-poll:{ordinal}",
+                evidence=(
+                    "polling loop manually pumps processEvents instead of waiting "
+                    "on a bounded observable owner condition"
+                ),
+                line=loop.lineno,
+            )
+        )
     return candidates
 
 
