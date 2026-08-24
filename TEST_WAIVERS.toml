@@ -183,7 +183,7 @@ candidates = [
   "ENV001|tests/qualification/comfy/bundled_workflows/rendering_runner.py|<module>._configure_offscreen_environment:environment-mutation:3",
 ]
 paths = ["tests/qualification/comfy/bundled_workflows/rendering_runner.py"]
-fingerprint = "sha256:f3ba4492026034cae1acc671b6c5437f18bb5e149cd3d44cced4c048d22f7d13"
+fingerprint = "sha256:3186fadf601afbaa764b387f4118f13ab748badd0b48e0119486de1530d84050"
 rationale = "This standalone qualification entrypoint first fails closed if Qt is already imported, then establishes its isolated process rendering environment before loading the harness. The mutation is the explicit bootstrap contract for that dedicated child process."
 issue = "chore:SS-TEST-WAIVER-C0190"
 review_by = 2026-12-15
