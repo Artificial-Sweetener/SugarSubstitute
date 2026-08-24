@@ -217,7 +217,7 @@ def test_real_shell_selection_clears_active_autocomplete_surfaces(
     """Clear ghost text and dropdown when an active completion gains selection."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "re")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
     before = real_shell_scenario.snapshots.capture(
         field, label="before-autocomplete-selection"
     )

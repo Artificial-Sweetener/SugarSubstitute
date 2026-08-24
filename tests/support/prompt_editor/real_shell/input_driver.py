@@ -36,6 +36,7 @@ from tests.support.prompt_editor.autocomplete_owner_state import (
     autocomplete_owner_state,
 )
 from tests.support.prompt_editor.real_shell.autocomplete_state import (
+    autocomplete_panel,
     autocomplete_preview_state,
 )
 from tests.support.prompt_editor.real_shell.projection_state import (
@@ -118,6 +119,20 @@ class PromptEditorInputDriver:
         QTest.keyClicks(target, text)
         self._trace_actions.append(PromptEditorTraceAction("type_text", text))
         wait_for_queued_qt_turn()
+
+    def type_text_and_wait_for_autocomplete(
+        self,
+        field: PromptFieldHandle,
+        text: str,
+    ) -> None:
+        """Type text and wait for the complete autocomplete presentation contract."""
+
+        self.type_text(field, text)
+        wait_for_qt_condition(
+            lambda: _autocomplete_is_presented(field.editor),
+            description="prompt-editor autocomplete presentation",
+            state=lambda: _autocomplete_presentation_state(field.editor),
+        )
 
     def paste_text(self, field: PromptFieldHandle, text: str) -> None:
         """Paste text through the real clipboard and editor key route."""
@@ -411,6 +426,34 @@ def _autocomplete_is_dismissed(editor: PromptEditor) -> bool:
         and not projection["autocomplete_ghost_paint_visible_by_owner_state"]
         and not projection["projection_has_pending_update"]
     )
+
+
+def _autocomplete_is_presented(editor: PromptEditor) -> bool:
+    """Return whether every autocomplete presentation owner is ready."""
+
+    autocomplete = autocomplete_owner_state(editor)
+    panel = autocomplete_panel(editor)
+    return bool(
+        autocomplete_preview_state(editor) is not None
+        and autocomplete["has_active"]
+        and autocomplete["presenter_panel_visible"]
+        and panel is not None
+        and panel.isVisible()
+    )
+
+
+def _autocomplete_presentation_state(editor: PromptEditor) -> object:
+    """Return actionable autocomplete state for presentation timeouts."""
+
+    autocomplete = autocomplete_owner_state(editor)
+    panel = autocomplete_panel(editor)
+    return {
+        "preview": autocomplete_preview_state(editor),
+        "session_active": autocomplete["has_active"],
+        "presenter_panel_visible": autocomplete["presenter_panel_visible"],
+        "panel_exists": panel is not None,
+        "panel_visible": bool(panel is not None and panel.isVisible()),
+    }
 
 
 def _click_away_state(
