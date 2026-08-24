@@ -35,14 +35,17 @@ MAX_PARALLEL_TEST_WORKERS = 4
 MAX_ISOLATED_TEST_WORKERS = 4
 
 
-PLATFORM_TEST_MODULES: Final[dict[str, frozenset[CiPlatform]]] = {}
+PLATFORM_TEST_MODULES: Final[dict[str, frozenset[CiPlatform]]] = {
+    # The Windows gateway imports COM bindings that are unavailable before
+    # pytest can apply item-level platform markers on Linux and macOS.
+    "tests/infrastructure/spellcheck/test_windows_gateway.py": frozenset(
+        {CiPlatform.WINDOWS}
+    ),
+}
 
 
 ISOLATED_TEST_MODULES = frozenset(
     {
-        # This qualification owner contacts a live local backend with a bounded
-        # network timeout and must not share an ordinary xdist worker.
-        "tests/qualification/integration/cube_actions/test_live_backend_catalog.py",
         # This real-shell restore qualification can abort after prior native Qt
         # work in one xdist process, while fresh concurrent processes are stable.
         "tests/qualification/prompt_editor/abuse/test_restored_mounts.py",

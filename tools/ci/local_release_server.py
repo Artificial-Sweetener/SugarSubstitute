@@ -68,7 +68,10 @@ class LocalReleaseServer:
         )
         self._server.RequestHandlerClass = self._handler_class()
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        tls.load_cert_chain(certfile=self.certificate_path, keyfile=key_path)
+        tls.load_cert_chain(
+            certfile=self.certificate_path,
+            keyfile=key_path,
+        )
         self._server.socket = tls.wrap_socket(self._server.socket, server_side=True)
         self._thread: Thread | None = None
 
@@ -197,8 +200,10 @@ def _rewrite_qualification_asset(
     mutable_payload["url"] = f"{base_url}/{asset.filename}"
 
 
-def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:
-    """Create a one-day localhost CA certificate trusted only by the harness."""
+def _create_localhost_certificate(
+    certificate_root: Path,
+) -> tuple[Path, Path]:
+    """Create a fast one-day EC localhost CA trusted only by the harness."""
 
     config_path = certificate_root / "openssl-local-release.cnf"
     certificate_path = certificate_root / "localhost.pem"
@@ -214,7 +219,7 @@ def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:
                 "CN = localhost",
                 "[v3_req]",
                 "basicConstraints = critical, CA:TRUE",
-                "keyUsage = critical, digitalSignature, keyEncipherment, keyCertSign",
+                "keyUsage = critical, digitalSignature, keyCertSign",
                 "extendedKeyUsage = serverAuth",
                 "subjectAltName = @alt_names",
                 "[alt_names]",
@@ -231,7 +236,9 @@ def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:
             "req",
             "-x509",
             "-newkey",
-            "rsa:2048",
+            "ec",
+            "-pkeyopt",
+            "ec_paramgen_curve:prime256v1",
             "-nodes",
             "-days",
             "1",
@@ -247,7 +254,7 @@ def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    return certificate_path, key_path
+    return certificate_path.resolve(), key_path.resolve()
 
 
 def _create_qualification_trust_bundle(

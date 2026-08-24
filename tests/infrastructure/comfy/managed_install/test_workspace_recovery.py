@@ -18,9 +18,10 @@
 
 from __future__ import annotations
 
-from __future__ import annotations
 from pathlib import Path
+
 import pytest
+
 from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_existing_setup_operations
 from substitute.infrastructure.comfy import managed_workspace_provisioning
@@ -34,6 +35,12 @@ from .orchestration_support import (
     configure_managed_install,
     manager_runtime,
 )
+
+
+def _reject_hardware_probe(**_kwargs: object) -> None:
+    """Fail when workspace rejection reaches host hardware discovery."""
+
+    raise AssertionError("invalid workspaces must not probe hardware")
 
 
 def test_ensure_managed_comfy_setup_removes_incomplete_workspace_before_install(
@@ -114,17 +121,40 @@ def test_ensure_managed_comfy_setup_removes_incomplete_workspace_before_install(
 
 
 def test_ensure_managed_comfy_setup_rejects_nonempty_unmanaged_workspace(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Managed install should fail closed when the selected folder already has unrelated files."""
+    """Reject unrelated files before probing host hardware."""
 
     tmp_path.mkdir(parents=True, exist_ok=True)
     (tmp_path / "notes.txt").write_text("unexpected", encoding="utf-8")
+    monkeypatch.setattr(
+        managed_install,
+        "detect_hardware",
+        _reject_hardware_probe,
+    )
 
     with pytest.raises(RuntimeError, match="already contains files"):
         managed_install.ensure_managed_comfy_setup(
             workspace=tmp_path,
         )
+
+
+def test_ensure_managed_comfy_setup_rejects_unmanaged_install_before_hardware(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Reject an existing Comfy checkout before probing host hardware."""
+
+    workspace_main_path(tmp_path).write_text("main", encoding="utf-8")
+    monkeypatch.setattr(
+        managed_install,
+        "detect_hardware",
+        _reject_hardware_probe,
+    )
+
+    with pytest.raises(RuntimeError, match="existing installation"):
+        managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
 
 def test_ensure_managed_comfy_setup_migrates_legacy_nested_workspace(

@@ -1929,10 +1929,10 @@ owner = "prompt abuse action dispatch"
 rule = "STRUCT003"
 path = "tools/prompt_editor_abuse/action_driver.py"
 kind = "remediation"
-justification = "The assessed file mixes mounted prompt-editor action host state, keyboard, text, pointer, and event-drain dispatch, source selection and caret projection, context-menu discovery and invocation, token-weight control discovery and interaction. Extract input-family dispatchers and menu/weight-control interaction adapters from the mounted action host."
+justification = "The assessed file mixes mounted prompt-editor action host state, keyboard, text, pointer, and semantic-completion dispatch, source selection and caret projection, context-menu discovery and invocation, token-weight control discovery and interaction. Extract input-family dispatchers and menu/weight-control interaction adapters from the mounted action host."
 issue = "chore:SS-ARCH-094"
 review_by = 2026-12-15
-max_lines = 1027
+max_lines = 1031
 next_limit = 821
 debt = "SS-ARCH-094"
 
@@ -2105,7 +2105,7 @@ kind = "structural"
 justification = "This module owns one user-level driver for the real-shell output canvas. Workflow and output seeding, preview and final delivery, route selection, rendered control interaction, workflow lifecycle, projection waiting, and snapshot capture are operations over the same mounted shell and active output session."
 issue = "chore:SS-WAIVER-S120"
 review_by = 2026-12-15
-max_lines = 619
+max_lines = 618
 
 [[waivers]]
 id = "SS-WAIVER-S126"

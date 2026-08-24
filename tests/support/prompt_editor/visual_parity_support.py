@@ -89,10 +89,9 @@ def ensure_qapp() -> QApplication:
     return cast(QApplication, app)
 
 
-def process_events(app: QApplication, cycles: int = 5) -> None:
+def process_events(app: QApplication) -> None:
     """Deliver callbacks queued by the immediately preceding controlled action."""
 
-    _ = (app, cycles)
     wait_for_queued_qt_turn()
 
 

@@ -1,20 +1,16 @@
 schema_version = 1
 
 [[waivers]]
-id = "SS-TEST-WAIVER-C0193"
-owner = "Live Substitute BackEnd cube catalog qualification"
+id = "SS-TEST-WAIVER-C0267"
+owner = "Supported-platform collection policy"
 kind = "classification"
-disposition = "process_isolated"
-rule = "ISOLATED001"
-candidates = [
-  "ISOLATED001|tests/qualification/integration/cube_actions/test_live_backend_catalog.py|isolated-module",
-]
-paths = [
-  "tests/qualification/integration/cube_actions/test_live_backend_catalog.py",
-]
-fingerprint = "sha256:3122181e05e0a4bb312f751136ca5664daf2c37557017345feb1b636e9a1ecd5"
-rationale = "This qualification module contacts a separately managed local Substitute BackEnd service on its fixed application port with a bounded network timeout. It conditionally proves the real catalog adapter and cube-picker presentation boundary when that service is available, so it requires a fresh process outside ordinary deterministic xdist work while not requiring global serialization with unrelated isolated owners."
-issue = "chore:SS-TEST-WAIVER-C0193"
+disposition = "framework_infrastructure"
+rule = "OPTIONAL001"
+candidates = ["OPTIONAL001|tests/conftest.py|<module>:optional-proof:1"]
+paths = ["tests/conftest.py"]
+fingerprint = "sha256:954223722f0daee87271b5293475f2e2a838e77c43118fe746c2d373b2de27dc"
+rationale = "The central pytest hook translates the repository's explicit platforms marker into collection-time applicability after validating every declared platform name. This is the sole supported-platform exclusion owner; individual tests cannot invoke skip, xfail, retry, or ordering mechanisms, and unsupported-platform collection remains visible in JUnit rather than concealing applicable proof."
+issue = "chore:SS-TEST-WAIVER-C0267"
 review_by = 2026-12-15
 
 [[waivers]]
@@ -38,7 +34,7 @@ disposition = "framework_infrastructure"
 rule = "WAIT001"
 candidates = ["WAIT001|tests/conftest.py|<module>._watch_test_process_resources:wait:time.sleep:1"]
 paths = ["tests/conftest.py"]
-fingerprint = "sha256:2559015cc670fdb20c0a0bfc567fc8e6c0426e9ca42e54f9c49352475d33aa67"
+fingerprint = "sha256:954223722f0daee87271b5293475f2e2a838e77c43118fe746c2d373b2de27dc"
 rationale = "The daemon resource watchdog owns a process-level monitoring cadence rather than test completion. Its sleep bounds diagnostic polling overhead, while each actual test remains governed by a separately tracked monotonic deadline."
 issue = "chore:SS-TEST-WAIVER-C0171"
 review_by = 2026-12-15
@@ -166,7 +162,7 @@ candidates = [
   "ENV001|tests/conftest.py|<module>:environment-mutation:4",
 ]
 paths = ["tests/conftest.py"]
-fingerprint = "sha256:2559015cc670fdb20c0a0bfc567fc8e6c0426e9ca42e54f9c49352475d33aa67"
+fingerprint = "sha256:954223722f0daee87271b5293475f2e2a838e77c43118fe746c2d373b2de27dc"
 rationale = "The root pytest bootstrap is the single process-level owner that establishes headless Qt and application safety variables before test modules import PySide6 or runtime code. These idempotent defaults apply uniformly to each independently isolated pytest worker."
 issue = "chore:SS-TEST-WAIVER-C0188"
 review_by = 2026-12-15

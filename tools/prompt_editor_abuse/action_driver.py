@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from time import perf_counter, thread_time
 from typing import Any, cast
 
@@ -478,6 +479,7 @@ def dispatch_action(
     runtime_telemetry: bool = False,
     counter_probe: PromptAbuseActionCounterProbe | None = None,
     counter_deltas: list[PromptAbuseActionOwnerDelta] | None = None,
+    complete_action: Callable[[], None] | None = None,
 ) -> tuple[PromptAbuseDispatchSample, ...]:
     """Dispatch one action and return low-overhead timing evidence."""
 
@@ -590,6 +592,8 @@ def dispatch_action(
         dispatch_thread_cpu_ms = (thread_time() - thread_cpu_started_at) * 1_000.0
         dispatch_ms = (perf_counter() - started_at) * 1_000.0
         runtime_sample = runtime_probe.finish_sample()
+    if complete_action is not None:
+        complete_action()
     source_exact = _source_matches(editor, action.expected_source)
     caret_exact = _caret_matches(editor, action.expected_cursor_position)
     selection_exact = _anchor_matches(editor, action.expected_anchor_position)

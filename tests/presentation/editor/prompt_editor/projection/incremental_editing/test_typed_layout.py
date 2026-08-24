@@ -25,8 +25,6 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
 from tests.support.prompt_editor.projection_engine_support import (
-    ensure_qapp,
-    process_events,
     show_prompt_editor,
     surface_for,
 )
@@ -39,6 +37,7 @@ from tests.support.prompt_editor.projection_surface_support import (
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
     valid_transient_insertion_overlay,
 )
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 from .support import (
     _projection_line_texts,
@@ -217,7 +216,6 @@ def test_projection_surface_word_edge_typing_keeps_word_wrap_integrity(
 ) -> None:
     """Typing at a wrap edge should coalesce reflow off the keypress lane."""
 
-    app = ensure_qapp()
     box = show_prompt_editor(
         widgets,
         text="alpha beta bl",
@@ -242,15 +240,40 @@ def test_projection_surface_word_edge_typing_keeps_word_wrap_integrity(
         cursor_position=len(box.toPlainText()),
         anchor_position=len(box.toPlainText()),
     )
+    rebuild_count = 0
 
     QTest.keyClicks(box, "ush")
-    process_events(app)
+    wait_for_qt_condition(
+        lambda: (
+            surface.has_pending_projection_update()
+            and surface.has_stale_projection_geometry()
+        ),
+        description="delayed word-edge projection update",
+        state=lambda: {
+            "text": box.toPlainText(),
+            "pending_projection": surface.has_pending_projection_update(),
+            "stale_geometry": surface.has_stale_projection_geometry(),
+            "rebuild_count": rebuild_count,
+        },
+    )
 
     assert surface.has_pending_projection_update() is True
     assert surface.has_stale_projection_geometry() is True
     assert rebuild_count == 0
     flush_projection_update_scheduler(surface)
-    process_events(app)
+    wait_for_qt_condition(
+        lambda: (
+            not surface.has_pending_projection_update()
+            and not surface.has_stale_projection_geometry()
+        ),
+        description="flushed word-edge projection update",
+        state=lambda: {
+            "text": box.toPlainText(),
+            "pending_projection": surface.has_pending_projection_update(),
+            "stale_geometry": surface.has_stale_projection_geometry(),
+            "rebuild_count": rebuild_count,
+        },
+    )
 
     line_texts = _projection_line_texts(surface)
     assert any("blush" in line_text for line_text in line_texts)

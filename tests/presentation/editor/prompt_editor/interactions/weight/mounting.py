@@ -241,9 +241,9 @@ def start_exact_weight_edit(
         weight_point = weight_rect_for(box, token).center().toPoint()
         click_target = box.viewport()
     QTest.mouseClick(click_target, Qt.MouseButton.LeftButton, pos=weight_point)
-    process_events(app, cycles=2)
+    process_events(app)
     QTest.mouseClick(click_target, Qt.MouseButton.LeftButton, pos=weight_point)
-    process_events(app, cycles=4)
+    process_events(app)
     return controls
 
 

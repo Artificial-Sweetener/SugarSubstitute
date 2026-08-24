@@ -24,17 +24,16 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
 
+from tests.presentation.editor.prompt_editor.caret_navigation.support import (
+    _projection_lines,
+)
 from tests.support.prompt_editor.projection_engine_support import (
-    ensure_qapp,
-    process_events,
     show_prompt_editor,
     surface_for,
+    wait_for_caret_geometry,
 )
 from tests.support.prompt_editor.projection_surface_support import (
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
-)
-from tests.presentation.editor.prompt_editor.caret_navigation.support import (
-    _projection_lines,
 )
 
 
@@ -43,7 +42,6 @@ def test_projection_surface_click_empty_space_keeps_short_line_affinity(
 ) -> None:
     """Clicking past short line text should place the caret at that line's end."""
 
-    app = ensure_qapp()
     box = show_prompt_editor(
         widgets,
         text="short row\na very long row with a lot of text on it",
@@ -61,10 +59,16 @@ def test_projection_surface_click_empty_space_keeps_short_line_affinity(
         Qt.MouseButton.LeftButton,
         pos=click_point,
     )
-    process_events(app)
+    expected_rect = first_line.caret_stops[-1].rect
+    wait_for_caret_geometry(
+        box,
+        surface,
+        position=first_line.source_content_end,
+        expected_x=expected_rect.x(),
+        expected_y=expected_rect.y(),
+    )
 
     caret_rect = box.cursorRect()
-    expected_rect = first_line.caret_stops[-1].rect
     assert surface.cursor_position == first_line.source_content_end
     assert caret_rect.x() == pytest.approx(expected_rect.x(), abs=1.0)
     assert caret_rect.y() == pytest.approx(expected_rect.y(), abs=1.0)
@@ -76,7 +80,6 @@ def test_projection_surface_click_wrapped_trailing_edge_keeps_visual_row(
 ) -> None:
     """Clicking a wrapped row's right edge should not jump to next-row leading x."""
 
-    app = ensure_qapp()
     box = show_prompt_editor(
         widgets,
         text="alpha beta gamma delta epsilon zeta eta theta iota kappa lambda",
@@ -94,10 +97,16 @@ def test_projection_surface_click_wrapped_trailing_edge_keeps_visual_row(
         Qt.MouseButton.LeftButton,
         pos=click_point,
     )
-    process_events(app)
+    expected_rect = first_line.caret_stops[-1].rect
+    wait_for_caret_geometry(
+        box,
+        surface,
+        position=first_line.source_content_end,
+        expected_x=expected_rect.x(),
+        expected_y=expected_rect.y(),
+    )
 
     caret_rect = box.cursorRect()
-    expected_rect = first_line.caret_stops[-1].rect
     assert surface.cursor_position == first_line.source_content_end
     assert caret_rect.x() == pytest.approx(expected_rect.x(), abs=1.0)
     assert caret_rect.y() == pytest.approx(expected_rect.y(), abs=1.0)
@@ -109,7 +118,6 @@ def test_projection_surface_click_wrapped_leading_edge_uses_clicked_row(
 ) -> None:
     """Clicking the next wrapped row's left edge should keep that row affinity."""
 
-    app = ensure_qapp()
     box = show_prompt_editor(
         widgets,
         text="alpha beta gamma delta epsilon zeta eta theta iota kappa lambda",
@@ -128,7 +136,13 @@ def test_projection_surface_click_wrapped_leading_edge_uses_clicked_row(
         Qt.MouseButton.LeftButton,
         pos=click_point,
     )
-    process_events(app)
+    wait_for_caret_geometry(
+        box,
+        surface,
+        position=second_line.source_content_start,
+        expected_x=expected_rect.x(),
+        expected_y=expected_rect.y(),
+    )
 
     caret_rect = box.cursorRect()
     assert surface.cursor_position == second_line.source_content_start
@@ -141,7 +155,6 @@ def test_projection_surface_inside_text_click_preserves_boundary_precision(
 ) -> None:
     """Clicking inside text should still use the nearest glyph boundary."""
 
-    app = ensure_qapp()
     box = show_prompt_editor(
         widgets,
         text="alpha beta",
@@ -161,7 +174,13 @@ def test_projection_surface_inside_text_click_preserves_boundary_precision(
         Qt.MouseButton.LeftButton,
         pos=expected_rect.center().toPoint(),
     )
-    process_events(app)
+    wait_for_caret_geometry(
+        box,
+        surface,
+        position=expected_position,
+        expected_x=expected_rect.x(),
+        expected_y=expected_rect.y(),
+    )
 
     caret_rect = box.cursorRect()
     assert surface.cursor_position == expected_position

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 import threading
 from pathlib import Path
 
@@ -65,6 +66,9 @@ def test_isolated_runner_overlaps_modules_and_reports_all_failures(
             module_path=module_path,
             return_code=1 if module_path.endswith(("b.py", "c.py")) else 0,
             output=f"output for {module_path}",
+            started_at_utc="2026-08-24T00:00:00+00:00",
+            duration_seconds=1.25,
+            runner_slot="isolated-test-module_0",
         )
 
     monkeypatch.setattr(isolated_runner, "run_test_module", run_module)
@@ -80,3 +84,19 @@ def test_isolated_runner_overlaps_modules_and_reports_all_failures(
     assert len(set(observed_temp_roots)) == 1
     assert not observed_temp_roots[0].exists()
     assert failures == ("tests/test_b.py", "tests/test_c.py")
+    summary = json.loads(
+        (tmp_path / "results/execution-summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["lane"] == "isolated"
+    assert summary["worker_count"] == 2
+    assert summary["module_count"] == 3
+    assert summary["passed_count"] == 1
+    assert summary["failed_count"] == 2
+    assert [module["module_path"] for module in summary["modules"]] == [
+        "tests/test_a.py",
+        "tests/test_b.py",
+        "tests/test_c.py",
+    ]
+    assert {module["runner_slot"] for module in summary["modules"]} == {
+        "isolated-test-module_0"
+    }

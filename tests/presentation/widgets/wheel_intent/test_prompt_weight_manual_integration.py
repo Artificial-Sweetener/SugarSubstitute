@@ -189,7 +189,7 @@ def test_phase25_1_prompt_weight_manual_arrow_preserves_scroll_position() -> Non
     scrollbar = box.verticalScrollBar()
     assert scrollbar.maximum() > 0
     scrollbar.setValue(scrollbar.maximum())
-    process_events(app, cycles=8)
+    process_events(app)
     token = _first_weighted_token(box)
 
     _reveal_weight_controls_without_dwell(box, token)

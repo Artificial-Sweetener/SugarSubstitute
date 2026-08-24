@@ -92,7 +92,7 @@ def test_prompt_editor_paste_projects_rich_tokens_immediately(
     )
 
     box.paste()
-    process_events(app, cycles=1)
+    process_events(app)
 
     assert box.toPlainText() == (
         "best quality, score_7, ppw, masterpiece,\n"

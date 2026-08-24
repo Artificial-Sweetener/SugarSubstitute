@@ -101,3 +101,43 @@ def test_run_test_module_reports_timeout_with_captured_output(
     assert not result.passed
     assert "exceeded 7 seconds" in result.output
     assert "last child output" in result.output
+
+
+def test_run_test_module_promotes_failed_module_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Preserve replay evidence before the partition temporary root is removed."""
+
+    def fail(
+        command: tuple[str, ...], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        """Create one module-owned diagnostic before returning a failed process."""
+
+        base_temp_argument = next(
+            argument for argument in command if argument.startswith("--basetemp=")
+        )
+        base_temp = Path(base_temp_argument.removeprefix("--basetemp="))
+        artifact = base_temp / "prompt-editor-artifacts" / "replay.json"
+        artifact.parent.mkdir(parents=True)
+        artifact.write_text('{"seed": 17}', encoding="utf-8")
+        return subprocess.CompletedProcess(command, 1, stdout="failed test output")
+
+    monkeypatch.setattr(subprocess, "run", fail)
+
+    result = test_module_process.run_test_module(
+        project_root=tmp_path,
+        module_path="tests/test_failed.py",
+        junit_directory=tmp_path / "results",
+        base_temp_root=tmp_path / "temporary",
+    )
+
+    assert result.failure_artifact_path == (
+        tmp_path / "results/failure-artifacts/tests__test_failed"
+    )
+    assert (
+        result.failure_artifact_path / "prompt-editor-artifacts/replay.json"
+    ).read_text(encoding="utf-8") == '{"seed": 17}'
+    assert result.started_at_utc
+    assert result.duration_seconds >= 0.0
+    assert result.runner_slot

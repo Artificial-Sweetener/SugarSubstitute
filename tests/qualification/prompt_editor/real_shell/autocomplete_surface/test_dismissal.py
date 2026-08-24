@@ -65,7 +65,7 @@ def test_real_shell_click_away_clears_ghost_and_dropdown(
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
     real_shell_scenario.input.type_text(field, "re")
     before = real_shell_scenario.snapshots.capture(field, label="before-click-away")
-    real_shell_scenario.input.click_away_from_editor()
+    real_shell_scenario.input.click_away_from_editor(field)
     after = real_shell_scenario.snapshots.capture(field, label="after-click-away")
 
     _assert_no_dismissal_violations(
@@ -92,7 +92,7 @@ def test_real_shell_backpack_click_away_clears_basket_ghost(
         field,
         label="before-backpack-click-away",
     )
-    real_shell_scenario.input.click_away_from_editor()
+    real_shell_scenario.input.click_away_from_editor(field)
     after = real_shell_scenario.snapshots.capture(
         field,
         label="after-backpack-click-away",

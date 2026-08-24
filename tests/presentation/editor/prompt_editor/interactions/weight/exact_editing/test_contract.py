@@ -107,11 +107,11 @@ def test_lora_exact_weight_edit_commits_exact_value(
     start_exact_weight_edit(box, token)
 
     QTest.keyClicks(box, "1.25")
-    process_events(ensure_qapp(), cycles=2)
+    process_events(ensure_qapp())
     assert exact_weight_edit_token(box) is not None
 
     QTest.keyClick(box, Qt.Key.Key_Return)
-    process_events(ensure_qapp(), cycles=4)
+    process_events(ensure_qapp())
 
     assert box.toPlainText() == "<lora:Mineru:1.25>"
     assert exact_weight_edit_token(box) is None
@@ -139,7 +139,7 @@ def test_double_clicking_emphasis_words_selects_only_the_inner_prompt_text(
     )
 
     QTest.mouseDClick(box.viewport(), Qt.MouseButton.LeftButton, pos=word_point)
-    process_events(app, cycles=4)
+    process_events(app)
 
     cursor = box.textCursor()
     assert exact_weight_edit_token(box) is None
@@ -167,7 +167,7 @@ def test_double_clicking_emphasis_parens_selects_only_the_inner_prompt_text(
     paren_point = QPoint(int(token_rect.left() + 1), int(token_rect.center().y()))
 
     QTest.mouseDClick(box.viewport(), Qt.MouseButton.LeftButton, pos=paren_point)
-    process_events(app, cycles=4)
+    process_events(app)
 
     cursor = box.textCursor()
     assert exact_weight_edit_token(box) is None
@@ -198,7 +198,7 @@ def test_double_clicking_emphasis_arrows_does_not_start_exact_edit_mode(
         Qt.KeyboardModifier.NoModifier,
         controls.mapFromParent(controls.increase_rect.center().toPoint()),
     )
-    process_events(ensure_qapp(), cycles=4)
+    process_events(ensure_qapp())
     assert exact_weight_edit_token(box) is None
 
     token = emphasis_token_for(box)
@@ -210,7 +210,7 @@ def test_double_clicking_emphasis_arrows_does_not_start_exact_edit_mode(
         Qt.KeyboardModifier.NoModifier,
         controls.mapFromParent(controls.decrease_rect.center().toPoint()),
     )
-    process_events(ensure_qapp(), cycles=4)
+    process_events(ensure_qapp())
     assert exact_weight_edit_token(box) is None
 
 
@@ -236,9 +236,9 @@ def test_weight_click_candidate_cannot_promote_overlap_down_click_into_exact_edi
     overlap_point = controls.mapFromParent(overlap_rect.center().toPoint())
 
     QTest.mouseClick(controls, Qt.MouseButton.LeftButton, pos=weight_point)
-    process_events(ensure_qapp(), cycles=2)
+    process_events(ensure_qapp())
     QTest.mouseClick(controls, Qt.MouseButton.LeftButton, pos=overlap_point)
-    process_events(ensure_qapp(), cycles=4)
+    process_events(ensure_qapp())
 
     assert exact_weight_edit_token(box) is None
     assert box.toPlainText() == "(cat:1.05)"
@@ -258,13 +258,13 @@ def test_exact_weight_edit_commits_exact_value_and_hides_step_controls(
     controls = start_exact_weight_edit(box, token)
 
     QTest.keyClicks(box, "1.20")
-    process_events(ensure_qapp(), cycles=2)
+    process_events(ensure_qapp())
     assert exact_weight_edit_token(box) is not None
     assert controls.increase_rect is None
     assert controls.decrease_rect is None
 
     QTest.keyClick(box, Qt.Key.Key_Return)
-    process_events(ensure_qapp(), cycles=4)
+    process_events(ensure_qapp())
 
     assert box.toPlainText() == "(cat:1.20)"
     assert exact_weight_edit_token(box) is None
@@ -285,7 +285,7 @@ def test_exact_weight_edit_commits_negative_emphasis_value(
 
     QTest.keyClicks(box, "-0.25")
     QTest.keyClick(box, Qt.Key.Key_Return)
-    process_events(ensure_qapp(), cycles=4)
+    process_events(ensure_qapp())
 
     assert box.toPlainText() == "(cat:-0.25)"
     assert emphasis_token_for(box).value_text == "-0.25"
@@ -307,7 +307,7 @@ def test_exact_weight_edit_committing_one_unwraps_to_plain_text(
 
     QTest.keyClicks(box, "1")
     QTest.keyClick(box, Qt.Key.Key_Return)
-    process_events(ensure_qapp(), cycles=4)
+    process_events(ensure_qapp())
 
     assert box.toPlainText() == "cat"
 
@@ -328,7 +328,7 @@ def test_exact_weight_edit_can_restore_subneutral_emphasis_from_transient_neutra
     assert controls.decrease_rect is not None
 
     click_control_rect(controls, controls.decrease_rect)
-    process_events(ensure_qapp(), cycles=4)
+    process_events(ensure_qapp())
     synthetic_token = controls.visible_token
     assert synthetic_token is not None
     assert synthetic_token.synthetic is True
@@ -336,7 +336,7 @@ def test_exact_weight_edit_can_restore_subneutral_emphasis_from_transient_neutra
     start_exact_weight_edit(box, synthetic_token)
     QTest.keyClicks(box, "0.95")
     QTest.keyClick(box, Qt.Key.Key_Return)
-    process_events(ensure_qapp(), cycles=4)
+    process_events(ensure_qapp())
 
     assert box.toPlainText() == "(cat:0.95)"
 
@@ -356,7 +356,7 @@ def test_exact_weight_edit_escape_cancels_without_mutating_the_prompt(
 
     QTest.keyClicks(box, "1.20")
     QTest.keyClick(box, Qt.Key.Key_Escape)
-    process_events(ensure_qapp(), cycles=4)
+    process_events(ensure_qapp())
 
     assert box.toPlainText() == "(cat:1.05)"
     assert exact_weight_edit_token(box) is None
@@ -402,7 +402,7 @@ def test_exact_weight_edit_outside_click_commits_and_still_reaches_editor(
     token = emphasis_token_for(box)
     start_exact_weight_edit(box, token)
     QTest.keyClicks(box, "1.20")
-    process_events(app, cycles=2)
+    process_events(app)
     token_rect = token_rect_for(box, emphasis_token_for(box))
     click_point = QPoint(int(token_rect.left() + 2), int(token_rect.center().y()))
     expected_position = (
@@ -415,7 +415,7 @@ def test_exact_weight_edit_outside_click_commits_and_still_reaches_editor(
     )
 
     QTest.mouseClick(box.viewport(), Qt.MouseButton.LeftButton, pos=click_point)
-    process_events(app, cycles=4)
+    process_events(app)
 
     assert box.toPlainText() == "(cat:1.20)"
     assert exact_weight_edit_token(box) is None
@@ -436,7 +436,7 @@ def test_exact_weight_edit_invalid_outside_click_cancels_and_still_reaches_edito
     token = emphasis_token_for(box)
     start_exact_weight_edit(box, token)
     QTest.keyClick(box, Qt.Key.Key_Backspace)
-    process_events(app, cycles=2)
+    process_events(app)
     token_rect = token_rect_for(box, emphasis_token_for(box))
     click_point = QPoint(int(token_rect.left() + 2), int(token_rect.center().y()))
     expected_position = (
@@ -449,7 +449,7 @@ def test_exact_weight_edit_invalid_outside_click_cancels_and_still_reaches_edito
     )
 
     QTest.mouseClick(box.viewport(), Qt.MouseButton.LeftButton, pos=click_point)
-    process_events(app, cycles=4)
+    process_events(app)
 
     assert box.toPlainText() == "(cat:1.05)"
     assert exact_weight_edit_token(box) is None

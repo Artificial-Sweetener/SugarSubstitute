@@ -23,9 +23,11 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from time import perf_counter
 
 from tests.ci_test_policy import SERIAL_TEST_MODULES
 from tools.ci.test_module_process import TestModuleRun, run_test_module
+from tools.ci.test_partition_summary import write_test_partition_summary
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,6 +42,8 @@ def run_serial_test_modules(
     """Run all serial modules independently and return the failing paths."""
 
     junit_directory.mkdir(parents=True, exist_ok=True)
+    started_at = perf_counter()
+    runs: list[TestModuleRun] = []
     with TemporaryDirectory(prefix="sugarsubstitute-serial-") as temp_directory:
         base_temp_root = Path(temp_directory)
         failures: list[str] = []
@@ -52,10 +56,18 @@ def run_serial_test_modules(
                 junit_directory=junit_directory,
                 base_temp_root=base_temp_root,
             )
+            runs.append(result)
             if not result.passed:
                 failures.append(module_path)
                 _log_failure(result)
-        return tuple(failures)
+    write_test_partition_summary(
+        junit_directory=junit_directory,
+        lane="serial",
+        worker_count=1,
+        duration_seconds=perf_counter() - started_at,
+        runs=tuple(runs),
+    )
+    return tuple(failures)
 
 
 def _log_failure(result: TestModuleRun) -> None:

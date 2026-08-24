@@ -175,7 +175,7 @@ def click_control_rect(overlay: QWidget, host_rect: QRectF) -> None:
         Qt.KeyboardModifier.NoModifier,
         local_point,
     )
-    process_events(app, cycles=4)
+    process_events(app)
 
 
 def wheel_viewport_at_point(
@@ -199,7 +199,7 @@ def wheel_viewport_at_point(
         False,
     )
     QApplication.sendEvent(box.viewport(), wheel_event)
-    process_events(app, cycles=4)
+    process_events(app)
     return wheel_event.isAccepted()
 
 

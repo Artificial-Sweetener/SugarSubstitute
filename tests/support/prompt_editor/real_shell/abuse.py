@@ -55,7 +55,7 @@ class PromptEditorStateSnapshotCapture(Protocol):
         field: PromptFieldHandle,
         *,
         label: str,
-        settle_cycles: int = 6,
+        settle: bool = True,
     ) -> PromptEditorStateSnapshot:
         """Capture the real-shell editor state for one abuse boundary."""
 
@@ -238,7 +238,7 @@ class PromptEditorAbuseCampaign:
             self._input.switch_canvas("Output")
             self._input.switch_canvas("Input")
         else:
-            self._input.click_away_from_editor()
+            self._input.click_away_from_editor(field)
             self._input.focus_editor(field)
         return action
 

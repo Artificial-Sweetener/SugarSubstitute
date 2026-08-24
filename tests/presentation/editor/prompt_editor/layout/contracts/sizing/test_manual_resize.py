@@ -300,17 +300,17 @@ def test_prompt_editor_manual_height_catches_up_when_layout_bounds_expand() -> N
     host.resize(360, constrained_height)
     scroll_area.setGeometry(host.rect())
     host.show()
-    support.process_events(app, cycles=8)
+    support.process_events(app)
     changes: list[object] = []
     box.manualScrollHeightChanged.connect(changes.append)
     restored_height = support.default_scroll_height(box) * 6
 
     support.set_manual_scroll_height(box, restored_height)
-    support.process_events(app, cycles=8)
+    support.process_events(app)
     constrained_box_height = box.height()
     host.resize(360, restored_height * 2)
     scroll_area.setGeometry(host.rect())
-    support.process_events(app, cycles=12)
+    support.process_events(app)
 
     assert box.manualScrollHeight() == restored_height
     assert constrained_box_height < restored_height
@@ -363,7 +363,9 @@ def test_prompt_editor_manual_resize_refreshes_editor_panel_scroll_metrics(
     scroll_area.setWidget(content)
     scroll_area.resize(360, support.default_scroll_height(box) + box.lineHeight())
     scroll_area.show()
-    support.process_events(app)
+    support.semantic_wait.wait_for_qt_condition(
+        lambda: scroll_area.verticalScrollBar().maximum() > 0
+    )
     refresh_count = 0
 
     def record_refresh() -> None:
@@ -374,7 +376,12 @@ def test_prompt_editor_manual_resize_refreshes_editor_panel_scroll_metrics(
     original_maximum = scroll_area.verticalScrollBar().maximum()
 
     support.set_manual_scroll_height(box, box.height() + box.lineHeight() * 4)
-    support.process_events(app, cycles=8)
+    support.semantic_wait.wait_for_qt_condition(
+        lambda: (
+            refresh_count > 0
+            and scroll_area.verticalScrollBar().maximum() > original_maximum
+        )
+    )
 
     assert refresh_count > 0
     assert scroll_area.verticalScrollBar().maximum() > original_maximum

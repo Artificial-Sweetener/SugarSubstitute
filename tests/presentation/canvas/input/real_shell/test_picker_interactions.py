@@ -111,9 +111,8 @@ def test_live_picker_preview_is_passive_to_editor_panel_wheel_scrolling(
         assert isinstance(scroll, EditorPanelScrollSurface)
         scroll.resize(500, 320)
         scroll.refresh_metrics_now()
-        harness.process_events(6)
         bar = scroll.verticalScrollBar()
-        assert bar.maximum() > 0
+        harness.wait_until(lambda: bar.maximum() > 0)
         harness.add_rectangle(QRectF(24.0, 20.0, 80.0, 70.0))
 
         for picker in (harness.image_picker, harness.mask_picker):
@@ -131,7 +130,7 @@ def test_live_picker_preview_is_passive_to_editor_panel_wheel_scrolling(
                 False,
             )
             QApplication.sendEvent(picker.preview_surface, event)
-            harness.process_events(4)
+            harness.wait_until(lambda: bar.value() > 0)
 
             assert bar.value() > 0
             assert preview.canvas.viewportSpec() == before_spec

@@ -104,9 +104,9 @@ def test_overlay_owned_transient_neutral_emphasis_clears_when_controls_hide(
         box.viewport(),
         QPoint(max(1, box.viewport().width() - 3), max(1, box.viewport().height() - 3)),
     )
-    process_events(app, cycles=3)
+    process_events(app)
     wait_for_hide_linger_timeout(controls)
-    process_events(app, cycles=3)
+    process_events(app)
 
     tokens = [
         token

@@ -38,6 +38,8 @@ from sugarsubstitute_shared.windows_long_paths import (
 )
 from substitute.infrastructure.process.hidden_process_runner import run_command
 
+pytestmark = pytest.mark.platforms("windows")
+
 
 def test_operational_path_preserves_logical_text_across_child_paths(
     tmp_path: Path,
@@ -55,7 +57,6 @@ def test_operational_path_preserves_logical_text_across_child_paths(
     assert "\\\\?\\" not in str(child)
 
 
-@pytest.mark.platforms("windows")
 def test_operational_path_relative_derivatives_remain_filesystem_safe(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -76,7 +77,6 @@ def test_operational_path_relative_derivatives_remain_filesystem_safe(
     assert os.fspath(relative) == str(Path("package") / "module.py")
 
 
-@pytest.mark.platforms("windows")
 def test_operational_path_supports_owned_files_beyond_max_path(
     tmp_path: Path,
 ) -> None:
@@ -105,7 +105,6 @@ def test_operational_path_supports_owned_files_beyond_max_path(
     assert root.resolve() == root
 
 
-@pytest.mark.platforms("windows")
 def test_operational_path_rejects_an_unrepresentable_component(
     tmp_path: Path,
 ) -> None:
@@ -115,7 +114,6 @@ def test_operational_path_rejects_an_unrepresentable_component(
         operational_path(tmp_path / ("x" * 256) / "file.txt")
 
 
-@pytest.mark.platforms("windows")
 def test_subprocess_path_uses_extended_namespace_only_when_required(
     tmp_path: Path,
 ) -> None:
@@ -130,7 +128,6 @@ def test_subprocess_path_uses_extended_namespace_only_when_required(
     assert subprocess_path(long_path) == extended_length_path(str(long_path.absolute()))
 
 
-@pytest.mark.platforms("windows")
 def test_external_error_classifier_preserves_component_and_logical_path(
     tmp_path: Path,
 ) -> None:
@@ -151,7 +148,6 @@ def test_external_error_classifier_preserves_component_and_logical_path(
     assert "WinError 206" in classified.detail
 
 
-@pytest.mark.platforms("windows")
 def test_hidden_python_process_runs_inside_long_working_directory(
     tmp_path: Path,
 ) -> None:

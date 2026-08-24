@@ -291,6 +291,7 @@ class PromptWorkflowMounts:
     def activate_workflow(self, alias: str, *, force_refresh: bool = True) -> None:
         """Activate one workflow through the production workspace coordinator."""
 
+        self._shell.activate_for_input()
         workflow_id = self._handles[alias].workflow_id
         self._shell.workflow_workspace.activate_workflow(
             workflow_id,

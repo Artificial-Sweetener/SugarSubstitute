@@ -38,13 +38,15 @@ from tests.support.prompt_editor.projection_surface_support import (  # noqa: F4
     projection_surface_widgets as _projection_surface_widgets,
 )
 from tests.support.prompt_editor.projection_engine_support import (
-    ensure_qapp,
-    process_events,
     show_prompt_editor,
     surface_for,
 )
 
-from .support import _diagnostic_fragments, _observe_source_range_fragment_lookups
+from .support import (
+    _diagnostic_fragments,
+    _observe_source_range_fragment_lookups,
+    wait_for_diagnostic_layer,
+)
 
 
 def test_projection_surface_rejects_superseded_diagnostic_warm_work(
@@ -53,7 +55,6 @@ def test_projection_surface_rejects_superseded_diagnostic_warm_work(
 ) -> None:
     """A newer diagnostic revision must cancel queued fragment preparation."""
 
-    app = ensure_qapp()
     source = "alpha bravo charlie delta echo foxtrot golf"
     box = show_prompt_editor(widgets, text=source, width=520)
     surface = surface_for(box)
@@ -113,7 +114,7 @@ def test_projection_surface_rejects_superseded_diagnostic_warm_work(
     )
     surface.set_diagnostics(old_diagnostics)
     surface.set_diagnostics((latest_diagnostic,))
-    process_events(app)
+    wait_for_diagnostic_layer(surface, has_underlines=True)
 
     owner = cast(Any, surface)._diagnostic_layer_owner
     assert fragment_queries == [(latest_start, latest_end)]

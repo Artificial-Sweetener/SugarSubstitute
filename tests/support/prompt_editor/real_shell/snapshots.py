@@ -117,11 +117,11 @@ class PromptEditorSnapshotCapture:
         field: PromptFieldHandle,
         *,
         label: str,
-        settle_cycles: int = 6,
+        settle: bool = True,
     ) -> PromptEditorStateSnapshot:
         """Capture headless shell, editor, autocomplete, projection diagnostics."""
 
-        if settle_cycles:
+        if settle:
             wait_for_queued_qt_turn()
 
         editor = field.editor

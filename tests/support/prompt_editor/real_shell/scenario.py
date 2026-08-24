@@ -166,6 +166,7 @@ class PromptEditorRealShellScenario:
         )
         self.input = PromptEditorInputDriver(
             shell=self.shell,
+            shell_activator=self.shell.activate_for_input,
             input_canvas_provider=lambda: cast(
                 QWidget, self.shell.canvas_host.canvas_for("Input")
             ),
@@ -241,10 +242,17 @@ class PromptEditorRealShellScenario:
         predicate: Callable[[], bool],
         *,
         timeout_ms: int = 3000,
+        description: str = "real-shell state",
+        state: Callable[[], object] | None = None,
     ) -> None:
         """Wait for one observable shell state through the semantic Qt boundary."""
 
-        wait_for_qt_condition(predicate, timeout_ms=timeout_ms)
+        wait_for_qt_condition(
+            predicate,
+            timeout_ms=timeout_ms,
+            description=description,
+            state=state,
+        )
 
     def wait_for_queued_delivery(self) -> None:
         """Deliver callbacks queued by the preceding real-shell operation."""

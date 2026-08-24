@@ -77,7 +77,7 @@ class PromptEditorTraceReplay:
                     modifiers=Qt.KeyboardModifier(action.modifiers),
                 )
             elif action.kind == "click_away":
-                self._input.click_away_from_editor()
+                self._input.click_away_from_editor(field)
             elif action.kind == "switch_canvas":
                 self._input.switch_canvas(action.value)
             elif action.kind == "activate_workflow":

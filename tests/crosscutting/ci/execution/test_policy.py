@@ -21,11 +21,12 @@ from __future__ import annotations
 import ast
 import configparser
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
 
-from tests.conftest import pytest_ignore_collect
+from tests import conftest as test_bootstrap
 from tests.ci_test_policy import (
     ISOLATED_TEST_MODULES,
     PLATFORM_TEST_MODULES,
@@ -97,6 +98,25 @@ def test_repository_pytest_config_does_not_share_a_session_temp_root() -> None:
     parser.read(PROJECT_ROOT / "pytest.ini", encoding="utf-8")
 
     assert "--basetemp" not in parser["pytest"]["addopts"]
+
+
+def test_junit_evidence_records_worker_local_execution_order() -> None:
+    """Preserve worker and predecessor evidence without changing test semantics."""
+
+    sequence_key = test_bootstrap._TEST_EXECUTION_SEQUENCE  # noqa: SLF001
+    config = cast(
+        pytest.Config,
+        SimpleNamespace(stash={sequence_key: 4}, workerinput={"workerid": "gw2"}),
+    )
+    item = cast(pytest.Item, SimpleNamespace(config=config, user_properties=[]))
+
+    test_bootstrap.pytest_runtest_setup(item)
+
+    assert item.user_properties == [
+        ("execution_worker", "gw2"),
+        ("execution_sequence", 5),
+    ]
+    assert config.stash[sequence_key] == 5
 
 
 @pytest.mark.parametrize(
@@ -192,20 +212,47 @@ def test_output_navigation_contract_remains_in_ordinary_parallel_ci() -> None:
 def test_platform_module_inventory_references_existing_test_modules() -> None:
     """Keep pre-import platform applicability explicit and free of stale paths."""
 
-    assert PLATFORM_TEST_MODULES == {}
+    assert PLATFORM_TEST_MODULES == {
+        "tests/infrastructure/spellcheck/test_windows_gateway.py": frozenset(
+            {CiPlatform.WINDOWS}
+        )
+    }
     assert all(
         (PROJECT_ROOT / relative_path).is_file()
         for relative_path in PLATFORM_TEST_MODULES
     )
 
 
-def test_empty_platform_inventory_bypasses_path_resolution() -> None:
-    """Avoid path work when no module needs pre-import platform filtering."""
+@pytest.mark.parametrize(
+    ("current_platform", "expected_ignored"),
+    [
+        (CiPlatform.WINDOWS, False),
+        (CiPlatform.LINUX, True),
+        (CiPlatform.MACOS, True),
+    ],
+)
+def test_platform_inventory_filters_modules_before_unsupported_imports(
+    monkeypatch: pytest.MonkeyPatch,
+    current_platform: CiPlatform,
+    expected_ignored: bool,
+) -> None:
+    """Apply reviewed module applicability before pytest imports test source."""
 
-    assert PLATFORM_TEST_MODULES == {}
+    monkeypatch.setattr(
+        test_bootstrap,
+        "current_test_platform",
+        lambda: current_platform,
+    )
     assert (
-        pytest_ignore_collect(
-            cast(Path, object()),
+        test_bootstrap.pytest_ignore_collect(
+            PROJECT_ROOT / "tests/infrastructure/spellcheck/test_windows_gateway.py",
+            cast(pytest.Config, object()),
+        )
+        is expected_ignored
+    )
+    assert (
+        test_bootstrap.pytest_ignore_collect(
+            PROJECT_ROOT / "tests/conftest.py",
             cast(pytest.Config, object()),
         )
         is None

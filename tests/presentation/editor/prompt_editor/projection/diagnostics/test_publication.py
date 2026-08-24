@@ -43,11 +43,11 @@ from tests.support.prompt_editor.projection_surface_support import (  # noqa: F4
     projection_surface_widgets as _projection_surface_widgets,
 )
 from tests.support.prompt_editor.projection_engine_support import (
-    ensure_qapp,
-    process_events,
     show_prompt_editor,
     surface_for,
 )
+
+from .support import wait_for_diagnostic_layer
 
 
 def test_projection_surface_paint_consumes_published_diagnostic_layer(
@@ -56,7 +56,6 @@ def test_projection_surface_paint_consumes_published_diagnostic_layer(
 ) -> None:
     """Paint must not filter diagnostics, query geometry, or select wave assets."""
 
-    app = ensure_qapp()
     word = "missspelledword"
     box = show_prompt_editor(widgets, text=word, width=360)
     surface = surface_for(box)
@@ -73,7 +72,7 @@ def test_projection_surface_paint_consumes_published_diagnostic_layer(
             ),
         )
     )
-    process_events(app)
+    wait_for_diagnostic_layer(surface, has_underlines=True)
     owner = cast(Any, surface)._diagnostic_layer_owner
     assert owner.layer.underlines
     assert owner.layer.wave_tile is not None
@@ -105,7 +104,6 @@ def test_projection_surface_selection_republishes_diagnostic_layer(
 ) -> None:
     """Selection changes must hide and restore diagnostics before paint."""
 
-    app = ensure_qapp()
     word = "missspelledword"
     box = show_prompt_editor(widgets, text=word, width=360)
     surface = surface_for(box)
@@ -122,7 +120,7 @@ def test_projection_surface_selection_republishes_diagnostic_layer(
             ),
         )
     )
-    process_events(app)
+    wait_for_diagnostic_layer(surface, has_underlines=True)
     owner = cast(Any, surface)._diagnostic_layer_owner
     assert owner.layer.underlines
 
@@ -133,13 +131,13 @@ def test_projection_surface_selection_republishes_diagnostic_layer(
     )
     owner.refresh(reason="selection_changed")
 
-    assert not owner.layer.underlines
+    wait_for_diagnostic_layer(surface, has_underlines=False)
 
     editing_session.set_cursor_positions(
         cursor_position=len(word),
         anchor_position=len(word),
     )
     owner.refresh(reason="selection_changed")
-    process_events(app)
+    wait_for_diagnostic_layer(surface, has_underlines=True)
 
     assert owner.layer.underlines

@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
+import warnings
 
 from PySide6.QtCore import (
     Qt,
@@ -28,6 +29,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import (
+    QApplication,
     QHBoxLayout,
     QMainWindow,
     QPushButton,
@@ -364,7 +366,23 @@ class PromptEditorRealShell(QMainWindow):
             output_canvas=self.output_canvas,
         )
         self.canvas_host.activate_canvas("Input", keyboard_focus=False)
+        self.activate_for_input()
+
+    def activate_for_input(self) -> None:
+        """Own the active top-level precondition for native harness input."""
+
         self.show()
+        self.raise_()
+        self.activateWindow()
+        if QApplication.activeWindow() is self:
+            return
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"Function: 'QApplication\.setActiveWindow.*",
+                category=DeprecationWarning,
+            )
+            QApplication.setActiveWindow(self)
 
     def install_workflow_surface(self, workflow_id: str) -> None:
         """Install real workflow widgets used by coordinator route switching."""
