@@ -98,7 +98,7 @@ def test_prompt_editor_projection_palette_refreshes_after_qfluent_theme_switch()
             process_events(app)
 
             setTheme(Theme.LIGHT)
-            process_events(app, cycles=10)
+            process_events(app)
 
             projection_palette = (
                 prompt_editor._surface._layout.frame.paint_input.palette

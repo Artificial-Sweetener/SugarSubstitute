@@ -26,14 +26,16 @@ from substitute.infrastructure.spellcheck.windows_spellcheck_gateway import (
     WindowsSpellCheckGateway,
 )
 
+pytestmark = pytest.mark.platforms("windows")
 
-@pytest.mark.platforms("windows")
+
 def test_windows_spellcheck_gateway_can_check_from_worker_thread() -> None:
     """Create COM checkers in the calling worker thread."""
 
     gateway = WindowsSpellCheckGateway(language_tag="en-US")
-    if not gateway.is_available():
-        pytest.skip(gateway.availability_reason() or "Windows spellcheck unavailable")
+    assert gateway.is_available(), (
+        gateway.availability_reason() or "Windows spellcheck unavailable"
+    )
     errors: list[BaseException] = []
     results: list[bool] = []
 

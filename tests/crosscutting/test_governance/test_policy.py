@@ -22,6 +22,18 @@ from datetime import date
 from pathlib import Path
 
 from tools.test_governance.discovery import discover_test_candidates
+from tools.test_governance.ownership_patterns import (
+    MODULE_RESOURCE_RULE,
+    SIBLING_IMPORT_RULE,
+)
+from tools.test_governance.semantic_patterns import (
+    DRAIN_RULE,
+    NETWORK_RULE,
+    OPTIONAL_PROOF_RULE,
+    RANDOMNESS_RULE,
+    SUPPRESSED_FAILURE_RULE,
+    UNBOUNDED_WAIT_RULE,
+)
 from tools.test_governance.loading import load_test_policy
 from tools.test_governance.metrics import reviewed_state_fingerprint
 from tools.test_governance.validation import validate_test_governance
@@ -191,6 +203,256 @@ environment.environ["OWNER"] = "capability"
     candidates = discover_test_candidates(tmp_path, policy)
 
     assert [candidate.rule for candidate in candidates] == ["ENV001", "ENV001"]
+
+
+def test_discovery_rejects_renamed_count_shaped_queued_turn_facades(
+    tmp_path: Path,
+) -> None:
+    """Detect fake repetition contracts by semantics while allowing real bounds."""
+
+    _write_fixture(tmp_path)
+    _write(
+        tmp_path / "tests/capability/test_event_delivery.py",
+        """from tests.support.qt.semantic_wait import wait_for_queued_qt_turn as barrier
+
+def settle_delivery(pass_count: int = 8) -> None:
+    _ = pass_count
+    barrier()
+
+def optionally_settle(turn_budget: int = 8) -> None:
+    if turn_budget:
+        barrier()
+
+def deliver_repeatedly(pass_count: int = 8) -> None:
+    for _ in range(pass_count):
+        barrier()
+
+def bounded_barrier(timeout_ms: int = 3000) -> None:
+    barrier(timeout_ms=timeout_ms)
+""",
+    )
+
+    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    candidates = [
+        candidate
+        for candidate in discover_test_candidates(tmp_path, policy)
+        if candidate.rule == DRAIN_RULE
+    ]
+
+    assert [candidate.locator for candidate in candidates] == [
+        "optionally_settle:count-shaped-queued-turn:turn_budget",
+        "settle_delivery:count-shaped-queued-turn:pass_count",
+    ]
+
+
+def test_discovery_rejects_executable_sibling_test_module_imports(
+    tmp_path: Path,
+) -> None:
+    """Keep shared support out of executable test modules regardless of aliases."""
+
+    _write_fixture(tmp_path)
+    _write(tmp_path / "tests/capability/support.py", "VALUE = 1\n")
+    _write(tmp_path / "tests/capability/test_owner.py", "VALUE = 2\n")
+    _write(
+        tmp_path / "tests/capability/test_consumer.py",
+        """from . import support
+from .test_owner import VALUE as OWNER_VALUE
+
+def test_consumer() -> None:
+    assert support.VALUE != OWNER_VALUE
+""",
+    )
+
+    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    candidates = [
+        candidate
+        for candidate in discover_test_candidates(tmp_path, policy)
+        if candidate.rule == SIBLING_IMPORT_RULE
+    ]
+
+    assert len(candidates) == 1
+    assert candidates[0].path == "tests/capability/test_consumer.py"
+    assert candidates[0].evidence.endswith("tests/capability/test_owner.py")
+
+
+def test_discovery_rejects_optional_retry_and_order_dependent_proof(
+    tmp_path: Path,
+) -> None:
+    """Detect renamed suppression mechanisms while allowing platform ownership."""
+
+    _write_fixture(tmp_path)
+    _write(
+        tmp_path / "tests/capability/test_optional_proof.py",
+        """import pytest as framework
+from pytest import skip as omit
+
+@framework.mark.skipif(condition(), reason="optional")
+def test_conditionally_omitted() -> None:
+    omit("missing prerequisite")
+
+@framework.mark.flaky(reruns=3)
+def test_retried() -> None:
+    pass
+
+@framework.mark.order(2)
+def test_ordered() -> None:
+    pass
+
+@framework.mark.platforms("windows")
+def test_platform_owned() -> None:
+    pass
+""",
+    )
+
+    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    candidates = [
+        candidate
+        for candidate in discover_test_candidates(tmp_path, policy)
+        if candidate.rule == OPTIONAL_PROOF_RULE
+    ]
+
+    assert len(candidates) == 4
+    assert all("platforms" not in candidate.evidence for candidate in candidates)
+
+
+def test_discovery_rejects_unbounded_external_operations_and_waits(
+    tmp_path: Path,
+) -> None:
+    """Resolve aliases and require explicit failure bounds at external boundaries."""
+
+    _write_fixture(tmp_path)
+    _write(
+        tmp_path / "tests/capability/test_bounds.py",
+        """import subprocess as process
+from requests import get as fetch
+
+def unbounded(worker: object, barrier: object) -> None:
+    process.run(["tool"])
+    fetch("https://example.invalid")
+    worker.join()
+    barrier.wait()
+
+def bounded(worker: object, barrier: object) -> None:
+    process.run(["tool"], timeout=10)
+    fetch("https://example.invalid", timeout=10)
+    worker.join(10)
+    barrier.wait(timeout=10)
+""",
+    )
+
+    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    candidates = [
+        candidate
+        for candidate in discover_test_candidates(tmp_path, policy)
+        if candidate.rule == UNBOUNDED_WAIT_RULE
+    ]
+
+    assert len(candidates) == 4
+
+
+def test_discovery_rejects_silent_broad_failure_suppression(tmp_path: Path) -> None:
+    """Require broad failures to remain observable regardless of renamed helpers."""
+
+    _write_fixture(tmp_path)
+    _write(
+        tmp_path / "tests/capability/test_suppression.py",
+        """import contextlib as contexts
+
+def suppressed() -> None:
+    try:
+        operation()
+    except Exception:
+        pass
+    with contexts.suppress(BaseException):
+        operation()
+
+def observable() -> None:
+    try:
+        operation()
+    except Exception as error:
+        raise AssertionError("operation failed") from error
+""",
+    )
+
+    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    candidates = [
+        candidate
+        for candidate in discover_test_candidates(tmp_path, policy)
+        if candidate.rule == SUPPRESSED_FAILURE_RULE
+    ]
+
+    assert len(candidates) == 2
+
+
+def test_discovery_rejects_module_resources_and_uncontrolled_randomness(
+    tmp_path: Path,
+) -> None:
+    """Keep mutable resources test-owned and randomized behavior replayable."""
+
+    _write_fixture(tmp_path)
+    _write(
+        tmp_path / "tests/capability/test_lifecycle.py",
+        """import random as chance
+import socket as networking
+from PySide6.QtCore import QTimer as Timer
+from tempfile import TemporaryDirectory as Scratch
+
+LISTENER = networking.socket()
+ROOT = Scratch()
+TIMER = Timer()
+
+def uncontrolled() -> object:
+    return chance.choice((1, 2))
+
+def replayable() -> object:
+    positional = chance.Random(17).choice((1, 2))
+    keyword = chance.Random(seed=17).choice((1, 2))
+    return positional, keyword
+""",
+    )
+
+    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    candidates = discover_test_candidates(tmp_path, policy)
+
+    assert (
+        len(
+            [
+                candidate
+                for candidate in candidates
+                if candidate.rule == MODULE_RESOURCE_RULE
+            ]
+        )
+        == 3
+    )
+    assert (
+        len(
+            [candidate for candidate in candidates if candidate.rule == RANDOMNESS_RULE]
+        )
+        == 1
+    )
+
+
+def test_discovery_reviews_real_network_outside_qualification(tmp_path: Path) -> None:
+    """Keep environmental network access in an explicit qualification owner."""
+
+    _write_fixture(tmp_path)
+    source = """from requests import get as fetch
+
+def contact_service() -> None:
+    fetch("https://example.invalid", timeout=10)
+"""
+    _write(tmp_path / "tests/capability/test_network.py", source)
+    _write(tmp_path / "tests/qualification/capability/test_network.py", source)
+
+    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    candidates = [
+        candidate
+        for candidate in discover_test_candidates(tmp_path, policy)
+        if candidate.rule == NETWORK_RULE
+    ]
+
+    assert len(candidates) == 1
+    assert candidates[0].path == "tests/capability/test_network.py"
 
 
 def test_unreviewed_candidate_fails_with_human_disposition_requirement(

@@ -29,6 +29,8 @@ def wait_for_qt_condition(
     condition: Callable[[], bool],
     *,
     timeout_ms: int = 3000,
+    description: str = "semantic Qt condition",
+    state: Callable[[], object] | None = None,
 ) -> None:
     """Run Qt delivery until semantic state appears or its failure bound expires."""
 
@@ -61,7 +63,12 @@ def wait_for_qt_condition(
         for qt_object in (observation_timer, failure_timeout, event_loop):
             if isValid(qt_object):
                 delete(qt_object)
-    assert observed
+    if observed:
+        return
+    state_detail = "" if state is None else f"; state={state()!r}"
+    raise AssertionError(
+        f"Timed out after {timeout_ms} ms waiting for {description}{state_detail}"
+    )
 
 
 def wait_for_qt_signal(spy: QSignalSpy, *, timeout_ms: int = 3000) -> None:

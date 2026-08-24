@@ -215,7 +215,9 @@ def test_owner_observation_includes_background_owner_work() -> None:
     with observe_prompt_editor_work(observer):
         thread = Thread(target=operation)
         thread.start()
-        thread.join()
+        thread.join(timeout=5.0)
+
+    assert not thread.is_alive()
 
     assert [event for event, _elapsed_ms in observer.events] == [
         PromptEditorWorkEvent.DOCUMENT_VIEW_BUILD,

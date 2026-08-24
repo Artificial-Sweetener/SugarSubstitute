@@ -32,6 +32,15 @@ from tests.support.prompt_editor.real_shell.models import (
     PromptEditorTraceAction,
     PromptFieldHandle,
 )
+from tests.support.prompt_editor.autocomplete_owner_state import (
+    autocomplete_owner_state,
+)
+from tests.support.prompt_editor.real_shell.autocomplete_state import (
+    autocomplete_preview_state,
+)
+from tests.support.prompt_editor.real_shell.projection_state import (
+    projection_owner_state,
+)
 from tests.support.qt.semantic_wait import (
     wait_for_qt_condition,
     wait_for_queued_qt_turn,
@@ -42,7 +51,7 @@ class StateSnapshotCapture(Protocol):
     """Capture state needed to describe an interaction route."""
 
     def __call__(
-        self, field: PromptFieldHandle, *, label: str, settle_cycles: int = 6
+        self, field: PromptFieldHandle, *, label: str, settle: bool = True
     ) -> PromptEditorStateSnapshot:
         """Capture the mounted editor state."""
 
@@ -54,6 +63,7 @@ class PromptEditorInputDriver:
         self,
         *,
         shell: QWidget,
+        shell_activator: Callable[[], None],
         input_canvas_provider: Callable[[], QWidget],
         canvas_provider: Callable[[str], QWidget | None],
         canvas_activator: Callable[[str], None],
@@ -63,6 +73,7 @@ class PromptEditorInputDriver:
         """Bind the driver to one real-shell session's input and trace owners."""
 
         self._shell = shell
+        self._shell_activator = shell_activator
         self._input_canvas_provider = input_canvas_provider
         self._canvas_provider = canvas_provider
         self._canvas_activator = canvas_activator
@@ -73,12 +84,22 @@ class PromptEditorInputDriver:
         """Focus the real prompt projection surface used for keyboard input."""
 
         field.editor.show()
-        self._shell.show()
-        self._shell.raise_()
-        self._shell.activateWindow()
+        self._shell_activator()
         focus_target = editor_event_widget(field.editor)
         focus_target.setFocus(Qt.FocusReason.OtherFocusReason)
-        wait_for_qt_condition(focus_target.hasFocus, timeout_ms=3000)
+        wait_for_qt_condition(
+            lambda: (
+                QApplication.activeWindow() is self._shell and focus_target.hasFocus()
+            ),
+            timeout_ms=3000,
+            description="real-shell editor focus ownership",
+            state=lambda: {
+                "active_window": QApplication.activeWindow(),
+                "focus_widget": QApplication.focusWidget(),
+                "shell_visible": self._shell.isVisible(),
+                "target_visible": focus_target.isVisible(),
+            },
+        )
         return focus_target
 
     def replace_text_with_keys(self, field: PromptFieldHandle, text: str) -> None:
@@ -273,7 +294,7 @@ class PromptEditorInputDriver:
         return self._capture_state_snapshot(
             field,
             label=label,
-            settle_cycles=0,
+            settle=False,
         )
 
     def type_text_and_capture_immediate_state(
@@ -291,7 +312,7 @@ class PromptEditorInputDriver:
         return self._capture_state_snapshot(
             field,
             label=label,
-            settle_cycles=0,
+            settle=False,
         )
 
     def move_cursor_to_end(self, field: PromptFieldHandle) -> None:
@@ -337,9 +358,10 @@ class PromptEditorInputDriver:
         field.editor.setTextCursor(cursor)
         wait_for_queued_qt_turn()
 
-    def click_away_from_editor(self) -> None:
+    def click_away_from_editor(self, field: PromptFieldHandle) -> None:
         """Click a real focusable shell widget outside the prompt editor."""
 
+        self._shell_activator()
         focus_target = self._input_canvas_provider()
         focus_target.setFocus(Qt.FocusReason.MouseFocusReason)
         QTest.mouseClick(
@@ -349,7 +371,14 @@ class PromptEditorInputDriver:
             focus_target.rect().center(),
         )
         self._trace_actions.append(PromptEditorTraceAction("click_away", ""))
-        wait_for_queued_qt_turn()
+        wait_for_qt_condition(
+            lambda: (
+                _focus_belongs_to(focus_target)
+                and _autocomplete_is_dismissed(field.editor)
+            ),
+            description="prompt-editor click-away completion",
+            state=lambda: _click_away_state(field.editor, focus_target),
+        )
 
     def switch_canvas(self, label: str) -> None:
         """Switch a real canvas tab through the shell canvas tab manager."""
@@ -366,6 +395,46 @@ def editor_event_widget(editor: PromptEditor) -> QWidget:
     """Return the real widget receiving prompt editor key events."""
     focus_proxy = editor.focusProxy()
     return focus_proxy if isinstance(focus_proxy, QWidget) else editor
+
+
+def _focus_belongs_to(widget: QWidget) -> bool:
+    """Return whether current application focus belongs to one widget tree."""
+
+    focused = QApplication.focusWidget()
+    return focused is not None and (focused is widget or widget.isAncestorOf(focused))
+
+
+def _autocomplete_is_dismissed(editor: PromptEditor) -> bool:
+    """Return whether session, projection, and paint owners finished dismissal."""
+
+    autocomplete = autocomplete_owner_state(editor)
+    projection = projection_owner_state(editor)
+    return bool(
+        autocomplete_preview_state(editor) is None
+        and not autocomplete["has_active"]
+        and not autocomplete["presenter_panel_visible"]
+        and not projection["autocomplete_ghost_paint_visible_by_owner_state"]
+        and not projection["projection_has_pending_update"]
+    )
+
+
+def _click_away_state(editor: PromptEditor, focus_target: QWidget) -> object:
+    """Return actionable focus and autocomplete state for click-away timeouts."""
+
+    autocomplete = autocomplete_owner_state(editor)
+    projection = projection_owner_state(editor)
+    return {
+        "active_window": QApplication.activeWindow(),
+        "focus_widget": QApplication.focusWidget(),
+        "canvas_visible": focus_target.isVisible(),
+        "preview": autocomplete_preview_state(editor),
+        "session_active": autocomplete["has_active"],
+        "panel_visible": autocomplete["presenter_panel_visible"],
+        "ghost_paint_visible": projection[
+            "autocomplete_ghost_paint_visible_by_owner_state"
+        ],
+        "projection_pending": projection["projection_has_pending_update"],
+    }
 
 
 def source_inserted_text(before: str, after: str) -> str:

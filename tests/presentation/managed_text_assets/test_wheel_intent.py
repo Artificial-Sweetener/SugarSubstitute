@@ -201,15 +201,15 @@ def _reveal_numeric_token_controls(
         max(1, editor.viewport().height() - 3),
     )
     QTest.mouseMove(editor.viewport(), reset_point)
-    process_events(app, cycles=8)
+    process_events(app)
     QTest.mouseMove(editor.viewport(), token_point)
-    process_events(app, cycles=8)
+    process_events(app)
     controls._set_pointer_from_viewport(QPointF(token_point))  # noqa: SLF001
     controls._record_wheel_intent_pointer_from_viewport(  # noqa: SLF001
         _hover_mouse_move(editor.viewport(), token_point)
     )
     controls.refresh_geometry()
-    process_events(app, cycles=8)
+    process_events(app)
     return token_point
 
 
@@ -223,7 +223,7 @@ def test_numbered_prompt_editor_emphasis_wheel_requires_dwell(
     frame.resize(520, 300)
     frame.show()
     frame.setPlainText("(cat:1.20)")
-    process_events(app, cycles=8)
+    process_events(app)
     editor = frame.editor()
     token = _first_emphasis_token(editor)
     token_point = _reveal_numeric_token_controls(editor, token)
@@ -262,7 +262,7 @@ def test_numbered_prompt_editor_numeric_wildcard_wheel_requires_dwell(
     frame.resize(520, 300)
     frame.show()
     frame.setPlainText("{animal|2}")
-    process_events(app, cycles=8)
+    process_events(app)
     editor = frame.editor()
     token = _first_numeric_wildcard_token(editor)
     token_point = _reveal_numeric_token_controls(editor, token)
@@ -303,7 +303,7 @@ def test_numbered_prompt_editor_scroll_still_works_without_token_mutation(
     frame.setPlainText(
         "(cat:1.20)\n" + "\n".join(f"line {index}" for index in range(35))
     )
-    process_events(app, cycles=8)
+    process_events(app)
     editor = frame.editor()
     token = _first_emphasis_token(editor)
     token_point = _reveal_numeric_token_controls(editor, token)
@@ -335,7 +335,7 @@ def test_numbered_prompt_editor_focus_required_blocks_hover_dwell_emphasis_wheel
     frame.resize(520, 300)
     frame.show()
     frame.setPlainText("(cat:1.20)")
-    process_events(app, cycles=8)
+    process_events(app)
     editor = frame.editor()
     token = _first_emphasis_token(editor)
     token_point = _reveal_numeric_token_controls(editor, token)
@@ -363,20 +363,20 @@ def test_numbered_prompt_editor_focus_required_allows_clicked_emphasis_wheel(
     frame.resize(520, 300)
     frame.show()
     frame.setPlainText("(cat:1.20)")
-    process_events(app, cycles=8)
+    process_events(app)
     editor = frame.editor()
     token = _first_emphasis_token(editor)
     token_point = _reveal_numeric_token_controls(editor, token)
 
     editor.setFocus()
-    process_events(app, cycles=4)
+    process_events(app)
     QTest.mouseClick(
         editor.viewport(),
         Qt.MouseButton.LeftButton,
         Qt.KeyboardModifier.NoModifier,
         token_point,
     )
-    process_events(app, cycles=8)
+    process_events(app)
     allowed_event = _wheel_event_at_viewport_point(
         editor.viewport(),
         token_point,
@@ -399,7 +399,7 @@ def test_numbered_prompt_editor_focus_required_allows_clicked_numeric_wildcard_w
     frame.resize(520, 300)
     frame.show()
     frame.setPlainText("{animal|2}")
-    process_events(app, cycles=8)
+    process_events(app)
     editor = frame.editor()
     token = _first_numeric_wildcard_token(editor)
     token_point = _reveal_numeric_token_controls(editor, token)

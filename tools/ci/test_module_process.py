@@ -20,8 +20,12 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from datetime import UTC, datetime
 from dataclasses import dataclass
 from pathlib import Path
+from shutil import copytree, rmtree
+from threading import current_thread
+from time import perf_counter
 
 
 MODULE_TIMEOUT_SECONDS = 600
@@ -34,6 +38,10 @@ class TestModuleRun:
     module_path: str
     return_code: int
     output: str
+    started_at_utc: str = ""
+    duration_seconds: float = 0.0
+    runner_slot: str = "unknown"
+    failure_artifact_path: Path | None = None
 
     @property
     def passed(self) -> bool:
@@ -91,6 +99,9 @@ def run_test_module(
 ) -> TestModuleRun:
     """Run one module in a fresh process and capture actionable output."""
 
+    started_at_utc = datetime.now(UTC).isoformat()
+    started_at = perf_counter()
+    runner_slot = current_thread().name
     junit_path = junit_path_for_module(junit_directory, module_path)
     base_temp = prepare_module_base_temp(
         base_temp_root=base_temp_root,
@@ -117,19 +128,80 @@ def run_test_module(
         captured_output = error.stdout or ""
         if isinstance(captured_output, bytes):
             captured_output = captured_output.decode("utf-8", errors="replace")
-        return TestModuleRun(
+        return _terminal_run(
             module_path=module_path,
             return_code=124,
             output=(
                 f"Fresh pytest process exceeded {timeout_seconds} seconds.\n"
                 f"{captured_output}"
             ),
+            started_at_utc=started_at_utc,
+            started_at=started_at,
+            runner_slot=runner_slot,
+            base_temp=base_temp,
+            junit_directory=junit_directory,
+            junit_path=junit_path,
         )
-    return TestModuleRun(
+    return _terminal_run(
         module_path=module_path,
         return_code=completed.returncode,
         output=completed.stdout,
+        started_at_utc=started_at_utc,
+        started_at=started_at,
+        runner_slot=runner_slot,
+        base_temp=base_temp,
+        junit_directory=junit_directory,
+        junit_path=junit_path,
     )
+
+
+def _terminal_run(
+    *,
+    module_path: str,
+    return_code: int,
+    output: str,
+    started_at_utc: str,
+    started_at: float,
+    runner_slot: str,
+    base_temp: Path,
+    junit_directory: Path,
+    junit_path: Path,
+) -> TestModuleRun:
+    """Build one result after preserving any failed module-owned artifacts."""
+
+    artifact_path = None
+    if return_code != 0:
+        try:
+            artifact_path = _preserve_failure_artifacts(
+                base_temp=base_temp,
+                destination=junit_directory / "failure-artifacts" / junit_path.stem,
+            )
+        except OSError as error:
+            output = (
+                f"{output}\nCould not preserve failed-module artifacts: "
+                f"{type(error).__name__}: {error}"
+            )
+    return TestModuleRun(
+        module_path=module_path,
+        return_code=return_code,
+        output=output,
+        started_at_utc=started_at_utc,
+        duration_seconds=perf_counter() - started_at,
+        runner_slot=runner_slot,
+        failure_artifact_path=artifact_path,
+    )
+
+
+def _preserve_failure_artifacts(*, base_temp: Path, destination: Path) -> Path | None:
+    """Copy failed-module temporary evidence into the persistent result owner."""
+
+    if not base_temp.is_dir():
+        return None
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        rmtree(destination)
+    copytree(base_temp, destination)
+    return destination
 
 
 __all__ = [

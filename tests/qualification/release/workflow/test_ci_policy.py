@@ -65,7 +65,8 @@ def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
         workflow_path("platform-tests.yml").read_text(encoding="utf-8")
     )
     platform_job = workflow["jobs"]["platform-tests"]
-    matrix = platform_job["strategy"]["matrix"]["include"]
+    strategy_matrix = platform_job["strategy"]["matrix"]
+    matrix = strategy_matrix["include"]
 
     assert {entry["os"] for entry in matrix} == {
         "windows-latest",
@@ -77,11 +78,62 @@ def test_default_ci_runs_complete_partitioned_suite_on_every_platform() -> None:
         "ubuntu-24.04": "3.12.13",
         "macos-15": "3.12.10",
     }
+    assert strategy_matrix["partition"] == ["ordinary", "fresh"]
+    assert platform_job["strategy"]["fail-fast"] is False
     job_script = workflow_job_script(platform_job)
     assert '-m "not serial and not isolated"' in job_script
     assert "tools.ci.run_isolated_test_modules" in job_script
     assert "tools.ci.run_serial_test_modules" in job_script
     assert "--junitxml=" in job_script
+
+
+def test_platform_partitions_overlap_without_weakening_dependency_proof() -> None:
+    """Run independent lane owners concurrently from identical verified installs."""
+
+    workflow = yaml.safe_load(
+        workflow_path("platform-tests.yml").read_text(encoding="utf-8")
+    )
+    job = workflow["jobs"]["platform-tests"]
+    steps = {step["name"]: step for step in job["steps"]}
+    python_setup = steps["Setup Python"]["with"]
+
+    assert job["strategy"]["matrix"]["partition"] == ["ordinary", "fresh"]
+    assert python_setup["cache"] == "pip"
+    assert python_setup["cache-dependency-path"] == "requirements-toolchain.txt"
+    assert steps["Verify installed runtime dependency graph"].get("if") is None
+    assert steps["Audit installed Python dependency graph"]["if"] == (
+        "matrix.partition == 'ordinary'"
+    )
+    assert steps["Run parallel-safe test partition"]["if"] == (
+        "matrix.partition == 'ordinary'"
+    )
+    assert steps["Run fresh-process test partition"]["if"] == (
+        "matrix.partition == 'fresh'"
+    )
+    assert "matrix.partition" in steps["Upload test results"]["with"]["name"]
+
+
+def test_required_ci_reuses_downloads_but_rebuilds_verified_environments() -> None:
+    """Cache immutable dependency downloads without reusing mutable virtualenvs."""
+
+    for workflow_name in ("platform-tests.yml", "quality-gates.yml"):
+        workflow = yaml.safe_load(
+            workflow_path(workflow_name).read_text(encoding="utf-8")
+        )
+        for job in workflow["jobs"].values():
+            steps = {step["name"]: step for step in job["steps"]}
+            python_setup = steps["Setup Python"]["with"]
+
+            assert python_setup["cache"] == "pip"
+            assert python_setup["cache-dependency-path"] == (
+                "requirements-toolchain.txt"
+            )
+            assert "python -m venv .venv" in steps["Create virtual environment"]["run"]
+            assert "requirements-toolchain.txt" in next(
+                step["run"]
+                for step in job["steps"]
+                if step["name"].startswith("Install project and")
+            )
 
 
 def test_ci_uses_exact_language_and_package_toolchains() -> None:

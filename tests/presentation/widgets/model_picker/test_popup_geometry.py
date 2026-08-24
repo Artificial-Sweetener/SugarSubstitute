@@ -21,7 +21,6 @@ from __future__ import annotations
 from typing import cast
 
 
-import pytest
 from PySide6.QtCore import QRect, QSize
 from PySide6.QtWidgets import QApplication
 
@@ -189,8 +188,7 @@ def test_screen_available_geometry_uses_screen_at_anchor() -> None:
 
     app = ensure_qapp()
     screen = app.primaryScreen()
-    if screen is None:
-        pytest.skip("Qt did not provide a primary screen")
+    assert screen is not None, "Qt must provide a primary screen for popup placement."
     available = screen.availableGeometry()
     anchor = QRect(available.center(), QSize(1, 1))
 

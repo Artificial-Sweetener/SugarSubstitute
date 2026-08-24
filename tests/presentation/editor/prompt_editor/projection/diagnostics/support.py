@@ -38,6 +38,50 @@ from substitute.presentation.editor.prompt_editor.core.state.revisions import (
 from substitute.presentation.editor.prompt_editor.geometry.selection import (
     PromptSelectionGeometry,
 )
+from substitute.presentation.editor.prompt_editor.projection.surface import (
+    PromptProjectionSurface,
+)
+from tests.support.qt.semantic_wait import wait_for_qt_condition
+
+
+def wait_for_diagnostic_layer(
+    surface: PromptProjectionSurface,
+    *,
+    has_underlines: bool,
+) -> None:
+    """Wait for diagnostic publication and bounded fragment warming to finish."""
+
+    owner = cast(Any, surface)._diagnostic_layer_owner
+
+    def layer_is_ready() -> bool:
+        """Return whether publication and its warming lifecycle are complete."""
+
+        return (
+            bool(owner.layer.underlines) is has_underlines
+            and owner._warm_state is None
+            and not owner._warm_timer.isActive()
+        )
+
+    def layer_state() -> object:
+        """Describe current publication and warming state for timeout evidence."""
+
+        warm_state = owner._warm_state
+        return {
+            "underline_count": len(owner.layer.underlines),
+            "expected_underlines": has_underlines,
+            "warm_timer_active": owner._warm_timer.isActive(),
+            "warm_index": owner._warm_index,
+            "missing_count": (
+                0 if warm_state is None else len(warm_state.missing_diagnostics)
+            ),
+            "revision": owner.layer.revision,
+        }
+
+    wait_for_qt_condition(
+        layer_is_ready,
+        description="prompt diagnostic layer publication",
+        state=layer_state,
+    )
 
 
 def _observe_source_range_fragment_lookups(

@@ -64,6 +64,12 @@ def test_brand_new_inpaint_workflow_renders_live_node_previews_immediately(
         expected_preview_size = image_preview.sizeHint()
         assert image_preview.size() == expected_preview_size
         assert mask_preview.size() == expected_preview_size
+        harness.wait_until(
+            lambda: (
+                (center := _preview_center(image_preview)).green() > center.red()
+                and center.blue() > center.red()
+            )
+        )
         image_pixels = image_preview.grab().toImage()
         image_center = image_pixels.pixelColor(image_pixels.rect().center())
         assert image_center.green() > image_center.red()
@@ -177,7 +183,13 @@ def test_real_mask_file_replacement_preserves_document_entry_identity(
             harness.MASK_NODE,
             str(mask_path),
         )
-        harness.process_events(12)
+        harness.wait_until(
+            lambda: (
+                (replaced := harness.input_canvas.document.export_mask_image(mask_id))
+                is not None
+                and replaced.pixelColor(replaced.rect().center()).red() == 255
+            )
+        )
 
         assert harness.image_id == image_id
         assert harness.mask_id == mask_id
@@ -254,3 +266,10 @@ def test_empty_mask_entry_round_trip_mounts_real_node_preview_before_generation(
             restored.close()
         else:
             source.close()
+
+
+def _preview_center(preview: InputNodePreviewWidget) -> QColor:
+    """Return the currently rendered center pixel from one live preview."""
+
+    pixels = preview.grab().toImage()
+    return pixels.pixelColor(pixels.rect().center())

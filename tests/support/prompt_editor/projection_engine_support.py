@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 
 from PySide6.QtGui import QTextCursor
@@ -46,7 +46,80 @@ from tests.support.prompt_editor.autocomplete_support import (
 from tests.support.execution.runtime_support import (
     immediate_prompt_task_executor_factory,
 )
-from tests.support.qt.semantic_wait import wait_for_queued_qt_turn
+from tests.support.qt.semantic_wait import (
+    wait_for_qt_condition,
+    wait_for_queued_qt_turn,
+)
+
+
+def wait_for_caret_geometry(
+    box: PromptEditor,
+    surface: PromptProjectionSurface,
+    *,
+    position: int,
+    expected_x: float,
+    expected_y: float,
+    tolerance: float = 1.0,
+) -> None:
+    """Wait until source position and rendered caret geometry agree."""
+
+    def caret_matches() -> bool:
+        """Return whether the live caret matches the expected source geometry."""
+
+        actual = box.cursorRect()
+        expected_viewport_y = expected_y - surface.verticalScrollBar().value()
+        return (
+            surface.cursor_position == position
+            and abs(actual.x() - expected_x) <= tolerance
+            and abs(actual.y() - expected_viewport_y) <= tolerance
+        )
+
+    def caret_state() -> object:
+        """Describe the authoritative source and rendered caret state."""
+
+        actual = box.cursorRect()
+        lines = cast(Any, surface)._layout.frame.output.snapshot.lines
+        document = surface.projection_document()
+        return {
+            "position": surface.cursor_position,
+            "caret": (actual.x(), actual.y(), actual.width(), actual.height()),
+            "expected_position": position,
+            "expected_document_xy": (expected_x, expected_y),
+            "expected_viewport_y": (expected_y - surface.verticalScrollBar().value()),
+            "text": box.toPlainText(),
+            "pending_projection": surface.has_pending_projection_update(),
+            "stale_geometry": surface.has_stale_projection_geometry(),
+            "scroll_offset": surface.verticalScrollBar().value(),
+            "lines": tuple(
+                {
+                    "source": (line.source_start, line.source_end),
+                    "content": (line.source_content_start, line.source_content_end),
+                    "geometry": (line.top, line.height),
+                    "stops": tuple(
+                        (stop.projection_position, stop.rect.x(), stop.rect.y())
+                        for stop in line.caret_stops
+                    ),
+                }
+                for line in lines
+            ),
+            "caret_stops": tuple(
+                (
+                    stop.projection_position,
+                    stop.state.source_position,
+                    stop.state.run_id,
+                )
+                for stop in document.caret_map.stops
+            ),
+            "runs": tuple(
+                (run.run_id, run.source_start, run.source_end) for run in document.runs
+            ),
+        }
+
+    wait_for_qt_condition(
+        caret_matches,
+        description="prompt caret geometry",
+        state=caret_state,
+    )
 
 
 class StaticPromptWildcardCatalogGateway:
@@ -106,10 +179,9 @@ def ensure_qapp() -> QApplication:
     return cast(QApplication, app)
 
 
-def process_events(app: QApplication, cycles: int = 5) -> None:
+def process_events(app: QApplication) -> None:
     """Deliver callbacks queued by the immediately preceding controlled action."""
 
-    _ = (app, cycles)
     wait_for_queued_qt_turn()
 
 

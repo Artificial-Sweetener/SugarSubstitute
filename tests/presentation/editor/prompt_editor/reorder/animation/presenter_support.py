@@ -44,10 +44,9 @@ def _ensure_qapp() -> QApplication:
     return cast(QApplication, app)
 
 
-def _process_events(app: QApplication, cycles: int = 5) -> None:
+def _process_events(app: QApplication) -> None:
     """Deliver callbacks queued by an explicitly controlled test action."""
 
-    _ = (app, cycles)
     wait_for_queued_qt_turn()
 
 

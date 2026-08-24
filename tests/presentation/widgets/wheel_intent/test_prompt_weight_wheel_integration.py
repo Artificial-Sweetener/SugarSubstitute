@@ -164,7 +164,7 @@ def test_prompt_weight_dwell_accents_when_pointer_is_over_content_text() -> None
     QApplication.sendEvent(
         box.viewport(), _hover_mouse_move(box.viewport(), content_point)
     )
-    process_events(app, cycles=5)
+    process_events(app)
 
     assert controls.visible_token is None
     assert _token_weight_wheel_owner(box).candidate_token is not None

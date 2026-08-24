@@ -73,12 +73,12 @@ def test_projection_surface_kept_tag_edit_uses_fast_path_when_layout_stays_local
         rebuild_count += 1
         original_rebuild_projection()
 
-    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
     cursor_position = box.toPlainText().index("po") + 2
     surface.set_cursor_positions(
         cursor_position=cursor_position,
         anchor_position=cursor_position,
     )
+    monkeypatch.setattr(surface, "_rebuild_projection", count_rebuild)
 
     QTest.keyClicks(box, "s")
 

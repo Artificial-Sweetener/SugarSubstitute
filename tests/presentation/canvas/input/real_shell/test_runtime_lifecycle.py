@@ -131,7 +131,6 @@ def test_real_shell_input_editor_survives_erratic_full_lifecycle(
         ) * 4:
             image_preview.resize(width, height)
             mask_preview.resize(height, width)
-            harness.process_events(2)
         assert palette.active_tool_id == InputCanvasToolId.MASK_RECTANGLE
 
         harness.add_rectangle(QRectF(31.0, 27.0, 117.0, 89.0))
@@ -180,7 +179,6 @@ def test_real_shell_input_editor_survives_erratic_full_lifecycle(
 
         image_preview.close()
         mask_preview.close()
-        harness.process_events(4)
         harness.add_rectangle(QRectF(5.0, 5.0, 8.0, 8.0))
         assert harness.input_canvas.document.contains_mask(
             harness.image_id,

@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-
 import pytest
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
@@ -29,6 +28,7 @@ from tests.support.prompt_editor.projection_engine_support import (
     process_events,
     show_prompt_editor,
     surface_for,
+    wait_for_caret_geometry,
 )
 from tests.support.prompt_editor.projection_surface_support import (
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
@@ -37,6 +37,7 @@ from tests.presentation.editor.prompt_editor.caret_navigation.support import (
     _CaretPlacementHarness,
     _projection_lines,
 )
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 
 def test_projection_surface_incremental_blank_line_click_uses_content_start(
@@ -45,7 +46,6 @@ def test_projection_surface_incremental_blank_line_click_uses_content_start(
 ) -> None:
     """Clicking an incrementally-created blank line should land at content start."""
 
-    app = ensure_qapp()
     box = show_prompt_editor(
         widgets,
         text="alpha\nbeta",
@@ -53,7 +53,6 @@ def test_projection_surface_incremental_blank_line_click_uses_content_start(
     )
     surface = surface_for(box)
     surface.set_source_line_content_left_inset(24.0)
-    process_events(app)
     original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
     rebuild_count = 0
 
@@ -73,7 +72,21 @@ def test_projection_surface_incremental_blank_line_click_uses_content_start(
     rebuild_count = 0
 
     QTest.keyClick(box, Qt.Key.Key_Return)
-    process_events(app)
+    wait_for_qt_condition(
+        lambda: (
+            box.toPlainText() == "alpha\n\nbeta"
+            and len(_projection_lines(surface)) >= 3
+            and not surface.has_pending_projection_update()
+            and not surface.has_stale_projection_geometry()
+        ),
+        description="incremental blank-line projection geometry",
+        state=lambda: {
+            "text": box.toPlainText(),
+            "line_count": len(_projection_lines(surface)),
+            "pending_projection": surface.has_pending_projection_update(),
+            "stale_geometry": surface.has_stale_projection_geometry(),
+        },
+    )
 
     assert box.toPlainText() == "alpha\n\nbeta"
     assert rebuild_count == 0
@@ -81,17 +94,27 @@ def test_projection_surface_incremental_blank_line_click_uses_content_start(
     content_left = (  # noqa: SLF001
         surface._layout.frame.output.configuration.document_margin + 24.0
     )
+    blank_line_viewport_top = blank_line.top - surface.verticalScrollBar().value()
     QTest.mouseClick(
         box.viewport(),
         Qt.MouseButton.LeftButton,
-        pos=QPoint(2, int(blank_line.top + (blank_line.height / 2.0))),
+        pos=QPoint(2, int(blank_line_viewport_top + (blank_line.height / 2.0))),
     )
-    process_events(app)
+    wait_for_caret_geometry(
+        box,
+        surface,
+        position=len("alpha\n"),
+        expected_x=content_left,
+        expected_y=blank_line.top,
+    )
 
     caret_rect = box.cursorRect()
     assert surface.cursor_position == len("alpha\n")
     assert caret_rect.x() == pytest.approx(content_left, abs=1.0)
-    assert caret_rect.y() == pytest.approx(blank_line.top, abs=1.0)
+    assert caret_rect.y() == pytest.approx(
+        blank_line.top - surface.verticalScrollBar().value(),
+        abs=1.0,
+    )
 
 
 def test_projection_surface_vertical_navigation_reaches_incremental_blank_line(

@@ -131,7 +131,7 @@ def test_prompt_editor_same_line_backspace_does_not_commit_height(
     app = support.ensure_qapp()
     box = support.show_prompt_editor(prompt_editors, text="alpha beta", width=600)
     support.delay_projection_update_scheduler(box)
-    support.process_events(app, cycles=10)
+    support.process_events(app)
     cursor = box.textCursor()
     cursor.setPosition(len(box.toPlainText()))
     box.setTextCursor(cursor)
@@ -152,14 +152,14 @@ def test_prompt_editor_same_line_backspace_does_not_commit_height(
     monkeypatch.setattr(sizing, "apply_preferred_height", record_height)
 
     support.QTest.keyClick(box, support.Qt.Key.Key_Backspace)
-    support.process_events(app, cycles=4)
+    support.process_events(app)
 
     assert box.toPlainText() == "alpha bet"
     assert box.height() == initial_height
     assert applied_heights == []
 
     support.flush_projection_update_scheduler(box)
-    support.process_events(app, cycles=8)
+    support.process_events(app)
 
     assert box.height() == initial_height
     assert applied_heights == []
@@ -173,7 +173,7 @@ def test_prompt_editor_line_break_backspace_height_commit_is_single(
 
     app = support.ensure_qapp()
     box = support.show_prompt_editor(prompt_editors, text="alpha\nbeta", width=600)
-    support.process_events(app, cycles=10)
+    support.process_events(app)
     cursor = box.textCursor()
     cursor.setPosition(len("alpha\n"))
     box.setTextCursor(cursor)
@@ -194,7 +194,7 @@ def test_prompt_editor_line_break_backspace_height_commit_is_single(
     monkeypatch.setattr(sizing, "apply_preferred_height", record_height)
 
     support.QTest.keyClick(box, support.Qt.Key.Key_Backspace)
-    support.process_events(app, cycles=8)
+    support.process_events(app)
 
     assert box.toPlainText() == "alphabeta"
     assert box.height() < initial_height

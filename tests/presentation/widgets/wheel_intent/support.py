@@ -221,15 +221,15 @@ def reveal_numeric_token_controls(
         max(1, box.viewport().height() - 3),
     )
     QTest.mouseMove(box.viewport(), reset_point)
-    process_events(application, cycles=8)
+    process_events(application)
     QTest.mouseMove(box.viewport(), token_point)
-    process_events(application, cycles=8)
+    process_events(application)
     controls._set_pointer_from_viewport(QPointF(token_point))  # noqa: SLF001
     controls._record_wheel_intent_pointer_from_viewport(  # noqa: SLF001
         hover_mouse_move(box.viewport(), token_point)
     )
     controls.refresh_geometry()
-    process_events(application, cycles=8)
+    process_events(application)
     return token_point
 
 

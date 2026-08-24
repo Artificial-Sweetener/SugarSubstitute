@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -67,3 +68,10 @@ def test_serial_runner_preserves_order_and_continues_after_failure(
     assert len(set(observed_temp_roots)) == 1
     assert not observed_temp_roots[0].exists()
     assert failures == ("tests/test_b.py",)
+    summary = json.loads(
+        (tmp_path / "results/execution-summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["lane"] == "serial"
+    assert summary["worker_count"] == 1
+    assert summary["module_count"] == 3
+    assert summary["failed_count"] == 1

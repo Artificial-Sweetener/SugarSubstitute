@@ -63,7 +63,7 @@ def test_controller_gates_prompt_weight_wheel_until_dwell(
     assert not premature_event.isAccepted()
 
     wheel_owner.advance(450)
-    process_events(app, cycles=8)
+    process_events(app)
     allowed_event = wheel_event_at_viewport_point(
         box.viewport(),
         token_point,
@@ -90,7 +90,7 @@ def test_focus_required_prompt_weight_blocks_hover_dwell_wheel(
     token_point = reveal_numeric_token_controls(box, token)
 
     wheel_owner.advance(450)
-    process_events(app, cycles=8)
+    process_events(app)
     blocked_event = wheel_event_at_viewport_point(
         box.viewport(),
         token_point,
@@ -227,7 +227,7 @@ def test_controller_gates_numeric_wildcard_tag_until_dwell(
     assert not premature_event.isAccepted()
 
     wheel_owner.advance(450)
-    process_events(app, cycles=8)
+    process_events(app)
     allowed_event = wheel_event_at_viewport_point(
         box.viewport(),
         token_point,

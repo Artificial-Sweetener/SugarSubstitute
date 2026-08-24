@@ -557,10 +557,9 @@ class RealShellOutputCanvasHarness:
 
         wait_for_qt_condition(lambda: bool(predicate()), timeout_ms=timeout_ms)
 
-    def process_events(self, *, cycles: int = 4) -> None:
+    def process_events(self) -> None:
         """Deliver callbacks queued by the immediately preceding controlled action."""
 
-        _ = cycles
         wait_for_queued_qt_turn()
 
     def set_output_viewport_extent(

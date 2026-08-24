@@ -315,7 +315,7 @@ def _first_weighted_token(box: PromptEditor) -> PromptProjectionToken:
                     PromptProjectionToken,
                     layout.frame.paint_input.effective_token(token.token_id) or token,
                 )
-        process_events(app, cycles=1)
+        process_events(app)
     raise AssertionError("expected weighted token")
 
 
@@ -379,10 +379,10 @@ def _reveal_weight_controls_without_dwell(
         max(1, box.viewport().height() - 3),
     )
     QTest.mouseMove(box.viewport(), reset_point)
-    process_events(app, cycles=8)
+    process_events(app)
     QTest.mouseMove(box.viewport(), token_point)
-    process_events(app, cycles=8)
+    process_events(app)
     controls._set_pointer_from_viewport(QPointF(token_point))  # noqa: SLF001
     controls.refresh_geometry()
-    process_events(app, cycles=8)
+    process_events(app)
     return token_point

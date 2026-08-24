@@ -83,6 +83,7 @@ __all__ = (
     "process_events",
     "prompt_editors",
     "show_prompt_editor",
+    "wait_for_prompt_sizing_idle",
     "height_padding",
     "default_scroll_height",
     "resize_handle_for",
@@ -105,7 +106,7 @@ def ensure_qapp() -> QApplication:
     return cast(QApplication, app)
 
 
-def process_events(app: QApplication, cycles: int = 3) -> None:
+def process_events(app: QApplication) -> None:
     """Deliver callbacks queued by the immediately preceding controlled action."""
 
     semantic_wait.wait_for_queued_qt_turn()
@@ -129,7 +130,7 @@ def show_prompt_editor(
 ) -> PromptEditor:
     """Create, size, and show one prompt editor for sizing assertions."""
 
-    app = ensure_qapp()
+    ensure_qapp()
     box = PromptEditor(
         prompt_autocomplete_gateway=EmptyPromptAutocompleteGateway(),
         prompt_wildcard_catalog_gateway=EmptyPromptWildcardCatalogGateway(),
@@ -139,9 +140,29 @@ def show_prompt_editor(
     box.resize(width, 100)
     box.setPlainText(text)
     box.show()
-    process_events(app)
+    wait_for_prompt_sizing_idle(box)
     prompt_editors.append(box)
     return box
+
+
+def wait_for_prompt_sizing_idle(box: PromptEditor) -> None:
+    """Wait until projection, shell sizing, and host geometry have settled."""
+
+    editor = cast(Any, box)
+    sizing = editor._sizing
+    scroll_delegate = editor._scroll_delegate
+    surface = editor._surface
+    semantic_wait.wait_for_qt_condition(
+        lambda: (
+            not surface.has_pending_projection_update()
+            and not surface.has_stale_projection_geometry()
+            and not sizing._height_commit_pending
+            and sizing._pending_content_height is None
+            and not sizing._manual_height_layout_reapply_pending
+            and not scroll_delegate.geometry_sync_pending
+            and not scroll_delegate.geometry_follow_up_pending
+        )
+    )
 
 
 def height_padding(box: PromptEditor) -> int:

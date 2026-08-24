@@ -54,13 +54,18 @@ from .support import (
 )
 
 _REGION_TEXT_COLOR = QColor(222, 223, 224)
+_REPRESENTATIVE_LONG_PROMPT_TAG_COUNT = 80
 
 
 def test_projection_layout_reflow_rebuilds_only_the_dirty_line_window() -> None:
     """Wrap-changing middle edits should preserve prefix lines and exact geometry."""
 
-    previous_text = ", ".join(f"tag {index} value" for index in range(240))
-    edit_start = previous_text.index("tag 120") + len("tag 120")
+    middle_tag_index = _REPRESENTATIVE_LONG_PROMPT_TAG_COUNT // 2
+    middle_tag = f"tag {middle_tag_index}"
+    previous_text = ", ".join(
+        f"tag {index} value" for index in range(_REPRESENTATIVE_LONG_PROMPT_TAG_COUNT)
+    )
+    edit_start = previous_text.index(middle_tag) + len(middle_tag)
     next_text = f"{previous_text[:edit_start]} extended{previous_text[edit_start:]}"
     incremental_layout, _ = _layout_for(previous_text, text_width=180.0)
     previous_first_line = incremental_layout.frame.output.snapshot.lines[0]  # noqa: SLF001
@@ -76,6 +81,13 @@ def test_projection_layout_reflow_rebuilds_only_the_dirty_line_window() -> None:
     )
 
     assert result.first_reflowed_line_index > 0
+    assert (
+        0
+        < result.reflowed_line_count
+        < len(
+            incremental_layout.frame.output.snapshot.lines  # noqa: SLF001
+        )
+    )
     assert incremental_layout.frame.output.snapshot.lines[0] is previous_first_line  # noqa: SLF001
     assert _layout_geometry_signature(incremental_layout) == _layout_geometry_signature(
         full_layout

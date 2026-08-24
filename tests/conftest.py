@@ -70,6 +70,7 @@ _watchdog_lock = threading.Lock()
 _active_test_nodeid: str | None = None
 _active_test_deadline: float | None = None
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
+_TEST_EXECUTION_SEQUENCE = pytest.StashKey[int]()
 
 
 class _ProcessMemoryCountersEx(ctypes.Structure):
@@ -119,9 +120,33 @@ def pytest_ignore_collect(
 def pytest_sessionstart(session: pytest.Session) -> None:
     """Start per-process resource guards before test collection."""
 
-    del session
+    session.config.stash[_TEST_EXECUTION_SEQUENCE] = 0
     _install_offscreen_macos_frameless_shim()
     _start_test_process_memory_watchdog()
+
+
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """Attach worker-local order evidence to every JUnit test case."""
+
+    sequence = item.config.stash.get(_TEST_EXECUTION_SEQUENCE, 0) + 1
+    item.config.stash[_TEST_EXECUTION_SEQUENCE] = sequence
+    item.user_properties.extend(
+        (
+            ("execution_worker", _execution_worker_label(item.config)),
+            ("execution_sequence", sequence),
+        )
+    )
+
+
+def _execution_worker_label(config: pytest.Config) -> str:
+    """Return xdist's diagnostic worker label without changing test behavior."""
+
+    worker_input = getattr(config, "workerinput", None)
+    if isinstance(worker_input, dict):
+        worker_id = worker_input.get("workerid")
+        if isinstance(worker_id, str):
+            return worker_id
+    return "controller"
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -1409,12 +1409,12 @@ next_extraction = "Extract production mounting/instrumentation and invariant/rep
 id = "SS-ARCH-094"
 owner = "prompt abuse action dispatch"
 paths = ["tools/prompt_editor_abuse/action_driver.py"]
-fingerprint = "sha256:d4862be0e7fc09969f24dd2662af5c1f1e68a68d24f26fe195b299a2083f0eb0"
+fingerprint = "sha256:98ff33ba00077731e0d735a25c875f35a3033e429fca314241e1be74676ae700"
 issue = "chore:SS-ARCH-094"
 review_by = 2026-12-15
 responsibilities = [
   "mounted prompt-editor action host state",
-  "keyboard, text, pointer, and event-drain dispatch",
+  "keyboard, text, pointer, and semantic-completion dispatch",
   "source selection and caret projection",
   "context-menu discovery and invocation",
   "token-weight control discovery and interaction",

@@ -192,7 +192,7 @@ def test_projection_surface_auto_exact_weight_edit_uses_existing_click_commit_fl
     assert token_rect is not None
     click_point = QPoint(int(token_rect.right() + 18), int(token_rect.center().y()))
     QTest.mouseClick(box.viewport(), Qt.MouseButton.LeftButton, pos=click_point)
-    process_events(app, cycles=4)
+    process_events(app)
 
     committed_token = first_emphasis_token(box)
     assert box.toPlainText() == "(test:1.20), dog"

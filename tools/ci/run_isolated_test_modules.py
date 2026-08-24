@@ -25,12 +25,14 @@ from collections.abc import Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from time import perf_counter
 
 from tests.ci_test_policy import (
     ISOLATED_TEST_MODULES,
     isolated_test_worker_count,
 )
 from tools.ci.test_module_process import TestModuleRun, run_test_module
+from tools.ci.test_partition_summary import write_test_partition_summary
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,6 +51,7 @@ def run_isolated_test_modules(
     worker_count = isolated_test_worker_count(
         os.cpu_count() if available_workers is None else available_workers
     )
+    started_at = perf_counter()
     with TemporaryDirectory(prefix="sugarsubstitute-isolated-") as temp_directory:
         base_temp_root = Path(temp_directory)
         with ThreadPoolExecutor(
@@ -65,19 +68,28 @@ def run_isolated_test_modules(
                 ): module_path
                 for module_path in module_paths
             }
-            return _collect_results(futures, total=len(module_paths))
+            runs = _collect_results(futures, total=len(module_paths))
+    write_test_partition_summary(
+        junit_directory=junit_directory,
+        lane="isolated",
+        worker_count=worker_count,
+        duration_seconds=perf_counter() - started_at,
+        runs=runs,
+    )
+    return tuple(sorted(run.module_path for run in runs if not run.passed))
 
 
 def _collect_results(
     futures: dict[Future[TestModuleRun], str],
     *,
     total: int,
-) -> tuple[str, ...]:
+) -> tuple[TestModuleRun, ...]:
     """Collect all terminal results while preserving actionable diagnostics."""
 
-    failures: list[str] = []
+    runs: list[TestModuleRun] = []
     for index, future in enumerate(as_completed(futures), start=1):
         result = future.result()
+        runs.append(result)
         _LOGGER.info(
             "Isolated module %d/%d completed: %s",
             index,
@@ -86,14 +98,13 @@ def _collect_results(
         )
         if result.passed:
             continue
-        failures.append(result.module_path)
         _LOGGER.error("Pytest output for %s:\n%s", result.module_path, result.output)
         _LOGGER.error(
             "Isolated module failed with exit code %d: %s",
             result.return_code,
             result.module_path,
         )
-    return tuple(sorted(failures))
+    return tuple(runs)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

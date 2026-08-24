@@ -25,9 +25,9 @@ from typing import Any, cast
 from unittest.mock import patch
 from uuid import UUID
 
-from PySide6.QtCore import QPoint, QRectF, Qt
+from PySide6.QtCore import QEvent, QObject, QPoint, QRectF, Qt
 from PySide6.QtGui import QColor, QImage
-from PySide6.QtTest import QTest
+from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QWidget
 from cutecanvas import PixelSelectionMode, VectorShapeKind
 
@@ -48,7 +48,13 @@ from substitute.application.workflows.workflow_node_definition_service import (
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.infrastructure.persistence import QtImageStore
+from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
+    InputCanvasToolId,
+)
 from substitute.presentation.canvas.input.input_canvas_view import InputCanvas
+from substitute.presentation.canvas.input.input_node_preview_widget import (
+    InputNodePreviewWidget,
+)
 from substitute.presentation.editor.panel.widgets.fields.load_image import ImagePicker
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
 from substitute.presentation.shell.input_canvas_composition import (
@@ -60,6 +66,24 @@ from substitute.presentation.shell.main_window_dependencies import (
 from tests.support.prompt_editor.real_shell.scenario import (
     PromptEditorRealShellScenario,
 )
+
+
+class _MousePressObserver(QObject):
+    """Observe real press delivery without consuming the canvas event."""
+
+    def __init__(self) -> None:
+        """Initialize an undelivered observation."""
+
+        super().__init__()
+        self.delivered = False
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        """Record one mouse press and preserve normal target dispatch."""
+
+        del watched
+        if event.type() is QEvent.Type.MouseButtonPress:
+            self.delivered = True
+        return False
 
 
 class RealShellInputEditorHarness:
@@ -154,9 +178,10 @@ class RealShellInputEditorHarness:
         picker = cast(
             ImagePicker, self.picker(ImagePicker, cube_alias, self.IMAGE_NODE)
         )
+        self.picker(MaskPicker, cube_alias, self.MASK_NODE)
         picker.set_thumbnail(str(path))
         picker.imageSelected.emit(str(path))
-        self.process_events(8)
+        self.wait_until(lambda: self._image_selection_is_active(cube_alias))
 
     def picker(
         self,
@@ -171,7 +196,6 @@ class RealShellInputEditorHarness:
             return picker
         panel = self.shell.editor_panels[self.WORKFLOW_ID]
         panel.reveal_loaded_cube(cube_alias)
-        self.process_events(10)
         self.wait_until(
             lambda: (
                 self._find_picker(
@@ -199,7 +223,6 @@ class RealShellInputEditorHarness:
         )
         if item_id is None:
             raise RuntimeError("Production Input canvas rejected retained rectangle")
-        self.process_events(12)
 
     def add_brush_dab(self, point: QPoint, *, brush_size: int) -> None:
         """Commit one brush dab after the mounted canvas receives its press delivery."""
@@ -210,6 +233,8 @@ class RealShellInputEditorHarness:
         assert input_canvas.document.set_active_mask_id(self.mask_id)
         input_canvas.canvas.setBrushSize(brush_size)
         input_canvas.canvas.setControlMode(input_canvas.canvas.CONTROL_MODE_DRAW_BRUSH)
+        mask_changes = QSignalSpy(input_canvas.document.maskContentChanged)
+        press_observer = _MousePressObserver()
         self.wait_until(
             lambda: (
                 input_canvas.canvas.isVisible()
@@ -220,19 +245,24 @@ class RealShellInputEditorHarness:
                 == input_canvas.canvas.CONTROL_MODE_DRAW_BRUSH
             )
         )
-        QTest.mousePress(
-            input_canvas.canvas,
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-            point,
-        )
-        self.process_events()
+        input_canvas.canvas.installEventFilter(press_observer)
+        try:
+            QTest.mousePress(
+                input_canvas.canvas,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+                point,
+            )
+            self.wait_until(lambda: press_observer.delivered)
+        finally:
+            input_canvas.canvas.removeEventFilter(press_observer)
         QTest.mouseRelease(
             input_canvas.canvas,
             Qt.MouseButton.LeftButton,
             Qt.KeyboardModifier.NoModifier,
             point,
         )
+        self.wait_until(lambda: mask_changes.count() > 0)
 
     def prepare_generation(self) -> WorkflowState:
         """Capture and materialize one execution-only workflow revision."""
@@ -253,11 +283,6 @@ class RealShellInputEditorHarness:
                 "Production Input document persistence produced no archive"
             )
         return cast(Path, lifecycle.archive_path)
-
-    def process_events(self, cycles: int = 4) -> None:
-        """Drain bounded queued shell and renderer work."""
-        _ = cycles
-        self._base.wait_for_queued_delivery()
 
     def wait_until(self, predicate: Callable[[], bool]) -> None:
         """Wait for one observable production-shell condition with a bound."""
@@ -296,12 +321,48 @@ class RealShellInputEditorHarness:
         self.shell.editor_panel = panel
         panel.show()
         panel.reveal_loaded_cube(self.CUBE_ALIAS)
-        self.process_events(10)
         self._base.wait_until(
             lambda: (
                 self._find_picker(ImagePicker, self.IMAGE_NODE) is not None
                 and self._find_picker(MaskPicker, self.MASK_NODE) is not None
             ),
+        )
+
+    def _image_selection_is_active(self, cube_alias: str) -> bool:
+        """Return whether selection, previews, canvas, and tools share one subject."""
+
+        image_picker = self._find_picker(
+            ImagePicker,
+            self.IMAGE_NODE,
+            cube_alias=cube_alias,
+        )
+        mask_picker = self._find_picker(
+            MaskPicker,
+            self.MASK_NODE,
+            cube_alias=cube_alias,
+        )
+        image_entry = self.workflow.canvas.image_entry(
+            f"{cube_alias}:{self.IMAGE_NODE}"
+        )
+        mask_entry = self.workflow.canvas.mask_entry((cube_alias, self.MASK_NODE))
+        palette = self.shell.input_canvas_tool_controller.palette
+        navigation = palette.presentation_for(InputCanvasToolId.PAN_ZOOM)
+        rectangle = palette.presentation_for(InputCanvasToolId.MASK_RECTANGLE)
+        return (
+            image_picker is not None
+            and mask_picker is not None
+            and image_entry is not None
+            and mask_entry is not None
+            and isinstance(image_picker.live_preview(), InputNodePreviewWidget)
+            and isinstance(mask_picker.live_preview(), InputNodePreviewWidget)
+            and self.workflow.canvas.input_image_uuid == image_entry.image_id
+            and self.workflow.canvas.active_input_mask_uuid == mask_entry.mask_id
+            and self.input_canvas.document.active_mask_id() == mask_entry.mask_id
+            and self.shell.canvas_host.is_canvas_visible("Input")
+            and navigation is not None
+            and navigation.enabled
+            and rectangle is not None
+            and rectangle.enabled
         )
 
     def _picker(self, picker_type: type[Any], node_name: str) -> Any:

@@ -30,10 +30,9 @@ from substitute.presentation.editor.prompt_editor.core.projection.caret import (
     PromptProjectionCaretState,
 )
 from tests.support.prompt_editor.projection_engine_support import (
-    ensure_qapp,
-    process_events,
     show_prompt_editor,
     surface_for,
+    wait_for_caret_geometry,
 )
 from tests.support.prompt_editor.projection_surface_support import (
     delay_projection_update_scheduler,
@@ -42,6 +41,7 @@ from tests.support.prompt_editor.projection_surface_support import (
     install_lora_wildcard_prompt_state,
     projection_surface_widgets as _projection_surface_widgets,  # noqa: F401
 )
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 from .support import (
     _projection_lines,
@@ -190,7 +190,6 @@ def test_projection_surface_middle_enter_with_inset_keeps_ordered_line_carets(
 ) -> None:
     """Incremental Enter should keep line-local caret stops in source order."""
 
-    app = ensure_qapp()
     box = show_prompt_editor(
         widgets,
         text="alphabeta",
@@ -198,7 +197,6 @@ def test_projection_surface_middle_enter_with_inset_keeps_ordered_line_carets(
     )
     surface = surface_for(box)
     surface.set_source_line_content_left_inset(24.0)
-    process_events(app)
     original_rebuild_projection = surface._rebuild_projection  # noqa: SLF001
     rebuild_count = 0
 
@@ -218,7 +216,21 @@ def test_projection_surface_middle_enter_with_inset_keeps_ordered_line_carets(
     rebuild_count = 0
 
     QTest.keyClick(box, Qt.Key.Key_Return)
-    process_events(app)
+    wait_for_qt_condition(
+        lambda: (
+            box.toPlainText() == "alpha\nbeta"
+            and len(_projection_lines(surface)) >= 2
+            and not surface.has_pending_projection_update()
+            and not surface.has_stale_projection_geometry()
+        ),
+        description="incremental newline projection geometry",
+        state=lambda: {
+            "text": box.toPlainText(),
+            "line_count": len(_projection_lines(surface)),
+            "pending_projection": surface.has_pending_projection_update(),
+            "stale_geometry": surface.has_stale_projection_geometry(),
+        },
+    )
 
     first_line, second_line = _projection_lines(surface)[:2]
     first_line_positions = tuple(
@@ -227,28 +239,50 @@ def test_projection_surface_middle_enter_with_inset_keeps_ordered_line_carets(
     content_left = (  # noqa: SLF001
         surface._layout.frame.output.configuration.document_margin + 24.0
     )
-    caret_rect = box.cursorRect()
     assert box.toPlainText() == "alpha\nbeta"
     assert rebuild_count == 0
     assert first_line_positions == tuple(sorted(first_line_positions))
     assert first_line.caret_stops[-1].projection_position == len("alpha")
     assert second_line.caret_stops[0].projection_position == len("alpha\n")
-    assert caret_rect.x() == pytest.approx(content_left, abs=1.0)
-    assert caret_rect.y() == pytest.approx(second_line.top, abs=1.0)
+    wait_for_caret_geometry(
+        box,
+        surface,
+        position=len("alpha\n"),
+        expected_x=content_left,
+        expected_y=second_line.top,
+    )
 
     QTest.keyClick(box, Qt.Key.Key_Left)
-    process_events(app)
+    wait_for_caret_geometry(
+        box,
+        surface,
+        position=len("alpha"),
+        expected_x=first_line.caret_stops[-1].rect.x(),
+        expected_y=first_line.top,
+    )
     caret_rect = box.cursorRect()
     assert surface.cursor_position == len("alpha")
     assert caret_rect.x() == pytest.approx(first_line.caret_stops[-1].rect.x(), abs=1.0)
-    assert caret_rect.y() == pytest.approx(first_line.top, abs=1.0)
+    assert caret_rect.y() == pytest.approx(
+        first_line.top - surface.verticalScrollBar().value(),
+        abs=1.0,
+    )
 
     QTest.keyClick(box, Qt.Key.Key_Right)
-    process_events(app)
+    wait_for_caret_geometry(
+        box,
+        surface,
+        position=len("alpha\n"),
+        expected_x=content_left,
+        expected_y=second_line.top,
+    )
     caret_rect = box.cursorRect()
     assert surface.cursor_position == len("alpha\n")
     assert caret_rect.x() == pytest.approx(content_left, abs=1.0)
-    assert caret_rect.y() == pytest.approx(second_line.top, abs=1.0)
+    assert caret_rect.y() == pytest.approx(
+        second_line.top - surface.verticalScrollBar().value(),
+        abs=1.0,
+    )
 
 
 def test_projection_surface_backspace_newline_after_lora_keeps_geometry_aligned(

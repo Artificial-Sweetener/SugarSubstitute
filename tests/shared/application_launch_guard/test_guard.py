@@ -108,7 +108,7 @@ def test_launch_guard_serializes_concurrent_handoff_claims(tmp_path: Path) -> No
     def claim_handoff() -> ApplicationLaunchGuard | None:
         """Attempt one simultaneous claim of the launcher's handoff token."""
 
-        start_barrier.wait()
+        start_barrier.wait(timeout=5.0)
         return ApplicationLaunchGuard.enter(
             install_root,
             inherited_token=launcher.token,

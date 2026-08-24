@@ -68,8 +68,19 @@ def test_wait_for_qt_condition_delivers_queued_state_change() -> None:
 def test_wait_for_qt_condition_uses_timeout_only_as_failure_bound() -> None:
     """Fail when semantic state never arrives instead of treating time as success."""
 
-    with pytest.raises(AssertionError):
-        wait_for_qt_condition(lambda: False, timeout_ms=10)
+    with pytest.raises(
+        AssertionError,
+        match=(
+            "Timed out after 10 ms waiting for prompt caret geometry; "
+            "state={'position': 4}"
+        ),
+    ):
+        wait_for_qt_condition(
+            lambda: False,
+            timeout_ms=10,
+            description="prompt caret geometry",
+            state=lambda: {"position": 4},
+        )
 
 
 def test_wait_for_qt_condition_destroys_native_wait_objects(

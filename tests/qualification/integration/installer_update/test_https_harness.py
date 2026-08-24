@@ -20,8 +20,6 @@ from __future__ import annotations
 
 import shutil
 
-import pytest
-
 from tools.run_https_update_harness import (
     DEFAULT_HARNESS_ROOT,
     NEW_VERSION,
@@ -32,8 +30,9 @@ from tools.run_https_update_harness import (
 def test_https_update_harness_installs_remote_payload() -> None:
     """The headless harness should prove HTTPS manifest and payload updates."""
 
-    if shutil.which("openssl") is None:
-        pytest.skip("OpenSSL is required to generate the local HTTPS test cert.")
+    assert shutil.which("openssl") is not None, (
+        "OpenSSL is required to qualify the local HTTPS update boundary."
+    )
 
     result = run_https_update_harness(keep_artifacts=False)
 
