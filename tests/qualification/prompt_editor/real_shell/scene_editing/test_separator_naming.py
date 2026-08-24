@@ -22,7 +22,7 @@ from itertools import pairwise
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QLineEdit
+from PySide6.QtWidgets import QApplication, QLineEdit
 import pytest
 
 from substitute.presentation.editor.prompt_editor.interactions.region_inline_editor import (
@@ -222,7 +222,17 @@ def test_real_shell_region_inline_edit_commits_when_focus_leaves(
             field.editor.toPlainText() == expected_source
             and not inline_editor.isVisible()
             and field.editor.hasFocus()
-        )
+        ),
+        description="separator focus-loss commit",
+        state=lambda: {
+            "source": field.editor.toPlainText(),
+            "inline_text": inline_editor.text(),
+            "inline_visible": inline_editor.isVisible(),
+            "inline_focused": inline_editor.hasFocus(),
+            "editor_focused": field.editor.hasFocus(),
+            "focus_widget": QApplication.focusWidget(),
+            "active_window": QApplication.activeWindow(),
+        },
     )
 
     after = real_shell_scenario.snapshots.capture(
