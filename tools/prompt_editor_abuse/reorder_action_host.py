@@ -49,6 +49,7 @@ class PromptReorderAbuseActionHost(PromptAbuseActionHost):
     def __init__(self) -> None:
         """Initialize an inactive pointer drag session."""
 
+        super().__init__()
         self._source_chip: _OverlayChipTarget | None = None
         self._start = QPoint()
         self._target = QPoint()

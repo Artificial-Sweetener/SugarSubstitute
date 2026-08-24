@@ -31,7 +31,7 @@ from PySide6.QtCore import (
     Signal,
 )
 from PySide6.QtGui import QFocusEvent, QKeyEvent, QPalette, QRegularExpressionValidator
-from PySide6.QtWidgets import QLineEdit, QWidget
+from PySide6.QtWidgets import QApplication, QLineEdit, QWidget
 
 from substitute.presentation.editor.prompt_editor.projection.region_chrome_state import (
     PromptRegionChromeEditTarget,
@@ -49,7 +49,7 @@ class _RegionNameLineEdit(QLineEdit):
 
     acceptRequested = Signal()
     cancelRequested = Signal()
-    focusCommitRequested = Signal()
+    focusCommitRequested = Signal(object)
     focusAcquired = Signal()
 
     def focusInEvent(self, event: QFocusEvent) -> None:  # noqa: N802
@@ -75,7 +75,7 @@ class _RegionNameLineEdit(QLineEdit):
         """Commit through the owner when focus leaves the inline editor."""
 
         super().focusOutEvent(event)
-        self.focusCommitRequested.emit()
+        self.focusCommitRequested.emit(event.reason())
 
 
 class PromptRegionInlineEditor(QObject):
@@ -198,10 +198,10 @@ class PromptRegionInlineEditor(QObject):
             return
         self._finish()
 
-    def _commit_if_focus_remains_lost(self) -> None:
+    def _commit_if_focus_remains_lost(self, reason: Qt.FocusReason) -> None:
         """Commit only when the next Qt turn confirms a durable focus departure."""
 
-        QTimer.singleShot(0, self._commit_after_focus_transition)
+        QTimer.singleShot(0, lambda: self._commit_after_focus_transition(reason))
 
     def _record_focus_acquisition(self) -> None:
         """Permit focus-loss commits only after this edit session received focus."""
@@ -209,13 +209,18 @@ class PromptRegionInlineEditor(QObject):
         if self.active:
             self._focus_has_been_acquired = True
 
-    def _commit_after_focus_transition(self) -> None:
+    def _commit_after_focus_transition(self, reason: Qt.FocusReason) -> None:
         """Preserve an active inline draft across transient viewport focus churn."""
 
         if (
             not self.active
             or not self._focus_has_been_acquired
             or self._editor.hasFocus()
+        ):
+            return
+        if (
+            QApplication.focusWidget() is None
+            and reason == Qt.FocusReason.ActiveWindowFocusReason
         ):
             return
         self.commit()
