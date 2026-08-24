@@ -215,7 +215,7 @@ def test_real_shell_region_inline_edit_commits_when_focus_leaves(
     assert inline_editor is not None
     real_shell_scenario.wait_until(inline_editor.hasFocus)
     QTest.keyClicks(inline_editor, "Background")
-    field.editor.setFocus(Qt.FocusReason.MouseFocusReason)
+    real_shell_scenario.input.focus_editor(field)
     expected_source = "global\n[SEP|Background]\nregion"
     real_shell_scenario.wait_until(
         lambda: (
