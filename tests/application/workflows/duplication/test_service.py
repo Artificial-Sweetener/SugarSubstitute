@@ -284,12 +284,15 @@ def test_duplicate_workflow_logs_clone_summary(
 ) -> None:
     """Workflow duplication should log clone counts and volatile-state resets."""
 
+    times = iter([0.0, 0.001])
     caplog.set_level(
         logging.INFO,
         logger="sugarsubstitute.application.workflows.workflow_duplicate_service",
     )
 
-    WorkflowDuplicateService().duplicate_workflow(_workflow_state())
+    WorkflowDuplicateService(clock=lambda: next(times)).duplicate_workflow(
+        _workflow_state()
+    )
 
     assert "Workflow duplicate clone started" in caplog.text
     assert "Workflow duplicate clone completed" in caplog.text
