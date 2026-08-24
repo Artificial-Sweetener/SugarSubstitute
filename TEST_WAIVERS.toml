@@ -8,7 +8,7 @@ disposition = "framework_infrastructure"
 rule = "OPTIONAL001"
 candidates = ["OPTIONAL001|tests/conftest.py|<module>:optional-proof:1"]
 paths = ["tests/conftest.py"]
-fingerprint = "sha256:954223722f0daee87271b5293475f2e2a838e77c43118fe746c2d373b2de27dc"
+fingerprint = "sha256:c7fe95e7e16670a2534f8076944dce0c0ef87951b3329a9031eedf47d0a188e5"
 rationale = "The central pytest hook translates the repository's explicit platforms marker into collection-time applicability after validating every declared platform name. This is the sole supported-platform exclusion owner; individual tests cannot invoke skip, xfail, retry, or ordering mechanisms, and unsupported-platform collection remains visible in JUnit rather than concealing applicable proof."
 issue = "chore:SS-TEST-WAIVER-C0267"
 review_by = 2026-12-15
@@ -24,19 +24,6 @@ paths = ["tests/infrastructure/comfy/local_process/test_integration.py"]
 fingerprint = "sha256:e9b26120e618f910ac073276ea4f14ef22e5160a6af6cfa23d36a50b219643bd"
 rationale = "The test observes a uniquely owned external process through the production operating-system process-table adapter. The 50 ms delay only throttles repeated native scans after an unsuccessful observation; success returns immediately, the monotonic deadline bounds failure, and replacing this cadence with an in-process signal would bypass the boundary under test."
 issue = "chore:SS-TEST-WAIVER-C0192"
-review_by = 2026-12-15
-
-[[waivers]]
-id = "SS-TEST-WAIVER-C0171"
-owner = "Reviewed wait in tests/conftest.py"
-kind = "classification"
-disposition = "framework_infrastructure"
-rule = "WAIT001"
-candidates = ["WAIT001|tests/conftest.py|<module>._watch_test_process_resources:wait:time.sleep:1"]
-paths = ["tests/conftest.py"]
-fingerprint = "sha256:954223722f0daee87271b5293475f2e2a838e77c43118fe746c2d373b2de27dc"
-rationale = "The daemon resource watchdog owns a process-level monitoring cadence rather than test completion. Its sleep bounds diagnostic polling overhead, while each actual test remains governed by a separately tracked monotonic deadline."
-issue = "chore:SS-TEST-WAIVER-C0171"
 review_by = 2026-12-15
 
 [[waivers]]
@@ -162,7 +149,7 @@ candidates = [
   "ENV001|tests/conftest.py|<module>:environment-mutation:4",
 ]
 paths = ["tests/conftest.py"]
-fingerprint = "sha256:954223722f0daee87271b5293475f2e2a838e77c43118fe746c2d373b2de27dc"
+fingerprint = "sha256:c7fe95e7e16670a2534f8076944dce0c0ef87951b3329a9031eedf47d0a188e5"
 rationale = "The root pytest bootstrap is the single process-level owner that establishes headless Qt and application safety variables before test modules import PySide6 or runtime code. These idempotent defaults apply uniformly to each independently isolated pytest worker."
 issue = "chore:SS-TEST-WAIVER-C0188"
 review_by = 2026-12-15
