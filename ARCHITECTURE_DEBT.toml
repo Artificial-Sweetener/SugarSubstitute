@@ -1409,17 +1409,17 @@ next_extraction = "Extract production mounting/instrumentation and invariant/rep
 id = "SS-ARCH-094"
 owner = "prompt abuse action dispatch"
 paths = ["tools/prompt_editor_abuse/action_driver.py"]
-fingerprint = "sha256:98ff33ba00077731e0d735a25c875f35a3033e429fca314241e1be74676ae700"
+fingerprint = "sha256:2e6985ff615809c88554f5f28e111566165af4592d599e291c4a2a022396dd0b"
 issue = "chore:SS-ARCH-094"
 review_by = 2026-12-15
 responsibilities = [
-  "mounted prompt-editor action host state",
-  "keyboard, text, pointer, and semantic-completion dispatch",
+  "generic mounted prompt-editor action host and collaborator composition",
+  "action checkpoint, timing, and semantic-completion orchestration",
+  "keyboard, text, and event-drain dispatch",
   "source selection and caret projection",
-  "context-menu discovery and invocation",
-  "token-weight control discovery and interaction",
+  "diagnostic, picker, and context-menu feature invocation",
 ]
-next_extraction = "Extract input-family dispatchers and menu/weight-control interaction adapters from the mounted action host."
+next_extraction = "Extract keyboard/text/drain dispatch and diagnostic/picker/context-menu feature interaction from the generic mounted action host."
 
 [[debts]]
 id = "SS-ARCH-095"

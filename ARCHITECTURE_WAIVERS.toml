@@ -1929,10 +1929,10 @@ owner = "prompt abuse action dispatch"
 rule = "STRUCT003"
 path = "tools/prompt_editor_abuse/action_driver.py"
 kind = "remediation"
-justification = "The assessed file mixes mounted prompt-editor action host state, keyboard, text, pointer, and semantic-completion dispatch, source selection and caret projection, context-menu discovery and invocation, token-weight control discovery and interaction. Extract input-family dispatchers and menu/weight-control interaction adapters from the mounted action host."
+justification = "The assessed file mixes generic mounted prompt-editor action host and collaborator composition, action checkpoint/timing/semantic-completion orchestration, keyboard/text/event-drain dispatch, source selection and caret projection, and diagnostic/picker/context-menu feature invocation. Extract keyboard/text/drain dispatch and diagnostic/picker/context-menu feature interaction from the generic mounted action host."
 issue = "chore:SS-ARCH-094"
 review_by = 2026-12-15
-max_lines = 1031
+max_lines = 912
 next_limit = 821
 debt = "SS-ARCH-094"
 
@@ -2006,7 +2006,7 @@ kind = "structural"
 justification = "This module owns one mounted pointer-reorder abuse contract: resolve a semantic drag target, dispatch the production pointer route, and compare the resulting overlay and render state with that target. Its geometry and mismatch helpers are private evidence computations for that single action host rather than independent application responsibilities."
 issue = "chore:SS-WAIVER-S077"
 review_by = 2026-12-15
-max_lines = 610
+max_lines = 611
 
 [[waivers]]
 id = "SS-WAIVER-S078"

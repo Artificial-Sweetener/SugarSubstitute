@@ -364,6 +364,11 @@ class PromptEditorInputDriver:
         self._shell_activator()
         focus_target = self._input_canvas_provider()
         focus_target.setFocus(Qt.FocusReason.MouseFocusReason)
+        wait_for_qt_condition(
+            lambda: not _focus_belongs_to(field.editor),
+            description="prompt-editor focus to leave before click-away delivery",
+            state=lambda: _click_away_state(field.editor, focus_target),
+        )
         QTest.mouseClick(
             focus_target,
             Qt.MouseButton.LeftButton,
@@ -373,7 +378,7 @@ class PromptEditorInputDriver:
         self._trace_actions.append(PromptEditorTraceAction("click_away", ""))
         wait_for_qt_condition(
             lambda: (
-                _focus_belongs_to(focus_target)
+                not _focus_belongs_to(field.editor)
                 and _autocomplete_is_dismissed(field.editor)
             ),
             description="prompt-editor click-away completion",
@@ -426,6 +431,8 @@ def _click_away_state(editor: PromptEditor, focus_target: QWidget) -> object:
     return {
         "active_window": QApplication.activeWindow(),
         "focus_widget": QApplication.focusWidget(),
+        "editor_owns_focus": _focus_belongs_to(editor),
+        "canvas_owns_focus": _focus_belongs_to(focus_target),
         "canvas_visible": focus_target.isVisible(),
         "preview": autocomplete_preview_state(editor),
         "session_active": autocomplete["has_active"],
