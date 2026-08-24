@@ -167,9 +167,7 @@ class PromptEditorRealShellScenario:
         self.input = PromptEditorInputDriver(
             shell=self.shell,
             shell_activator=self.shell.activate_for_input,
-            input_canvas_provider=lambda: cast(
-                QWidget, self.shell.canvas_host.canvas_for("Input")
-            ),
+            click_away_target_provider=lambda: self.shell.canvas_host.selector.button,
             canvas_provider=lambda label: cast(
                 QWidget | None, self.shell.canvas_host.canvas_for(label)
             ),
