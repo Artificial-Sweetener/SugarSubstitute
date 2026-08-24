@@ -1945,7 +1945,7 @@ kind = "structural"
 justification = "This module owns one declarative catalog of hostile regional-separator scenarios. Every builder produces the same immutable abuse-scenario contract, and the navigation, authoring, paste, churn, and lifecycle variants must remain together so coverage over the separator state space stays explicit and reviewable."
 issue = "chore:SS-WAIVER-S075"
 review_by = 2026-12-15
-max_lines = 978
+max_lines = 980
 
 [[waivers]]
 id = "SS-WAIVER-R095"

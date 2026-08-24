@@ -64,7 +64,7 @@ class PromptEditorInputDriver:
         *,
         shell: QWidget,
         shell_activator: Callable[[], None],
-        input_canvas_provider: Callable[[], QWidget],
+        click_away_target_provider: Callable[[], QWidget],
         canvas_provider: Callable[[str], QWidget | None],
         canvas_activator: Callable[[str], None],
         trace_actions: list[PromptEditorTraceAction],
@@ -74,7 +74,7 @@ class PromptEditorInputDriver:
 
         self._shell = shell
         self._shell_activator = shell_activator
-        self._input_canvas_provider = input_canvas_provider
+        self._click_away_target_provider = click_away_target_provider
         self._canvas_provider = canvas_provider
         self._canvas_activator = canvas_activator
         self._trace_actions = trace_actions
@@ -362,13 +362,7 @@ class PromptEditorInputDriver:
         """Click a real focusable shell widget outside the prompt editor."""
 
         self._shell_activator()
-        focus_target = self._input_canvas_provider()
-        focus_target.setFocus(Qt.FocusReason.MouseFocusReason)
-        wait_for_qt_condition(
-            lambda: not _focus_belongs_to(field.editor),
-            description="prompt-editor focus to leave before click-away delivery",
-            state=lambda: _click_away_state(field.editor, focus_target),
-        )
+        focus_target = self._click_away_target_provider()
         QTest.mouseClick(
             focus_target,
             Qt.MouseButton.LeftButton,
@@ -432,8 +426,8 @@ def _click_away_state(editor: PromptEditor, focus_target: QWidget) -> object:
         "active_window": QApplication.activeWindow(),
         "focus_widget": QApplication.focusWidget(),
         "editor_owns_focus": _focus_belongs_to(editor),
-        "canvas_owns_focus": _focus_belongs_to(focus_target),
-        "canvas_visible": focus_target.isVisible(),
+        "outside_target_owns_focus": _focus_belongs_to(focus_target),
+        "outside_target_visible": focus_target.isVisible(),
         "preview": autocomplete_preview_state(editor),
         "session_active": autocomplete["has_active"],
         "panel_visible": autocomplete["presenter_panel_visible"],
