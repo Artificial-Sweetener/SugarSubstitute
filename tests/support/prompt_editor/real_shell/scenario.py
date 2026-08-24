@@ -63,7 +63,10 @@ from tests.support.prompt_editor.real_shell.artifacts import PromptEditorArtifac
 from tests.support.prompt_editor.real_shell.context_menu_probe import (
     PromptContextMenuProbe,
 )
-from tests.support.prompt_editor.real_shell.input_driver import PromptEditorInputDriver
+from tests.support.prompt_editor.real_shell.input_driver import (
+    PromptEditorClickAwayTarget,
+    PromptEditorInputDriver,
+)
 from tests.support.prompt_editor.real_shell.invariants.snapshot import (
     snapshot_invariant_violations,
 )
@@ -220,13 +223,17 @@ class PromptEditorRealShellScenario:
         )
         self._closed = False
 
-    def _click_away_target(self) -> QWidget:
-        """Return the active production panel scroll focus owner."""
+    def _click_away_target(self) -> PromptEditorClickAwayTarget:
+        """Return the panel scroll owner and its visible event surface."""
 
         panel = self.shell.active_editor_panel
         if panel is None:
             raise RuntimeError("Click-away input requires an active editor panel.")
-        return cast(EditorPanelScrollSurface, panel.scroll)
+        focus_owner = cast(EditorPanelScrollSurface, panel.scroll)
+        return PromptEditorClickAwayTarget(
+            focus_owner=focus_owner,
+            event_surface=focus_owner.viewport(),
+        )
 
     def close(self) -> None:
         """Stop canvas work before synchronously destroying the mounted shell."""
