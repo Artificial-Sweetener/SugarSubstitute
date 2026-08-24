@@ -42,7 +42,7 @@ def test_real_shell_ghost_requires_visually_present_dropdown(
     """Clear ghost text together with the visible dropdown on Escape."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "re")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
     before = real_shell_scenario.snapshots.capture(field, label="before-escape")
     real_shell_scenario.input.press_key(field, Qt.Key.Key_Escape)
     after = real_shell_scenario.snapshots.capture(field, label="after-escape")
@@ -63,7 +63,7 @@ def test_real_shell_click_away_clears_ghost_and_dropdown(
     """Clear ghost state and dropdown when focus leaves the editor."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "re")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
     before = real_shell_scenario.snapshots.capture(field, label="before-click-away")
     real_shell_scenario.input.click_away_from_editor(field)
     after = real_shell_scenario.snapshots.capture(field, label="after-click-away")
@@ -87,7 +87,7 @@ def test_real_shell_backpack_click_away_clears_basket_ghost(
     """Clear whitespace-tag ghost text when focus leaves autocomplete."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "backpack")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "backpack")
     before = real_shell_scenario.snapshots.capture(
         field,
         label="before-backpack-click-away",
@@ -118,7 +118,7 @@ def test_real_shell_canvas_navigation_clears_ghost_and_dropdown(
     """Clear autocomplete state when moving away from and back to the canvas."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "re")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
     before = real_shell_scenario.snapshots.capture(field, label="before-canvas-nav")
     real_shell_scenario.input.switch_canvas("Output")
     real_shell_scenario.input.switch_canvas("Input")
@@ -151,7 +151,7 @@ def test_real_shell_workflow_navigation_clears_ghost_and_dropdown(
         initial_text="",
         activate=False,
     )
-    real_shell_scenario.input.type_text(field, "re")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
     before = real_shell_scenario.snapshots.capture(field, label="before-workflow-nav")
     real_shell_scenario.workflows.activate_workflow("beta", force_refresh=False)
     real_shell_scenario.workflows.activate_workflow("alpha", force_refresh=False)
@@ -177,7 +177,7 @@ def test_real_shell_escape_clears_ghost_and_dropdown(
     """Clear visible autocomplete surfaces when Escape dismisses completion."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "re")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
     before = real_shell_scenario.snapshots.capture(
         field,
         label="before-escape-clear",
@@ -204,7 +204,7 @@ def test_real_shell_cursor_navigation_clears_or_retargets_ghost(
     """Clear or retarget ghost text when a caret move changes the active prefix."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "re")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
     before = real_shell_scenario.snapshots.capture(field, label="before-left")
     real_shell_scenario.input.press_key(field, Qt.Key.Key_Left)
     after = real_shell_scenario.snapshots.capture(field, label="after-left")

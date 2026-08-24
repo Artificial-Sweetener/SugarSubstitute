@@ -44,7 +44,7 @@ def test_real_shell_autocomplete_selection_navigation_stays_coherent(
     """Keep session, popup, and preview coherent while changing selection."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "re")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
     before = real_shell_scenario.snapshots.capture(
         field,
         label="before-autocomplete-down",
@@ -97,7 +97,7 @@ def test_real_shell_space_does_not_displace_ghost_text(
     """Clear non-whitespace completion instead of displacing its ghost text."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "re")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
     before = real_shell_scenario.snapshots.capture(field, label="before-space")
     real_shell_scenario.input.press_key(field, Qt.Key.Key_Space, text=" ")
     after = real_shell_scenario.snapshots.capture(field, label="after-space")
@@ -132,7 +132,7 @@ def test_real_shell_space_keeps_whitespace_tag_completion_active(
     """Keep a whitespace-containing tag completion active after Space."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "backpack")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "backpack")
     before = real_shell_scenario.snapshots.capture(
         field,
         label="before-backpack-space",
@@ -228,7 +228,7 @@ def test_real_shell_space_after_autocomplete_dismissal_rebuilds_projection(
     """Rebuild projection after Space follows an autocomplete dismissal."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "backpack")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "backpack")
     active = real_shell_scenario.snapshots.capture(
         field,
         label="before-backpack-escape",

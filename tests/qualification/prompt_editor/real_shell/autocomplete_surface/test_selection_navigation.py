@@ -41,7 +41,7 @@ def test_real_shell_backpack_up_arrow_selects_previous_suggestion(
     """Wrap from the first suggestion to the prior one with Up."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "backpack")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "backpack")
     before = real_shell_scenario.snapshots.capture(field, label="before-backpack-up")
     real_shell_scenario.input.press_key(field, Qt.Key.Key_Up)
     after = real_shell_scenario.snapshots.capture(field, label="after-backpack-up")
@@ -82,7 +82,7 @@ def test_real_shell_multiline_backpack_up_arrow_selects_previous_suggestion(
         initial_text=f"{prefix_line}\n"
     )
     real_shell_scenario.input.move_cursor_to_end(field)
-    real_shell_scenario.input.type_text(field, "backpack")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "backpack")
     before = real_shell_scenario.snapshots.capture(
         field,
         label="before-multiline-backpack-up",

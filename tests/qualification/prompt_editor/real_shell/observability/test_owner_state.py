@@ -34,7 +34,7 @@ def test_real_shell_captures_headless_editor_and_popup_state(
     """Capture shell, editor, and popup state without screenshot dependencies."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
-    real_shell_scenario.input.type_text(field, "re")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
     snapshot = real_shell_scenario.snapshots.capture(field, label="after-re")
 
     assert snapshot.geometries["shell"] is not None
