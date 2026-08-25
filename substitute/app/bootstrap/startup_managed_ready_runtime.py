@@ -108,11 +108,13 @@ from substitute.app.bootstrap.ready_shell_controller import (
     create_ready_shell_show_gate_task,
     create_ready_shell_startup_diagnostics_update_adapter,
     create_ready_shell_target_activation_task,
-    schedule_ready_shell_controller_startup_tasks,
 )
 from substitute.app.bootstrap import ready_shell_reveal
 from substitute.app.bootstrap.ready_shell_startup_tasks import (
+    ReadyShellStartupTaskScheduler,
     ReadyShellStartupTaskQueueProtocol,
+    RunnableReadyShellTaskProtocol,
+    schedule_ready_shell_task_adapters,
 )
 from substitute.app.bootstrap.pre_show_restore_projection import (
     PreShowRestoreProjectionState,
@@ -429,24 +431,6 @@ class ReadyShellRevealTaskFactory(Protocol):
         trace_fields: Callable[[], Mapping[str, object]],
     ) -> ready_shell_reveal.ReadyShellRevealTask:
         """Return the reveal task for one managed launch."""
-
-
-class ReadyShellStartupTaskScheduler(Protocol):
-    """Schedule ready-shell startup tasks through the canonical queue owner."""
-
-    def __call__(
-        self,
-        *,
-        queue: ReadyShellStartupTaskQueueProtocol,
-        target_activation_task: ReadyShellTargetActivationTask,
-        start_readiness_timer: Callable[[], None],
-        shell_build_task: ReadyShellBuildTask,
-        metadata_bridge_task: ReadyShellMetadataBridgeTask,
-        prompt_editor_warmup_task: ReadyShellPromptEditorWarmupTask,
-        initial_workspace_prehydration_task: ReadyShellInitialWorkspacePrehydrationTask,
-        minimum_shell_ready_task: ReadyShellMinimumReadyTask,
-    ) -> None:
-        """Schedule all managed-ready startup tasks."""
 
 
 class ReadyShellShowGateTaskFactory(Protocol):
@@ -1025,18 +1009,20 @@ def create_startup_managed_ready_runtime_resources(
     def schedule_startup_tasks(
         *,
         queue: ReadyShellStartupTaskQueueProtocol,
-        target_activation_task: ReadyShellTargetActivationTask,
+        prepare_main_window: Callable[[], object],
+        target_activation_task: RunnableReadyShellTaskProtocol,
         start_readiness_timer: Callable[[], None],
-        shell_build_task: ReadyShellBuildTask,
-        metadata_bridge_task: ReadyShellMetadataBridgeTask,
-        prompt_editor_warmup_task: ReadyShellPromptEditorWarmupTask,
-        initial_workspace_prehydration_task: ReadyShellInitialWorkspacePrehydrationTask,
-        minimum_shell_ready_task: ReadyShellMinimumReadyTask,
+        shell_build_task: RunnableReadyShellTaskProtocol,
+        metadata_bridge_task: RunnableReadyShellTaskProtocol,
+        prompt_editor_warmup_task: RunnableReadyShellTaskProtocol,
+        initial_workspace_prehydration_task: RunnableReadyShellTaskProtocol,
+        minimum_shell_ready_task: RunnableReadyShellTaskProtocol,
     ) -> None:
         """Bind ready-shell task scheduling to this managed runtime."""
 
-        schedule_ready_shell_controller_startup_tasks(
+        schedule_ready_shell_task_adapters(
             queue=queue,
+            prepare_main_window=prepare_main_window,
             target_activation_task=target_activation_task,
             start_readiness_timer=start_readiness_timer,
             shell_build_task=shell_build_task,

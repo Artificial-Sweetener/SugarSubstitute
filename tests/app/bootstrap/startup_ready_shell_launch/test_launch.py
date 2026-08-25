@@ -109,6 +109,7 @@ def test_create_startup_ready_shell_launch_graph_returns_controller() -> None:
         cleanup_handler=_cleanup_result,
     )
     shell_ports = StartupShellCompositionPorts(
+        prepare_main_window=lambda: object(),
         build_main_window=lambda **_kwargs: object(),
         show_main_window=lambda **_kwargs: object(),
         show_built_main_window=lambda _shell_frame, **_kwargs: _shell_frame,

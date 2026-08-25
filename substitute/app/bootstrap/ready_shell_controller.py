@@ -32,10 +32,6 @@ from substitute.app.bootstrap.no_comfy_ready_shell import (
     launch_no_comfy_ready_shell,
     publish_no_comfy_ready_shell_result,
 )
-from substitute.app.bootstrap.ready_shell_startup_tasks import (
-    ReadyShellStartupTaskQueueProtocol,
-    schedule_ready_shell_startup_tasks,
-)
 from substitute.app.bootstrap.pre_show_restore_projection import (
     PreShowRestoreProjectionStarter,
     PreShowRestoreProjectionState,
@@ -443,31 +439,6 @@ def create_ready_shell_failure_queue(
         present_startup_failure_report=present_startup_failure_report,
         scheduler=scheduler,
         startup_timer=startup_timer,
-    )
-
-
-def schedule_ready_shell_controller_startup_tasks(
-    *,
-    queue: ReadyShellStartupTaskQueueProtocol,
-    target_activation_task: ReadyShellTargetActivationTask,
-    start_readiness_timer: Callable[[], None],
-    shell_build_task: ReadyShellBuildTask,
-    metadata_bridge_task: ReadyShellMetadataBridgeTask,
-    prompt_editor_warmup_task: ReadyShellPromptEditorWarmupTask,
-    initial_workspace_prehydration_task: ReadyShellInitialWorkspacePrehydrationTask,
-    minimum_shell_ready_task: ReadyShellMinimumReadyTask,
-) -> None:
-    """Schedule live ready-shell task adapters through the canonical queue owner."""
-
-    schedule_ready_shell_startup_tasks(
-        queue=queue,
-        activate_target=target_activation_task.run,
-        start_readiness_timer=start_readiness_timer,
-        build_main_window=shell_build_task.run,
-        wire_metadata_bridge=metadata_bridge_task.run,
-        warm_prompt_editor_gui=prompt_editor_warmup_task.run,
-        prehydrate_initial_workspace=initial_workspace_prehydration_task.run,
-        mark_minimum_shell_ready=minimum_shell_ready_task.run,
     )
 
 
@@ -2011,7 +1982,6 @@ __all__ = [
     "prehydrate_ready_shell_initial_workspace_task",
     "project_ready_shell_backend_state",
     "request_ready_shell_startup_diagnostics_update",
-    "schedule_ready_shell_controller_startup_tasks",
     "schedule_ready_shell_post_show_hydration",
     "start_ready_shell_pre_show_restore_projection",
     "try_reveal_ready_shell",

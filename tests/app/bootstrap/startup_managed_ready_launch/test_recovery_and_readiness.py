@@ -169,6 +169,7 @@ def test_managed_ready_launch_runtime_binds_startup_task_readiness_timer() -> No
 
     launch_runtime.schedule_startup_tasks(
         queue=cast(ReadyShellStartupTaskQueueProtocol, object()),
+        prepare_main_window=lambda: object(),
         target_activation_task=cast(ReadyShellTargetActivationTask, object()),
         shell_build_task=cast(ReadyShellBuildTask, object()),
         metadata_bridge_task=cast(ReadyShellMetadataBridgeTask, object()),

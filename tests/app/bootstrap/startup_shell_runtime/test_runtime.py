@@ -53,6 +53,7 @@ def test_create_startup_shell_runtime_graph_wires_shutdown_and_reload(
     shell_reload_state = _ShellReloadState()
     runtime_state = ReadyShellRuntimeState(comfy_state="managed")
     shell_ports = StartupShellCompositionPorts(
+        prepare_main_window=lambda: object(),
         build_main_window=lambda **_kwargs: object(),
         show_main_window=lambda **_kwargs: object(),
         show_built_main_window=lambda _shell_frame, **_kwargs: _shell_frame,

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from substitute.app.bootstrap.main_window_runtime import load_main_window_runtime
 from substitute.app.bootstrap.startup_ports import StartupShellCompositionPorts
 
 
@@ -28,6 +29,7 @@ def create_startup_shell_composition_ports() -> StartupShellCompositionPorts:
 
     composition = _load_composition_module()
     return StartupShellCompositionPorts(
+        prepare_main_window=load_main_window_runtime,
         build_main_window=composition.build_main_window,
         show_main_window=composition.show_main_window,
         show_built_main_window=composition.show_built_main_window,
