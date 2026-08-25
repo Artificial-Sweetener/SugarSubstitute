@@ -85,7 +85,9 @@ def reconstitute_historical_macos_release(
             "source_launcher_sha256": original_launcher_sha256,
             "reconstituted_launcher_sha256": _sha256(launcher_output),
             "retained_root": _APP_ROOT,
-            "runtime_source_root": _PYINSTALLER_SIBLING_ROOT,
+            "runtime_source_root": (
+                _PYINSTALLER_SIBLING_ROOT if removed_roots else _APP_ROOT
+            ),
             "runtime_support_root": _APP_FRAMEWORKS_ROOT.as_posix(),
             "removed_roots": list(removed_roots),
         },
@@ -145,6 +147,9 @@ def _write_reconstituted_launcher(
             )
             written_names.add(destination_name.as_posix())
             retained_members += 1
+    if encountered_roots == {_APP_ROOT}:
+        shutil.copy2(source, destination)
+        return ()
     expected_roots = {_APP_ROOT, _PYINSTALLER_SIBLING_ROOT}
     if encountered_roots != expected_roots:
         raise ValueError(
