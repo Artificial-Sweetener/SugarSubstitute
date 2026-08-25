@@ -141,7 +141,7 @@ def test_managed_comfy_pin_automation_opens_pr_before_qualification() -> None:
 
 
 def test_managed_comfy_install_uses_exact_pin_and_artifact_cache() -> None:
-    """The compatibility gate should launch pinned Comfy without reinstalling Torch."""
+    """Cold compatibility should qualify every supported managed runtime."""
 
     workflow_text = (
         PROJECT_ROOT / ".github" / "workflows" / "managed-comfy-install.yml"
@@ -152,27 +152,48 @@ def test_managed_comfy_install_uses_exact_pin_and_artifact_cache() -> None:
 
     assert "./.github/actions/restore-managed-comfy-cache" in workflow_text
     assert "variant: win-cpu" in workflow_text
+    assert "variant: linux-nvidia" in workflow_text
+    assert "variant: mac-mps" in workflow_text
+    assert workflow_text.count("${{ matrix.variant }}") == 2
+    assert "windows-latest" in workflow_text
+    assert "ubuntu-24.04" in workflow_text
+    assert "macos-15" in workflow_text
     assert "actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae" in (
         cache_owner_text
     )
     assert "standalone_environment_pin.json" in cache_owner_text
     assert "verify_managed_comfy_install.py" in workflow_text
-    assert "--variant win-cpu" in workflow_text
+    assert '--variant "${{ matrix.variant }}"' in workflow_text
     assert "pip install torch" not in workflow_text
 
 
-def test_required_managed_comfy_check_runs_for_every_protected_pr() -> None:
-    """Required branch checks must not disappear behind path filtering."""
+def test_managed_comfy_cold_proof_is_change_triggered_and_scheduled() -> None:
+    """Keep the required check fast while selecting compatibility reconstruction."""
 
     workflow_text = (
         PROJECT_ROOT / ".github" / "workflows" / "managed-comfy-install.yml"
     ).read_text(encoding="utf-8")
     pull_request_trigger = workflow_text.split("  pull_request:", maxsplit=1)[1].split(
-        "  workflow_dispatch:", maxsplit=1
+        "  schedule:", maxsplit=1
+    )[0]
+    selection = workflow_text.split("  select-cold-runtime:", maxsplit=1)[1].split(
+        "  cold-runtime:", maxsplit=1
     )[0]
 
     assert "    branches:\n      - main\n      - canary\n" in pull_request_trigger
     assert "paths:" not in pull_request_trigger
+    for owner in (
+        "standalone_environment_pin",
+        "substitute/infrastructure/comfy/standalone_environment/",
+        "verify_managed_comfy_install",
+        "restore-managed-comfy-cache/",
+    ):
+        assert owner in selection
+    assert 'cron: "17 8 * * 1"' in workflow_text
+    assert "needs.select-cold-runtime.outputs.enabled == 'true'" in workflow_text
+    assert "name: Pinned managed Comfy (Windows CPU)" in workflow_text
+    assert "if: always()" in workflow_text
+    assert 'COLD_ENABLED -eq "true"' in workflow_text
 
 
 def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
@@ -199,6 +220,10 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert '@("windows", "linux", "macos")' in orchestration_text
     assert "update_platforms" in orchestration_text
     assert "./.github/workflows/managed-comfy-install.yml" in orchestration_text
+    assert '$managedComfyEnabled = if ($scope -eq "managed-comfy")' in (
+        orchestration_text
+    )
+    assert '$scope -in @("all", "managed-comfy")' not in orchestration_text
     assert "gh release edit" not in qualification_text
     lifecycle_text = (
         PROJECT_ROOT / "tools" / "ci" / "verify_installer_lifecycle.py"
@@ -275,7 +300,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert "Published and full qualification require the canonical" in (
         qualification_text
     )
-    assert qualification_text.count("timeout-minutes: 75") == 2
+    assert qualification_text.count("timeout-minutes: 30") == 2
     assert qualification_text.count("Upload clean-install diagnostics") == 2
     assert "Upload historical-update diagnostics" in qualification_text
     assert "historical-update-diagnostics-${{ matrix.platform }}-" in qualification_text
@@ -289,15 +314,22 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     )[1].split("- name: Upload historical-update diagnostics", maxsplit=1)[0]
     assert '--timeout-seconds "$env:QUALIFICATION_TIMEOUT_SECONDS"' in historical_proof
     assert "clean-install-diagnostics-${{ runner.os }}" in qualification_text
-    assert (
-        qualification_text.count("Restore checksum-addressed standalone artifact") == 2
-    )
-    assert qualification_text.count("cache_managed_comfy_artifacts.py") == 2
-    assert "variant: ${{ matrix.standalone_variant }}" in qualification_text
-    assert "variant: mac-mps" in qualification_text
-    assert qualification_text.count("--managed-artifact-cache-root") == 4
-    assert qualification_text.count("appdata/runtime_state/setup_transaction.json") == 2
-    assert qualification_text.count(".SugarSubstitute-clean-standalone-cache.json") == 2
+    assert "Restore checksum-addressed standalone artifact" not in qualification_text
+    assert "cache_managed_comfy_artifacts.py" not in qualification_text
+    assert "standalone_variant" not in qualification_text
+    assert "--managed-artifact-cache-root" not in qualification_text
+    assert "appdata/runtime_state/setup_transaction.json" not in qualification_text
+    assert ".SugarSubstitute-clean-standalone-cache.json" not in qualification_text
+    lifecycle_text = (
+        PROJECT_ROOT / "tools" / "ci" / "verify_installer_lifecycle.py"
+    ).read_text(encoding="utf-8")
+    shell_evidence_text = (
+        PROJECT_ROOT / "tools" / "ci" / "installer_ui_qualification.py"
+    ).read_text(encoding="utf-8")
+    assert 'target_mode="remote"' in lifecycle_text
+    assert "require_governed_setup_record=False" in lifecycle_text
+    assert "assert_real_managed_comfy" in shell_evidence_text
+    assert 'evidence.plan.target_mode == "managed_local"' in shell_evidence_text
 
 
 def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:

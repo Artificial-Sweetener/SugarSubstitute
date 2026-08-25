@@ -23,7 +23,6 @@ import copy
 import io
 import json
 import os
-import socket
 import subprocess
 import tempfile
 import time
@@ -42,6 +41,7 @@ from substitute.infrastructure.comfy import LocalComfyAssetStager
 from substitute.infrastructure.comfy.workspace_python_resolver import (
     attached_comfy_python_candidates,
 )
+from tools.ci.loopback_port_lease import LoopbackPortLease
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +80,8 @@ class RealComfyInpaintAssetHarness:
             raise RuntimeError(
                 f"Comfy Python is unavailable beneath {self._comfy_root}"
             )
-        self._port = _available_port()
+        self._endpoint_lease = LoopbackPortLease.acquire()
+        self._port = self._endpoint_lease.port
         self._endpoint = ComfyEndpoint(host="127.0.0.1", port=self._port)
         self._workspace: tempfile.TemporaryDirectory[str] | None = None
         self._desktop_source: tempfile.TemporaryDirectory[str] | None = None
@@ -105,6 +106,7 @@ class RealComfyInpaintAssetHarness:
             (self._root / name).mkdir(parents=True)
         log_path = self._root / "comfy.log"
         self._log_handle = log_path.open("wb")
+        self._endpoint_lease.release_for_handoff()
         self._process = subprocess.Popen(
             [
                 str(self._python),
@@ -145,6 +147,7 @@ class RealComfyInpaintAssetHarness:
         """Stop Comfy and clean every isolated harness artifact."""
 
         _ = exc_info
+        self._endpoint_lease.close()
         process = self._process
         if process is not None and process.poll() is None:
             _terminate_process_tree(process)
@@ -398,14 +401,6 @@ def _assert_rendered_fixtures(
         raise AssertionError(f"Mask midpoint was corrupted: {center}")
     if mask.getpixel((22, 16)) != (255, 255, 255):
         raise AssertionError("Mask far-edge maximum was not decoded from red.")
-
-
-def _available_port() -> int:
-    """Reserve and release one loopback TCP port."""
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
-        listener.bind(("127.0.0.1", 0))
-        return int(listener.getsockname()[1])
 
 
 def _terminate_process_tree(process: subprocess.Popen[bytes]) -> None:

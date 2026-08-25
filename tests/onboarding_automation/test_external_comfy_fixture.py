@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import socket
 
 from substitute.domain.onboarding import ComfyEndpoint
 from tests.onboarding_automation import external_comfy_fixture
@@ -56,3 +57,18 @@ def test_reset_external_comfy_root_recreates_empty_directory(tmp_path: Path) -> 
     assert result == fixture.workspace_root
     assert fixture.workspace_root.exists() is True
     assert list(fixture.workspace_root.iterdir()) == []
+    fixture.close()
+
+
+def test_close_releases_endpoint_that_never_reached_launch(tmp_path: Path) -> None:
+    """Preparation failure must not retain its reserved loopback endpoint."""
+
+    fixture = external_comfy_fixture.build_external_fixture(
+        resolve_scenario_paths(tmp_path)
+    )
+    port = fixture.endpoint.port
+
+    fixture.close()
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as successor:
+        successor.bind((fixture.endpoint.host, port))

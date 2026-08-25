@@ -59,7 +59,6 @@ _LINUX_QT_CONSUMERS = {
 }
 _MANAGED_CACHE_CONSUMERS = {
     "managed-comfy-install.yml",
-    "release-current-install-qualification.yml",
 }
 _APPIMAGE_TOOL_CONSUMERS = {
     "release-build.yml",

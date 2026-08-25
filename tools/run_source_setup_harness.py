@@ -25,7 +25,6 @@ import os
 from pathlib import Path
 from queue import Empty, Queue
 import shutil
-import socket
 import stat
 import subprocess
 import sys
@@ -55,6 +54,7 @@ from launcher.sugarsubstitute_launcher.runtime_command import (  # noqa: E402
 from launcher.sugarsubstitute_launcher.runtime_policy import (  # noqa: E402
     runtime_environment,
 )
+from tools.ci.loopback_port_lease import LoopbackPortLease  # noqa: E402
 from launcher.sugarsubstitute_launcher.update_state import (  # noqa: E402
     LauncherUpdateState,
 )
@@ -284,43 +284,44 @@ def _run_installed_setup_child(
 ) -> dict[str, object]:
     """Run installed onboarding with live output and a heartbeat watchdog."""
 
-    endpoint_port = _available_loopback_port()
-    environment = runtime_environment(layout=layout)
-    environment.update(
-        {
-            "PYTHONUNBUFFERED": "1",
-            "QT_QPA_PLATFORM": "offscreen",
-            "SUBSTITUTE_DISABLE_APP_USER_MODEL_ID": "1",
-        }
-    )
-    command = (
-        str(layout.runtime_python),
-        str(_CHILD_SCRIPT),
-        f"--install-root={layout.root}",
-        f"--result-path={result_path}",
-        f"--endpoint-port={endpoint_port}",
-    )
-    startupinfo = None
-    creationflags = 0
-    if sys.platform == "win32":
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = 0
-        creationflags = subprocess.CREATE_NO_WINDOW
-    process = subprocess.Popen(  # noqa: S603
-        command,
-        cwd=layout.root,
-        env=environment,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        shell=False,
-        startupinfo=startupinfo,
-        creationflags=creationflags,
-    )
+    with LoopbackPortLease.acquire() as endpoint_lease:
+        environment = runtime_environment(layout=layout)
+        environment.update(
+            {
+                "PYTHONUNBUFFERED": "1",
+                "QT_QPA_PLATFORM": "offscreen",
+                "SUBSTITUTE_DISABLE_APP_USER_MODEL_ID": "1",
+            }
+        )
+        command = (
+            str(layout.runtime_python),
+            str(_CHILD_SCRIPT),
+            f"--install-root={layout.root}",
+            f"--result-path={result_path}",
+            f"--endpoint-port={endpoint_lease.port}",
+        )
+        startupinfo = None
+        creationflags = 0
+        if sys.platform == "win32":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0
+            creationflags = subprocess.CREATE_NO_WINDOW
+        endpoint_lease.release_for_handoff()
+        process = subprocess.Popen(  # noqa: S603
+            command,
+            cwd=layout.root,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            shell=False,
+            startupinfo=startupinfo,
+            creationflags=creationflags,
+        )
     output_queue: Queue[str | None] = Queue()
     reader = Thread(
         target=_read_output,
@@ -378,17 +379,6 @@ def _run_installed_setup_child(
     if not isinstance(decoded, dict):
         raise SourceSetupHarnessError("Installed setup result is not an object.")
     return {str(key): value for key, value in decoded.items()}
-
-
-def _available_loopback_port() -> int:
-    """Reserve and release one currently available loopback TCP port."""
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
-        listener.bind(("127.0.0.1", 0))
-        port = listener.getsockname()[1]
-    if not isinstance(port, int):
-        raise SourceSetupHarnessError("Windows did not assign a numeric test port.")
-    return port
 
 
 def _read_output(process: subprocess.Popen[str], output: Queue[str | None]) -> None:

@@ -154,7 +154,6 @@ jobs:
                 os = "windows-latest"
                 python_version = "3.12.10"
                 asset = "SugarSubstitute-$env:CANDIDATE_VERSION-Windows-x64-Setup.exe"
-                standalone_variant = "win-cpu"
               }
             } else {
               @{
@@ -162,7 +161,6 @@ jobs:
                 os = "ubuntu-24.04"
                 python_version = "3.12.13"
                 asset = "SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage"
-                standalone_variant = "linux-nvidia"
               }
             }
           }) | ConvertTo-Json -Compress -AsArray
@@ -176,7 +174,7 @@ jobs:
           $cleanEnabled = if ($cleanPlatforms.Count -gt 0) { "true" } else { "false" }
           $macosCleanEnabled = if ($scope -in @("all", "qualification-all", "clean-all", "clean-macos")) { "true" } else { "false" }
           $updatesEnabled = if ($updatePlatforms.Count -gt 0) { "true" } else { "false" }
-          $managedComfyEnabled = if ($scope -in @("all", "managed-comfy")) { "true" } else { "false" }
+          $managedComfyEnabled = if ($scope -eq "managed-comfy") { "true" } else { "false" }
           "clean_enabled=$cleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append
           "clean_matrix=$cleanMatrix" | Out-File $env:GITHUB_OUTPUT -Append
           "macos_clean_enabled=$macosCleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append

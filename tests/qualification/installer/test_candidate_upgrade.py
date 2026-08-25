@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import socket
 import subprocess
 from types import SimpleNamespace
 from typing import cast
@@ -38,8 +39,11 @@ from tools.ci.installer_ui_qualification import (
     prepare_qualification_evidence,
     verify_main_shell_evidence,
 )
+from tools.ci.loopback_port_lease import LoopbackPortLease
 from tools.ci.verify_installer_lifecycle import (
+    _CandidateReleaseSource,
     _parse_args,
+    _verify_candidate_evidence,
     _verify_candidate_installer_update,
 )
 
@@ -95,6 +99,7 @@ def test_candidate_installer_updates_history_before_its_only_launch(
         encoding="utf-8",
     )
     events: list[tuple[str, str]] = []
+    endpoint_port: int | None = None
 
     def update_once(
         *,
@@ -108,6 +113,13 @@ def test_candidate_installer_updates_history_before_its_only_launch(
 
         assert installer_path == candidate_installer
         del timeout_seconds, environment
+        assert endpoint_port is not None
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            with pytest.raises(OSError):
+                listener.bind(("127.0.0.1", endpoint_port))
+        finally:
+            listener.close()
         payload = json.loads(
             InstallLayout.from_root(install_root).config_path.read_text(
                 encoding="utf-8"
@@ -129,6 +141,9 @@ def test_candidate_installer_updates_history_before_its_only_launch(
         """Record the manifest visible to the only installed launch."""
 
         del environment, progress_paths
+        assert endpoint_port is not None
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+            listener.bind(("127.0.0.1", endpoint_port))
         payload = json.loads(
             InstallLayout.from_root(install_root).config_path.read_text(
                 encoding="utf-8"
@@ -170,25 +185,140 @@ def test_candidate_installer_updates_history_before_its_only_launch(
     )
 
     candidate_installer = tmp_path / "candidate-installer"
-    _verify_candidate_installer_update(
-        candidate_installer_path=candidate_installer,
-        install_root=install_root,
-        historical_version="0.20.1",
-        candidate_version="9999.0.109",
-        candidate_manifest_url="https://example.test/candidate.json",
-        candidate_release_root=None,
-        endpoint_port=8188,
-        managed_workspace=install_root / "comfyui",
-        managed_model_root=install_root / "qualified-models",
-        preservation_marker=install_root / "user" / "settings" / "marker.json",
-        timeout_seconds=30.0,
-    )
+    with LoopbackPortLease.acquire() as endpoint_lease:
+        endpoint_port = endpoint_lease.port
+        _verify_candidate_installer_update(
+            candidate_installer_path=candidate_installer,
+            install_root=install_root,
+            historical_version="0.20.1",
+            candidate_version="9999.0.109",
+            candidate_manifest_url="https://example.test/candidate.json",
+            candidate_release_root=None,
+            endpoint_lease=endpoint_lease,
+            managed_workspace=install_root / "comfyui",
+            managed_model_root=install_root / "qualified-models",
+            preservation_marker=install_root / "user" / "settings" / "marker.json",
+            timeout_seconds=30.0,
+        )
 
     assert events == [
         ("update", "https://example.test/candidate.json"),
         ("launch", "https://example.test/candidate.json"),
         ("verify", "9999.0.109"),
     ]
+
+
+def test_candidate_evidence_requires_real_managed_comfy_before_preservation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Historical update proof must retain real managed-runtime verification."""
+
+    evidence = prepare_qualification_evidence(
+        install_root=tmp_path / "installed",
+        expected_version="9999.0.109",
+        endpoint_port=24567,
+        phase="upgrade-0.20.1",
+    )
+    events: list[str] = []
+
+    def require_live_shell(**arguments: object) -> None:
+        """Record the exact managed evidence requested while the shell is live."""
+
+        assert arguments["install_root"] == tmp_path / "installed"
+        assert arguments["evidence"] is evidence
+        assert arguments["require_governed_setup_record"] is False
+        events.append("live-managed-shell")
+
+    monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle.verify_main_shell_evidence",
+        require_live_shell,
+    )
+    monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle."
+        "assert_historical_user_configuration_preserved",
+        lambda **_arguments: events.append("preservation"),
+    )
+
+    _verify_candidate_evidence(
+        install_root=tmp_path / "installed",
+        historical_version="0.20.1",
+        candidate_version="9999.0.109",
+        evidence=evidence,
+        candidate_launch=None,
+        candidate_source=_CandidateReleaseSource(
+            manifest_url="https://example.test/candidate.json",
+            certificate_path=None,
+        ),
+        managed_workspace=tmp_path / "installed" / "comfyui",
+        managed_model_root=tmp_path / "installed" / "qualified-models",
+        preservation_marker=tmp_path / "installed" / "marker.json",
+        timeout_seconds=30.0,
+    )
+
+    assert events == ["live-managed-shell", "preservation"]
+
+
+def test_managed_backend_is_verified_before_live_shell_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Managed HTTP proof must finish before its installed process is stopped."""
+
+    evidence = prepare_qualification_evidence(
+        install_root=tmp_path / "installed",
+        expected_version="9999.0.109",
+        endpoint_port=24567,
+        phase="upgrade-0.20.1",
+    )
+    receipt = ApplicationReadinessReceipt(
+        pid=456,
+        token=evidence.token,
+        surface=ApplicationReadinessSurface.MAIN_SHELL,
+    )
+    events: list[str] = []
+    monkeypatch.setattr(
+        installer_ui_qualification,
+        "_wait_for_readiness_receipt",
+        lambda **_arguments: receipt,
+    )
+    monkeypatch.setattr(
+        installer_ui_qualification,
+        "assert_installed_version",
+        lambda *_arguments: events.append("version"),
+    )
+    monkeypatch.setattr(
+        installer_ui_qualification,
+        "assert_startup_trace_sequence",
+        lambda *_arguments: events.append("trace"),
+    )
+
+    def require_managed(**arguments: object) -> None:
+        """Record the live managed-runtime proof and its update policy."""
+
+        assert arguments["require_governed_setup_record"] is False
+        events.append("managed-comfy")
+
+    monkeypatch.setattr(
+        installer_ui_qualification,
+        "assert_real_managed_comfy",
+        require_managed,
+    )
+    monkeypatch.setattr(
+        installer_ui_qualification,
+        "terminate_verified_process",
+        lambda pid: events.append(f"terminate:{pid}"),
+    )
+
+    verify_main_shell_evidence(
+        install_root=tmp_path / "installed",
+        expected_version="9999.0.109",
+        evidence=evidence,
+        required_qualification_events=(),
+        require_governed_setup_record=False,
+    )
+
+    assert events == ["version", "trace", "managed-comfy", "terminate:456"]
 
 
 def test_stalled_installed_launcher_fails_at_progress_boundary(
