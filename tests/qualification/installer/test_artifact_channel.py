@@ -135,29 +135,38 @@ def test_local_candidate_channel_uses_trusted_https_and_exact_files(
         assert manifest_path.read_text(encoding="utf-8") == source_manifest
         assert server.certificate_path.is_absolute()
         assert server.trust_bundle_path.is_absolute()
-        requests = [
-            json.loads(line)
-            for line in server.request_log_path.read_text(encoding="utf-8").splitlines()
-        ]
-        assert [(request["event"], request["path"]) for request in requests] == [
-            ("request.started", "/manifest.json"),
-            ("request.completed", "/manifest.json"),
-            ("request.started", "/manifest.json"),
-            ("request.completed", "/manifest.json"),
-            ("request.started", f"/{asset_names['app']}"),
-            ("request.completed", f"/{asset_names['app']}"),
-        ]
-        assert all(
-            request["duration_ns"] >= 0
-            for request in requests
-            if request["event"] == "request.completed"
-        )
         assert (
             server.trust_bundle_path.read_text(encoding="ascii").count(
                 "-----BEGIN CERTIFICATE-----"
             )
             > 1
         )
+        server.require_completed_requests(
+            (
+                "/manifest.json",
+                "/manifest.json",
+                f"/{asset_names['app']}",
+            ),
+            timeout_seconds=5.0,
+        )
+
+    requests = [
+        json.loads(line)
+        for line in server.request_log_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert [(request["event"], request["path"]) for request in requests] == [
+        ("request.started", "/manifest.json"),
+        ("request.completed", "/manifest.json"),
+        ("request.started", "/manifest.json"),
+        ("request.completed", "/manifest.json"),
+        ("request.started", f"/{asset_names['app']}"),
+        ("request.completed", f"/{asset_names['app']}"),
+    ]
+    assert all(
+        request["duration_ns"] >= 0
+        for request in requests
+        if request["event"] == "request.completed"
+    )
 
 
 def test_local_candidate_channels_use_independent_dynamic_ports(tmp_path: Path) -> None:
