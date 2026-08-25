@@ -197,24 +197,28 @@ def test_linux_workflow_pins_appimagetool_and_builds_both_native_formats() -> No
     """Linux packaging should verify its tool and publish AppImage plus Debian."""
 
     build_text = workflow_text("release-build.yml")
+    tool_text = action_path("setup-appimagetool").read_text(encoding="utf-8")
     assert "a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0" in (
-        build_text
+        tool_text
     )
+    assert "./.github/actions/setup-appimagetool" in build_text
     assert "SugarSubstitute-Installer-Linux-x86_64.AppImage" in build_text
     assert "SugarSubstitute-Installer-Linux-amd64.deb" in build_text
-    assert "sha256sum --check" in build_text
+    assert "sha256sum --check" in tool_text
 
 
 def test_linux_workflows_retry_appimagetool_transport_failures() -> None:
     """Production and validation builds should recover from reset downloads."""
 
+    tool_text = action_path("setup-appimagetool").read_text(encoding="utf-8")
+    assert "--retry 5 --retry-all-errors --connect-timeout 30" in tool_text
     workflow_paths = (
         workflow_path("release-build.yml"),
         workflow_path("cross-platform-build.yml"),
     )
     for path in workflow_paths:
         owner_text = path.read_text(encoding="utf-8")
-        assert "--retry 5 --retry-all-errors --connect-timeout 30" in owner_text
+        assert "./.github/actions/setup-appimagetool" in owner_text
 
 
 def test_linux_qt_workflows_install_multimedia_runtime() -> None:

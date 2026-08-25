@@ -64,6 +64,10 @@ _MANAGED_CACHE_CONSUMERS = {
     "managed-comfy-install.yml",
     "release-current-install-qualification.yml",
 }
+_APPIMAGE_TOOL_CONSUMERS = {
+    "cross-platform-build.yml",
+    "release-build.yml",
+}
 _LINUX_QT_PACKAGES = {
     "libegl1",
     "libfontconfig1",
@@ -159,6 +163,26 @@ def test_python_environment_owner_has_complete_consumers() -> None:
         if "actions/setup-python@" in path.read_text(encoding="utf-8")
     }
     assert direct_setup_owners == {"release-qualification.yml"}
+    release_qualification = yaml.safe_load(
+        (
+            PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
+        ).read_text(encoding="utf-8")
+    )
+    direct_setup_jobs = {
+        name
+        for name, job in release_qualification["jobs"].items()
+        if any(
+            "actions/setup-python@" in str(step.get("uses", ""))
+            for step in job.get("steps", ())
+        )
+    }
+    assert direct_setup_jobs == {"resolve-upgrades"}
+    resolve_upgrades = release_qualification["jobs"]["resolve-upgrades"]
+    resolve_script = "\n".join(
+        str(step.get("run", "")) for step in resolve_upgrades["steps"]
+    )
+    assert "python -m tools.ci.resolve_upgrade_sources" in resolve_script
+    assert not re.search(r"\b(?:pip|uv|venv)\b", resolve_script)
 
     for path in WORKFLOW_PATHS:
         workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -352,6 +376,27 @@ def test_linux_qt_owner_skips_complete_runner_images() -> None:
     )
     assert "LINUX_QT_PACKAGES" not in workflow_text
     assert "sudo apt-get update" not in workflow_text
+
+
+def test_appimage_packaging_tool_has_one_verified_owner() -> None:
+    """Share one fail-closed AppImage build dependency without cache overhead."""
+
+    assert _workflow_consumers("./.github/actions/setup-appimagetool") == (
+        _APPIMAGE_TOOL_CONSUMERS
+    )
+    action_text = action_path("setup-appimagetool").read_text(encoding="utf-8")
+    assert "appimagetool/releases/download/continuous" in action_text
+    assert "a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0" in (
+        action_text
+    )
+    assert "sha256sum --check" in action_text
+    assert "actions/cache" not in action_text
+
+    workflow_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in WORKFLOW_PATHS
+    )
+    assert "appimagetool/releases/download/continuous" not in workflow_text
+    assert workflow_text.count("steps.appimagetool.outputs.path") == 2
 
 
 def test_managed_runtime_cache_has_one_secure_checksum_owner() -> None:

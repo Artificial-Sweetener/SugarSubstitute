@@ -106,17 +106,17 @@ jobs:
           install-dependencies: "false"
       - name: Install native dependencies
         uses: ./.github/actions/setup-linux-qt
+      - name: Set up verified AppImage packaging tool
+        id: appimagetool
+        uses: ./.github/actions/setup-appimagetool
       - run: node scripts/update-release-versions.mjs ${{ inputs.version }}
       - name: Build launchers
         run: |
           python -m PyInstaller launcher/SugarSubstitute-Setup-Linux-x64.spec --noconfirm --clean
           python -m PyInstaller launcher/SugarSubstitute-Linux-x64.spec --noconfirm --clean --distpath build/launcher-bundles
-          mkdir -p build/ci/linux/launcher build/ci/linux/installer build/tools
+          mkdir -p build/ci/linux/launcher build/ci/linux/installer
           cp -R build/launcher-bundles/SugarSubstitute build/ci/linux/launcher/
-          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --output build/tools/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-          echo "a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0  build/tools/appimagetool" | sha256sum --check
-          chmod 755 build/tools/appimagetool
-          python tools/build_linux_installers.py --setup-bundle "dist/SugarSubstitute Setup" --icon substitute/presentation/resources/app_icons/app_icon_256.png --appimagetool build/tools/appimagetool --version ${{ inputs.version }} --appimage-output build/ci/linux/installer/SugarSubstitute-Installer-Linux-x86_64.AppImage --deb-output build/ci/linux/installer/SugarSubstitute-Installer-Linux-amd64.deb
+          python tools/build_linux_installers.py --setup-bundle "dist/SugarSubstitute Setup" --icon substitute/presentation/resources/app_icons/app_icon_256.png --appimagetool "${{ steps.appimagetool.outputs.path }}" --version ${{ inputs.version }} --appimage-output build/ci/linux/installer/SugarSubstitute-Installer-Linux-x86_64.AppImage --deb-output build/ci/linux/installer/SugarSubstitute-Installer-Linux-amd64.deb
       - name: Smoke raw, AppImage, and Debian setup launchers
         run: |
           python tools/ci/native_process_smoke.py -- xvfb-run -a "dist/SugarSubstitute Setup/SugarSubstitute Setup" --install-root=${{ runner.temp }}/SugarSubstitute-raw
