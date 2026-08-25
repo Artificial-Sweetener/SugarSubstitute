@@ -16,7 +16,7 @@ inputs:
   cache-epoch:
     description: Emergency compatibility epoch for package-cache invalidation.
     required: false
-    default: "2"
+    default: "3"
   cache-scope:
     description: Stable dependency-profile identity for compatible-prefix reuse.
     required: false
@@ -56,11 +56,13 @@ runs:
         $ErrorActionPreference = "Stop"
         $lockPath = Resolve-Path -LiteralPath $env:LOCK_FILE
         $lockHash = (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $bootstrapLockPath = Resolve-Path -LiteralPath "requirements-ci-bootstrap.lock"
+        $bootstrapLockHash = (Get-FileHash -LiteralPath $bootstrapLockPath -Algorithm SHA256).Hash.ToLowerInvariant()
         $imageOs = if ($env:ImageOS) { $env:ImageOS } else { "unreported-os" }
         $imageVersion = if ($env:ImageVersion) { $env:ImageVersion } else { "unreported-image" }
         $runnerImage = "$imageOs-$imageVersion" -replace '[^A-Za-z0-9._-]', '-'
         $cacheScope = $env:CACHE_SCOPE -replace '[^A-Za-z0-9._-]', '-'
-        $prefix = "python-$cacheScope-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$runnerImage-py$env:PYTHON_VERSION-uv0.12.3"
+        $prefix = "python-$cacheScope-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$runnerImage-py$env:PYTHON_VERSION-uv0.12.3-$bootstrapLockHash"
         "primary-key=$prefix-$lockHash" >> $env:GITHUB_OUTPUT
         "restore-key=$prefix-" >> $env:GITHUB_OUTPUT
         "lock-hash=$lockHash" >> $env:GITHUB_OUTPUT
@@ -77,17 +79,11 @@ runs:
         }
         $cacheScope = $env:CACHE_SCOPE -replace '[^A-Za-z0-9._-]', '-'
         $cachePath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope"
-        $markerPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope-restored-v2"
+        $markerPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope-restored-v3"
+        $toolPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-tool-$cacheScope-v0.12.3"
         "cache-path=$cachePath" >> $env:GITHUB_OUTPUT
         "marker-path=$markerPath" >> $env:GITHUB_OUTPUT
-
-    - name: Set up exact uv
-      id: setup-uv
-      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-      with:
-        version: "0.12.3"
-        enable-cache: false
-        cache-local-path: ${{ steps.cache-storage.outputs.cache-path }}
+        "tool-path=$toolPath" >> $env:GITHUB_OUTPUT
 
     - name: Restore trusted package cache
       id: trusted-cache
@@ -101,6 +97,7 @@ runs:
         path: |
           ${{ steps.cache-storage.outputs.cache-path }}
           ${{ steps.cache-storage.outputs.marker-path }}
+          ${{ steps.cache-storage.outputs.tool-path }}
         key: ${{ steps.identity.outputs.primary-key }}
         restore-keys: ${{ steps.identity.outputs.restore-key }}
 
@@ -116,6 +113,7 @@ runs:
         path: |
           ${{ steps.cache-storage.outputs.cache-path }}
           ${{ steps.cache-storage.outputs.marker-path }}
+          ${{ steps.cache-storage.outputs.tool-path }}
         key: ${{ steps.identity.outputs.primary-key }}
         restore-keys: ${{ steps.identity.outputs.restore-key }}
 
@@ -135,6 +133,58 @@ runs:
         "Package cache exact hit: $($exactHit.ToString().ToLowerInvariant())"
         "Package cache content restored: $($cacheRestored.ToString().ToLowerInvariant())"
         New-Item -ItemType File -Path $env:MARKER_PATH -Force | Out-Null
+
+    - name: Resolve exact uv
+      id: setup-uv
+      shell: pwsh
+      env:
+        UV_BOOTSTRAP_LOCK: requirements-ci-bootstrap.lock
+        UV_TOOL_PATH: ${{ steps.cache-storage.outputs.tool-path }}
+        UV_VERSION: "0.12.3"
+      run: |
+        $ErrorActionPreference = "Stop"
+        $runnerRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
+        $toolRoot = [IO.Path]::GetFullPath($env:UV_TOOL_PATH)
+        $relativeToolPath = [IO.Path]::GetRelativePath($runnerRoot, $toolRoot)
+        $parentPrefix = "..$([IO.Path]::DirectorySeparatorChar)"
+        if (
+          $relativeToolPath -eq "." -or
+          $relativeToolPath -eq ".." -or
+          $relativeToolPath.StartsWith($parentPrefix, [StringComparison]::Ordinal) -or
+          [IO.Path]::IsPathRooted($relativeToolPath)
+        ) {
+          throw "The exact uv tool path is outside RUNNER_TEMP."
+        }
+        $uvName = if ($IsWindows) { "uv.exe" } else { "uv" }
+        $uvExecutable = Join-Path $toolRoot "bin/$uvName"
+
+        function Get-ExactUvVersion {
+          if (-not (Test-Path -LiteralPath $uvExecutable -PathType Leaf)) {
+            return ""
+          }
+          try {
+            return ((& $uvExecutable --version 2>$null) | Out-String).Trim()
+          } catch {
+            return ""
+          }
+        }
+
+        $reportedVersion = Get-ExactUvVersion
+        if ($reportedVersion -notmatch "^uv $([regex]::Escape($env:UV_VERSION))(?: |$)") {
+          if (Test-Path -LiteralPath $toolRoot) {
+            Remove-Item -LiteralPath $toolRoot -Recurse -Force
+          }
+          python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: --no-deps --target $toolRoot -r $env:UV_BOOTSTRAP_LOCK
+          if ($LASTEXITCODE -ne 0) {
+            throw "Hash-locked uv bootstrap failed."
+          }
+          $reportedVersion = Get-ExactUvVersion
+        }
+        if ($reportedVersion -notmatch "^uv $([regex]::Escape($env:UV_VERSION))(?: |$)") {
+          throw "The resolved uv executable does not match the required version."
+        }
+        (Split-Path -Parent $uvExecutable) >> $env:GITHUB_PATH
+        "uv-path=$uvExecutable" >> $env:GITHUB_OUTPUT
 
     - name: Synchronize fresh verified environment
       id: sync
