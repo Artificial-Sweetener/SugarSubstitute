@@ -102,6 +102,56 @@ def test_reconstitution_rebuilds_app_from_released_onedir_runtime(
     )
 
 
+def test_reconstitution_preserves_self_contained_released_app(
+    tmp_path: Path,
+) -> None:
+    """A complete historical app must retain its exact released archive bytes."""
+
+    source_root = tmp_path / "source"
+    output_root = tmp_path / "output"
+    app_path = _write_asset(source_root / "app.zip", b"historical app")
+    launcher_path = source_root / "launcher.zip"
+    launcher_path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(launcher_path, "w") as archive:
+        archive.writestr(
+            "SugarSubstitute.app/Contents/MacOS/SugarSubstitute",
+            b"app launcher",
+        )
+        archive.writestr(
+            "SugarSubstitute.app/Contents/Frameworks/python3.12/lib-dynload/_struct.so",
+            b"app runtime",
+        )
+    source_bytes = launcher_path.read_bytes()
+    manifest = {
+        "schema_version": 2,
+        "version": "0.21.2",
+        "app": _asset_metadata(app_path),
+        "launchers": {"macos_arm64": _asset_metadata(launcher_path)},
+    }
+    (source_root / "manifest.json").write_text(
+        json.dumps(manifest),
+        encoding="utf-8",
+    )
+
+    manifest_path = reconstitute_historical_macos_release(
+        source_root=source_root,
+        output_root=output_root,
+    )
+
+    launcher_output = output_root / "launcher.zip"
+    rewritten = json.loads(manifest_path.read_text(encoding="utf-8"))
+    evidence = json.loads(
+        (output_root / "historical-reconstitution.json").read_text(encoding="utf-8")
+    )
+    assert launcher_output.read_bytes() == source_bytes
+    assert rewritten["launchers"]["macos_arm64"]["sha256"] == _sha256(launcher_path)
+    assert (
+        evidence["source_launcher_sha256"] == evidence["reconstituted_launcher_sha256"]
+    )
+    assert evidence["removed_roots"] == []
+    assert evidence["runtime_source_root"] == "SugarSubstitute.app"
+
+
 def test_reconstitution_rejects_unreviewed_archive_roots(tmp_path: Path) -> None:
     """A changed historical defect shape must stop qualification visibly."""
 
