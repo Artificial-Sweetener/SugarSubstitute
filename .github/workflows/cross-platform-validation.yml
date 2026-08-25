@@ -1,4 +1,4 @@
-name: cross-platform validation
+name: release prepublication burn-in
 
 on:
   workflow_dispatch:

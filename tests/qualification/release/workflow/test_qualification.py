@@ -37,6 +37,8 @@ def test_prepublication_burn_in_is_complete_and_structurally_read_only() -> None
     burn_in_text = workflow_text("cross-platform-validation.yml")
     jobs = burn_in["jobs"]
 
+    assert burn_in["name"] == "release prepublication burn-in"
+    assert not workflow_path("validation-release-cleanup.yml").exists()
     assert burn_in["permissions"] == {"actions": "read", "contents": "read"}
     assert production["jobs"]["prepare-release"]["uses"] == (
         "./.github/workflows/release-prepublication.yml"
