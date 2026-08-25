@@ -232,6 +232,13 @@ def test_clean_qualification_uses_live_external_comfy_boundary(
         assert payload["system"]["comfyui_version"] == (
             "installer-qualification-boundary"
         )
+        with urllib.request.urlopen(
+            f"http://{plan.endpoint_host}:{plan.endpoint_port}"
+            "/substitute/v1/capabilities",
+            timeout=5.0,
+        ) as response:
+            capabilities = json.loads(response.read().decode("utf-8"))
+        assert capabilities["apiVersion"] == 1
 
     monkeypatch.setattr(
         "tools.ci.verify_installer_lifecycle.run_current_installer_ui",
