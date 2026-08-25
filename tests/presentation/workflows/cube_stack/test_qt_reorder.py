@@ -22,16 +22,12 @@ import importlib
 
 from PySide6.QtCore import QEvent, QPointF, Qt
 from PySide6.QtGui import QMouseEvent
-from tests.presentation.workflows.qt_support import (
-    _clear_gui_stubs,
-    _ensure_qapp,
-)
+from tests.presentation.workflows.qt_support import _ensure_qapp
 
 
 def test_cubestack_swap_item_reorders_real_qt_items_and_emits_signal() -> None:
     """Real CubeStack widget should reorder via _swapItem and emit its current signal payload."""
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -54,7 +50,6 @@ def test_cubestack_swap_item_reorders_real_qt_items_and_emits_signal() -> None:
 def test_cubestack_mouse_release_emits_tab_mouse_released_when_not_dragging() -> None:
     """Real CubeStack release path should emit current index even without drag."""
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -80,7 +75,6 @@ def test_cubestack_mouse_release_emits_tab_mouse_released_when_not_dragging() ->
 def test_cubestack_drag_release_finalizes_before_post_drag_signal() -> None:
     """Drag release should finalize layout before publishing completion signals."""
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
     stack = mod.CubeStack(None)
     stack.addTab("a", "A")
@@ -110,7 +104,6 @@ def test_cubestack_drag_release_finalizes_before_post_drag_signal() -> None:
 def test_cubestack_tab_presentation_updates_metadata_and_tooltip() -> None:
     """Real CubeStack items should store primary text, subtitle, and tooltip together."""
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -138,7 +131,6 @@ def test_cubestack_tab_bypassed_updates_item_visual_state() -> None:
     """Real CubeStack items should store cube-level bypass presentation state."""
 
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)

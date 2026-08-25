@@ -274,14 +274,14 @@ class PromptEditorRealShell(QMainWindow):
         self._menu_container = QWidget()
         self._menu_container.setLayout(QHBoxLayout())
         self.menu_bar = self._menu_container
-        self.focus_sentinel = QPushButton("focus-sentinel", self._menu_container)
+        self.focus_sentinel = QPushButton("focus-sentinel", self)
         self.focus_sentinel.setObjectName("PromptHarnessFocusSentinel")
         self.focus_sentinel.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.focus_sentinel.setFixedSize(4, 4)
+        self.focus_sentinel.show()
         menu_layout = self._menu_container.layout()
         if menu_layout is None:
             raise RuntimeError("Harness menu container must have a layout.")
-        menu_layout.addWidget(self.focus_sentinel)
         self.menu_bar_layout = menu_layout
         self.override_dropdown_btn = None
         self._global_override_menu = None

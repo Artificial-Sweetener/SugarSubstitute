@@ -22,7 +22,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage, QPalette, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
-from qfluentwidgets import Theme, setTheme  # type: ignore[import-untyped]
+from qfluentwidgets import Theme  # type: ignore[import-untyped]
 
 from substitute.presentation.editor.prompt_editor.core.projection.document import (
     PromptProjectionDisplayMode,
@@ -32,12 +32,12 @@ from tests.support.prompt_editor.visual_parity_support import (
     create_reference_text_edit,
     ensure_qapp,
     equalize_reference_height,
-    fluent_theme,
     pixel_rgba,
     process_events,
     show_text_widget,
     widget_image,
 )
+from tests.presentation.theme.support import fluent_theme
 from tests.support.qt.lifecycle import destroy_widget_roots
 
 
@@ -97,19 +97,19 @@ def test_prompt_editor_projection_palette_refreshes_after_qfluent_theme_switch()
             )
             process_events(app)
 
-            setTheme(Theme.LIGHT)
-            process_events(app)
+            with fluent_theme(Theme.LIGHT):
+                process_events(app)
 
-            projection_palette = (
-                prompt_editor._surface._layout.frame.paint_input.palette
-            )
-            host_palette = prompt_editor.palette()
-            for role in (
-                QPalette.ColorRole.Text,
-                QPalette.ColorRole.Highlight,
-                QPalette.ColorRole.HighlightedText,
-            ):
-                assert projection_palette.color(role) == host_palette.color(role)
+                projection_palette = (
+                    prompt_editor._surface._layout.frame.paint_input.palette
+                )
+                host_palette = prompt_editor.palette()
+                for role in (
+                    QPalette.ColorRole.Text,
+                    QPalette.ColorRole.Highlight,
+                    QPalette.ColorRole.HighlightedText,
+                ):
+                    assert projection_palette.color(role) == host_palette.color(role)
         finally:
             _dispose_widgets(prompt_editor)
 

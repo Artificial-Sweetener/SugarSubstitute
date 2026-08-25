@@ -23,13 +23,7 @@ from typing import cast
 
 import pytest
 from PySide6.QtCore import QPoint, QRect
-from qfluentwidgets import (  # type: ignore[import-untyped]
-    Theme,
-    setTheme,
-)
-from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
-    isDarkTheme,
-)
+from qfluentwidgets import Theme  # type: ignore[import-untyped]
 
 from substitute.presentation.onboarding.onboarding_controller import (
     OnboardingController,
@@ -45,6 +39,7 @@ from substitute.presentation.onboarding.onboarding_window import (
 
 from tests.support.qt.lifecycle import activate_widget_layouts, ensure_qt_application
 from tests.support.qt.semantic_wait import wait_for_qt_condition
+from tests.presentation.theme.support import fluent_theme
 
 from .controller_double import _FakeController
 
@@ -149,10 +144,7 @@ def test_onboarding_window_stylesheet_refreshes_after_qfluent_theme_switch(
         managed_workspace_path=tmp_path / "comfyui",
         attached_workspace_path=None,
     )
-    previous_theme = Theme.DARK if isDarkTheme() else Theme.LIGHT
-    try:
-        setTheme(Theme.DARK)
-        wait_for_qt_condition(isDarkTheme)
+    with fluent_theme(Theme.DARK):
         window = OnboardingWindow(
             controller=cast(
                 OnboardingController,
@@ -161,13 +153,8 @@ def test_onboarding_window_stylesheet_refreshes_after_qfluent_theme_switch(
         )
         dark_style = window.styleSheet()
 
-        setTheme(Theme.LIGHT)
-        wait_for_qt_condition(
-            lambda: not isDarkTheme() and window.styleSheet() != dark_style
-        )
+        with fluent_theme(Theme.LIGHT):
+            wait_for_qt_condition(lambda: window.styleSheet() != dark_style)
 
-        assert window.styleSheet() != dark_style
-        assert "rgba(0, 0, 0, 0.74)" in window.styleSheet()
-    finally:
-        setTheme(previous_theme)
-        wait_for_qt_condition(lambda: isDarkTheme() == (previous_theme is Theme.DARK))
+            assert window.styleSheet() != dark_style
+            assert "rgba(0, 0, 0, 0.74)" in window.styleSheet()

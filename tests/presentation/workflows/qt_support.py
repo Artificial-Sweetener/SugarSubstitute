@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import sys
 from collections.abc import Iterator
 from typing import cast
 
@@ -40,26 +39,6 @@ def _ensure_qapp() -> QApplication:
     if app is None:
         app = QApplication([])
     return cast(QApplication, app)
-
-
-def _clear_gui_stubs() -> None:
-    """Remove lightweight stubs so real Qt widgets can import."""
-    qtcore = sys.modules.get("PySide6.QtCore")
-    if qtcore is not None and not hasattr(qtcore, "QCoreApplication"):
-        for name in list(sys.modules):
-            if name == "PySide6" or name.startswith("PySide6."):
-                sys.modules.pop(name, None)
-    qfw = sys.modules.get("qfluentwidgets")
-    if qfw is not None and not hasattr(qfw, "MenuAnimationType"):
-        for name in list(sys.modules):
-            if name == "qfluentwidgets" or name.startswith("qfluentwidgets."):
-                sys.modules.pop(name, None)
-    qframe = sys.modules.get("qframelesswindow")
-    if qframe is not None and not hasattr(qframe, "WindowEffect"):
-        for name in list(sys.modules):
-            if name == "qframelesswindow" or name.startswith("qframelesswindow."):
-                sys.modules.pop(name, None)
-    sys.modules.pop("sugarsubstitute_shared.presentation.fluent_tooltips", None)
 
 
 def _wheel_event(widget: QWidget, *, angle_delta_y: int) -> QWheelEvent:

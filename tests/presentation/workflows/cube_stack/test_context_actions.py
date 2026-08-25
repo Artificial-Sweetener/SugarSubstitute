@@ -23,10 +23,7 @@ import importlib
 import pytest
 from PySide6.QtCore import QPoint
 from substitute.presentation.widgets.menu_model import MenuItem, MenuModel
-from tests.presentation.workflows.qt_support import (
-    _clear_gui_stubs,
-    _ensure_qapp,
-)
+from tests.presentation.workflows.qt_support import _ensure_qapp
 
 
 def test_cube_item_context_menu_exposes_duplicate_and_remove_actions(
@@ -34,7 +31,6 @@ def test_cube_item_context_menu_exposes_duplicate_and_remove_actions(
 ) -> None:
     """Cube context menu should expose persistence, duplicate, and removal actions."""
     _ensure_qapp()
-    _clear_gui_stubs()
     item_mod = importlib.import_module("substitute.presentation.workflows.cube_item")
 
     class FakeAction:
@@ -132,7 +128,6 @@ def test_cube_item_context_menu_exposes_duplicate_and_remove_actions(
 def test_cube_item_close_button_uses_square_hover_target() -> None:
     """Cube X button hover chrome should be a tight square around the icon."""
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     item = mod.CubeItem("A", None, None)

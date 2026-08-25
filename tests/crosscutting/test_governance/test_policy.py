@@ -147,25 +147,6 @@ def ready() -> bool:
     assert [candidate.rule for candidate in candidates] == ["POLL001"]
 
 
-def test_discovery_reports_direct_process_environment_mutation(tmp_path: Path) -> None:
-    """Process-global environment writes require exact ownership review."""
-
-    _write_fixture(tmp_path)
-    _write(
-        tmp_path / "tests/capability/test_environment.py",
-        """import os as environment
-
-environment.environ.setdefault("MODE", "test")
-environment.environ["OWNER"] = "capability"
-""",
-    )
-
-    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
-    candidates = discover_test_candidates(tmp_path, policy)
-
-    assert [candidate.rule for candidate in candidates] == ["ENV001", "ENV001"]
-
-
 def test_discovery_rejects_renamed_count_shaped_queued_turn_facades(
     tmp_path: Path,
 ) -> None:

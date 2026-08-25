@@ -22,17 +22,13 @@ import importlib
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
-from tests.presentation.workflows.qt_support import (
-    _clear_gui_stubs,
-    _ensure_qapp,
-)
+from tests.presentation.workflows.qt_support import _ensure_qapp
 from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 
 def test_cube_item_rename_uses_alias_editor_and_keeps_display_text() -> None:
     """Cube rename should use the cube alias editor without mutating display text."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -56,7 +52,6 @@ def test_cube_item_rename_uses_alias_editor_and_keeps_display_text() -> None:
 def test_cube_item_alias_editor_geometry_matches_primary_text_row() -> None:
     """Alias editor geometry should match the painted primary cube text row."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
     item_mod = importlib.import_module("substitute.presentation.workflows.cube_item")
 
@@ -86,7 +81,6 @@ def test_cube_item_alias_editor_geometry_matches_primary_text_row() -> None:
 def test_cube_item_alias_editor_accept_emits_existing_stack_signal() -> None:
     """Committing the alias editor should use the existing cube rename signal flow."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -113,7 +107,6 @@ def test_cube_item_alias_editor_accept_emits_existing_stack_signal() -> None:
 def test_cube_item_alias_editor_commits_when_card_background_is_clicked() -> None:
     """Clicking outside the primary text editor should commit the cube alias."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -146,7 +139,6 @@ def test_cube_item_alias_editor_commits_when_card_background_is_clicked() -> Non
 def test_cube_item_alias_editor_escape_leaves_alias_unchanged() -> None:
     """Cancelling cube alias editing should leave the item and stack signal untouched."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -174,7 +166,6 @@ def test_cube_item_alias_editor_escape_leaves_alias_unchanged() -> None:
 def test_cube_stack_begin_alias_editing_requires_expanded_item() -> None:
     """Route-key editing should start only after compact mode is cleared."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -201,7 +192,6 @@ def test_cube_stack_begin_alias_editing_requires_expanded_item() -> None:
 def test_cube_alias_editing_finished_emits_original_route_key() -> None:
     """Alias edit completion should preserve the route key captured at edit start."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)

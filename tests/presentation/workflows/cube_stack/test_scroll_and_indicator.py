@@ -24,7 +24,6 @@ from typing import Protocol
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QWidget
 from tests.presentation.workflows.qt_support import (
-    _clear_gui_stubs,
     _ensure_qapp,
     _wheel_event,
 )
@@ -58,7 +57,6 @@ def _selected_indicator_is_aligned(stack: _IndicatorAlignedStack) -> bool:
 def test_cubestack_wheel_reroutes_when_stack_has_no_scroll_range() -> None:
     """CubeStack should yield wheel input when its content does not need scrolling."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -83,7 +81,6 @@ def test_cubestack_indicator_realign_timer_is_destroyed_with_stack() -> None:
     """Deferred indicator work must not outlive a replaced cube-stack surface."""
 
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
     import shiboken6
 
@@ -104,7 +101,6 @@ def test_cubestack_owned_layout_changes_realign_selected_indicator() -> None:
     """Cube-stack geometry owners must explicitly settle the selected indicator."""
 
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -136,7 +132,6 @@ def test_cubestack_indicator_realign_ignores_deleted_content_view() -> None:
     """A stale layout tick must stop when its owned content view was deleted."""
 
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
     import shiboken6
 
@@ -155,7 +150,6 @@ def test_cubestack_indicator_realign_ignores_deleted_content_view() -> None:
 def test_cubestack_wheel_stays_owned_when_stack_can_scroll_at_boundary() -> None:
     """Scrollable CubeStack should not reroute, even when currently at a boundary."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)

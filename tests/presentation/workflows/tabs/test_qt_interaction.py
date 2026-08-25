@@ -26,17 +26,13 @@ from PySide6.QtGui import QColor, QMouseEvent, QPalette
 from qfluentwidgets.common.smooth_scroll import (  # type: ignore[import-untyped]
     SmoothMode,
 )
-from tests.presentation.workflows.qt_support import (
-    _clear_gui_stubs,
-    _ensure_qapp,
-)
+from tests.presentation.workflows.qt_support import _ensure_qapp
 from tests.support.qt.lifecycle import destroy_qt_object
 
 
 def test_tabbar_swap_item_reorders_real_qt_items() -> None:
     """Real TabBar widget should reorder item list and current index via _swapItem."""
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module(
         "substitute.presentation.workflows.workflow_tabs_view"
     )
@@ -57,7 +53,6 @@ def test_tabbar_swap_item_reorders_real_qt_items() -> None:
 def test_workflow_tabbar_mouse_move_delegates_to_gesture_owner() -> None:
     """Workflow tab movement should delegate selection policy to its gesture owner."""
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module(
         "substitute.presentation.workflows.workflow_tabs_view"
     )
@@ -84,7 +79,6 @@ def test_workflow_tabbar_mouse_move_delegates_to_gesture_owner() -> None:
 def test_reorderable_tab_surfaces_disable_qfluent_smooth_scrolling() -> None:
     """Workflow and cube tab surfaces should scroll immediately when overfull."""
     _ensure_qapp()
-    _clear_gui_stubs()
     workflow_mod = importlib.import_module(
         "substitute.presentation.workflows.workflow_tabs_view"
     )
@@ -113,7 +107,6 @@ def test_workflow_tab_rename_editor_tracks_theme_text_color(
     """Workflow rename editor should use the same light/dark text as tab painting."""
 
     app = _ensure_qapp()
-    _clear_gui_stubs()
     base_mod = importlib.import_module(
         "substitute.presentation.workflows.reorderable_tabs_base"
     )
@@ -150,7 +143,6 @@ def test_workflow_tab_rename_editor_uses_explicit_tab_text_color() -> None:
     """Workflow rename editor should honor explicit tab text color overrides."""
 
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module(
         "substitute.presentation.workflows.workflow_tabs_view"
     )
@@ -176,7 +168,6 @@ def test_workflow_tab_rename_editor_geometry_matches_tab_text_rect() -> None:
     """Workflow rename editor should not add padding beyond the painted text rect."""
 
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module(
         "substitute.presentation.workflows.workflow_tabs_view"
     )

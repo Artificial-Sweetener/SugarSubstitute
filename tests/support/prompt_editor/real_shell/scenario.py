@@ -48,9 +48,6 @@ from substitute.application.prompt_editor.lora.catalog_models import (
 from substitute.application.user_presets import UserPresetService
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
 from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
-from substitute.presentation.editor.panel.widgets.scroll_surface import (
-    EditorPanelScrollSurface,
-)
 from tests.support.prompt_editor.autocomplete_support import (
     RecordingPromptAutocompleteGateway,
 )
@@ -63,10 +60,7 @@ from tests.support.prompt_editor.real_shell.artifacts import PromptEditorArtifac
 from tests.support.prompt_editor.real_shell.context_menu_probe import (
     PromptContextMenuProbe,
 )
-from tests.support.prompt_editor.real_shell.input_driver import (
-    PromptEditorClickAwayTarget,
-    PromptEditorInputDriver,
-)
+from tests.support.prompt_editor.real_shell.input_driver import PromptEditorInputDriver
 from tests.support.prompt_editor.real_shell.invariants.snapshot import (
     snapshot_invariant_violations,
 )
@@ -223,17 +217,10 @@ class PromptEditorRealShellScenario:
         )
         self._closed = False
 
-    def _click_away_target(self) -> PromptEditorClickAwayTarget:
-        """Return the panel scroll owner and its visible event surface."""
+    def _click_away_target(self) -> QWidget:
+        """Return the mounted shell's deterministic outside-focus control."""
 
-        panel = self.shell.active_editor_panel
-        if panel is None:
-            raise RuntimeError("Click-away input requires an active editor panel.")
-        focus_owner = cast(EditorPanelScrollSurface, panel.scroll)
-        return PromptEditorClickAwayTarget(
-            focus_owner=focus_owner,
-            event_surface=focus_owner.viewport(),
-        )
+        return self.shell.focus_sentinel
 
     def close(self) -> None:
         """Stop canvas work before synchronously destroying the mounted shell."""
