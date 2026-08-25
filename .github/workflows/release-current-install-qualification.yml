@@ -128,6 +128,7 @@ jobs:
           name: clean-install-diagnostics-${{ runner.os }}
           path: |
             ${{ runner.temp }}/.SugarSubstitute-clean-clean-installer-qualification.jsonl
+            ${{ runner.temp }}/.candidate-certificate/requests.jsonl
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
             ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
@@ -198,6 +199,7 @@ jobs:
           name: clean-install-diagnostics-${{ runner.os }}
           path: |
             ${{ runner.temp }}/.SugarSubstitute-clean-clean-installer-qualification.jsonl
+            ${{ runner.temp }}/.candidate-certificate/requests.jsonl
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
             ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**

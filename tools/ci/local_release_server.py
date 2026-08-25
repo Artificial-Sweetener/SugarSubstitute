@@ -129,27 +129,61 @@ class LocalReleaseServer:
             def do_GET(self) -> None:
                 """Record access and serve the loopback-qualified manifest view."""
 
+                request_path = self.path
+                started_at = time.monotonic_ns()
+                self._record_request(
+                    event="request.started",
+                    path=request_path,
+                    time_ns=time.time_ns(),
+                )
+                try:
+                    if request_path.partition("?")[0] == "/manifest.json":
+                        self.send_response(200)
+                        self.send_header(
+                            "Content-Type", "application/json; charset=utf-8"
+                        )
+                        self.send_header(
+                            "Content-Length", str(len(qualification_manifest))
+                        )
+                        self.end_headers()
+                        self.wfile.write(qualification_manifest)
+                    else:
+                        super().do_GET()
+                except Exception as error:
+                    self._record_request(
+                        event="request.failed",
+                        path=request_path,
+                        time_ns=time.time_ns(),
+                        duration_ns=time.monotonic_ns() - started_at,
+                        error_type=type(error).__name__,
+                    )
+                    raise
+                self._record_request(
+                    event="request.completed",
+                    path=request_path,
+                    time_ns=time.time_ns(),
+                    duration_ns=time.monotonic_ns() - started_at,
+                )
+
+            def _record_request(
+                self, *, event: str, path: str, **fields: object
+            ) -> None:
+                """Append one durable request lifecycle record for qualification."""
+
                 with request_log_lock:
                     with request_log_path.open("a", encoding="utf-8") as output:
                         output.write(
                             json.dumps(
                                 {
+                                    "event": event,
                                     "method": "GET",
-                                    "path": self.path,
-                                    "time_ns": time.time_ns(),
+                                    "path": path,
+                                    **fields,
                                 },
                                 sort_keys=True,
                             )
                             + "\n"
                         )
-                if self.path.partition("?")[0] == "/manifest.json":
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/json; charset=utf-8")
-                    self.send_header("Content-Length", str(len(qualification_manifest)))
-                    self.end_headers()
-                    self.wfile.write(qualification_manifest)
-                    return
-                super().do_GET()
 
         return _Handler
 

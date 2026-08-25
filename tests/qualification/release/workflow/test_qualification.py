@@ -210,7 +210,6 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
         "release-current-install-qualification.yml",
         "release-update-qualification.yml",
     )
-
     assert "verify_installer_lifecycle.py clean" in current_text
     assert "verify_installer_lifecycle.py upgrade" in update_text
     assert "python -m tools.ci.resolve_upgrade_sources" in orchestration_text
@@ -275,6 +274,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
         "release-current-install-qualification.yml",
         "release-update-qualification.yml",
     )
+    current_install_text = workflow_text("release-current-install-qualification.yml")
     preparation_text = (
         PROJECT_ROOT / "scripts" / "prepare-release-assets.mjs"
     ).read_text(encoding="utf-8")
@@ -317,6 +317,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     )[1].split("- name: Upload historical-update diagnostics", maxsplit=1)[0]
     assert '--timeout-seconds "$env:QUALIFICATION_TIMEOUT_SECONDS"' in historical_proof
     assert "clean-install-diagnostics-${{ runner.os }}" in qualification_text
+    assert current_install_text.count(".candidate-certificate/requests.jsonl") == 2
     assert "Restore checksum-addressed standalone artifact" not in qualification_text
     assert "cache_managed_comfy_artifacts.py" not in qualification_text
     assert "standalone_variant" not in qualification_text
