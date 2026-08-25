@@ -19,9 +19,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+import warnings
 
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import ToolTipFilter  # type: ignore[import-untyped]
 
 from tests.support.prompt_editor.real_shell.invariants.snapshot import (
@@ -52,7 +53,7 @@ def test_real_shell_captures_headless_editor_and_popup_state(
 def test_real_shell_moves_ambient_hover_to_neutral_target(
     real_shell_scenario: PromptEditorRealShellScenario,
 ) -> None:
-    """Cancel delayed shell tooltips before driving prompt keyboard input."""
+    """Cancel every delayed or visible shell tooltip before keyboard input."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
     tooltip_owner = next(
@@ -65,12 +66,28 @@ def test_real_shell_moves_ambient_hover_to_neutral_target(
     tooltip_filters = tooltip_owner.findChildren(ToolTipFilter)
     QTest.mouseMove(tooltip_owner, tooltip_owner.rect().center())
     assert any(tooltip_filter.timer.isActive() for tooltip_filter in tooltip_filters)
+    tooltip_filter = tooltip_filters[0]
+    tooltip_filter.showToolTip()
+    tooltip = getattr(tooltip_filter, "_tooltip", None)
+    assert isinstance(tooltip, QWidget)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Function: 'QApplication\.setActiveWindow.*",
+            category=DeprecationWarning,
+        )
+        QApplication.setActiveWindow(tooltip)
+    assert QApplication.activeWindow() is tooltip
+
+    all_tooltip_filters = real_shell_scenario.shell.findChildren(ToolTipFilter)
+    for pending_filter in all_tooltip_filters:
+        pending_filter.timer.start(60_000)
 
     real_shell_scenario.input.focus_editor(field)
 
-    assert all(
-        not tooltip_filter.timer.isActive() for tooltip_filter in tooltip_filters
-    )
+    assert QApplication.activeWindow() is real_shell_scenario.shell
+    assert not tooltip.isVisible()
+    assert all(not item.timer.isActive() for item in all_tooltip_filters)
 
 
 def test_real_shell_can_disable_hot_path_owner_tracing(tmp_path: Path) -> None:
