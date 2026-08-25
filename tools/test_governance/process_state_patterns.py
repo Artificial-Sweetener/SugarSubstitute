@@ -25,6 +25,7 @@ from .model import TestCandidate
 
 MODULE_REGISTRY_RULE = "MODULES001"
 QT_GLOBAL_RULE = "QTGLOBAL001"
+CURRENT_DIRECTORY_RULE = "CWD001"
 
 _QFLUENT_STATE_OWNER = "tests/presentation/theme/support.py"
 _QFLUENT_MUTATIONS = frozenset(
@@ -46,6 +47,35 @@ def process_state_pattern_candidates(
     return [
         *_module_registry_mutation_candidates(path=path, tree=tree, aliases=aliases),
         *_qfluent_global_mutation_candidates(path=path, tree=tree, aliases=aliases),
+        *_current_directory_mutation_candidates(path=path, tree=tree, aliases=aliases),
+    ]
+
+
+def _current_directory_mutation_candidates(
+    *,
+    path: str,
+    tree: ast.Module,
+    aliases: dict[str, str],
+) -> list[TestCandidate]:
+    """Find direct mutation of the process-global working directory."""
+
+    mutations = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and call_name(node.func, aliases) == "os.chdir"
+    ]
+    return [
+        TestCandidate(
+            rule=CURRENT_DIRECTORY_RULE,
+            path=path,
+            locator=f"<module>:current-directory-mutation:{ordinal}",
+            evidence="mutates the process-global current directory directly",
+            line=node.lineno,
+        )
+        for ordinal, node in enumerate(
+            sorted(mutations, key=lambda item: item.lineno),
+            1,
+        )
     ]
 
 
@@ -142,6 +172,7 @@ def _qfluent_global_mutation_candidates(
 
 
 __all__ = [
+    "CURRENT_DIRECTORY_RULE",
     "MODULE_REGISTRY_RULE",
     "QT_GLOBAL_RULE",
     "process_state_pattern_candidates",

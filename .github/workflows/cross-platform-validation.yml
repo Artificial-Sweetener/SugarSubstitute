@@ -7,24 +7,56 @@ permissions:
   actions: read
   contents: read
 
-jobs:
-  tests:
-    name: Required cross-platform tests
-    uses: ./.github/workflows/tests.yml
+concurrency:
+  group: prepublication-burn-in-${{ github.ref }}
+  cancel-in-progress: false
 
-  build:
-    name: Build private native validation channel
-    needs: tests
-    uses: ./.github/workflows/cross-platform-build.yml
+jobs:
+  stable-prepublication:
+    name: Complete Stable prepublication
+    uses: ./.github/workflows/release-prepublication.yml
     with:
-      version: ${{ format('0.9.{0}', github.run_number) }}
+      channel: stable
+      qualification_version: ${{ format('9999.0.{0}', github.run_number) }}
+      run_tests: true
+      force_candidate: true
+      qualification_scope: all
+      release_input_artifact_suffix: -burn-in-stable
+      candidate_artifact_name: prepublication-stable-candidate
+
+  canary-prepublication:
+    name: Complete Canary candidate preparation
+    uses: ./.github/workflows/release-prepublication.yml
+    with:
+      channel: canary
+      canary_run_number: ${{ github.run_number }}
+      run_tests: false
+      force_candidate: true
+      qualification_scope: canary-fast
+      release_input_artifact_suffix: -burn-in-canary
+      candidate_artifact_name: prepublication-canary-candidate
+
+  comfy-runtime-compatibility:
+    name: Current Comfy runtime compatibility
+    uses: ./.github/workflows/comfy-runtime-compatibility.yml
+
+  comfy-update-compatibility:
+    name: Comfy update compatibility
+    uses: ./.github/workflows/comfy-update-compatibility.yml
 
   linux-system-trust:
     name: Packaged Linux system trust
-    needs: build
+    needs: stable-prepublication
     uses: ./.github/workflows/linux-system-trust.yml
+    with:
+      candidate_artifact_name: ${{ needs.stable-prepublication.outputs.candidate_artifact_name }}
+      candidate_run_id: ${{ needs.stable-prepublication.outputs.candidate_run_id }}
+      candidate_version: ${{ needs.stable-prepublication.outputs.candidate_version }}
 
   installed-app-smoke:
     name: Installed application smoke
-    needs: build
+    needs: stable-prepublication
     uses: ./.github/workflows/installed-app-smoke.yml
+    with:
+      candidate_artifact_name: ${{ needs.stable-prepublication.outputs.candidate_artifact_name }}
+      candidate_run_id: ${{ needs.stable-prepublication.outputs.candidate_run_id }}

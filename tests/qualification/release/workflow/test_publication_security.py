@@ -220,7 +220,7 @@ def test_stable_release_push_uses_the_authorized_deploy_key() -> None:
 def test_failed_qualification_cannot_leave_a_public_stable_prerelease() -> None:
     """Keep every Stable tag and release mutation after successful qualification."""
 
-    orchestrator = workflow_text("release.yml")
+    orchestrator = workflow_text("release.yml", "release-prepublication.yml")
     candidate_workflow = workflow_text("release-candidate.yml")
     publication_workflow = workflow_text("release-publication.yml")
 
@@ -228,8 +228,12 @@ def test_failed_qualification_cannot_leave_a_public_stable_prerelease() -> None:
     assert "gh release create" not in candidate_workflow
     assert "gh release edit" not in candidate_workflow
     assert "npx semantic-release" not in candidate_workflow
-    publish_call = orchestrator.split("  publish-release:", maxsplit=1)[1]
-    assert "needs.qualify-candidate.result == 'success'" in publish_call
+    publish_call = workflow_text("release.yml").split("  publish-release:", maxsplit=1)[
+        1
+    ]
+    assert "needs.prepare-release.result == 'success'" in publish_call
+    assert "needs.prepare-release.outputs.staged == 'true'" in publish_call
+    assert "qualify-candidate:" in orchestrator
     assert publish_call.index("contents: write") < publish_call.index(
         "./.github/workflows/release-publication.yml"
     )

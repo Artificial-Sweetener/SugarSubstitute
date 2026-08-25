@@ -266,14 +266,22 @@ def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
     ).read_text(encoding="utf-8")
 
     jobs = release_workflow["jobs"]
-    assert jobs["tests"]["name"] == "Required cross-platform tests"
-    assert jobs["tests"]["uses"] == "./.github/workflows/tests.yml"
-    assert jobs["tests"]["if"] == (
-        "github.event_name != 'workflow_dispatch' || "
-        "github.event.inputs.dry_run != 'true' || "
-        "github.event.inputs.qualification_scope == 'full'"
+    preparation = jobs["prepare-release"]
+    assert preparation["name"] == "Test, build, stage, and qualify release"
+    assert preparation["uses"] == "./.github/workflows/release-prepublication.yml"
+    assert (
+        "github.event_name != 'workflow_dispatch'" in preparation["with"]["run_tests"]
     )
-    assert jobs["determine-version"]["needs"] == "tests"
+    assert "github.event.inputs.dry_run != 'true'" in preparation["with"]["run_tests"]
+    assert (
+        "github.event.inputs.qualification_scope == 'full'"
+        in preparation["with"]["run_tests"]
+    )
+    prepublication = yaml.safe_load(
+        workflow_path("release-prepublication.yml").read_text(encoding="utf-8")
+    )
+    assert prepublication["jobs"]["tests"]["uses"] == ("./.github/workflows/tests.yml")
+    assert prepublication["jobs"]["determine-version"]["needs"] == "tests"
     assert "  workflow_call:" in tests_workflow_text
     assert "  push:" not in tests_workflow_text.split("permissions:", maxsplit=1)[0]
 
@@ -292,16 +300,20 @@ def test_ci_orchestrators_delegate_to_cohesive_workflow_owners() -> None:
             "./.github/workflows/comfy-update-compatibility.yml",
         },
         "release.yml": {
+            "./.github/workflows/release-prepublication.yml",
+            "./.github/workflows/release-publication.yml",
+        },
+        "release-prepublication.yml": {
             "./.github/workflows/tests.yml",
             "./.github/workflows/release-version.yml",
             "./.github/workflows/release-build.yml",
             "./.github/workflows/release-candidate.yml",
             "./.github/workflows/release-qualification.yml",
-            "./.github/workflows/release-publication.yml",
         },
         "cross-platform-validation.yml": {
-            "./.github/workflows/tests.yml",
-            "./.github/workflows/cross-platform-build.yml",
+            "./.github/workflows/release-prepublication.yml",
+            "./.github/workflows/comfy-runtime-compatibility.yml",
+            "./.github/workflows/comfy-update-compatibility.yml",
             "./.github/workflows/linux-system-trust.yml",
             "./.github/workflows/installed-app-smoke.yml",
         },

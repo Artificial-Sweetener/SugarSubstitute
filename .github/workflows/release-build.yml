@@ -11,6 +11,11 @@ on:
         description: "Stable or Canary channel embedded into every native artifact"
         required: true
         type: string
+      artifact_suffix:
+        description: "Optional suffix keeping concurrent native inputs distinct"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -57,7 +62,7 @@ jobs:
       - name: Upload Windows release inputs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-inputs-windows
+          name: release-inputs-windows${{ inputs.artifact_suffix }}
           path: build/release-inputs/windows
           if-no-files-found: error
           retention-days: 1
@@ -106,7 +111,7 @@ jobs:
       - name: Upload Apple Silicon release inputs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-inputs-macos
+          name: release-inputs-macos${{ inputs.artifact_suffix }}
           path: build/release-inputs/macos
           if-no-files-found: error
           retention-days: 1
@@ -152,7 +157,7 @@ jobs:
       - name: Upload Linux release inputs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-inputs-linux
+          name: release-inputs-linux${{ inputs.artifact_suffix }}
           path: build/release-inputs/linux
           if-no-files-found: error
           retention-days: 1

@@ -18,12 +18,83 @@
 
 from __future__ import annotations
 
+import yaml  # type: ignore[import-untyped]
 
 from tests.qualification.release.workflow.support import (
     PROJECT_ROOT,
     action_path,
+    workflow_path,
     workflow_text,
 )
+
+
+def test_prepublication_burn_in_is_complete_and_structurally_read_only() -> None:
+    """Exercise every release gate without exposing a publication call path."""
+
+    burn_in = yaml.safe_load(workflow_text("cross-platform-validation.yml"))
+    production = yaml.safe_load(workflow_text("release.yml"))
+    prepublication_text = workflow_text("release-prepublication.yml")
+    burn_in_text = workflow_text("cross-platform-validation.yml")
+    jobs = burn_in["jobs"]
+
+    assert burn_in["permissions"] == {"actions": "read", "contents": "read"}
+    assert production["jobs"]["prepare-release"]["uses"] == (
+        "./.github/workflows/release-prepublication.yml"
+    )
+    assert jobs["stable-prepublication"]["uses"] == (
+        "./.github/workflows/release-prepublication.yml"
+    )
+    assert jobs["canary-prepublication"]["uses"] == (
+        "./.github/workflows/release-prepublication.yml"
+    )
+    stable_inputs = jobs["stable-prepublication"]["with"]
+    canary_inputs = jobs["canary-prepublication"]["with"]
+    assert stable_inputs["run_tests"] is True
+    assert stable_inputs["force_candidate"] is True
+    assert stable_inputs["qualification_scope"] == "all"
+    assert canary_inputs["run_tests"] is False
+    assert canary_inputs["force_candidate"] is True
+    assert canary_inputs["qualification_scope"] == "canary-fast"
+    assert (
+        stable_inputs["candidate_artifact_name"]
+        != (canary_inputs["candidate_artifact_name"])
+    )
+    assert (
+        stable_inputs["release_input_artifact_suffix"]
+        != (canary_inputs["release_input_artifact_suffix"])
+    )
+    assert "./.github/workflows/comfy-runtime-compatibility.yml" in burn_in_text
+    assert "./.github/workflows/comfy-update-compatibility.yml" in burn_in_text
+    assert "release-publication.yml" not in burn_in_text
+    assert "release-publication.yml" not in prepublication_text
+    assert "contents: write" not in burn_in_text
+    assert "contents: write" not in prepublication_text
+    assert "secrets: inherit" not in burn_in_text
+
+
+def test_prepublication_downstream_proof_consumes_the_exact_stable_candidate() -> None:
+    """Keep trust and installed-app proof attached to the qualified Stable bytes."""
+
+    burn_in = yaml.safe_load(workflow_text("cross-platform-validation.yml"))
+    jobs = burn_in["jobs"]
+    for job_name in ("linux-system-trust", "installed-app-smoke"):
+        job = jobs[job_name]
+        assert job["needs"] == "stable-prepublication"
+        assert job["with"]["candidate_artifact_name"] == (
+            "${{ needs.stable-prepublication.outputs.candidate_artifact_name }}"
+        )
+        assert job["with"]["candidate_run_id"] == (
+            "${{ needs.stable-prepublication.outputs.candidate_run_id }}"
+        )
+
+    installed_text = workflow_text("installed-app-smoke.yml")
+    trust_text = workflow_text("linux-system-trust.yml")
+    for owner_text in (installed_text, trust_text):
+        assert "run-id: ${{ inputs.candidate_run_id }}" in owner_text
+        assert "github-token: ${{ github.token }}" in owner_text
+    assert "build/candidate" in trust_text
+    assert "${CANDIDATE_VERSION}-Linux-x86_64.AppImage" in trust_text
+    assert not workflow_path("cross-platform-build.yml").exists()
 
 
 def test_cross_platform_validation_requires_explicit_invocation() -> None:
@@ -34,7 +105,10 @@ def test_cross_platform_validation_requires_explicit_invocation() -> None:
     ).read_text(encoding="utf-8")
     validation_text = workflow_text(
         "cross-platform-validation.yml",
-        "cross-platform-build.yml",
+        "release-prepublication.yml",
+        "release-build.yml",
+        "release-candidate.yml",
+        "release-qualification.yml",
         "linux-system-trust.yml",
         "installed-app-smoke.yml",
     )
@@ -44,7 +118,9 @@ def test_cross_platform_validation_requires_explicit_invocation() -> None:
     assert "contents: write" not in validation_text
     assert "gh release create" not in validation_text
     assert "gh release edit" not in validation_text
-    assert "name: release-channel" in validation_text
+    assert "prepublication-stable-candidate" in validation_text
+    assert "prepublication-canary-candidate" in validation_text
+    assert "candidate_artifact_name" in validation_text
 
 
 def test_managed_comfy_pin_automation_opens_pr_before_qualification() -> None:
@@ -178,7 +254,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert "include-hidden-files: true" in candidate_text
     assert "SUGAR_SUBSTITUTE_QUALIFICATION_VERSION:" in version_text
     assert "format('9999.0.{0}', github.run_number)" in release_text
-    assert "name: non-release-candidate-channel" in candidate_text
+    assert 'default: "non-release-candidate-channel"' in candidate_text
     assert "candidate_artifact_name:" in candidate_text
     assert "github.event.inputs.dry_run != 'true'" in release_text
     assert '--candidate-release-root "build/candidate"' in qualification_text
@@ -226,21 +302,23 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     """Only manual non-publishing runs may bypass unchanged repository gates."""
 
     release_text = workflow_text("release.yml")
+    prepublication_text = workflow_text("release-prepublication.yml")
     version_text = workflow_text("release-version.yml")
     candidate_text = workflow_text("release-candidate.yml")
     publication_text = workflow_text("release-publication.yml")
     qualification_text = workflow_text("release-qualification.yml")
     update_text = workflow_text("release-update-qualification.yml")
 
-    tests_guard = release_text.split("  tests:", maxsplit=1)[1].split(
-        "  determine-version:", maxsplit=1
+    prepare_call = release_text.split("  prepare-release:", maxsplit=1)[1].split(
+        "  publish-release:", maxsplit=1
     )[0]
-    assert "github.event_name != 'workflow_dispatch'" in tests_guard
-    assert "github.event.inputs.dry_run != 'true'" in tests_guard
-    assert "github.event.inputs.qualification_scope == 'full'" in tests_guard
+    assert "github.event_name != 'workflow_dispatch'" in prepare_call
+    assert "github.event.inputs.dry_run != 'true'" in prepare_call
+    assert "github.event.inputs.qualification_scope == 'full'" in prepare_call
+    assert "if: inputs.run_tests" in prepublication_text
     assert (
         "candidate_run_id: ${{ needs.stage-candidate.outputs.candidate_run_id }}"
-        in (release_text)
+        in prepublication_text
     )
     assert "      actions: read\n      contents: write" in release_text
     assert "permissions:\n  actions: read\n  contents: write" in publication_text
@@ -250,14 +328,14 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     assert "release_input_run_id:" in release_text
     assert "qualification_candidate_run_id:" in release_text
     assert "qualification_candidate_version:" in release_text
-    assert "github.event.inputs.release_input_run_id != ''" in release_text
+    assert "inputs.release_input_run_id != ''" in prepublication_text
     assert (
         "run-id: ${{ inputs.release_input_run_id || github.run_id }}" in candidate_text
     )
-    assert "needs.stage-candidate.result == 'success'" in release_text
+    assert "needs.stage-candidate.result == 'success'" in prepublication_text
     assert "Reuse exact temporary candidate channel" in candidate_text
-    assert "needs.stage-candidate.outputs.candidate_run_id" in release_text
-    assert "github.event.inputs.qualification_candidate_version ||" in release_text
+    assert "needs.stage-candidate.outputs.candidate_run_id" in prepublication_text
+    assert "inputs.qualification_candidate_version ||" in prepublication_text
     assert "qualification-all" in release_text
     assert "upgrade_selection:" in release_text
     assert (
