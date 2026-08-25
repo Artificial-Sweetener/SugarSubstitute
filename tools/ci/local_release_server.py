@@ -18,12 +18,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import ssl
 import subprocess
-from threading import Lock, Thread
+from threading import Condition, Lock, Thread
 import time
 from typing import Any, Self, cast
 
@@ -50,6 +51,8 @@ class LocalReleaseServer:
         self.request_log_path = certificate_root / "requests.jsonl"
         self.request_log_path.unlink(missing_ok=True)
         self._request_log_lock = Lock()
+        self._request_log_condition = Condition(self._request_log_lock)
+        self._request_events: list[tuple[str, str]] = []
         self.certificate_path, key_path = _create_localhost_certificate(
             certificate_root
         )
@@ -107,13 +110,52 @@ class LocalReleaseServer:
         if self._thread is not None:
             self._thread.join(timeout=5.0)
 
+    def require_completed_requests(
+        self,
+        expected_paths: Sequence[str],
+        *,
+        timeout_seconds: float,
+    ) -> None:
+        """Wait for exact durable completions from asynchronous request handlers."""
+
+        expected = tuple(expected_paths)
+
+        def completed_paths_match() -> bool:
+            """Return whether durable completion records match the exact contract."""
+
+            return (
+                tuple(
+                    path
+                    for event, path in self._request_events
+                    if event == "request.completed"
+                )
+                == expected
+            )
+
+        with self._request_log_condition:
+            completed = self._request_log_condition.wait_for(
+                completed_paths_match,
+                timeout=timeout_seconds,
+            )
+            actual = tuple(
+                path
+                for event, path in self._request_events
+                if event == "request.completed"
+            )
+        if not completed:
+            raise TimeoutError(
+                "Candidate release server did not durably complete the expected "
+                f"requests: expected={expected!r} actual={actual!r}."
+            )
+
     def _handler_class(self) -> type[SimpleHTTPRequestHandler]:
         """Bind standard file serving to the exact candidate directory."""
 
         release_root = self.release_root
         qualification_manifest = self._qualification_manifest
         request_log_path = self.request_log_path
-        request_log_lock = self._request_log_lock
+        request_log_condition = self._request_log_condition
+        request_events = self._request_events
 
         class _Handler(SimpleHTTPRequestHandler):
             """Serve candidate files without noisy request logging."""
@@ -170,7 +212,7 @@ class LocalReleaseServer:
             ) -> None:
                 """Append one durable request lifecycle record for qualification."""
 
-                with request_log_lock:
+                with request_log_condition:
                     with request_log_path.open("a", encoding="utf-8") as output:
                         output.write(
                             json.dumps(
@@ -184,6 +226,8 @@ class LocalReleaseServer:
                             )
                             + "\n"
                         )
+                    request_events.append((event, path))
+                    request_log_condition.notify_all()
 
         return _Handler
 
