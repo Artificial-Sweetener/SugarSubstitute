@@ -150,6 +150,8 @@ class OnboardingScenarioFixtureOwner:
         if self._external_process is not None:
             kill_managed_comfy(self._external_process)
             self._external_process = None
+        if self._scenario.external_fixture is not None:
+            self._scenario.external_fixture.close()
 
 
 __all__ = ["OnboardingScenarioFixtureOwner"]

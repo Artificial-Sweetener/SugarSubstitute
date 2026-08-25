@@ -24,6 +24,7 @@ from pathlib import Path
 from .ast_analysis import import_aliases
 from .execution_patterns import execution_pattern_candidates, reads_environment_name
 from .model import TestCandidate, TestPolicy
+from .network_resource_patterns import closed_ephemeral_port_candidates
 from .node_process_patterns import node_process_pattern_candidates
 from .ownership_patterns import ownership_pattern_candidates
 from .process_lifecycle_patterns import process_lifecycle_pattern_candidates
@@ -251,6 +252,7 @@ def _python_source_candidates(
             aliases=aliases,
         )
     )
+    candidates.extend(closed_ephemeral_port_candidates(path=relative_path, tree=tree))
     candidates.extend(
         process_state_pattern_candidates(
             path=relative_path,
@@ -297,6 +299,7 @@ def _semantic_support_source_candidates(root: Path, path: Path) -> list[TestCand
             tree=tree,
             aliases=aliases,
         ),
+        *closed_ephemeral_port_candidates(path=relative_path, tree=tree),
     ]
 
 

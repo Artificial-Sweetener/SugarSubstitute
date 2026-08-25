@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import json
-import socket
 import subprocess
 import tempfile
 import time
@@ -62,6 +61,7 @@ from substitute.infrastructure.comfy.standard_executed_image_handler import (
     StandardExecutedImageHandler,
 )
 from tests.qualification.comfy.managed_runtime.layout import ManagedComfyHarnessLayout
+from tools.ci.loopback_port_lease import LoopbackPortLease
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,7 +84,8 @@ class ManagedComfyDirectOutputHarness:
         self._layout = ManagedComfyHarnessLayout.resolve(repository_root)
         self._comfy_root = self._layout.comfy_root
         self._python = self._layout.python_executable
-        self._port = _available_port()
+        self._endpoint_lease = LoopbackPortLease.acquire()
+        self._port = self._endpoint_lease.port
         self._endpoint = ComfyEndpoint(host="127.0.0.1", port=self._port)
         self._temporary_directory: tempfile.TemporaryDirectory[str] | None = None
         self._process: subprocess.Popen[bytes] | None = None
@@ -109,6 +110,7 @@ class ManagedComfyDirectOutputHarness:
         log_path = self._root / "comfy.log"
         log_handle = log_path.open("wb")
         self._log_handle = log_handle
+        self._endpoint_lease.release_for_handoff()
         self._process = subprocess.Popen(
             [
                 str(self._python),
@@ -147,6 +149,7 @@ class ManagedComfyDirectOutputHarness:
         """Stop isolated Comfy, validate startup logs, and remove temporary state."""
 
         _ = exc_info
+        self._endpoint_lease.close()
         process = self._process
         if process is not None and process.poll() is None:
             process.terminate()
@@ -415,14 +418,6 @@ class ManagedComfyDirectOutputHarness:
         if self._root is None:
             raise RuntimeError("The managed Comfy harness has not started.")
         return self._root
-
-
-def _available_port() -> int:
-    """Reserve and return an unused loopback TCP port."""
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
-        listener.bind(("127.0.0.1", 0))
-        return int(listener.getsockname()[1])
 
 
 def _empty_image(

@@ -54,7 +54,6 @@ env:
   CANDIDATE_TAG: ${{ inputs.candidate_tag }}
   EXPECTED_UPDATE_MANIFEST_URL: ${{ inputs.candidate_channel == 'canary' && format('https://github.com/{0}/releases/download/canary-latest/manifest.json', github.repository) || format('https://github.com/{0}/releases/latest/download/manifest.json', github.repository) }}
   QUALIFICATION_TIMEOUT_SECONDS: ${{ inputs.qualification_timeout_seconds }}
-  STANDALONE_CACHE: build/managed-comfy-cache
 
 jobs:
   clean-install:
@@ -65,7 +64,7 @@ jobs:
         include: ${{ fromJSON(inputs.clean_matrix) }}
     if: inputs.clean_enabled
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 75
+    timeout-minutes: 30
     steps:
       - name: Checkout candidate source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -73,18 +72,9 @@ jobs:
         uses: ./.github/actions/setup-python-toolchain
         with:
           python-version: ${{ matrix.python_version }}
-      - name: Restore checksum-addressed standalone artifact
-        uses: ./.github/actions/restore-managed-comfy-cache
-        with:
-          variant: ${{ matrix.standalone_variant }}
       - name: Install Linux runtime dependencies
         if: runner.os == 'Linux'
         uses: ./.github/actions/setup-linux-qt
-      - name: Populate checksum-addressed standalone artifact
-        run: >-
-          python tools/ci/cache_managed_comfy_artifacts.py
-          --cache-root "${{ env.STANDALONE_CACHE }}"
-          --variant "${{ matrix.standalone_variant }}"
       - name: Download exact candidate installer
         if: inputs.candidate_tag != ''
         env:
@@ -118,7 +108,6 @@ jobs:
           --expected-version "${{ env.CANDIDATE_VERSION }}"
           --expected-channel "${{ inputs.candidate_channel }}"
           --expected-update-manifest-url "${{ env.EXPECTED_UPDATE_MANIFEST_URL }}"
-          --managed-artifact-cache-root "${{ env.STANDALONE_CACHE }}"
           --timeout-seconds "${{ env.QUALIFICATION_TIMEOUT_SECONDS }}"
       - name: Prove temporary clean install and post-splash launch
         if: inputs.candidate_artifact_name != ''
@@ -131,7 +120,6 @@ jobs:
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "${{ env.CANDIDATE_VERSION }}"
           --candidate-release-root "build/candidate"
-          --managed-artifact-cache-root "${{ env.STANDALONE_CACHE }}"
           --timeout-seconds "${{ env.QUALIFICATION_TIMEOUT_SECONDS }}"
       - name: Upload clean-install diagnostics
         if: always()
@@ -140,12 +128,9 @@ jobs:
           name: clean-install-diagnostics-${{ runner.os }}
           path: |
             ${{ runner.temp }}/.SugarSubstitute-clean-clean-installer-qualification.jsonl
-            ${{ runner.temp }}/.SugarSubstitute-clean-standalone-cache.json
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
             ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
-            ${{ runner.temp }}/SugarSubstitute-clean/appdata/runtime_state/setup_transaction.json
-            ${{ runner.temp }}/SugarSubstitute-clean/managed-comfy-startup.log
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -154,7 +139,7 @@ jobs:
     name: Clean install and launch (macOS Apple Silicon)
     if: inputs.macos_clean_enabled
     runs-on: macos-15
-    timeout-minutes: 75
+    timeout-minutes: 30
     steps:
       - name: Checkout candidate source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -162,15 +147,6 @@ jobs:
         uses: ./.github/actions/setup-python-toolchain
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Restore checksum-addressed standalone artifact
-        uses: ./.github/actions/restore-managed-comfy-cache
-        with:
-          variant: mac-mps
-      - name: Populate checksum-addressed standalone artifact
-        run: >-
-          python tools/ci/cache_managed_comfy_artifacts.py
-          --cache-root "$STANDALONE_CACHE"
-          --variant mac-mps
       - name: Download and mount exact candidate DMG
         if: inputs.candidate_tag != ''
         env:
@@ -203,7 +179,6 @@ jobs:
           --expected-version "$CANDIDATE_VERSION"
           --expected-channel "${{ inputs.candidate_channel }}"
           --expected-update-manifest-url "$EXPECTED_UPDATE_MANIFEST_URL"
-          --managed-artifact-cache-root "$STANDALONE_CACHE"
           --timeout-seconds "$QUALIFICATION_TIMEOUT_SECONDS"
       - name: Prove temporary clean install and post-splash launch
         if: inputs.candidate_artifact_name != ''
@@ -215,7 +190,6 @@ jobs:
           --install-root "${{ runner.temp }}/SugarSubstitute-clean"
           --expected-version "$CANDIDATE_VERSION"
           --candidate-release-root "build/candidate"
-          --managed-artifact-cache-root "$STANDALONE_CACHE"
           --timeout-seconds "$QUALIFICATION_TIMEOUT_SECONDS"
       - name: Upload clean-install diagnostics
         if: always()
@@ -224,12 +198,9 @@ jobs:
           name: clean-install-diagnostics-${{ runner.os }}
           path: |
             ${{ runner.temp }}/.SugarSubstitute-clean-clean-installer-qualification.jsonl
-            ${{ runner.temp }}/.SugarSubstitute-clean-standalone-cache.json
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
             ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
-            ${{ runner.temp }}/SugarSubstitute-clean/appdata/runtime_state/setup_transaction.json
-            ${{ runner.temp }}/SugarSubstitute-clean/managed-comfy-startup.log
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7

@@ -22,7 +22,6 @@ from collections.abc import Sequence
 import json
 import os
 from pathlib import Path
-import socket
 import subprocess
 import shutil
 import sys
@@ -36,6 +35,7 @@ from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy.manager_environment import (
     manager_runtime_environment,
 )
+from tools.ci.loopback_port_lease import LoopbackPortLease
 
 COMFYUI_REPOSITORY: Final[str] = "https://github.com/Comfy-Org/ComfyUI.git"
 STARTUP_TIMEOUT_SECONDS: Final[float] = 420.0
@@ -173,35 +173,37 @@ def probe_server(
 ) -> dict[str, object]:
     """Launch Comfy headlessly, verify runtime APIs, and leave no child process."""
 
-    port = _available_loopback_port()
-    environment = manager_runtime_environment(
-        workspace,
-        os.environ,
-        use_pygit2=runtime.uses_pygit2,
-    )
-    environment["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
-    environment["PYTHONIOENCODING"] = "utf-8"
-    command = [
-        str(python_executable),
-        str(workspace / "main.py"),
-        "--listen",
-        "127.0.0.1",
-        "--port",
-        str(port),
-        "--cpu",
-        *runtime.launch_arguments,
-    ]
-    process = subprocess.Popen(
-        command,
-        cwd=workspace,
-        env=environment,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
-    )
+    with LoopbackPortLease.acquire() as endpoint_lease:
+        port = endpoint_lease.port
+        environment = manager_runtime_environment(
+            workspace,
+            os.environ,
+            use_pygit2=runtime.uses_pygit2,
+        )
+        environment["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
+        environment["PYTHONIOENCODING"] = "utf-8"
+        command = [
+            str(python_executable),
+            str(workspace / "main.py"),
+            "--listen",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--cpu",
+            *runtime.launch_arguments,
+        ]
+        endpoint_lease.release_for_handoff()
+        process = subprocess.Popen(
+            command,
+            cwd=workspace,
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
+        )
     output: list[str] = []
     reader = threading.Thread(
         target=_drain_output,
@@ -305,14 +307,6 @@ def _require_json(url: str) -> object:
         if response.status != 200:
             raise RuntimeError(f"{url} returned HTTP {response.status}.")
         return json.loads(response.read())
-
-
-def _available_loopback_port() -> int:
-    """Reserve and release one currently available loopback port."""
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        probe.bind(("127.0.0.1", 0))
-        return int(probe.getsockname()[1])
 
 
 def _drain_output(stream: TextIO | None, output: list[str]) -> None:

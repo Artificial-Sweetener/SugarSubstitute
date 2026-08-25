@@ -23,6 +23,7 @@ from pathlib import Path
 import subprocess
 from types import SimpleNamespace
 from typing import cast
+import urllib.request
 
 import pytest
 
@@ -41,6 +42,7 @@ from tools.ci.installer_ui_qualification import (
     prepare_qualification_evidence,
     run_current_installer_ui,
 )
+from tools.ci.verify_installer_lifecycle import verify_clean_install
 
 
 def test_qualification_event_sequence_requires_real_ui_actions(tmp_path: Path) -> None:
@@ -204,6 +206,47 @@ def test_current_qualification_launches_normal_installer_ui(
     ]
     assert "--headless-install" not in captured_command
     assert captured_kwargs["timeout"] == 3_600.0
+
+
+def test_clean_qualification_uses_live_external_comfy_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Clean setup must select and probe a continuously owned remote target."""
+
+    def install_with_external_probe(**arguments: object) -> None:
+        """Model installed onboarding against the supplied external endpoint."""
+
+        environment = cast(dict[str, str], arguments["environment"])
+        plan = InstallerQualificationPlan.from_environment(environment)
+        assert plan is not None
+        assert plan.target_mode == "remote"
+        assert plan.managed_workspace_path is None
+        assert plan.managed_model_root is None
+        assert plan.force_cpu_mode is False
+        with urllib.request.urlopen(
+            f"http://{plan.endpoint_host}:{plan.endpoint_port}/system_stats",
+            timeout=5.0,
+        ) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        assert payload["system"]["comfyui_version"] == (
+            "installer-qualification-boundary"
+        )
+
+    monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle.run_current_installer_ui",
+        install_with_external_probe,
+    )
+    monkeypatch.setattr(
+        "tools.ci.verify_installer_lifecycle.verify_main_shell_evidence",
+        lambda **_arguments: None,
+    )
+    verify_clean_install(
+        installer_path=tmp_path / "installer",
+        install_root=tmp_path / "installed",
+        expected_version="1.2.3",
+        timeout_seconds=30.0,
+    )
 
 
 def test_timed_out_current_installer_reports_process_bound_evidence(

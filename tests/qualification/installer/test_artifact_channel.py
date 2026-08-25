@@ -30,15 +30,10 @@ from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationPlan,
 )
 from sugarsubstitute_shared.tls import EXTRA_CA_FILE_ENV, SystemTrustTlsContext
-from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.installer_ui_qualification import (
     prepare_qualification_evidence,
 )
 from tools.ci.local_release_server import LocalReleaseServer
-from tools.ci.standalone_artifact_cache import (
-    qualification_standalone_artifact_cache,
-    standalone_cache_diagnostic_path,
-)
 
 
 def _write_release_channel(release_root: Path) -> tuple[dict[str, str], str]:
@@ -207,68 +202,6 @@ def test_qualification_evidence_is_absolute_across_process_working_directories(
     assert evidence.environment[
         "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
     ] == str((tmp_path / "installed" / "managed-comfy-startup.log").resolve())
-
-
-def test_clean_qualification_exchanges_only_complete_standalone_artifacts(
-    tmp_path: Path,
-) -> None:
-    """Cached downloads should enter and leave the otherwise-clean install root."""
-
-    install_root = tmp_path / "installed"
-    external_cache = tmp_path / "ci-cache"
-    cached_artifact = external_cache / "release" / "win-cpu" / "artifact.7z.001"
-    cached_artifact.parent.mkdir(parents=True)
-    cached_artifact.write_bytes(b"cached")
-    (cached_artifact.parent / "artifact.7z.001.part").write_bytes(b"partial")
-
-    with qualification_standalone_artifact_cache(
-        install_root=install_root,
-        external_cache_root=external_cache,
-        timeout_seconds=5.0,
-    ) as stage:
-        assert stage is not None
-        installed_artifact = (
-            install_root
-            / ".sugarsubstitute-cache"
-            / "standalone"
-            / "release"
-            / "win-cpu"
-            / "artifact.7z.001"
-        )
-        assert not installed_artifact.exists()
-        ready_path = install_root / "launcher" / "config.json"
-        ready_path.parent.mkdir(parents=True)
-        ready_path.write_text("{}", encoding="utf-8")
-        stage.wait_for_completion()
-        stage.require_success()
-        assert installed_artifact.read_bytes() == b"cached"
-        assert not installed_artifact.with_name("artifact.7z.001.part").exists()
-        installed_artifact.unlink()
-        installed_artifact.write_bytes(b"verified replacement")
-
-    assert cached_artifact.read_bytes() == b"verified replacement"
-    assert (cached_artifact.parent / "artifact.7z.001.part").read_bytes() == b"partial"
-    receipt = json.loads(
-        standalone_cache_diagnostic_path(install_root).read_text(encoding="utf-8")
-    )
-    assert receipt["state"] == "staged_after_install_layout"
-    assert receipt["ready_path_present"] is True
-    assert receipt["source"]["total_bytes"] == len(b"cached")
-    assert receipt["destination"]["total_bytes"] == len(b"cached")
-
-
-def test_clean_qualification_rejects_cache_inside_install_root(tmp_path: Path) -> None:
-    """The acceleration cache must not weaken clean-root isolation."""
-
-    install_root = tmp_path / "installed"
-
-    with pytest.raises(InstallerLifecycleError, match="outside the clean install"):
-        with qualification_standalone_artifact_cache(
-            install_root=install_root,
-            external_cache_root=install_root / "cache",
-            timeout_seconds=5.0,
-        ):
-            pass
 
 
 def test_qualification_evidence_preserves_focused_timeout(tmp_path: Path) -> None:

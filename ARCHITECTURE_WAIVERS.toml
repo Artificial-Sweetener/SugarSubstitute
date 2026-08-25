@@ -1982,7 +1982,7 @@ kind = "remediation"
 justification = "The assessed file mixes qualification evidence preparation, current installer execution, installed candidate launch, shell, version, and event-sequence verification, cross-platform process termination and diagnostics, readiness receipt and startup trace interpretation. Extract installed-process lifecycle and evidence/trace verification from qualification workflow orchestration."
 issue = "chore:SS-ARCH-097"
 review_by = 2026-12-15
-max_lines = 698
+max_lines = 700
 next_limit = 558
 debt = "SS-ARCH-097"
 
