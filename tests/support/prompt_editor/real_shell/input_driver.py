@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
 from PySide6.QtCore import QPoint, Qt
@@ -57,6 +58,14 @@ class StateSnapshotCapture(Protocol):
         """Capture the mounted editor state."""
 
 
+@dataclass(frozen=True, slots=True)
+class PromptEditorClickAwayTarget:
+    """Bind one production focus owner to its visible pointer event surface."""
+
+    focus_owner: QWidget
+    event_surface: QWidget
+
+
 class PromptEditorInputDriver:
     """Drive input through the production prompt-editor event surfaces."""
 
@@ -65,7 +74,7 @@ class PromptEditorInputDriver:
         *,
         shell: QWidget,
         shell_activator: Callable[[], None],
-        click_away_target_provider: Callable[[], QWidget],
+        click_away_target_provider: Callable[[], PromptEditorClickAwayTarget],
         canvas_provider: Callable[[str], QWidget | None],
         canvas_activator: Callable[[str], None],
         trace_actions: list[PromptEditorTraceAction],
@@ -378,24 +387,36 @@ class PromptEditorInputDriver:
         wait_for_queued_qt_turn()
 
     def click_away_from_editor(self, field: PromptFieldHandle) -> None:
-        """Drive the Qt focus transition produced by a click outside the editor."""
+        """Drive a real pointer and focus transition outside the editor."""
 
         self._shell_activator()
-        focus_target = self._click_away_target_provider()
-        focus_target.setFocus(Qt.FocusReason.MouseFocusReason)
-        wait_for_qt_condition(
-            focus_target.hasFocus,
-            description="prompt-editor click-away focus acquisition",
-            state=lambda: _click_away_state(field.editor, focus_target),
+        target = self._click_away_target_provider()
+        event_position = target.event_surface.rect().center()
+        QTest.mousePress(
+            target.event_surface,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            event_position,
         )
+        try:
+            target.focus_owner.setFocus(Qt.FocusReason.MouseFocusReason)
+            wait_for_qt_condition(
+                target.focus_owner.hasFocus,
+                description="prompt-editor click-away focus acquisition",
+                state=lambda: _click_away_state(field.editor, target),
+            )
+        finally:
+            QTest.mouseRelease(
+                target.event_surface,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+                event_position,
+            )
         self._trace_actions.append(PromptEditorTraceAction("click_away", ""))
         wait_for_qt_condition(
-            lambda: (
-                not _focus_belongs_to(field.editor)
-                and _autocomplete_is_dismissed(field.editor)
-            ),
+            lambda: _autocomplete_is_dismissed(field.editor),
             description="prompt-editor click-away completion",
-            state=lambda: _click_away_state(field.editor, focus_target),
+            state=lambda: _click_away_state(field.editor, target),
         )
 
     def switch_canvas(self, label: str) -> None:
@@ -466,7 +487,7 @@ def _autocomplete_presentation_state(editor: PromptEditor) -> object:
 
 def _click_away_state(
     editor: PromptEditor,
-    focus_target: QWidget,
+    target: PromptEditorClickAwayTarget,
 ) -> object:
     """Return actionable focus and autocomplete state for click-away timeouts."""
 
@@ -476,8 +497,9 @@ def _click_away_state(
         "active_window": QApplication.activeWindow(),
         "focus_widget": QApplication.focusWidget(),
         "editor_owns_focus": _focus_belongs_to(editor),
-        "outside_target_owns_focus": focus_target.hasFocus(),
-        "outside_target_visible": focus_target.isVisible(),
+        "outside_target_owns_focus": target.focus_owner.hasFocus(),
+        "outside_target_visible": target.focus_owner.isVisible(),
+        "outside_event_surface_visible": target.event_surface.isVisible(),
         "preview": autocomplete_preview_state(editor),
         "session_active": autocomplete["has_active"],
         "panel_visible": autocomplete["presenter_panel_visible"],
