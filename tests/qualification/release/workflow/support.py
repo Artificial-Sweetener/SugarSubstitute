@@ -23,18 +23,22 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 WORKFLOW_ROOT = PROJECT_ROOT / ".github" / "workflows"
+ACTION_ROOT = PROJECT_ROOT / ".github" / "actions"
 EXPECTED_ACTIONS = frozenset(
     {
         "actions/checkout",
         "actions/cache",
+        "actions/cache/restore",
         "actions/dependency-review-action",
         "actions/download-artifact",
         "actions/setup-node",
         "actions/setup-python",
         "actions/upload-artifact",
+        "astral-sh/setup-uv",
     }
 )
 WORKFLOW_PATHS = tuple(WORKFLOW_ROOT.glob("*.yml"))
+ACTION_PATHS = tuple(ACTION_ROOT.glob("*/action.yml"))
 DOCUMENTATION_PATH_FILTER = ["**/*.md"]
 
 
@@ -42,6 +46,12 @@ def workflow_path(name: str) -> Path:
     """Return one workflow owner's repository path."""
 
     return WORKFLOW_ROOT / name
+
+
+def action_path(name: str) -> Path:
+    """Return one local action owner's metadata path."""
+
+    return ACTION_ROOT / name / "action.yml"
 
 
 def workflow_text(*names: str) -> str:

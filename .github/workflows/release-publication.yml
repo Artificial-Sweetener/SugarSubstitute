@@ -29,30 +29,24 @@ permissions:
   contents: write
 
 env:
-  NODE_VERSION: "22.14.0"
+  NODE_VERSION: "22.22.2"
 
 jobs:
   publish:
     name: Publish qualified bytes without rebuilding
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout complete Stable history
-        if: github.ref_name == 'main'
+      - name: Checkout publication source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-          fetch-tags: true
+          fetch-depth: ${{ github.ref_name == 'main' && 0 || 1 }}
+          fetch-tags: ${{ github.ref_name == 'main' }}
 
-      - name: Setup Stable release Node
-        if: github.ref_name == 'main'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Set up exact publication Node toolchain
+        uses: ./.github/actions/setup-node-toolchain
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install Stable release dependencies
-        if: github.ref_name == 'main'
-        run: npm ci
+          install-dependencies: ${{ github.ref_name == 'main' && 'true' || 'false' }}
 
       - name: Download exact qualified Stable channel
         if: github.ref_name == 'main'
@@ -69,7 +63,7 @@ jobs:
           CANDIDATE_VERSION: ${{ inputs.candidate_version }}
         run: |
           set -euo pipefail
-          python -c "import json, os, pathlib; payload=json.loads(pathlib.Path('.local-release-channel/manifest.json').read_text()); assert payload['channel']=='stable', payload; assert payload['version']==os.environ['CANDIDATE_VERSION'], payload"
+          node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('.local-release-channel/manifest.json','utf8')); if(payload.channel!=='stable'||payload.version!==process.env.CANDIDATE_VERSION) process.exit(1)"
           (cd .local-release-channel && sha256sum --check checksums.txt)
 
       - name: Re-resolve semantic release version after qualification
@@ -143,7 +137,7 @@ jobs:
           readback_dir="build/canary-readback"
           canary_release_title="Canary ${CANDIDATE_VERSION/-canary./.}"
           mkdir -p "$readback_dir"
-          python -c "import json, os, pathlib; payload=json.loads(pathlib.Path('$channel_dir/manifest.json').read_text()); assert payload['channel']=='canary', payload; assert payload['version']==os.environ['CANDIDATE_VERSION'], payload"
+          node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('$channel_dir/manifest.json','utf8')); if(payload.channel!=='canary'||payload.version!==process.env.CANDIDATE_VERSION) process.exit(1)"
           (cd "$channel_dir" && sha256sum --check checksums.txt)
 
           if ! gh release view canary-latest --repo "${{ github.repository }}" > /dev/null 2>&1; then

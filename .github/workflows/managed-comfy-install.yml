@@ -26,23 +26,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - name: Set up verified Python toolchain
+        uses: ./.github/actions/setup-python-toolchain
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Restore checksum-addressed standalone artifact
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: ./.github/actions/restore-managed-comfy-cache
         with:
-          path: ${{ env.STANDALONE_CACHE }}
-          key: managed-comfy-win-cpu-${{ hashFiles('substitute/infrastructure/comfy/standalone_environment/standalone_environment_pin.json') }}
-
-      - name: Install pinned verification toolchain
-        shell: pwsh
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          python -m venv .venv
-          .\.venv\Scripts\python.exe -m pip install --requirement requirements-toolchain.txt
+          variant: win-cpu
 
       - name: Provision and launch the pinned managed Comfy environment
         shell: pwsh

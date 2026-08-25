@@ -25,6 +25,7 @@ import yaml  # type: ignore[import-untyped]
 
 from tests.qualification.release.workflow.support import (
     PROJECT_ROOT,
+    action_path,
     job_script as workflow_job_script,
     workflow_path,
     workflow_text,
@@ -219,6 +220,10 @@ def test_linux_workflows_retry_appimagetool_transport_failures() -> None:
 def test_linux_qt_workflows_install_multimedia_runtime() -> None:
     """Provide PulseAudio wherever Linux imports Qt Multimedia widgets."""
 
+    action = yaml.safe_load(action_path("setup-linux-qt").read_text(encoding="utf-8"))
+    package_script = action["runs"]["steps"][0]["run"]
+    assert "libpulse0" in package_script.split()
+
     workflow_paths = (
         workflow_path("platform-tests.yml"),
         workflow_path("cross-platform-build.yml"),
@@ -226,8 +231,7 @@ def test_linux_qt_workflows_install_multimedia_runtime() -> None:
         PROJECT_ROOT / ".github" / "workflows" / "native-appearance-screenshots.yml",
     )
     for path in workflow_paths:
-        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
-        assert "libpulse0" in workflow["env"]["LINUX_QT_PACKAGES"].split()
+        assert "./.github/actions/setup-linux-qt" in path.read_text(encoding="utf-8")
 
 
 def test_large_workflow_artifacts_expire_after_handoff() -> None:
@@ -263,8 +267,8 @@ def test_large_workflow_artifacts_expire_after_handoff() -> None:
         )
 
 
-def test_native_build_workflows_do_not_cache_large_python_wheels() -> None:
-    """Native matrices should reinstall dependencies instead of retaining huge caches."""
+def test_native_build_workflows_use_disposable_package_cache_owner() -> None:
+    """Native matrices should delegate setup without caching virtual environments."""
 
     workflow_paths = (
         workflow_path("cross-platform-build.yml"),
@@ -272,7 +276,9 @@ def test_native_build_workflows_do_not_cache_large_python_wheels() -> None:
     )
     for path in workflow_paths:
         owner_text = path.read_text(encoding="utf-8")
-        assert "cache: pip" not in owner_text
+        assert "./.github/actions/setup-python-toolchain" in owner_text
+        assert "python -m venv" not in owner_text
+        assert "pip install" not in owner_text
 
 
 def test_release_publisher_includes_installer_and_managed_payload_artifacts() -> None:
