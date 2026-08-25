@@ -177,6 +177,7 @@ class PromptEditorRealShellScenario:
             trace_actions=self.trace_actions,
             snapshot_capture=self.snapshots.capture,
         )
+        self.input.neutralize_ambient_hover()
         self.context_menus = PromptContextMenuProbe(self.trace_actions)
         self.workflows = PromptWorkflowMounts(
             shell=self.shell,

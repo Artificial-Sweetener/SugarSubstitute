@@ -18,8 +18,13 @@
 
 from __future__ import annotations
 
+import warnings
+from typing import cast
+
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QWidget
 import pytest
+from qfluentwidgets import ToolTip  # type: ignore[import-untyped]
 
 from tests.support.prompt_editor.real_shell.invariants.autocomplete import (
     stale_observation,
@@ -34,6 +39,7 @@ from tests.support.prompt_editor.real_shell.models import PromptEditorStateSnaps
 from tests.support.prompt_editor.real_shell.scenario import (
     PromptEditorRealShellScenario,
 )
+from tests.support.qt.lifecycle import destroy_qt_object
 
 
 def test_real_shell_ghost_requires_visually_present_dropdown(
@@ -79,6 +85,52 @@ def test_real_shell_click_away_clears_ghost_and_dropdown(
             "and the visible dropdown."
         ),
     )
+
+
+def test_real_shell_click_away_survives_ambient_tooltip_activation(
+    real_shell_scenario: PromptEditorRealShellScenario,
+) -> None:
+    """Judge click-away by dismissal after an unrelated tooltip takes focus."""
+
+    field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
+    real_shell_scenario.input.type_text_and_wait_for_autocomplete(field, "re")
+    target = real_shell_scenario.shell.focus_sentinel
+    tooltip = cast(
+        QWidget,
+        ToolTip("ambient shell tooltip", real_shell_scenario.shell),
+    )
+
+    def activate_tooltip() -> None:
+        """Model the offscreen platform activating a delayed QFluent tooltip."""
+
+        tooltip.show()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"Function: 'QApplication\.setActiveWindow.*",
+                category=DeprecationWarning,
+            )
+            QApplication.setActiveWindow(tooltip)
+
+    target.clicked.connect(activate_tooltip)
+    try:
+        real_shell_scenario.input.click_away_from_editor(field)
+        after = real_shell_scenario.snapshots.capture(
+            field,
+            label="after-tooltip-activated-click-away",
+        )
+
+        assert QApplication.activeWindow() is tooltip
+        assert not after.autocomplete_preview_active
+        assert not after.autocomplete_has_active_session
+        assert not after.autocomplete_presenter_panel_visible
+        assert not after.ghost_visual_visible
+        assert not after.projection_has_pending_update
+    finally:
+        target.clicked.disconnect(activate_tooltip)
+        tooltip.close()
+        destroy_qt_object(tooltip)
+        real_shell_scenario.shell.activate_for_input()
 
 
 def test_real_shell_backpack_click_away_clears_basket_ghost(
