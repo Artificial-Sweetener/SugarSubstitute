@@ -34,7 +34,6 @@ EXPECTED_ACTIONS = frozenset(
         "actions/setup-node",
         "actions/setup-python",
         "actions/upload-artifact",
-        "astral-sh/setup-uv",
     }
 )
 WORKFLOW_PATHS = tuple(WORKFLOW_ROOT.glob("*.yml"))

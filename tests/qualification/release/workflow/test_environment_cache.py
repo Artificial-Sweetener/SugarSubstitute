@@ -209,6 +209,7 @@ def test_python_cache_identity_covers_every_compatibility_input() -> None:
         "$env:ImageVersion",
         "$env:PYTHON_VERSION",
         "uv0.12.3",
+        "$bootstrapLockHash",
         "$lockHash",
     ):
         assert fragment in identity
@@ -237,7 +238,7 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     assert isinstance(inputs, dict)
     cache_epoch = inputs["cache-epoch"]
     assert isinstance(cache_epoch, dict)
-    assert cache_epoch["default"] == "2"
+    assert cache_epoch["default"] == "3"
 
     assert "uv venv --clear" in script
     assert "uv pip sync" in script
@@ -252,16 +253,26 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     storage = _step(action, "Resolve isolated package-cache storage")
     storage_script = str(storage["run"])
     assert "$env:RUNNER_TEMP" in storage_script
-    assert "sugarsubstitute-uv-$cacheScope-restored-v2" in storage_script
-    setup_uv = _step(action, "Set up exact uv")
-    setup_uv_inputs = setup_uv["with"]
-    assert isinstance(setup_uv_inputs, dict)
-    assert setup_uv_inputs["cache-local-path"] == (
-        "${{ steps.cache-storage.outputs.cache-path }}"
+    assert "sugarsubstitute-uv-$cacheScope-restored-v3" in storage_script
+    assert '"tool-path=$toolPath"' in storage_script
+    setup_uv = _step(action, "Resolve exact uv")
+    assert "uses" not in setup_uv
+    setup_uv_environment = setup_uv["env"]
+    assert isinstance(setup_uv_environment, dict)
+    assert setup_uv_environment["UV_BOOTSTRAP_LOCK"] == (
+        "requirements-ci-bootstrap.lock"
     )
+    assert setup_uv_environment["UV_VERSION"] == "0.12.3"
+    setup_uv_script = str(setup_uv["run"])
+    assert "python -m pip install" in setup_uv_script
+    assert "--require-hashes --only-binary=:all: --no-deps" in setup_uv_script
+    assert "$env:UV_VERSION" in setup_uv_script
+    assert "$env:UV_TOOL_PATH" in setup_uv_script
+    assert "$env:RUNNER_TEMP" in setup_uv_script
     trusted_paths = str(_step(action, "Restore trusted package cache")["with"])
     assert "steps.cache-storage.outputs.cache-path" in trusted_paths
     assert "steps.cache-storage.outputs.marker-path" in trusted_paths
+    assert "steps.cache-storage.outputs.tool-path" in trusted_paths
 
     cache_result = str(_step(action, "Record package-cache result")["run"])
     assert "$env:MARKER_PATH" in cache_result
@@ -432,6 +443,11 @@ def test_python_locks_cover_direct_requirements_with_hashes() -> None:
 
     profiles = (
         (
+            ("requirements-ci-bootstrap.txt",),
+            "requirements-ci-bootstrap.txt",
+            "requirements-ci-bootstrap.lock",
+        ),
+        (
             ("requirements.txt", "requirements-toolchain.txt"),
             "requirements-toolchain.txt",
             "requirements-toolchain.lock",
@@ -498,6 +514,7 @@ def test_dependency_caches_exclude_release_and_sensitive_state() -> None:
     assert str(cache_inputs["path"]).splitlines() == [
         "${{ steps.cache-storage.outputs.cache-path }}",
         "${{ steps.cache-storage.outputs.marker-path }}",
+        "${{ steps.cache-storage.outputs.tool-path }}",
     ]
     assert cache_inputs["key"] == "${{ steps.identity.outputs.primary-key }}"
     assert cache_inputs["restore-keys"] == ("${{ steps.identity.outputs.restore-key }}")
