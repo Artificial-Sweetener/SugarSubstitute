@@ -139,18 +139,15 @@ jobs:
           .venv/bin/python -m PyInstaller launcher/SugarSubstitute-Setup-Linux-x64.spec --noconfirm --clean
           .venv/bin/python -m PyInstaller launcher/SugarSubstitute-Linux-x64.spec --noconfirm --clean --distpath build/launcher-bundles
 
-      - name: Acquire pinned AppImage packaging tool
-        run: |
-          mkdir -p build/tools
-          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --output build/tools/appimagetool-x86_64.AppImage https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-          echo "a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0  build/tools/appimagetool-x86_64.AppImage" | sha256sum --check
-          chmod 755 build/tools/appimagetool-x86_64.AppImage
+      - name: Set up verified AppImage packaging tool
+        id: appimagetool
+        uses: ./.github/actions/setup-appimagetool
 
       - name: Package Linux release inputs
         run: |
           mkdir -p build/release-inputs/linux
           .venv/bin/python tools/build_release_payload.py package-launcher --target linux_x64 --bundle-dir build/launcher-bundles/SugarSubstitute --output-path build/release-inputs/linux/installer-payload-linux-x64.zip
-          .venv/bin/python tools/build_linux_installers.py --setup-bundle "dist/SugarSubstitute Setup" --icon substitute/presentation/resources/app_icons/app_icon_256.png --appimagetool build/tools/appimagetool-x86_64.AppImage --version ${{ inputs.version }} --appimage-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-x86_64.AppImage --deb-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-amd64.deb
+          .venv/bin/python tools/build_linux_installers.py --setup-bundle "dist/SugarSubstitute Setup" --icon substitute/presentation/resources/app_icons/app_icon_256.png --appimagetool "${{ steps.appimagetool.outputs.path }}" --version ${{ inputs.version }} --appimage-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-x86_64.AppImage --deb-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-amd64.deb
 
       - name: Upload Linux release inputs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
