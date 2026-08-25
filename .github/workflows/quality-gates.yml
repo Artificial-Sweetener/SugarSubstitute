@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "22.14.0"
+  NODE_VERSION: "22.22.2"
   PYTHON_VERSION: "3.12.10"
 
 jobs:
@@ -18,26 +18,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - name: Set up verified Python toolchain
+        uses: ./.github/actions/setup-python-toolchain
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: requirements-toolchain.txt
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Set up verified Node toolchain
+        uses: ./.github/actions/setup-node-toolchain
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - name: Create virtual environment
-        run: python -m venv .venv
-      - name: Install project and quality dependencies
-        shell: pwsh
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          .\.venv\Scripts\python.exe -m pip install --requirement requirements-toolchain.txt
-      - name: Install release dependencies
-        run: npm ci
       - name: Audit release dependencies
         run: npm run audit:release
       - name: Check license headers

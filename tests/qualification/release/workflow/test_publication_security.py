@@ -21,7 +21,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tests.qualification.release.workflow.support import PROJECT_ROOT, workflow_text
+from tests.qualification.release.workflow.support import (
+    PROJECT_ROOT,
+    action_path,
+    workflow_text,
+)
 from tests.support.execution.node_runtime import run_node
 
 
@@ -242,9 +246,11 @@ def test_windows_quality_workflows_fail_fast_on_native_command_errors() -> None:
         "release-candidate.yml",
         "quality-gates.yml",
     )
+    node_owner_text = action_path("setup-node-toolchain").read_text(encoding="utf-8")
 
     fail_fast_setting = "$PSNativeCommandUseErrorActionPreference = $true"
-    assert owner_text.count(fail_fast_setting) >= 2
+    assert fail_fast_setting in owner_text
+    assert fail_fast_setting in node_owner_text
 
 
 def test_installer_sources_do_not_reference_obsolete_comfy_desktop_repository() -> None:

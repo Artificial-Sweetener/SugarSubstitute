@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from tests.qualification.release.workflow.support import (
     PROJECT_ROOT,
+    action_path,
     workflow_text,
 )
 
@@ -67,9 +68,16 @@ def test_managed_comfy_install_uses_exact_pin_and_artifact_cache() -> None:
     workflow_text = (
         PROJECT_ROOT / ".github" / "workflows" / "managed-comfy-install.yml"
     ).read_text(encoding="utf-8")
+    cache_owner_text = action_path("restore-managed-comfy-cache").read_text(
+        encoding="utf-8"
+    )
 
-    assert "actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae" in workflow_text
-    assert "standalone_environment_pin.json" in workflow_text
+    assert "./.github/actions/restore-managed-comfy-cache" in workflow_text
+    assert "variant: win-cpu" in workflow_text
+    assert "actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae" in (
+        cache_owner_text
+    )
+    assert "standalone_environment_pin.json" in cache_owner_text
     assert "verify_managed_comfy_install.py" in workflow_text
     assert "--variant win-cpu" in workflow_text
     assert "pip install torch" not in workflow_text
@@ -207,8 +215,8 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
         qualification_text.count("Restore checksum-addressed standalone artifact") == 2
     )
     assert qualification_text.count("cache_managed_comfy_artifacts.py") == 2
-    assert "managed-comfy-${{ matrix.standalone_variant }}-" in qualification_text
-    assert "managed-comfy-mac-mps-" in qualification_text
+    assert "variant: ${{ matrix.standalone_variant }}" in qualification_text
+    assert "variant: mac-mps" in qualification_text
     assert qualification_text.count("--managed-artifact-cache-root") == 4
     assert qualification_text.count("appdata/runtime_state/setup_transaction.json") == 2
     assert qualification_text.count(".SugarSubstitute-clean-standalone-cache.json") == 2

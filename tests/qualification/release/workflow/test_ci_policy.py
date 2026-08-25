@@ -24,6 +24,7 @@ import re
 import yaml  # type: ignore[import-untyped]
 
 from tests.qualification.release.workflow.support import (
+    ACTION_PATHS,
     DOCUMENTATION_PATH_FILTER,
     EXPECTED_ACTIONS,
     PROJECT_ROOT,
@@ -95,12 +96,11 @@ def test_platform_partitions_overlap_without_weakening_dependency_proof() -> Non
     )
     job = workflow["jobs"]["platform-tests"]
     steps = {step["name"]: step for step in job["steps"]}
-    python_setup = steps["Setup Python"]["with"]
+    python_setup = steps["Set up verified Python toolchain"]
 
     assert job["strategy"]["matrix"]["partition"] == ["ordinary", "fresh"]
-    assert python_setup["cache"] == "pip"
-    assert python_setup["cache-dependency-path"] == "requirements-toolchain.txt"
-    assert steps["Verify installed runtime dependency graph"].get("if") is None
+    assert python_setup["uses"] == "./.github/actions/setup-python-toolchain"
+    assert python_setup["with"]["python-version"] == "${{ matrix.python-version }}"
     assert steps["Audit installed Python dependency graph"]["if"] == (
         "matrix.partition == 'ordinary'"
     )
@@ -113,8 +113,8 @@ def test_platform_partitions_overlap_without_weakening_dependency_proof() -> Non
     assert "matrix.partition" in steps["Upload test results"]["with"]["name"]
 
 
-def test_required_ci_reuses_downloads_but_rebuilds_verified_environments() -> None:
-    """Cache immutable dependency downloads without reusing mutable virtualenvs."""
+def test_required_ci_uses_the_verified_environment_owner() -> None:
+    """Delegate required Python setup to one exact environment owner."""
 
     for workflow_name in ("platform-tests.yml", "quality-gates.yml"):
         workflow = yaml.safe_load(
@@ -122,18 +122,9 @@ def test_required_ci_reuses_downloads_but_rebuilds_verified_environments() -> No
         )
         for job in workflow["jobs"].values():
             steps = {step["name"]: step for step in job["steps"]}
-            python_setup = steps["Setup Python"]["with"]
+            python_setup = steps["Set up verified Python toolchain"]
 
-            assert python_setup["cache"] == "pip"
-            assert python_setup["cache-dependency-path"] == (
-                "requirements-toolchain.txt"
-            )
-            assert "python -m venv .venv" in steps["Create virtual environment"]["run"]
-            assert "requirements-toolchain.txt" in next(
-                step["run"]
-                for step in job["steps"]
-                if step["name"].startswith("Install project and")
-            )
+            assert python_setup["uses"] == "./.github/actions/setup-python-toolchain"
 
 
 def test_ci_uses_exact_language_and_package_toolchains() -> None:
@@ -162,15 +153,16 @@ def test_ci_uses_exact_language_and_package_toolchains() -> None:
 
     assert python_versions == {"3.12.10"}
     assert linux_versions == {"3.12.13"}
-    assert node_versions == {"22.14.0"}
+    assert node_versions == {"22.22.2"}
     assert workflows["quality-gates.yml"]["env"]["PYTHON_VERSION"] == "3.12.10"
     assert workflows["platform-tests.yml"]["env"]["LINUX_PYTHON_VERSION"] == ("3.12.13")
-    assert workflows["release-version.yml"]["env"]["NODE_VERSION"] == "22.14.0"
+    assert workflows["release-version.yml"]["env"]["NODE_VERSION"] == "22.22.2"
 
     workflow_text = "\n".join(
         path.read_text(encoding="utf-8") for path in WORKFLOW_PATHS
     )
-    assert "requirements-toolchain.txt" in workflow_text
+    action_text = "\n".join(path.read_text(encoding="utf-8") for path in ACTION_PATHS)
+    assert "requirements-toolchain.lock" in action_text
     assert "pip install -r requirements.txt" not in workflow_text
     assert "pip install --upgrade pip" not in workflow_text
     assert "uv==" not in workflow_text
@@ -204,12 +196,17 @@ def test_ci_actions_use_immutable_verified_revisions() -> None:
     """Prevent mutable action tags from changing the CI toolchain silently."""
 
     observed_revisions: dict[str, set[str]] = {}
-    for path in WORKFLOW_PATHS:
+    for path in (*WORKFLOW_PATHS, *ACTION_PATHS):
         workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
-        for job in workflow["jobs"].values():
+        step_groups = (
+            workflow["jobs"].values()
+            if "jobs" in workflow
+            else ({"steps": workflow["runs"]["steps"]},)
+        )
+        for job in step_groups:
             for step in job.get("steps", ()):
                 action_reference = step.get("uses", "")
-                if not action_reference.startswith("actions/"):
+                if not action_reference or action_reference.startswith("./"):
                     continue
                 action, revision = action_reference.rsplit("@", maxsplit=1)
                 assert re.fullmatch(r"[0-9a-f]{40}", revision)

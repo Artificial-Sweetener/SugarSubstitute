@@ -1,0 +1,80 @@
+name: Restore managed Comfy dependency cache
+description: Restore checksum-addressed managed-runtime inputs without exposing trusted cache writes.
+
+inputs:
+  variant:
+    description: Exact managed standalone platform and accelerator variant.
+    required: true
+  cache-path:
+    description: Repository-relative disposable managed-runtime dependency cache.
+    required: false
+    default: build/managed-comfy-cache
+  pin-file:
+    description: Repository-relative checksum and compatibility authority.
+    required: false
+    default: substitute/infrastructure/comfy/standalone_environment/standalone_environment_pin.json
+  cache-epoch:
+    description: Emergency compatibility epoch for managed-runtime cache invalidation.
+    required: false
+    default: "1"
+
+outputs:
+  cache-hit:
+    description: Whether the exact checksum-addressed dependency cache restored.
+    value: ${{ steps.result.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve managed-runtime cache identity
+      id: identity
+      shell: pwsh
+      env:
+        VARIANT: ${{ inputs.variant }}
+        PIN_FILE: ${{ inputs.pin-file }}
+        CACHE_EPOCH: ${{ inputs.cache-epoch }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        $pinPath = Resolve-Path -LiteralPath $env:PIN_FILE
+        $pinHash = (Get-FileHash -LiteralPath $pinPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $variant = $env:VARIANT -replace '[^A-Za-z0-9._-]', '-'
+        $prefix = "managed-comfy-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$variant"
+        "primary-key=$prefix-$pinHash" >> $env:GITHUB_OUTPUT
+        "restore-key=$prefix-" >> $env:GITHUB_OUTPUT
+
+    - name: Restore trusted managed-runtime cache
+      id: trusted-cache
+      if: >-
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'repository_dispatch' ||
+        github.event_name == 'schedule'
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ inputs.cache-path }}
+        key: ${{ steps.identity.outputs.primary-key }}
+        restore-keys: ${{ steps.identity.outputs.restore-key }}
+
+    - name: Restore untrusted managed-runtime cache read-only
+      id: untrusted-cache
+      if: >-
+        github.event_name != 'push' &&
+        github.event_name != 'workflow_dispatch' &&
+        github.event_name != 'repository_dispatch' &&
+        github.event_name != 'schedule'
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ inputs.cache-path }}
+        key: ${{ steps.identity.outputs.primary-key }}
+        restore-keys: ${{ steps.identity.outputs.restore-key }}
+
+    - name: Record managed-runtime cache result
+      id: result
+      shell: pwsh
+      env:
+        TRUSTED_HIT: ${{ steps.trusted-cache.outputs.cache-hit }}
+        UNTRUSTED_HIT: ${{ steps.untrusted-cache.outputs.cache-hit }}
+      run: |
+        $exactHit = $env:TRUSTED_HIT -eq "true" -or $env:UNTRUSTED_HIT -eq "true"
+        "cache-hit=$($exactHit.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+        "Managed Comfy dependency cache exact hit: $($exactHit.ToString().ToLowerInvariant())"

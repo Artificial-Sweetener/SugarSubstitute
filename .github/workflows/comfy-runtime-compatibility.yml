@@ -63,14 +63,10 @@ jobs:
     steps:
       - name: Checkout SugarSubstitute
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - name: Set up verified Python toolchain
+        uses: ./.github/actions/setup-python-toolchain
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Create project virtual environment
-        run: python -m venv .venv
-      - name: Install project test toolchain
-        run: ${{ matrix.python }} -m pip install --requirement requirements-toolchain.txt
       - name: Run exact upstream compatibility probe
         run: >-
           ${{ matrix.python }} -m tools.ci.run_comfy_compatibility_probe

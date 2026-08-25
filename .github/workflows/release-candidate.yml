@@ -43,8 +43,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "22.14.0"
-  PYTHON_VERSION: "3.12.10"
+  NODE_VERSION: "22.22.2"
 
 jobs:
   stage:
@@ -65,27 +64,12 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Setup Node
+      - name: Set up verified Node toolchain
         if: inputs.existing_candidate_run_id == ''
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: ./.github/actions/setup-node-toolchain
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Setup Python
-        if: inputs.existing_candidate_run_id == ''
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install release dependencies
-        if: inputs.existing_candidate_run_id == ''
-        shell: pwsh
-        run: |
-          if ("${{ inputs.channel }}" -eq "stable") {
-            npm ci
-          }
-          python -m venv .venv
+          install-dependencies: ${{ inputs.channel == 'stable' }}
 
       - name: Download Windows release inputs
         if: inputs.existing_candidate_run_id == ''

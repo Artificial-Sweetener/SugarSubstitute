@@ -35,7 +35,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "22.14.0"
+  NODE_VERSION: "22.22.2"
 
 jobs:
   resolve:
@@ -54,14 +54,10 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Set up verified Node toolchain
+        uses: ./.github/actions/setup-node-toolchain
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install release dependencies
-        run: npm ci
 
       - name: Resolve next release version
         id: release-version
