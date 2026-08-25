@@ -118,11 +118,14 @@ runs:
       run: |
         $ErrorActionPreference = "Stop"
         $exactHit = $env:TRUSTED_HIT -eq "true" -or $env:UNTRUSTED_HIT -eq "true"
-        $cacheRestored = (Test-Path -LiteralPath $env:CACHE_PATH -PathType Container) -and $null -ne (Get-ChildItem -LiteralPath $env:CACHE_PATH -Force | Select-Object -First 1)
+        $cacheSentinel = Join-Path $env:CACHE_PATH ".sugarsubstitute-verified-cache-v1"
+        $cacheRestored = $exactHit -or (Test-Path -LiteralPath $cacheSentinel -PathType Leaf)
         "cache-hit=$($exactHit.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
         "cache-restored=$($cacheRestored.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
         "Package cache exact hit: $($exactHit.ToString().ToLowerInvariant())"
         "Package cache content restored: $($cacheRestored.ToString().ToLowerInvariant())"
+        New-Item -ItemType Directory -Path $env:CACHE_PATH -Force | Out-Null
+        New-Item -ItemType File -Path $cacheSentinel -Force | Out-Null
 
     - name: Synchronize fresh verified environment
       id: sync

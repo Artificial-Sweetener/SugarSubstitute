@@ -225,6 +225,11 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     assert "uv pip check" in script
     assert ".venv" not in str(_step(action, "Restore trusted package cache")["with"])
 
+    cache_result = str(_step(action, "Record package-cache result")["run"])
+    assert ".sugarsubstitute-verified-cache-v1" in cache_result
+    assert "$cacheRestored = $exactHit -or" in cache_result
+    assert "Get-ChildItem" not in cache_result
+
 
 def test_node_environment_owner_uses_exact_clean_lock_installation() -> None:
     """Keep release packages on one lock-addressed Node owner."""
