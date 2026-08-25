@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import importlib
 import inspect
-import sys
 from collections.abc import Callable
 from types import ModuleType, SimpleNamespace
 from typing import Any, cast
@@ -28,29 +27,8 @@ from typing import Any, cast
 import pytest
 
 
-def _clear_gui_stubs() -> None:
-    """Drop lightweight GUI stubs so real modules can import cleanly."""
-    qtcore = sys.modules.get("PySide6.QtCore")
-    if qtcore is not None and not hasattr(qtcore, "QCoreApplication"):
-        for name in list(sys.modules):
-            if name == "PySide6" or name.startswith("PySide6."):
-                sys.modules.pop(name, None)
-    qfw = sys.modules.get("qfluentwidgets")
-    if qfw is not None and not hasattr(qfw, "MenuAnimationType"):
-        for name in list(sys.modules):
-            if name == "qfluentwidgets" or name.startswith("qfluentwidgets."):
-                sys.modules.pop(name, None)
-    qframe = sys.modules.get("qframelesswindow")
-    if qframe is not None and not hasattr(qframe, "WindowEffect"):
-        for name in list(sys.modules):
-            if name == "qframelesswindow" or name.startswith("qframelesswindow."):
-                sys.modules.pop(name, None)
-    sys.modules.pop("sugarsubstitute_shared.presentation.fluent_tooltips", None)
-
-
 def _import_base_module() -> ModuleType:
     """Import shared reorderable tab base module."""
-    _clear_gui_stubs()
     return importlib.import_module(
         "substitute.presentation.workflows.reorderable_tabs_base"
     )

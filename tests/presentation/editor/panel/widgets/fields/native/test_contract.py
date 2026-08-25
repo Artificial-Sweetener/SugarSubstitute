@@ -35,8 +35,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     SpinBox,
     Theme,
     ToolButton,
-    isDarkTheme,
-    setTheme,
 )
 
 from substitute.presentation.editor.panel.widgets.fields.native import (
@@ -49,6 +47,7 @@ from substitute.presentation.editor.panel.widgets.fields.native import (
 from substitute.presentation.editor.panel.widgets.fields.native.bounding_box_field import (
     _BoundingBoxDialog,
 )
+from tests.presentation.theme.support import fluent_theme
 from substitute.presentation.editor.panel.widgets.fields.native.curve_field import (
     _CurveDialog,
 )
@@ -339,27 +338,24 @@ def test_curve_canvas_renders_light_dark_and_refreshes_live_theme() -> None:
     """The custom no-equivalent canvas should repaint with both QFluent themes."""
 
     app = _ensure_qapp()
-    previous_theme = Theme.DARK if isDarkTheme() else Theme.LIGHT
     parent = QWidget()
     canvas = _ObservedCurveCanvas(parent)
     canvas.resize(440, 260)
     parent.resize(460, 280)
     parent.show()
     try:
-        setTheme(Theme.DARK)
-        app.processEvents()
-        dark_image = canvas.grab().toImage()
-        requests_before_switch = canvas.repaint_requests
+        with fluent_theme(Theme.DARK):
+            app.processEvents()
+            dark_image = canvas.grab().toImage()
+            requests_before_switch = canvas.repaint_requests
 
-        setTheme(Theme.LIGHT)
-        app.processEvents()
-        light_image = canvas.grab().toImage()
+            with fluent_theme(Theme.LIGHT):
+                app.processEvents()
+                light_image = canvas.grab().toImage()
 
-        assert not isDarkTheme()
-        assert canvas.repaint_requests > requests_before_switch
-        assert dark_image.pixelColor(20, 20) != light_image.pixelColor(20, 20)
+                assert canvas.repaint_requests > requests_before_switch
+                assert dark_image.pixelColor(20, 20) != light_image.pixelColor(20, 20)
     finally:
-        setTheme(previous_theme)
         parent.close()
         destroy_qt_object(parent)
 

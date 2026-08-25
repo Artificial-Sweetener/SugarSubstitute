@@ -77,6 +77,7 @@ def test_workflow_tab_item_uses_connected_top_accent_style() -> None:
     """Workflow tabs should opt into the Firefox-like connected chrome style."""
     mod = _import_workflow_tabs_module()
     style = importlib.import_module("substitute.presentation.shell.chrome_style")
+    tab_item = mod.TabItem("Workflow")
 
     assert mod.TabItem.fixed_height == style.WORKFLOW_TAB_HEIGHT
     assert mod.TabItem.selected_accent_position == "top"
@@ -89,7 +90,7 @@ def test_workflow_tab_item_uses_connected_top_accent_style() -> None:
     )
     assert mod.TabItem.selected_bottom_border_mode == "none"
     assert mod.TabItem.selected_connects_to_bottom_surface is True
-    assert mod.TabItem.selected_fill_color == style.workflow_chrome_wash_color()
+    assert tab_item.selected_fill_color == style.workflow_chrome_wash_color()
     assert mod.TabItem.selected_fill_radius == style.WORKFLOW_TAB_BODY_TOP_RADIUS
     assert mod.TabItem.unselected_separator_color is None
     assert mod.TabItem.unselected_top_rounded_only is True

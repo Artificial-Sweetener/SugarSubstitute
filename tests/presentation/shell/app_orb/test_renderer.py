@@ -22,7 +22,7 @@ from typing import cast
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QColor, QIcon, QImage, QPixmap
-from qfluentwidgets import Theme, setTheme, setThemeColor  # type: ignore[import-untyped]
+from qfluentwidgets import Theme  # type: ignore[import-untyped]
 from qfluentwidgets.common.style_sheet import themeColor  # type: ignore[import-untyped]
 
 from substitute.presentation.resources.app_orb_assets import (
@@ -36,6 +36,7 @@ from substitute.presentation.shell.app_orb_renderer import _OrbLayerImages
 from substitute.presentation.shell.app_orb_renderer import _accent_color_for_layer_pixel
 from substitute.presentation.shell.app_orb_renderer import _orb_accent_color
 from tests.presentation.shell.app_orb.support import app
+from tests.presentation.theme.support import fluent_theme
 
 
 def test_app_orb_layer_resource_paths_resolve_expected_qt_aliases() -> None:
@@ -117,11 +118,9 @@ def test_app_orb_renderer_uses_raw_configured_accent_in_dark_mode() -> None:
     """The orb should not use QFluent's dark-mode-brightened accent token."""
 
     app()
-    setTheme(Theme.DARK)
-    setThemeColor(QColor("#D83B8C"))
-
-    assert QColor(themeColor()).name().upper() == "#FF63B4"
-    assert _orb_accent_color().name().upper() == "#D83B8C"
+    with fluent_theme(Theme.DARK, accent_color=QColor("#D83B8C")):
+        assert QColor(themeColor()).name().upper() == "#FF63B4"
+        assert _orb_accent_color().name().upper() == "#D83B8C"
 
 
 def test_app_orb_renderer_caches_final_pixmap_for_visual_state() -> None:

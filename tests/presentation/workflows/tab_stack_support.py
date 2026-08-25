@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import importlib
-import sys
 from collections.abc import Iterator
 from typing import Any
 
@@ -126,7 +125,6 @@ class _SlideAnimation:
 
 def _import_workflow_tabs_module() -> Any:
     """Import workflow tab bar module."""
-    _clear_gui_stubs()
     return importlib.import_module(
         "substitute.presentation.workflows.workflow_tabs_view"
     )
@@ -134,31 +132,7 @@ def _import_workflow_tabs_module() -> Any:
 
 def _import_stack_panel_module() -> Any:
     """Import cube stack module."""
-    _clear_gui_stubs()
     return importlib.import_module("substitute.presentation.workflows.cube_stack_view")
-
-
-def _clear_gui_stubs() -> None:
-    """Drop lightweight GUI stubs so real modules can import cleanly."""
-    qtcore = sys.modules.get("PySide6.QtCore")
-    if qtcore is not None and not hasattr(qtcore, "Property"):
-        for name in list(sys.modules):
-            if name == "PySide6" or name.startswith("PySide6."):
-                sys.modules.pop(name, None)
-    qfw = sys.modules.get("qfluentwidgets")
-    if qfw is not None and not hasattr(qfw, "MenuAnimationType"):
-        for name in list(sys.modules):
-            if name == "qfluentwidgets" or name.startswith("qfluentwidgets."):
-                sys.modules.pop(name, None)
-    qframe = sys.modules.get("qframelesswindow")
-    if qframe is not None and not hasattr(qframe, "WindowEffect"):
-        for name in list(sys.modules):
-            if name == "qframelesswindow" or name.startswith("qframelesswindow."):
-                sys.modules.pop(name, None)
-    sys.modules.pop("substitute.presentation.workflows.workflow_tabs_view", None)
-    sys.modules.pop("substitute.presentation.workflows.cube_stack_view", None)
-    sys.modules.pop("substitute.presentation.workflows.reorderable_tabs_base", None)
-    sys.modules.pop("sugarsubstitute_shared.presentation.fluent_tooltips", None)
 
 
 def _attach_cube_stack_selection_methods(mod: Any, fake: Any) -> None:

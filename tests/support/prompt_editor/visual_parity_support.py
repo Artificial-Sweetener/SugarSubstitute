@@ -18,19 +18,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from contextlib import contextmanager
 from typing import Any, Protocol, cast
 
 
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication, QWidget
-from qfluentwidgets import (  # type: ignore[import-untyped]
-    TextEdit as QFluentTextEdit,
-    Theme,
-    setTheme,
-)
-from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
+from qfluentwidgets import TextEdit as QFluentTextEdit  # type: ignore[import-untyped]
 
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from tests.support.prompt_editor.autocomplete_support import (
@@ -93,18 +86,6 @@ def process_events(app: QApplication) -> None:
     """Deliver callbacks queued by the immediately preceding controlled action."""
 
     wait_for_queued_qt_turn()
-
-
-@contextmanager
-def fluent_theme(theme: Theme) -> Iterator[None]:
-    """Temporarily switch QFluent theme mode for one visual parity assertion."""
-
-    previous_theme = Theme.DARK if isDarkTheme() else Theme.LIGHT
-    setTheme(theme)
-    try:
-        yield
-    finally:
-        setTheme(previous_theme)
 
 
 def create_prompt_editor() -> PromptEditor:

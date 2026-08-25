@@ -26,6 +26,7 @@ from .execution_patterns import execution_pattern_candidates, reads_environment_
 from .model import TestCandidate, TestPolicy
 from .node_process_patterns import node_process_pattern_candidates
 from .ownership_patterns import ownership_pattern_candidates
+from .process_state_patterns import process_state_pattern_candidates
 from .semantic_patterns import semantic_pattern_candidates
 
 LAYOUT_RULE = "LAYOUT001"
@@ -245,6 +246,13 @@ def _python_source_candidates(
     candidates.extend(
         semantic_pattern_candidates(
             relative_path=relative_path,
+            tree=tree,
+            aliases=aliases,
+        )
+    )
+    candidates.extend(
+        process_state_pattern_candidates(
+            path=relative_path,
             tree=tree,
             aliases=aliases,
         )

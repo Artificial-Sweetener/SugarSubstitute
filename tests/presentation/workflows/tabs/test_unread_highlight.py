@@ -18,8 +18,6 @@
 
 from __future__ import annotations
 
-import inspect
-
 import pytest
 from PySide6.QtCore import QAbstractAnimation
 from PySide6.QtGui import QColor, QImage, QPainter
@@ -65,15 +63,6 @@ def test_clearing_unread_stops_shimmer() -> None:
     assert tab._unread_result_visible is False
     assert tab._unread_shimmer_animation.state() is QAbstractAnimation.State.Stopped
     assert tab._unread_shimmer_progress == 1.0
-
-
-def test_unread_tab_does_not_draw_legacy_dot() -> None:
-    """Unread workflow tab painting should not contain the old teal dot marker."""
-
-    source = inspect.getsource(workflow_tabs_view.TabItem)
-
-    assert "drawEllipse(self.width() - 18, 7" not in source
-    assert "QColor(0, 159, 170, 230)" not in source
 
 
 def test_unread_tab_renders_accent_body_fill(

@@ -22,16 +22,12 @@ import importlib
 
 from PySide6.QtCore import QEvent, QPoint, Qt
 from PySide6.QtTest import QTest
-from tests.presentation.workflows.qt_support import (
-    _clear_gui_stubs,
-    _ensure_qapp,
-)
+from tests.presentation.workflows.qt_support import _ensure_qapp
 
 
 def test_cubestack_compact_mode_updates_existing_and_future_items() -> None:
     """Compact mode should propagate to current items and new tabs."""
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -75,7 +71,6 @@ def test_cubestack_compact_mode_updates_existing_and_future_items() -> None:
 def test_cubestack_transition_api_matches_final_compact_states() -> None:
     """Transition finish should leave the same final state as immediate compact mode."""
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -130,7 +125,6 @@ def test_rendered_expanded_progress_owns_cube_close_visibility() -> None:
     """Rendered geometry should expose close even before compact lifecycle commits."""
 
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
     stack = mod.CubeStack(None)
     item = stack.addTab("a", "A")
@@ -155,7 +149,6 @@ def test_rendered_expanded_progress_owns_cube_close_visibility() -> None:
 def test_cubestack_transition_keeps_items_and_add_placeholder_aligned() -> None:
     """Transition frames should keep cube items and the add placeholder aligned."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -204,7 +197,6 @@ def test_cubestack_transition_keeps_items_and_add_placeholder_aligned() -> None:
 def test_cubestack_empty_transition_keeps_add_placeholder_aligned() -> None:
     """Empty stacks should align the add placeholder without item layout width."""
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -247,7 +239,6 @@ def test_cubestack_add_placeholder_click_emits_add_request() -> None:
     """Clicking the final placeholder card should request the cube picker."""
 
     app = _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
 
     stack = mod.CubeStack(None)
@@ -274,7 +265,6 @@ def test_cubestack_add_placeholder_click_emits_add_request() -> None:
 def test_cubeitem_compact_progress_clamps_and_drives_geometry_helpers() -> None:
     """Cube item transition progress should expose deterministic paint geometry."""
     _ensure_qapp()
-    _clear_gui_stubs()
     mod = importlib.import_module("substitute.presentation.workflows.cube_stack_view")
     item_mod = importlib.import_module("substitute.presentation.workflows.cube_item")
 

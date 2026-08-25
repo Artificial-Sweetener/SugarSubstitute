@@ -19,10 +19,7 @@
 from __future__ import annotations
 
 
-from qfluentwidgets import (  # type: ignore[import-untyped]
-    Theme,
-    setTheme,
-)
+from qfluentwidgets import Theme  # type: ignore[import-untyped]
 
 from substitute.application.comfy_environment import ComfyEnvironmentService
 from substitute.presentation.settings.settings_style import settings_card_border_color
@@ -33,6 +30,7 @@ from tests.presentation.settings.comfy_environment.support import (
     deliver_queued_events,
     environment_page,
 )
+from tests.presentation.theme.support import fluent_theme
 from tests.support.qt.lifecycle import destroy_qt_object
 
 
@@ -165,19 +163,19 @@ def test_environment_page_stylesheet_refreshes_after_qfluent_theme_switch() -> N
     """Comfy environment custom panel styles should refresh from QFluent theme changes."""
 
     app = application()
-    setTheme(Theme.DARK)
-    page = environment_page(
-        comfy_environment_service=ComfyEnvironmentService(EnvironmentBackend()),
-        open_reconfigure_window=lambda: None,
-    )
-    try:
-        dark_style = page.styleSheet()
+    with fluent_theme(Theme.DARK):
+        page = environment_page(
+            comfy_environment_service=ComfyEnvironmentService(EnvironmentBackend()),
+            open_reconfigure_window=lambda: None,
+        )
+        try:
+            dark_style = page.styleSheet()
 
-        setTheme(Theme.LIGHT)
-        app.processEvents()
+            with fluent_theme(Theme.LIGHT):
+                app.processEvents()
 
-        assert page.styleSheet() != dark_style
-        assert css_color(settings_card_border_color()) in page.styleSheet()
-    finally:
-        page.close()
-        destroy_qt_object(page)
+                assert page.styleSheet() != dark_style
+                assert css_color(settings_card_border_color()) in page.styleSheet()
+        finally:
+            page.close()
+            destroy_qt_object(page)

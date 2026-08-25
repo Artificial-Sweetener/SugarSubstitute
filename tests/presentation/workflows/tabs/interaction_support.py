@@ -30,16 +30,12 @@ from substitute.presentation.widgets.menu_model import (
     MenuModel,
     MenuSeparator,
 )
-from tests.presentation.workflows.qt_support import (
-    _clear_gui_stubs,
-    _ensure_qapp,
-)
+from tests.presentation.workflows.qt_support import _ensure_qapp
 
 
 def _workflow_tabs_module() -> Any:
     """Import the real workflow tab module for interaction tests."""
 
-    _clear_gui_stubs()
     return importlib.import_module(
         "substitute.presentation.workflows.workflow_tabs_view"
     )

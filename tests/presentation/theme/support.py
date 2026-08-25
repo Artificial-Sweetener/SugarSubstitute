@@ -22,11 +22,17 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import TypeVar
 
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QWidget
-from qfluentwidgets import Theme, setTheme  # type: ignore[import-untyped]
+from qfluentwidgets import (  # type: ignore[import-untyped]
+    Theme,
+    setTheme,
+    setThemeColor,
+)
 from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
     isDarkTheme,
     styleSheetManager,
+    themeColor,
 )
 
 from tests.support.qt.lifecycle import destroy_qt_object, ensure_qt_application
@@ -94,17 +100,25 @@ class ThemeWidgetOwner:
 
 
 @contextmanager
-def fluent_theme(theme: Theme) -> Iterator[None]:
-    """Temporarily set one QFluent theme for an independently owned test."""
+def fluent_theme(
+    theme: Theme,
+    *,
+    accent_color: QColor | None = None,
+) -> Iterator[None]:
+    """Temporarily own QFluent theme and optional accent state for one test."""
 
     ensure_qt_application()
     previous_theme = Theme.DARK if isDarkTheme() else Theme.LIGHT
+    previous_accent = QColor(themeColor())
     setTheme(theme)
+    if accent_color is not None:
+        setThemeColor(accent_color)
     _wait_for_theme(theme)
     try:
         yield
     finally:
         setTheme(previous_theme)
+        setThemeColor(previous_accent)
         _wait_for_theme(previous_theme)
 
 
