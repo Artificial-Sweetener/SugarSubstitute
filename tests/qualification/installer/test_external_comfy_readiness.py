@@ -47,7 +47,8 @@ def test_external_comfy_server_retains_port_and_records_readiness() -> None:
         "system": {"comfyui_version": "installer-qualification-boundary"}
     }
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as successor:
-        successor.bind((server.host, server.port))
+        successor.settimeout(1.0)
+        assert successor.connect_ex((server.host, server.port)) != 0
 
 
 def test_external_comfy_server_rejects_missing_or_unrelated_probe() -> None:

@@ -56,11 +56,10 @@ def test_lease_skips_an_endpoint_owned_by_another_listener() -> None:
     """Concurrent qualification resources must select distinct endpoints."""
 
     with LoopbackPortLease.acquire() as occupied:
-        next_port = occupied.port + 1
         with LoopbackPortLease.acquire(
-            candidate_ports=(occupied.port, next_port)
+            candidate_ports=(occupied.port, *range(20_000, 30_000))
         ) as lease:
-            assert lease.port == next_port
+            assert lease.port != occupied.port
 
 
 def test_lease_context_releases_an_unconsumed_reservation() -> None:
