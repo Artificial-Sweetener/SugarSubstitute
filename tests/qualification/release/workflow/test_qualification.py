@@ -190,6 +190,9 @@ def test_managed_comfy_cold_proof_is_change_triggered_and_scheduled() -> None:
     ):
         assert owner in selection
     assert 'cron: "17 8 * * 1"' in workflow_text
+    assert "pull-requests: read" not in workflow_text
+    assert "compare/$env:BASE_SHA...$env:HEAD_SHA" in workflow_text
+    assert "CHANGED_FILE_COUNT -gt 300" in workflow_text
     assert "needs.select-cold-runtime.outputs.enabled == 'true'" in workflow_text
     assert "name: Pinned managed Comfy (Windows CPU)" in workflow_text
     assert "if: always()" in workflow_text

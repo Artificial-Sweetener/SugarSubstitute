@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
 
 env:
   STANDALONE_CACHE: build/managed-comfy-cache
@@ -31,7 +30,9 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           GH_TOKEN: ${{ github.token }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHANGED_FILE_COUNT: ${{ github.event.pull_request.changed_files }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           $requiresColdProof = $env:EVENT_NAME -ne "pull_request"
@@ -45,11 +46,16 @@ jobs:
               '^substitute/infrastructure/comfy/standalone_environment/',
               '^tools/ci/(?:cache_managed_comfy_artifacts|comfy_probe_support|verify_managed_comfy_install)\.py$'
             )
-            $changedPaths = @(gh api --paginate "repos/${{ github.repository }}/pulls/$env:PULL_REQUEST_NUMBER/files" --jq '.[].filename')
-            $requiresColdProof = @($changedPaths | Where-Object {
-              $path = $_
-              $patterns | Where-Object { $path -match $_ } | Select-Object -First 1
-            }).Count -gt 0
+            if ([int]$env:CHANGED_FILE_COUNT -gt 300) {
+              $requiresColdProof = $true
+            } else {
+              $comparison = "repos/${{ github.repository }}/compare/$env:BASE_SHA...$env:HEAD_SHA"
+              $changedPaths = @(gh api $comparison --jq '.files[].filename')
+              $requiresColdProof = @($changedPaths | Where-Object {
+                $path = $_
+                $patterns | Where-Object { $path -match $_ } | Select-Object -First 1
+              }).Count -gt 0
+            }
           }
           "enabled=$($requiresColdProof.ToString().ToLowerInvariant())" | Out-File $env:GITHUB_OUTPUT -Append
 
