@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Serve the external Comfy readiness boundary for clean-install proof."""
+"""Serve the external Comfy qualification boundary for clean-install proof."""
 
 from __future__ import annotations
 
@@ -24,10 +24,17 @@ import json
 from threading import Lock, Thread
 from types import TracebackType
 
+from substitute.domain.comfy_nodepacks import (
+    SUGARCUBES_REQUIRED_VERSION,
+    SUBSTITUTE_BACKEND_REQUIRED_VERSION,
+)
+from substitute.domain.common import JsonObject
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 
 _LOOPBACK_HOST = "127.0.0.1"
 _SYSTEM_STATS_PATH = "/system_stats"
+_CAPABILITIES_PATH = "/substitute/v1/capabilities"
+_REQUIRED_PROBE_PATHS = frozenset({_SYSTEM_STATS_PATH, _CAPABILITIES_PATH})
 
 
 class ExternalComfyReadinessServer:
@@ -61,14 +68,16 @@ class ExternalComfyReadinessServer:
 
         return int(self._server.server_address[1])
 
-    def require_readiness_probe(self) -> None:
-        """Require the installed application to observe the external boundary."""
+    def require_qualification_probes(self) -> None:
+        """Require the installed application to prove both external contracts."""
 
         with self._request_lock:
-            observed = tuple(self._request_paths)
-        if _SYSTEM_STATS_PATH not in observed:
+            observed = frozenset(self._request_paths)
+        missing_paths = sorted(_REQUIRED_PROBE_PATHS.difference(observed))
+        if missing_paths:
             raise InstallerLifecycleError(
-                "Clean-install qualification never probed external Comfy readiness."
+                "Clean-install qualification did not probe required external Comfy "
+                f"routes: {', '.join(missing_paths)}."
             )
 
     def __enter__(self) -> ExternalComfyReadinessServer:
@@ -100,7 +109,7 @@ class ExternalComfyReadinessServer:
         owner = self
 
         class _ReadinessHandler(BaseHTTPRequestHandler):
-            """Respond only to the public Comfy readiness route."""
+            """Respond only to contracts required for a compatible remote target."""
 
             protocol_version = "HTTP/1.1"
 
@@ -109,19 +118,37 @@ class ExternalComfyReadinessServer:
 
                 with owner._request_lock:
                     owner._request_paths.append(self.path)
-                if self.path != _SYSTEM_STATS_PATH:
+                if self.path == _SYSTEM_STATS_PATH:
+                    payload: JsonObject = {
+                        "system": {
+                            "comfyui_version": "installer-qualification-boundary"
+                        }
+                    }
+                elif self.path == _CAPABILITIES_PATH:
+                    payload = {
+                        "apiVersion": 1,
+                        "extensionVersion": SUBSTITUTE_BACKEND_REQUIRED_VERSION,
+                        "features": [
+                            "cube-library",
+                            "prompt-queue-facade",
+                            "visual-routing",
+                        ],
+                        "modelMetadata": {},
+                        "cubeLibrary": {
+                            "available": True,
+                            "sugarCubesVersion": SUGARCUBES_REQUIRED_VERSION,
+                        },
+                    }
+                else:
                     self.send_error(HTTPStatus.NOT_FOUND)
                     return
-                payload = json.dumps(
-                    {"system": {"comfyui_version": "installer-qualification-boundary"}},
-                    sort_keys=True,
-                ).encode("utf-8")
+                encoded_payload = json.dumps(payload, sort_keys=True).encode("utf-8")
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("Content-Length", str(len(encoded_payload)))
                 self.send_header("Connection", "close")
                 self.end_headers()
-                self.wfile.write(payload)
+                self.wfile.write(encoded_payload)
 
             def log_message(self, format: str, *args: object) -> None:
                 """Suppress routine loopback request output."""

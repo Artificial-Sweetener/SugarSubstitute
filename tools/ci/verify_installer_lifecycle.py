@@ -165,7 +165,7 @@ def verify_clean_install(
                 expected_channel=expected_channel,
                 expected_update_manifest_url=expected_update_manifest_url,
             )
-            external_comfy.require_readiness_probe()
+            external_comfy.require_qualification_probes()
     print(f"INSTALLER_CLEAN_READY version={expected_version}", flush=True)
 
 
