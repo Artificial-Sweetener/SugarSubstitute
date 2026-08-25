@@ -198,11 +198,13 @@ def test_ci_actions_use_immutable_verified_revisions() -> None:
     observed_revisions: dict[str, set[str]] = {}
     for path in (*WORKFLOW_PATHS, *ACTION_PATHS):
         workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
-        step_groups = (
-            workflow["jobs"].values()
-            if "jobs" in workflow
-            else ({"steps": workflow["runs"]["steps"]},)
-        )
+        if "jobs" in workflow:
+            step_groups = workflow["jobs"].values()
+        else:
+            composite_steps = workflow["runs"].get("steps")
+            if composite_steps is None:
+                continue
+            step_groups = ({"steps": composite_steps},)
         for job in step_groups:
             for step in job.get("steps", ()):
                 action_reference = step.get("uses", "")

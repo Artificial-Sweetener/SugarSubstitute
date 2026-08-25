@@ -1,0 +1,16 @@
+name: Finalize lean uv cache
+description: Prune disposable uv inputs after a successful job and before cache persistence.
+
+inputs:
+  uv-path:
+    description: Absolute path to the exact uv executable installed for the job.
+    required: true
+  cache-path:
+    description: Absolute path to the disposable uv package cache.
+    required: true
+
+runs:
+  using: node24
+  main: register.cjs
+  post: prune.cjs
+  post-if: success()

@@ -383,11 +383,15 @@ class PromptEditorInputDriver:
         self._shell_activator()
         focus_target = self._click_away_target_provider()
         focus_target.setFocus(Qt.FocusReason.MouseFocusReason)
+        wait_for_qt_condition(
+            focus_target.hasFocus,
+            description="prompt-editor click-away focus acquisition",
+            state=lambda: _click_away_state(field.editor, focus_target),
+        )
         self._trace_actions.append(PromptEditorTraceAction("click_away", ""))
         wait_for_qt_condition(
             lambda: (
                 not _focus_belongs_to(field.editor)
-                and focus_target.hasFocus()
                 and _autocomplete_is_dismissed(field.editor)
             ),
             description="prompt-editor click-away completion",

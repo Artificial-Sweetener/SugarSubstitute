@@ -214,6 +214,11 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     action = _action("setup-python-toolchain")
     sync = _step(action, "Synchronize fresh verified environment")
     script = str(sync["run"])
+    inputs = action["inputs"]
+    assert isinstance(inputs, dict)
+    cache_epoch = inputs["cache-epoch"]
+    assert isinstance(cache_epoch, dict)
+    assert cache_epoch["default"] == "2"
 
     assert "uv venv --clear" in script
     assert "uv pip sync" in script
@@ -225,10 +230,61 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     assert "uv pip check" in script
     assert ".venv" not in str(_step(action, "Restore trusted package cache")["with"])
 
+    storage = _step(action, "Resolve isolated package-cache storage")
+    storage_script = str(storage["run"])
+    assert "$env:RUNNER_TEMP" in storage_script
+    assert "sugarsubstitute-uv-$cacheScope-restored-v2" in storage_script
+    setup_uv = _step(action, "Set up exact uv")
+    setup_uv_inputs = setup_uv["with"]
+    assert isinstance(setup_uv_inputs, dict)
+    assert setup_uv_inputs["cache-local-path"] == (
+        "${{ steps.cache-storage.outputs.cache-path }}"
+    )
+    trusted_paths = str(_step(action, "Restore trusted package cache")["with"])
+    assert "steps.cache-storage.outputs.cache-path" in trusted_paths
+    assert "steps.cache-storage.outputs.marker-path" in trusted_paths
+
     cache_result = str(_step(action, "Record package-cache result")["run"])
-    assert ".sugarsubstitute-verified-cache-v1" in cache_result
+    assert "$env:MARKER_PATH" in cache_result
     assert "$cacheRestored = $exactHit -or" in cache_result
     assert "Get-ChildItem" not in cache_result
+
+    finalizer = _step(action, "Register lean package-cache finalization")
+    assert finalizer["uses"] == "./.github/actions/finalize-uv-cache"
+    finalizer_inputs = finalizer["with"]
+    assert isinstance(finalizer_inputs, dict)
+    assert finalizer_inputs["uv-path"] == "${{ steps.setup-uv.outputs.uv-path }}"
+    finalizer_action = _action("finalize-uv-cache")
+    finalizer_runs = finalizer_action["runs"]
+    assert isinstance(finalizer_runs, dict)
+    assert finalizer_runs["using"] == "node24"
+    assert finalizer_runs["post-if"] == "success()"
+    prune_script = (
+        action_path("finalize-uv-cache").parent / str(finalizer_runs["post"])
+    ).read_text(encoding="utf-8")
+    register_script = (
+        action_path("finalize-uv-cache").parent / str(finalizer_runs["main"])
+    ).read_text(encoding="utf-8")
+    assert 'process.env["INPUT_UV-PATH"]' in register_script
+    assert 'process.env["INPUT_CACHE-PATH"]' in register_script
+    assert (
+        '["cache", "prune", "--ci", "--force", "--cache-dir", cachePath]'
+        in prune_script
+    )
+    assert "rmSync" not in prune_script
+    action_runs = action["runs"]
+    assert isinstance(action_runs, dict)
+    action_steps = action_runs["steps"]
+    assert isinstance(action_steps, list)
+    assert next(
+        index
+        for index, step in enumerate(action_steps)
+        if step.get("name") == "Synchronize fresh verified environment"
+    ) < next(
+        index
+        for index, step in enumerate(action_steps)
+        if step.get("name") == "Register lean package-cache finalization"
+    )
 
 
 def test_node_environment_owner_uses_exact_clean_lock_installation() -> None:
@@ -396,11 +452,13 @@ def test_dependency_caches_exclude_release_and_sensitive_state() -> None:
     python_action = _action("setup-python-toolchain")
     cache_inputs = _step(python_action, "Restore trusted package cache")["with"]
     assert isinstance(cache_inputs, dict)
-    assert cache_inputs == {
-        "path": "${{ steps.cache-path.outputs.path }}",
-        "key": "${{ steps.identity.outputs.primary-key }}",
-        "restore-keys": "${{ steps.identity.outputs.restore-key }}",
-    }
+    assert set(cache_inputs) == {"path", "key", "restore-keys"}
+    assert str(cache_inputs["path"]).splitlines() == [
+        "${{ steps.cache-storage.outputs.cache-path }}",
+        "${{ steps.cache-storage.outputs.marker-path }}",
+    ]
+    assert cache_inputs["key"] == "${{ steps.identity.outputs.primary-key }}"
+    assert cache_inputs["restore-keys"] == ("${{ steps.identity.outputs.restore-key }}")
     cached_path = str(cache_inputs["path"])
     forbidden = (
         ".venv",
