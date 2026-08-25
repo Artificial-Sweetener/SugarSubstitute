@@ -16,7 +16,7 @@ inputs:
   cache-epoch:
     description: Emergency compatibility epoch for package-cache invalidation.
     required: false
-    default: "1"
+    default: "2"
   cache-scope:
     description: Stable dependency-profile identity for compatible-prefix reuse.
     required: false
@@ -44,12 +44,6 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    - name: Set up exact uv
-      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-      with:
-        version: "0.12.3"
-        enable-cache: false
-
     - name: Resolve package-cache identity
       id: identity
       shell: pwsh
@@ -71,16 +65,29 @@ runs:
         "restore-key=$prefix-" >> $env:GITHUB_OUTPUT
         "lock-hash=$lockHash" >> $env:GITHUB_OUTPUT
 
-    - name: Resolve uv cache directory
-      id: cache-path
+    - name: Resolve isolated package-cache storage
+      id: cache-storage
       shell: pwsh
+      env:
+        CACHE_SCOPE: ${{ inputs.cache-scope }}
       run: |
         $ErrorActionPreference = "Stop"
-        $cachePath = (uv cache dir).Trim()
-        if (-not $cachePath) {
-          throw "uv did not report a cache directory."
+        if (-not $env:RUNNER_TEMP) {
+          throw "RUNNER_TEMP is unavailable; isolated package-cache storage cannot be prepared."
         }
-        "path=$cachePath" >> $env:GITHUB_OUTPUT
+        $cacheScope = $env:CACHE_SCOPE -replace '[^A-Za-z0-9._-]', '-'
+        $cachePath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope"
+        $markerPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope-restored-v2"
+        "cache-path=$cachePath" >> $env:GITHUB_OUTPUT
+        "marker-path=$markerPath" >> $env:GITHUB_OUTPUT
+
+    - name: Set up exact uv
+      id: setup-uv
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      with:
+        version: "0.12.3"
+        enable-cache: false
+        cache-local-path: ${{ steps.cache-storage.outputs.cache-path }}
 
     - name: Restore trusted package cache
       id: trusted-cache
@@ -91,7 +98,9 @@ runs:
         github.event_name == 'schedule'
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
-        path: ${{ steps.cache-path.outputs.path }}
+        path: |
+          ${{ steps.cache-storage.outputs.cache-path }}
+          ${{ steps.cache-storage.outputs.marker-path }}
         key: ${{ steps.identity.outputs.primary-key }}
         restore-keys: ${{ steps.identity.outputs.restore-key }}
 
@@ -104,7 +113,9 @@ runs:
         github.event_name != 'schedule'
       uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
-        path: ${{ steps.cache-path.outputs.path }}
+        path: |
+          ${{ steps.cache-storage.outputs.cache-path }}
+          ${{ steps.cache-storage.outputs.marker-path }}
         key: ${{ steps.identity.outputs.primary-key }}
         restore-keys: ${{ steps.identity.outputs.restore-key }}
 
@@ -114,18 +125,16 @@ runs:
       env:
         TRUSTED_HIT: ${{ steps.trusted-cache.outputs.cache-hit }}
         UNTRUSTED_HIT: ${{ steps.untrusted-cache.outputs.cache-hit }}
-        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
+        MARKER_PATH: ${{ steps.cache-storage.outputs.marker-path }}
       run: |
         $ErrorActionPreference = "Stop"
         $exactHit = $env:TRUSTED_HIT -eq "true" -or $env:UNTRUSTED_HIT -eq "true"
-        $cacheSentinel = Join-Path $env:CACHE_PATH ".sugarsubstitute-verified-cache-v1"
-        $cacheRestored = $exactHit -or (Test-Path -LiteralPath $cacheSentinel -PathType Leaf)
+        $cacheRestored = $exactHit -or (Test-Path -LiteralPath $env:MARKER_PATH -PathType Leaf)
         "cache-hit=$($exactHit.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
         "cache-restored=$($cacheRestored.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
         "Package cache exact hit: $($exactHit.ToString().ToLowerInvariant())"
         "Package cache content restored: $($cacheRestored.ToString().ToLowerInvariant())"
-        New-Item -ItemType Directory -Path $env:CACHE_PATH -Force | Out-Null
-        New-Item -ItemType File -Path $cacheSentinel -Force | Out-Null
+        New-Item -ItemType File -Path $env:MARKER_PATH -Force | Out-Null
 
     - name: Synchronize fresh verified environment
       id: sync
@@ -170,3 +179,9 @@ runs:
         $binaryDirectory = Split-Path -Parent $absolutePython
         $binaryDirectory >> $env:GITHUB_PATH
         "python=$absolutePython" >> $env:GITHUB_OUTPUT
+
+    - name: Register lean package-cache finalization
+      uses: ./.github/actions/finalize-uv-cache
+      with:
+        uv-path: ${{ steps.setup-uv.outputs.uv-path }}
+        cache-path: ${{ steps.cache-storage.outputs.cache-path }}
