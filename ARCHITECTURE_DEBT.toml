@@ -4,7 +4,7 @@ schema_version = 1
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]
-fingerprint = "sha256:f5ccd1694886d16f8a0e441cd82a6b6f0b3b8cc5b878c2917d693b0ee1b76953"
+fingerprint = "sha256:2a5ae25b7d4b8b72ff4ddeef13716e84d98ed7c64dd6706ac0a25dc4c1d0391d"
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
 responsibilities = [
@@ -13,7 +13,7 @@ responsibilities = [
   "shell construction and geometry",
   "runtime readiness probing",
 ]
-next_extraction = "Extract lazy adapter definitions and shell presentation from the application composition root."
+next_extraction = "Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 
 [[debts]]
 id = "SS-ARCH-003"
@@ -49,7 +49,7 @@ next_extraction = "Extract pure recovery policy and background task execution fr
 id = "SS-ARCH-005"
 owner = "ready-shell startup"
 paths = ["substitute/app/bootstrap/ready_shell_controller.py"]
-fingerprint = "sha256:d8bad0da93b8c1d4725b02b194613e952809b1f2ef370e48767337753dfbf310"
+fingerprint = "sha256:1d1cf4b9d75de051148e9aa85c6fcd418bb6112457365d31e3666af7225e89de"
 issue = "chore:SS-ARCH-005"
 review_by = 2026-12-15
 responsibilities = [
@@ -65,7 +65,7 @@ next_extraction = "Extract warmup and hydration task ownership from shell launch
 id = "SS-ARCH-006"
 owner = "startup managed-ready runtime"
 paths = ["substitute/app/bootstrap/startup_managed_ready_runtime.py"]
-fingerprint = "sha256:f55f0d0f48a36f78517c05f2549654bea8a4947f8849463d9798d4d4533ef582"
+fingerprint = "sha256:469638d0c92c953e1a9718d02147890785db14280788fc1de09558fd81e29e61"
 issue = "chore:SS-ARCH-006"
 review_by = 2026-12-15
 responsibilities = [

@@ -86,8 +86,10 @@ def test_startup_shell_composition_ports_expose_shell_callables() -> None:
         "build_model_metadata_refresh_service"
     )
     is_comfy_http_ready = _ReadinessPort()
+    prepare_main_window = _CallablePort("prepare_main_window")
 
     ports = StartupShellCompositionPorts(
+        prepare_main_window=prepare_main_window,
         build_main_window=build_main_window,
         show_main_window=show_main_window,
         show_built_main_window=show_built_main_window,
@@ -99,6 +101,7 @@ def test_startup_shell_composition_ports_expose_shell_callables() -> None:
     context = cast(InstallationContext, object())
     prepared_caches = cast(PreparedCacheCatalog, object())
 
+    assert ports.prepare_main_window() == "prepare_main_window"
     assert ports.build_main_window() == "build_main_window"
     assert ports.show_main_window() == "show_main_window"
     assert ports.show_built_main_window() == "show_built_main_window"
@@ -193,6 +196,7 @@ def test_startup_facade_uses_shell_composition_port_bundle() -> None:
     assert "create_startup_shell_composition_ports()" in support_graph_source
     assert "StartupShellCompositionPorts(" not in source
     assert "show_main_window=shell_ports.show_main_window" in ready_launch_source
+    assert "prepare_main_window=self.shell_ports.prepare_main_window" in launch_source
     assert "build_main_window=self.shell_ports.build_main_window" in launch_source
     assert (
         "show_built_main_window=self.shell_ports.show_built_main_window"

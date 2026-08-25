@@ -22,6 +22,7 @@ import ast
 from pathlib import Path
 
 from substitute.app.bootstrap import composition, startup_shell_ports
+from substitute.app.bootstrap.main_window_runtime import load_main_window_runtime
 from substitute.app.bootstrap.startup_ports import StartupShellCompositionPorts
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -47,6 +48,7 @@ def test_create_startup_shell_composition_ports_groups_concrete_ports() -> None:
     ports = startup_shell_ports.create_startup_shell_composition_ports()
 
     assert isinstance(ports, StartupShellCompositionPorts)
+    assert ports.prepare_main_window is load_main_window_runtime
     assert ports.build_main_window is composition.build_main_window
     assert ports.show_main_window is composition.show_main_window
     assert ports.show_built_main_window is composition.show_built_main_window

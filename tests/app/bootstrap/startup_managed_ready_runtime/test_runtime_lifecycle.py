@@ -263,6 +263,7 @@ def test_runtime_resources_bind_startup_lifecycle_tasks(
     startup_task_queue = _StartupTaskQueue()
     resources.schedule_startup_tasks(
         queue=startup_task_queue,
+        prepare_main_window=lambda: object(),
         target_activation_task=target_activation_task,
         start_readiness_timer=lambda: None,
         shell_build_task=shell_build_task,
@@ -294,6 +295,7 @@ def test_runtime_resources_bind_startup_lifecycle_tasks(
         ReadyShellInitialWorkspacePrehydrationTask,
     )
     assert startup_task_queue.names == [
+        "prepare_main_window",
         "activate_target",
         "start_readiness_timer",
         "build_main_window",

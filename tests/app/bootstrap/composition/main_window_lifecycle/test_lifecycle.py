@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import importlib
 from pathlib import Path
 import types
 from types import SimpleNamespace
@@ -29,6 +28,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.app.bootstrap import composition
+from substitute.app.bootstrap.main_window_runtime import MainWindowRuntime
 from substitute.domain.onboarding import (
     ComfyEndpoint,
     ComfyTargetConfiguration,
@@ -61,6 +61,15 @@ def _resolved_appearance_stub() -> object:
         effective_theme_mode=SimpleNamespace(value="dark"),
         effective_accent_color="#E91E63",
         effective_backdrop_mode=None,
+    )
+
+
+def _runtime_for(main_window_class: type[Any]) -> MainWindowRuntime:
+    """Build the presentation runtime consumed by shell composition."""
+
+    return MainWindowRuntime(
+        main_window_class=main_window_class,
+        create_taskbar_progress_presenter=lambda _frame: object(),
     )
 
 
@@ -200,9 +209,6 @@ def test_show_main_window_adds_main_window_to_shell_body(
                 ),
             )
 
-    fake_module = types.ModuleType("substitute.presentation.shell.main_window")
-    setattr(fake_module, "MainWindow", _FakeMainWindow)
-
     monkeypatch.setattr(
         composition, "_configure_control_registry_service", lambda: None
     )
@@ -214,7 +220,11 @@ def test_show_main_window_adds_main_window_to_shell_body(
         ),
     )
     monkeypatch.setattr(composition, "CustomWindow", _FakeFrame)
-    monkeypatch.setattr(importlib, "import_module", lambda _name: fake_module)
+    monkeypatch.setattr(
+        composition,
+        "load_main_window_runtime",
+        lambda: _runtime_for(_FakeMainWindow),
+    )
 
     frame = composition.show_main_window(
         context,
@@ -320,9 +330,6 @@ def test_show_main_window_wires_titlebar_close_button_to_window_close(
                 is_comfy_output_panel_visible=lambda: False,
             )
 
-    fake_module = types.ModuleType("substitute.presentation.shell.main_window")
-    setattr(fake_module, "MainWindow", _FakeMainWindow)
-
     monkeypatch.setattr(
         composition, "_configure_control_registry_service", lambda: None
     )
@@ -334,7 +341,11 @@ def test_show_main_window_wires_titlebar_close_button_to_window_close(
         ),
     )
     monkeypatch.setattr(composition, "CustomWindow", _FakeFrame)
-    monkeypatch.setattr(importlib, "import_module", lambda _name: fake_module)
+    monkeypatch.setattr(
+        composition,
+        "load_main_window_runtime",
+        lambda: _runtime_for(_FakeMainWindow),
+    )
 
     frame = composition.show_main_window(
         context,

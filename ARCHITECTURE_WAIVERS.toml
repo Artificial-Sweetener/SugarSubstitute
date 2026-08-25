@@ -6,10 +6,10 @@ owner = "application bootstrap"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/composition.py"
 kind = "remediation"
-justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract lazy adapter definitions and shell presentation from the application composition root."
+justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2848
+max_lines = 2843
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -48,7 +48,7 @@ kind = "remediation"
 justification = "The assessed file mixes ready-shell launch orchestration, failure queue and cancellation, target activation and shell construction, prompt editor and workspace warmup, post-show hydration and diagnostics. Extract warmup and hydration task ownership from shell launch coordination."
 issue = "chore:SS-ARCH-005"
 review_by = 2026-12-15
-max_lines = 1761
+max_lines = 1734
 next_limit = 1559
 debt = "SS-ARCH-005"
 
@@ -61,7 +61,7 @@ kind = "remediation"
 justification = "The assessed file mixes factory protocol declarations, ready-shell runtime resource graph composition, managed recovery and readiness binding, prompt editor and CuteCanvas warmup integration. Extract factory port declarations and feature-specific warmup adapters from runtime resource composition."
 issue = "chore:SS-ARCH-006"
 review_by = 2026-12-15
-max_lines = 1135
+max_lines = 1124
 next_limit = 910
 debt = "SS-ARCH-006"
 
@@ -1125,7 +1125,7 @@ kind = "structural"
 justification = "StartupManagedReadyLaunchRuntime is one per-launch factory facade over a single immutable runtime resource graph. Its methods expose construction of the stages in that graph without owning their behavior; splitting the facade would scatter one composition boundary across otherwise ownerless modules."
 issue = "chore:SS-WAIVER-S002"
 review_by = 2026-12-15
-max_lines = 575
+max_lines = 573
 
 [[waivers]]
 id = "SS-WAIVER-S003"
@@ -2036,10 +2036,10 @@ owner = "managed-ready full application route"
 rule = "STRUCT003"
 path = "tests/app/bootstrap/application_startup/test_managed_ready_full_route.py"
 kind = "structural"
-justification = "This module owns one atomic managed-ready application launch transaction. Its local application, runtime-service boundary, scheduler, splash, shell, readiness, compatibility, warmup, restore, and cleanup doubles share one deterministic event trace that proves preactivation after the event loop, timer ordering before shell construction, readiness before backend-ready, restoration before reveal, splash closure before showing the shell, and terminal resource cleanup. Splitting those local participants would fragment the trace owner, duplicate callback and timer identity, or weaken the complete route's fault sensitivity."
+justification = "This module owns one atomic managed-ready application launch transaction. Its local application, runtime-service boundary, scheduler, splash, shell, readiness, compatibility, warmup, restore, and cleanup doubles share one deterministic event trace that proves activation after the event loop, timer ordering before shell construction, readiness before backend-ready, restoration before reveal, splash closure before showing the shell, and terminal resource cleanup. Splitting those local participants would fragment the trace owner, duplicate callback and timer identity, or weaken the complete route's fault sensitivity."
 issue = "chore:SS-WAIVER-S150"
 review_by = 2026-12-15
-max_lines = 617
+max_lines = 616
 
 [[waivers]]
 id = "SS-WAIVER-S104"

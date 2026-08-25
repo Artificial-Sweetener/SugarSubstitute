@@ -55,6 +55,7 @@ class StartupRuntimeCompatibilityCheckerProtocol(Protocol):
 class StartupShellCompositionPorts:
     """Group shell composition callables consumed by startup controllers."""
 
+    prepare_main_window: Callable[[], object]
     build_main_window: Callable[..., object]
     show_main_window: Callable[..., object]
     show_built_main_window: Callable[..., object]

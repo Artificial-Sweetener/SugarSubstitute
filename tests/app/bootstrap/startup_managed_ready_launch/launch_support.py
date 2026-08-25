@@ -159,6 +159,7 @@ class _StartupTaskScheduleRuntime:
         self,
         *,
         queue: ReadyShellStartupTaskQueueProtocol,
+        prepare_main_window: Callable[[], object],
         target_activation_task: ReadyShellTargetActivationTask,
         start_readiness_timer: Callable[[], None],
         shell_build_task: ReadyShellBuildTask,
@@ -169,6 +170,7 @@ class _StartupTaskScheduleRuntime:
     ) -> None:
         """Store the callback delegated by the launch runtime."""
 
+        prepare_main_window()
         self.start_readiness_timer = start_readiness_timer
 
 

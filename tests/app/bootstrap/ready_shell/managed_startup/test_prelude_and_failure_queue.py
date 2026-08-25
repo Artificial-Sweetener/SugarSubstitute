@@ -20,9 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import cast
-
-import pytest
 
 from substitute.app.bootstrap import (
     ready_shell_controller,
@@ -204,85 +201,6 @@ def test_create_ready_shell_failure_queue_returns_failure_queue() -> None:
     assert isinstance(failure_queue, ready_shell_controller.ReadyShellFailureQueue)
 
 
-def test_schedule_ready_shell_controller_startup_tasks_adapts_task_objects(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Ready-shell controller should adapt live task objects into queue ordering."""
-
-    calls: list[str] = []
-    task_queue = _ControllerTaskQueue()
-
-    def schedule_startup_tasks(
-        *,
-        queue: object,
-        activate_target: Callable[[], None],
-        start_readiness_timer: Callable[[], None],
-        build_main_window: Callable[[], None],
-        wire_metadata_bridge: Callable[[], None],
-        warm_prompt_editor_gui: Callable[[], None],
-        prehydrate_initial_workspace: Callable[[], None],
-        mark_minimum_shell_ready: Callable[[], None],
-    ) -> None:
-        """Record callbacks produced by the controller-level task adapter."""
-
-        assert queue is task_queue
-        for callback in (
-            activate_target,
-            start_readiness_timer,
-            build_main_window,
-            wire_metadata_bridge,
-            warm_prompt_editor_gui,
-            prehydrate_initial_workspace,
-            mark_minimum_shell_ready,
-        ):
-            callback()
-
-    monkeypatch.setattr(
-        ready_shell_controller,
-        "schedule_ready_shell_startup_tasks",
-        schedule_startup_tasks,
-    )
-
-    ready_shell_controller.schedule_ready_shell_controller_startup_tasks(
-        queue=task_queue,
-        target_activation_task=cast(
-            ready_shell_controller.ReadyShellTargetActivationTask,
-            _Runnable("activate_target", calls),
-        ),
-        start_readiness_timer=lambda: calls.append("start_readiness_timer"),
-        shell_build_task=cast(
-            ready_shell_controller.ReadyShellBuildTask,
-            _Runnable("build_main_window", calls),
-        ),
-        metadata_bridge_task=cast(
-            ready_shell_controller.ReadyShellMetadataBridgeTask,
-            _Runnable("wire_metadata_bridge", calls),
-        ),
-        prompt_editor_warmup_task=cast(
-            ready_shell_controller.ReadyShellPromptEditorWarmupTask,
-            _Runnable("warm_prompt_editor_gui", calls),
-        ),
-        initial_workspace_prehydration_task=cast(
-            ready_shell_controller.ReadyShellInitialWorkspacePrehydrationTask,
-            _Runnable("prehydrate_initial_workspace", calls),
-        ),
-        minimum_shell_ready_task=cast(
-            ready_shell_controller.ReadyShellMinimumReadyTask,
-            _Runnable("mark_minimum_shell_ready", calls),
-        ),
-    )
-
-    assert calls == [
-        "activate_target",
-        "start_readiness_timer",
-        "build_main_window",
-        "wire_metadata_bridge",
-        "warm_prompt_editor_gui",
-        "prehydrate_initial_workspace",
-        "mark_minimum_shell_ready",
-    ]
-
-
 def test_ready_shell_local_editor_warmup_adapter_uses_live_startup_state() -> None:
     """Local editor warmup adapter should own shell-build warmup port assembly."""
 
@@ -340,31 +258,3 @@ def test_create_ready_shell_local_editor_warmup_adapter_returns_adapter() -> Non
         adapter,
         ready_shell_controller.ReadyShellLocalEditorWarmupAdapter,
     )
-
-
-class _ControllerTaskQueue:
-    """Expose the queue protocol accepted by controller startup task scheduling."""
-
-    def add(self, name: str, callback: Callable[[], None]) -> None:
-        """Satisfy the queue protocol without recording unused calls."""
-
-        _ = name
-        _ = callback
-
-    def start(self) -> None:
-        """Satisfy the queue protocol without starting real work."""
-
-
-class _Runnable:
-    """Record a named task when its run port is invoked."""
-
-    def __init__(self, name: str, calls: list[str]) -> None:
-        """Store the task name and call recorder."""
-
-        self._name = name
-        self._calls = calls
-
-    def run(self) -> None:
-        """Record execution through the task run port."""
-
-        self._calls.append(self._name)

@@ -724,11 +724,10 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
     exit_code = startup.run_application(["main.py"])
 
     assert exit_code == 0
-    assert calls[:4] == [
+    assert calls[:3] == [
         "splash",
         "single_shot",
         "exec",
-        "activate",
     ]
     assert calls.index("exec") < calls.index("activate")
     assert calls.index("timer_start") < calls.index("build")
