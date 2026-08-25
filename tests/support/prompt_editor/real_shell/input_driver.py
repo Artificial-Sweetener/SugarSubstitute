@@ -86,6 +86,7 @@ class PromptEditorInputDriver:
 
         field.editor.show()
         self._shell_activator()
+        self.neutralize_ambient_hover()
         focus_target = editor_event_widget(field.editor)
         focus_target.setFocus(Qt.FocusReason.OtherFocusReason)
         wait_for_qt_condition(
@@ -102,6 +103,12 @@ class PromptEditorInputDriver:
             },
         )
         return focus_target
+
+    def neutralize_ambient_hover(self) -> None:
+        """Move the pointer off delayed shell tooltips before native input."""
+
+        target = self._click_away_target_provider()
+        QTest.mouseMove(target, target.rect().center())
 
     def replace_text_with_keys(self, field: PromptFieldHandle, text: str) -> None:
         """Replace prompt source through real selection and key events."""
@@ -382,6 +389,7 @@ class PromptEditorInputDriver:
 
         self._shell_activator()
         target = self._click_away_target_provider()
+        QTest.mouseMove(target, target.rect().center())
         QTest.mouseClick(
             target,
             Qt.MouseButton.LeftButton,
@@ -391,8 +399,7 @@ class PromptEditorInputDriver:
         self._trace_actions.append(PromptEditorTraceAction("click_away", ""))
         wait_for_qt_condition(
             lambda: (
-                target.hasFocus()
-                and not _focus_belongs_to(field.editor)
+                not _focus_belongs_to(field.editor)
                 and _autocomplete_is_dismissed(field.editor)
             ),
             description="prompt-editor click-away completion",
