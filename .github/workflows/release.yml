@@ -50,6 +50,11 @@ on:
         required: false
         default: ""
         type: string
+      candidate_artifact_name:
+        description: "Exact private candidate artifact to reuse or stage"
+        required: false
+        default: "non-release-candidate-channel"
+        type: string
       upgrade_selection:
         description: "Focused upgrade depth; full qualification always uses complete"
         required: false
@@ -85,6 +90,7 @@ jobs:
       release_input_run_id: ${{ inputs.release_input_run_id }}
       qualification_candidate_run_id: ${{ inputs.qualification_candidate_run_id }}
       qualification_candidate_version: ${{ inputs.qualification_candidate_version }}
+      candidate_artifact_name: ${{ inputs.candidate_artifact_name || 'non-release-candidate-channel' }}
       qualification_scope: ${{ github.ref_name == 'canary' && 'canary-fast' || inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope }}
       upgrade_selection: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.upgrade_selection || 'complete' }}
       qualification_timeout_seconds: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.qualification_timeout_seconds || '3600' }}

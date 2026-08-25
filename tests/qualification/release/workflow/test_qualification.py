@@ -286,6 +286,11 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert "format('9999.0.{0}', github.run_number)" in release_text
     assert 'default: "non-release-candidate-channel"' in candidate_text
     assert "candidate_artifact_name:" in candidate_text
+    assert 'default: "non-release-candidate-channel"' in release_text
+    assert (
+        "candidate_artifact_name: ${{ inputs.candidate_artifact_name || "
+        "'non-release-candidate-channel' }}"
+    ) in release_text
     assert "github.event.inputs.dry_run != 'true'" in release_text
     assert '--candidate-release-root "build/candidate"' in qualification_text
     assert "Provide exactly one candidate_tag or candidate_artifact_name" in (
