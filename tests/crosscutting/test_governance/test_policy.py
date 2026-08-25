@@ -27,6 +27,7 @@ from tools.test_governance.ownership_patterns import (
     SIBLING_IMPORT_RULE,
 )
 from tools.test_governance.node_process_patterns import NODE_PROCESS_RULE
+from tools.test_governance.process_lifecycle_patterns import CHILD_PROCESS_RULE
 from tools.test_governance.semantic_patterns import (
     DRAIN_RULE,
     NETWORK_RULE,
@@ -290,6 +291,39 @@ def bounded(worker: object, barrier: object) -> None:
     ]
 
     assert len(candidates) == 4
+
+
+def test_discovery_requires_owned_child_process_lifetimes(tmp_path: Path) -> None:
+    """Review unscoped spawns while accepting explicit context ownership."""
+
+    _write_fixture(tmp_path)
+    _write(
+        tmp_path / "tests/capability/test_process_lifetime.py",
+        """import subprocess as process
+from subprocess import Popen as spawn
+
+def unscoped() -> None:
+    child = spawn(["tool"])
+    child.wait(timeout=10)
+
+def context_owned() -> None:
+    with process.Popen(["tool"]) as child:
+        child.communicate(timeout=10)
+
+def delegated() -> None:
+    run_owned_process(["tool"])
+""",
+    )
+
+    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    candidates = [
+        candidate
+        for candidate in discover_test_candidates(tmp_path, policy)
+        if candidate.rule == CHILD_PROCESS_RULE
+    ]
+
+    assert len(candidates) == 1
+    assert candidates[0].line == 5
 
 
 def test_discovery_rejects_unowned_real_node_processes(tmp_path: Path) -> None:

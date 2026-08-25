@@ -28,7 +28,7 @@ from tests.support.execution.node_runtime import run_node
 def test_canary_isolated_release_train_contract() -> None:
     """Canary must validate exact bytes before updating one isolated public feed."""
 
-    release_text = workflow_text("release.yml")
+    release_text = workflow_text("release.yml", "release-prepublication.yml")
     version_text = workflow_text("release-version.yml")
     candidate_text = workflow_text("release-candidate.yml")
     publication_text = workflow_text("release-publication.yml")
@@ -166,7 +166,7 @@ def test_read_only_version_resolution_never_probes_remote_push_permission() -> N
     resolver_text = (
         PROJECT_ROOT / "scripts" / "resolve-next-release-version.mjs"
     ).read_text(encoding="utf-8")
-    orchestrator = workflow_text("release.yml")
+    orchestrator = workflow_text("release-prepublication.yml")
     version_owner = workflow_text("release-version.yml")
 
     assert 'import("semantic-release")' not in resolver_text

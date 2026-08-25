@@ -1166,3 +1166,68 @@ fingerprint = "sha256:66adc0acf6728a4ff920522d4c3c571ead90b925355cbd76d2fd5bb5b0
 rationale = "This test-support module is the sole real-Node subprocess owner. It preserves the command's explicit timeout and captures its output while a bounded Windows named mutex prevents the concurrent cold-start pressure observed across independent xdist workers; non-Windows execution remains parallel. Every test caller must use this owner, and NODE001 keeps any direct bypass mechanically reviewable."
 issue = "chore:SS-TEST-WAIVER-C0268"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0269"
+owner = "Native local-Comfy process lifecycle"
+kind = "classification"
+disposition = "platform_native"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/infrastructure/comfy/local_process/test_integration.py|<module>:unscoped-child-process:1"]
+paths = ["tests/infrastructure/comfy/local_process/test_integration.py"]
+fingerprint = "sha256:e9b26120e618f910ac073276ea4f14ef22e5160a6af6cfa23d36a50b219643bd"
+rationale = "This integration test starts one uniquely pathed local Comfy process to prove the production operating-system discovery and shutdown boundary. A try/finally owner kills any surviving child and performs a bounded wait; the success path proves production cleanup and clears the reference before final teardown. Context-managed Popen would wait before the production close contract could be exercised."
+issue = "chore:SS-TEST-WAIVER-C0269"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0270"
+owner = "Windows updater process probe"
+kind = "classification"
+disposition = "platform_native"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/launcher/update_activation/transaction/test_process_scheduling.py|<module>:unscoped-child-process:1"]
+paths = ["tests/launcher/update_activation/transaction/test_process_scheduling.py"]
+fingerprint = "sha256:b2efaca7e477a3b54553d117c253bf43c0b1cf0206722155149627a0a349978d"
+rationale = "This Windows-native test must keep a real child alive while the production PID probe observes it. Its unconditional finally block terminates the exact child, waits with a ten-second bound, then escalates to kill and a second bounded wait. A context-managed lifetime cannot preserve the live-process observation boundary."
+issue = "chore:SS-TEST-WAIVER-C0270"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0271"
+owner = "Real Comfy inpaint qualification harness"
+kind = "classification"
+disposition = "framework_infrastructure"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/qualification/comfy/inpaint/asset_harness.py|<module>:unscoped-child-process:1"]
+paths = ["tests/qualification/comfy/inpaint/asset_harness.py"]
+fingerprint = "sha256:7683d52fe5eb2618e3c45ecbf0a1a899462cd4169a859c63c1e8ed7ecb682961"
+rationale = "The context-managed qualification harness retains one real Comfy child across multiple protocol operations. Its __exit__ owner terminates the process tree on every path, uses bounded waits with kill escalation, closes the log handle, and cleans both temporary environments. The raw Popen lifetime is therefore contained by the harness context rather than the Popen context itself."
+issue = "chore:SS-TEST-WAIVER-C0271"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0272"
+owner = "Managed Comfy direct-output qualification harness"
+kind = "classification"
+disposition = "framework_infrastructure"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>:unscoped-child-process:1"]
+paths = ["tests/qualification/comfy/managed_runtime/direct_output_harness.py"]
+fingerprint = "sha256:b313d0d2960ac014d842b221bc79491774a27c27baaef086753260a9365dd6b0"
+rationale = "The context-managed qualification harness retains one real managed Comfy process while exercising HTTP, WebSocket, and output contracts. Its __exit__ owner terminates the child on every path, waits with a fifteen-second bound, escalates to kill with a second bound, closes its log, and cleans the temporary workspace."
+issue = "chore:SS-TEST-WAIVER-C0272"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0273"
+owner = "Application launch handoff process contention"
+kind = "classification"
+disposition = "platform_native"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/shared/application_launch_guard/test_guard.py|<module>:unscoped-child-process:1"]
+paths = ["tests/shared/application_launch_guard/test_guard.py"]
+fingerprint = "sha256:f576c2d6f8f4e794fc03e08d7d66d3686a356c8085d000e663bd97eab7f24cf7"
+rationale = "This cross-process contention contract launches four simultaneous children that must overlap while claiming one application handoff token. The enclosing try/finally owns the entire child set, bounds every communicate call, kills every survivor, and performs a bounded final wait. Independent Popen context managers would not model simultaneous ownership."
+issue = "chore:SS-TEST-WAIVER-C0273"
+review_by = 2026-12-15

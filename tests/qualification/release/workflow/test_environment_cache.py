@@ -34,7 +34,6 @@ _PYTHON_CONSUMERS = {
     "comfy-pin-update.yml",
     "comfy-runtime-compatibility.yml",
     "comfy-update-compatibility.yml",
-    "cross-platform-build.yml",
     "installed-app-smoke.yml",
     "managed-comfy-install.yml",
     "native-appearance-screenshots.yml",
@@ -45,7 +44,6 @@ _PYTHON_CONSUMERS = {
     "release-update-qualification.yml",
 }
 _NODE_CONSUMERS = {
-    "cross-platform-build.yml",
     "quality-gates.yml",
     "release-build.yml",
     "release-candidate.yml",
@@ -53,7 +51,6 @@ _NODE_CONSUMERS = {
     "release-version.yml",
 }
 _LINUX_QT_CONSUMERS = {
-    "cross-platform-build.yml",
     "installed-app-smoke.yml",
     "native-appearance-screenshots.yml",
     "platform-tests.yml",
@@ -65,7 +62,6 @@ _MANAGED_CACHE_CONSUMERS = {
     "release-current-install-qualification.yml",
 }
 _APPIMAGE_TOOL_CONSUMERS = {
-    "cross-platform-build.yml",
     "release-build.yml",
 }
 _LINUX_QT_PACKAGES = {
@@ -396,7 +392,9 @@ def test_appimage_packaging_tool_has_one_verified_owner() -> None:
         path.read_text(encoding="utf-8") for path in WORKFLOW_PATHS
     )
     assert "appimagetool/releases/download/continuous" not in workflow_text
-    assert workflow_text.count("steps.appimagetool.outputs.path") == 2
+    assert workflow_text.count("steps.appimagetool.outputs.path") == len(
+        _APPIMAGE_TOOL_CONSUMERS
+    )
 
 
 def test_managed_runtime_cache_has_one_secure_checksum_owner() -> None:

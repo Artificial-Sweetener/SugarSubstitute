@@ -24,6 +24,7 @@ from tools.test_governance.discovery import discover_test_candidates
 from tools.test_governance.execution_patterns import ENVIRONMENT_RULE
 from tools.test_governance.loading import load_test_policy
 from tools.test_governance.process_state_patterns import (
+    CURRENT_DIRECTORY_RULE,
     MODULE_REGISTRY_RULE,
     QT_GLOBAL_RULE,
 )
@@ -110,3 +111,30 @@ fluent.setThemeColor(color())
     assert all(
         candidate.path == "tests/capability/test_theme.py" for candidate in candidates
     )
+
+
+def test_discovery_rejects_direct_current_directory_mutation(tmp_path: Path) -> None:
+    """Require fixture-owned restoration for process-global directory changes."""
+
+    _write_fixture(tmp_path)
+    _write(
+        tmp_path / "tests/capability/test_current_directory.py",
+        """import os as operating_system
+
+def unsafe(path: str) -> None:
+    operating_system.chdir(path)
+
+def fixture_owned(monkeypatch: object, path: str) -> None:
+    monkeypatch.chdir(path)
+""",
+    )
+
+    policy = load_test_policy(tmp_path / "TEST_POLICY.toml")
+    candidates = [
+        candidate
+        for candidate in discover_test_candidates(tmp_path, policy)
+        if candidate.rule == CURRENT_DIRECTORY_RULE
+    ]
+
+    assert len(candidates) == 1
+    assert candidates[0].line == 4

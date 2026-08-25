@@ -68,17 +68,24 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
     orchestrator = yaml.safe_load(
         workflow_path("release.yml").read_text(encoding="utf-8")
     )
+    prepublication = yaml.safe_load(
+        workflow_path("release-prepublication.yml").read_text(encoding="utf-8")
+    )
     build_owner = yaml.safe_load(
         workflow_path("release-build.yml").read_text(encoding="utf-8")
     )
-    jobs = orchestrator["jobs"]
+    entry_jobs = orchestrator["jobs"]
+    jobs = prepublication["jobs"]
+    assert set(entry_jobs) == {"prepare-release", "publish-release"}
+    assert entry_jobs["prepare-release"]["uses"] == (
+        "./.github/workflows/release-prepublication.yml"
+    )
     assert set(jobs) == {
         "tests",
         "determine-version",
         "build-release",
         "stage-candidate",
         "qualify-candidate",
-        "publish-release",
     }
     assert (
         jobs["determine-version"]["uses"] == "./.github/workflows/release-version.yml"
@@ -99,11 +106,8 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
     assert jobs["qualify-candidate"]["uses"] == (
         "./.github/workflows/release-qualification.yml"
     )
-    assert set(jobs["publish-release"]["needs"]) == {
-        "stage-candidate",
-        "qualify-candidate",
-    }
-    assert jobs["publish-release"]["uses"] == (
+    assert entry_jobs["publish-release"]["needs"] == "prepare-release"
+    assert entry_jobs["publish-release"]["uses"] == (
         "./.github/workflows/release-publication.yml"
     )
 
@@ -111,7 +115,7 @@ def test_release_workflow_builds_every_published_platform_after_version_resoluti
 def test_release_stages_then_promotes_the_same_candidate_bytes() -> None:
     """Stable publication must be promotion after qualification, never a rebuild."""
 
-    orchestrator = workflow_text("release.yml")
+    orchestrator = workflow_text("release.yml", "release-prepublication.yml")
     candidate = workflow_text("release-candidate.yml")
     publication = workflow_text("release-publication.yml")
 
@@ -119,7 +123,8 @@ def test_release_stages_then_promotes_the_same_candidate_bytes() -> None:
     assert "gh release create" not in candidate
     assert "gh release edit" not in candidate
     assert "release-qualification.yml" in orchestrator
-    assert "needs.qualify-candidate.result == 'success'" in orchestrator
+    assert "needs.prepare-release.result == 'success'" in orchestrator
+    assert "needs.prepare-release.outputs.staged == 'true'" in orchestrator
     assert "Publish exact qualified Stable release with semantic release" in publication
     assert "prepare-release-assets" not in publication
     assert "PyInstaller" not in publication
@@ -212,10 +217,7 @@ def test_linux_workflows_retry_appimagetool_transport_failures() -> None:
 
     tool_text = action_path("setup-appimagetool").read_text(encoding="utf-8")
     assert "--retry 5 --retry-all-errors --connect-timeout 30" in tool_text
-    workflow_paths = (
-        workflow_path("release-build.yml"),
-        workflow_path("cross-platform-build.yml"),
-    )
+    workflow_paths = (workflow_path("release-build.yml"),)
     for path in workflow_paths:
         owner_text = path.read_text(encoding="utf-8")
         assert "./.github/actions/setup-appimagetool" in owner_text
@@ -230,7 +232,6 @@ def test_linux_qt_workflows_install_multimedia_runtime() -> None:
 
     workflow_paths = (
         workflow_path("platform-tests.yml"),
-        workflow_path("cross-platform-build.yml"),
         workflow_path("installed-app-smoke.yml"),
         PROJECT_ROOT / ".github" / "workflows" / "native-appearance-screenshots.yml",
     )
@@ -244,10 +245,6 @@ def test_large_workflow_artifacts_expire_after_handoff() -> None:
     workflow_limits = (
         (workflow_path("release-build.yml"), 1),
         (workflow_path("release-candidate.yml"), 1),
-        (
-            workflow_path("cross-platform-build.yml"),
-            1,
-        ),
         (
             PROJECT_ROOT
             / ".github"
@@ -275,7 +272,7 @@ def test_native_build_workflows_use_disposable_package_cache_owner() -> None:
     """Native matrices should delegate setup without caching virtual environments."""
 
     workflow_paths = (
-        workflow_path("cross-platform-build.yml"),
+        workflow_path("release-build.yml"),
         PROJECT_ROOT / ".github" / "workflows" / "native-appearance-screenshots.yml",
     )
     for path in workflow_paths:

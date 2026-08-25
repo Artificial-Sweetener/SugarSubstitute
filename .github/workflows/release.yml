@@ -73,115 +73,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  tests:
-    name: Required cross-platform tests
-    if: >-
-      github.event_name != 'workflow_dispatch' ||
-      github.event.inputs.dry_run != 'true' ||
-      github.event.inputs.qualification_scope == 'full'
-    uses: ./.github/workflows/tests.yml
-
-  determine-version:
-    name: Resolve semantic release version
-    needs: tests
-    if: >-
-      always() && (
-        needs.tests.result == 'success' || (
-          github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.dry_run == 'true' &&
-          github.event.inputs.qualification_scope != 'full'
-        )
-      )
-    uses: ./.github/workflows/release-version.yml
+  prepare-release:
+    name: Test, build, stage, and qualify release
+    uses: ./.github/workflows/release-prepublication.yml
     with:
       channel: ${{ github.ref_name == 'canary' && 'canary' || 'stable' }}
       canary_run_number: ${{ github.ref_name == 'canary' && github.run_number || '' }}
-      qualification_version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && format('9999.0.{0}', github.run_number) || '' }}
-
-  build-release:
-    name: Build native release inputs
-    needs: determine-version
-    if: >-
-      always() &&
-      github.event.inputs.qualification_candidate_run_id == '' &&
-      github.event.inputs.release_input_run_id == '' &&
-      needs.determine-version.result == 'success' && (
-        needs.determine-version.outputs.should_release == 'true' || (
-          github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.dry_run == 'true' &&
-          github.event.inputs.qualification_scope != 'full'
-        )
-      )
-    uses: ./.github/workflows/release-build.yml
-    with:
-      version: ${{ needs.determine-version.outputs.version }}
-      channel: ${{ needs.determine-version.outputs.channel }}
-
-  stage-candidate:
-    name: Stage private release candidate
-    needs:
-      - determine-version
-      - build-release
-    if: >-
-      always() &&
-      needs.determine-version.result == 'success' && (
-        (
-          github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.dry_run == 'true' &&
-          github.event.inputs.qualification_scope != 'full' &&
-          github.event.inputs.qualification_candidate_run_id != '' &&
-          github.event.inputs.qualification_candidate_version != ''
-        ) ||
-        needs.build-release.result == 'success' ||
-        (
-          github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.dry_run == 'true' &&
-          github.event.inputs.qualification_scope != 'full' &&
-          github.event.inputs.release_input_run_id != ''
-        )
-      )
-    uses: ./.github/workflows/release-candidate.yml
-    with:
-      version: ${{ github.event.inputs.qualification_candidate_version || needs.determine-version.outputs.version }}
-      channel: ${{ needs.determine-version.outputs.channel }}
-      release_input_run_id: ${{ github.event.inputs.release_input_run_id }}
-      existing_candidate_run_id: ${{ github.event.inputs.qualification_candidate_run_id }}
-
-  qualify-candidate:
-    name: Qualify staged installer and update bytes
-    needs: stage-candidate
-    if: >-
-      always() &&
-      needs.stage-candidate.result == 'success' &&
-      needs.stage-candidate.outputs.staged == 'true'
-    uses: ./.github/workflows/release-qualification.yml
-    with:
-      candidate_version: ${{ needs.stage-candidate.outputs.candidate_version }}
-      candidate_tag: ''
-      candidate_channel: ${{ needs.stage-candidate.outputs.candidate_channel }}
-      candidate_artifact_name: ${{ needs.stage-candidate.outputs.candidate_artifact_name }}
-      candidate_run_id: ${{ needs.stage-candidate.outputs.candidate_run_id }}
+      qualification_version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' && github.ref_name != 'canary' && format('9999.0.{0}', github.run_number) || '' }}
+      run_tests: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true' || github.event.inputs.qualification_scope == 'full' }}
+      force_candidate: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
+      release_input_run_id: ${{ inputs.release_input_run_id }}
+      qualification_candidate_run_id: ${{ inputs.qualification_candidate_run_id }}
+      qualification_candidate_version: ${{ inputs.qualification_candidate_version }}
       qualification_scope: ${{ github.ref_name == 'canary' && 'canary-fast' || inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope }}
       upgrade_selection: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.upgrade_selection || 'complete' }}
       qualification_timeout_seconds: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.qualification_timeout_seconds || '3600' }}
 
   publish-release:
     name: Publish exact qualified bytes
-    needs:
-      - stage-candidate
-      - qualify-candidate
+    needs: prepare-release
     if: >-
       always() &&
-      needs.stage-candidate.result == 'success' &&
-      needs.qualify-candidate.result == 'success' &&
+      needs.prepare-release.result == 'success' &&
+      needs.prepare-release.outputs.staged == 'true' &&
       (github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true')
     permissions:
       actions: read
       contents: write
     uses: ./.github/workflows/release-publication.yml
     with:
-      candidate_artifact_name: ${{ needs.stage-candidate.outputs.candidate_artifact_name }}
-      candidate_run_id: ${{ needs.stage-candidate.outputs.candidate_run_id }}
-      candidate_version: ${{ needs.stage-candidate.outputs.candidate_version }}
-      candidate_channel: ${{ needs.stage-candidate.outputs.candidate_channel }}
+      candidate_artifact_name: ${{ needs.prepare-release.outputs.candidate_artifact_name }}
+      candidate_run_id: ${{ needs.prepare-release.outputs.candidate_run_id }}
+      candidate_version: ${{ needs.prepare-release.outputs.candidate_version }}
+      candidate_channel: ${{ needs.prepare-release.outputs.candidate_channel }}
     secrets: inherit
