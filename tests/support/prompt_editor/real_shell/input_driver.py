@@ -25,6 +25,7 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QKeySequence, QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
+from qfluentwidgets import ToolTipFilter  # type: ignore[import-untyped]
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from tests.support.prompt_editor.real_shell.models import (
     PromptEditorKeyRoute,
@@ -85,8 +86,8 @@ class PromptEditorInputDriver:
         """Focus the real prompt projection surface used for keyboard input."""
 
         field.editor.show()
-        self._shell_activator()
         self.neutralize_ambient_hover()
+        self._shell_activator()
         focus_target = editor_event_widget(field.editor)
         focus_target.setFocus(Qt.FocusReason.OtherFocusReason)
         wait_for_qt_condition(
@@ -105,10 +106,12 @@ class PromptEditorInputDriver:
         return focus_target
 
     def neutralize_ambient_hover(self) -> None:
-        """Move the pointer off delayed shell tooltips before native input."""
+        """Dismiss shell-owned tooltip activity before native input."""
 
         target = self._click_away_target_provider()
         QTest.mouseMove(target, target.rect().center())
+        for tooltip_filter in self._shell.findChildren(ToolTipFilter):
+            tooltip_filter.hideToolTip()
 
     def replace_text_with_keys(self, field: PromptFieldHandle, text: str) -> None:
         """Replace prompt source through real selection and key events."""
