@@ -18,12 +18,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, cast
 
 import pytest
 
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QRegion
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
@@ -36,6 +37,7 @@ from substitute.presentation.editor.prompt_editor.overlays import (
 )
 
 from tests.support.prompt_editor.projection_engine_support import surface_for
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 from .support import (
     _counter_delta,
@@ -44,6 +46,45 @@ from .support import (
     _performance_counters,
     _process_events,
 )
+
+
+def _wait_for_animation_paint_after(animation_owner: Any, *, revision: int) -> None:
+    """Wait for a newer animation frame that owns visible paint geometry."""
+
+    wait_for_qt_condition(
+        lambda: (
+            animation_owner.publication.revision > revision
+            and bool(animation_owner.publication.paint_rects_by_index)
+        ),
+        description="a newer visible reorder-animation publication",
+        state=lambda: {
+            "publication": animation_owner.publication,
+            "counters": animation_owner.counters(),
+        },
+    )
+
+
+def _wait_for_animation_progress_after(
+    animation_owner: Any,
+    *,
+    revision: int,
+    paint_rects_by_index: Mapping[int, QRectF],
+) -> None:
+    """Wait until an active animation visibly advances beyond one publication."""
+
+    wait_for_qt_condition(
+        lambda: (
+            animation_owner.publication.revision > revision
+            and bool(animation_owner.publication.paint_rects_by_index)
+            and dict(animation_owner.publication.paint_rects_by_index)
+            != paint_rects_by_index
+        ),
+        description="visible reorder-animation progress",
+        state=lambda: {
+            "publication": animation_owner.publication,
+            "counters": animation_owner.counters(),
+        },
+    )
 
 
 def test_reorder_keyboard_suppression_clips_settled_projection(
@@ -100,8 +141,10 @@ def test_reorder_keyboard_blank_line_animation_survives_overlay_resize(
     animation_owner = cast(Any, overlay)._animation_presentation
     animation_owner.set_duration_ms(1000)
 
+    animation_revision = animation_owner.publication.revision
     QTest.keyClick(box, Qt.Key.Key_Down)
     _process_events(app)
+    _wait_for_animation_paint_after(animation_owner, revision=animation_revision)
 
     assert (
         overlay.preview_build_facts.snapshot().drop_target
@@ -146,8 +189,16 @@ def test_reorder_keyboard_return_from_blank_line_still_animates(
     animation_owner = cast(Any, overlay)._animation_presentation
     animation_owner.set_duration_ms(1000)
 
+    outbound_revision = animation_owner.publication.revision
     QTest.keyClick(box, Qt.Key.Key_Down)
     _process_events(app)
+    _wait_for_animation_paint_after(animation_owner, revision=outbound_revision)
+    outbound_publication = animation_owner.publication
+    _wait_for_animation_progress_after(
+        animation_owner,
+        revision=outbound_publication.revision,
+        paint_rects_by_index=dict(outbound_publication.paint_rects_by_index),
+    )
 
     assert overlay.has_reordered() is True
     assert (
@@ -157,11 +208,14 @@ def test_reorder_keyboard_return_from_blank_line_still_animates(
             blank_line_index=0,
         )
     )
-    monkeypatch.setattr(overlay, "has_reordered", lambda: False)
+    visual_mode = cast(Any, overlay)._visual_mode
+    monkeypatch.setattr(visual_mode, "has_reordered", lambda: False)
     before_return = _performance_counters(overlay)
+    return_revision = animation_owner.publication.revision
 
     QTest.keyClick(box, Qt.Key.Key_Up)
     _process_events(app)
+    _wait_for_animation_paint_after(animation_owner, revision=return_revision)
     after_return = _performance_counters(overlay)
 
     assert overlay.has_reordered() is False

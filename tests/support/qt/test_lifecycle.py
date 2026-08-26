@@ -53,6 +53,22 @@ class _FakeCanvas(QObject):
         self.interaction = _RecordingInteraction(self)
 
 
+class _RecordingDeferredDeletion(QObject):
+    """Record that teardown enters Qt's deferred-deletion lifecycle."""
+
+    def __init__(self) -> None:
+        """Initialize an object whose native owner remains live."""
+
+        super().__init__()
+        self.delete_later_requested = False
+
+    def deleteLater(self) -> None:  # noqa: N802
+        """Record and delegate Qt's native deferred-deletion request."""
+
+        self.delete_later_requested = True
+        super().deleteLater()
+
+
 class _LaggingTopLevelInventory:
     """Model a platform registry that delays unshown top-level discovery."""
 
@@ -90,6 +106,17 @@ def test_destroy_qt_object_detaches_descendant_canvas_input_before_deletion(
     lifecycle.destroy_qt_object(root)
 
     assert canvas.interaction.was_valid_during_shutdown
+
+
+def test_destroy_qt_object_uses_targeted_qt_deferred_deletion() -> None:
+    """Complex Qt owners must not be force-deleted outside Qt's lifecycle."""
+
+    owner = _RecordingDeferredDeletion()
+
+    lifecycle.destroy_qt_object(owner)
+
+    assert owner.delete_later_requested is True
+    assert not isValid(owner)
 
 
 def test_widget_root_scope_preserves_existing_roots_and_destroys_new_tree(
