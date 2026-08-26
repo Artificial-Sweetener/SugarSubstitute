@@ -99,7 +99,18 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
     window.view.primary_button.click()
     wait_for_launcher_condition(
         application,
-        lambda: window.view.primary_button.text() == "Install runtime",
+        lambda: (
+            "Could not install the Python runtime."
+            in window.view.progress_log.log_view.toPlainText()
+            and not window.execution.setup_running
+        ),
+        state=lambda: {
+            "ui_state": window.ui_state,
+            "primary_text": window.view.primary_button.text(),
+            "initial_running": window.execution.initial_running,
+            "setup_running": window.execution.setup_running,
+            "log": window.view.progress_log.log_view.toPlainText(),
+        },
     )
 
     assert handoff_commands == []
@@ -108,9 +119,5 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
     assert (
         "Could not install the Python runtime."
         in window.view.progress_log.log_view.toPlainText()
-    )
-    wait_for_launcher_condition(
-        application,
-        lambda: not window.execution.setup_running,
     )
     close_and_delete_launcher_window(window)
