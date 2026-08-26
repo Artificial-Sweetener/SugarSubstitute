@@ -23,9 +23,9 @@ from contextlib import contextmanager
 from typing import Protocol, TypeVar, cast
 
 from cutecanvas import CuteCanvas
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QCoreApplication, QEvent, QObject
 from PySide6.QtWidgets import QApplication, QWidget
-from shiboken6 import delete, isValid
+from shiboken6 import isValid
 
 
 class _CanvasInteractionPort(Protocol):
@@ -74,10 +74,11 @@ def ensure_qt_application() -> QApplication:
 
 
 def destroy_qt_object(candidate: QObject) -> None:
-    """Destroy one Qt owner synchronously and verify its native state is gone."""
+    """Destroy one Qt owner through Qt and verify its native state is gone."""
 
     _shutdown_cute_canvas_interactions(candidate)
-    delete(candidate)
+    candidate.deleteLater()
+    QCoreApplication.sendPostedEvents(candidate, QEvent.Type.DeferredDelete)
     assert not isValid(candidate)
 
 
