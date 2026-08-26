@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QApplication, QWidget
 import pytest
@@ -51,6 +53,23 @@ class _FakeCanvas(QObject):
         self.interaction = _RecordingInteraction(self)
 
 
+class _LaggingTopLevelInventory:
+    """Model a platform registry that delays unshown top-level discovery."""
+
+    def __init__(
+        self,
+        existing_root: QWidget,
+    ) -> None:
+        """Retain the deliberately stale root inventory."""
+
+        self._existing_root = existing_root
+
+    def topLevelWidgets(self) -> list[QWidget]:  # noqa: N802
+        """Exclude new unshown roots to reproduce the observed macOS boundary."""
+
+        return [self._existing_root]
+
+
 def test_ensure_qt_application_returns_the_process_owned_application(
     qt_application_owner: QApplication,
 ) -> None:
@@ -75,15 +94,22 @@ def test_destroy_qt_object_detaches_descendant_canvas_input_before_deletion(
 
 def test_widget_root_scope_preserves_existing_roots_and_destroys_new_tree(
     qt_application_owner: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Delete one scope's complete widget tree without touching earlier roots."""
+    """Delete a new tree even when the platform root registry has not caught up."""
 
     existing_root = QWidget()
     created_root: QWidget | None = None
     created_child: QWidget | None = None
+    inventory = _LaggingTopLevelInventory(existing_root)
+    monkeypatch.setattr(
+        lifecycle,
+        "ensure_qt_application",
+        lambda: cast(QApplication, inventory),
+    )
     try:
-        with lifecycle.widget_root_scope():
-            created_root = QWidget()
+        with lifecycle.widget_root_scope() as owner:
+            created_root = owner.own(QWidget())
             created_child = QWidget(created_root)
 
         assert isValid(existing_root)
@@ -101,8 +127,8 @@ def test_widget_root_scope_destroys_new_roots_when_test_body_fails() -> None:
 
     created_root: QWidget | None = None
     with pytest.raises(RuntimeError, match="representative test failure"):
-        with lifecycle.widget_root_scope():
-            created_root = QWidget()
+        with lifecycle.widget_root_scope() as owner:
+            created_root = owner.own(QWidget())
             raise RuntimeError("representative test failure")
 
     assert created_root is not None
