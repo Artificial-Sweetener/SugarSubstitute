@@ -54,6 +54,11 @@ def test_cross_platform_validation_proves_packaged_linux_system_trust() -> None:
         "/etc/ssl/cert.pem",
         "/etc/ssl/ca-bundle.pem",
     }
+    opensuse = next(entry for entry in matrix if entry["image"] == "opensuse/leap:16.0")
+    assert (
+        "sed -i 's|http://|https://|g' /etc/zypp/repos.d/*.repo"
+        in (opensuse["prepare"])
+    )
     job_script = workflow_job_script(job)
     assert "--verify-release-connectivity" in job_script
     assert "--manifest-url" in job_script
