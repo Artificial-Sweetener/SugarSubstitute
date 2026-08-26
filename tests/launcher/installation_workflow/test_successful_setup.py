@@ -51,6 +51,7 @@ def test_frozen_setup_installs_in_current_window(
     handoff_commands: list[list[str]] = []
     continue_calls = 0
     runtime_calls = 0
+    runtime_initial_worker_states: list[bool] = []
     observed_release_sources: list[object] = []
 
     class _FakeFirstRunInstaller:
@@ -95,6 +96,7 @@ def test_frozen_setup_installs_in_current_window(
 
             nonlocal runtime_calls
             runtime_calls += 1
+            runtime_initial_worker_states.append(window.execution.initial_running)
             return SimpleNamespace(python_executable=layout.runtime_python)
 
     monkeypatch.setattr(
@@ -134,6 +136,7 @@ def test_frozen_setup_installs_in_current_window(
     assert handoff_calls[0][2] is False
     assert continue_calls == 1
     assert runtime_calls == 1
+    assert runtime_initial_worker_states == [False]
     assert observed_release_sources == [
         initial_release_source,
         initial_release_source,

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstalledApplication,
@@ -28,6 +29,7 @@ from launcher.sugarsubstitute_launcher.ui.installation_execution import (
     QtInstallationExecutor,
 )
 from tests.launcher.installation_workflow.support import (
+    release_source_for_test,
     wait_for_launcher_condition,
     workflow_factory,
 )
@@ -63,3 +65,61 @@ def test_setup_execution_finishes_only_after_worker_thread_stops(
     wait_for_launcher_condition(application, lambda: not executor.setup_running)
 
     assert events == [("succeeded", True), ("finished", False)]
+
+
+def test_setup_execution_waits_for_initial_thread_release(tmp_path: Path) -> None:
+    """Reject setup startup while the initial installation thread owns execution."""
+
+    application = launcher_test_application()
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    installed_application = InstalledApplication(
+        layout=layout,
+        app_command=("python.exe", "main.py"),
+        app_version="0.4.0",
+        launcher_installed=False,
+    )
+
+    class _FakeArtifactInstaller:
+        """Return the installed application payload without external work."""
+
+        def continue_install(
+            self,
+            *,
+            layout: InstallLayout,
+            release_source: object,
+        ) -> object:
+            """Return one deterministic payload result."""
+
+            _ = release_source
+            return SimpleNamespace(
+                layout=layout,
+                app_command=installed_application.app_command,
+                app_version=installed_application.app_version,
+            )
+
+    executor = QtInstallationExecutor(
+        workflow_factory=workflow_factory(
+            artifact_installer=_FakeArtifactInstaller(),
+        )
+    )
+
+    assert executor.start_initial(
+        layout=layout,
+        frozen_setup=False,
+        release_source=release_source_for_test(),
+        handoff_geometry=None,
+    )
+    assert (
+        executor.start_setup(
+            application=installed_application,
+            setup_command=installed_application.app_command,
+        )
+        is False
+    )
+
+    wait_for_launcher_condition(application, lambda: not executor.initial_running)
+    assert executor.start_setup(
+        application=installed_application,
+        setup_command=installed_application.app_command,
+    )
+    wait_for_launcher_condition(application, lambda: not executor.setup_running)

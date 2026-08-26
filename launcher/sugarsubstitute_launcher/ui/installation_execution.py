@@ -112,9 +112,9 @@ class QtInstallationExecutor(QObject):
         application: InstalledApplication,
         setup_command: Sequence[str],
     ) -> bool:
-        """Start runtime provisioning and setup handoff unless already active."""
+        """Start setup only after initial installation has released its thread."""
 
-        if self._setup_thread is not None:
+        if self._initial_thread is not None or self._setup_thread is not None:
             return False
         thread = QThread(self)
         worker = SetupWorker(

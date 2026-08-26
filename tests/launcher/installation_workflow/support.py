@@ -41,11 +41,16 @@ def wait_for_launcher_condition(
     predicate: Callable[[], bool],
     *,
     timeout_seconds: float = 5.0,
+    state: Callable[[], object] | None = None,
 ) -> None:
     """Wait until observable launcher state proves background work completed."""
 
     _ = application
-    wait_for_qt_condition(predicate, timeout_ms=round(timeout_seconds * 1000))
+    wait_for_qt_condition(
+        predicate,
+        timeout_ms=round(timeout_seconds * 1000),
+        state=state,
+    )
 
 
 def close_and_delete_launcher_window(window: LauncherMainWindow) -> None:
