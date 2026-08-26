@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from typing import Protocol, cast
 
 from cutecanvas import CuteCanvas
@@ -81,6 +82,23 @@ def destroy_widget_roots(candidates: Iterable[QWidget]) -> None:
             destroy_qt_object(widget)
 
 
+@contextmanager
+def widget_root_scope() -> Iterator[None]:
+    """Destroy top-level widgets created within one test-owned Qt scope."""
+
+    application = ensure_qt_application()
+    existing_widget_ids = {id(widget) for widget in application.topLevelWidgets()}
+    try:
+        yield
+    finally:
+        created_roots = tuple(
+            widget
+            for widget in application.topLevelWidgets()
+            if id(widget) not in existing_widget_ids and isinstance(widget, QWidget)
+        )
+        destroy_widget_roots(created_roots)
+
+
 def activate_widget_layouts(*widgets: QWidget) -> None:
     """Resolve mounted widget geometry without draining unrelated Qt events."""
 
@@ -96,4 +114,5 @@ __all__ = [
     "destroy_widget_roots",
     "destroy_qt_object",
     "ensure_qt_application",
+    "widget_root_scope",
 ]

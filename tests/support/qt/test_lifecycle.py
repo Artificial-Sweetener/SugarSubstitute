@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
 import pytest
 from shiboken6 import isValid
 
@@ -71,3 +71,39 @@ def test_destroy_qt_object_detaches_descendant_canvas_input_before_deletion(
     lifecycle.destroy_qt_object(root)
 
     assert canvas.interaction.was_valid_during_shutdown
+
+
+def test_widget_root_scope_preserves_existing_roots_and_destroys_new_tree(
+    qt_application_owner: QApplication,
+) -> None:
+    """Delete one scope's complete widget tree without touching earlier roots."""
+
+    existing_root = QWidget()
+    created_root: QWidget | None = None
+    created_child: QWidget | None = None
+    try:
+        with lifecycle.widget_root_scope():
+            created_root = QWidget()
+            created_child = QWidget(created_root)
+
+        assert isValid(existing_root)
+        assert created_root is not None
+        assert created_child is not None
+        assert not isValid(created_root)
+        assert not isValid(created_child)
+    finally:
+        if isValid(existing_root):
+            lifecycle.destroy_qt_object(existing_root)
+
+
+def test_widget_root_scope_destroys_new_roots_when_test_body_fails() -> None:
+    """Retain deterministic Qt teardown when a test exits through an exception."""
+
+    created_root: QWidget | None = None
+    with pytest.raises(RuntimeError, match="representative test failure"):
+        with lifecycle.widget_root_scope():
+            created_root = QWidget()
+            raise RuntimeError("representative test failure")
+
+    assert created_root is not None
+    assert not isValid(created_root)
