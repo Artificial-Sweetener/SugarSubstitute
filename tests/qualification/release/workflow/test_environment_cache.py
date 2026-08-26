@@ -19,14 +19,17 @@
 from __future__ import annotations
 
 import re
-from typing import cast
 
 import yaml  # type: ignore[import-untyped]
 
 from tests.qualification.release.workflow.support import (
     PROJECT_ROOT,
     WORKFLOW_PATHS,
+    action_step,
     action_path,
+    assert_trusted_cache_policy,
+    load_action,
+    workflow_consumers,
 )
 
 
@@ -80,71 +83,13 @@ _LINUX_QT_PACKAGES = {
     "libxkbcommon0",
     "xvfb",
 }
-_TRUSTED_CACHE_EVENTS = ("push", "workflow_dispatch", "repository_dispatch", "schedule")
 _DIRECT_REQUIREMENT = re.compile(r"^([A-Za-z0-9_.-]+)(?:\[[^]]+\])?==([^;\s]+)")
-
-
-def _action(name: str) -> dict[str, object]:
-    """Load one local action owner."""
-
-    return cast(
-        dict[str, object],
-        yaml.safe_load(action_path(name).read_text(encoding="utf-8")),
-    )
-
-
-def _steps(action: dict[str, object]) -> list[dict[str, object]]:
-    """Return typed composite action steps."""
-
-    runs = action["runs"]
-    assert isinstance(runs, dict)
-    steps = runs["steps"]
-    assert isinstance(steps, list)
-    return steps
-
-
-def _step(action: dict[str, object], name: str) -> dict[str, object]:
-    """Return one named composite action step."""
-
-    return next(step for step in _steps(action) if step["name"] == name)
-
-
-def _workflow_consumers(action_reference: str) -> set[str]:
-    """Return workflows delegating to one local environment owner."""
-
-    return {
-        path.name
-        for path in WORKFLOW_PATHS
-        if action_reference in path.read_text(encoding="utf-8")
-    }
-
-
-def _assert_trusted_cache_policy(
-    action: dict[str, object],
-    trusted_step_name: str,
-    untrusted_step_name: str,
-) -> None:
-    """Require allowlisted writes and restore-only untrusted cache access."""
-
-    trusted = _step(action, trusted_step_name)
-    untrusted = _step(action, untrusted_step_name)
-    trusted_if = str(trusted["if"])
-    untrusted_if = str(untrusted["if"])
-
-    assert trusted["uses"] == ("actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae")
-    assert untrusted["uses"] == (
-        "actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae"
-    )
-    for event in _TRUSTED_CACHE_EVENTS:
-        assert f"github.event_name == '{event}'" in trusted_if
-        assert f"github.event_name != '{event}'" in untrusted_if
-    assert "pull_request" not in trusted_if
 
 
 def test_python_environment_owner_has_complete_consumers() -> None:
     """Keep dependency-bearing jobs on the single verified Python owner."""
 
-    assert _workflow_consumers("./.github/actions/setup-python-toolchain") == (
+    assert workflow_consumers("./.github/actions/setup-python-toolchain") == (
         _PYTHON_CONSUMERS
     )
     workflow_text = "\n".join(
@@ -197,8 +142,8 @@ def test_python_environment_owner_has_complete_consumers() -> None:
 def test_python_cache_identity_covers_every_compatibility_input() -> None:
     """Separate package caches by every runtime and runner compatibility input."""
 
-    action = _action("setup-python-toolchain")
-    identity = str(_step(action, "Resolve package-cache identity")["run"])
+    action = load_action("setup-python-toolchain")
+    identity = str(action_step(action, "Resolve package-cache identity")["run"])
 
     for fragment in (
         "$env:CACHE_EPOCH",
@@ -220,8 +165,8 @@ def test_python_cache_identity_covers_every_compatibility_input() -> None:
 def test_python_cache_writes_are_trusted_and_untrusted_restores_are_read_only() -> None:
     """Prevent externally influenced jobs from publishing trusted cache state."""
 
-    action = _action("setup-python-toolchain")
-    _assert_trusted_cache_policy(
+    action = load_action("setup-python-toolchain")
+    assert_trusted_cache_policy(
         action,
         "Restore trusted package cache",
         "Restore untrusted package cache read-only",
@@ -231,8 +176,8 @@ def test_python_cache_writes_are_trusted_and_untrusted_restores_are_read_only() 
 def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     """Recreate exact environments and recover only from disposable cache damage."""
 
-    action = _action("setup-python-toolchain")
-    sync = _step(action, "Synchronize fresh verified environment")
+    action = load_action("setup-python-toolchain")
+    sync = action_step(action, "Synchronize fresh verified environment")
     script = str(sync["run"])
     inputs = action["inputs"]
     assert isinstance(inputs, dict)
@@ -248,14 +193,16 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     assert "uv cache clean" in script
     assert "--refresh" in script
     assert "uv pip check" in script
-    assert ".venv" not in str(_step(action, "Restore trusted package cache")["with"])
+    assert ".venv" not in str(
+        action_step(action, "Restore trusted package cache")["with"]
+    )
 
-    storage = _step(action, "Resolve isolated package-cache storage")
+    storage = action_step(action, "Resolve isolated package-cache storage")
     storage_script = str(storage["run"])
     assert "$env:RUNNER_TEMP" in storage_script
     assert "sugarsubstitute-uv-$cacheScope-restored-v3" in storage_script
     assert '"tool-path=$toolPath"' in storage_script
-    setup_uv = _step(action, "Resolve exact uv")
+    setup_uv = action_step(action, "Resolve exact uv")
     assert "uses" not in setup_uv
     setup_uv_environment = setup_uv["env"]
     assert isinstance(setup_uv_environment, dict)
@@ -269,22 +216,22 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
     assert "$env:UV_VERSION" in setup_uv_script
     assert "$env:UV_TOOL_PATH" in setup_uv_script
     assert "$env:RUNNER_TEMP" in setup_uv_script
-    trusted_paths = str(_step(action, "Restore trusted package cache")["with"])
+    trusted_paths = str(action_step(action, "Restore trusted package cache")["with"])
     assert "steps.cache-storage.outputs.cache-path" in trusted_paths
     assert "steps.cache-storage.outputs.marker-path" in trusted_paths
     assert "steps.cache-storage.outputs.tool-path" in trusted_paths
 
-    cache_result = str(_step(action, "Record package-cache result")["run"])
+    cache_result = str(action_step(action, "Record package-cache result")["run"])
     assert "$env:MARKER_PATH" in cache_result
     assert "$cacheRestored = $exactHit -or" in cache_result
     assert "Get-ChildItem" not in cache_result
 
-    finalizer = _step(action, "Register lean package-cache finalization")
+    finalizer = action_step(action, "Register lean package-cache finalization")
     assert finalizer["uses"] == "./.github/actions/finalize-uv-cache"
     finalizer_inputs = finalizer["with"]
     assert isinstance(finalizer_inputs, dict)
     assert finalizer_inputs["uv-path"] == "${{ steps.setup-uv.outputs.uv-path }}"
-    finalizer_action = _action("finalize-uv-cache")
+    finalizer_action = load_action("finalize-uv-cache")
     finalizer_runs = finalizer_action["runs"]
     assert isinstance(finalizer_runs, dict)
     assert finalizer_runs["using"] == "node24"
@@ -320,12 +267,12 @@ def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
 def test_node_environment_owner_uses_exact_clean_lock_installation() -> None:
     """Keep release packages on one lock-addressed Node owner."""
 
-    assert _workflow_consumers("./.github/actions/setup-node-toolchain") == (
+    assert workflow_consumers("./.github/actions/setup-node-toolchain") == (
         _NODE_CONSUMERS
     )
-    action = _action("setup-node-toolchain")
-    setup = _step(action, "Set up exact hosted Node.js")
-    install = _step(action, "Install exact release dependencies")
+    action = load_action("setup-node-toolchain")
+    setup = action_step(action, "Set up exact hosted Node.js")
+    install = action_step(action, "Install exact release dependencies")
 
     assert setup["uses"] == (
         "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
@@ -361,12 +308,12 @@ def test_node_environment_owner_uses_exact_clean_lock_installation() -> None:
 def test_linux_qt_owner_skips_complete_runner_images() -> None:
     """Own the native Qt package set and avoid redundant package-manager work."""
 
-    assert _workflow_consumers("./.github/actions/setup-linux-qt") == (
+    assert workflow_consumers("./.github/actions/setup-linux-qt") == (
         _LINUX_QT_CONSUMERS
     )
-    action = _action("setup-linux-qt")
+    action = load_action("setup-linux-qt")
     install_script = str(
-        _step(action, "Install missing Linux Qt runtime packages")["run"]
+        action_step(action, "Install missing Linux Qt runtime packages")["run"]
     )
     package_block = install_script.split("packages=(", maxsplit=1)[1].split(
         ")", maxsplit=1
@@ -387,7 +334,7 @@ def test_linux_qt_owner_skips_complete_runner_images() -> None:
 def test_appimage_packaging_tool_has_one_verified_owner() -> None:
     """Share one fail-closed AppImage build dependency without cache overhead."""
 
-    assert _workflow_consumers("./.github/actions/setup-appimagetool") == (
+    assert workflow_consumers("./.github/actions/setup-appimagetool") == (
         _APPIMAGE_TOOL_CONSUMERS
     )
     action_text = action_path("setup-appimagetool").read_text(encoding="utf-8")
@@ -410,11 +357,11 @@ def test_appimage_packaging_tool_has_one_verified_owner() -> None:
 def test_managed_runtime_cache_has_one_secure_checksum_owner() -> None:
     """Keep managed-runtime dependency reuse exact and untrusted read-only."""
 
-    assert _workflow_consumers("./.github/actions/restore-managed-comfy-cache") == (
+    assert workflow_consumers("./.github/actions/restore-managed-comfy-cache") == (
         _MANAGED_CACHE_CONSUMERS
     )
-    action = _action("restore-managed-comfy-cache")
-    identity = str(_step(action, "Resolve managed-runtime cache identity")["run"])
+    action = load_action("restore-managed-comfy-cache")
+    identity = str(action_step(action, "Resolve managed-runtime cache identity")["run"])
     for fragment in (
         "$env:CACHE_EPOCH",
         "${{ runner.os }}",
@@ -425,7 +372,7 @@ def test_managed_runtime_cache_has_one_secure_checksum_owner() -> None:
         assert fragment in identity
     assert '"restore-key=$prefix-"' in identity
     assert '"primary-key=$prefix-$pinHash"' in identity
-    _assert_trusted_cache_policy(
+    assert_trusted_cache_policy(
         action,
         "Restore trusted managed-runtime cache",
         "Restore untrusted managed-runtime cache read-only",
@@ -507,8 +454,11 @@ def _assert_every_locked_requirement_has_a_hash(lock: str) -> None:
 def test_dependency_caches_exclude_release_and_sensitive_state() -> None:
     """Limit persistent cache paths to exact disposable dependency inputs."""
 
-    python_action = _action("setup-python-toolchain")
-    cache_inputs = _step(python_action, "Restore trusted package cache")["with"]
+    python_action = load_action("setup-python-toolchain")
+    cache_inputs = action_step(
+        python_action,
+        "Restore trusted package cache",
+    )["with"]
     assert isinstance(cache_inputs, dict)
     assert set(cache_inputs) == {"path", "key", "restore-keys"}
     assert str(cache_inputs["path"]).splitlines() == [
@@ -533,7 +483,7 @@ def test_dependency_caches_exclude_release_and_sensitive_state() -> None:
 
     assert all(fragment not in cached_path.lower() for fragment in forbidden)
 
-    managed_action = _action("restore-managed-comfy-cache")
+    managed_action = load_action("restore-managed-comfy-cache")
     managed_inputs = managed_action["inputs"]
     assert isinstance(managed_inputs, dict)
     managed_path = managed_inputs["cache-path"]

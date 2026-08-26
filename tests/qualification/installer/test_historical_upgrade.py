@@ -48,7 +48,7 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
 
     commands: list[list[str]] = []
     setup_requests: list[tuple[Path, Path]] = []
-    prepared_checkouts: list[tuple[Path, str]] = []
+    prepared_checkouts: list[tuple[Path, str, Path]] = []
     prepared_environments: list[tuple[Path, Path]] = []
 
     def _run(command: list[str], **_kwargs: object) -> object:
@@ -86,7 +86,9 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
     )
     monkeypatch.setattr(
         "tools.ci.historical_install_qualification.prepare_checkout",
-        lambda workspace, tag: prepared_checkouts.append((workspace, tag)),
+        lambda workspace, tag, *, source_repository: prepared_checkouts.append(
+            (workspace, tag, source_repository)
+        ),
     )
     monkeypatch.setattr(
         "tools.ci.historical_install_qualification.prepare_environment",
@@ -97,6 +99,7 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
     repository_root = tmp_path / "repository-root"
     workspace = install_root / "comfyui"
     model_root = install_root / "models"
+    source_repository = tmp_path / "source.git"
 
     prepare_portable_historical_install(
         repository_root=repository_root,
@@ -107,6 +110,7 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
         endpoint_port=48188,
         managed_workspace=workspace,
         managed_model_root=model_root,
+        source_repository=source_repository,
         timeout_seconds=60.0,
     )
 
@@ -119,7 +123,7 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
         ]
     ]
     assert setup_requests == [(workspace, model_root)]
-    assert prepared_checkouts == [(workspace, "v0.28.2")]
+    assert prepared_checkouts == [(workspace, "v0.28.2", source_repository)]
     assert prepared_environments == [(repository_root, workspace)]
     assert (install_root / "user" / "settings" / "installation.json").is_file()
     assert (install_root / "user" / "settings" / "runtime.json").is_file()

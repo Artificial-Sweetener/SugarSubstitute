@@ -23,10 +23,28 @@ from pathlib import Path
 import pytest
 
 from tools.ci.comfy_support_matrix import (
+    COMFY_RELEASE_CONTRACTS,
     COMFY_SUPPORT_MATRIX,
     COMFY_UPDATE_MATRIX,
     matrix_entry,
 )
+
+
+def test_comfy_release_contracts_pin_exact_upstream_commits() -> None:
+    """Make source-cache identity independent of movable upstream tag refs."""
+
+    assert {
+        entry.comfyui_tag: entry.commit_sha for entry in COMFY_RELEASE_CONTRACTS
+    } == {
+        "v0.15.0": "b874bd2b8c324d58cfc37bff0754dd16815a8f3c",
+        "v0.17.0": "63d1bbdb407c69370d407ce5ced6ca3f917528a8",
+        "v0.18.0": "dc719cde9c448c65242ae2d4ba400ba18c36846f",
+        "v0.19.0": "acd718598eca0b944a1a7a82072a9dec40d3d4f7",
+        "v0.20.0": "75143eeb06b14bc93db71de207945f6f888be4e0",
+        "v0.24.0": "f49bdb655707b97952dcef40e12e5af1f08d2007",
+        "v0.25.0": "135abed8da169e33ab0b86550e05e3ae55d6df8c",
+        "v0.28.2": "306af3a8771a8232d26bd20acbfc6b07f862ad2b",
+    }
 
 
 def test_comfy_support_matrix_starts_at_explicit_floor_and_ends_at_current() -> None:

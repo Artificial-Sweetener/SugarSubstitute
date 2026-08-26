@@ -69,6 +69,11 @@ jobs:
         uses: ./.github/actions/setup-python-toolchain
         with:
           python-version: ${{ matrix.platform == 'linux' && env.LINUX_PYTHON_VERSION || env.PYTHON_VERSION }}
+      - name: Prepare exact Comfy source inputs
+        id: comfy-source
+        uses: ./.github/actions/prepare-comfy-source-cache
+        with:
+          python: python
       - name: Install Linux runtime dependencies
         if: matrix.platform == 'linux'
         uses: ./.github/actions/setup-linux-qt
@@ -196,6 +201,7 @@ jobs:
             @historicalSource `
             --historical-version "${{ matrix.history.version }}" `
             --historical-published-at "${{ matrix.history.published_at }}" `
+            --source-cache "${{ steps.comfy-source.outputs.cache-path }}" `
             @candidateSource `
             @publishedChannel `
             --timeout-seconds "$env:QUALIFICATION_TIMEOUT_SECONDS" `

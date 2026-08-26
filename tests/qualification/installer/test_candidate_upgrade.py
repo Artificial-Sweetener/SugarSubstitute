@@ -66,6 +66,8 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
             "0.20.1",
             "--historical-published-at",
             "2026-08-12T00:27:36Z",
+            "--source-cache",
+            "source-cache",
             "--candidate-manifest-url",
             "https://example.test/candidate.json",
             "--candidate-version",
@@ -76,6 +78,7 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
     )
 
     assert arguments.timeout_seconds == 1200.0
+    assert arguments.source_cache == Path("source-cache")
 
 
 def test_candidate_installer_updates_history_before_its_only_launch(
