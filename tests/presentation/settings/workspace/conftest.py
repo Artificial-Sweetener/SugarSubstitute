@@ -14,19 +14,20 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own native tab-bar roots created by workflow-tab contracts."""
+"""Own native widget roots created by settings-workspace contracts."""
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 
 import pytest
+
 from tests.support.qt.lifecycle import widget_root_scope
 
 
 @pytest.fixture(autouse=True)
-def workflow_tab_widget_owner() -> Iterator[None]:
-    """Destroy only the top-level widgets created by one workflow-tab test."""
+def settings_workspace_widget_owner() -> Iterator[None]:
+    """Destroy top-level widgets created by one settings-workspace test."""
 
     with widget_root_scope():
         yield

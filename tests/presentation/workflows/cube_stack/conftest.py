@@ -21,21 +21,12 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 import pytest
-from PySide6.QtWidgets import QWidget
-
-from tests.support.qt.lifecycle import destroy_widget_roots, ensure_qt_application
+from tests.support.qt.lifecycle import widget_root_scope
 
 
 @pytest.fixture(autouse=True)
 def cube_stack_widget_owner() -> Iterator[None]:
     """Destroy only the top-level widgets created by one cube-stack test."""
 
-    application = ensure_qt_application()
-    existing_widget_ids = {id(widget) for widget in application.topLevelWidgets()}
-    yield
-    created_roots = tuple(
-        widget
-        for widget in application.topLevelWidgets()
-        if id(widget) not in existing_widget_ids and isinstance(widget, QWidget)
-    )
-    destroy_widget_roots(created_roots)
+    with widget_root_scope():
+        yield
