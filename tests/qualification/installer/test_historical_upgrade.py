@@ -21,22 +21,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import subprocess
-import sys
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
-from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationPlan,
 )
-from tools.ci.historical_install_qualification import (
-    _prepare_qualified_existing_managed_workspace,
-    install_candidate_over_historical_install,
-    prepare_portable_historical_install,
-)
+from tools.ci import historical_install_qualification
 from tools.ci.drive_windows_installer import (
     _wait_for_onboarding_window,
+)
+from tools.ci.historical_install_qualification import (
+    install_candidate_over_historical_install,
+    prepare_portable_historical_install,
 )
 
 
@@ -47,9 +46,7 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
     """Linux and macOS updates should begin from an installed historical payload."""
 
     commands: list[list[str]] = []
-    setup_requests: list[tuple[Path, Path]] = []
-    prepared_checkouts: list[tuple[Path, str, Path]] = []
-    prepared_environments: list[tuple[Path, Path]] = []
+    setup_requests: list[tuple[Path, Path, float]] = []
 
     def _run(command: list[str], **_kwargs: object) -> object:
         """Capture the native install invocation and report success."""
@@ -57,42 +54,26 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
         commands.append(command)
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
-    def _prepare_existing_workspace(
-        *,
-        workspace: Path,
-        model_root: Path,
-        runtime_state_dir: Path,
-    ) -> None:
-        """Record real managed-setup orchestration at the external boundary."""
-
-        assert runtime_state_dir == install_root / "appdata" / "runtime_state"
-        setup_requests.append((workspace, model_root))
-
-    def _prepare_environment(repository_root: Path, workspace: Path) -> Path:
-        """Record real portable-Comfy environment preparation."""
-
-        prepared_environments.append((repository_root, workspace))
-        executable = "Scripts/python.exe" if sys.platform == "win32" else "bin/python"
-        return workspace / ".venv" / executable
-
     monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.subprocess.run",
+        "tools.ci.historical_install_qualification.run_owned_process",
         _run,
     )
+
+    def _materialize(**arguments: object) -> None:
+        """Record the bounded historical managed-state handoff."""
+
+        setup_requests.append(
+            (
+                cast(Path, arguments["managed_workspace"]),
+                cast(Path, arguments["managed_model_root"]),
+                float(cast(float, arguments["timeout_seconds"])),
+            )
+        )
+
     monkeypatch.setattr(
         "tools.ci.historical_install_qualification."
-        "_prepare_qualified_existing_managed_workspace",
-        _prepare_existing_workspace,
-    )
-    monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.prepare_checkout",
-        lambda workspace, tag, *, source_repository: prepared_checkouts.append(
-            (workspace, tag, source_repository)
-        ),
-    )
-    monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.prepare_environment",
-        _prepare_environment,
+        "materialize_historical_managed_configuration",
+        _materialize,
     )
     installer = tmp_path / "candidate-installer"
     install_root = tmp_path / "installed"
@@ -122,18 +103,9 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
             "--manifest-url=https://example.test/v0.12.2/manifest.json",
         ]
     ]
-    assert setup_requests == [(workspace, model_root)]
-    assert prepared_checkouts == [(workspace, "v0.28.2", source_repository)]
-    assert prepared_environments == [(repository_root, workspace)]
-    assert (install_root / "user" / "settings" / "installation.json").is_file()
-    assert (install_root / "user" / "settings" / "runtime.json").is_file()
-    target = json.loads(
-        (install_root / "user" / "settings" / "comfy_target.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert target["mode"] == "managed_local"
-    assert target["workspace_path"] == str(workspace)
+    assert len(setup_requests) == 1
+    assert setup_requests[0][:2] == (workspace, model_root)
+    assert 0.0 < setup_requests[0][2] <= 60.0
 
 
 def test_update_uses_real_candidate_installer_over_historical_state(
@@ -151,7 +123,7 @@ def test_update_uses_real_candidate_installer_over_historical_state(
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.subprocess.run",
+        "tools.ci.historical_install_qualification.run_owned_process",
         _run,
     )
     installer = tmp_path / "candidate-installer"
@@ -175,104 +147,54 @@ def test_update_uses_real_candidate_installer_over_historical_state(
     ]
 
 
-def test_existing_historical_runtime_is_converged_before_readiness_is_recorded(
+def test_portable_historical_install_preserves_one_deadline_through_materialization(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Historical qualification should prove one real existing runtime in order."""
+    """Managed materialization must receive only the install budget still available."""
 
-    from substitute.infrastructure.comfy.managed_environment_validator import (
-        ManagedEnvironmentValidationResult,
-    )
-    from substitute.infrastructure.comfy.managed_setup_cache_storage import (
-        prepare_managed_setup_cache,
-    )
-
-    workspace = tmp_path / "comfyui"
-    model_root = tmp_path / "models"
-    workspace.mkdir()
-    operations: list[str] = []
-
-    def _manager_runtime(*_args: object, **_kwargs: object) -> ComfyManagerRuntime:
-        """Record provisioning and return the runtime qualified downstream."""
-
-        operations.append("manager")
-        executable = workspace / ("python.exe" if sys.platform == "win32" else "python")
-        return ComfyManagerRuntime(
-            kind=ComfyManagerKind.INTEGRATED,
-            workspace=workspace,
-            python_executable=executable,
-            version="4.1",
-        )
-
+    observed_timeout: list[float] = []
+    clock = iter((100.0, 100.0, 105.0))
     monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.ensure_managed_workspace_manager",
-        _manager_runtime,
+        historical_install_qualification,
+        "time",
+        SimpleNamespace(monotonic=lambda: next(clock)),
+        raising=False,
     )
     monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.ensure_core_comfy_nodepacks",
-        lambda *_args, **_kwargs: operations.append("nodepacks"),
-    )
-    monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.run_sugarcubes_baseline_maintenance",
-        lambda *_args, **_kwargs: operations.append("sugarcubes"),
-    )
-    monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.configure_backend_model_root",
-        lambda **_kwargs: operations.append("model_root"),
+        "tools.ci.historical_install_qualification.run_owned_process",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0,
+            stdout="",
+            stderr="",
+        ),
     )
 
-    def _validate(**_kwargs: object) -> ManagedEnvironmentValidationResult:
-        """Return real-runtime evidence at the validation boundary."""
+    def _materialize(**arguments: object) -> None:
+        """Capture the exact remaining budget crossing the owner boundary."""
 
-        operations.append("validation")
-        return ManagedEnvironmentValidationResult(
-            success=True,
-            detail="Managed workspace validation succeeded.",
-            detected_backend="cpu",
-            detected_torch_channel="stable",
-            torch_version="2.13.0",
-            device_name="cpu",
-        )
+        observed_timeout.append(float(cast(float, arguments["timeout_seconds"])))
 
     monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.validate_managed_environment",
-        _validate,
+        "tools.ci.historical_install_qualification."
+        "materialize_historical_managed_configuration",
+        _materialize,
     )
 
-    _prepare_qualified_existing_managed_workspace(
-        workspace=workspace,
-        model_root=model_root,
-        runtime_state_dir=tmp_path / "runtime-state",
+    prepare_portable_historical_install(
+        repository_root=tmp_path,
+        installer_path=tmp_path / "historical-installer",
+        install_root=tmp_path / "installed",
+        manifest_url="https://example.test/v0.12.2/manifest.json",
+        historical_version="0.12.2",
+        endpoint_port=48188,
+        managed_workspace=tmp_path / "managed-comfy",
+        managed_model_root=tmp_path / "models",
+        source_repository=tmp_path / "source.git",
+        timeout_seconds=60.0,
     )
 
-    cache = prepare_managed_setup_cache(workspace)
-    try:
-        payload = json.loads(cache.record_path.read_text(encoding="utf-8"))
-    finally:
-        cache.close()
-    assert operations == [
-        "manager",
-        "nodepacks",
-        "sugarcubes",
-        "model_root",
-        "validation",
-    ]
-    assert payload["success"] is True
-    assert payload["key"]["strategy"]["source"] == ("existing_qualification_runtime")
-    expected_force_cpu_mode = sys.platform != "darwin"
-    assert payload["request"]["force_cpu_mode"] is expected_force_cpu_mode
-    assert payload["runtime_configuration"]["force_cpu_mode"] is expected_force_cpu_mode
-    assert payload["runtime_configuration"]["validation_status"] == "valid"
-    persisted_runtime = json.loads(
-        (tmp_path / "runtime-state" / "managed_runtime.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert persisted_runtime["force_cpu_mode"] is expected_force_cpu_mode
-    assert (
-        persisted_runtime["install_target"].endswith("_cpu") or sys.platform == "darwin"
-    )
+    assert observed_timeout == [55.0]
 
 
 def test_qualification_plan_preserves_legacy_remote_schema(tmp_path: Path) -> None:
