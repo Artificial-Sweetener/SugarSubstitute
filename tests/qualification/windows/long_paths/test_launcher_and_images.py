@@ -27,7 +27,7 @@ from PIL import Image
 
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.payload import safe_extract_zip
+from launcher.sugarsubstitute_launcher.payload import extract_app_payload_archive
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
 )
@@ -48,7 +48,10 @@ def test_launcher_config_and_zip_payload_work_beyond_max_path(
     with zipfile.ZipFile(archive_path, "w") as archive:
         archive.writestr("nested/payload.txt", "payload")
 
-    safe_extract_zip(zip_path=archive_path, destination_dir=layout.app_dir)
+    extract_app_payload_archive(
+        zip_path=archive_path,
+        destination_dir=layout.app_dir,
+    )
 
     config_text = layout.config_path.read_text(encoding="utf-8")
     assert "\\\\?\\" not in config_text
