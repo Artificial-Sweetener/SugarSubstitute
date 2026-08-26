@@ -45,6 +45,7 @@ jobs:
             image: opensuse/leap:16.0
             ca_path: /etc/ssl/ca-bundle.pem
             prepare: >-
+              sed -i 's|http://|https://|g' /etc/zypp/repos.d/*.repo &&
               zypper --non-interactive refresh &&
               zypper --non-interactive install ca-certificates
     runs-on: ubuntu-24.04
