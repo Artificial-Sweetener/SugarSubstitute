@@ -18,7 +18,11 @@
 
 from __future__ import annotations
 
+import io
 import re
+import stat
+import tarfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -121,6 +125,76 @@ def test_runtime_provisioner_extracts_posix_uv_archive_as_executable(
     assert uv_executable == layout.runtime_dir / "uv" / "uv"
     assert uv_executable.read_bytes() == b"uv"
     assert any(path == uv_executable and mode & 0o111 for path, mode in chmod_calls)
+    assert not (layout.runtime_dir / "uv_extract").exists()
+
+
+def test_runtime_provisioner_rejects_uv_zip_symlink(tmp_path: Path) -> None:
+    """The uv ZIP policy rejects links even when their target is contained."""
+
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    archive_path = tmp_path / "uv.zip"
+    symlink = zipfile.ZipInfo("uv-test-target/uv.exe")
+    symlink.create_system = 3
+    symlink.external_attr = (stat.S_IFLNK | 0o777) << 16
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr(symlink, "real-uv.exe")
+    asset = ReleaseAsset(
+        filename=archive_path.name,
+        url=archive_path.as_uri(),
+        sha256=sha256(archive_path),
+        size_bytes=archive_path.stat().st_size,
+    )
+
+    with pytest.raises(RuntimeProvisioningError, match="must not be a symlink"):
+        VerifiedUvExecutableProvider(uv_archive_asset=asset).ensure(layout=layout)
+
+    assert not (layout.runtime_dir / "uv_extract").exists()
+
+
+def test_runtime_provisioner_rejects_uv_tar_path_traversal(tmp_path: Path) -> None:
+    """The uv TAR policy validates every path before writing any member."""
+
+    layout = InstallLayout.from_root(tmp_path / "install", target=LINUX_X64)
+    archive_path = tmp_path / "uv.tar.gz"
+    payload = b"escape"
+    member = tarfile.TarInfo("../escaped")
+    member.size = len(payload)
+    with tarfile.open(archive_path, "w:gz") as archive:
+        archive.addfile(member, io.BytesIO(payload))
+    asset = ReleaseAsset(
+        filename=archive_path.name,
+        url=archive_path.as_uri(),
+        sha256=sha256(archive_path),
+        size_bytes=archive_path.stat().st_size,
+    )
+
+    with pytest.raises(RuntimeProvisioningError, match="unsafe path"):
+        VerifiedUvExecutableProvider(uv_archive_asset=asset).ensure(layout=layout)
+
+    assert not (tmp_path / "escaped").exists()
+    assert not (layout.runtime_dir / "uv_extract").exists()
+
+
+def test_runtime_provisioner_rejects_uv_tar_links(tmp_path: Path) -> None:
+    """The uv TAR policy rejects links before extracting archive content."""
+
+    layout = InstallLayout.from_root(tmp_path / "install", target=LINUX_X64)
+    archive_path = tmp_path / "uv.tar.gz"
+    member = tarfile.TarInfo("uv-x86_64-unknown-linux-gnu/uv")
+    member.type = tarfile.SYMTYPE
+    member.linkname = "real-uv"
+    with tarfile.open(archive_path, "w:gz") as archive:
+        archive.addfile(member)
+    asset = ReleaseAsset(
+        filename=archive_path.name,
+        url=archive_path.as_uri(),
+        sha256=sha256(archive_path),
+        size_bytes=archive_path.stat().st_size,
+    )
+
+    with pytest.raises(RuntimeProvisioningError, match="unsupported type"):
+        VerifiedUvExecutableProvider(uv_archive_asset=asset).ensure(layout=layout)
+
     assert not (layout.runtime_dir / "uv_extract").exists()
 
 

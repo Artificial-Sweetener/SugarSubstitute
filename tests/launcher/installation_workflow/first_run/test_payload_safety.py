@@ -28,7 +28,7 @@ from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseMani
 from launcher.sugarsubstitute_launcher.payload import (
     AppPayloadInstaller,
     PayloadInstallError,
-    safe_extract_zip,
+    extract_app_payload_archive,
 )
 from tests.launcher.installation_workflow.first_run.support import (
     write_valid_payload_zip,
@@ -69,7 +69,10 @@ def test_safe_extract_rejects_path_traversal(tmp_path: Path) -> None:
         archive.writestr("../escape.txt", "bad")
 
     with pytest.raises(PayloadInstallError, match="unsafe path"):
-        safe_extract_zip(zip_path=zip_path, destination_dir=tmp_path / "extract")
+        extract_app_payload_archive(
+            zip_path=zip_path,
+            destination_dir=tmp_path / "extract",
+        )
 
 
 def test_safe_extract_rejects_symlink_entries(tmp_path: Path) -> None:
@@ -82,4 +85,38 @@ def test_safe_extract_rejects_symlink_entries(tmp_path: Path) -> None:
         archive.writestr(symlink_info, "target")
 
     with pytest.raises(PayloadInstallError, match="symlink"):
-        safe_extract_zip(zip_path=zip_path, destination_dir=tmp_path / "extract")
+        extract_app_payload_archive(
+            zip_path=zip_path,
+            destination_dir=tmp_path / "extract",
+        )
+
+
+def test_app_payload_validates_members_before_one_filesystem_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Large payloads must not canonicalize every member through the filesystem."""
+
+    zip_path = tmp_path / "payload.zip"
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        for index in range(250):
+            archive.writestr(f"package/module_{index}.py", "VALUE = 1\n")
+    original_resolve = Path.resolve
+    resolution_count = 0
+
+    def bounded_resolve(path: Path, strict: bool = False) -> Path:
+        """Reject the former per-member filesystem canonicalization strategy."""
+
+        nonlocal resolution_count
+        resolution_count += 1
+        if resolution_count > 1:
+            raise AssertionError("Archive extraction resolved more than its root.")
+        return original_resolve(path, strict=strict)
+
+    monkeypatch.setattr(Path, "resolve", bounded_resolve)
+    destination = tmp_path / "extract"
+
+    extract_app_payload_archive(zip_path=zip_path, destination_dir=destination)
+
+    assert resolution_count == 1
+    assert len(tuple((destination / "package").iterdir())) == 250

@@ -14,12 +14,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Extract launcher ZIP archives without accepting filesystem escapes."""
+"""Extract launcher-managed archives without accepting filesystem escapes."""
 
 from __future__ import annotations
 
 import shutil
 import stat
+import tarfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Literal
@@ -28,6 +29,9 @@ import zipfile
 
 class SecureArchiveError(RuntimeError):
     """Report an unsafe or malformed launcher bundle archive."""
+
+
+ArchiveSymlinkPolicy = Literal["preserve-contained", "reject"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,9 +44,16 @@ class _ArchiveMember:
     link_target: str | None = None
 
 
-def safe_extract_zip(*, zip_path: Path, destination_dir: Path) -> None:
-    """Extract a ZIP while preserving only contained relative symlinks."""
+def safe_extract_zip(
+    *,
+    zip_path: Path,
+    destination_dir: Path,
+    symlink_policy: ArchiveSymlinkPolicy = "preserve-contained",
+) -> None:
+    """Validate a ZIP once, then extract it under one symlink policy."""
 
+    if symlink_policy not in {"preserve-contained", "reject"}:
+        raise ValueError(f"Unsupported archive symlink policy: {symlink_policy}")
     destination_root = destination_dir.resolve()
     if destination_dir.exists() and any(destination_dir.iterdir()):
         raise SecureArchiveError(
@@ -50,7 +61,7 @@ def safe_extract_zip(*, zip_path: Path, destination_dir: Path) -> None:
         )
     destination_dir.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path) as archive:
-        members = _validated_members(archive)
+        members = _validated_members(archive, symlink_policy=symlink_policy)
         for member in members:
             if member.kind == "symlink":
                 continue
@@ -78,10 +89,36 @@ def safe_extract_zip(*, zip_path: Path, destination_dir: Path) -> None:
             )
 
 
-def _validated_members(archive: zipfile.ZipFile) -> tuple[_ArchiveMember, ...]:
+def safe_extract_tar_gzip(*, tar_path: Path, destination_dir: Path) -> None:
+    """Validate and extract one gzip TAR containing only regular paths."""
+
+    if destination_dir.exists() and any(destination_dir.iterdir()):
+        raise SecureArchiveError(
+            f"Archive destination must be empty: {destination_dir}"
+        )
+    with tarfile.open(tar_path, mode="r:gz") as archive:
+        members = archive.getmembers()
+        paths = tuple(_validated_tar_member(member) for member in members)
+        if len(paths) != len(set(paths)):
+            raise SecureArchiveError("Archive contains duplicate member paths.")
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        archive.extractall(destination_dir, members=members, filter="data")
+
+
+def _validated_members(
+    archive: zipfile.ZipFile,
+    *,
+    symlink_policy: ArchiveSymlinkPolicy,
+) -> tuple[_ArchiveMember, ...]:
     """Validate every member and cross-member symlink relationship first."""
 
     members = tuple(_validated_member(archive, info) for info in archive.infolist())
+    if symlink_policy == "reject":
+        symlink = next((member for member in members if member.kind == "symlink"), None)
+        if symlink is not None:
+            raise SecureArchiveError(
+                f"Archive entry must not be a symlink: {symlink.info.filename}"
+            )
     paths = [member.path for member in members]
     if len(paths) != len(set(paths)):
         raise SecureArchiveError("Archive contains duplicate member paths.")
@@ -134,6 +171,24 @@ def _validated_archive_name(member: zipfile.ZipInfo) -> PurePosixPath:
         raise SecureArchiveError(f"Archive entry has unsafe path: {member.filename}")
     if not archive_path.parts:
         raise SecureArchiveError("Archive entry has an empty path.")
+    return archive_path
+
+
+def _validated_tar_member(member: tarfile.TarInfo) -> PurePosixPath:
+    """Return one contained regular TAR path or reject its member type."""
+
+    archive_path = PurePosixPath(member.name.replace("\\", "/"))
+    if (
+        archive_path.is_absolute()
+        or PureWindowsPath(member.name).drive
+        or ".." in archive_path.parts
+        or not archive_path.parts
+    ):
+        raise SecureArchiveError(f"Archive entry has unsafe path: {member.name}")
+    if not (member.isfile() or member.isdir()):
+        raise SecureArchiveError(
+            f"Archive entry has an unsupported type: {member.name}"
+        )
     return archive_path
 
 
@@ -194,4 +249,9 @@ def _normalized_target_parts(
     return tuple(parts)
 
 
-__all__ = ["SecureArchiveError", "safe_extract_zip"]
+__all__ = [
+    "ArchiveSymlinkPolicy",
+    "SecureArchiveError",
+    "safe_extract_tar_gzip",
+    "safe_extract_zip",
+]
