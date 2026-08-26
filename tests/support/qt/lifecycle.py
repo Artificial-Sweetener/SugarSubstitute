@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
-from typing import Protocol, cast
+from typing import Protocol, TypeVar, cast
 
 from cutecanvas import CuteCanvas
 from PySide6.QtCore import QObject
@@ -33,6 +33,33 @@ class _CanvasInteractionPort(Protocol):
 
     def shutdown(self) -> None:
         """Detach application-wide input observation for the canvas."""
+
+
+_WidgetT = TypeVar("_WidgetT", bound=QWidget)
+
+
+class WidgetRootOwner:
+    """Own widget roots that a platform registry cannot reliably discover."""
+
+    def __init__(self) -> None:
+        """Initialize an empty set of explicitly owned widget roots."""
+
+        self._roots: list[QWidget] = []
+
+    def own(self, widget: _WidgetT) -> _WidgetT:
+        """Retain one independently constructed widget root for teardown."""
+
+        self._roots.append(widget)
+        return widget
+
+    def destroy_with(self, discovered_roots: Iterable[QWidget]) -> None:
+        """Destroy explicit and safely discovered roots exactly once."""
+
+        unique_roots: dict[int, QWidget] = {}
+        for widget in (*self._roots, *tuple(discovered_roots)):
+            unique_roots.setdefault(id(widget), widget)
+        destroy_widget_roots(unique_roots.values())
+        self._roots.clear()
 
 
 def ensure_qt_application() -> QApplication:
@@ -83,20 +110,21 @@ def destroy_widget_roots(candidates: Iterable[QWidget]) -> None:
 
 
 @contextmanager
-def widget_root_scope() -> Iterator[None]:
-    """Destroy top-level widgets created within one test-owned Qt scope."""
+def widget_root_scope() -> Iterator[WidgetRootOwner]:
+    """Own explicit roots and safely discover newly registered top-level roots."""
 
     application = ensure_qt_application()
     existing_widget_ids = {id(widget) for widget in application.topLevelWidgets()}
+    owner = WidgetRootOwner()
     try:
-        yield
+        yield owner
     finally:
         created_roots = tuple(
             widget
             for widget in application.topLevelWidgets()
             if id(widget) not in existing_widget_ids and isinstance(widget, QWidget)
         )
-        destroy_widget_roots(created_roots)
+        owner.destroy_with(created_roots)
 
 
 def activate_widget_layouts(*widgets: QWidget) -> None:
@@ -114,5 +142,6 @@ __all__ = [
     "destroy_widget_roots",
     "destroy_qt_object",
     "ensure_qt_application",
+    "WidgetRootOwner",
     "widget_root_scope",
 ]
