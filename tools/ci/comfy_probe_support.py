@@ -37,37 +37,9 @@ from substitute.infrastructure.comfy.manager_environment import (
 )
 from tools.ci.loopback_port_lease import LoopbackPortLease
 
-COMFYUI_REPOSITORY: Final[str] = "https://github.com/Comfy-Org/ComfyUI.git"
 STARTUP_TIMEOUT_SECONDS: Final[float] = 420.0
 REQUEST_TIMEOUT_SECONDS: Final[float] = 10.0
 OUTPUT_LIMIT: Final[int] = 80_000
-
-
-def prepare_checkout(workspace: Path, tag: str) -> None:
-    """Clone an exact immutable upstream tag unless it is already prepared."""
-
-    if workspace.is_dir():
-        actual_tag = git_output(workspace, "describe", "--tags", "--exact-match")
-        if actual_tag != tag:
-            raise RuntimeError(
-                f"Existing compatibility workspace is {actual_tag!r}, expected {tag!r}."
-            )
-        return
-    workspace.parent.mkdir(parents=True, exist_ok=True)
-    run_checked(
-        [
-            "git",
-            "clone",
-            "--branch",
-            tag,
-            "--depth",
-            "1",
-            "--filter=blob:none",
-            COMFYUI_REPOSITORY,
-            str(workspace),
-        ],
-        cwd=workspace.parent,
-    )
 
 
 def prepare_environment(repository_root: Path, workspace: Path) -> Path:
@@ -241,7 +213,12 @@ def probe_server(
         reader.join(timeout=10)
 
 
-def run_checked(command: Sequence[str], *, cwd: Path) -> None:
+def run_checked(
+    command: Sequence[str],
+    *,
+    cwd: Path,
+    timeout_seconds: float | None = None,
+) -> None:
     """Run a logged command without opening a separate console window."""
 
     subprocess.run(
@@ -249,6 +226,7 @@ def run_checked(command: Sequence[str], *, cwd: Path) -> None:
         cwd=cwd,
         check=True,
         creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
+        timeout=timeout_seconds,
     )
 
 
@@ -264,6 +242,7 @@ def git_output(workspace: Path, *arguments: str) -> str:
         encoding="utf-8",
         errors="replace",
         creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
+        timeout=30,
     )
     return result.stdout.strip()
 
@@ -345,7 +324,6 @@ __all__ = [
     "assert_runtime",
     "git_output",
     "log",
-    "prepare_checkout",
     "prepare_environment",
     "probe_server",
     "run_checked",

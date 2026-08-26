@@ -78,7 +78,8 @@ from substitute.infrastructure.onboarding.file_managed_runtime_repository import
 from substitute.infrastructure.onboarding.file_runtime_repository import (
     FileRuntimeConfigurationRepository,
 )
-from tools.ci.comfy_probe_support import prepare_checkout, prepare_environment
+from tools.ci.comfy_probe_support import prepare_environment
+from tools.ci.comfy_source_checkout import prepare_checkout
 from tools.ci.comfy_support_matrix import COMFY_SUPPORT_MATRIX
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 
@@ -93,6 +94,7 @@ def prepare_portable_historical_install(
     endpoint_port: int,
     managed_workspace: Path,
     managed_model_root: Path,
+    source_repository: Path,
     timeout_seconds: float,
     environment: dict[str, str] | None = None,
 ) -> None:
@@ -126,6 +128,7 @@ def prepare_portable_historical_install(
         endpoint_port=endpoint_port,
         managed_workspace=managed_workspace,
         managed_model_root=managed_model_root,
+        source_repository=source_repository,
     )
     print(
         f"HISTORICAL_INSTALLER_COMPLETED version={historical_version}",
@@ -175,6 +178,7 @@ def materialize_historical_managed_configuration(
     endpoint_port: int,
     managed_workspace: Path,
     managed_model_root: Path,
+    source_repository: Path,
 ) -> None:
     """Prepare a real managed target representing an established user install."""
 
@@ -207,7 +211,11 @@ def materialize_historical_managed_configuration(
         )
     )
     qualification_release = COMFY_SUPPORT_MATRIX[-1]
-    prepare_checkout(managed_workspace, qualification_release.comfyui_tag)
+    prepare_checkout(
+        managed_workspace,
+        qualification_release.comfyui_tag,
+        source_repository=source_repository,
+    )
     prepare_environment(repository_root, managed_workspace)
     _prepare_qualified_existing_managed_workspace(
         workspace=managed_workspace,

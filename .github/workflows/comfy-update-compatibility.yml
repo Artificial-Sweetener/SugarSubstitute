@@ -67,8 +67,14 @@ jobs:
         uses: ./.github/actions/setup-python-toolchain
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Prepare exact Comfy source inputs
+        id: comfy-source
+        uses: ./.github/actions/prepare-comfy-source-cache
+        with:
+          python: ${{ matrix.python }}
       - name: Run exact upstream update reconciliation probe
         run: >-
           ${{ matrix.python }} -m tools.ci.run_comfy_update_probe
           --source-tag ${{ matrix.source }}
           --target-tag ${{ matrix.target }}
+          --source-cache "${{ steps.comfy-source.outputs.cache-path }}"

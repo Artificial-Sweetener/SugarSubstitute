@@ -38,6 +38,9 @@ from launcher.sugarsubstitute_launcher.config import (  # noqa: E402
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
 from sugarsubstitute_shared.tls import EXTRA_CA_FILE_ENV  # noqa: E402
+from tools.ci.comfy_source_cache import (  # noqa: E402
+    require_comfy_source_repository,
+)
 from tools.ci.historical_install_qualification import (  # noqa: E402
     assert_historical_user_configuration_preserved,
     install_candidate_over_historical_install,
@@ -183,6 +186,7 @@ def verify_upgrade(
     expected_update_manifest_url: str | None = None,
     candidate_release_root: Path | None = None,
     historical_release_root: Path | None = None,
+    source_cache_path: Path,
     timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
 ) -> None:
     """Install history and reach the candidate shell through one launch action."""
@@ -191,6 +195,7 @@ def verify_upgrade(
     qualification_deadline = time.monotonic() + timeout_seconds
     managed_workspace = install_root.resolve() / "comfyui"
     managed_model_root = install_root.resolve() / "qualified-models"
+    source_repository = require_comfy_source_repository(cache_path=source_cache_path)
     with LoopbackPortLease.acquire() as endpoint_lease:
         with _candidate_release_source(
             release_root=historical_release_root,
@@ -214,6 +219,7 @@ def verify_upgrade(
                 endpoint_port=endpoint_lease.port,
                 managed_workspace=managed_workspace,
                 managed_model_root=managed_model_root,
+                source_repository=source_repository,
                 timeout_seconds=_remaining_qualification_timeout(
                     qualification_deadline,
                     phase="historical native install",
@@ -483,6 +489,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     upgrade.add_argument("--historical-release-root", type=Path)
     upgrade.add_argument("--historical-version", required=True)
     upgrade.add_argument("--historical-published-at", required=True)
+    upgrade.add_argument("--source-cache", type=Path, required=True)
     upgrade.add_argument("--candidate-manifest-url")
     upgrade.add_argument("--candidate-release-root", type=Path)
     upgrade.add_argument("--candidate-version", required=True)
@@ -519,6 +526,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             historical_version=args.historical_version,
             historical_published_at=args.historical_published_at,
             historical_release_root=args.historical_release_root,
+            source_cache_path=args.source_cache,
             candidate_manifest_url=args.candidate_manifest_url,
             candidate_version=args.candidate_version,
             candidate_channel=args.candidate_channel,

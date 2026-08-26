@@ -39,10 +39,11 @@ from tools.ci.comfy_probe_support import (
     assert_runtime,
     git_output,
     log,
-    prepare_checkout,
     prepare_environment,
     probe_server,
 )
+from tools.ci.comfy_source_checkout import prepare_checkout
+from tools.ci.comfy_source_cache import require_comfy_source_repository
 from tools.ci.comfy_support_matrix import matrix_entry
 
 
@@ -57,7 +58,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.workspace is not None
         else repository_root / "build" / "comfy-compatibility" / entry.comfyui_tag
     )
-    prepare_checkout(workspace, entry.comfyui_tag)
+    source_repository = require_comfy_source_repository(
+        cache_path=arguments.source_cache
+    )
+    prepare_checkout(
+        workspace,
+        entry.comfyui_tag,
+        source_repository=source_repository,
+    )
     python_executable = prepare_environment(repository_root, workspace)
     original_head = git_output(workspace, "rev-parse", "HEAD")
     assert_manager_requirement(workspace, entry.manager_version)
@@ -141,6 +149,7 @@ def _parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--comfyui-tag", required=True)
+    parser.add_argument("--source-cache", type=Path, required=True)
     parser.add_argument("--workspace", type=Path)
     return parser.parse_args(argv)
 
