@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 import warnings
 
+from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import ToolTipFilter  # type: ignore[import-untyped]
@@ -56,6 +57,12 @@ def test_real_shell_moves_ambient_hover_to_neutral_target(
     """Cancel every delayed or visible shell tooltip before keyboard input."""
 
     field = real_shell_scenario.workflows.add_prompt_workflow(initial_text="")
+    neutral_target = real_shell_scenario.shell.focus_sentinel
+    neutral_target_center = neutral_target.mapTo(
+        real_shell_scenario.shell,
+        neutral_target.rect().center(),
+    )
+    assert real_shell_scenario.shell.childAt(neutral_target_center) is neutral_target
     tooltip_owner = next(
         widget
         for widget in real_shell_scenario.shell.findChildren(QWidget)
@@ -82,12 +89,30 @@ def test_real_shell_moves_ambient_hover_to_neutral_target(
     all_tooltip_filters = real_shell_scenario.shell.findChildren(ToolTipFilter)
     for pending_filter in all_tooltip_filters:
         pending_filter.timer.start(60_000)
+    QCoreApplication.postEvent(
+        tooltip_owner,
+        QEvent(QEvent.Type.Enter),
+    )
 
     real_shell_scenario.input.focus_editor(field)
+    real_shell_scenario.wait_for_queued_delivery()
 
     assert QApplication.activeWindow() is real_shell_scenario.shell
     assert not tooltip.isVisible()
-    assert all(not item.timer.isActive() for item in all_tooltip_filters)
+    active_tooltip_owners = [
+        {
+            "owner": item.parent(),
+            "owner_name": item.parent().objectName(),
+            "entered": item.isEnter,
+            "tooltip_visible": bool(
+                isinstance(getattr(item, "_tooltip", None), QWidget)
+                and getattr(item, "_tooltip").isVisible()
+            ),
+        }
+        for item in all_tooltip_filters
+        if item.timer.isActive()
+    ]
+    assert active_tooltip_owners == []
 
 
 def test_real_shell_can_disable_hot_path_owner_tracing(tmp_path: Path) -> None:
