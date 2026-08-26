@@ -27,7 +27,7 @@ from PySide6.QtCore import (
     Qt,
     Signal,
 )
-from PySide6.QtGui import QImage
+from PySide6.QtGui import QImage, QResizeEvent
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -278,7 +278,6 @@ class PromptEditorRealShell(QMainWindow):
         self.focus_sentinel.setObjectName("PromptHarnessFocusSentinel")
         self.focus_sentinel.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.focus_sentinel.setFixedSize(4, 4)
-        self.focus_sentinel.show()
         menu_layout = self._menu_container.layout()
         if menu_layout is None:
             raise RuntimeError("Harness menu container must have a layout.")
@@ -366,7 +365,26 @@ class PromptEditorRealShell(QMainWindow):
             output_canvas=self.output_canvas,
         )
         self.canvas_host.activate_canvas("Input", keyboard_focus=False)
+        self.focus_sentinel.show()
+        self._position_focus_sentinel()
         self.activate_for_input()
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
+        """Keep the test-owned outside-focus target visible after shell resizes."""
+
+        super().resizeEvent(event)
+        if hasattr(self, "focus_sentinel"):
+            self._position_focus_sentinel()
+
+    def _position_focus_sentinel(self) -> None:
+        """Place the sentinel above content in a tooltip-free shell corner."""
+
+        margin = 4
+        self.focus_sentinel.move(
+            max(0, self.width() - self.focus_sentinel.width() - margin),
+            max(0, self.height() - self.focus_sentinel.height() - margin),
+        )
+        self.focus_sentinel.raise_()
 
     def activate_for_input(self) -> None:
         """Own the active top-level precondition for native harness input."""

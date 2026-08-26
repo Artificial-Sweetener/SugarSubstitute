@@ -106,10 +106,11 @@ class PromptEditorInputDriver:
         return focus_target
 
     def neutralize_ambient_hover(self) -> None:
-        """Dismiss shell-owned tooltip activity before native input."""
+        """Drain hover delivery before dismissing shell-owned tooltip activity."""
 
         target = self._click_away_target_provider()
         QTest.mouseMove(target, target.rect().center())
+        wait_for_queued_qt_turn()
         for tooltip_filter in self._shell.findChildren(ToolTipFilter):
             tooltip_filter.hideToolTip()
 
