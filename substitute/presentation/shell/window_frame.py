@@ -347,7 +347,10 @@ class SubstituteWindowFrame(AcrylicWindow):  # type: ignore[misc]
         self._apply_theme_styles()
         connect_theme_refresh(self, self._apply_theme_styles)
         self._apply_backdrop()
-        QTimer.singleShot(0, self._apply_backdrop)
+        self._deferred_backdrop_timer = QTimer(self)
+        self._deferred_backdrop_timer.setSingleShot(True)
+        self._deferred_backdrop_timer.timeout.connect(self._apply_backdrop)
+        self._deferred_backdrop_timer.start(0)
 
     def set_workflow_tab_drag_owner(
         self,

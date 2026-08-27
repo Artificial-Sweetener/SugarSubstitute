@@ -382,6 +382,11 @@ class OnboardingWindow(SubstituteWindowFrame):
         self._last_completion: OnboardingCompletion | None = None
         self._emit_close_requested_on_close = True
         self._drag_widgets: set[QWidget] = set()
+        self._current_page_height_refresh_timer = QTimer(self)
+        self._current_page_height_refresh_timer.setSingleShot(True)
+        self._current_page_height_refresh_timer.timeout.connect(
+            self._refresh_current_page_height
+        )
         self._provisioning_output_stream = TerminalOutputStream(max_lines=2000)
         self._preflight_snapshot: ComfyPreflightSnapshot | None = None
         self._preflight_destination: OnboardingPageId | None = None
@@ -1172,7 +1177,7 @@ class OnboardingWindow(SubstituteWindowFrame):
     def _schedule_current_page_height_refresh(self) -> None:
         """Refresh geometry after Qt applies a dynamic child visibility change."""
 
-        QTimer.singleShot(0, self._refresh_current_page_height)
+        self._current_page_height_refresh_timer.start(0)
 
     def _update_progress(self, page_id: OnboardingPageId) -> None:
         """Refresh the compact progress copy shown in the left rail."""

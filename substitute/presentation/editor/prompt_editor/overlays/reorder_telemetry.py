@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 import hashlib
+import time
 
 from PySide6.QtCore import QRectF
 
@@ -30,6 +31,7 @@ from substitute.application.prompt_editor.reorder.views import (
     PromptReorderDropTarget,
 )
 from substitute.shared.logging.logger import (
+    Clock,
     elapsed_ms_since,
     get_logger,
     log_warning,
@@ -78,6 +80,7 @@ class PromptReorderTelemetry:
     """Own prompt-safe reorder diagnostic context and interaction log wrappers."""
 
     pointer_sample_interval: int = 20
+    clock: Clock = time.perf_counter
     _reported_validation_failures: set[tuple[str, tuple[str, ...]]] = field(
         default_factory=set,
         init=False,
@@ -121,12 +124,16 @@ class PromptReorderTelemetry:
         """Log timing when valid and always return elapsed interaction duration."""
 
         try:
-            return log_reorder_drag_timing(event, started_at=started_at, **context)
+            return log_reorder_drag_timing(
+                event,
+                started_at=started_at,
+                **context,
+            )
         except ValueError as error:
             if not self._is_prompt_safe_validation_error(error):
                 raise
             self._warn_validation_failure(event, context, error)
-            return elapsed_ms_since(started_at)
+            return elapsed_ms_since(started_at, clock=self.clock)
 
     def log_slow_path_if_needed(
         self,

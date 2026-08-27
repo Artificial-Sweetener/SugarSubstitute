@@ -18,14 +18,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Protocol
+
+from PySide6.QtWidgets import QWidget
 
 class SignalLike(Protocol):
     """Describe the minimal signal surface used by the wrapper call sites."""
 
     def connect(self, callback: object) -> None: ...
+    def emit(self, *args: object) -> None: ...
 
-class ButtonPartLike(Protocol):
+class ButtonPartLike(QWidget):
     """Describe the split-button child widgets used by local call sites."""
 
     clicked: SignalLike
@@ -37,7 +41,20 @@ class ButtonPartLike(Protocol):
     def setStyleSheet(self, style: str) -> None: ...
     def setEnabled(self, enabled: bool) -> None: ...
 
-class ToggleDropDownToolButton:
+class _PopupToggleMixin:
+    """Track one attached popup and apply combo-box-like toggle semantics."""
+
+    _attached_popup: object | None
+    _attached_popup_marked_open: bool
+    _suppress_next_popup_show: bool
+
+    def _prime_popup_toggle_state(self) -> None: ...
+    def _track_attached_popup(self, popup: object | None) -> None: ...
+    def _toggle_attached_popup(self, show_popup: Callable[[], None]) -> None: ...
+    @staticmethod
+    def _widget_contains_cursor(widget: object) -> bool: ...
+
+class ToggleDropDownToolButton(_PopupToggleMixin, QWidget):
     """Close the attached menu on repeated clicks instead of reopening it."""
 
     def __init__(self, *args: object, **kwargs: object) -> None: ...
@@ -47,11 +64,12 @@ class ToggleDropDownToolButton:
     def setVisible(self, visible: bool) -> None: ...
     def setCursor(self, cursor: object) -> None: ...
     def mouseReleaseEvent(self, event: object) -> None: ...
+    def _showMenu(self) -> None: ...
 
 class ToggleTransparentDropDownToolButton(ToggleDropDownToolButton):
     """Close the attached menu on repeated clicks for transparent tool buttons."""
 
-class ToggleSplitToolButton:
+class ToggleSplitToolButton(_PopupToggleMixin, QWidget):
     """Close the attached flyout on repeated drop-arrow clicks."""
 
     button: ButtonPartLike

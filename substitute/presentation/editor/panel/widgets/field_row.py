@@ -23,7 +23,7 @@ from typing import Any, Callable, Final, Mapping
 
 from PySide6.QtCore import QEvent, QObject, QSize, QTimer, Qt
 from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
-from qfluentwidgets import CaptionLabel
+from qfluentwidgets import CaptionLabel  # type: ignore[import-untyped]
 from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
     StyleSheetBase,
     getStyleSheet,
@@ -40,6 +40,9 @@ from substitute.application.node_behavior import (
 )
 from substitute.presentation.editor.panel.dimension_presets import (
     DimensionPresetCatalogSource,
+)
+from substitute.presentation.editor.panel.field_grouping import (
+    group_visible_field_keys,
 )
 from substitute.presentation.editor.panel.menus.dimension_row_actions import (
     DimensionRowActions,
@@ -245,7 +248,7 @@ class FieldRowBuilder:
 
         line = QWidget(parent)
         line.setFixedHeight(1)
-        line.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        line.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         _apply_field_row_divider_style(line)
         return line
 
@@ -329,7 +332,10 @@ class FieldRowBuilder:
             label_widget = CaptionLabel(literal_label_text(beautify_label(label_text)))
             if field_behavior.label_mode == LabelMode.PROMPT:
                 label_widget.setStyleSheet("font-weight: bold;")
-            label_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+            label_widget.setSizePolicy(
+                QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Preferred,
+            )
             row_layout.addWidget(
                 label_widget,
                 _label_stretch_for_field(widget),
@@ -339,7 +345,10 @@ class FieldRowBuilder:
         if _surface_may_size_field(field_behavior):
             if _should_apply_editor_control_height(field_behavior):
                 apply_editor_control_height(widget)
-            widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+            widget.setSizePolicy(
+                QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Preferred,
+            )
         row_layout.addWidget(
             widget,
             _field_stretch_for_field(widget),
@@ -414,7 +423,10 @@ class FieldRowBuilder:
             panel.col_widgets = {}
 
         row_container = ScalarFieldRowWidget(panel)
-        row_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        row_container.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
         row_container.setStyleSheet("background-color: transparent;")
 
         row_layout = QHBoxLayout(row_container)
@@ -441,7 +453,7 @@ class FieldRowBuilder:
             col_layout.setContentsMargins(0, 0, 0, 0)
             col_layout.setSpacing(EDITOR_ROW_SPACING)
 
-            icon_enum = self._icon_resolver(node_name, label, column_index=index)
+            icon_enum = self._icon_resolver(node_name, label, index)
             if icon_enum is None:
                 col_layout.addSpacing(EDITOR_ROW_ICON_SIZE)
             else:
@@ -458,7 +470,10 @@ class FieldRowBuilder:
                 label_widget = CaptionLabel(
                     literal_label_text(beautify_label(label_text))
                 )
-                label_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+                label_widget.setSizePolicy(
+                    QSizePolicy.Policy.Expanding,
+                    QSizePolicy.Policy.Preferred,
+                )
                 col_layout.addWidget(
                     label_widget,
                     _label_stretch_for_field(widget),
@@ -467,7 +482,10 @@ class FieldRowBuilder:
             if _surface_may_size_field(behavior):
                 if _should_apply_editor_control_height(behavior):
                     apply_editor_control_height(widget)
-                widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+                widget.setSizePolicy(
+                    QSizePolicy.Policy.Expanding,
+                    QSizePolicy.Policy.Preferred,
+                )
             col_layout.addWidget(
                 widget,
                 _field_stretch_for_field(widget),
@@ -547,37 +565,16 @@ class FieldRowBuilder:
     ) -> list[list[str]]:
         """Group visible field keys using resolved behavior-provided grouping rules."""
 
-        keys = [key for key in input_keys if key not in skip_keys]
-        if field_groups:
-            used: set[str] = set()
-            ordered_groups: list[list[str]] = []
-            for key in keys:
-                if key in used:
-                    continue
-                matching_group = None
-                for group in field_groups:
-                    if key in group:
-                        matching_group = group
-                        break
-                if matching_group is None:
-                    ordered_groups.append([key])
-                    used.add(key)
-                    continue
-                visible_group = [
-                    group_key
-                    for group_key in matching_group
-                    if group_key in keys and group_key not in used
-                ]
-                if visible_group:
-                    ordered_groups.append(visible_group)
-                    used.update(visible_group)
-            return ordered_groups
-        return [[key] for key in keys]
+        return group_visible_field_keys(
+            input_keys=input_keys,
+            field_groups=field_groups,
+            skip_keys=skip_keys,
+        )
 
     def _is_hidden(self, field_key: Any) -> bool:
         """Return whether the panel currently hides the given field key."""
 
-        hidden_keys = getattr(self._panel, "_hidden_field_keys", set())
+        hidden_keys: set[object] = getattr(self._panel, "_hidden_field_keys", set())
         return bool(
             field_key in hidden_keys
             or (isinstance(field_key, tuple) and field_key[-1] in hidden_keys)

@@ -27,6 +27,7 @@ from PySide6.QtCore import (
     QEvent,
     QPropertyAnimation,
     QRect,
+    Slot,
     Qt,
 )
 from PySide6.QtGui import QColor, QPainter, QPainterPath
@@ -58,8 +59,8 @@ class RowInteractionFeedback(QObject):
         """Create feedback for one owner widget while leaving geometry to the owner."""
 
         super().__init__(owner)
-        self._owner = owner
-        self._overlay_path = overlay_path
+        self._owner: QWidget | None = owner
+        self._overlay_path: Callable[[QRect], QPainterPath] | None = overlay_path
         self._activation = activation
         self._feedback_enabled = feedback_enabled
         self._cursor_when_enabled = cursor_when_enabled or _pointing_hand_cursor()
@@ -82,6 +83,7 @@ class RowInteractionFeedback(QObject):
         set_mouse_tracking = getattr(self._owner, "setMouseTracking", None)
         if callable(set_mouse_tracking):
             set_mouse_tracking(True)
+        owner.destroyed.connect(self._release)
         self._sync_cursors()
 
     def set_activation(self, callback: Callable[[], None] | None) -> None:
@@ -237,13 +239,17 @@ class RowInteractionFeedback(QObject):
     def paint_overlay(self, painter: QPainter) -> None:
         """Paint the current overlay using the consumer-provided path."""
 
+        owner = self._owner
+        overlay_path = self._overlay_path
+        if owner is None or overlay_path is None:
+            return
         color = self.current_overlay_color()
         if color.alpha() == 0:
             return
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(color)
-        painter.drawPath(self._overlay_path(self._owner.rect()))
+        painter.drawPath(overlay_path(owner.rect()))
 
     def _get_overlay_alpha(self) -> float:
         """Return the current animated overlay alpha."""
@@ -256,7 +262,9 @@ class RowInteractionFeedback(QObject):
         if self._overlay_alpha == alpha:
             return
         self._overlay_alpha = alpha
-        self._owner.update()
+        owner = self._owner
+        if owner is not None:
+            owner.update()
 
     overlayAlpha = Property(float, _get_overlay_alpha, _set_overlay_alpha)
 
@@ -274,7 +282,10 @@ class RowInteractionFeedback(QObject):
         position = _event_owner_position(event)
         if position is None:
             return True
-        contains = getattr(self._owner.rect(), "contains", None)
+        owner = self._owner
+        if owner is None:
+            return False
+        contains = getattr(owner.rect(), "contains", None)
         return not callable(contains) or bool(contains(position))
 
     def _sync_cursors(self) -> None:
@@ -282,10 +293,13 @@ class RowInteractionFeedback(QObject):
 
         if not self._manage_cursor:
             return
+        owner = self._owner
+        if owner is None:
+            return
         cursor = (
             self._cursor_when_enabled if self.is_feedback_enabled() else _arrow_cursor()
         )
-        self._owner.setCursor(cast(Any, cursor))
+        owner.setCursor(cast(Any, cursor))
         for target in self._interactive_targets:
             target.setCursor(cast(Any, cursor))
 
@@ -319,6 +333,20 @@ class RowInteractionFeedback(QObject):
         self._animation.setStartValue(self._overlay_alpha)
         self._animation.setEndValue(target_alpha)
         self._animation.start()
+
+    @Slot()
+    def _release(self) -> None:
+        """Release owner callbacks before Qt destroys the widget subtree."""
+
+        if self._animation is not None:
+            self._animation.stop()
+        for target in self._interactive_targets:
+            target.removeEventFilter(self)
+        self._interactive_targets = ()
+        self._activation = None
+        self._overlay_path = None
+        self._owner = None
+        self._animation = None
 
 
 def is_left_mouse_press(event: object) -> bool:

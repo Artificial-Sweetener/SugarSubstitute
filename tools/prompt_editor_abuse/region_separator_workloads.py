@@ -546,7 +546,9 @@ def _delete_join_split_scenario() -> PromptAbuseScenario:
     separator_start = canonical_source.index("[SEP]")
     actions = (
         _key(canonical_source, "delete", cursor, _REGION_TOKEN),
+        _key(canonical_source, "escape", cursor, _REGION_TOKEN),
         _key(leading_partial_source, "delete", separator_start, ()),
+        _key(canonical_source, "undo", cursor, _REGION_TOKEN),
         _key(initial_source, "undo", cursor, _REGION_TOKEN),
         _passive(
             initial_source,

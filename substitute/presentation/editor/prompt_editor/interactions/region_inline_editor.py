@@ -21,9 +21,17 @@ from __future__ import annotations
 from collections.abc import Callable
 from math import ceil
 
-from PySide6.QtCore import QEvent, QObject, QRect, QRegularExpression, Qt, Signal
+from PySide6.QtCore import (
+    QEvent,
+    QObject,
+    QRect,
+    QRegularExpression,
+    QTimer,
+    Qt,
+    Signal,
+)
 from PySide6.QtGui import QFocusEvent, QKeyEvent, QPalette, QRegularExpressionValidator
-from PySide6.QtWidgets import QLineEdit, QWidget
+from PySide6.QtWidgets import QApplication, QLineEdit, QWidget
 
 from substitute.presentation.editor.prompt_editor.projection.region_chrome_state import (
     PromptRegionChromeEditTarget,
@@ -41,7 +49,14 @@ class _RegionNameLineEdit(QLineEdit):
 
     acceptRequested = Signal()
     cancelRequested = Signal()
-    focusCommitRequested = Signal()
+    focusCommitRequested = Signal(object)
+    focusAcquired = Signal()
+
+    def focusInEvent(self, event: QFocusEvent) -> None:  # noqa: N802
+        """Record the first native focus acquisition for the active edit session."""
+
+        super().focusInEvent(event)
+        self.focusAcquired.emit()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
         """Cancel on Escape and preserve native editing for every other key."""
@@ -60,7 +75,7 @@ class _RegionNameLineEdit(QLineEdit):
         """Commit through the owner when focus leaves the inline editor."""
 
         super().focusOutEvent(event)
-        self.focusCommitRequested.emit()
+        self.focusCommitRequested.emit(event.reason())
 
 
 class PromptRegionInlineEditor(QObject):
@@ -86,6 +101,7 @@ class PromptRegionInlineEditor(QObject):
         self._region_index: int | None = None
         self._commit: PromptRegionInlineCommit | None = None
         self._finishing = False
+        self._focus_has_been_acquired = False
         self._editor = _RegionNameLineEdit(viewport)
         self._editor.setObjectName(REGION_NAME_INLINE_EDITOR_OBJECT_NAME)
         self._editor.setFrame(False)
@@ -97,7 +113,8 @@ class PromptRegionInlineEditor(QObject):
         )
         self._editor.acceptRequested.connect(self.commit)
         self._editor.cancelRequested.connect(self.cancel)
-        self._editor.focusCommitRequested.connect(self.commit)
+        self._editor.focusCommitRequested.connect(self._commit_if_focus_remains_lost)
+        self._editor.focusAcquired.connect(self._record_focus_acquisition)
         self._editor.textChanged.connect(self._handle_text_changed)
         self._editor.hide()
         viewport.installEventFilter(self)
@@ -130,6 +147,7 @@ class PromptRegionInlineEditor(QObject):
             self.commit()
         self._region_index = region_index
         self._commit = commit
+        self._focus_has_been_acquired = False
         self._active_region_sink(region_index)
         self._apply_target_palette(target)
         self._editor.setFont(target.font)
@@ -180,6 +198,33 @@ class PromptRegionInlineEditor(QObject):
             return
         self._finish()
 
+    def _commit_if_focus_remains_lost(self, reason: Qt.FocusReason) -> None:
+        """Commit only when the next Qt turn confirms a durable focus departure."""
+
+        QTimer.singleShot(0, lambda: self._commit_after_focus_transition(reason))
+
+    def _record_focus_acquisition(self) -> None:
+        """Permit focus-loss commits only after this edit session received focus."""
+
+        if self.active:
+            self._focus_has_been_acquired = True
+
+    def _commit_after_focus_transition(self, reason: Qt.FocusReason) -> None:
+        """Preserve an active inline draft across transient viewport focus churn."""
+
+        if (
+            not self.active
+            or not self._focus_has_been_acquired
+            or self._editor.hasFocus()
+        ):
+            return
+        if (
+            QApplication.focusWidget() is None
+            and reason == Qt.FocusReason.ActiveWindowFocusReason
+        ):
+            return
+        self.commit()
+
     def cancel(self) -> None:
         """Close the editor without mutating source text."""
 
@@ -210,6 +255,7 @@ class PromptRegionInlineEditor(QObject):
         try:
             self._region_index = None
             self._commit = None
+            self._focus_has_been_acquired = False
             self._editor.hide()
             self._active_region_sink(None)
         finally:

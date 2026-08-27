@@ -19,14 +19,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import os
 from pathlib import Path
-import tempfile
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_ARTIFACT_ROOT = Path(tempfile.gettempdir()) / "sugarsubstitute_onboarding_automation"
-_EXTERNAL_COMFY_ROOT = _ARTIFACT_ROOT / "external-comfy"
 
 
 @dataclass(frozen=True)
@@ -35,16 +31,16 @@ class ScenarioPaths:
 
     repo_root: Path
     artifact_root: Path
+    sandbox_root: Path
     external_comfy_root: Path
 
 
-def resolve_scenario_paths() -> ScenarioPaths:
-    """Return the deterministic paths shared by onboarding automation work."""
+def resolve_scenario_paths(run_root: Path) -> ScenarioPaths:
+    """Return isolated automation paths beneath the caller-owned run root."""
 
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    os.environ.setdefault("QT_OPENGL", "software")
     return ScenarioPaths(
         repo_root=_REPO_ROOT,
-        artifact_root=_ARTIFACT_ROOT,
-        external_comfy_root=_EXTERNAL_COMFY_ROOT,
+        artifact_root=run_root,
+        sandbox_root=run_root / "sandboxes",
+        external_comfy_root=run_root / "external-comfy",
     )

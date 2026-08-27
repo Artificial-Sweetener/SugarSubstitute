@@ -47,6 +47,7 @@ from substitute.app.bootstrap.localization_composition import (
     build_application_localization_runtime,
     build_node_presentation_service,
 )
+from substitute.app.bootstrap.main_window_runtime import load_main_window_runtime
 from substitute.application.comfy_environment import ComfyEnvironmentService
 from substitute.application.execution import (
     DirectExecutionDispatcher,
@@ -2716,13 +2717,7 @@ def build_main_window(
 
     with _startup_phase(startup_timer, "composition.import_main_window"):
         with trace_span("composition.import_main_window"):
-            module = importlib.import_module(
-                "substitute.presentation.shell.main_window"
-            )
-            main_window_class = getattr(module, "MainWindow")
-            from substitute.presentation.shell.taskbar_progress import (
-                create_taskbar_progress_presenter,
-            )
+            main_window_runtime = load_main_window_runtime()
 
     with _startup_phase(startup_timer, "composition.create_custom_window"):
         with trace_span("composition.create_custom_window"):
@@ -2741,7 +2736,7 @@ def build_main_window(
     with _startup_phase(startup_timer, "composition.construct_main_window"):
         with trace_span("composition.construct_main_window"):
             resolved_backdrop_mode = _resolved_shell_backdrop_mode(appearance_runtime)
-            main_window = main_window_class(
+            main_window = main_window_runtime.main_window_class(
                 menu_container=frame.menuContainer,
                 dependencies=dependencies,
                 startup_timer=startup_timer,
@@ -2751,7 +2746,7 @@ def build_main_window(
                 backdrop_mode=resolved_backdrop_mode,
             )
             main_window.shell_frame_integration_controller.set_taskbar_progress_presenter(
-                create_taskbar_progress_presenter(frame)
+                main_window_runtime.create_taskbar_progress_presenter(frame)
             )
             app_orb = getattr(frame, "appOrbMenuButton", None)
             if app_orb is not None:

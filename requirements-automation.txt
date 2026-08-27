@@ -1,0 +1,5 @@
+# Focused dependency profile for repository automation that calls GitHub APIs.
+
+-c requirements-toolchain.txt
+
+requests==2.34.2

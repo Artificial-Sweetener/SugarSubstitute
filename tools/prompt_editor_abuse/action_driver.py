@@ -18,16 +18,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from time import perf_counter, thread_time
 from typing import Any, cast
 
-from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QPointF, Qt
+from PySide6.QtCore import QCoreApplication, QPoint, QPointF, Qt
 from PySide6.QtGui import (
     QAction,
     QContextMenuEvent,
     QMouseEvent,
     QTextCursor,
-    QWheelEvent,
 )
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
@@ -48,10 +48,22 @@ from .owner_state import (
     capture_prompt_editor_owner_state,
 )
 from .runtime_probe import PromptAbuseRuntimeProbe, PromptAbuseRuntimeSample
+from .weight_action_driver import PromptWeightActionDriver
 
 
 class PromptAbuseActionHost:
     """Own generic Qt input dispatch outside any one editor container."""
+
+    def __init__(self) -> None:
+        """Create capability-owned collaborators for generic prompt actions."""
+
+        self._weight_actions = PromptWeightActionDriver()
+
+    @property
+    def weight_actions(self) -> PromptWeightActionDriver:
+        """Return the owner of weighted-token pointer interactions."""
+
+        return self._weight_actions
 
     def paste_text(self, target: QWidget, text: str) -> None:
         """Paste clipboard text through the focused production input route."""
@@ -203,103 +215,6 @@ class PromptAbuseActionHost:
             pos=end_point,
             delay=0,
         )
-
-    def wheel_weight(self, editor: object, direction: str) -> None:
-        """Wheel the first weighted token through viewport pointer hit testing."""
-
-        prompt_editor = cast(Any, editor)
-        surface = prompt_editor._surface
-        token = next(
-            (
-                candidate
-                for candidate in surface.projection_document().tokens
-                if candidate.kind.value in {"emphasis", "lora"}
-            ),
-            None,
-        )
-        if token is None:
-            raise RuntimeError("Prompt abuse wheel action requires a weighted token.")
-        weight_rect = surface.token_weight_text_rect(token)
-        if weight_rect is None:
-            raise RuntimeError("Prompt abuse wheel token has no visible geometry.")
-        viewport = cast(QWidget, prompt_editor.viewport())
-        local_position = weight_rect.center().toPoint()
-        global_position = viewport.mapToGlobal(local_position)
-        activated_editors = cast(
-            set[int],
-            getattr(self, "_wheel_activated_editor_ids", set()),
-        )
-        if id(prompt_editor) not in activated_editors:
-            QTest.mouseClick(
-                viewport,
-                Qt.MouseButton.LeftButton,
-                pos=local_position,
-                delay=0,
-            )
-            activated_editors.add(id(prompt_editor))
-            self._wheel_activated_editor_ids = activated_editors
-        angle_delta = 120 if direction == "up" else -120
-        event = QWheelEvent(
-            QPointF(local_position),
-            QPointF(global_position),
-            QPoint(),
-            QPoint(0, angle_delta),
-            Qt.MouseButton.NoButton,
-            Qt.KeyboardModifier.NoModifier,
-            Qt.ScrollPhase.ScrollUpdate,
-            False,
-        )
-        QApplication.sendEvent(viewport, event)
-        if not event.isAccepted():
-            raise RuntimeError("Prompt abuse weighted-token wheel was not accepted.")
-
-    def step_weight(self, editor: object, direction: str) -> None:
-        """Click one pop-out weight arrow through the production overlay route."""
-
-        prompt_editor = cast(Any, editor)
-        token = _first_weighted_token(prompt_editor)
-        controls = prompt_editor._token_weight_control_overlay
-        _reveal_weight_controls(prompt_editor, token)
-        control_rect = (
-            controls.increase_rect if direction == "up" else controls.decrease_rect
-        )
-        if control_rect is None or not controls.isVisible():
-            raise RuntimeError("Prompt abuse weight controls did not become visible.")
-        QTest.mouseClick(
-            controls,
-            Qt.MouseButton.LeftButton,
-            pos=controls.mapFromParent(control_rect.center().toPoint()),
-            delay=0,
-        )
-
-    def edit_weight_exact(self, editor: object, value: str) -> None:
-        """Double-click and commit one exact weight through production pointer routing."""
-
-        prompt_editor = cast(Any, editor)
-        token = _first_weighted_token(prompt_editor)
-        surface = prompt_editor._surface
-        _reveal_weight_controls(prompt_editor, token)
-        weight_rect = surface.token_weight_text_rect(token)
-        if weight_rect is None:
-            raise RuntimeError(
-                "Prompt abuse exact-weight token has no visible geometry."
-            )
-        viewport = cast(QWidget, prompt_editor.viewport())
-        global_position = viewport.mapToGlobal(weight_rect.center().toPoint())
-        target = prompt_editor._token_weight_control_overlay
-        QTest.mouseDClick(
-            target,
-            Qt.MouseButton.LeftButton,
-            pos=target.mapFromGlobal(global_position),
-            delay=0,
-        )
-        if not surface.exact_weight_edit_active():
-            raise RuntimeError(
-                "Prompt abuse exact-weight double click was not accepted."
-            )
-        key_target = QApplication.focusWidget() or surface
-        QTest.keyClicks(key_target, value, delay=0)
-        QTest.keyClick(key_target, Qt.Key.Key_Return, delay=0)
 
     def refresh_diagnostics(self, editor: object) -> None:
         """Refresh diagnostics through the production feature controller."""
@@ -478,6 +393,7 @@ def dispatch_action(
     runtime_telemetry: bool = False,
     counter_probe: PromptAbuseActionCounterProbe | None = None,
     counter_deltas: list[PromptAbuseActionOwnerDelta] | None = None,
+    complete_action: Callable[[], None] | None = None,
 ) -> tuple[PromptAbuseDispatchSample, ...]:
     """Dispatch one action and return low-overhead timing evidence."""
 
@@ -566,11 +482,11 @@ def dispatch_action(
             assert action.selection_end is not None
             host.mouse_drag_selection(editor, action.position, action.selection_end)
         elif action.kind == "wheel_weight":
-            host.wheel_weight(editor, action.value)
+            host.weight_actions.wheel(editor, action.value)
         elif action.kind == "step_weight":
-            host.step_weight(editor, action.value)
+            host.weight_actions.step(editor, action.value)
         elif action.kind == "edit_weight_exact":
-            host.edit_weight_exact(editor, action.value)
+            host.weight_actions.edit_exact(editor, action.value)
         elif action.kind == "refresh_diagnostics":
             host.refresh_diagnostics(editor)
         elif action.kind == "lora_picker_open":
@@ -590,6 +506,8 @@ def dispatch_action(
         dispatch_thread_cpu_ms = (thread_time() - thread_cpu_started_at) * 1_000.0
         dispatch_ms = (perf_counter() - started_at) * 1_000.0
         runtime_sample = runtime_probe.finish_sample()
+    if complete_action is not None:
+        complete_action()
     source_exact = _source_matches(editor, action.expected_source)
     caret_exact = _caret_matches(editor, action.expected_cursor_position)
     selection_exact = _anchor_matches(editor, action.expected_anchor_position)
@@ -1114,47 +1032,6 @@ def _action_label(action: PromptAbuseAction) -> str:
     }:
         return f"{action.kind}:{action.value[:32]!r}"
     return action.kind
-
-
-def _first_weighted_token(prompt_editor: Any) -> Any:
-    """Return the first projected emphasis or LoRA token."""
-
-    token = next(
-        (
-            candidate
-            for candidate in prompt_editor._surface.projection_document().tokens
-            if candidate.kind.value in {"emphasis", "lora"}
-        ),
-        None,
-    )
-    if token is None:
-        raise RuntimeError("Prompt abuse pointer action requires a weighted token.")
-    return token
-
-
-def _reveal_weight_controls(prompt_editor: Any, token: Any) -> None:
-    """Reveal token controls through a deterministic viewport mouse-move event."""
-
-    surface = prompt_editor._surface
-    anchor_rect = surface.token_anchor_rect(token)
-    if anchor_rect is None:
-        raise RuntimeError("Prompt abuse weighted token has no control anchor.")
-    viewport = cast(QWidget, prompt_editor.viewport())
-    local_position = anchor_rect.center()
-    global_position = QPointF(viewport.mapToGlobal(local_position.toPoint()))
-    event = QMouseEvent(
-        QEvent.Type.MouseMove,
-        local_position,
-        local_position,
-        global_position,
-        Qt.MouseButton.NoButton,
-        Qt.MouseButton.NoButton,
-        Qt.KeyboardModifier.NoModifier,
-    )
-    QApplication.sendEvent(viewport, event)
-    QApplication.processEvents()
-    prompt_editor._token_weight_control_overlay.refresh_geometry()
-    QApplication.processEvents()
 
 
 def _latency_class(action: PromptAbuseAction) -> PromptAbuseLatencyClass:

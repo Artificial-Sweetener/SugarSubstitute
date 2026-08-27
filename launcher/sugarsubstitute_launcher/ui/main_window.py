@@ -220,6 +220,8 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
     def _start_setup_worker(self) -> None:
         """Start runtime provisioning and onboarding handoff in a worker thread."""
 
+        if self.execution.initial_running:
+            return
         self._show_status_output()
         if self._installed_application is None:
             self._append_log(launcher_text("Install root is not prepared yet."))
@@ -284,7 +286,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
     @Slot(object)
     def _handle_initial_install_succeeded(self, result: object) -> None:
-        """Continue setup after launcher and payload installation."""
+        """Accept installed artifacts while their worker finishes cleanup."""
 
         if not isinstance(result, InstalledApplication):
             self._handle_initial_install_failed(
@@ -292,7 +294,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             )
             return
         self._accept_installed_application(result)
-        self._start_setup_worker()
 
     def _accept_installed_application(self, application: InstalledApplication) -> None:
         """Store installed artifacts and project their visible completion details."""
@@ -355,10 +356,13 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
     @Slot()
     def _handle_initial_install_finished(self) -> None:
-        """Restore initial-install controls after the Qt worker has stopped."""
+        """Advance only after the initial Qt worker has released ownership."""
 
         if self._ui_state is LauncherUiState.PREPARE_INSTALL:
             self._refresh_primary_button()
+            return
+        if self._ui_state is LauncherUiState.INSTALL_RUNTIME:
+            QTimer.singleShot(0, self._start_setup_worker)
 
     def _refresh_primary_button(self) -> None:
         """Project the current setup phase onto editable and primary controls."""

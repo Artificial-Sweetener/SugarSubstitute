@@ -22,9 +22,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import QElapsedTimer, QEventLoop, QPoint, QPointF, QRect, QRectF
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF
 from PySide6.QtGui import QImage
-from PySide6.QtWidgets import QApplication
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 from .action_driver import dispatch_action
 from .backing_store_capture import capture_editor_backing_store
@@ -235,17 +235,15 @@ def _wait_for_reorder_animation_idle(editor: object) -> bool:
     """Wait on the production animation owner before stable-frame validation."""
 
     prompt_editor = cast(Any, editor)
-    elapsed = QElapsedTimer()
-    elapsed.start()
-    while (
-        _reorder_animation_active(prompt_editor)
-        and elapsed.elapsed() < _ANIMATION_SETTLE_TIMEOUT_MS
-    ):
-        QApplication.processEvents(
-            QEventLoop.ProcessEventsFlag.AllEvents,
-            16,
+    try:
+        wait_for_qt_condition(
+            lambda: not _reorder_animation_active(prompt_editor),
+            timeout_ms=_ANIMATION_SETTLE_TIMEOUT_MS,
+            description="prompt reorder animation owner to become idle",
         )
-    return not _reorder_animation_active(prompt_editor)
+    except AssertionError:
+        return False
+    return True
 
 
 def _neutral_bright_viewport_pixels(editor: object, image: QImage) -> int:

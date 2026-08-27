@@ -24,9 +24,9 @@ from pathlib import Path
 from PySide6.QtWidgets import QWidget
 
 from substitute.domain.prompt.preferences.models import PromptWheelAdjustmentMode
-from tests.real_shell_prompt_editor_harness import (
-    PromptFieldHandle,
-    RealShellPromptEditorHarness,
+from tests.support.prompt_editor.real_shell.models import PromptFieldHandle
+from tests.support.prompt_editor.real_shell.scenario import (
+    PromptEditorRealShellScenario,
 )
 
 from .fixture_bundle import build_fixture_bundle
@@ -52,11 +52,11 @@ def create_prompt_abuse_real_shell_harness(
     scenario: PromptAbuseScenario,
     *,
     artifact_root: Path,
-) -> RealShellPromptEditorHarness:
+) -> PromptEditorRealShellScenario:
     """Create the production shell with the scenario's exact fixture bundle."""
 
     fixtures = build_fixture_bundle(scenario)
-    return RealShellPromptEditorHarness(
+    return PromptEditorRealShellScenario(
         artifact_root=artifact_root,
         observe_owner_calls=False,
         prompt_wildcard_catalog_gateway=fixtures.wildcard_catalog_gateway,
@@ -74,7 +74,7 @@ def create_prompt_abuse_real_shell_harness(
 
 
 def prepare_prompt_abuse_real_shell_mount(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     scenario: PromptAbuseScenario,
     *,
     alias: str,
@@ -86,13 +86,13 @@ def prepare_prompt_abuse_real_shell_mount(
         max(1040, requested_width * 2 + 100),
         max(760, requested_height + 240),
     )
-    harness.process_events(cycles=8)
+    harness.wait_for_queued_delivery()
     field = _mount_prompt_field(harness, scenario, alias=alias)
     _apply_requested_editor_panel_width(harness, requested_width=requested_width)
     field.editor.setManualScrollHeight(requested_height)
-    harness.process_events(cycles=8)
-    harness.set_source_cursor_position(field, scenario.cursor_position)
-    target = harness.focus_editor(field)
+    harness.wait_for_queued_delivery()
+    harness.input.set_source_cursor_position(field, scenario.cursor_position)
+    target = harness.input.focus_editor(field)
     prepare_prompt_abuse_fixture_state(harness, field, scenario)
     action_host = RealShellPromptAbuseActionHost(harness, field)
     action_host.prepare_scenario(scenario)
@@ -104,7 +104,7 @@ def prepare_prompt_abuse_real_shell_mount(
 
 
 def _mount_prompt_field(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     scenario: PromptAbuseScenario,
     *,
     alias: str,
@@ -115,14 +115,14 @@ def _mount_prompt_field(
         return mount_cached_workspace_prompt(harness, scenario, alias=alias)
     if scenario.mount_source == "image_sugar_script":
         return mount_image_sugar_script_prompt(harness, scenario, alias=alias)
-    return harness.add_prompt_workflow(
+    return harness.workflows.add_prompt_workflow(
         alias=alias,
         initial_text=scenario.initial_text,
     )
 
 
 def _apply_requested_editor_panel_width(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     *,
     requested_width: int,
 ) -> None:

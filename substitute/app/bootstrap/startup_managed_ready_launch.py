@@ -347,6 +347,7 @@ class StartupManagedReadyLaunchRuntime:
         self,
         *,
         queue: ReadyShellStartupTaskQueueProtocol,
+        prepare_main_window: Callable[[], object],
         target_activation_task: ReadyShellTargetActivationTask,
         shell_build_task: ReadyShellBuildTask,
         metadata_bridge_task: ReadyShellMetadataBridgeTask,
@@ -358,6 +359,7 @@ class StartupManagedReadyLaunchRuntime:
 
         self.runtime.schedule_startup_tasks(
             queue=queue,
+            prepare_main_window=prepare_main_window,
             target_activation_task=target_activation_task,
             start_readiness_timer=self.state.readiness_starter.start,
             shell_build_task=shell_build_task,
@@ -632,9 +634,3 @@ def create_startup_managed_ready_launch_runtime(
             execution_dispatcher_factory=execution_dispatcher_factory,
         ),
     )
-
-
-__all__ = (
-    "StartupManagedReadyLaunchRuntime",
-    "create_startup_managed_ready_launch_runtime",
-)

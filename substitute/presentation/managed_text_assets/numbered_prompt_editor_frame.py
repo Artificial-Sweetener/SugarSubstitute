@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPaintEvent, QPen
 from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QWidget
@@ -77,6 +79,7 @@ class NumberedPromptEditorFrame(QWidget):
         wheel_adjustment_mode: PromptWheelAdjustmentMode = (
             PromptWheelAdjustmentMode.HOVER_DWELL
         ),
+        wheel_intent_now_ms: Callable[[], int] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Create the line-number frame and prompt-aware editor."""
@@ -131,6 +134,7 @@ class NumberedPromptEditorFrame(QWidget):
         self._wheel_intent_controller = WheelIntentController(
             self,
             wheel_adjustment_mode=wheel_adjustment_mode,
+            wheel_intent_now_ms=wheel_intent_now_ms,
         )
         self._wheel_intent_controller.configure_widget(self._editor)
         self._gutter = _LineNumberGutter(self)

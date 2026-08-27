@@ -1,3 +1,21 @@
+## [0.21.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.21.1...v0.21.2) (2026-08-22)
+
+
+### Bug Fixes
+
+* **canvas:** preserve Input focus through transient projections ([9bb0668](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/9bb0668923fdc02c2c229e1da12c068e5209508d))
+* **canvas:** settle picker focus synchronously ([4e6ac9f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/4e6ac9f62f1c37fcade49670d436758cb7356c05))
+* **canvas:** verify picker focus after event dispatch ([1c9f2b6](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/1c9f2b68d6af72913c01dacc1abc72560b1dfc04))
+* **installer:** install managed nodepacks without system Git ([029de3d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/029de3d421aba9f3fac36f9e9aef27c3cad1e01d))
+* **releases:** preserve self-contained macOS history ([4200d4b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/4200d4bf9dbad5e75b20b3d5e736d3981f5f2a3b))
+* **releases:** publish only fully qualified builds ([e0fcadd](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/e0fcaddec25754661e6333a66b9c7bad13869e6f))
+* **releases:** qualify historical installers on every platform ([39c7a4a](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/39c7a4affcc49fea862988e8a11f6c6a431c9e19))
+* **releases:** qualify private Stable assets before publication ([aeb9dd8](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/aeb9dd88e867cd90badcca1cf744afef60008036))
+* **releases:** qualify versioned historical installers ([2211e40](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/2211e4092282a2c6aeffb610a3e6abf0088be4e9))
+* **releases:** resolve Stable versions without write access ([14df3c7](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/14df3c7be0782ec33b999a3ab5d9f0be541bfba4))
+* **releases:** restore reliable release links and titles ([da8df40](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/da8df403d506fe9100bf7f9b92fcdb4add3ce1c4))
+* **releases:** show concise Canary version labels ([2413709](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/2413709c6c56aff6a03af8b6bdf78e593cf724ee))
+
 ## [0.21.1](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.21.0...v0.21.1) (2026-08-16)
 
 

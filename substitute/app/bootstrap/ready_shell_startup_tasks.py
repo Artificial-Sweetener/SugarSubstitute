@@ -33,10 +33,37 @@ class ReadyShellStartupTaskQueueProtocol(Protocol):
         """Start the queued startup task sequence."""
 
 
+class RunnableReadyShellTaskProtocol(Protocol):
+    """Expose execution of one already-composed ready-shell task."""
+
+    def run(self) -> None:
+        """Execute the task."""
+
+
+class ReadyShellStartupTaskScheduler(Protocol):
+    """Schedule composed ready-shell tasks through the canonical queue owner."""
+
+    def __call__(
+        self,
+        *,
+        queue: ReadyShellStartupTaskQueueProtocol,
+        prepare_main_window: Callable[[], object],
+        target_activation_task: RunnableReadyShellTaskProtocol,
+        start_readiness_timer: Callable[[], None],
+        shell_build_task: RunnableReadyShellTaskProtocol,
+        metadata_bridge_task: RunnableReadyShellTaskProtocol,
+        prompt_editor_warmup_task: RunnableReadyShellTaskProtocol,
+        initial_workspace_prehydration_task: RunnableReadyShellTaskProtocol,
+        minimum_shell_ready_task: RunnableReadyShellTaskProtocol,
+    ) -> None:
+        """Schedule all managed-ready startup tasks."""
+
+
 @dataclass(frozen=True, slots=True)
 class ReadyShellStartupTasks:
     """Store ready-shell startup task callbacks in execution order fields."""
 
+    prepare_main_window: Callable[[], None]
     activate_target: Callable[[], None]
     start_readiness_timer: Callable[[], None]
     build_main_window: Callable[[], None]
@@ -52,6 +79,7 @@ def enqueue_ready_shell_startup_tasks(
 ) -> None:
     """Append ready-shell startup tasks in the canonical startup order."""
 
+    queue.add("prepare_main_window", tasks.prepare_main_window)
     queue.add("activate_target", tasks.activate_target)
     queue.add("start_readiness_timer", tasks.start_readiness_timer)
     queue.add("build_main_window", tasks.build_main_window)
@@ -65,6 +93,7 @@ def enqueue_ready_shell_startup_tasks(
 def schedule_ready_shell_startup_tasks(
     *,
     queue: ReadyShellStartupTaskQueueProtocol,
+    prepare_main_window: Callable[[], None],
     activate_target: Callable[[], None],
     start_readiness_timer: Callable[[], None],
     build_main_window: Callable[[], None],
@@ -78,6 +107,7 @@ def schedule_ready_shell_startup_tasks(
     enqueue_ready_shell_startup_tasks(
         queue,
         ReadyShellStartupTasks(
+            prepare_main_window=prepare_main_window,
             activate_target=activate_target,
             start_readiness_timer=start_readiness_timer,
             build_main_window=build_main_window,
@@ -89,9 +119,44 @@ def schedule_ready_shell_startup_tasks(
     )
 
 
+def schedule_ready_shell_task_adapters(
+    *,
+    queue: ReadyShellStartupTaskQueueProtocol,
+    prepare_main_window: Callable[[], object],
+    target_activation_task: RunnableReadyShellTaskProtocol,
+    start_readiness_timer: Callable[[], None],
+    shell_build_task: RunnableReadyShellTaskProtocol,
+    metadata_bridge_task: RunnableReadyShellTaskProtocol,
+    prompt_editor_warmup_task: RunnableReadyShellTaskProtocol,
+    initial_workspace_prehydration_task: RunnableReadyShellTaskProtocol,
+    minimum_shell_ready_task: RunnableReadyShellTaskProtocol,
+) -> None:
+    """Adapt composed startup tasks into the canonical callback sequence."""
+
+    def prepare_main_window_task() -> None:
+        """Load shell presentation collaborators before target activation."""
+
+        prepare_main_window()
+
+    schedule_ready_shell_startup_tasks(
+        queue=queue,
+        prepare_main_window=prepare_main_window_task,
+        activate_target=target_activation_task.run,
+        start_readiness_timer=start_readiness_timer,
+        build_main_window=shell_build_task.run,
+        wire_metadata_bridge=metadata_bridge_task.run,
+        warm_prompt_editor_gui=prompt_editor_warmup_task.run,
+        prehydrate_initial_workspace=initial_workspace_prehydration_task.run,
+        mark_minimum_shell_ready=minimum_shell_ready_task.run,
+    )
+
+
 __all__ = [
+    "ReadyShellStartupTaskScheduler",
     "ReadyShellStartupTaskQueueProtocol",
     "ReadyShellStartupTasks",
+    "RunnableReadyShellTaskProtocol",
     "enqueue_ready_shell_startup_tasks",
     "schedule_ready_shell_startup_tasks",
+    "schedule_ready_shell_task_adapters",
 ]

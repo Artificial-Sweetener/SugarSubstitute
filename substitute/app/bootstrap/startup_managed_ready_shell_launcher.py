@@ -126,12 +126,6 @@ class StartupManagedReadyShellLauncher:
             set_comfy_state=self.ready_shell_runtime_state.set_comfy_state,
             trace_fields=ready_trace_fields,
         )
-        if _should_pre_activate_managed_target(context):
-            try:
-                target_activation_task.activate()
-            except Exception:
-                failure_queue.request_startup_cancel()
-                raise
 
         resolved_appearance = self.resolve_appearance()
         managed_ready_launch.create_managed_startup_prelude(
@@ -351,6 +345,7 @@ class StartupManagedReadyShellLauncher:
         )
         managed_ready_launch.schedule_startup_tasks(
             queue=failure_queue.queue,
+            prepare_main_window=self.shell_ports.prepare_main_window,
             target_activation_task=target_activation_task,
             shell_build_task=shell_build_task,
             metadata_bridge_task=metadata_bridge_task,
@@ -436,13 +431,6 @@ def create_startup_managed_ready_shell_launcher(
         initial_shell_placement=initial_shell_placement,
         provisional_restore_projection=provisional_restore_projection,
     )
-
-
-def _should_pre_activate_managed_target(context: InstallationContext) -> bool:
-    """Return whether activation can safely begin before theme/prelude work."""
-
-    target = context.comfy_target
-    return bool(target.launch_owned and target.workspace_path is not None)
 
 
 __all__ = (

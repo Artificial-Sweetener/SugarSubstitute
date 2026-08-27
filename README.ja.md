@@ -64,7 +64,7 @@ SugarSubstitute はパブリックベータです。私は実際の制作に使�
 
 ### <img src="docs/release/platforms/windows.svg" width="22" height="22" alt=""> Windows x64
 
-**[最新の Windows x64 インストーラーをダウンロード](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**
+**[最新の Windows x64 インストーラーをダウンロード](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Windows-x64.exe)**
 
 インストーラーを実行し、`C:\SugarSubstitute` のような、通常の書き込み可能なフォルダーを選んでください。Program Files は避けてください。Windows のアクセス権がセットアップや更新を妨げる場合があります。
 
@@ -74,7 +74,7 @@ SugarSubstitute はパブリックベータです。私は実際の制作に使�
 
 ### <img src="docs/release/platforms/apple.svg" width="22" height="22" alt=""> macOS Apple Silicon
 
-**[最新の macOS Apple Silicon インストーラーをダウンロード](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**
+**[最新の macOS Apple Silicon インストーラーをダウンロード](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg)**
 
 DMG を開いて SugarSubstitute Setup を起動し、既定の `~/Applications/SugarSubstitute` フォルダーか、自分が所有する別のフォルダーを選びます。マネージドセットアップは Apple Silicon で Apple の MPS アクセラレーションを使います。Intel Mac はサポートしていません。
 
@@ -88,8 +88,8 @@ DMG を開いて SugarSubstitute Setup を起動し、既定の `~/Applications/
 
 お使いのシステムに合うパッケージを選んでください：
 
-- **[最新の Linux x86_64 AppImage をダウンロード](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**：ポータブルインストーラーです。実行可能に設定してから起動してください。
-- **[最新の Linux amd64 Debian パッケージをダウンロード](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest)**：Debian、Ubuntu、および関連ディストリビューション向けです。パッケージをインストールしてから `sugarsubstitute-setup` を実行してください。
+- **[最新の Linux x86_64 AppImage をダウンロード](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-x86_64.AppImage)**：ポータブルインストーラーです。実行可能に設定してから起動してください。
+- **[最新の Linux amd64 Debian パッケージをダウンロード](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-amd64.deb)**：Debian、Ubuntu、および関連ディストリビューション向けです。パッケージをインストールしてから `sugarsubstitute-setup` を実行してください。
 
 既定のインストールフォルダーは `~/.local/share/SugarSubstitute` です。マネージドセットアップは、NVIDIA では CUDA、AMD では ROCm、Intel GPU では XPU を利用します。現在、Linux 向けのマネージド CPU 専用環境はありません。
 

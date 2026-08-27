@@ -26,12 +26,16 @@ from typing import Any, cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QEventLoop
 from PySide6.QtGui import QGuiApplication
-from tests.real_shell_prompt_editor_harness import (
-    PromptFieldHandle,
-    RealShellPromptEditorHarness,
+from substitute.shared.logging.logger import get_logger
+from tests.support.prompt_editor.real_shell.invariants.snapshot import (
+    snapshot_invariant_violations,
 )
+from tests.support.prompt_editor.real_shell.models import PromptFieldHandle
+from tests.support.prompt_editor.real_shell.scenario import (
+    PromptEditorRealShellScenario,
+)
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 from .execution import execute_mounted_scenario
 from .models import (
@@ -47,6 +51,7 @@ from .real_shell_mount import (
 from .reorder_visual_correctness import capture_prompt_reorder_visual_violations
 
 _SETTLE_TIMEOUT_MS = 3_000.0
+_LOGGER = get_logger(__name__)
 
 
 def run_real_shell_scenario(
@@ -95,7 +100,7 @@ def run_real_shell_scenario(
                 deep_trace_enabled=deep_trace,
                 action_host=mounted.action_host,
             )
-            harness.process_events(cycles=4)
+            harness.wait_for_queued_delivery()
     finally:
         harness.close()
     visual_violations = capture_prompt_reorder_visual_violations(
@@ -151,18 +156,22 @@ def _settle_editor(editor: object, expected_source: str) -> tuple[float, bool]:
     """Process queued work until authoritative prompt owners become current."""
 
     started_at = perf_counter()
-    while not _editor_is_current(editor, expected_source):
+    try:
+        wait_for_qt_condition(
+            lambda: _editor_is_current(editor, expected_source),
+            timeout_ms=int(_SETTLE_TIMEOUT_MS),
+            description="prompt abuse semantic, projection, and shell owners to settle",
+            state=lambda: _editor_settlement_state(editor, expected_source),
+        )
+    except AssertionError as error:
         elapsed_ms = (perf_counter() - started_at) * 1_000.0
-        if elapsed_ms >= _SETTLE_TIMEOUT_MS:
-            return elapsed_ms, False
-        app = QGuiApplication.instance()
-        if app is not None:
-            app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 1)
+        _LOGGER.warning("Prompt abuse editor settlement timed out: %s", error)
+        return elapsed_ms, False
     return (perf_counter() - started_at) * 1_000.0, True
 
 
 def _editor_is_current(editor: object, expected_source: str) -> bool:
-    """Return whether source, projection, and semantic-refresh owners agree."""
+    """Return whether semantic, projection, and shell-geometry owners are idle."""
 
     prompt_editor = cast(Any, editor)
     if prompt_editor.toPlainText() != expected_source:
@@ -170,7 +179,13 @@ def _editor_is_current(editor: object, expected_source: str) -> bool:
     surface = prompt_editor._surface
     if surface.projection_document().source_text != expected_source:
         return False
-    if surface._projection_freshness_controller.has_pending_update():
+    if (
+        surface._projection_freshness_controller.has_pending_update()
+        or surface.has_stale_projection_geometry()
+        or prompt_editor._sizing.layout_work_pending
+        or prompt_editor._scroll_delegate.geometry_sync_pending
+        or prompt_editor._scroll_delegate.geometry_follow_up_pending
+    ):
         return False
     semantic_refresh = prompt_editor._interaction_controller._semantic_refresh
     semantic_source = surface.editor_state.semantic.document.source_text
@@ -181,8 +196,38 @@ def _editor_is_current(editor: object, expected_source: str) -> bool:
     )
 
 
+def _editor_settlement_state(editor: object, expected_source: str) -> dict[str, object]:
+    """Return exact owner state when bounded prompt settlement fails."""
+
+    prompt_editor = cast(Any, editor)
+    surface = prompt_editor._surface
+    sizing = prompt_editor._sizing
+    scroll_delegate = prompt_editor._scroll_delegate
+    semantic_refresh = prompt_editor._interaction_controller._semantic_refresh
+    return {
+        "source_current": prompt_editor.toPlainText() == expected_source,
+        "projection_current": (
+            surface.projection_document().source_text == expected_source
+        ),
+        "projection_update_pending": (
+            surface._projection_freshness_controller.has_pending_update()
+        ),
+        "projection_geometry_stale": surface.has_stale_projection_geometry(),
+        "sizing_work_pending": sizing.layout_work_pending,
+        "shell_geometry_sync_pending": scroll_delegate.geometry_sync_pending,
+        "shell_geometry_follow_up_pending": (
+            scroll_delegate.geometry_follow_up_pending
+        ),
+        "semantic_current": (
+            surface.editor_state.semantic.document.source_text == expected_source
+        ),
+        "semantic_refresh_pending": semantic_refresh._pending_request is not None,
+        "semantic_refresh_active": semantic_refresh._active_task_identity is not None,
+    }
+
+
 def _capture_real_shell_correctness(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     field: PromptFieldHandle,
     *,
     scenario: PromptAbuseScenario,
@@ -190,7 +235,7 @@ def _capture_real_shell_correctness(
 ) -> PromptAbuseCorrectnessSnapshot:
     """Capture authoritative real-shell editor state and invariant failures."""
 
-    snapshot = harness.capture_state_snapshot(
+    snapshot = harness.snapshots.capture(
         field,
         label=f"{scenario.name}-repetition-{repetition}",
     )
@@ -205,7 +250,7 @@ def _capture_real_shell_correctness(
             prompt_editor._surface.editor_state.semantic.document.source_text
             == scenario.expected_text
         ),
-        invariant_violations=harness.invariant_violations(snapshot),
+        invariant_violations=snapshot_invariant_violations(snapshot),
     )
 
 
