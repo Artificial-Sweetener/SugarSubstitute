@@ -24,7 +24,7 @@ from typing import cast
 from PySide6.QtWidgets import QApplication
 from pytest import MonkeyPatch
 
-from launcher.sugarsubstitute_launcher import app as launcher_app
+from launcher.sugarsubstitute_launcher import localization as launcher_localization
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.localization import LanguagePreference, resolve_locale
 
@@ -43,12 +43,12 @@ def configure_deterministic_launcher_localization(monkeypatch: MonkeyPatch) -> N
 
     resolved = resolve_locale(LanguagePreference.explicit("en"), ui_languages=())
     monkeypatch.setattr(
-        launcher_app,
+        launcher_localization,
         "resolve_launcher_locale",
         lambda _layout, *, locale_override: resolved,
     )
     monkeypatch.setattr(
-        launcher_app,
+        launcher_localization,
         "build_launcher_localization_runtime",
         lambda _application, **_kwargs: SimpleNamespace(
             manager=object(),

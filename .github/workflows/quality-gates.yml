@@ -34,6 +34,8 @@ jobs:
         run: .\.venv\Scripts\python.exe tools\check_architecture.py
       - name: Check test governance
         run: .\.venv\Scripts\python.exe tools\check_test_governance.py
+      - name: Check splash-first startup
+        run: .\.venv\Scripts\python.exe -m tools.check_splash_first_startup
       - name: Check formatting
         run: .\.venv\Scripts\ruff.exe format --check .
       - name: Lint
