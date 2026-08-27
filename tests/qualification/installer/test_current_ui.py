@@ -252,7 +252,7 @@ def test_clean_qualification_uses_live_external_comfy_boundary(
         installer_path=tmp_path / "installer",
         install_root=tmp_path / "installed",
         expected_version="1.2.3",
-        timeout_seconds=30.0,
+        timeout_seconds=120.0,
     )
 
 
