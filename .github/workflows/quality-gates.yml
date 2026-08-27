@@ -40,3 +40,12 @@ jobs:
         run: .\.venv\Scripts\ruff.exe check .
       - name: Type check
         run: .\.venv\Scripts\mypy.exe --strict substitute tests
+      - name: Checkout Base-Cubes compatibility catalog
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Artificial-Sweetener/Base-Cubes
+          path: build/compatibility/Base-Cubes
+      - name: Check Base-Cubes input-asset contracts
+        run: >-
+          .\.venv\Scripts\python.exe -m tools.check_input_asset_contracts
+          build\compatibility\Base-Cubes

@@ -14,30 +14,4 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Identify picker fields whose execution values belong to asset staging."""
-
-from __future__ import annotations
-
-from substitute.application.workflows.input_asset_field_policy import (
-    InputAssetFieldPolicy,
-)
-
-_INPUT_ASSET_FIELD_POLICY = InputAssetFieldPolicy()
-
-
-def is_runtime_asset_picker_field(
-    *,
-    class_type: str,
-    input_name: str,
-    field_spec: object,
-) -> bool:
-    """Return whether staging, rather than picker fallback, owns the value."""
-
-    return _INPUT_ASSET_FIELD_POLICY.is_asset_field(
-        class_type=class_type,
-        field_key=input_name,
-        field_info=field_spec,
-    )
-
-
-__all__ = ["is_runtime_asset_picker_field"]
+"""Expose static governance for external input-asset semantics."""

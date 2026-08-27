@@ -71,6 +71,14 @@ def validate_repository(
         from tools.cache_governance.validation import validate_cache_governance
 
         diagnostics.extend(validate_cache_governance(root))
+    if (
+        root / "substitute/application/workflows/input_asset_field_policy.py"
+    ).is_file():
+        from tools.input_asset_governance.validation import (
+            validate_input_asset_governance,
+        )
+
+        diagnostics.extend(validate_input_asset_governance(root))
     return sorted(
         diagnostics,
         key=lambda item: (item.path, item.rule, item.severity, item.message),

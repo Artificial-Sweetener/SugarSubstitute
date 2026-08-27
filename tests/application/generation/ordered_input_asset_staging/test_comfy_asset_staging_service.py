@@ -25,8 +25,8 @@ from substitute.application.generation import ComfyAssetStagingService
 from substitute.application.generation.input_asset_staging_plan_service import (
     InputAssetStagingPlanService,
 )
-from substitute.application.workflows.input_asset_endpoint_service import (
-    InputAssetEndpointService,
+from substitute.application.workflows.input_asset_field_service import (
+    InputAssetFieldService,
 )
 from substitute.application.workflows.workflow_graph_section_service import (
     WorkflowGraphSectionService,
@@ -419,10 +419,9 @@ def test_direct_custom_upload_fields_stage_through_semantic_plan(
     }
     definition_gateway = _DefinitionGateway(definitions)
     definition_service = WorkflowNodeDefinitionService(definition_gateway)
-    endpoint_service = InputAssetEndpointService(definition_service)
     staging_plan_service = InputAssetStagingPlanService(
-        endpoint_service,
         WorkflowGraphSectionService(),
+        InputAssetFieldService(definition_service),
     )
     prompt = cast(JsonObject, graph["nodes"])
 
@@ -516,8 +515,8 @@ def test_mask_only_canvas_backing_surface_is_never_injected_or_staged(
     }
     definition_service = WorkflowNodeDefinitionService(_DefinitionGateway(definitions))
     staging_plan_service = InputAssetStagingPlanService(
-        InputAssetEndpointService(definition_service),
         WorkflowGraphSectionService(),
+        InputAssetFieldService(definition_service),
     )
     stager = _FakeStager()
 
@@ -599,8 +598,8 @@ def test_stage_payload_preserves_ordered_prompt_by_region_mask_batch(
         ordered_stager=stager,
         projects_dir=tmp_path,
         input_asset_staging_plan_service=InputAssetStagingPlanService(
-            InputAssetEndpointService(definition_service),
             WorkflowGraphSectionService(),
+            InputAssetFieldService(definition_service),
         ),
     )
     payload: JsonObject = {
@@ -708,10 +707,10 @@ def test_stage_payload_resolves_nested_generation_mask_paths_from_project(
         ordered_stager=stager,
         projects_dir=tmp_path,
         input_asset_staging_plan_service=InputAssetStagingPlanService(
-            InputAssetEndpointService(
+            WorkflowGraphSectionService(),
+            InputAssetFieldService(
                 WorkflowNodeDefinitionService(_DefinitionGateway(definitions))
             ),
-            WorkflowGraphSectionService(),
         ),
     )
 
