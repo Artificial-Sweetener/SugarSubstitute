@@ -21,6 +21,10 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Mapping
 
+from substitute.application.workflows.input_asset_field_policy import (
+    InputAssetFieldPolicy,
+)
+
 from .list_value_resolver import is_choice_field_type
 
 
@@ -33,12 +37,7 @@ class NodeFieldKind(StrEnum):
     PLAIN_FIELD = "plain_field"
 
 
-_ASSET_FIELDS = frozenset(
-    {
-        ("LoadImage", "image"),
-        ("LoadImageMask", "image"),
-    }
-)
+_INPUT_ASSET_FIELD_POLICY = InputAssetFieldPolicy()
 
 
 def classify_node_field(
@@ -47,12 +46,17 @@ def classify_node_field(
     field_key: str,
     node_data: Mapping[str, object],
     field_type: str | None,
+    field_info: object,
 ) -> NodeFieldKind:
     """Return the authoritative behavior class for one node input field."""
 
     if _has_active_list_link(field_key=field_key, node_data=node_data):
         return NodeFieldKind.LINKED_FIELD
-    if (class_type, field_key) in _ASSET_FIELDS:
+    if _INPUT_ASSET_FIELD_POLICY.is_asset_field(
+        class_type=class_type,
+        field_key=field_key,
+        field_info=field_info,
+    ):
         return NodeFieldKind.ASSET_FIELD
     if is_choice_field_type(field_type):
         return NodeFieldKind.COMFY_ENUM_FIELD

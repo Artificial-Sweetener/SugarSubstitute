@@ -119,7 +119,7 @@ class RealComfyInpaintAssetHarness:
                 "--disable-auto-launch",
                 "--disable-all-custom-nodes",
                 "--whitelist-custom-nodes",
-                "Substitute-BackEnd",
+                "substitute-backend",
                 "--disable-metadata",
                 "--input-directory",
                 str(self._root / "input"),

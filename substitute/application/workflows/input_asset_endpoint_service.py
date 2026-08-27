@@ -20,6 +20,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from substitute.application.workflows.input_asset_field_policy import (
+    InputAssetFieldPolicy,
+)
 from substitute.application.workflows.workflow_graph_topology import (
     WorkflowGraphTopology,
 )
@@ -28,25 +31,10 @@ from substitute.application.workflows.workflow_node_definition_service import (
     node_class_type,
 )
 from substitute.domain.workflow import (
-    InputAssetCardinality,
     InputAssetEndpoint,
     InputAssetEndpointIndex,
     InputAssetRole,
 )
-
-_IMAGE_TYPE = "IMAGE"
-_MASK_TYPE = "MASK"
-_LEGACY_UPLOAD_FIELDS: dict[str, str] = {
-    "LoadImage": "image",
-    "LoadImageMask": "image",
-    "SimpleSyrup.LoadMaskBatch": "image",
-}
-_LEGACY_OUTPUT_TYPES: dict[str, tuple[str, ...]] = {
-    "LoadImage": (_IMAGE_TYPE, _MASK_TYPE),
-    "LoadImageMask": (_MASK_TYPE,),
-    "SimpleSyrup.LoadMaskBatch": (_MASK_TYPE,),
-}
-_LEGACY_ORDERED_UPLOAD_CLASSES = frozenset({"SimpleSyrup.LoadMaskBatch"})
 
 
 class InputAssetEndpointService:
@@ -55,12 +43,14 @@ class InputAssetEndpointService:
     def __init__(
         self,
         node_definition_service: WorkflowNodeDefinitionService | None = None,
+        field_policy: InputAssetFieldPolicy | None = None,
     ) -> None:
         """Capture the shared graph-scoped live-definition authority."""
 
         self._node_definition_service = (
             node_definition_service or WorkflowNodeDefinitionService()
         )
+        self._field_policy = field_policy or InputAssetFieldPolicy()
 
     def build_index(
         self,
@@ -81,41 +71,35 @@ class InputAssetEndpointService:
         for node_name, node in topology.nodes.items():
             class_type = node_class_type(node)
             definition = definitions.get(class_type, {})
-            upload_fields = _upload_fields(class_type, definition)
-            if len(upload_fields) > 1:
+            asset_fields = self._field_policy.fields_for_node(class_type, definition)
+            if len(asset_fields) > 1:
                 ambiguous_nodes.add(node_name)
                 continue
-            if not upload_fields:
+            if not asset_fields:
                 continue
-            output_types = _output_types(class_type, definition)
-            used_output_indexes = tuple(
-                edge.output_index
-                for edge in topology.outgoing_edges(node_name)
-                if 0 <= edge.output_index < len(output_types)
-                and output_types[edge.output_index] in {_IMAGE_TYPE, _MASK_TYPE}
-            )
-            used_types = {output_types[index] for index in used_output_indexes}
-            role = _role_for_used_types(used_types)
+            field = asset_fields[0]
+            used_output_indexes = topology.used_output_indexes(node_name)
+            used_roles = {
+                role
+                for output_index in used_output_indexes
+                if (role := field.role_for_output_index(output_index)) is not None
+            }
+            role = _role_for_used_roles(used_roles)
             if role is None:
                 continue
-            selected_type = _IMAGE_TYPE if role is InputAssetRole.IMAGE else _MASK_TYPE
             for output_index in dict.fromkeys(
                 index
                 for index in used_output_indexes
-                if output_types[index] == selected_type
+                if field.role_for_output_index(index) is role
             ):
                 endpoints.append(
                     InputAssetEndpoint(
                         section_key=section_key,
                         node_name=node_name,
-                        field_key=upload_fields[0],
+                        field_key=field.field_key,
                         output_index=output_index,
                         role=role,
-                        cardinality=_input_cardinality(
-                            class_type,
-                            upload_fields[0],
-                            definition,
-                        ),
+                        cardinality=field.cardinality,
                     )
                 )
         return InputAssetEndpointIndex(
@@ -124,115 +108,18 @@ class InputAssetEndpointService:
         )
 
 
-def field_metadata(field_info: object) -> Mapping[str, object]:
-    """Return the metadata mapping from one normalized Comfy widget definition."""
-
-    if isinstance(field_info, (list, tuple)) and len(field_info) > 1:
-        metadata = field_info[1]
-        if isinstance(metadata, Mapping):
-            return metadata
-    return {}
-
-
-def declared_input_type(
-    definition: Mapping[str, object],
-    field_key: str,
-) -> str | None:
-    """Return one normalized declared input socket type when available."""
-
-    input_groups = definition.get("input", {})
-    if not isinstance(input_groups, Mapping):
-        return None
-    for group_name in ("required", "optional"):
-        group = input_groups.get(group_name, {})
-        if not isinstance(group, Mapping):
-            continue
-        field_info = group.get(field_key)
-        if not isinstance(field_info, (list, tuple)) or not field_info:
-            continue
-        declared = field_info[0]
-        return declared.upper() if isinstance(declared, str) else None
-    return None
-
-
-def _upload_fields(
-    class_type: str,
-    definition: Mapping[str, object],
-) -> tuple[str, ...]:
-    """Return trustworthy input-folder image upload widget fields."""
-
-    input_groups = definition.get("input", {})
-    discovered: list[str] = []
-    if isinstance(input_groups, Mapping):
-        for group_name in ("required", "optional"):
-            group = input_groups.get(group_name, {})
-            if not isinstance(group, Mapping):
-                continue
-            for field_key, field_info in group.items():
-                metadata = field_metadata(field_info)
-                folder = metadata.get("image_folder")
-                if metadata.get("image_upload") is True and folder in {None, "input"}:
-                    discovered.append(str(field_key))
-    if not discovered and class_type in _LEGACY_UPLOAD_FIELDS:
-        discovered.append(_LEGACY_UPLOAD_FIELDS[class_type])
-    return tuple(dict.fromkeys(discovered))
-
-
-def _output_types(
-    class_type: str,
-    definition: Mapping[str, object],
-) -> tuple[str, ...]:
-    """Return exact live output socket types or conservative built-in fallbacks."""
-
-    output = definition.get("output")
-    if isinstance(output, (list, tuple)):
-        return tuple(str(value).upper() for value in output)
-    return _LEGACY_OUTPUT_TYPES.get(class_type, ())
-
-
-def _input_cardinality(
-    class_type: str,
-    field_key: str,
-    definition: Mapping[str, object],
-) -> InputAssetCardinality:
-    """Classify one upload field from live metadata with a restore-safe fallback."""
-
-    metadata = field_metadata(_input_field_info(definition, field_key))
-    if metadata.get("allow_batch") is True or metadata.get("multiselect") is True:
-        return InputAssetCardinality.ORDERED
-    if class_type in _LEGACY_ORDERED_UPLOAD_CLASSES:
-        return InputAssetCardinality.ORDERED
-    return InputAssetCardinality.SCALAR
-
-
-def _input_field_info(
-    definition: Mapping[str, object],
-    field_key: str,
-) -> object:
-    """Return one input field definition from its required or optional group."""
-
-    input_groups = definition.get("input", {})
-    if not isinstance(input_groups, Mapping):
-        return None
-    for group_name in ("required", "optional"):
-        group = input_groups.get(group_name, {})
-        if isinstance(group, Mapping) and field_key in group:
-            return group[field_key]
-    return None
-
-
-def _role_for_used_types(used_types: set[str]) -> InputAssetRole | None:
+def _role_for_used_roles(
+    used_roles: set[InputAssetRole],
+) -> InputAssetRole | None:
     """Apply the deliberate image-first policy for dual-used upload nodes."""
 
-    if _IMAGE_TYPE in used_types:
+    if InputAssetRole.IMAGE in used_roles:
         return InputAssetRole.IMAGE
-    if _MASK_TYPE in used_types:
+    if InputAssetRole.MASK in used_roles:
         return InputAssetRole.MASK
     return None
 
 
 __all__ = [
     "InputAssetEndpointService",
-    "declared_input_type",
-    "field_metadata",
 ]

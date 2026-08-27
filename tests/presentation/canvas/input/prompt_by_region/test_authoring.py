@@ -47,6 +47,9 @@ from substitute.application.workflows.canvas_route_projector_port import (
 from substitute.application.workflows.input_asset_endpoint_service import (
     InputAssetEndpointService,
 )
+from substitute.application.workflows.input_asset_field_service import (
+    InputAssetFieldService,
+)
 from substitute.application.workflows.regional_prompt_validation_service import (
     RegionalPromptValidationService,
 )
@@ -319,8 +322,8 @@ def test_prompt_by_region_load_author_restore_and_stage(
         stager=stager,
         projects_dir=tmp_path,
         input_asset_staging_plan_service=InputAssetStagingPlanService(
-            InputAssetEndpointService(definition_service),
             graph_sections,
+            InputAssetFieldService(definition_service),
         ),
     )
     staging = staging_service.stage_payload(
