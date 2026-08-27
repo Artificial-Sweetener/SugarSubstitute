@@ -1,0 +1,362 @@
+#    SugarSubstitute - The desktop native Qt front-end for ComfyUI
+#    Copyright (C) 2026  Artificial Sweetener and contributors
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Tests for workflow-state snapshot codec contracts."""
+
+from __future__ import annotations
+
+from uuid import uuid4
+from pathlib import Path
+
+import pytest
+
+from substitute.domain.generation.seed_control import SeedControlState, SeedMode
+from substitute.domain.workspace_snapshot import SnapshotCodecError
+from substitute.domain.workspace_snapshot.codecs import (
+    workflow_state_from_json,
+    workflow_state_to_json,
+)
+from substitute.domain.workflow import CubeState, ProjectMaskAssetRef, WorkflowState
+from substitute.domain.comfy_workflow import DirectWorkflowState
+
+
+def test_workflow_state_codec_round_trips_cube_version_identity() -> None:
+    """Workflow snapshots should persist cube id and version only."""
+
+    state = WorkflowState(
+        cubes={
+            "Demo": CubeState(
+                cube_id="owner/repo/demo.cube",
+                version="1.7.0",
+                alias="Demo",
+                original_cube={"nodes": {}},
+                buffer={"nodes": {}},
+                bypassed=True,
+            )
+        },
+        stack_order=["Demo"],
+    )
+
+    payload = workflow_state_to_json(state)
+    restored = workflow_state_from_json(payload)
+
+    cubes_payload = payload["cubes"]
+    assert isinstance(cubes_payload, dict)
+    cube_payload = cubes_payload["Demo"]
+    assert isinstance(cube_payload, dict)
+    assert "definition_ref" not in cube_payload
+    assert cube_payload["bypassed"] is True
+    assert restored.cubes["Demo"].cube_id == "owner/repo/demo.cube"
+    assert restored.cubes["Demo"].version == "1.7.0"
+    assert restored.cubes["Demo"].bypassed is True
+
+
+def test_workflow_state_codec_defaults_missing_bypassed_to_false() -> None:
+    """Older workflow snapshots should restore cubes as active by default."""
+
+    state = WorkflowState(
+        cubes={
+            "Demo": CubeState(
+                cube_id="owner/repo/demo.cube",
+                version="1.7.0",
+                alias="Demo",
+                original_cube={"nodes": {}},
+                buffer={"nodes": {}},
+            )
+        },
+        stack_order=["Demo"],
+    )
+    payload = workflow_state_to_json(state)
+    cubes_payload = payload["cubes"]
+    assert isinstance(cubes_payload, dict)
+    cube_payload = cubes_payload["Demo"]
+    assert isinstance(cube_payload, dict)
+    del cube_payload["bypassed"]
+
+    restored = workflow_state_from_json(payload)
+
+    assert restored.cubes["Demo"].bypassed is False
+
+
+def test_workflow_state_codec_round_trips_direct_comfy_document() -> None:
+    """Session persistence should retain the editable direct workflow graph."""
+
+    state = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=Path("workflows/demo.json"),
+            source_workflow={"nodes": [], "links": []},
+            buffer={
+                "nodes": {
+                    "1": {
+                        "class_type": "KSampler",
+                        "inputs": {"seed": 42},
+                        "mode": 4,
+                    }
+                }
+            },
+            ui={"node_behavior_runtime": object(), "expanded": True},
+            dirty=True,
+        )
+    )
+
+    payload = workflow_state_to_json(state)
+    restored = workflow_state_from_json(payload)
+
+    direct_payload = payload["direct_workflow"]
+    assert isinstance(direct_payload, dict)
+    assert direct_payload["ui"] == {"expanded": True}
+    assert restored.direct_workflow is not None
+    assert restored.direct_workflow.source_path == Path("workflows/demo.json")
+    assert restored.direct_workflow.buffer["nodes"]["1"]["mode"] == 4  # type: ignore[index]
+    assert restored.direct_workflow.dirty is True
+
+
+def test_workflow_state_rejects_mixed_cube_and_direct_documents() -> None:
+    """A workflow tab should never own cubes and a complete Comfy graph together."""
+
+    direct = DirectWorkflowState(
+        source_path=Path("demo.json"),
+        source_workflow={"nodes": [], "links": []},
+        buffer={"nodes": {"1": {"class_type": "Node", "inputs": {}}}},
+    )
+
+    with pytest.raises(ValueError, match="cannot be mixed"):
+        WorkflowState(
+            cubes={
+                "Demo": CubeState(
+                    cube_id="owner/repo/demo.cube",
+                    version="1.0.0",
+                    alias="Demo",
+                    original_cube={},
+                    buffer={"nodes": {}},
+                )
+            },
+            stack_order=["Demo"],
+            direct_workflow=direct,
+        )
+
+
+def test_workflow_state_codec_round_trips_seed_control_states() -> None:
+    """Workflow snapshots should persist editor and override seed modes."""
+
+    state = WorkflowState(
+        cubes={
+            "Demo": CubeState(
+                cube_id="owner/repo/demo.cube",
+                version="1.7.0",
+                alias="Demo",
+                original_cube={"nodes": {}},
+                buffer={"nodes": {}},
+                field_control_states={
+                    "KSampler": {"seed": SeedControlState(SeedMode.FIXED)}
+                },
+            )
+        },
+        stack_order=["Demo"],
+        override_control_states={"seed": SeedControlState(SeedMode.FIXED)},
+    )
+
+    payload = workflow_state_to_json(state)
+    restored = workflow_state_from_json(payload)
+
+    cubes_payload = payload["cubes"]
+    assert isinstance(cubes_payload, dict)
+    cube_payload = cubes_payload["Demo"]
+    assert isinstance(cube_payload, dict)
+    assert cube_payload["field_control_states"] == {
+        "KSampler": {"seed": {"mode": "fixed"}}
+    }
+    assert payload["override_control_states"] == {"seed": {"mode": "fixed"}}
+    assert (
+        restored.cubes["Demo"].field_control_states["KSampler"]["seed"].mode
+        == SeedMode.FIXED
+    )
+    assert restored.override_control_states["seed"].mode == SeedMode.FIXED
+
+
+def test_workflow_state_codec_defaults_missing_seed_control_states() -> None:
+    """Older workflow snapshots should restore absent seed modes as implicit random."""
+
+    state = WorkflowState(
+        cubes={
+            "Demo": CubeState(
+                cube_id="owner/repo/demo.cube",
+                version="1.7.0",
+                alias="Demo",
+                original_cube={"nodes": {}},
+                buffer={"nodes": {}},
+            )
+        },
+        stack_order=["Demo"],
+    )
+    payload = workflow_state_to_json(state)
+    cubes_payload = payload["cubes"]
+    assert isinstance(cubes_payload, dict)
+    cube_payload = cubes_payload["Demo"]
+    assert isinstance(cube_payload, dict)
+    del cube_payload["field_control_states"]
+    del payload["override_control_states"]
+
+    restored = workflow_state_from_json(payload)
+
+    assert restored.cubes["Demo"].field_control_states == {}
+    assert restored.override_control_states == {}
+
+
+def test_workflow_state_codec_round_trips_active_canvas_route() -> None:
+    """Workflow snapshots should persist the selected attached canvas route."""
+
+    state = WorkflowState()
+    image_id = uuid4()
+    mask_id = uuid4()
+    state.canvas.active_canvas_route = "Input"
+    state.canvas.bind_image("direct:@synthetic/mask-authority", image_id)
+    state.canvas.input_image_uuid = image_id
+    state.canvas.active_input_mask_uuid = mask_id
+
+    payload = workflow_state_to_json(state)
+    restored = workflow_state_from_json(payload)
+
+    canvas_payload = payload["canvas"]
+    assert isinstance(canvas_payload, dict)
+    assert canvas_payload["active_canvas_route"] == "Input"
+    assert canvas_payload["image_entries"] == [
+        {
+            "input_key": "direct:@synthetic/mask-authority",
+            "image_id": str(image_id),
+        }
+    ]
+    assert canvas_payload["active_input_mask_uuid"] == str(mask_id)
+    assert restored.canvas.active_canvas_route == "Input"
+    restored_entry = restored.canvas.image_entry("direct:@synthetic/mask-authority")
+    assert restored_entry is not None
+    assert restored_entry.image_id == image_id
+    assert restored.canvas.input_image_uuid == image_id
+    assert restored.canvas.active_input_mask_uuid == mask_id
+
+
+def test_workflow_state_codec_round_trips_ordered_regional_masks() -> None:
+    """Snapshots should preserve region identity, order, selection, and color."""
+
+    state = WorkflowState()
+    image_id = uuid4()
+    first_mask_id = uuid4()
+    second_mask_id = uuid4()
+    collection = state.canvas.ensure_regional_mask_collection(
+        ("Prompt by Region", "load_mask_batch")
+    )
+    first = collection.add_region(
+        image_id,
+        mask_id=first_mask_id,
+        asset_ref=ProjectMaskAssetRef("region-one.png"),
+        authored_color="#12Ab34",
+    )
+    second = collection.add_region(image_id, mask_id=second_mask_id)
+    collection.reorder(second.region_id, 0)
+    collection.select(first.region_id)
+
+    restored = workflow_state_from_json(workflow_state_to_json(state))
+
+    restored_collection = restored.canvas.regional_mask_collection(
+        ("Prompt by Region", "load_mask_batch")
+    )
+    assert restored_collection is not None
+    assert [entry.region_id for entry in restored_collection.entries] == [
+        second.region_id,
+        first.region_id,
+    ]
+    assert restored_collection.selected_region_id == first.region_id
+    assert restored_collection.entries[1].authored_color == "#12Ab34"
+    assert restored_collection.entries[1].asset_ref == ProjectMaskAssetRef(
+        "region-one.png"
+    )
+
+
+def test_workflow_state_codec_accepts_snapshots_without_regional_masks() -> None:
+    """Pre-feature canvas payloads should restore with no ordered collections."""
+
+    payload = workflow_state_to_json(WorkflowState())
+    canvas_payload = payload["canvas"]
+    assert isinstance(canvas_payload, dict)
+    canvas_payload.pop("regional_mask_collections")
+
+    restored = workflow_state_from_json(payload)
+
+    assert restored.canvas.regional_mask_collections == {}
+
+
+def test_workflow_state_codec_migrates_legacy_canvas_maps_into_complete_entries() -> (
+    None
+):
+    """Existing cache maps must restore exact image, mask, and owner identities."""
+
+    image_id = uuid4()
+    mask_id = uuid4()
+    payload = workflow_state_to_json(WorkflowState())
+    canvas_payload = payload["canvas"]
+    assert isinstance(canvas_payload, dict)
+    canvas_payload.pop("image_entries")
+    canvas_payload.pop("mask_entries")
+    canvas_payload["input_key_map"] = [
+        {"input_key": "Cube:load_image", "image_id": str(image_id)}
+    ]
+    canvas_payload["mask_associations"] = [
+        {
+            "cube_alias": "Cube",
+            "node_name": "load_mask",
+            "mask_id": str(mask_id),
+        }
+    ]
+    canvas_payload["mask_to_image_map"] = [
+        {"mask_id": str(mask_id), "image_id": str(image_id)}
+    ]
+
+    restored = workflow_state_from_json(payload)
+
+    image_entry = restored.canvas.image_entry("Cube:load_image")
+    mask_entry = restored.canvas.mask_entry(("Cube", "load_mask"))
+    assert image_entry is not None
+    assert mask_entry is not None
+    assert image_entry.image_id == image_id
+    assert mask_entry.mask_id == mask_id
+    assert mask_entry.image_id == image_id
+
+
+def test_workflow_state_codec_rejects_missing_cube_version() -> None:
+    """Saved workflow cubes must have explicit versions."""
+
+    payload = workflow_state_to_json(
+        WorkflowState(
+            cubes={
+                "Demo": CubeState(
+                    cube_id="owner/repo/demo.cube",
+                    version="1.7.0",
+                    alias="Demo",
+                    original_cube={},
+                    buffer={},
+                )
+            },
+            stack_order=["Demo"],
+        )
+    )
+    cubes_payload = payload["cubes"]
+    assert isinstance(cubes_payload, dict)
+    cube_payload = cubes_payload["Demo"]
+    assert isinstance(cube_payload, dict)
+    del cube_payload["version"]
+
+    with pytest.raises(SnapshotCodecError, match="version"):
+        workflow_state_from_json(payload)

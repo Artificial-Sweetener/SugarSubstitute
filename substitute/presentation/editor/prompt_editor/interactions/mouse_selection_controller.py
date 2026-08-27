@@ -216,7 +216,7 @@ class PromptSurfaceMouseHandler:
         *,
         viewport_position: QPointF,
     ) -> bool:
-        """Handle one viewport-local mouse press for token-aware selection."""
+        """Handle one viewport-local press without rebasing it after focus scrolling."""
 
         host = self._host
         host._flush_pending_projection_update(reason="mouse_press")
@@ -237,6 +237,7 @@ class PromptSurfaceMouseHandler:
             self._drag_selection_session = None
             event.accept()
             return True
+        pointer_scroll_offset = host._scroll_offset()
         self._ensure_focus_host_owns_pointer_interaction()
         if self._consume_pending_segment_word_selection_click(
             viewport_position=viewport_position,
@@ -248,7 +249,7 @@ class PromptSurfaceMouseHandler:
         self.clear_pending_segment_word_selection()
         caret_hit = geometry.hit_testing.caret_hit_test(
             viewport_position,
-            scroll_offset=host._scroll_offset(),
+            scroll_offset=pointer_scroll_offset,
         )
         keep_anchor = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
         self._set_cursor_from_projection_hit(

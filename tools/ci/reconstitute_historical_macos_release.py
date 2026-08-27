@@ -28,7 +28,7 @@ from collections.abc import Sequence
 import zipfile
 
 from launcher.sugarsubstitute_launcher.platforms import MACOS_ARM64
-from tools.ci.local_release_server import LOCAL_RELEASE_BASE_URL
+from tools.ci.local_release_server import LOCAL_RELEASE_BASE_URL_PLACEHOLDER
 from tools.release_assets.launcher_archive import (
     validate_installed_launcher_archive,
 )
@@ -67,10 +67,10 @@ def reconstitute_historical_macos_release(
     validate_installed_launcher_archive(launcher_output, target=MACOS_ARM64)
 
     original_launcher_sha256 = _sha256(launcher_source)
-    app_asset["url"] = f"{LOCAL_RELEASE_BASE_URL}/{app_output.name}"
+    app_asset["url"] = f"{LOCAL_RELEASE_BASE_URL_PLACEHOLDER}/{app_output.name}"
     launcher_asset.update(
         {
-            "url": f"{LOCAL_RELEASE_BASE_URL}/{launcher_output.name}",
+            "url": f"{LOCAL_RELEASE_BASE_URL_PLACEHOLDER}/{launcher_output.name}",
             "sha256": _sha256(launcher_output),
             "size_bytes": launcher_output.stat().st_size,
         }
@@ -85,7 +85,9 @@ def reconstitute_historical_macos_release(
             "source_launcher_sha256": original_launcher_sha256,
             "reconstituted_launcher_sha256": _sha256(launcher_output),
             "retained_root": _APP_ROOT,
-            "runtime_source_root": _PYINSTALLER_SIBLING_ROOT,
+            "runtime_source_root": (
+                _PYINSTALLER_SIBLING_ROOT if removed_roots else _APP_ROOT
+            ),
             "runtime_support_root": _APP_FRAMEWORKS_ROOT.as_posix(),
             "removed_roots": list(removed_roots),
         },

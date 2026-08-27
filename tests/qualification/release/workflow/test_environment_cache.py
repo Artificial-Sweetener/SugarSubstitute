@@ -1,0 +1,494 @@
+#    SugarSubstitute - The desktop native Qt front-end for ComfyUI
+#    Copyright (C) 2026  Artificial Sweetener and contributors
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Qualify deterministic dependency environments and disposable CI caches."""
+
+from __future__ import annotations
+
+import re
+
+import yaml  # type: ignore[import-untyped]
+
+from tests.qualification.release.workflow.support import (
+    PROJECT_ROOT,
+    WORKFLOW_PATHS,
+    action_step,
+    action_path,
+    assert_trusted_cache_policy,
+    load_action,
+    workflow_consumers,
+)
+
+
+_PYTHON_CONSUMERS = {
+    "comfy-pin-update.yml",
+    "comfy-runtime-compatibility.yml",
+    "comfy-update-compatibility.yml",
+    "installed-app-smoke.yml",
+    "managed-comfy-install.yml",
+    "native-appearance-screenshots.yml",
+    "platform-tests.yml",
+    "quality-gates.yml",
+    "release-build.yml",
+    "release-current-install-qualification.yml",
+    "release-update-qualification.yml",
+}
+_NODE_CONSUMERS = {
+    "quality-gates.yml",
+    "release-build.yml",
+    "release-candidate.yml",
+    "release-publication.yml",
+    "release-version.yml",
+}
+_LINUX_QT_CONSUMERS = {
+    "installed-app-smoke.yml",
+    "native-appearance-screenshots.yml",
+    "platform-tests.yml",
+    "release-current-install-qualification.yml",
+    "release-update-qualification.yml",
+}
+_MANAGED_CACHE_CONSUMERS = {
+    "managed-comfy-install.yml",
+}
+_APPIMAGE_TOOL_CONSUMERS = {
+    "release-build.yml",
+}
+_LINUX_QT_PACKAGES = {
+    "libegl1",
+    "libfontconfig1",
+    "libgl1",
+    "libpulse0",
+    "libxcb-cursor0",
+    "libxcb-icccm4",
+    "libxcb-image0",
+    "libxcb-keysyms1",
+    "libxcb-render-util0",
+    "libxcb-shape0",
+    "libxcb-util1",
+    "libxcb-xkb1",
+    "libxkbcommon-x11-0",
+    "libxkbcommon0",
+    "xvfb",
+}
+_DIRECT_REQUIREMENT = re.compile(r"^([A-Za-z0-9_.-]+)(?:\[[^]]+\])?==([^;\s]+)")
+
+
+def test_python_environment_owner_has_complete_consumers() -> None:
+    """Keep dependency-bearing jobs on the single verified Python owner."""
+
+    assert workflow_consumers("./.github/actions/setup-python-toolchain") == (
+        _PYTHON_CONSUMERS
+    )
+    workflow_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in WORKFLOW_PATHS
+    )
+    assert "python -m venv" not in workflow_text
+    assert "pip install" not in workflow_text
+    direct_setup_owners = {
+        path.name
+        for path in WORKFLOW_PATHS
+        if "actions/setup-python@" in path.read_text(encoding="utf-8")
+    }
+    assert direct_setup_owners == {"release-qualification.yml"}
+    release_qualification = yaml.safe_load(
+        (
+            PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"
+        ).read_text(encoding="utf-8")
+    )
+    direct_setup_jobs = {
+        name
+        for name, job in release_qualification["jobs"].items()
+        if any(
+            "actions/setup-python@" in str(step.get("uses", ""))
+            for step in job.get("steps", ())
+        )
+    }
+    assert direct_setup_jobs == {"resolve-upgrades"}
+    resolve_upgrades = release_qualification["jobs"]["resolve-upgrades"]
+    resolve_script = "\n".join(
+        str(step.get("run", "")) for step in resolve_upgrades["steps"]
+    )
+    assert "python -m tools.ci.resolve_upgrade_sources" in resolve_script
+    assert not re.search(r"\b(?:pip|uv|venv)\b", resolve_script)
+
+    for path in WORKFLOW_PATHS:
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for job in workflow.get("jobs", {}).values():
+            steps = job.get("steps", ())
+            command_text = "\n".join(str(step.get("run", "")) for step in steps)
+            if re.search(
+                r"(?<![\w.-])(?:python|pip|uv)(?:\.exe)?(?:\s|$)",
+                command_text,
+                re.IGNORECASE,
+            ):
+                assert any(
+                    "setup-python" in str(step.get("uses", "")) for step in steps
+                ), path.name
+
+
+def test_python_cache_identity_covers_every_compatibility_input() -> None:
+    """Separate package caches by every runtime and runner compatibility input."""
+
+    action = load_action("setup-python-toolchain")
+    identity = str(action_step(action, "Resolve package-cache identity")["run"])
+
+    for fragment in (
+        "$env:CACHE_EPOCH",
+        "$env:CACHE_SCOPE",
+        "${{ runner.os }}",
+        "${{ runner.arch }}",
+        "$env:ImageOS",
+        "$env:ImageVersion",
+        "$env:PYTHON_VERSION",
+        "uv0.12.3",
+        "$bootstrapLockHash",
+        "$lockHash",
+    ):
+        assert fragment in identity
+    assert '"restore-key=$prefix-"' in identity
+    assert '"primary-key=$prefix-$lockHash"' in identity
+
+
+def test_python_cache_writes_are_trusted_and_untrusted_restores_are_read_only() -> None:
+    """Prevent externally influenced jobs from publishing trusted cache state."""
+
+    action = load_action("setup-python-toolchain")
+    assert_trusted_cache_policy(
+        action,
+        "Restore trusted package cache",
+        "Restore untrusted package cache read-only",
+    )
+
+
+def test_python_environment_is_fresh_exact_and_cache_recoverable() -> None:
+    """Recreate exact environments and recover only from disposable cache damage."""
+
+    action = load_action("setup-python-toolchain")
+    sync = action_step(action, "Synchronize fresh verified environment")
+    script = str(sync["run"])
+    inputs = action["inputs"]
+    assert isinstance(inputs, dict)
+    cache_epoch = inputs["cache-epoch"]
+    assert isinstance(cache_epoch, dict)
+    assert cache_epoch["default"] == "3"
+
+    assert "uv venv --clear" in script
+    assert "uv pip sync" in script
+    assert "--require-hashes --strict" in script
+    assert "--no-python-downloads" in script
+    assert '$env:CACHE_RESTORED -eq "true"' in script
+    assert "uv cache clean" in script
+    assert "--refresh" in script
+    assert "uv pip check" in script
+    assert ".venv" not in str(
+        action_step(action, "Restore trusted package cache")["with"]
+    )
+
+    storage = action_step(action, "Resolve isolated package-cache storage")
+    storage_script = str(storage["run"])
+    assert "$env:RUNNER_TEMP" in storage_script
+    assert "sugarsubstitute-uv-$cacheScope-restored-v3" in storage_script
+    assert '"tool-path=$toolPath"' in storage_script
+    setup_uv = action_step(action, "Resolve exact uv")
+    assert "uses" not in setup_uv
+    setup_uv_environment = setup_uv["env"]
+    assert isinstance(setup_uv_environment, dict)
+    assert setup_uv_environment["UV_BOOTSTRAP_LOCK"] == (
+        "requirements-ci-bootstrap.lock"
+    )
+    assert setup_uv_environment["UV_VERSION"] == "0.12.3"
+    setup_uv_script = str(setup_uv["run"])
+    assert "python -m pip install" in setup_uv_script
+    assert "--require-hashes --only-binary=:all: --no-deps" in setup_uv_script
+    assert "$env:UV_VERSION" in setup_uv_script
+    assert "$env:UV_TOOL_PATH" in setup_uv_script
+    assert "$env:RUNNER_TEMP" in setup_uv_script
+    trusted_paths = str(action_step(action, "Restore trusted package cache")["with"])
+    assert "steps.cache-storage.outputs.cache-path" in trusted_paths
+    assert "steps.cache-storage.outputs.marker-path" in trusted_paths
+    assert "steps.cache-storage.outputs.tool-path" in trusted_paths
+
+    cache_result = str(action_step(action, "Record package-cache result")["run"])
+    assert "$env:MARKER_PATH" in cache_result
+    assert "$cacheRestored = $exactHit -or" in cache_result
+    assert "Get-ChildItem" not in cache_result
+
+    finalizer = action_step(action, "Register lean package-cache finalization")
+    assert finalizer["uses"] == "./.github/actions/finalize-uv-cache"
+    finalizer_inputs = finalizer["with"]
+    assert isinstance(finalizer_inputs, dict)
+    assert finalizer_inputs["uv-path"] == "${{ steps.setup-uv.outputs.uv-path }}"
+    finalizer_action = load_action("finalize-uv-cache")
+    finalizer_runs = finalizer_action["runs"]
+    assert isinstance(finalizer_runs, dict)
+    assert finalizer_runs["using"] == "node24"
+    assert finalizer_runs["post-if"] == "success()"
+    prune_script = (
+        action_path("finalize-uv-cache").parent / str(finalizer_runs["post"])
+    ).read_text(encoding="utf-8")
+    register_script = (
+        action_path("finalize-uv-cache").parent / str(finalizer_runs["main"])
+    ).read_text(encoding="utf-8")
+    assert 'process.env["INPUT_UV-PATH"]' in register_script
+    assert 'process.env["INPUT_CACHE-PATH"]' in register_script
+    assert (
+        '["cache", "prune", "--ci", "--force", "--cache-dir", cachePath]'
+        in prune_script
+    )
+    assert "rmSync" not in prune_script
+    action_runs = action["runs"]
+    assert isinstance(action_runs, dict)
+    action_steps = action_runs["steps"]
+    assert isinstance(action_steps, list)
+    assert next(
+        index
+        for index, step in enumerate(action_steps)
+        if step.get("name") == "Synchronize fresh verified environment"
+    ) < next(
+        index
+        for index, step in enumerate(action_steps)
+        if step.get("name") == "Register lean package-cache finalization"
+    )
+
+
+def test_node_environment_owner_uses_exact_clean_lock_installation() -> None:
+    """Keep release packages on one lock-addressed Node owner."""
+
+    assert workflow_consumers("./.github/actions/setup-node-toolchain") == (
+        _NODE_CONSUMERS
+    )
+    action = load_action("setup-node-toolchain")
+    setup = action_step(action, "Set up exact hosted Node.js")
+    install = action_step(action, "Install exact release dependencies")
+
+    assert setup["uses"] == (
+        "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
+    )
+    setup_inputs = setup["with"]
+    assert isinstance(setup_inputs, dict)
+    assert "inputs.install-dependencies == 'true'" in str(setup_inputs["cache"])
+    assert "'npm'" in str(setup_inputs["cache"])
+    assert "inputs.install-dependencies == 'true'" in str(
+        setup_inputs["cache-dependency-path"]
+    )
+    assert "'package-lock.json'" in str(setup_inputs["cache-dependency-path"])
+    install_script = str(install["run"])
+    assert "packageManager" in install_script
+    assert "npm@$(corepack npm --version)" in install_script
+    assert "corepack npm ci" in install_script
+    assert "node_modules" not in action_path("setup-node-toolchain").read_text(
+        encoding="utf-8"
+    )
+
+    for path in WORKFLOW_PATHS:
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+        for job in workflow.get("jobs", {}).values():
+            steps = job.get("steps", ())
+            command_text = "\n".join(str(step.get("run", "")) for step in steps)
+            if re.search(r"\b(?:node|npm|npx)\b", command_text):
+                assert any(
+                    step.get("uses") == "./.github/actions/setup-node-toolchain"
+                    for step in steps
+                ), path.name
+
+
+def test_linux_qt_owner_skips_complete_runner_images() -> None:
+    """Own the native Qt package set and avoid redundant package-manager work."""
+
+    assert workflow_consumers("./.github/actions/setup-linux-qt") == (
+        _LINUX_QT_CONSUMERS
+    )
+    action = load_action("setup-linux-qt")
+    install_script = str(
+        action_step(action, "Install missing Linux Qt runtime packages")["run"]
+    )
+    package_block = install_script.split("packages=(", maxsplit=1)[1].split(
+        ")", maxsplit=1
+    )[0]
+    assert set(package_block.split()) == _LINUX_QT_PACKAGES
+    assert "dpkg-query" in install_script
+    assert "missing_packages" in install_script
+    assert "apt-get update" in install_script
+    assert 'apt-get install -y "${missing_packages[@]}"' in install_script
+
+    workflow_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in WORKFLOW_PATHS
+    )
+    assert "LINUX_QT_PACKAGES" not in workflow_text
+    assert "sudo apt-get update" not in workflow_text
+
+
+def test_appimage_packaging_tool_has_one_verified_owner() -> None:
+    """Share one fail-closed AppImage build dependency without cache overhead."""
+
+    assert workflow_consumers("./.github/actions/setup-appimagetool") == (
+        _APPIMAGE_TOOL_CONSUMERS
+    )
+    action_text = action_path("setup-appimagetool").read_text(encoding="utf-8")
+    assert "appimagetool/releases/download/continuous" in action_text
+    assert "a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0" in (
+        action_text
+    )
+    assert "sha256sum --check" in action_text
+    assert "actions/cache" not in action_text
+
+    workflow_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in WORKFLOW_PATHS
+    )
+    assert "appimagetool/releases/download/continuous" not in workflow_text
+    assert workflow_text.count("steps.appimagetool.outputs.path") == len(
+        _APPIMAGE_TOOL_CONSUMERS
+    )
+
+
+def test_managed_runtime_cache_has_one_secure_checksum_owner() -> None:
+    """Keep managed-runtime dependency reuse exact and untrusted read-only."""
+
+    assert workflow_consumers("./.github/actions/restore-managed-comfy-cache") == (
+        _MANAGED_CACHE_CONSUMERS
+    )
+    action = load_action("restore-managed-comfy-cache")
+    identity = str(action_step(action, "Resolve managed-runtime cache identity")["run"])
+    for fragment in (
+        "$env:CACHE_EPOCH",
+        "${{ runner.os }}",
+        "${{ runner.arch }}",
+        "$variant",
+        "$pinHash",
+    ):
+        assert fragment in identity
+    assert '"restore-key=$prefix-"' in identity
+    assert '"primary-key=$prefix-$pinHash"' in identity
+    assert_trusted_cache_policy(
+        action,
+        "Restore trusted managed-runtime cache",
+        "Restore untrusted managed-runtime cache read-only",
+    )
+
+    workflow_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in WORKFLOW_PATHS
+    )
+    assert "uses: actions/cache@" not in workflow_text
+    assert "uses: actions/cache/restore@" not in workflow_text
+
+
+def test_python_locks_cover_direct_requirements_with_hashes() -> None:
+    """Keep every declared direct dependency exact in its generated lock."""
+
+    profiles = (
+        (
+            ("requirements-ci-bootstrap.txt",),
+            "requirements-ci-bootstrap.txt",
+            "requirements-ci-bootstrap.lock",
+        ),
+        (
+            ("requirements.txt", "requirements-toolchain.txt"),
+            "requirements-toolchain.txt",
+            "requirements-toolchain.lock",
+        ),
+        (
+            ("requirements-automation.txt",),
+            "requirements-automation.txt",
+            "requirements-automation.lock",
+        ),
+    )
+    for source_names, compiled_source, lock_name in profiles:
+        source = "\n".join(
+            (PROJECT_ROOT / source_name).read_text(encoding="utf-8")
+            for source_name in source_names
+        )
+        lock = (PROJECT_ROOT / lock_name).read_text(encoding="utf-8")
+        locked_versions = _locked_versions(lock)
+        direct_versions = {
+            match.group(1).lower().replace("_", "-"): match.group(2)
+            for line in source.splitlines()
+            if (match := _DIRECT_REQUIREMENT.match(line)) is not None
+        }
+
+        assert direct_versions.items() <= locked_versions.items()
+        assert f"uv pip compile {compiled_source} --universal --generate-hashes" in lock
+        _assert_every_locked_requirement_has_a_hash(lock)
+
+
+def _locked_versions(lock: str) -> dict[str, str]:
+    """Return canonical locked package versions."""
+
+    return {
+        match.group(1).lower().replace("_", "-"): match.group(2)
+        for line in lock.splitlines()
+        if (match := _DIRECT_REQUIREMENT.match(line)) is not None
+    }
+
+
+def _assert_every_locked_requirement_has_a_hash(lock: str) -> None:
+    """Require at least one distribution hash for every locked package block."""
+
+    lines = lock.splitlines()
+    requirement_indexes = [
+        index
+        for index, line in enumerate(lines)
+        if _DIRECT_REQUIREMENT.match(line) is not None
+    ]
+    for position, start in enumerate(requirement_indexes):
+        end = (
+            requirement_indexes[position + 1]
+            if position + 1 < len(requirement_indexes)
+            else len(lines)
+        )
+        assert any("--hash=sha256:" in line for line in lines[start:end])
+
+
+def test_dependency_caches_exclude_release_and_sensitive_state() -> None:
+    """Limit persistent cache paths to exact disposable dependency inputs."""
+
+    python_action = load_action("setup-python-toolchain")
+    cache_inputs = action_step(
+        python_action,
+        "Restore trusted package cache",
+    )["with"]
+    assert isinstance(cache_inputs, dict)
+    assert set(cache_inputs) == {"path", "key", "restore-keys"}
+    assert str(cache_inputs["path"]).splitlines() == [
+        "${{ steps.cache-storage.outputs.cache-path }}",
+        "${{ steps.cache-storage.outputs.marker-path }}",
+        "${{ steps.cache-storage.outputs.tool-path }}",
+    ]
+    assert cache_inputs["key"] == "${{ steps.identity.outputs.primary-key }}"
+    assert cache_inputs["restore-keys"] == ("${{ steps.identity.outputs.restore-key }}")
+    cached_path = str(cache_inputs["path"])
+    forbidden = (
+        ".venv",
+        "node_modules",
+        ".local-release-channel",
+        "build/release",
+        "artifact",
+        "candidate",
+        "credential",
+        "secret",
+        "signing",
+    )
+
+    assert all(fragment not in cached_path.lower() for fragment in forbidden)
+
+    managed_action = load_action("restore-managed-comfy-cache")
+    managed_inputs = managed_action["inputs"]
+    assert isinstance(managed_inputs, dict)
+    managed_path = managed_inputs["cache-path"]
+    assert isinstance(managed_path, dict)
+    assert managed_path["default"] == "build/managed-comfy-cache"
+    assert all(
+        fragment not in str(managed_path["default"]).lower() for fragment in forbidden
+    )

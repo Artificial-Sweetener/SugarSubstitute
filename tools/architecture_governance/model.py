@@ -45,6 +45,8 @@ class ArchitecturePolicy:
     soft_lines: int
     hard_lines: int
     source_roots: tuple[Path, ...]
+    source_files: tuple[Path, ...]
+    source_extensions: frozenset[str]
     excluded_paths: frozenset[str]
     debt_registry: Path
     waiver_registry: Path

@@ -1,0 +1,79 @@
+name: Comfy runtime compatibility
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+  PYTHONUTF8: "1"
+  QT_QPA_PLATFORM: offscreen
+  QT_OPENGL: software
+  SUBSTITUTE_DISABLE_APP_USER_MODEL_ID: "1"
+  SUBSTITUTE_DISABLE_CUTECANVAS_SAM_WARMUP: "1"
+
+jobs:
+  real-tag-probe:
+    name: ${{ matrix.comfyui }} / ${{ matrix.manager }} (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            python-version: "3.12.10"
+            python: ./.venv/Scripts/python.exe
+            comfyui: v0.15.0
+            manager: 4.1b1
+          - name: Linux x64
+            os: ubuntu-24.04
+            python-version: "3.12.13"
+            python: ./.venv/bin/python
+            comfyui: v0.17.0
+            manager: 4.1b2
+          - name: macOS Apple Silicon
+            os: macos-15
+            python-version: "3.12.10"
+            python: ./.venv/bin/python
+            comfyui: v0.18.0
+            manager: 4.1b6
+          - name: Windows x64
+            os: windows-latest
+            python-version: "3.12.10"
+            python: ./.venv/Scripts/python.exe
+            comfyui: v0.19.0
+            manager: "4.1"
+          - name: Linux x64
+            os: ubuntu-24.04
+            python-version: "3.12.13"
+            python: ./.venv/bin/python
+            comfyui: v0.20.0
+            manager: 4.2.1
+          - name: macOS Apple Silicon
+            os: macos-15
+            python-version: "3.12.10"
+            python: ./.venv/bin/python
+            comfyui: v0.28.2
+            manager: 4.2.2
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - name: Checkout SugarSubstitute
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up verified Python toolchain
+        uses: ./.github/actions/setup-python-toolchain
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Prepare exact Comfy source inputs
+        id: comfy-source
+        uses: ./.github/actions/prepare-comfy-source-cache
+        with:
+          python: ${{ matrix.python }}
+      - name: Run exact upstream compatibility probe
+        run: >-
+          ${{ matrix.python }} -m tools.ci.run_comfy_compatibility_probe
+          --comfyui-tag ${{ matrix.comfyui }}
+          --source-cache "${{ steps.comfy-source.outputs.cache-path }}"

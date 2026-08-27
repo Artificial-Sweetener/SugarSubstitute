@@ -1084,7 +1084,9 @@ class PromptEditorCompositionFactory:
             reorder_preview_publication=reorder_preview_publication,
             weight_interaction=weight_interaction,
         )
-        token_weight_wheel_intent = PromptTokenWeightWheelIntentController()
+        token_weight_wheel_intent = PromptTokenWeightWheelIntentController(
+            projection_collaborators.surface
+        )
         token_weight_controls = PromptTokenWeightControlsFactory(
             surface=projection_collaborators.surface,
             exact_edit_host=weight_interaction,

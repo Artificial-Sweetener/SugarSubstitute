@@ -6,49 +6,124 @@ on:
     branches:
       - main
       - canary
+  schedule:
+    - cron: "17 8 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 env:
-  PYTHON_VERSION: "3.12.10"
-  LINUX_PYTHON_VERSION: "3.12.13"
   STANDALONE_CACHE: build/managed-comfy-cache
 
 jobs:
-  windows-cpu:
-    name: Pinned managed Comfy (Windows CPU)
-    runs-on: windows-latest
+  select-cold-runtime:
+    name: Select managed Comfy cold proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      enabled: ${{ steps.selection.outputs.enabled }}
+    steps:
+      - name: Select compatibility-relevant changes
+        id: selection
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHANGED_FILE_COUNT: ${{ github.event.pull_request.changed_files }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $requiresColdProof = $env:EVENT_NAME -ne "pull_request"
+          if (-not $requiresColdProof) {
+            $patterns = @(
+              '^\.github/actions/restore-managed-comfy-cache/',
+              '^\.github/actions/setup-python-toolchain/',
+              '^\.github/workflows/managed-comfy-install\.yml$',
+              '^requirements-toolchain\.(?:lock|txt)$',
+              '^standalone_environment_pin\.json$',
+              '^substitute/infrastructure/comfy/standalone_environment/',
+              '^tools/ci/(?:cache_managed_comfy_artifacts|comfy_probe_support|verify_managed_comfy_install)\.py$'
+            )
+            if ([int]$env:CHANGED_FILE_COUNT -gt 300) {
+              $requiresColdProof = $true
+            } else {
+              $comparison = "repos/${{ github.repository }}/compare/$env:BASE_SHA...$env:HEAD_SHA"
+              $changedPaths = @(gh api $comparison --jq '.files[].filename')
+              $requiresColdProof = @($changedPaths | Where-Object {
+                $path = $_
+                $patterns | Where-Object { $path -match $_ } | Select-Object -First 1
+              }).Count -gt 0
+            }
+          }
+          "enabled=$($requiresColdProof.ToString().ToLowerInvariant())" | Out-File $env:GITHUB_OUTPUT -Append
+
+  cold-runtime:
+    name: Pinned managed Comfy (${{ matrix.name }})
+    needs: select-cold-runtime
+    if: needs.select-cold-runtime.outputs.enabled == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows CPU
+            os: windows-latest
+            python_version: "3.12.10"
+            variant: win-cpu
+          - name: Linux NVIDIA runtime on CPU
+            os: ubuntu-24.04
+            python_version: "3.12.13"
+            variant: linux-nvidia
+          - name: macOS Apple Silicon
+            os: macos-15
+            python_version: "3.12.10"
+            variant: mac-mps
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - name: Set up verified Python toolchain
+        uses: ./.github/actions/setup-python-toolchain
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ matrix.python_version }}
 
       - name: Restore checksum-addressed standalone artifact
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: ./.github/actions/restore-managed-comfy-cache
         with:
-          path: ${{ env.STANDALONE_CACHE }}
-          key: managed-comfy-win-cpu-${{ hashFiles('substitute/infrastructure/comfy/standalone_environment/standalone_environment_pin.json') }}
-
-      - name: Install pinned verification toolchain
-        shell: pwsh
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          python -m venv .venv
-          .\.venv\Scripts\python.exe -m pip install --requirement requirements-toolchain.txt
+          variant: ${{ matrix.variant }}
 
       - name: Provision and launch the pinned managed Comfy environment
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          .\.venv\Scripts\python.exe tools\ci\verify_managed_comfy_install.py `
-            --workspace "${{ runner.temp }}\managed-comfy" `
-            --cache-root "${{ env.STANDALONE_CACHE }}" `
-            --variant win-cpu
+          python tools/ci/verify_managed_comfy_install.py `
+            --workspace (Join-Path $env:RUNNER_TEMP "managed-comfy") `
+            --cache-root $env:STANDALONE_CACHE `
+            --variant "${{ matrix.variant }}"
+
+  required:
+    name: Pinned managed Comfy (Windows CPU)
+    needs:
+      - select-cold-runtime
+      - cold-runtime
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require selected cold proof
+        shell: pwsh
+        env:
+          COLD_RESULT: ${{ needs.cold-runtime.result }}
+          SELECTION_RESULT: ${{ needs.select-cold-runtime.result }}
+          COLD_ENABLED: ${{ needs.select-cold-runtime.outputs.enabled }}
+        run: |
+          if ($env:SELECTION_RESULT -ne "success") {
+            throw "Managed Comfy change selection failed."
+          }
+          if ($env:COLD_ENABLED -eq "true" -and $env:COLD_RESULT -ne "success") {
+            throw "Selected managed Comfy cold proof did not pass: $env:COLD_RESULT"
+          }

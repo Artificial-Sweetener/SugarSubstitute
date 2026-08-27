@@ -19,16 +19,21 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import shutil
-import stat
-import tarfile
-import zipfile
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.downloader import AssetDownloader
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
+from sugarsubstitute_shared.launcher_update.archive import (
+    SecureArchiveError,
+    safe_extract_zip,
+)
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PayloadInstallError(RuntimeError):
@@ -58,13 +63,36 @@ class AppPayloadInstaller:
 
         downloads_dir = layout.downloads_dir / manifest.version
         payload_path = downloads_dir / manifest.app.filename
+        _LOGGER.info(
+            "Downloading app payload archive.",
+            extra={"version": manifest.version, "asset": manifest.app.filename},
+        )
         self._downloader.download(asset=manifest.app, destination_path=payload_path)
+        _LOGGER.info(
+            "Downloaded app payload archive.",
+            extra={"version": manifest.version, "asset": manifest.app.filename},
+        )
         verify_sha256(path=payload_path, expected_sha256=manifest.app.sha256)
+        _LOGGER.info(
+            "Verified app payload archive.",
+            extra={"version": manifest.version, "asset": manifest.app.filename},
+        )
 
         app_next_dir = layout.root / "app_next"
         app_previous_dir = layout.root / "app_previous"
         _remove_directory(app_next_dir)
-        safe_extract_zip(zip_path=payload_path, destination_dir=app_next_dir)
+        _LOGGER.info(
+            "Extracting app payload archive.",
+            extra={"version": manifest.version, "asset": manifest.app.filename},
+        )
+        extract_app_payload_archive(
+            zip_path=payload_path,
+            destination_dir=app_next_dir,
+        )
+        _LOGGER.info(
+            "Extracted app payload archive.",
+            extra={"version": manifest.version, "asset": manifest.app.filename},
+        )
         validate_app_payload(app_next_dir)
 
         previous_created = False
@@ -82,6 +110,10 @@ class AppPayloadInstaller:
             ):
                 app_previous_dir.replace(layout.app_dir)
             raise
+        _LOGGER.info(
+            "Promoted app payload.",
+            extra={"version": manifest.version, "asset": manifest.app.filename},
+        )
         return AppPayloadInstallResult(version=manifest.version, app_dir=layout.app_dir)
 
 
@@ -97,53 +129,17 @@ def verify_sha256(*, path: Path, expected_sha256: str) -> None:
         raise PayloadInstallError(f"SHA256 mismatch for payload: {path}")
 
 
-def safe_extract_zip(*, zip_path: Path, destination_dir: Path) -> None:
-    """Extract a zip file while rejecting traversal and symlink entries."""
+def extract_app_payload_archive(*, zip_path: Path, destination_dir: Path) -> None:
+    """Extract a validated app payload while rejecting every symlink entry."""
 
-    destination_root = destination_dir.resolve()
-    destination_dir.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_path) as archive:
-        for member in archive.infolist():
-            archive_name = _validated_archive_name(member)
-            target_path = (destination_root / archive_name).resolve()
-            if not target_path.is_relative_to(destination_root):
-                raise PayloadInstallError(
-                    f"Archive entry escapes destination: {member.filename}"
-                )
-            if member.is_dir():
-                target_path.mkdir(parents=True, exist_ok=True)
-                continue
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            with archive.open(member) as source, target_path.open("wb") as destination:
-                shutil.copyfileobj(source, destination)
-            archived_permissions = (member.external_attr >> 16) & 0o777
-            if archived_permissions:
-                target_path.chmod(archived_permissions)
-
-
-def safe_extract_tar_gzip(*, tar_path: Path, destination_dir: Path) -> None:
-    """Extract a gzip tar while rejecting links, devices, and traversal."""
-
-    destination_root = destination_dir.resolve()
-    destination_dir.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(tar_path, mode="r:gz") as archive:
-        for member in archive.getmembers():
-            raw_name = member.name.replace("\\", "/")
-            archive_path = PurePosixPath(raw_name)
-            if archive_path.is_absolute() or ".." in archive_path.parts:
-                raise PayloadInstallError(
-                    f"Archive entry has unsafe path: {member.name}"
-                )
-            if member.issym() or member.islnk() or member.isdev() or member.isfifo():
-                raise PayloadInstallError(
-                    f"Archive entry has an unsupported type: {member.name}"
-                )
-            target_path = (destination_root / archive_path).resolve()
-            if not target_path.is_relative_to(destination_root):
-                raise PayloadInstallError(
-                    f"Archive entry escapes destination: {member.name}"
-                )
-        archive.extractall(destination_dir, filter="data")
+    try:
+        safe_extract_zip(
+            zip_path=zip_path,
+            destination_dir=destination_dir,
+            symlink_policy="reject",
+        )
+    except SecureArchiveError as error:
+        raise PayloadInstallError(str(error)) from error
 
 
 def validate_app_payload(app_dir: Path) -> None:
@@ -163,29 +159,6 @@ def validate_app_payload(app_dir: Path) -> None:
     if missing_files or missing_dirs:
         missing = ", ".join(missing_files + missing_dirs)
         raise PayloadInstallError(f"App payload is missing required paths: {missing}")
-
-
-def _validated_archive_name(member: zipfile.ZipInfo) -> PurePosixPath:
-    """Return a normalized archive name or reject unsafe entries."""
-
-    if _is_symlink(member):
-        raise PayloadInstallError(
-            f"Archive entry must not be a symlink: {member.filename}"
-        )
-    raw_name = member.filename.replace("\\", "/")
-    archive_path = PurePosixPath(raw_name)
-    if archive_path.is_absolute() or ".." in archive_path.parts:
-        raise PayloadInstallError(f"Archive entry has unsafe path: {member.filename}")
-    if not archive_path.parts:
-        raise PayloadInstallError("Archive entry has an empty path.")
-    return archive_path
-
-
-def _is_symlink(member: zipfile.ZipInfo) -> bool:
-    """Return whether a zip member advertises itself as a Unix symlink."""
-
-    file_type = stat.S_IFMT(member.external_attr >> 16)
-    return file_type == stat.S_IFLNK
 
 
 def _remove_directory(path: Path) -> None:

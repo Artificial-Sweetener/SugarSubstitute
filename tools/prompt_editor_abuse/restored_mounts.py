@@ -66,12 +66,14 @@ from substitute.presentation.shell.workflow_surface_reconciler import (
     ActiveWorkflowSurfaceRefresher,
 )
 from substitute.presentation.shell.workspace_file_actions import WorkspaceFileActions
-from tests.real_shell_prompt_editor_harness import (
+from tests.support.prompt_editor.real_shell.models import (
     PromptFieldHandle,
     PromptWorkflowHandle,
-    RealShellPromptEditorHarness,
-    _prompt_cube_state,
 )
+from tests.support.prompt_editor.real_shell.scenario import (
+    PromptEditorRealShellScenario,
+)
+from tests.support.prompt_editor.real_shell.workflows import _prompt_cube_state
 
 from .models import PromptAbuseScenario
 
@@ -82,7 +84,7 @@ _V0_19_2_RELEASED_AT = "2026-08-03T21:54:32+00:00"
 
 
 def mount_cached_workspace_prompt(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     scenario: PromptAbuseScenario,
     *,
     alias: str,
@@ -152,7 +154,7 @@ def mount_cached_workspace_prompt(
 
 
 def _mount_uncached_restored_workflow(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     snapshot: WorkflowSnapshot,
     *,
     alias: str,
@@ -173,7 +175,7 @@ def _mount_uncached_restored_workflow(
         on_complete=lambda: completed.append(True),
     )
     harness.wait_until(lambda: bool(completed))
-    harness.process_events(cycles=12)
+    harness.wait_for_queued_delivery()
     return _field_handle(
         harness,
         alias=alias,
@@ -183,7 +185,7 @@ def _mount_uncached_restored_workflow(
 
 
 def mount_image_sugar_script_prompt(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     scenario: PromptAbuseScenario,
     *,
     alias: str,
@@ -271,7 +273,7 @@ def mount_image_sugar_script_prompt(
         raise RuntimeError(
             "Prompt abuse PNG Sugar Script did not materialize its workflow."
         )
-    harness.process_events(cycles=12)
+    harness.wait_for_queued_delivery()
     return _field_handle(
         harness,
         alias=alias,
@@ -281,7 +283,7 @@ def mount_image_sugar_script_prompt(
 
 
 def _mount_restored_workflow(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     snapshot: WorkflowSnapshot,
     *,
     artifact: RestoreProjectionArtifact,
@@ -325,7 +327,7 @@ def _mount_restored_workflow(
     if not started:
         raise RuntimeError("Prompt abuse cache did not start pre-show projection.")
     harness.wait_until(lambda: bool(completed))
-    harness.process_events(cycles=12)
+    harness.wait_for_queued_delivery()
     return _field_handle(
         harness,
         alias=alias,
@@ -335,7 +337,7 @@ def _mount_restored_workflow(
 
 
 def _field_handle(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     *,
     alias: str,
     workflow_id: str,
@@ -344,26 +346,14 @@ def _field_handle(
     """Resolve the mounted production prompt editor into a harness field handle."""
 
     cube_state = workflow.cubes[_CUBE_ALIAS]
-    panel = harness.shell.editor_panels[workflow_id]
-    editor = harness._wait_for_panel_prompt_editor(
-        panel,
-        _FIELD_KEY,
-        require_projection_idle=True,
+    harness.workflow_handles[alias] = PromptWorkflowHandle(
+        alias=alias,
+        workflow_id=workflow_id,
+        cube_alias=_CUBE_ALIAS,
+        cube_state=cube_state,
     )
-    harness.wait_until(lambda: editor.isVisible())
-    field = PromptFieldHandle(
-        workflow=PromptWorkflowHandle(
-            alias=alias,
-            workflow_id=workflow_id,
-            cube_alias=_CUBE_ALIAS,
-            cube_state=cube_state,
-        ),
-        node_name="positive_prompt",
-        field_key="text",
-        editor=editor,
-    )
-    harness.workflows[alias] = field.workflow
-    harness._install_editor_observability(field)
+    field = harness.workflows.prompt_field(alias)
+    harness.observability.install(field)
     return field
 
 

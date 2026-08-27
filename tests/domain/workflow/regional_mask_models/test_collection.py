@@ -1,0 +1,71 @@
+#    SugarSubstitute - The desktop native Qt front-end for ComfyUI
+#    Copyright (C) 2026  Artificial Sweetener and contributors
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Verify durable ordered regional-mask collection identity behavior."""
+
+from __future__ import annotations
+
+from uuid import uuid4
+
+import pytest
+
+from substitute.domain.workflow import RegionalMaskCollection
+
+
+def test_collection_add_select_reorder_and_remove_preserve_region_identity() -> None:
+    """Ordered operations should never replace stable region identities."""
+
+    image_id = uuid4()
+    collection = RegionalMaskCollection(("Prompt by Region", "load_mask_batch"))
+    first = collection.add_region(image_id, mask_id=uuid4())
+    second = collection.add_region(image_id, mask_id=uuid4())
+    third = collection.add_region(image_id, mask_id=uuid4())
+
+    collection.reorder(third.region_id, 0)
+    collection.select(first.region_id)
+    removed = collection.remove(first.region_id)
+
+    assert removed == first
+    assert [entry.region_id for entry in collection.entries] == [
+        third.region_id,
+        second.region_id,
+    ]
+    assert collection.selected_region_id == second.region_id
+
+
+def test_collection_supports_region_identity_before_canvas_materialization() -> None:
+    """A region should exist before its blank CuteCanvas layer is available."""
+
+    collection = RegionalMaskCollection(("cube", "masks"))
+    region = collection.add_region(uuid4())
+    mask_id = uuid4()
+
+    bound = collection.bind_mask_layer(region.region_id, mask_id)
+
+    assert bound.mask_id == mask_id
+    assert collection.entry_for_mask(mask_id) == bound
+
+
+def test_collection_rejects_duplicate_mask_layer_identity() -> None:
+    """One CuteCanvas layer cannot represent two authored regions."""
+
+    collection = RegionalMaskCollection(("cube", "batch"))
+    image_id = uuid4()
+    mask_id = uuid4()
+    collection.add_region(image_id, mask_id=mask_id)
+
+    with pytest.raises(ValueError, match="Mask layer"):
+        collection.add_region(image_id, mask_id=mask_id)

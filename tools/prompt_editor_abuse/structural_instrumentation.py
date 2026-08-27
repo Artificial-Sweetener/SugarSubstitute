@@ -75,7 +75,14 @@ def active_structural_counter_counts() -> dict[str, float]:
     }
 
 
+def structural_instrumentation_active() -> bool:
+    """Return whether the current campaign attributes structural owner work."""
+
+    return _ACTIVE_INSTRUMENTATION.get() is not None
+
+
 __all__ = [
     "active_structural_counter_counts",
     "prompt_abuse_structural_instrumentation",
+    "structural_instrumentation_active",
 ]

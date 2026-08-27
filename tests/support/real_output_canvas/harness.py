@@ -22,7 +22,6 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from uuid import UUID
 
-from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.generation import (
@@ -52,6 +51,11 @@ from tests.support.real_output_canvas.shell import (
     _HarnessShell,
     _ensure_qapp,
 )
+from tests.support.qt.lifecycle import destroy_qt_object
+from tests.support.qt.semantic_wait import (
+    wait_for_qt_condition,
+    wait_for_queued_qt_turn,
+)
 
 
 class RealShellOutputCanvasHarness:
@@ -73,15 +77,14 @@ class RealShellOutputCanvasHarness:
         )
         self.shell.move(available.topLeft())
         self.shell.show()
-        self.process_events(cycles=12)
 
     def close(self) -> None:
-        """Close real Qt widgets owned by the harness."""
+        """Synchronously close every real Qt and execution owner."""
 
         self.shell.shell_resource_lifecycle.shutdown_or_raise()
-        self.shell.close()
         self.shell.execution_runtime.shutdown()
-        self.process_events()
+        self.shell.close()
+        destroy_qt_object(self.shell)
 
     def add_workflow(self, alias: str, *, activate: bool = False) -> WorkflowHandle:
         """Add one workflow to the real session and tab bar."""
@@ -544,57 +547,30 @@ class RealShellOutputCanvasHarness:
 
         self.wait_until(lambda: self.preview_count() == count)
 
-    def drain_events_for(self, duration_ms: int) -> None:
-        """Process Qt events for a short fixed duration."""
-
-        deadline = QTimer()
-        deadline.setSingleShot(True)
-        deadline.start(duration_ms)
-        while deadline.isActive():
-            self.process_events(cycles=2)
-            loop = QEventLoop()
-            QTimer.singleShot(10, loop.quit)
-            loop.exec()
-        self.process_events(cycles=4)
-
     def wait_until(
         self,
         predicate: Callable[[], object],
         *,
         timeout_ms: int = 2500,
     ) -> None:
-        """Process Qt events until predicate succeeds or the timeout expires."""
+        """Wait until the caller's observable Output contract is satisfied."""
 
-        deadline = QTimer()
-        deadline.setSingleShot(True)
-        deadline.start(timeout_ms)
-        while not bool(predicate()):
-            if not deadline.isActive():
-                raise AssertionError(f"timed out waiting for {predicate!r}")
-            self.process_events(cycles=2)
-            loop = QEventLoop()
-            QTimer.singleShot(10, loop.quit)
-            loop.exec()
-        self.process_events(cycles=4)
+        wait_for_qt_condition(lambda: bool(predicate()), timeout_ms=timeout_ms)
 
-    def process_events(self, *, cycles: int = 4) -> None:
-        """Let queued Qt signals, timers, and worker completions run."""
+    def process_events(self) -> None:
+        """Deliver callbacks queued by the immediately preceding controlled action."""
 
-        for _index in range(cycles):
-            self.app.processEvents()
+        wait_for_queued_qt_turn()
 
     def set_output_viewport_extent(
         self,
         width: float,
         height: float,
-        *,
-        settle_ms: int = 30,
     ) -> None:
-        """Pin the public canvas extent and process synchronous grid reflow."""
+        """Pin the public canvas extent for an owner-state assertion."""
 
         canvas = self.shell.output_canvas
         canvas.setFixedSize(round(width), round(height))
-        self.drain_events_for(settle_ms)
 
     def fingerprint(self) -> CanvasFingerprint:
         """Capture the real Output document and workflow state."""

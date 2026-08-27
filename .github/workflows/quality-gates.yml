@@ -1,0 +1,42 @@
+name: repository quality gates
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22.22.2"
+  PYTHON_VERSION: "3.12.10"
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up verified Python toolchain
+        uses: ./.github/actions/setup-python-toolchain
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up verified Node toolchain
+        uses: ./.github/actions/setup-node-toolchain
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Audit release dependencies
+        run: npm run audit:release
+      - name: Check license headers
+        run: .\.venv\Scripts\python.exe tools\license_headers.py --check
+      - name: Check architecture governance
+        run: .\.venv\Scripts\python.exe tools\check_architecture.py
+      - name: Check test governance
+        run: .\.venv\Scripts\python.exe tools\check_test_governance.py
+      - name: Check formatting
+        run: .\.venv\Scripts\ruff.exe format --check .
+      - name: Lint
+        run: .\.venv\Scripts\ruff.exe check .
+      - name: Type check
+        run: .\.venv\Scripts\mypy.exe --strict substitute tests

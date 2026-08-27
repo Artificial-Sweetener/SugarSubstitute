@@ -1,0 +1,1233 @@
+schema_version = 1
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0267"
+owner = "Supported-platform collection policy"
+kind = "classification"
+disposition = "framework_infrastructure"
+rule = "OPTIONAL001"
+candidates = ["OPTIONAL001|tests/conftest.py|<module>:optional-proof:1"]
+paths = ["tests/conftest.py"]
+fingerprint = "sha256:c7fe95e7e16670a2534f8076944dce0c0ef87951b3329a9031eedf47d0a188e5"
+rationale = "The central pytest hook translates the repository's explicit platforms marker into collection-time applicability after validating every declared platform name. This is the sole supported-platform exclusion owner; individual tests cannot invoke skip, xfail, retry, or ordering mechanisms, and unsupported-platform collection remains visible in JUnit rather than concealing applicable proof."
+issue = "chore:SS-TEST-WAIVER-C0267"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0192"
+owner = "Native local-Comfy process discovery cadence"
+kind = "classification"
+disposition = "intentional_real_time"
+rule = "WAIT001"
+candidates = ["WAIT001|tests/infrastructure/comfy/local_process/test_integration.py|<module>._observe_process:wait:time.sleep:1"]
+paths = ["tests/infrastructure/comfy/local_process/test_integration.py"]
+fingerprint = "sha256:e9b26120e618f910ac073276ea4f14ef22e5160a6af6cfa23d36a50b219643bd"
+rationale = "The test observes a uniquely owned external process through the production operating-system process-table adapter. The 50 ms delay only throttles repeated native scans after an unsuccessful observation; success returns immediately, the monotonic deadline bounds failure, and replacing this cadence with an in-process signal would bypass the boundary under test."
+issue = "chore:SS-TEST-WAIVER-C0192"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0173"
+owner = "Reviewed wait in tests/qualification/comfy/managed_runtime/direct_output_harness.py"
+kind = "classification"
+disposition = "intentional_real_time"
+rule = "WAIT001"
+candidates = ["WAIT001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>.ManagedComfyDirectOutputHarness._wait_until_ready:wait:time.sleep:1"]
+paths = ["tests/qualification/comfy/managed_runtime/direct_output_harness.py"]
+fingerprint = "sha256:82d46f2863134822d717a36ae1a252418fd0685141f6bef19d50a5c363156b9d"
+rationale = "tests/qualification/comfy/managed_runtime/direct_output_harness.py drives a real external application or managed Comfy process whose lifecycle is intentionally outside the in-process scheduler. The bounded polling delay belongs to qualification orchestration, returns immediately when the external state appears, and preserves timeout diagnostics."
+issue = "chore:SS-TEST-WAIVER-C0173"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0174"
+owner = "Reviewed wait in tests/qualification/comfy/inpaint/asset_harness.py"
+kind = "classification"
+disposition = "intentional_real_time"
+rule = "WAIT001"
+candidates = ["WAIT001|tests/qualification/comfy/inpaint/asset_harness.py|<module>.RealComfyInpaintAssetHarness._wait_for_history:wait:time.sleep:1", "WAIT001|tests/qualification/comfy/inpaint/asset_harness.py|<module>.RealComfyInpaintAssetHarness._wait_until_ready:wait:time.sleep:1"]
+paths = ["tests/qualification/comfy/inpaint/asset_harness.py"]
+fingerprint = "sha256:4de1d702af680370c15b6f2c7fbe12fee61c016174944202e06cf35217deb4fc"
+rationale = "tests/qualification/comfy/inpaint/asset_harness.py drives a real external application or managed Comfy process whose lifecycle is intentionally outside the in-process scheduler. The bounded polling delay belongs to qualification orchestration, returns immediately when the external state appears, and preserves timeout diagnostics."
+issue = "chore:SS-TEST-WAIVER-C0174"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0179"
+owner = "Scratch-path contract in launcher developer-install proof"
+kind = "classification"
+disposition = "false_positive"
+rule = "SCRATCH001"
+candidates = ["SCRATCH001|tests/launcher/dev_install/test_harness.py|repository-scratch-reference"]
+paths = ["tests/launcher/dev_install/test_harness.py"]
+fingerprint = "sha256:d7734dcf71e671ac61d84a64c3e3aea2fe1b9d66df201ba88c6114e4f3f1e23f"
+rationale = "The launcher developer-install proof asserts that the production harness default is deliberately contained inside the repository test scratch namespace. The test itself does not create or share that path, and the referenced production harness owns explicit cleanup and override protection."
+issue = "chore:SS-TEST-WAIVER-C0179"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0180"
+owner = "Native Linux crash cleanup integration"
+kind = "classification"
+disposition = "platform_native"
+rule = "WAIT001"
+candidates = ["WAIT001|tests/qualification/platform/linux/comfy_guardian/test_crash_cleanup.py|<module>._wait_for_linux_exit:wait:time.sleep:1"]
+paths = ["tests/qualification/platform/linux/comfy_guardian/test_crash_cleanup.py"]
+fingerprint = "sha256:2b772b46daec2a86c07613ea6a6cb934a24a31126c7b0f8fa4ddf6ce4ed6a64f"
+rationale = "This integration test deliberately launches a real Linux process group and proves operating-system cleanup after its parent crashes. The bounded poll observes native process disappearance, returns immediately on success, and cannot be replaced by an in-process signal without weakening the behavior under test."
+issue = "chore:SS-TEST-WAIVER-C0180"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0183"
+owner = "Managed real-Comfy direct-output qualification"
+kind = "classification"
+disposition = "intentional_real_time"
+rule = "POLL001"
+candidates = [
+  "POLL001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>.ManagedComfyDirectOutputHarness._queue_and_receive:wall-clock-poll:1",
+  "POLL001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>.ManagedComfyDirectOutputHarness._wait_until_ready:wall-clock-poll:1",
+]
+paths = ["tests/qualification/comfy/managed_runtime/direct_output_harness.py"]
+fingerprint = "sha256:82d46f2863134822d717a36ae1a252418fd0685141f6bef19d50a5c363156b9d"
+rationale = "This qualification harness starts and communicates with a real isolated Comfy process over HTTP and WebSocket boundaries. Its clock bounds external startup and response failure, while each loop returns immediately on the required protocol or readiness state."
+issue = "chore:SS-TEST-WAIVER-C0183"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0184"
+owner = "Managed real-Comfy inpaint qualification"
+kind = "classification"
+disposition = "intentional_real_time"
+rule = "POLL001"
+candidates = [
+  "POLL001|tests/qualification/comfy/inpaint/asset_harness.py|<module>.RealComfyInpaintAssetHarness._wait_for_history:wall-clock-poll:1",
+  "POLL001|tests/qualification/comfy/inpaint/asset_harness.py|<module>.RealComfyInpaintAssetHarness._wait_until_ready:wall-clock-poll:1",
+]
+paths = ["tests/qualification/comfy/inpaint/asset_harness.py"]
+fingerprint = "sha256:4de1d702af680370c15b6f2c7fbe12fee61c016174944202e06cf35217deb4fc"
+rationale = "This qualification harness starts and queries a real isolated Comfy process whose startup and history publication are external to the in-process scheduler. Its clock bounds external failure, while each loop returns immediately on the required readiness or terminal history state."
+issue = "chore:SS-TEST-WAIVER-C0184"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0185"
+owner = "Native Linux crash cleanup integration"
+kind = "classification"
+disposition = "platform_native"
+rule = "POLL001"
+candidates = ["POLL001|tests/qualification/platform/linux/comfy_guardian/test_crash_cleanup.py|<module>._wait_for_linux_exit:wall-clock-poll:1"]
+paths = ["tests/qualification/platform/linux/comfy_guardian/test_crash_cleanup.py"]
+fingerprint = "sha256:2b772b46daec2a86c07613ea6a6cb934a24a31126c7b0f8fa4ddf6ce4ed6a64f"
+rationale = "This integration test deliberately crashes a real Linux parent and observes kernel-owned child and process-group disappearance. The monotonic deadline bounds a native failure and the poll returns immediately on success; an in-process event would bypass the behavior being proved."
+issue = "chore:SS-TEST-WAIVER-C0185"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0186"
+owner = "Native local-Comfy process discovery integration"
+kind = "classification"
+disposition = "platform_native"
+rule = "POLL001"
+candidates = ["POLL001|tests/infrastructure/comfy/local_process/test_integration.py|<module>._observe_process:wall-clock-poll:1"]
+paths = ["tests/infrastructure/comfy/local_process/test_integration.py"]
+fingerprint = "sha256:e9b26120e618f910ac073276ea4f14ef22e5160a6af6cfa23d36a50b219643bd"
+rationale = "This Windows integration launches a uniquely owned external process and proves the production operating-system adapter can discover it before exercising exact interpreter binding and cleanup. The monotonic deadline bounds native process-table propagation, each scan returns immediately on success, and process ownership plus tmp_path isolation permit ordinary parallel execution."
+issue = "chore:SS-TEST-WAIVER-C0186"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0188"
+owner = "Authoritative pytest process bootstrap"
+kind = "classification"
+disposition = "framework_infrastructure"
+rule = "ENV001"
+candidates = [
+  "ENV001|tests/conftest.py|<module>:environment-mutation:1",
+  "ENV001|tests/conftest.py|<module>:environment-mutation:2",
+  "ENV001|tests/conftest.py|<module>:environment-mutation:3",
+  "ENV001|tests/conftest.py|<module>:environment-mutation:4",
+]
+paths = ["tests/conftest.py"]
+fingerprint = "sha256:c7fe95e7e16670a2534f8076944dce0c0ef87951b3329a9031eedf47d0a188e5"
+rationale = "The root pytest bootstrap is the single process-level owner that establishes headless Qt and application safety variables before test modules import PySide6 or runtime code. These idempotent defaults apply uniformly to each independently isolated pytest worker."
+issue = "chore:SS-TEST-WAIVER-C0188"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0190"
+owner = "Standalone rendering qualification bootstrap"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ENV001"
+candidates = [
+  "ENV001|tests/qualification/comfy/bundled_workflows/rendering_runner.py|<module>._configure_offscreen_environment:environment-mutation:1",
+  "ENV001|tests/qualification/comfy/bundled_workflows/rendering_runner.py|<module>._configure_offscreen_environment:environment-mutation:2",
+  "ENV001|tests/qualification/comfy/bundled_workflows/rendering_runner.py|<module>._configure_offscreen_environment:environment-mutation:3",
+]
+paths = ["tests/qualification/comfy/bundled_workflows/rendering_runner.py"]
+fingerprint = "sha256:3186fadf601afbaa764b387f4118f13ab748badd0b48e0119486de1530d84050"
+rationale = "This standalone qualification entrypoint first fails closed if Qt is already imported, then establishes its isolated process rendering environment before loading the harness. The mutation is the explicit bootstrap contract for that dedicated child process."
+issue = "chore:SS-TEST-WAIVER-C0190"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0191"
+owner = "Bounded native Qt fresh-process execution"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_canonical_wrapping.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_incremental_policy.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_incremental_reuse.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_newline_incremental.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_region_chrome.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_reorder_geometry.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_scene_geometry.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_selection_geometry.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_separator_navigation.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_token_geometry.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_token_paint.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/layout/contracts/test_trailing_incremental.py|isolated-module",
+  "ISOLATED001|tests/presentation/editor/prompt_editor/projection/paint_cache/test_cache.py|isolated-module",
+  "ISOLATED001|tests/presentation/widgets/qfluent_menu_renderer/test_renderer.py|isolated-module",
+  "ISOLATED001|tests/shared/presentation/localization/test_qfluent_font_adapter.py|isolated-module",
+]
+paths = [
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_canonical_wrapping.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_incremental_policy.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_incremental_reuse.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_newline_incremental.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_region_chrome.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_reorder_geometry.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_scene_geometry.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_selection_geometry.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_separator_navigation.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_token_geometry.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_token_paint.py",
+  "tests/presentation/editor/prompt_editor/layout/contracts/test_trailing_incremental.py",
+  "tests/presentation/editor/prompt_editor/projection/paint_cache/test_cache.py",
+  "tests/presentation/widgets/qfluent_menu_renderer/test_renderer.py",
+  "tests/shared/presentation/localization/test_qfluent_font_adapter.py",
+]
+fingerprint = "sha256:fda79f0a4521e357b1689ab6f72af0b758e356e2a1d28c39596bff5c47cb6480"
+rationale = "These native Qt text-layout, painting, font refresh, and QFluent menu owners can terminate inside an xdist worker, so each requires a fresh non-xdist process. The prompt layout suite is separated into capability-owned canonical, incremental, geometry, paint, and region modules; each remains a native layout owner. Source review found no shared files, ports, environment mutations, subprocesses, or other cross-process resource ownership. The bounded lane runner demonstrates that fresh-process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0191"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0210"
+owner = "Cube staging removal interaction"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/cube_picker/test_staging_removal.py|isolated-module",
+]
+paths = ["tests/presentation/cube_picker/test_staging_removal.py"]
+fingerprint = "sha256:446b74fbdc904348b580f02b613b472c1f70b573abeb2180d67b168c99d41681"
+rationale = "This real close-button delivery contract is stable across repeated fresh native Qt processes but can lose pointer delivery after unrelated Qt work in an ordinary xdist worker. It owns no shared resource, uses observable removal state and explicit widget disposal, and remains safely concurrent with other fresh processes; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0210"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0211"
+owner = "Cube alias editor keyboard interaction"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/cubes/cube_alias_editor/test_editor.py|isolated-module",
+]
+paths = ["tests/presentation/cubes/cube_alias_editor/test_editor.py"]
+fingerprint = "sha256:dead45688d4afa2d717565d449cccf49d5c71b815bab01686692068e2d5bb184"
+rationale = "This real inline-editor keyboard contract is stable across repeated fresh native Qt processes but can lose Escape delivery after unrelated Qt work in one ordinary xdist worker. The module has fixture-owned application-filter cleanup and observable setup; it owns no shared resource, so process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0211"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0212"
+owner = "Cube placeholder-card pointer interaction"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/cubes/placeholder_card/test_card.py|isolated-module",
+]
+paths = ["tests/presentation/cubes/placeholder_card/test_card.py"]
+fingerprint = "sha256:3b7e0287f4cf9f17f334d5ffa09e3190e6c681917dda57fcca886a8d5573b729"
+rationale = "This real placeholder-card pointer contract is stable in fresh native Qt processes but can lose click delivery after unrelated Qt work in one ordinary xdist worker. It owns no shared resource and keeps its complete activation contract; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0212"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0194"
+owner = "Real-shell prompt restore qualification"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/abuse/test_restored_mounts.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/abuse/test_restored_mounts.py"]
+fingerprint = "sha256:bd833e301e53f0076680af4823336815b1587a138a9e37c34279fc555fc7e6e9"
+rationale = "This qualification module mounts persisted prompt workflows through the production shell and cache-restoration lifecycle. It aborts only after prior native Qt work in one ordinary xdist process, while five repeated four-worker fresh-process runs pass. The module owns no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0194"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0195"
+owner = "Prompt wheel-intent integration"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/widgets/wheel_intent/test_prompt_weight_wheel_integration.py|isolated-module",
+]
+paths = ["tests/presentation/widgets/wheel_intent/test_prompt_weight_wheel_integration.py"]
+fingerprint = "sha256:e59c90e8f5d208ec627f350730d17ebc6bdf61978e098e924c173dbfdf215ff8"
+rationale = "This native Qt integration module mounts the prompt projection surface with real pointer events, wheel dwell, and policy-owner callbacks. It aborts only after prior native Qt work in an ordinary xdist process, while five repeated four-worker fresh-process runs pass. It owns no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0195"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0196"
+owner = "Semantic Qt wait contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/support/qt/test_semantic_wait.py|isolated-module",
+]
+paths = ["tests/support/qt/test_semantic_wait.py"]
+fingerprint = "sha256:789e92b7c443eab7eec73447e0c00cb0c90da4d81f26bed63ee51c3a2f415d80"
+rationale = "This native Qt event-loop contract proves queued state delivery and bounded failure cleanup. It aborts only after prior native Qt work in an ordinary xdist process, while five repeated four-worker fresh-process runs pass. The module owns no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0196"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0198"
+owner = "Real-shell direct workflow qualification"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_node_projection.py|isolated-module",
+  "ISOLATED001|tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_overrides_seed.py|isolated-module",
+  "ISOLATED001|tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_prompt_editor_mount.py|isolated-module",
+  "ISOLATED001|tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_transition_layout.py|isolated-module",
+  "ISOLATED001|tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_workspace_restore.py|isolated-module",
+]
+paths = [
+  "tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_node_projection.py",
+  "tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_overrides_seed.py",
+  "tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_prompt_editor_mount.py",
+  "tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_transition_layout.py",
+  "tests/qualification/comfy/bundled_workflows/direct_workflow_scenarios/test_workspace_restore.py",
+]
+fingerprint = "sha256:3f9b2264310a069c7e01e390a05c8975a4423eb3f2b16db5ae3d9fa45ff9648c"
+rationale = "These qualification owners mount real workflow canvas, animation, artifact, prompt-editor, and restore surfaces. They can abort after prior native Qt work in an ordinary xdist process, while the complete ten-contract slice passes across repeated concurrent fresh-process runs. They own no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0198"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0199"
+owner = "Media-wall thumbnail worker-lane contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/widgets/media_wall/test_thumbnail_preloader.py|isolated-module",
+]
+paths = ["tests/presentation/widgets/media_wall/test_thumbnail_preloader.py"]
+fingerprint = "sha256:b0cf9b1ea99b0ccfcbee86cd54072a6ad9535337688a863579360a38ca0a9b52"
+rationale = "This native Qt module proves bounded thumbnail worker-lane saturation, retry, cache installation, and failed-asset behavior. Its saturation contract can abort only after prior native Qt work in an ordinary xdist process, while the complete four-test module passes across five repeated four-worker fresh-process runs. It owns no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0199"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0200"
+owner = "Model-picker popup lifecycle contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/widgets/model_picker/test_popup_lifecycle.py|isolated-module",
+]
+paths = ["tests/presentation/widgets/model_picker/test_popup_lifecycle.py"]
+fingerprint = "sha256:74de3824d15615cff84d4ee4de9060464c969627ea4ccd102d81676c31b689f1"
+rationale = "This native Qt module proves popup ownership, deferred refresh, failure handling, dismissal, and value preservation. Its refresh-failure contract can abort only after prior native Qt work in an ordinary xdist process, while the complete eight-test module passes across five repeated four-worker fresh-process runs. It owns no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0200"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0205"
+owner = "Cube-stack indicator timer contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/workflows/cube_stack/test_scroll_and_indicator.py|isolated-module",
+]
+paths = ["tests/presentation/workflows/cube_stack/test_scroll_and_indicator.py"]
+fingerprint = "sha256:d6a57695d51c6738ff31ee363856d19c15c8e408cd9901d53f82c916fee1cc27"
+rationale = "This native Qt contract owns cube-stack scrolling, selected-indicator realignment, timer cancellation, deleted-content handling, and wheel rerouting. Its timer-destruction proof can abort only after prior native Qt work in an ordinary xdist process, while the complete five-test module passes across five repeated four-worker fresh-process runs. It owns no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0205"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0206"
+owner = "Real-shell prompt decoration boundaries"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/test_decoration_boundaries.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/test_decoration_boundaries.py"]
+fingerprint = "sha256:acaf1062aa41f4f4c425857d6d5d47ae0640b2bada739521bfcae2312253ddd6"
+rationale = "This native Qt scenario module mounts the real prompt shell to prove caret, insertion, deletion, selection, and rendering behavior at emphasis, wildcard, scene, and decoration boundaries. Its emphasis-leading insertion proof can abort only after prior native Qt work in an ordinary xdist process, while the complete 25-test module passes across five repeated four-worker fresh-process runs. It owns no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0206"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0207"
+owner = "Wildcard abuse modal lifecycle"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/tools/prompt_editor_abuse/wildcard_mount/test_mount.py|isolated-module",
+]
+paths = ["tests/tools/prompt_editor_abuse/wildcard_mount/test_mount.py"]
+fingerprint = "sha256:b7f38fb67032aceed15aa00f2060139213d80b73752ef7da337930fe466e1ae8"
+rationale = "This native Qt modal-lifecycle contract mounts the production wildcard editor, its generated modal owner, and prompt overlays, then verifies exact deferred-destruction cleanup. It aborts only after prior native Qt work in an ordinary xdist process, while the complete module passes across five repeated four-worker fresh-process runs after its arbitrary cleanup event drain was removed. It owns no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0207"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0213"
+owner = "Real-shell Output hierarchy persistence"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/canvas/output/real_shell/test_hierarchy_persistence.py|isolated-module",
+]
+paths = ["tests/presentation/canvas/output/real_shell/test_hierarchy_persistence.py"]
+fingerprint = "sha256:7abc21e426fc52c38ed21745c5b0678e190808cb5e7b6dc633cf8485dd1813be"
+rationale = "This native Qt module mounts the real shell, workflow workspace, output canvas, output projection, and user-level navigation surfaces to prove hierarchy and route persistence. Its new-session grid-reset contract can abort only after prior native Qt work in an ordinary xdist process, while the complete six-test module passes across five repeated four-worker fresh-process runs. It owns no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0213"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0214"
+owner = "Real-shell Output workflow lifecycle"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/canvas/output/real_shell/test_workflow_lifecycle.py|isolated-module",
+]
+paths = ["tests/presentation/canvas/output/real_shell/test_workflow_lifecycle.py"]
+fingerprint = "sha256:e8050d738d4a4a38b6432a94cdee153025e2e6dfdc6202b6a868b31e33c5fec0"
+rationale = "This native Qt module mounts the real shell, workflow workspace, output canvas, output projection, preview registry, and generation lifecycle to prove close, clear, failure, and rename pruning. Its hidden-projection rename contract can abort only after prior native Qt work in an ordinary xdist process, while the complete ten-test module passes across five repeated four-worker fresh-process runs. It owns no shared file, port, environment, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0214"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0215"
+owner = "Prompt-scroll boundary spill"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/widgets/wheel_intent/test_boundary_spill.py|isolated-module",
+]
+paths = ["tests/presentation/widgets/wheel_intent/test_boundary_spill.py"]
+fingerprint = "sha256:2b0763f74e354991647dcfeee9c7803c2f171990ff32eba9e3becb1ef943d49b"
+rationale = "This single prompt-scroll boundary contract aborts while constructing the production prompt editor after unrelated native Qt work in an ordinary xdist worker. Its state is widget-local, its dwell clock is controlled, and the module owns no file, port, environment, subprocess, or cross-process resource. Three repeated fresh four-worker launches pass, so fresh-process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0215"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0216"
+owner = "Numeric wheel-intent controls"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/widgets/wheel_intent/test_numeric_controls.py|isolated-module",
+]
+paths = ["tests/presentation/widgets/wheel_intent/test_numeric_controls.py"]
+fingerprint = "sha256:6201874c573cea3fd9a6e5a1b3aa5e84a5614d218e3175557e5f6acad3d0f128"
+rationale = "This numeric-control owner mounts real QFluent spin boxes and controlled wheel-intent routing. It aborts while constructing those native controls after unrelated Qt work in an ordinary xdist worker, but all four tests pass across three fresh four-worker launches. Its clock and widgets are test-local and it owns no shared file, port, environment, subprocess, or cross-process resource, so fresh-process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0216"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0217"
+owner = "Numeric wheel-intent widget integration"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/widgets/wheel_intent/test_numeric_integration.py|isolated-module",
+]
+paths = ["tests/presentation/widgets/wheel_intent/test_numeric_integration.py"]
+fingerprint = "sha256:64d3d5bf2c94b4a392df6e00ffc38d835dc2d3c832b3ee100a70adea27958757"
+rationale = "This nine-test numeric-widget integration owner drives real QFluent spin boxes, focus transitions, and controlled wheel events. It aborts after unrelated native Qt work in one ordinary xdist worker but passes across three fresh four-worker launches. The owner uses a controlled clock and test-local widgets with no shared file, port, environment, subprocess, or cross-process resource, so fresh-process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0217"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0218"
+owner = "Real-shell prompt projection paths"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/projection_paths/test_incremental_edits.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/projection_paths/test_incremental_edits.py"]
+fingerprint = "sha256:ef7c0439b7c6a5383fa4dc09b900d3bc75a846a554c184a6acc57186f07e5039"
+rationale = "This eleven-test real-shell projection-path owner mounts the production workspace, prompt editor, and canvas surfaces to prove incremental and canonical projection behavior. It aborts after unrelated native Qt work in an ordinary xdist worker but passes across three fresh four-worker launches. Its shell, clock, and artifacts are scenario-local with no shared file, port, environment, subprocess, or cross-process resource, so fresh-process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0218"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0219"
+owner = "QFluent prompt-editor visual parity"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/visual_parity/test_qfluent_shell.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/visual_parity/test_qfluent_shell.py"]
+fingerprint = "sha256:7a22e191a0b7146cf67b452c2286591a3acc6a84178c4b673569b6efe82497a0"
+rationale = "This rendered visual-parity owner mounts real QFluent and prompt-editor widgets to compare palette, metrics, focus, overflow, and pixel behavior. It aborts after unrelated native Qt work in an ordinary xdist worker but passes across three fresh four-worker launches. The rendered widgets and images are test-local and it owns no shared file, port, environment, subprocess, or cross-process resource, so fresh-process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0219"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0220"
+owner = "Prompt-scroll wheel integration"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/widgets/wheel_intent/test_prompt_scroll_integration.py|isolated-module",
+]
+paths = ["tests/presentation/widgets/wheel_intent/test_prompt_scroll_integration.py"]
+fingerprint = "sha256:4d58e790503204ba0bb2d0816a7740f526fe2ac26ac56fd69ad8970eb4914fcb"
+rationale = "This prompt-scroll integration owner mounts the production prompt editor and drives controlled wheel dwell and scroll delivery. It aborts after unrelated native Qt work in an ordinary xdist worker but passes across three fresh four-worker launches. Its widgets and clock are test-local and it owns no shared external resource, so fresh-process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0220"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0221"
+owner = "Real-shell region-separator abuse"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/region_separator_abuse/test_scenarios.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/region_separator_abuse/test_scenarios.py"]
+fingerprint = "sha256:dc0a0d33b95dd52e51564fea9b5ce9d23b7cfa23108a3774e51e50fe940cf470"
+rationale = "This 21-scenario real-shell abuse owner mounts the production workspace, prompt editor, projection, and canvas lifecycle to retain exact region-separator navigation, authoring, selection, topology, and canvas-round-trip invariants. A complete ordinary run aborts during its canvas-lifecycle scenario only after prior native Qt work in a reused xdist worker. Its shell, clock, and artifacts are scenario-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0221"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0222"
+owner = "Real-shell prompt-abuse driver instrumentation"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/abuse_driver/test_instrumentation.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/abuse_driver/test_instrumentation.py"]
+fingerprint = "sha256:2a5ed7588ec018d180914a81be64d8b84949a7b701af6abf44c8d62176f15d20"
+rationale = "This five-test real-shell instrumentation owner mounts the production workspace and prompt editor to prove untraced input latency, workflow and canvas lifecycle transitions, projection ownership, autocomplete churn, and seeded replacement. A complete ordinary run aborts in its input scenario only after prior native Qt work in a reused xdist worker. Its shell, timing samples, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0222"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0223"
+owner = "Prompt wheel-intent scrolling"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/widgets/wheel_intent/test_prompt_scrolling.py|isolated-module",
+]
+paths = ["tests/presentation/widgets/wheel_intent/test_prompt_scrolling.py"]
+fingerprint = "sha256:25412799a17dc69baf93ef4ea998a53ac575f649e89cd8790c2304b166e92477"
+rationale = "This four-test owner mounts the production prompt editor and wheel-intent controller to prove focus-gated scrolling, token-wheel precedence, hover ownership, and controlled wheel routing. A complete ordinary run aborts while constructing its native prompt surface only after prior Qt work in a reused xdist worker. Its widgets and controlled clock are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0223"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0224"
+owner = "Real-shell LoRA trigger lazy population"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/lora_trigger_menu/test_lazy_population.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/lora_trigger_menu/test_lazy_population.py"]
+fingerprint = "sha256:50d310f926366045a6c62080f03e1b3e102f9e82cc80e166e42ec5eae9c164f2"
+rationale = "This real-shell menu owner mounts the production prompt workspace and a 50-item LoRA catalog to prove deferred trigger-submenu population and cached scheduled-LoRA state. A complete ordinary run aborts only after prior native Qt work in a reused xdist worker. Its shell, catalog, and menu state are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0224"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0225"
+owner = "Real-shell caret-layout projection paths"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/projection_paths/test_caret_layout.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/projection_paths/test_caret_layout.py"]
+fingerprint = "sha256:aad51b00e2ea3d5bf5cb724cd2f8dcd203fb1f81ee0b3b8787be5261c46f8470"
+rationale = "This four-test real-shell owner mounts the production prompt workspace to prove token navigation, vertical preferred-x ownership, long-document caret visibility, and resize-wrap projection consistency. A complete ordinary run aborts in vertical navigation only after prior native Qt work in a reused xdist worker. Its shell, widgets, snapshots, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0225"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0226"
+owner = "Real-shell LoRA trigger context actions"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/lora_trigger_menu/test_context_actions.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/lora_trigger_menu/test_context_actions.py"]
+fingerprint = "sha256:8307e31ce37e3ea25481105d63c241f5001f2ff15777456f257cf84f22d05e9f"
+rationale = "This five-test real-shell owner mounts the production prompt workspace, context menu, and LoRA catalog to prove trigger discovery, insertion, source updates, menu reopening, and large-submenu selection. A complete ordinary run aborts in its real menu trace only after prior native Qt work in a reused xdist worker. Its shell, catalog, menu, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0226"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0227"
+owner = "Real-shell scene-marker semantic transition"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/semantic_modes/test_scene_marker_transition.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/semantic_modes/test_scene_marker_transition.py"]
+fingerprint = "sha256:29ef8699737e0accb22dfd426b8828d95fb3d168966a48df67d524607aa785d2"
+rationale = "This real-shell semantic-transition owner mounts the production prompt workspace to prove in-place scene removal, marker diagnostics, autocomplete eligibility, and prepared scene state. A complete ordinary run aborts only after prior native Qt work in a reused xdist worker. Its shell, editor, and diagnostics are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0227"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0228"
+owner = "Real-shell scene-marker editing"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/scene_editing/test_marker_editing.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/scene_editing/test_marker_editing.py"]
+fingerprint = "sha256:542293884d487ea831c524a0a7f1e03f74d895caaa757da891107e61d543a2f5"
+rationale = "This eight-test real-shell owner mounts the production prompt workspace to prove scene-marker typing, caret preservation, enter and backspace boundaries, decorated-row metrics, title-space visibility, and resize behavior. A complete ordinary run aborts during its decorated-row line-break toggle only after prior native Qt work in a reused xdist worker. Its shell, editor, and snapshots are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0228"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0229"
+owner = "Real-shell replay and abuse reporting"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/replay_reporting/test_replay_and_report.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/replay_reporting/test_replay_and_report.py"]
+fingerprint = "sha256:9b27cd96ccee88d238d7cbc5250c295e006efdb14f202b316f98d392f9fa6aa5"
+rationale = "This three-test real-shell qualification owner mounts one or two production workspaces to prove replay, predicate-preserving minimization, and bounded seeded abuse reporting. A complete ordinary run aborts in its seeded campaign only after prior native Qt work in a reused xdist worker. Its shells, artifacts, and campaign state are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0229"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0230"
+owner = "Real-shell regional reorder preview"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/reorder_preview/test_regional_preview.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/reorder_preview/test_regional_preview.py"]
+fingerprint = "sha256:a22fc7fb4d2fb2e4e4137e1fc83e194eca10fa221b409c585a53bb182714a4bf"
+rationale = "This real-shell regional reorder owner mounts a large production prompt to prove Alt+Up preview geometry, source preservation, regional chrome, and settled layout after release. A complete ordinary run aborts in the preview only after prior native Qt work in a reused xdist worker. Its shell, prompt, keyboard state, and snapshots are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0230"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0231"
+owner = "Prompt weight manual controls"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/presentation/widgets/wheel_intent/test_prompt_weight_manual_integration.py|isolated-module",
+]
+paths = ["tests/presentation/widgets/wheel_intent/test_prompt_weight_manual_integration.py"]
+fingerprint = "sha256:1920ffab437a5fd4f90e143a2e309bcf4388a90400dec1efd88b7c1254bceaf4"
+rationale = "This seven-test native prompt-weight owner mounts the production prompt editor and controls to prove hover reveal, manual adjustments, undo, linger state, invalid exact-edit cancellation, scroll preservation, and token activation. A complete ordinary run aborts while revealing controls only after prior native Qt work in a reused xdist worker. Its widgets and controlled clock are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0231"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0232"
+owner = "Real-shell keyboard reorder preview"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/reorder_preview/test_keyboard_preview.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/reorder_preview/test_keyboard_preview.py"]
+fingerprint = "sha256:1f73dc096b7ea285aee8b7ad4ad461f496ca475a23a3ea1556e7716df61b6372"
+rationale = "This four-test real-shell owner mounts the production prompt workspace to prove held-Alt keyboard reorder preview geometry, settled layouts, and animation border ownership. A complete ordinary run aborts in its held-chip animation proof only after prior native Qt work in a reused xdist worker. Its shell, editor, animation frames, and snapshots are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0232"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0233"
+owner = "Real-shell saved-segment menu scopes"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/saved_segment_menu/test_scopes.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/saved_segment_menu/test_scopes.py"]
+fingerprint = "sha256:daaca252ecb4f233438b7261fabb06f35cde2191450e4ce74caf792ad1eec27a"
+rationale = "This three-test real-shell owner mounts the production prompt workspace with model catalog and user-preset collaborators to prove save scopes after model projection, empty-entry reprojection, and global save behavior. A complete ordinary run aborts in its model-projection menu contract only after prior native Qt work in a reused xdist worker. Its shell, catalog, presets, and menu state are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0233"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0234"
+owner = "Real-shell transient projection editing"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/projection_paths/test_transient_editing.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/projection_paths/test_transient_editing.py"]
+fingerprint = "sha256:5e9ee2ea94c6c9cd78b8c29bcc3b7ada5b6281c87e312431130f9f71e88bda49"
+rationale = "This six-test real-shell owner mounts the production prompt workspace to prove projection repair, dirty-region bounds, transient overlays, trailing typing caret alignment, deferred-space behavior, and canvas-navigation delete safety. A complete ordinary run aborts during trailing typing only after prior native Qt work in a reused xdist worker. Its shell, editor, artifacts, and snapshots are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0234"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0235"
+owner = "Real-shell selection interactions"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = [
+  "ISOLATED001|tests/qualification/prompt_editor/real_shell/selection_rendering/test_selection_interactions.py|isolated-module",
+]
+paths = ["tests/qualification/prompt_editor/real_shell/selection_rendering/test_selection_interactions.py"]
+fingerprint = "sha256:294a5c133dbd5bd88f2809d987a3623dedac633a9e928a2a83ba74106ffd7b8e"
+rationale = "This five-test real-shell owner mounts the production prompt workspace to prove multiline paste, keyboard and wrapped selection geometry, replacement projection, and autocomplete-surface clearing. A complete ordinary run aborts while selecting an active autocomplete only after prior native Qt work in a reused xdist worker. Its shell, clipboard state, snapshots, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is therefore sufficient, and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0235"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0236"
+owner = "Prompt weight exact editing"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/editor/prompt_editor/interactions/weight/exact_editing/test_contract.py|isolated-module"]
+paths = ["tests/presentation/editor/prompt_editor/interactions/weight/exact_editing/test_contract.py"]
+fingerprint = "sha256:78c52caf4680b72245e9087fc5e803573676ac78d67feb98299db8ed512c41d1"
+rationale = "This real prompt-weight exact-editing owner times out while revealing native overlay controls after unrelated Qt work in a reused worker. Its focused four-worker runs are stable; it owns no shared cross-process resource, so fresh-process isolation is sufficient and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0236"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0237"
+owner = "Prompt weight step controls"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/editor/prompt_editor/interactions/weight/step_controls/test_contract.py|isolated-module"]
+paths = ["tests/presentation/editor/prompt_editor/interactions/weight/step_controls/test_contract.py"]
+fingerprint = "sha256:1bb9d0e1c1505881314b76da2ed4e15c1024b6da45dee8f541c8d0e13d3494e3"
+rationale = "This real prompt-weight step-control owner times out while revealing native overlay controls after unrelated Qt work in a reused worker. Its focused four-worker runs are stable; it owns no shared cross-process resource, so fresh-process isolation is sufficient and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0237"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0238"
+owner = "Prompt weight transient-neutral ownership"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/editor/prompt_editor/interactions/weight/transient_neutral/test_contract.py|isolated-module"]
+paths = ["tests/presentation/editor/prompt_editor/interactions/weight/transient_neutral/test_contract.py"]
+fingerprint = "sha256:fa77de7317c8af293aff2dd6e22074f47eec2a7fb69b0cb9321b9f3f047b389f"
+rationale = "This real prompt-weight transient-neutral owner times out while revealing native overlay controls after unrelated Qt work in a reused worker. Its focused four-worker runs are stable; it owns no shared cross-process resource, so fresh-process isolation is sufficient and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0238"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0239"
+owner = "Prompt weight overlay visibility"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/editor/prompt_editor/interactions/weight/visibility/test_contract.py|isolated-module"]
+paths = ["tests/presentation/editor/prompt_editor/interactions/weight/visibility/test_contract.py"]
+fingerprint = "sha256:eb628ca82b278acd498e10689e3fb62b11b9ad0d448b4b572874e35070648c0a"
+rationale = "This real prompt-weight overlay-visibility owner times out while revealing native controls after unrelated Qt work in a reused worker. Its focused four-worker runs are stable; it owns no shared cross-process resource, so fresh-process isolation is sufficient and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0239"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0240"
+owner = "Prompt weight wheel input"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/editor/prompt_editor/interactions/weight/wheel_input/test_contract.py|isolated-module"]
+paths = ["tests/presentation/editor/prompt_editor/interactions/weight/wheel_input/test_contract.py"]
+fingerprint = "sha256:fe4af4e44da45484f7e892be9b6f21cabcd64669de3993819483aeb12469ab80"
+rationale = "This real prompt-weight wheel-input owner times out while revealing native controls after unrelated Qt work in a reused worker. Its focused four-worker runs are stable; it owns no shared cross-process resource, so fresh-process isolation is sufficient and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0240"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0241"
+owner = "Prompt weight focus-gated wheel intent"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/widgets/wheel_intent/test_prompt_weights.py|isolated-module"]
+paths = ["tests/presentation/widgets/wheel_intent/test_prompt_weights.py"]
+fingerprint = "sha256:50c1f1fd003a6594012c619cadc37afc6fb0f71336c12ca1d98180b269f030b0"
+rationale = "This six-test prompt-weight wheel-intent owner mounts the real editor to prove dwell gating, focus-required activation, token-local click authorization, and wildcard behavior. A complete ordinary run aborts while mounting the editor after prior native Qt work in a reused worker, while five fresh-process runs pass. Its widgets, editor state, controlled clock, and events are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0241"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0242"
+owner = "Real-shell prompt field buffer wiring"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/field_wiring/test_buffer_sync.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/field_wiring/test_buffer_sync.py"]
+fingerprint = "sha256:122353bef5b8f6fde901c44e5121da89ceaf8e98cb5e15aa3a1120d11c9690d6"
+rationale = "This real-shell field-wiring owner mounts the production prompt workspace, creates a workflow, types through the native editor input boundary, and proves persistence to the authoritative cube buffer and dirty state. A complete ordinary run aborts while creating its workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, input state, and cube buffer are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0242"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0243"
+owner = "Real-shell separator line-break projection"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_line_breaks.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_line_breaks.py"]
+fingerprint = "sha256:19b05b539641514152bf8baa25422c3dd0bdeecc2015067ec0cbf0347303600c"
+rationale = "This separator-line-break owner mounts the production prompt workspace to prove vertical traversal, native Return-key editing adjacent to multiple region separators, immediate separator decoration, and structural projection invariants. A complete ordinary run aborts while creating the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, input state, snapshots, and separator text are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0243"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0244"
+owner = "Spinner-slider wheel intent"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/widgets/wheel_intent/test_spinner_slider_integration.py|isolated-module"]
+paths = ["tests/presentation/widgets/wheel_intent/test_spinner_slider_integration.py"]
+fingerprint = "sha256:2dd8e3fb6a9dc0d766c2573d182dabd89aa216ac1bec8bc8b6233542256dd039"
+rationale = "This five-test spinner-slider owner mounts real editor-panel controls to prove slider wheel rejection, dwell-gated spinbox input, hover safety, and synchronization to field state. A complete ordinary run aborts in its float-control proof after prior native Qt work in a reused worker, while five fresh-process runs pass. Its QApplication widgets, controlled clock, panel, field state, and events are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0244"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0245"
+owner = "Real-shell separator editing projection"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_editing.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_editing.py"]
+fingerprint = "sha256:89f50d1c82a2415e7c19b5998c390f666b2a4eab4c415fb9603efc5c318b1360"
+rationale = "This five-test separator-editing owner mounts the production prompt workspace to prove adjacent separator typing, terminal separator rendering, rich/raw projection behavior, caret resolution, and chrome invariants. A complete ordinary run aborts while creating the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, input state, snapshots, and source text are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0245"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0246"
+owner = "Real-shell separator deletion projection"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_deletion.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_deletion.py"]
+fingerprint = "sha256:275c25c07435f569432ae97af1bb65de39a3312060c4f794aefe80d69f39d492"
+rationale = "This six-test separator-deletion owner mounts the production prompt workspace to prove Backspace and Delete at region boundaries, immediate projection repair, structural decoration retention, and partial-marker visibility. A complete ordinary run aborts while creating the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, input state, snapshots, and source text are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0246"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0247"
+owner = "Real-shell separator completion projection"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_completion.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_completion.py"]
+fingerprint = "sha256:f2dc5ffe4d0eb8bac4124140716b091e050a920258322068216998055759b711"
+rationale = "This five-test separator-completion owner mounts the production prompt workspace to prove newline preservation, marker normalization and undo, second-region creation, and immediate regional publication. A complete ordinary run aborts while creating the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, input state, snapshots, and source text are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0247"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0248"
+owner = "Real-shell autocomplete control-key safety"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/autocomplete_surface/test_control_character_safety.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/autocomplete_surface/test_control_character_safety.py"]
+fingerprint = "sha256:996ecd81c08bb2e4c40a5dd1eb685c1c6b0e1aa46be636cd3506228e266f0593"
+rationale = "This three-test autocomplete control-key owner mounts the production prompt workspace to prove Tab acceptance, plain Tab safety, and Escape safety through native key routing and invariant snapshots. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, input state, snapshots, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0248"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0249"
+owner = "Real-shell undo grouping"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/history/test_undo_grouping.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/history/test_undo_grouping.py"]
+fingerprint = "sha256:12987571a54540dcb548b30fd22fc4437c340a1f4e0d97fc6144cafbb804b4cc"
+rationale = "This three-test undo-grouping owner mounts the production prompt workspace to prove native undo/redo, contiguous typing coalescence, repeated Backspace grouping, and projection invariant preservation. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, input state, snapshots, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0249"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0250"
+owner = "Real-shell visible-row shift diagnostics"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/projection_diagnostics/test_row_shift.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/projection_diagnostics/test_row_shift.py"]
+fingerprint = "sha256:e9a6e556e952310bf83c321ce235329f4439f9b8f879f33e58f00729237d62f9"
+rationale = "This real-shell row-shift diagnostics owner mounts the production prompt workspace to establish an authoritative projection snapshot, then proves that its transition invariants distinguish uniform scrolling from non-uniform visible-row movement. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, snapshots, and derived rows are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0250"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0251"
+owner = "Real-shell selection-cache overlay diagnostics"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/projection_diagnostics/test_selection_cache_overlays.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/projection_diagnostics/test_selection_cache_overlays.py"]
+fingerprint = "sha256:8b95dd1f9d34cc23351ee14160028006785d9d84dfae7b9342215fe011bc26f8"
+rationale = "This real-shell selection-cache overlay diagnostics owner establishes one production selected snapshot, then proves selection, cache, viewport, and transient-overlay invariant failures by local immutable snapshot mutations. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, snapshots, mutations, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0251"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0252"
+owner = "Real-shell projection layout metrics diagnostics"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/projection_diagnostics/test_layout_metrics.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/projection_diagnostics/test_layout_metrics.py"]
+fingerprint = "sha256:6e656695ca145403f5cf76bf91718d6d42cc7a003dc6e832ca318abd871ecdb0"
+rationale = "This four-test layout-metrics diagnostics owner establishes production snapshots, then proves synthetic row, fragment, content-height, shell-height, caret, and newline-only row invariant cases with local immutable mutations. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, snapshots, metrics, and mutations are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0252"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0253"
+owner = "Real-shell autocomplete ghost-state diagnostics"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/projection_diagnostics/test_autocomplete_ghost_state.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/projection_diagnostics/test_autocomplete_ghost_state.py"]
+fingerprint = "sha256:b87e0544a720f6b4262bc2e17dd6a781b7b329aa7fcb14cef68e741cb766e107"
+rationale = "This real-shell autocomplete ghost-state diagnostics owner establishes production prompt snapshots and proves stale visible-ghost owner-state detection. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, snapshots, and derived diagnostic state are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0253"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0254"
+owner = "Real-shell prompt owner-state observability"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/observability/test_owner_state.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/observability/test_owner_state.py"]
+fingerprint = "sha256:32cc943245ef7514bb08179b6137e2a38dfbe436a3f5049303151851ca241374"
+rationale = "This real-shell observability owner-state contract mounts the production prompt workspace to prove owner-tracing enablement and hot-path tracing disablement. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, tracing state, snapshots, and diagnostics are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0254"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0255"
+owner = "Real-shell autocomplete dismissal"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/autocomplete_surface/test_dismissal.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/autocomplete_surface/test_dismissal.py"]
+fingerprint = "sha256:dd44d3d95132e23c8d4555953142c5862df2d0ddb24f36564eda079713ed820c"
+rationale = "This real-shell autocomplete-dismissal owner mounts the production prompt workspace to prove visible dropdown dismissal and ghost-state ownership. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, popup state, snapshots, and diagnostics are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0255"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0256"
+owner = "Real-shell LoRA trigger lifecycle"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/lora_trigger_menu/test_lifecycle.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/lora_trigger_menu/test_lifecycle.py"]
+fingerprint = "sha256:d6f049b456e515bf2bd24897204e5bd5dd6b16c2b6ffcae13c05d5bb40fdfa52"
+rationale = "This real-shell LoRA trigger lifecycle owner mounts the production prompt workspace to prove prepared context actions, inline trigger probes, deferred population, and menu lifecycle behavior. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, menu state, catalog state, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0256"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0257"
+owner = "Real-shell autocomplete selection navigation"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/autocomplete_surface/test_selection_navigation.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/autocomplete_surface/test_selection_navigation.py"]
+fingerprint = "sha256:885cc682879eadf9821917068f704b96da2047fba462e0e77d62f601599acf55"
+rationale = "This real-shell autocomplete selection-navigation owner mounts the production prompt workspace to prove native Up/Down suggestion selection, focus routing, and visible popup state. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, popup state, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0257"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0258"
+owner = "Real-shell autocomplete whitespace lifecycle"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/autocomplete_surface/test_whitespace_lifecycle.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/autocomplete_surface/test_whitespace_lifecycle.py"]
+fingerprint = "sha256:e06ba8aad563486f0a89509dab326a106df5db2aac15f1186b20571c80c04724"
+rationale = "This five-test real-shell autocomplete whitespace-lifecycle owner mounts the production prompt workspace to prove selection navigation, ghost-text dismissal, whitespace tag completion, stale-preview retargeting, and post-dismissal projection rebuilding. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, popup state, snapshots, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0258"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0259"
+owner = "Real-shell prompt-weight canonicalization"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/canonicalization/test_weight_normalization.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/canonicalization/test_weight_normalization.py"]
+fingerprint = "sha256:2c7c68fe0cd5ee8848ad37013ceb725c67596310a5afff00e768021f6a728daf"
+rationale = "This six-test real-shell prompt-weight canonicalization owner mounts the production prompt workspace to prove pasted and typed implicit emphasis, nested wrapping, undo/redo provenance, and manual-escape handling. A complete ordinary run aborts while mounting the workflow after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, prompt state, snapshots, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0259"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0260"
+owner = "Real-shell exact keyboard edits"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/keyboard_input/test_exact_edits.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/keyboard_input/test_exact_edits.py"]
+fingerprint = "sha256:a57b1a8d1ddfdfa19e29393ea308f7426b1d71742cde3f6703165c46243c3369"
+rationale = "This two-test real-shell exact-keyboard-edits owner mounts the production prompt workspace to prove a signed Ctrl+Down emphasis step with undo and selected-text replacement through real key events. A complete ordinary run aborts while executing the owner after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, prompt state, snapshots, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0260"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0261"
+owner = "Real-shell pale-skin space layout diagnostics"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/projection_diagnostics/test_pale_skin_space.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/projection_diagnostics/test_pale_skin_space.py"]
+fingerprint = "sha256:0e3fc91e7f32f6bfd86a03ae2fad0aaed2d7eb191f861f5236e5fc7834f94ae9"
+rationale = "This real-shell pale-skin space-layout diagnostic mounts the production prompt workspace with a test-local thumbnail repository to prove that a narrow space edit preserves layout, geometry, visible-row, and visible-fragment stability. A complete ordinary run aborts while executing the owner after prior native Qt work in a reused worker, while five concurrent fresh-process rounds pass. Its shell, workflow, catalog, repository, snapshots, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0261"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0262"
+owner = "Real-shell separator naming"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_naming.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_naming.py"]
+fingerprint = "sha256:fdb94fd8c6c83cd4ba21ba6dee758a134c974c6f54a56da1041a2f616243d8ff"
+rationale = "This three-test real-shell separator-naming owner mounts the production prompt workspace to prove F2 and double-click naming, live framing, source-backed history, and focus-loss commit behavior. A complete ordinary run loses inline-editor focus after prior native Qt work in a reused worker, while five concurrent fresh-process rounds pass. Its shell, workflow, inline editor, snapshots, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0262"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0263"
+owner = "Real-shell separator navigation"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_navigation.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/scene_editing/test_separator_navigation.py"]
+fingerprint = "sha256:c0018615a0f2fc08811aefcca1bb6ff7a4a77909f59af19d166be821b5930f0f"
+rationale = "This seven-test real-shell separator-navigation owner mounts the production prompt workspace to prove native horizontal and shift navigation, hidden-separator edge resolution, pointer caret placement, and source-order repair. A complete ordinary run aborts while executing the owner after prior native Qt work in a reused worker, while five fresh-process runs pass. Its shell, workflow, snapshots, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0263"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0264"
+owner = "Real-shell blank-row selection rendering"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/selection_rendering/test_blank_rows.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/selection_rendering/test_blank_rows.py"]
+fingerprint = "sha256:18c5d6c628c95995d7296fc02e2ac829b230e58eb836ed9a6b24777b7cc1219a"
+rationale = "This one-test real-shell blank-row selection owner mounts the production prompt workspace to prove real select-all input, projected blank-row ownership, and selection-paint geometry. A complete one-worker ordinary run aborts while mounting the owner after prior native Qt work, while five fresh-process runs pass. Its shell, workflow, snapshots, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0264"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0265"
+owner = "Real-shell prompt-editor composition mount"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/prompt_editor/real_shell/shell_composition/test_mount.py|isolated-module"]
+paths = ["tests/qualification/prompt_editor/real_shell/shell_composition/test_mount.py"]
+fingerprint = "sha256:bde5bf6828102b327cc0ccb22e9615b029c531a9440af30d77077a63b6e37caa"
+rationale = "This two-test real-shell composition owner mounts the production prompt workspace to prove EditorPanel registration, real PromptEditor mounting, visible focus routing, composed collaborators, and autocomplete wiring. A complete one-worker ordinary run aborts while mounting the owner after prior native Qt work, while five fresh-process runs pass. Its shell, workflow, editor panel, gateway, input events, and artifacts are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0265"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0266"
+owner = "Model-picker open search-surface interaction"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/widgets/model_picker/test_open_surface_interaction.py|isolated-module"]
+paths = ["tests/presentation/widgets/model_picker/test_open_surface_interaction.py"]
+fingerprint = "sha256:65cd2e1c1c90ae8e92d32fb6b94c7431c7473726e45e711b83d8c115de7c03dc"
+rationale = "This two-test model-picker owner proves that real clicks retain the open picker and its search text, and that native drag selection remains inside the search surface. A complete ordinary run replaced the open popup after prior native Qt work in a reused worker, while five fresh-process runs pass. Its host, field, popup, catalog, input events, and cleanup are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0266"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0268"
+owner = "Bounded real-Node test execution"
+kind = "classification"
+disposition = "resource_locked"
+rule = "NODE001"
+candidates = ["NODE001|tests/support/execution/node_runtime.py|<module>:unowned-node-process:1"]
+paths = ["tests/support/execution/node_runtime.py"]
+fingerprint = "sha256:66adc0acf6728a4ff920522d4c3c571ead90b925355cbd76d2fd5bb5b0cdfa16"
+rationale = "This test-support module is the sole real-Node subprocess owner. It preserves the command's explicit timeout and captures its output while a bounded Windows named mutex prevents the concurrent cold-start pressure observed across independent xdist workers; non-Windows execution remains parallel. Every test caller must use this owner, and NODE001 keeps any direct bypass mechanically reviewable."
+issue = "chore:SS-TEST-WAIVER-C0268"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0269"
+owner = "Native local-Comfy process lifecycle"
+kind = "classification"
+disposition = "platform_native"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/infrastructure/comfy/local_process/test_integration.py|<module>:unscoped-child-process:1"]
+paths = ["tests/infrastructure/comfy/local_process/test_integration.py"]
+fingerprint = "sha256:e9b26120e618f910ac073276ea4f14ef22e5160a6af6cfa23d36a50b219643bd"
+rationale = "This integration test starts one uniquely pathed local Comfy process to prove the production operating-system discovery and shutdown boundary. A try/finally owner kills any surviving child and performs a bounded wait; the success path proves production cleanup and clears the reference before final teardown. Context-managed Popen would wait before the production close contract could be exercised."
+issue = "chore:SS-TEST-WAIVER-C0269"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0270"
+owner = "Windows updater process probe"
+kind = "classification"
+disposition = "platform_native"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/launcher/update_activation/transaction/test_process_scheduling.py|<module>:unscoped-child-process:1"]
+paths = ["tests/launcher/update_activation/transaction/test_process_scheduling.py"]
+fingerprint = "sha256:b2efaca7e477a3b54553d117c253bf43c0b1cf0206722155149627a0a349978d"
+rationale = "This Windows-native test must keep a real child alive while the production PID probe observes it. Its unconditional finally block terminates the exact child, waits with a ten-second bound, then escalates to kill and a second bounded wait. A context-managed lifetime cannot preserve the live-process observation boundary."
+issue = "chore:SS-TEST-WAIVER-C0270"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0271"
+owner = "Real Comfy inpaint qualification harness"
+kind = "classification"
+disposition = "framework_infrastructure"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/qualification/comfy/inpaint/asset_harness.py|<module>:unscoped-child-process:1"]
+paths = ["tests/qualification/comfy/inpaint/asset_harness.py"]
+fingerprint = "sha256:4de1d702af680370c15b6f2c7fbe12fee61c016174944202e06cf35217deb4fc"
+rationale = "The context-managed qualification harness retains one real Comfy child across multiple protocol operations. Its __exit__ owner terminates the process tree on every path, uses bounded waits with kill escalation, closes the log handle, and cleans both temporary environments. The raw Popen lifetime is therefore contained by the harness context rather than the Popen context itself."
+issue = "chore:SS-TEST-WAIVER-C0271"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0272"
+owner = "Managed Comfy direct-output qualification harness"
+kind = "classification"
+disposition = "framework_infrastructure"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>:unscoped-child-process:1"]
+paths = ["tests/qualification/comfy/managed_runtime/direct_output_harness.py"]
+fingerprint = "sha256:82d46f2863134822d717a36ae1a252418fd0685141f6bef19d50a5c363156b9d"
+rationale = "The context-managed qualification harness retains one real managed Comfy process while exercising HTTP, WebSocket, and output contracts. Its __exit__ owner terminates the child on every path, waits with a fifteen-second bound, escalates to kill with a second bound, closes its log, and cleans the temporary workspace."
+issue = "chore:SS-TEST-WAIVER-C0272"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0273"
+owner = "Application launch handoff process contention"
+kind = "classification"
+disposition = "platform_native"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/shared/application_launch_guard/test_guard.py|<module>:unscoped-child-process:1"]
+paths = ["tests/shared/application_launch_guard/test_guard.py"]
+fingerprint = "sha256:f576c2d6f8f4e794fc03e08d7d66d3686a356c8085d000e663bd97eab7f24cf7"
+rationale = "This cross-process contention contract launches four simultaneous children that must overlap while claiming one application handoff token. The enclosing try/finally owns the entire child set, bounds every communicate call, kills every survivor, and performs a bounded final wait. Independent Popen context managers would not model simultaneous ownership."
+issue = "chore:SS-TEST-WAIVER-C0273"
+review_by = 2026-12-15

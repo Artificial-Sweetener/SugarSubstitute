@@ -1,0 +1,345 @@
+#    SugarSubstitute - The desktop native Qt front-end for ComfyUI
+#    Copyright (C) 2026  Artificial Sweetener and contributors
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Provide shared fixtures for prompt projection surface tests."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from typing import Any, cast
+
+import pytest
+from PySide6.QtCore import QPoint, QPointF
+from PySide6.QtGui import QImage, QPainter
+from PySide6.QtWidgets import QWidget
+
+from substitute.application.prompt_editor.document.service import PromptDocumentService
+from substitute.application.prompt_editor.document.views import PromptDocumentView
+from substitute.application.prompt_editor.editing.source_normalization import (
+    PromptSourceNormalizationService,
+)
+from substitute.application.prompt_editor.lora.catalog_models import (
+    PromptLoraCatalogItem,
+    PromptLoraThumbnailVariant,
+)
+from substitute.application.prompt_editor.projection.syntax_service import (
+    PromptSyntaxRenderPlan,
+    PromptSyntaxService,
+)
+from substitute.application.ports import PromptWildcardResolution
+from substitute.domain.model_metadata import BANNER_THUMBNAIL_ROLE, ThumbnailAsset
+from substitute.presentation.editor.prompt_editor import PromptEditor
+from substitute.presentation.editor.prompt_editor.core.editing.commands import (
+    PromptReplaceRangeEdit,
+)
+from substitute.presentation.editor.prompt_editor.core.editing.source_commands import (
+    PromptSourceEditOrigin,
+)
+from substitute.presentation.editor.prompt_editor.projection.surface import (
+    PromptProjectionSurface,
+)
+from substitute.presentation.editor.prompt_editor.core.projection.tokens import (
+    PromptProjectionToken,
+    PromptProjectionTokenKind,
+)
+from substitute.presentation.editor.prompt_editor.projection.transient_edit_overlays import (
+    PromptProjectionTransientInsertionOverlay,
+)
+from tests.support.prompt_editor.projection_engine_support import (
+    StaticPromptWildcardCatalogGateway,
+    ensure_qapp,
+    process_events,
+    surface_for,
+)
+from tests.support.prompt_editor.autocomplete_support import prompt_syntax_profile
+from tests.support.prompt_editor.projection_surface_factory import (
+    surface_source_commands as _surface_source_commands,
+)
+
+
+@pytest.fixture(name="widgets")
+def projection_surface_widgets() -> Iterator[list[QWidget]]:
+    """Track widgets created during one projection-surface test."""
+
+    created: list[QWidget] = []
+    yield created
+    app = ensure_qapp()
+    for widget in reversed(created):
+        widget.close()
+        widget.deleteLater()
+    process_events(app)
+
+
+def first_emphasis_token(box: PromptEditor) -> PromptProjectionToken:
+    """Return the first collapsed emphasis token from one live projection."""
+
+    return next(
+        token
+        for token in surface_for(box).projection_document().tokens
+        if token.kind is PromptProjectionTokenKind.EMPHASIS
+    )
+
+
+class PositionEvent:
+    """Expose a viewport-local position for tooltip provider tests."""
+
+    def __init__(self, position: QPointF) -> None:
+        """Store the event position."""
+
+        self._position = position
+
+    def position(self) -> QPointF:
+        """Return the stored viewport-local position."""
+
+        return QPointF(self._position)
+
+
+class StaticPromptLoraCatalog:
+    """Return deterministic LoRA catalog rows for projection tests."""
+
+    def __init__(self, items: tuple[PromptLoraCatalogItem, ...]) -> None:
+        """Store configured LoRA rows."""
+
+        self._items = items
+
+    def list_loras(self) -> tuple[PromptLoraCatalogItem, ...]:
+        """Return configured LoRA rows."""
+
+        return self._items
+
+    def cached_loras(self) -> tuple[PromptLoraCatalogItem, ...] | None:
+        """Return configured LoRA rows without simulating backend loading."""
+
+        return self._items
+
+    def find_lora(self, prompt_name: str) -> PromptLoraCatalogItem | None:
+        """Return the configured LoRA row matching one prompt name."""
+
+        normalized_prompt_name = prompt_name.replace("\\", "/").casefold()
+        for item in self._items:
+            if item.prompt_name.replace("\\", "/").casefold() == normalized_prompt_name:
+                return item
+        return None
+
+
+class RecordingThumbnailAssetRepository:
+    """Record thumbnail asset reads without returning decoded image data."""
+
+    def __init__(self) -> None:
+        """Initialize the storage-key read log."""
+
+        self.reads: list[str] = []
+
+    def read_thumbnail_asset(self, storage_key: str) -> ThumbnailAsset | None:
+        """Record one requested storage key and return no asset."""
+
+        self.reads.append(storage_key)
+        return None
+
+
+def lora_catalog_item_with_banner(
+    *,
+    prompt_name: str = "midna",
+    storage_key: str = "midna:banner:768x160",
+) -> PromptLoraCatalogItem:
+    """Return one LoRA catalog item with a banner thumbnail variant."""
+
+    return PromptLoraCatalogItem(
+        display_name="Midna",
+        display_subtitle=None,
+        prompt_name=prompt_name,
+        backend_value=f"{prompt_name}.safetensors",
+        relative_path=f"{prompt_name}.safetensors",
+        folder="",
+        basename=prompt_name,
+        extension=".safetensors",
+        thumbnail_variants=(
+            PromptLoraThumbnailVariant(
+                size=768,
+                storage_key=storage_key,
+                width=768,
+                height=160,
+                content_format="png",
+                byte_size=1024,
+                role=BANNER_THUMBNAIL_ROLE,
+            ),
+        ),
+        base_model="Illustrious",
+        trained_words=(),
+        tags=(),
+        model_page_url=None,
+        collision_key=prompt_name.casefold(),
+        collision_count=1,
+        has_collision=False,
+        search_text=prompt_name.casefold(),
+    )
+
+
+def install_lora_wildcard_prompt_state(
+    surface: PromptProjectionSurface,
+    text: str,
+) -> None:
+    """Install a resolved prompt state containing LoRA and wildcard decorations."""
+
+    wildcard_gateway = StaticPromptWildcardCatalogGateway(
+        {
+            ("animal", "simple", None): PromptWildcardResolution(
+                identifier="animal",
+                wildcard_form="simple",
+                exists=True,
+            ),
+        }
+    )
+    document_service = PromptDocumentService()
+    document_view = document_service.build_document_view(text)
+    render_plan = PromptSyntaxService(
+        wildcard_gateway,
+        prompt_lora_catalog_service=StaticPromptLoraCatalog(
+            (lora_catalog_item_with_banner(),)
+        ),
+    ).build_render_plan(
+        document_view,
+        prompt_syntax_profile("emphasis", "wildcard", "lora"),
+    )
+    _surface_source_commands(surface).set_source_text(text)
+    set_surface_prompt_state(surface, document_view, render_plan)
+    surface.flush_pending_projection_update(reason="test")
+
+
+def set_surface_prompt_state(
+    surface: PromptProjectionSurface,
+    document_view: PromptDocumentView,
+    render_plan: PromptSyntaxRenderPlan,
+) -> None:
+    """Publish semantic state through the surface revision authority."""
+
+    if surface.toPlainText() != document_view.source_text:
+        _surface_source_commands(surface).set_source_text(document_view.source_text)
+        process_events(ensure_qapp())
+    surface.set_prompt_state(
+        surface.editor_state.prepare_semantic(
+            document_view,
+            render_plan,
+            source_identity=surface.editor_state.source_identity,
+        )
+    )
+
+
+def projection_token_kinds(
+    surface: PromptProjectionSurface,
+) -> tuple[PromptProjectionTokenKind, ...]:
+    """Return the projected token kind sequence for one surface."""
+
+    return tuple(token.kind for token in surface.projection_document().tokens)
+
+
+def apply_source_range_to_projection(
+    surface: PromptProjectionSurface,
+    next_text: str,
+    *,
+    source_edit_start: int,
+    source_edit_end: int,
+    source_edit_replacement_text: str,
+) -> None:
+    """Apply a range edit through the production commit application boundary."""
+
+    commit = surface.edit_execution.session.execute(
+        PromptReplaceRangeEdit(
+            start=source_edit_start,
+            end=source_edit_end,
+            replacement_text=source_edit_replacement_text,
+            normalizer=PromptSourceNormalizationService(),
+            origin=PromptSourceEditOrigin.TYPED,
+            exact_source=True,
+            record_undo=False,
+            undo_snapshot=surface.edit_execution.current_undo_snapshot(),
+        )
+    )
+    assert commit.next_snapshot.source_text == next_text
+    surface.apply_edit_commit(commit)
+
+
+def valid_transient_insertion_overlay(
+    surface: PromptProjectionSurface,
+) -> PromptProjectionTransientInsertionOverlay | None:
+    """Return controller-owned transient insertion overlay state for assertions."""
+
+    return surface._transient_edit_overlays.valid_insertion_overlay(  # noqa: SLF001
+        freshness_is_stale_safe=surface.has_stale_projection_geometry(),
+        source_identity=surface.editor_state.source_identity,
+    )
+
+
+def render_surface_viewport(surface: PromptProjectionSurface) -> QImage:
+    """Render one projection surface viewport into an offscreen image."""
+
+    image = QImage(
+        max(1, surface.viewport().width()),
+        max(1, surface.viewport().height()),
+        QImage.Format.Format_ARGB32_Premultiplied,
+    )
+    image.fill(0)
+    painter = QPainter(image)
+    try:
+        surface.viewport().render(painter, QPoint(0, 0))
+    finally:
+        painter.end()
+    return image
+
+
+def delay_projection_update_scheduler(surface: PromptProjectionSurface) -> None:
+    """Make projection scheduling observable without sleeping in tests."""
+
+    scheduler = surface._projection_freshness_controller.update_scheduler  # noqa: SLF001
+    scheduler._fixed_interval_ms = 60_000  # noqa: SLF001
+    scheduler._interval_ms = 60_000  # noqa: SLF001
+    scheduler._timer.setInterval(60_000)  # noqa: SLF001
+
+
+def flush_projection_update_scheduler(surface: PromptProjectionSurface) -> None:
+    """Apply a delayed scheduled projection update through the production scheduler."""
+
+    surface._projection_freshness_controller.update_scheduler.flush_now(reason="test")  # noqa: SLF001
+
+
+def configure_trailing_word_wrap_boundary(
+    box: PromptEditor,
+    surface: PromptProjectionSurface,
+) -> str:
+    """Configure text whose trailing word expansion crosses a visual-line boundary."""
+
+    app = ensure_qapp()
+    for prefix_length in range(1, 513):
+        initial_text = f"{'a' * prefix_length} bl"
+        box.setPlainText(initial_text)
+        process_events(app)
+        initial_line_count = len(surface._layout.frame.output.snapshot.lines)  # noqa: SLF001
+        box.setPlainText(f"{initial_text}ush")
+        process_events(app)
+        expanded_line_count = len(surface._layout.frame.output.snapshot.lines)  # noqa: SLF001
+        if expanded_line_count > initial_line_count:
+            box.setPlainText(initial_text)
+            process_events(app)
+            return initial_text
+    raise AssertionError("Could not configure a trailing-word wrap boundary")
+
+
+def flush_semantic_refresh(box: PromptEditor) -> None:
+    """Apply queued semantic prompt state without waiting for Qt timers."""
+
+    cast(Any, box)._interaction_controller.flush_pending_semantic_refresh(  # noqa: SLF001
+        reason="test"
+    )

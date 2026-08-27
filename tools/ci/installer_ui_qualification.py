@@ -23,7 +23,6 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
-import socket
 import subprocess
 import sys
 import time
@@ -44,6 +43,7 @@ from sugarsubstitute_shared.application_readiness import (
 from sugarsubstitute_shared.installer_qualification import (
     INSTALLER_QUALIFICATION_PLAN_ENV,
     InstallerQualificationPlan,
+    InstallerQualificationTarget,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
@@ -106,6 +106,7 @@ def prepare_qualification_evidence(
     endpoint_port: int,
     phase: str,
     timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
+    target_mode: InstallerQualificationTarget = "managed_local",
 ) -> InstallerQualificationEvidence:
     """Build inherited automation and readiness state for one continuous chain."""
 
@@ -129,10 +130,16 @@ def prepare_qualification_evidence(
         endpoint_port=endpoint_port,
         event_log_path=event_log_path,
         timeout_seconds=timeout_seconds,
-        target_mode="managed_local",
-        managed_workspace_path=resolved_root / "comfyui",
-        managed_model_root=resolved_root / "qualified-models",
-        force_cpu_mode=sys.platform != "darwin",
+        target_mode=target_mode,
+        managed_workspace_path=(
+            resolved_root / "comfyui" if target_mode == "managed_local" else None
+        ),
+        managed_model_root=(
+            resolved_root / "qualified-models"
+            if target_mode == "managed_local"
+            else None
+        ),
+        force_cpu_mode=target_mode == "managed_local" and sys.platform != "darwin",
     )
     environment = dict(os.environ)
     environment[READINESS_PATH_ENV] = str(readiness_path)
@@ -321,24 +328,17 @@ def verify_main_shell_evidence(
                 required_events=required_qualification_events,
             )
         assert_startup_trace_sequence(evidence.trace_path)
-        assert_real_managed_comfy(
-            install_root=install_root,
-            plan=evidence.plan,
-            require_governed_setup_record=require_governed_setup_record,
-        )
+        if evidence.plan.target_mode == "managed_local":
+            assert_real_managed_comfy(
+                install_root=install_root,
+                plan=evidence.plan,
+                require_governed_setup_record=require_governed_setup_record,
+            )
     finally:
         if receipt is not None:
             terminate_verified_process(receipt.pid)
         if candidate_launch is not None and candidate_launch.process.poll() is None:
             terminate_verified_process(candidate_launch.process.pid)
-
-
-def available_loopback_port() -> int:
-    """Reserve and release one loopback port for the managed Comfy launch."""
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        probe.bind(("127.0.0.1", 0))
-        return int(probe.getsockname()[1])
 
 
 def assert_installed_version(install_root: Path, expected_version: str) -> None:
@@ -786,7 +786,6 @@ __all__ = [
     "assert_installed_version",
     "assert_qualification_event_sequence",
     "assert_startup_trace_sequence",
-    "available_loopback_port",
     "diagnostic_tail",
     "installed_launch_has_progress",
     "launch_installed_candidate",

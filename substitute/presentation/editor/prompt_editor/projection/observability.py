@@ -30,7 +30,11 @@ from substitute.application.prompt_editor.projection.syntax_service import (
     PromptLoraRendererView,
     PromptSyntaxRenderPlan,
 )
-from substitute.shared.logging.logger import elapsed_ms_since, get_logger, log_debug
+from substitute.shared.logging.logger import (
+    elapsed_ms_since,
+    get_logger,
+    log_debug,
+)
 
 _LOGGER = get_logger("presentation.editor.prompt_editor.projection.observability")
 _REORDER_DRAG_GESTURE_IDS = count(1)

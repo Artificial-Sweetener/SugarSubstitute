@@ -26,6 +26,7 @@ class ComfySupportMatrixEntry:
     """Describe one real ComfyUI and integrated Manager release pair."""
 
     comfyui_tag: str
+    commit_sha: str
     manager_version: str
     supports_pygit2: bool
 
@@ -39,14 +40,54 @@ class ComfyUpdateMatrixEntry:
 
 
 COMFY_RELEASE_CONTRACTS: tuple[ComfySupportMatrixEntry, ...] = (
-    ComfySupportMatrixEntry("v0.15.0", "4.1b1", False),
-    ComfySupportMatrixEntry("v0.17.0", "4.1b2", False),
-    ComfySupportMatrixEntry("v0.18.0", "4.1b6", False),
-    ComfySupportMatrixEntry("v0.19.0", "4.1", False),
-    ComfySupportMatrixEntry("v0.20.0", "4.2.1", True),
-    ComfySupportMatrixEntry("v0.24.0", "4.2.1", True),
-    ComfySupportMatrixEntry("v0.25.0", "4.2.2", True),
-    ComfySupportMatrixEntry("v0.28.2", "4.2.2", True),
+    ComfySupportMatrixEntry(
+        "v0.15.0",
+        "b874bd2b8c324d58cfc37bff0754dd16815a8f3c",
+        "4.1b1",
+        False,
+    ),
+    ComfySupportMatrixEntry(
+        "v0.17.0",
+        "63d1bbdb407c69370d407ce5ced6ca3f917528a8",
+        "4.1b2",
+        False,
+    ),
+    ComfySupportMatrixEntry(
+        "v0.18.0",
+        "dc719cde9c448c65242ae2d4ba400ba18c36846f",
+        "4.1b6",
+        False,
+    ),
+    ComfySupportMatrixEntry(
+        "v0.19.0",
+        "acd718598eca0b944a1a7a82072a9dec40d3d4f7",
+        "4.1",
+        False,
+    ),
+    ComfySupportMatrixEntry(
+        "v0.20.0",
+        "75143eeb06b14bc93db71de207945f6f888be4e0",
+        "4.2.1",
+        True,
+    ),
+    ComfySupportMatrixEntry(
+        "v0.24.0",
+        "f49bdb655707b97952dcef40e12e5af1f08d2007",
+        "4.2.1",
+        True,
+    ),
+    ComfySupportMatrixEntry(
+        "v0.25.0",
+        "135abed8da169e33ab0b86550e05e3ae55d6df8c",
+        "4.2.2",
+        True,
+    ),
+    ComfySupportMatrixEntry(
+        "v0.28.2",
+        "306af3a8771a8232d26bd20acbfc6b07f862ad2b",
+        "4.2.2",
+        True,
+    ),
 )
 
 COMFY_SUPPORT_MATRIX: tuple[ComfySupportMatrixEntry, ...] = tuple(

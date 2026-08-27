@@ -20,135 +20,23 @@ from __future__ import annotations
 
 from typing import Any, Literal, cast
 
+from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSize, Qt, Signal
+from PySide6.QtGui import QFontMetrics, QPainter, QPainterPath, QPaintEvent
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from qfluentwidgets import (  # type: ignore[import-untyped]
+    CaptionLabel,
+    FluentIcon as FIF,
+    StrongBodyLabel,
+    TransparentToolButton,
+)
+from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
+
 from sugarsubstitute_shared.presentation.localization import (
     ApplicationMessage,
     app_text,
     set_localized_tooltip,
     translate_application_message,
 )
-
-try:
-    from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSize, Qt, Signal
-except ImportError:  # pragma: no cover - lightweight test stubs
-    from PySide6.QtCore import Qt, Signal
-
-    class QEvent:  # type: ignore[no-redef]
-        """Fallback QEvent enum container for lightweight queue row tests."""
-
-        class Type:
-            """Fallback event type names."""
-
-            MouseButtonPress = "mouse-press"
-            MouseMove = "mouse-move"
-            MouseButtonRelease = "mouse-release"
-
-    class QPoint:  # type: ignore[no-redef]
-        """Fallback QPoint for lightweight queue row tests."""
-
-        def __init__(self, x: int = 0, y: int = 0) -> None:
-            """Store x and y values."""
-
-            self._x = x
-            self._y = y
-
-        def __sub__(self, other: "QPoint") -> "QPoint":
-            """Return coordinate delta."""
-
-            this = cast(Any, self)
-            that = cast(Any, other)
-            return QPoint(this._x - that._x, this._y - that._y)
-
-        def manhattanLength(self) -> int:
-            """Return a Manhattan distance approximation."""
-
-            return abs(self._x) + abs(self._y)
-
-    class QRect:  # type: ignore[no-redef]
-        """Fallback QRect for lightweight queue row tests."""
-
-    class QRectF:  # type: ignore[no-redef]
-        """Fallback QRectF for lightweight queue row tests."""
-
-        def __init__(self, _rect: object) -> None:
-            """Accept a source rectangle."""
-
-    class QSize:  # type: ignore[no-redef]
-        """Fallback QSize for lightweight queue row tests."""
-
-        def __init__(self, width: int, height: int) -> None:
-            """Store width and height."""
-
-            self._width = width
-            self._height = height
-
-        def width(self) -> int:
-            """Return stored width."""
-
-            return self._width
-
-        def height(self) -> int:
-            """Return stored height."""
-
-            return self._height
-
-
-try:
-    from PySide6.QtGui import QFontMetrics, QPainter, QPainterPath, QPaintEvent
-except ImportError:  # pragma: no cover - lightweight test stubs
-    QPaintEvent = object  # type: ignore[misc,assignment]
-    QPainter = None  # type: ignore[misc,assignment]
-
-    class QPainterPath:  # type: ignore[no-redef]
-        """Fallback path for lightweight queue row tests."""
-
-        def addRoundedRect(
-            self,
-            _rect: object,
-            _x_radius: float,
-            _y_radius: float,
-        ) -> None:
-            """Accept rounded-rect path commands."""
-
-    class QFontMetrics:  # type: ignore[no-redef]
-        """Fallback font metrics for lightweight queue row tests."""
-
-        def __init__(self, *_args: object, **_kwargs: object) -> None:
-            """Create deterministic test metrics."""
-
-        def elidedText(
-            self,
-            text: str,
-            _mode: object,
-            width: int,
-        ) -> str:
-            """Return deterministic right-elided text for lightweight tests."""
-
-            if width <= 0:
-                return ""
-            character_budget = max(1, width // 7)
-            if len(text) <= character_budget:
-                return text
-            if character_budget <= 3:
-                return "." * character_budget
-            return f"{text[: character_budget - 3].rstrip()}..."
-
-        def tightBoundingRect(self, _text: str) -> object:
-            """Return a small rectangle-like text bound."""
-
-            return type("_Rect", (), {"height": lambda self: 10})()
-
-
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
-from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
-from qfluentwidgets import TransparentToolButton
-from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
-
-try:
-    from qfluentwidgets import CaptionLabel, StrongBodyLabel
-except ImportError:  # pragma: no cover - lightweight test stubs
-    CaptionLabel = QLabel
-    StrongBodyLabel = QLabel
-
 
 from substitute.presentation.generation.queue_thumbnail_cache import (
     GenerationQueueThumbnailCache,
@@ -499,8 +387,6 @@ class GenerationQueueItemRow(QFrame):
         """Paint the row and then the Settings-style interaction overlay."""
 
         super().paintEvent(event)
-        if QPainter is None:
-            return
         painter = QPainter(self)
         self._interaction.paint_overlay(painter)
 

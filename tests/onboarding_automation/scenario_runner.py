@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import sys
 
 from tests.onboarding_automation.driver import OnboardingAutomationDriver
+from tests.onboarding_automation.external_comfy_fixture import build_external_fixture
 from tests.onboarding_automation.fixture_paths import resolve_scenario_paths
 from tests.onboarding_automation.scenarios import build_scenarios
 from tests.onboarding_automation.screenshot_capture import (
@@ -45,16 +47,34 @@ def build_argument_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="List available scenarios and exit.",
     )
+    parser.add_argument(
+        "--run-root",
+        type=Path,
+        help="Caller-owned root for scenario artifacts and the external Comfy fixture.",
+    )
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Execute one named onboarding automation scenario."""
+def main(
+    argv: list[str] | None = None,
+    *,
+    run_root: Path | None = None,
+) -> int:
+    """Execute one named onboarding scenario beneath a caller-owned run root."""
 
     parser = build_argument_parser()
     args = parser.parse_args(argv)
-    paths = resolve_scenario_paths()
-    scenarios = build_scenarios(paths)
+    selected_run_root = run_root or args.run_root
+    if selected_run_root is None:
+        parser.error(
+            "--run-root is required when no programmatic run root is supplied."
+        )
+        return 2
+    paths = resolve_scenario_paths(selected_run_root)
+    scenarios = build_scenarios(
+        paths,
+        external_fixture=build_external_fixture(paths),
+    )
     if args.list_scenarios:
         for listed_scenario in scenarios.values():
             print(f"{listed_scenario.name}: {listed_scenario.description}")

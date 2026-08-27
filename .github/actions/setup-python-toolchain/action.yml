@@ -1,0 +1,237 @@
+name: Set up verified Python toolchain
+description: Restore immutable package inputs and synchronize a fresh exact environment.
+
+inputs:
+  python-version:
+    description: Exact hosted Python version for this job.
+    required: true
+  lock-file:
+    description: Repository-relative hash-locked dependency graph.
+    required: false
+    default: requirements-toolchain.lock
+  environment-path:
+    description: Repository-relative disposable virtual environment path.
+    required: false
+    default: .venv
+  cache-epoch:
+    description: Emergency compatibility epoch for package-cache invalidation.
+    required: false
+    default: "3"
+  cache-scope:
+    description: Stable dependency-profile identity for compatible-prefix reuse.
+    required: false
+    default: toolchain
+
+outputs:
+  python:
+    description: Absolute interpreter path inside the synchronized environment.
+    value: ${{ steps.sync.outputs.python }}
+  cache-hit:
+    description: Whether the exact content-addressed package cache restored.
+    value: ${{ steps.cache-result.outputs.cache-hit }}
+  cache-restored:
+    description: Whether an exact or compatible-prefix package cache restored.
+    value: ${{ steps.cache-result.outputs.cache-restored }}
+  cache-key:
+    description: Complete package-cache identity used by this job.
+    value: ${{ steps.identity.outputs.primary-key }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up exact hosted Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Resolve package-cache identity
+      id: identity
+      shell: pwsh
+      env:
+        LOCK_FILE: ${{ inputs.lock-file }}
+        PYTHON_VERSION: ${{ inputs.python-version }}
+        CACHE_EPOCH: ${{ inputs.cache-epoch }}
+        CACHE_SCOPE: ${{ inputs.cache-scope }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        $lockPath = Resolve-Path -LiteralPath $env:LOCK_FILE
+        $lockHash = (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $bootstrapLockPath = Resolve-Path -LiteralPath "requirements-ci-bootstrap.lock"
+        $bootstrapLockHash = (Get-FileHash -LiteralPath $bootstrapLockPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $imageOs = if ($env:ImageOS) { $env:ImageOS } else { "unreported-os" }
+        $imageVersion = if ($env:ImageVersion) { $env:ImageVersion } else { "unreported-image" }
+        $runnerImage = "$imageOs-$imageVersion" -replace '[^A-Za-z0-9._-]', '-'
+        $cacheScope = $env:CACHE_SCOPE -replace '[^A-Za-z0-9._-]', '-'
+        $prefix = "python-$cacheScope-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$runnerImage-py$env:PYTHON_VERSION-uv0.12.3-$bootstrapLockHash"
+        "primary-key=$prefix-$lockHash" >> $env:GITHUB_OUTPUT
+        "restore-key=$prefix-" >> $env:GITHUB_OUTPUT
+        "lock-hash=$lockHash" >> $env:GITHUB_OUTPUT
+
+    - name: Resolve isolated package-cache storage
+      id: cache-storage
+      shell: pwsh
+      env:
+        CACHE_SCOPE: ${{ inputs.cache-scope }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        if (-not $env:RUNNER_TEMP) {
+          throw "RUNNER_TEMP is unavailable; isolated package-cache storage cannot be prepared."
+        }
+        $cacheScope = $env:CACHE_SCOPE -replace '[^A-Za-z0-9._-]', '-'
+        $cachePath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope"
+        $markerPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope-restored-v3"
+        $toolPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-tool-$cacheScope-v0.12.3"
+        "cache-path=$cachePath" >> $env:GITHUB_OUTPUT
+        "marker-path=$markerPath" >> $env:GITHUB_OUTPUT
+        "tool-path=$toolPath" >> $env:GITHUB_OUTPUT
+
+    - name: Restore trusted package cache
+      id: trusted-cache
+      if: >-
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'repository_dispatch' ||
+        github.event_name == 'schedule'
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          ${{ steps.cache-storage.outputs.cache-path }}
+          ${{ steps.cache-storage.outputs.marker-path }}
+          ${{ steps.cache-storage.outputs.tool-path }}
+        key: ${{ steps.identity.outputs.primary-key }}
+        restore-keys: ${{ steps.identity.outputs.restore-key }}
+
+    - name: Restore untrusted package cache read-only
+      id: untrusted-cache
+      if: >-
+        github.event_name != 'push' &&
+        github.event_name != 'workflow_dispatch' &&
+        github.event_name != 'repository_dispatch' &&
+        github.event_name != 'schedule'
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          ${{ steps.cache-storage.outputs.cache-path }}
+          ${{ steps.cache-storage.outputs.marker-path }}
+          ${{ steps.cache-storage.outputs.tool-path }}
+        key: ${{ steps.identity.outputs.primary-key }}
+        restore-keys: ${{ steps.identity.outputs.restore-key }}
+
+    - name: Record package-cache result
+      id: cache-result
+      shell: pwsh
+      env:
+        TRUSTED_HIT: ${{ steps.trusted-cache.outputs.cache-hit }}
+        UNTRUSTED_HIT: ${{ steps.untrusted-cache.outputs.cache-hit }}
+        MARKER_PATH: ${{ steps.cache-storage.outputs.marker-path }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        $exactHit = $env:TRUSTED_HIT -eq "true" -or $env:UNTRUSTED_HIT -eq "true"
+        $cacheRestored = $exactHit -or (Test-Path -LiteralPath $env:MARKER_PATH -PathType Leaf)
+        "cache-hit=$($exactHit.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+        "cache-restored=$($cacheRestored.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+        "Package cache exact hit: $($exactHit.ToString().ToLowerInvariant())"
+        "Package cache content restored: $($cacheRestored.ToString().ToLowerInvariant())"
+        New-Item -ItemType File -Path $env:MARKER_PATH -Force | Out-Null
+
+    - name: Resolve exact uv
+      id: setup-uv
+      shell: pwsh
+      env:
+        UV_BOOTSTRAP_LOCK: requirements-ci-bootstrap.lock
+        UV_TOOL_PATH: ${{ steps.cache-storage.outputs.tool-path }}
+        UV_VERSION: "0.12.3"
+      run: |
+        $ErrorActionPreference = "Stop"
+        $runnerRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP)
+        $toolRoot = [IO.Path]::GetFullPath($env:UV_TOOL_PATH)
+        $relativeToolPath = [IO.Path]::GetRelativePath($runnerRoot, $toolRoot)
+        $parentPrefix = "..$([IO.Path]::DirectorySeparatorChar)"
+        if (
+          $relativeToolPath -eq "." -or
+          $relativeToolPath -eq ".." -or
+          $relativeToolPath.StartsWith($parentPrefix, [StringComparison]::Ordinal) -or
+          [IO.Path]::IsPathRooted($relativeToolPath)
+        ) {
+          throw "The exact uv tool path is outside RUNNER_TEMP."
+        }
+        $uvName = if ($IsWindows) { "uv.exe" } else { "uv" }
+        $uvExecutable = Join-Path $toolRoot "bin/$uvName"
+
+        function Get-ExactUvVersion {
+          if (-not (Test-Path -LiteralPath $uvExecutable -PathType Leaf)) {
+            return ""
+          }
+          try {
+            return ((& $uvExecutable --version 2>$null) | Out-String).Trim()
+          } catch {
+            return ""
+          }
+        }
+
+        $reportedVersion = Get-ExactUvVersion
+        if ($reportedVersion -notmatch "^uv $([regex]::Escape($env:UV_VERSION))(?: |$)") {
+          if (Test-Path -LiteralPath $toolRoot) {
+            Remove-Item -LiteralPath $toolRoot -Recurse -Force
+          }
+          python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: --no-deps --target $toolRoot -r $env:UV_BOOTSTRAP_LOCK
+          if ($LASTEXITCODE -ne 0) {
+            throw "Hash-locked uv bootstrap failed."
+          }
+          $reportedVersion = Get-ExactUvVersion
+        }
+        if ($reportedVersion -notmatch "^uv $([regex]::Escape($env:UV_VERSION))(?: |$)") {
+          throw "The resolved uv executable does not match the required version."
+        }
+        (Split-Path -Parent $uvExecutable) >> $env:GITHUB_PATH
+        "uv-path=$uvExecutable" >> $env:GITHUB_OUTPUT
+
+    - name: Synchronize fresh verified environment
+      id: sync
+      shell: pwsh
+      env:
+        ENVIRONMENT_PATH: ${{ inputs.environment-path }}
+        LOCK_FILE: ${{ inputs.lock-file }}
+        CACHE_RESTORED: ${{ steps.cache-result.outputs.cache-restored }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        $basePython = python -c "import sys; print(sys.executable)"
+        uv venv --clear $env:ENVIRONMENT_PATH --python $basePython --no-python-downloads
+        if ($LASTEXITCODE -ne 0) {
+          throw "Fresh Python environment creation failed."
+        }
+        $environmentPython = if ($IsWindows) {
+          Join-Path $env:ENVIRONMENT_PATH "Scripts/python.exe"
+        } else {
+          Join-Path $env:ENVIRONMENT_PATH "bin/python"
+        }
+        uv pip sync $env:LOCK_FILE --python $environmentPython --require-hashes --strict --no-python-downloads
+        if ($LASTEXITCODE -ne 0 -and $env:CACHE_RESTORED -eq "true") {
+          Write-Warning "Synchronization failed after restoring cache content; rebuilding once from an empty disposable cache."
+          uv cache clean
+          if ($LASTEXITCODE -ne 0) {
+            throw "Disposable uv cache cleanup failed."
+          }
+          uv venv --clear $env:ENVIRONMENT_PATH --python $basePython --no-python-downloads
+          if ($LASTEXITCODE -ne 0) {
+            throw "Python environment recreation after cache cleanup failed."
+          }
+          uv pip sync $env:LOCK_FILE --python $environmentPython --require-hashes --strict --refresh --no-python-downloads
+        }
+        if ($LASTEXITCODE -ne 0) {
+          throw "Verified Python environment synchronization failed."
+        }
+        uv pip check --python $environmentPython
+        if ($LASTEXITCODE -ne 0) {
+          throw "The synchronized Python dependency graph is invalid."
+        }
+        $absolutePython = (Resolve-Path -LiteralPath $environmentPython).Path
+        $binaryDirectory = Split-Path -Parent $absolutePython
+        $binaryDirectory >> $env:GITHUB_PATH
+        "python=$absolutePython" >> $env:GITHUB_OUTPUT
+
+    - name: Register lean package-cache finalization
+      uses: ./.github/actions/finalize-uv-cache
+      with:
+        uv-path: ${{ steps.setup-uv.outputs.uv-path }}
+        cache-path: ${{ steps.cache-storage.outputs.cache-path }}
