@@ -30,6 +30,7 @@ def test_classify_load_image_fields_as_asset_fields() -> None:
             field_key="image",
             node_data={"inputs": {"image": "E:/images/input.png"}},
             field_type="LIST",
+            field_info=None,
         )
         is NodeFieldKind.ASSET_FIELD
     )
@@ -39,6 +40,22 @@ def test_classify_load_image_fields_as_asset_fields() -> None:
             field_key="image",
             node_data={"inputs": {"image": "mask.png"}},
             field_type="LIST",
+            field_info=None,
+        )
+        is NodeFieldKind.ASSET_FIELD
+    )
+
+
+def test_classify_custom_upload_metadata_as_asset_field() -> None:
+    """Editor preservation should cover custom asset widgets through metadata."""
+
+    assert (
+        classify_node_field(
+            class_type="CustomUploader",
+            field_key="source_file",
+            node_data={"inputs": {"source_file": "local.png"}},
+            field_type="LIST",
+            field_info=["LIST", {"image_upload": True}],
         )
         is NodeFieldKind.ASSET_FIELD
     )
@@ -53,6 +70,7 @@ def test_classify_regular_live_lists_as_comfy_enum_fields() -> None:
             field_key="ckpt_name",
             node_data={"inputs": {"ckpt_name": "model-a.safetensors"}},
             field_type="LIST",
+            field_info=None,
         )
         is NodeFieldKind.COMFY_ENUM_FIELD
     )
@@ -67,6 +85,7 @@ def test_classify_combo_fields_as_comfy_enum_fields() -> None:
             field_key="model_name",
             node_data={"inputs": {"model_name": "R-ESRGAN 4x+ Anime6B.pth"}},
             field_type="COMBO",
+            field_info=None,
         )
         is NodeFieldKind.COMFY_ENUM_FIELD
     )
@@ -84,6 +103,7 @@ def test_classify_active_sampler_links_as_linked_fields() -> None:
                 "sampler_link": {"from": "workflow"},
             },
             field_type="LIST",
+            field_info=None,
         )
         is NodeFieldKind.LINKED_FIELD
     )
@@ -98,6 +118,7 @@ def test_classify_non_list_fields_as_plain_fields() -> None:
             field_key="seed",
             node_data={"inputs": {"seed": 1}},
             field_type="INT",
+            field_info=None,
         )
         is NodeFieldKind.PLAIN_FIELD
     )

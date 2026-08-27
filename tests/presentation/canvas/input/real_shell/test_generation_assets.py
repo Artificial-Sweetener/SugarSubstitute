@@ -27,8 +27,8 @@ from substitute.application.generation.input_asset_staging_plan_service import (
     InputAssetStagingPlanService,
 )
 from substitute.application.ports.comfy_asset_stager import ComfyAssetStager
-from substitute.application.workflows.input_asset_endpoint_service import (
-    InputAssetEndpointService,
+from substitute.application.workflows.input_asset_field_service import (
+    InputAssetFieldService,
 )
 from substitute.application.workflows.workflow_node_definition_service import (
     WorkflowNodeDefinitionService,
@@ -141,10 +141,10 @@ def test_real_widgets_stage_exact_input_products_without_losing_live_preview(
         }
         stager = _RecordingAssetStager()
         staging_plan = InputAssetStagingPlanService(
-            InputAssetEndpointService(
+            harness.shell.graph_section_service,
+            InputAssetFieldService(
                 WorkflowNodeDefinitionService(harness.shell.node_definition_gateway)
             ),
-            harness.shell.graph_section_service,
         )
         staged = ComfyAssetStagingService.with_projects_dir(
             stager=stager,

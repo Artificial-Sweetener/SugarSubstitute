@@ -47,7 +47,7 @@ disposition = "intentional_real_time"
 rule = "WAIT001"
 candidates = ["WAIT001|tests/qualification/comfy/inpaint/asset_harness.py|<module>.RealComfyInpaintAssetHarness._wait_for_history:wait:time.sleep:1", "WAIT001|tests/qualification/comfy/inpaint/asset_harness.py|<module>.RealComfyInpaintAssetHarness._wait_until_ready:wait:time.sleep:1"]
 paths = ["tests/qualification/comfy/inpaint/asset_harness.py"]
-fingerprint = "sha256:4de1d702af680370c15b6f2c7fbe12fee61c016174944202e06cf35217deb4fc"
+fingerprint = "sha256:17a9195d1b7cb11d8c0999486bac71a550c224f408f569a26e148176942f534d"
 rationale = "tests/qualification/comfy/inpaint/asset_harness.py drives a real external application or managed Comfy process whose lifecycle is intentionally outside the in-process scheduler. The bounded polling delay belongs to qualification orchestration, returns immediately when the external state appears, and preserves timeout diagnostics."
 issue = "chore:SS-TEST-WAIVER-C0174"
 review_by = 2026-12-15
@@ -105,7 +105,7 @@ candidates = [
   "POLL001|tests/qualification/comfy/inpaint/asset_harness.py|<module>.RealComfyInpaintAssetHarness._wait_until_ready:wall-clock-poll:1",
 ]
 paths = ["tests/qualification/comfy/inpaint/asset_harness.py"]
-fingerprint = "sha256:4de1d702af680370c15b6f2c7fbe12fee61c016174944202e06cf35217deb4fc"
+fingerprint = "sha256:17a9195d1b7cb11d8c0999486bac71a550c224f408f569a26e148176942f534d"
 rationale = "This qualification harness starts and queries a real isolated Comfy process whose startup and history publication are external to the in-process scheduler. Its clock bounds external failure, while each loop returns immediately on the required readiness or terminal history state."
 issue = "chore:SS-TEST-WAIVER-C0184"
 review_by = 2026-12-15
@@ -1201,7 +1201,7 @@ disposition = "framework_infrastructure"
 rule = "PROCESS001"
 candidates = ["PROCESS001|tests/qualification/comfy/inpaint/asset_harness.py|<module>:unscoped-child-process:1"]
 paths = ["tests/qualification/comfy/inpaint/asset_harness.py"]
-fingerprint = "sha256:4de1d702af680370c15b6f2c7fbe12fee61c016174944202e06cf35217deb4fc"
+fingerprint = "sha256:17a9195d1b7cb11d8c0999486bac71a550c224f408f569a26e148176942f534d"
 rationale = "The context-managed qualification harness retains one real Comfy child across multiple protocol operations. Its __exit__ owner terminates the process tree on every path, uses bounded waits with kill escalation, closes the log handle, and cleans both temporary environments. The raw Popen lifetime is therefore contained by the harness context rather than the Popen context itself."
 issue = "chore:SS-TEST-WAIVER-C0271"
 review_by = 2026-12-15
@@ -1230,4 +1230,17 @@ paths = ["tests/shared/application_launch_guard/test_guard.py"]
 fingerprint = "sha256:f576c2d6f8f4e794fc03e08d7d66d3686a356c8085d000e663bd97eab7f24cf7"
 rationale = "This cross-process contention contract launches four simultaneous children that must overlap while claiming one application handoff token. The enclosing try/finally owns the entire child set, bounds every communicate call, kills every survivor, and performs a bounded final wait. Independent Popen context managers would not model simultaneous ownership."
 issue = "chore:SS-TEST-WAIVER-C0273"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0274"
+owner = "Native model-picker focus interaction"
+kind = "classification"
+disposition = "resource_locked"
+rule = "SERIAL001"
+candidates = ["SERIAL001|tests/presentation/widgets/model_picker/test_search_interaction.py|serial-module"]
+paths = ["tests/presentation/widgets/model_picker/test_search_interaction.py"]
+fingerprint = "sha256:d6d558f1dd3776cf477b3e3c9719fd9a0fe4016afd7debdb0b8ae20a8e5da23e"
+rationale = "This module proves real top-level window activation, mouse opening, native keyboard routing, and focus transfer through the production model picker. Separate xdist worker processes share one operating-system foreground focus owner and can therefore steal activation from each other; globally sequential execution preserves the native contract without retries, longer waits, synthetic focus injection, or weakened assertions. Twenty repeated exclusive Windows executions passed after the concurrent hosted failure demonstrated the resource boundary."
+issue = "chore:SS-TEST-WAIVER-C0274"
 review_by = 2026-12-15

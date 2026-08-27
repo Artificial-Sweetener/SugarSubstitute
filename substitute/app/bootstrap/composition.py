@@ -1684,8 +1684,8 @@ def _build_main_window_dependencies(
     )
 
     input_asset_staging_plan_service = InputAssetStagingPlanService(
-        input_asset_endpoint_service,
         graph_section_service,
+        node_definition_service=workflow_node_definition_service,
     )
     comfy_asset_staging_service = _build_comfy_asset_staging_service(
         context,

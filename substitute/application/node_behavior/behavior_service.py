@@ -33,8 +33,7 @@ from substitute.application.workflows.prompt_endpoint_service import (
 from substitute.application.workflows.node_link_endpoint_service import (
     NodeLinkEndpointService,
 )
-from substitute.domain.comfy_workflow import NodeActivationStorage
-from substitute.domain.comfy_workflow import DirectWorkflowState
+from substitute.domain.comfy_workflow import DirectWorkflowState, NodeActivationStorage
 from substitute.domain.links.prompt_endpoints import PromptEndpointIndex
 from substitute.domain.links.node_links import NodeLinkEndpointIndex
 from substitute.domain.node_behavior import (
@@ -855,6 +854,7 @@ class NodeBehaviorService:
             field_key=field_key,
             node_data=node_data,
             field_type=field_type,
+            field_info=field_info,
         )
         if field_kind is NodeFieldKind.LINKED_FIELD:
             return raw_value, FieldValueSource.LINKED

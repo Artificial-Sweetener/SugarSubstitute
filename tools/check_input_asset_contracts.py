@@ -14,30 +14,31 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Identify picker fields whose execution values belong to asset staging."""
+"""Validate a cube catalog against SugarSubstitute input-asset contracts."""
 
 from __future__ import annotations
 
-from substitute.application.workflows.input_asset_field_policy import (
-    InputAssetFieldPolicy,
-)
+import argparse
+from pathlib import Path
 
-_INPUT_ASSET_FIELD_POLICY = InputAssetFieldPolicy()
-
-
-def is_runtime_asset_picker_field(
-    *,
-    class_type: str,
-    input_name: str,
-    field_spec: object,
-) -> bool:
-    """Return whether staging, rather than picker fallback, owns the value."""
-
-    return _INPUT_ASSET_FIELD_POLICY.is_asset_field(
-        class_type=class_type,
-        field_key=input_name,
-        field_info=field_spec,
-    )
+from tools.input_asset_governance.cube_contracts import validate_cube_root
 
 
-__all__ = ["is_runtime_asset_picker_field"]
+def main() -> int:
+    """Print deterministic cube diagnostics and return a gate status."""
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("cube_root", type=Path)
+    args = parser.parse_args()
+    diagnostics = validate_cube_root(args.cube_root.resolve())
+    for diagnostic in diagnostics:
+        print(f"{diagnostic.path}: error ASSET-CUBE: {diagnostic.message}")
+    if diagnostics:
+        print(f"FAILED: Found {len(diagnostics)} input-asset contract error(s).")
+        return 1
+    print("Input-asset cube contracts passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -34,6 +34,9 @@ from substitute.application.recipes.workflow_payload_nodes import (
 from substitute.application.generation.input_asset_source_resolver import (
     InputAssetSourceResolver,
 )
+from substitute.application.generation.input_asset_staging_postcondition import (
+    enforce_input_asset_staging_postcondition,
+)
 from substitute.application.generation.ordered_input_asset_staging_service import (
     OrderedInputAssetStagingService,
 )
@@ -41,8 +44,11 @@ from substitute.application.generation.input_asset_staging_plan_service import (
     InputAssetStagingPlanService,
     InputAssetStagingTarget,
 )
-from substitute.application.workflows.input_asset_endpoint_service import (
-    InputAssetEndpointService,
+from substitute.application.workflows.input_asset_field_policy import (
+    InputAssetFieldPolicy,
+)
+from substitute.application.workflows.input_asset_field_service import (
+    InputAssetFieldService,
 )
 from substitute.application.workflows.workflow_node_definition_service import (
     WorkflowNodeDefinitionService,
@@ -54,7 +60,6 @@ from substitute.domain.common import JsonObject, WorkflowId
 from substitute.domain.generation import AssetStagingFailure, ComfyStagedAsset
 from substitute.domain.workflow import (
     InputAssetCardinality,
-    InputAssetRole,
     WorkflowState,
 )
 from substitute.shared.logging.logger import (
@@ -65,7 +70,6 @@ from substitute.shared.logging.logger import (
 
 _LOGGER = get_logger("application.generation.asset_staging_service")
 _SAFE_SUBFOLDER_RE = re.compile(r"[^A-Za-z0-9_.-]+")
-_LOAD_IMAGE_CLASSES = frozenset({"LoadImage", "LoadImageMask"})
 
 
 @dataclass(frozen=True)
@@ -93,10 +97,11 @@ class ComfyAssetStagingService:
         self._input_asset_staging_plan_service = (
             input_asset_staging_plan_service
             or InputAssetStagingPlanService(
-                InputAssetEndpointService(WorkflowNodeDefinitionService()),
                 WorkflowGraphSectionService(),
+                InputAssetFieldService(WorkflowNodeDefinitionService()),
             )
         )
+        self._input_asset_field_policy = InputAssetFieldPolicy()
         self._source_resolver = InputAssetSourceResolver()
         self._ordered_staging_service = OrderedInputAssetStagingService(
             stager=ordered_stager or stager,
@@ -153,6 +158,7 @@ class ComfyAssetStagingService:
 
         staged_assets: list[ComfyStagedAsset] = []
         failures: list[AssetStagingFailure] = []
+        staged_target_keys: set[tuple[str, str]] = set()
         target_subfolder = (
             f"substitute/{_safe_subfolder_component(workflow_id or workflow_name)}"
         )
@@ -181,6 +187,9 @@ class ComfyAssetStagingService:
                 failures.extend(ordered_result.failures)
                 if ordered_result.execution_value is not None:
                     inputs[target.field_key] = ordered_result.execution_value
+                    staged_target_keys.add((node_id, target.field_key))
+                elif ordered_result.failures:
+                    inputs[target.field_key] = {"__value__": []}
                 continue
             if not isinstance(image_value, str) or not image_value:
                 failures.append(
@@ -222,6 +231,7 @@ class ComfyAssetStagingService:
                         message=app_text("Referenced local image file does not exist."),
                     )
                 )
+                inputs[target.field_key] = ""
                 continue
             try:
                 staged_asset = self._stager.stage_file_for_load_image(
@@ -249,8 +259,10 @@ class ComfyAssetStagingService:
                         message=str(error),
                     )
                 )
+                inputs[target.field_key] = ""
                 continue
             inputs[target.field_key] = staged_asset.execution_value
+            staged_target_keys.add((node_id, target.field_key))
             if staged_asset.execution_node_class is not None:
                 node_data["class_type"] = staged_asset.execution_node_class
             if self._source_resolver.should_use_project_mask_color_channel(
@@ -287,6 +299,16 @@ class ComfyAssetStagingService:
                 operation=staged_asset.operation,
             )
 
+        enforce_input_asset_staging_postcondition(
+            prompt=prompt,
+            targets=targets,
+            staged_target_keys=staged_target_keys,
+            failures=failures,
+            source_resolver=self._source_resolver,
+            workflow_id=workflow_id,
+            workflow_name=workflow_name,
+            workflow=workflow,
+        )
         return ComfyAssetStagingResult(
             workflow_payload=staged_payload,
             staged_assets=tuple(staged_assets),
@@ -299,7 +321,7 @@ class ComfyAssetStagingService:
         workflow: object | None,
         prompt: Mapping[str, object],
     ) -> tuple[InputAssetStagingTarget, ...]:
-        """Return semantic targets or exact built-in fallbacks without workflow state."""
+        """Return semantic targets from authored state or compiled host fallbacks."""
 
         if isinstance(workflow, WorkflowState):
             return self._input_asset_staging_plan_service.targets_for_prompt(
@@ -311,20 +333,21 @@ class ComfyAssetStagingService:
             if not isinstance(raw_node, Mapping):
                 continue
             class_type = raw_node.get("class_type")
-            if class_type not in _LOAD_IMAGE_CLASSES:
+            if not isinstance(class_type, str):
                 continue
             node_id = str(raw_node_id)
-            targets.append(
+            targets.extend(
                 InputAssetStagingTarget(
                     executable_node_id=node_id,
                     section_key="",
                     node_name=node_id,
-                    field_key="image",
-                    role=(
-                        InputAssetRole.MASK
-                        if class_type == "LoadImageMask"
-                        else InputAssetRole.IMAGE
-                    ),
+                    field_key=field.field_key,
+                    role=field.preferred_role,
+                    cardinality=field.cardinality,
+                )
+                for field in self._input_asset_field_policy.fields_for_node(
+                    class_type,
+                    {},
                 )
             )
         return tuple(targets)

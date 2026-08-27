@@ -308,7 +308,15 @@ ISOLATED_TEST_MODULES = frozenset(
 )
 
 
-SERIAL_TEST_MODULES: Final[frozenset[str]] = frozenset()
+SERIAL_TEST_MODULES: Final[frozenset[str]] = frozenset(
+    {
+        # This model-picker module exercises real top-level window activation
+        # and native focus transfer. Concurrent Qt worker processes compete
+        # for that single operating-system focus owner, while repeated
+        # exclusive executions preserve its mouse and keyboard contracts.
+        "tests/presentation/widgets/model_picker/test_search_interaction.py",
+    }
+)
 
 
 def parallel_test_worker_count(available_workers: int | None) -> int:

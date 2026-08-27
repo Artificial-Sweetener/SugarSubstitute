@@ -215,9 +215,9 @@ class WorkflowInputCanvasService:
     ) -> tuple[InputCanvasMaskBinding, ...]:
         """Return editable mask bindings for one workflow image node."""
 
-        return self._canvas_plan_for_section(
-            workflow, section_key
-        ).bindings_for_surface_key(image_node_name)
+        return self.input_canvas_plan(workflow, section_key).bindings_for_surface_key(
+            image_node_name
+        )
 
     def binding_for_mask(
         self,
@@ -227,7 +227,7 @@ class WorkflowInputCanvasService:
     ) -> InputCanvasMaskBinding | None:
         """Return editable mask binding for one workflow mask node when present."""
 
-        return self._canvas_plan_for_section(workflow, section_key).binding_for_mask(
+        return self.input_canvas_plan(workflow, section_key).binding_for_mask(
             mask_node_name
         )
 
@@ -292,7 +292,7 @@ class WorkflowInputCanvasService:
     ) -> WorkflowAssetRef | None:
         """Return an image asset through its discovered upload widget field."""
 
-        endpoint = self._canvas_plan_for_section(
+        endpoint = self.input_canvas_plan(
             workflow, section_key
         ).image_endpoint_for_node(node_name)
         if endpoint is None:
@@ -547,7 +547,7 @@ class WorkflowInputCanvasService:
 
         identities: list[tuple[str, str]] = []
         for section_key in self._graph_section_service.section_keys(workflow):
-            plan = self._canvas_plan_for_section(workflow, section_key)
+            plan = self.input_canvas_plan(workflow, section_key)
             identities.extend(endpoint.identity for endpoint in plan.image_endpoints)
         unique_identities = tuple(dict.fromkeys(identities))
         if len(unique_identities) != 1:
@@ -607,9 +607,9 @@ class WorkflowInputCanvasService:
                 surface_key=image_node_name,
                 image_id=None,
             )
-        endpoint = self._canvas_plan_for_section(
-            workflow, cube_alias
-        ).image_endpoint_for_node(image_node_name)
+        endpoint = self.input_canvas_plan(workflow, cube_alias).image_endpoint_for_node(
+            image_node_name
+        )
         if endpoint is None:
             log_warning(
                 _LOGGER,
@@ -735,9 +735,9 @@ class WorkflowInputCanvasService:
                 surface_key=image_node_name,
                 image_id=None,
             )
-        endpoint = self._canvas_plan_for_section(
-            workflow, cube_alias
-        ).image_endpoint_for_node(image_node_name)
+        endpoint = self.input_canvas_plan(workflow, cube_alias).image_endpoint_for_node(
+            image_node_name
+        )
         if endpoint is None:
             return InputCanvasMaterializationResult(
                 section_key=cube_alias,
@@ -910,7 +910,7 @@ class WorkflowInputCanvasService:
             return ()
         results: list[InputCanvasMaterializationResult] = []
         phase_started_at = perf_counter()
-        plan = self._canvas_plan_for_section(workflow, section_key)
+        plan = self.input_canvas_plan(workflow, section_key)
         self._synthetic_surface_service.invalidate_stale(
             workflows=workflows,
             workflow_id=workflow_id,
@@ -990,7 +990,7 @@ class WorkflowInputCanvasService:
         )
         return materialized_results
 
-    def _canvas_plan_for_section(
+    def input_canvas_plan(
         self,
         workflow: WorkflowState,
         section_key: str,
