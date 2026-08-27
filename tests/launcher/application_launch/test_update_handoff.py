@@ -27,6 +27,8 @@ from unittest.mock import ANY
 import pytest
 
 from launcher.sugarsubstitute_launcher import app as launcher_app
+from launcher.sugarsubstitute_launcher import installed_app_handoff
+from launcher.sugarsubstitute_launcher import splash_session as splash_session_module
 from launcher.sugarsubstitute_launcher.config import (
     DEFAULT_RELEASE_MANIFEST_URL,
     LauncherConfig,
@@ -104,20 +106,31 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
                 failure_reason=failure_reason,
             )
 
+    def record_splash_start(**_kwargs: object) -> object:
+        """Record that visibility precedes logging, updates, and app handoff."""
+
+        calls.append("splash")
+        return splash_session
+
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setenv(STARTUP_REMOTE_DEGRADED_ENV, "1")
     monkeypatch.setattr(
-        launcher_app,
+        installed_app_handoff,
         "LauncherUpdateOrchestrator",
         _FakeUpdateOrchestrator,
     )
     monkeypatch.setattr(
-        launcher_app,
+        splash_session_module,
         "start_launcher_splash_session",
-        lambda *, layout, locale_identifier: splash_session,
+        record_splash_start,
     )
     monkeypatch.setattr(
         launcher_app,
+        "_configure_normal_logging",
+        lambda _startup_plan: calls.append("logging"),
+    )
+    monkeypatch.setattr(
+        installed_app_handoff,
         "start_detached",
         record_app_start,
     )
@@ -129,6 +142,8 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
 
     assert launcher_app.main([]) == 0
     assert calls == [
+        "splash",
+        "logging",
         "update",
         "launch",
         subprocess_path(layout.runtime_python),
@@ -189,22 +204,22 @@ def test_launcher_main_hands_off_pending_launcher_update_instead_of_app(
 
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setattr(
-        launcher_app,
+        installed_app_handoff,
         "LauncherUpdateOrchestrator",
         _FakeUpdateOrchestrator,
     )
     monkeypatch.setattr(
-        launcher_app,
+        splash_session_module,
         "start_launcher_splash_session",
         lambda *, layout, locale_identifier: splash_session,
     )
     monkeypatch.setattr(
-        launcher_app,
+        installed_app_handoff,
         "schedule_launcher_update",
         schedule_update,
     )
     monkeypatch.setattr(
-        launcher_app,
+        installed_app_handoff,
         "start_detached",
         lambda _command: pytest.fail("The old launcher must not start the app."),
     )

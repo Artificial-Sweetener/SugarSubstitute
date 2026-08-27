@@ -14,104 +14,44 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Start the standalone launcher GUI."""
+"""Route the standalone launcher while keeping installed startup splash-first."""
 
 from __future__ import annotations
 
 import logging
-import os
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from launcher.sugarsubstitute_launcher.cli import parse_launcher_args
-from launcher.sugarsubstitute_launcher.candidate_update_launch import (
-    launch_prepared_update,
-)
-from launcher.sugarsubstitute_launcher.application.installation.composition import (
-    build_installation_workflow,
-)
-from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
-    resolve_initial_install_release_source,
-)
-from launcher.sugarsubstitute_launcher.application_launch import (
-    enter_installed_application_launch,
-    installed_application_environment,
-)
-from launcher.sugarsubstitute_launcher.connectivity import ReleaseConnectivityVerifier
-from launcher.sugarsubstitute_launcher.config import LauncherConfig
-from launcher.sugarsubstitute_launcher.install_layout import (
-    InstallLayout,
-)
-from launcher.sugarsubstitute_launcher.headless_install import HeadlessInstallService
-from launcher.sugarsubstitute_launcher.logging_setup import configure_launcher_logging
-from launcher.sugarsubstitute_launcher.localization import (
-    build_launcher_localization_runtime,
-    resolve_launcher_locale,
-    seed_headless_locale_preference,
-)
-from launcher.sugarsubstitute_launcher.process import (
-    build_app_launch_command,
-    start_detached,
-    start_detached_handoff,
-)
-from launcher.sugarsubstitute_launcher.release_sources import (
-    GitHubReleaseSource,
-    ReleaseSource,
-    default_production_release_source,
-    release_source_from_config,
-)
-from launcher.sugarsubstitute_launcher.splash_session import (
-    append_splash_session_args,
-    start_launcher_splash_session,
-)
-from launcher.sugarsubstitute_launcher.startup_plan import (
-    LauncherStartupPlan,
-    resolve_startup_plan,
-    should_launch_installed_app,
-    should_show_repair,
-)
-from launcher.sugarsubstitute_launcher.update_orchestrator import (
-    LauncherUpdateOrchestrator,
-)
-from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
-from sugarsubstitute_shared.installer_qualification import InstallerQualificationPlan
-from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
-from sugarsubstitute_shared.localization import format_locale_argument
+if TYPE_CHECKING:
+    from launcher.sugarsubstitute_launcher.cli import LauncherArguments
+    from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+    from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
+    from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupPlan
+    from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
 
 
-_LOGGER = logging.getLogger(__name__)
-_PRE_LAUNCH_MANIFEST_TIMEOUT_SECONDS = 3.0
 LauncherMainWindow: Callable[..., Any] | None = None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Create the Qt application and run the launcher window."""
+    """Route one launcher invocation and reveal installed startup immediately."""
+
+    from launcher.sugarsubstitute_launcher.cli import parse_launcher_args
 
     args = parse_launcher_args(sys.argv[1:] if argv is None else argv)
     if args.verify_release_connectivity:
-        ReleaseConnectivityVerifier().verify(
-            release_source=_explicit_release_source(args.manifest_url)
-        )
-        return 0
+        return _verify_release_connectivity(args)
     if args.headless_install:
-        if args.install_root is None:
-            raise ValueError("Headless installation requires an explicit install root.")
-        layout = InstallLayout.from_root(args.install_root)
-        configure_launcher_logging(layout=layout)
-        HeadlessInstallService(
-            workflow=build_installation_workflow(output_callback=_LOGGER.info)
-        ).install(
-            install_root=layout.root,
-            release_source=_initial_install_release_source(args.manifest_url),
-        )
-        seed_headless_locale_preference(
-            layout,
-            locale_override=args.locale_override,
-        )
-        return 0
-    startup_plan = resolve_startup_plan(
+        return _run_headless_install(args)
+
+    from launcher.sugarsubstitute_launcher.startup_plan import (
+        resolve_startup_candidate,
+        should_attempt_installed_app_launch,
+    )
+
+    startup_candidate = resolve_startup_candidate(
         explicit_install_root=args.install_root,
         executable_path=Path(sys.executable),
         frozen_support_path=_frozen_support_path(),
@@ -119,9 +59,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         native_executable_path=_native_frozen_executable_path(),
         working_directory_path=Path.cwd(),
     )
-    layout = startup_plan.layout
-    configure_launcher_logging(layout=layout)
-    _record_qualification_startup_route(startup_plan)
+    layout = startup_candidate.layout
+    from launcher.sugarsubstitute_launcher.localization import resolve_launcher_locale
+    from sugarsubstitute_shared.localization import format_locale_argument
+
     resolved_locale = resolve_launcher_locale(
         layout,
         locale_override=args.locale_override,
@@ -132,87 +73,196 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     app_launch_error: Exception | None = None
     launch_guard: ApplicationLaunchGuard | None = None
-    if should_launch_installed_app(args=args, startup_plan=startup_plan):
+    startup_plan: LauncherStartupPlan | None = None
+    if should_attempt_installed_app_launch(args=args, candidate=startup_candidate):
+        from launcher.sugarsubstitute_launcher.application_launch import (
+            enter_installed_application_launch,
+        )
+
         launch_guard = enter_installed_application_launch(layout)
         if launch_guard is None:
-            _LOGGER.info(
-                "Ignored launch request because SugarSubstitute is already running."
-            )
             return 0
+        from launcher.sugarsubstitute_launcher.splash_session import (
+            start_launcher_splash_session,
+        )
+
         splash_session = None
         try:
-            config = LauncherConfig.load(layout.config_path)
             splash_session = start_launcher_splash_session(
                 layout=layout,
                 locale_identifier=resolved_locale.effective_language.identifier,
             )
-            update_result = LauncherUpdateOrchestrator().run(
+            from launcher.sugarsubstitute_launcher.startup_plan import (
+                assess_startup_candidate,
+            )
+
+            startup_plan = assess_startup_candidate(startup_candidate)
+            _configure_normal_logging(startup_plan)
+            if not startup_plan.installed_config_valid:
+                raise ValueError(
+                    startup_plan.config_error or "Installed launcher config is invalid."
+                )
+            from launcher.sugarsubstitute_launcher.installed_app_handoff import (
+                complete_installed_app_handoff,
+            )
+
+            complete_installed_app_handoff(
                 layout=layout,
-                config=config,
-                release_source=create_normal_launch_release_source(config),
+                launch_guard=launch_guard,
+                locale_argument=locale_argument,
                 no_update_check=args.no_update_check,
-                progress=splash_session.client if splash_session is not None else None,
+                splash_session=splash_session,
             )
-            if update_result.launcher_update_request_path is not None:
-                if splash_session is not None:
-                    splash_session.client.close()
-                schedule_launcher_update(
-                    request_path=Path(update_result.launcher_update_request_path),
-                    runtime_python=layout.runtime_python,
-                    app_dir=layout.app_dir,
-                    relaunch=True,
-                    wait_pid=os.getpid(),
-                )
-                return 0
-            app_command = append_splash_session_args(
-                build_app_launch_command(
-                    layout=layout,
-                    extra_args=(locale_argument,),
-                ),
-                splash_session,
-            )
-            if update_result.pending_activation is not None:
-                launch_prepared_update(
-                    layout=layout,
-                    command=app_command,
-                    initial_guard=launch_guard,
-                    activation=update_result.pending_activation,
-                )
-            else:
-                start_detached(
-                    app_command,
-                    environment=installed_application_environment(
-                        launch_guard,
-                        remote_failure_reason=update_result.failure_reason,
-                    ),
-                )
             return 0
         except Exception as error:
             app_launch_error = error
-            _LOGGER.exception("Installed app launch failed; showing repair UI.")
+            _configure_launch_error_logging(
+                layout=layout,
+                startup_plan=startup_plan,
+            )
+            logging.getLogger(__name__).exception(
+                "Installed app launch failed; showing repair UI."
+            )
             if splash_session is not None:
                 try:
                     splash_session.client.close()
                 except OSError:
-                    _LOGGER.debug("Failed to close launcher splash after error.")
+                    logging.getLogger(__name__).debug(
+                        "Failed to close launcher splash after error."
+                    )
+    else:
+        from launcher.sugarsubstitute_launcher.startup_plan import (
+            assess_startup_candidate,
+        )
+
+        startup_plan = assess_startup_candidate(startup_candidate)
+        _configure_normal_logging(startup_plan)
+
+    if startup_plan is None:
+        from launcher.sugarsubstitute_launcher.startup_plan import (
+            assess_startup_candidate,
+        )
+
+        startup_plan = assess_startup_candidate(startup_candidate)
+
+    return _run_launcher_window(
+        args=args,
+        startup_plan=startup_plan,
+        app_launch_error=app_launch_error,
+        launch_guard=launch_guard,
+    )
+
+
+def _verify_release_connectivity(args: LauncherArguments) -> int:
+    """Run the explicit headless release-connectivity operation."""
+
+    from launcher.sugarsubstitute_launcher.connectivity import (
+        ReleaseConnectivityVerifier,
+    )
+
+    ReleaseConnectivityVerifier().verify(
+        release_source=_explicit_release_source(args.manifest_url)
+    )
+    return 0
+
+
+def _run_headless_install(args: LauncherArguments) -> int:
+    """Install launcher and app payload without constructing GUI state."""
+
+    if args.install_root is None:
+        raise ValueError("Headless installation requires an explicit install root.")
+    from launcher.sugarsubstitute_launcher.application.installation.composition import (
+        build_installation_workflow,
+    )
+    from launcher.sugarsubstitute_launcher.headless_install import (
+        HeadlessInstallService,
+    )
+    from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+    from launcher.sugarsubstitute_launcher.localization import (
+        seed_headless_locale_preference,
+    )
+    from launcher.sugarsubstitute_launcher.logging_setup import (
+        configure_launcher_logging,
+    )
+
+    layout = InstallLayout.from_root(args.install_root)
+    configure_launcher_logging(layout=layout)
+    logger = logging.getLogger(__name__)
+    HeadlessInstallService(
+        workflow=build_installation_workflow(output_callback=logger.info)
+    ).install(
+        install_root=layout.root,
+        release_source=_initial_install_release_source(args.manifest_url),
+    )
+    seed_headless_locale_preference(
+        layout,
+        locale_override=args.locale_override,
+    )
+    return 0
+
+
+def _configure_normal_logging(startup_plan: LauncherStartupPlan) -> None:
+    """Configure durable diagnostics after the installed splash boundary."""
+
+    from launcher.sugarsubstitute_launcher.logging_setup import (
+        configure_launcher_logging,
+    )
+
+    configure_launcher_logging(layout=startup_plan.layout)
+    _record_qualification_startup_route(startup_plan)
+
+
+def _configure_launch_error_logging(
+    *,
+    layout: InstallLayout,
+    startup_plan: LauncherStartupPlan | None,
+) -> None:
+    """Configure diagnostics even when startup assessment fails unexpectedly."""
+
+    if startup_plan is not None:
+        _configure_normal_logging(startup_plan)
+        return
+    from launcher.sugarsubstitute_launcher.logging_setup import (
+        configure_launcher_logging,
+    )
+
+    configure_launcher_logging(layout=layout)
+
+
+def _run_launcher_window(
+    *,
+    args: LauncherArguments,
+    startup_plan: LauncherStartupPlan,
+    app_launch_error: Exception | None,
+    launch_guard: ApplicationLaunchGuard | None,
+) -> int:
+    """Show setup or repair UI after installed launch routing is complete."""
 
     from PySide6.QtWidgets import QApplication
+
+    from launcher.sugarsubstitute_launcher.application.installation.composition import (
+        build_installation_workflow,
+    )
+    from launcher.sugarsubstitute_launcher.localization import (
+        build_launcher_localization_runtime,
+    )
+    from launcher.sugarsubstitute_launcher.process import start_detached_handoff
+    from launcher.sugarsubstitute_launcher.startup_plan import should_show_repair
 
     application = QApplication.instance()
     owns_application = application is None
     if application is None:
         application = QApplication(sys.argv[:1])
     application = cast(QApplication, application)
-
     build_launcher_localization_runtime(
         application,
-        layout=layout,
+        layout=startup_plan.layout,
         locale_override=args.locale_override,
     )
 
     try:
         window = _launcher_main_window_class()(
-            initial_layout=layout,
+            initial_layout=startup_plan.layout,
             continue_install=args.continue_install,
             repair=should_show_repair(
                 args=args,
@@ -246,6 +296,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _explicit_release_source(manifest_url: str | None) -> ReleaseSource:
     """Return the requested HTTPS source or the production release channel."""
 
+    from launcher.sugarsubstitute_launcher.release_sources import (
+        GitHubReleaseSource,
+        default_production_release_source,
+    )
+
     if manifest_url is None:
         return default_production_release_source()
     return GitHubReleaseSource(manifest_url)
@@ -253,6 +308,11 @@ def _explicit_release_source(manifest_url: str | None) -> ReleaseSource:
 
 def _initial_install_release_source(manifest_url: str | None) -> ReleaseSource:
     """Return an explicit test source or the installer-bound release source."""
+
+    from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
+        resolve_initial_install_release_source,
+    )
+    from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
 
     if manifest_url is not None:
         return GitHubReleaseSource(manifest_url)
@@ -272,15 +332,6 @@ def _launcher_main_window_class() -> Callable[..., Any]:
 
         LauncherMainWindow = ImportedLauncherMainWindow
     return LauncherMainWindow
-
-
-def create_normal_launch_release_source(config: LauncherConfig) -> ReleaseSource | None:
-    """Return the configured release source for normal launcher startup."""
-
-    return release_source_from_config(
-        config.release_source,
-        timeout_seconds=_PRE_LAUNCH_MANIFEST_TIMEOUT_SECONDS,
-    )
 
 
 def _frozen_support_path() -> Path | None:
@@ -316,10 +367,15 @@ def _record_qualification_startup_route(
 ) -> None:
     """Record packaged route evidence only for an authenticated CI chain."""
 
+    from sugarsubstitute_shared.installer_qualification import (
+        InstallerQualificationPlan,
+    )
+
+    logger = logging.getLogger(__name__)
     try:
         plan = InstallerQualificationPlan.from_environment()
     except ValueError as error:
-        _LOGGER.warning("Ignored invalid installer qualification plan: %s", error)
+        logger.warning("Ignored invalid installer qualification plan: %s", error)
         return
     if plan is None:
         return
@@ -337,4 +393,7 @@ def _record_qualification_startup_route(
             working_directory=str(Path.cwd()),
         )
     except OSError as error:
-        _LOGGER.warning("Could not record launcher startup route: %s", error)
+        logger.warning("Could not record launcher startup route: %s", error)
+
+
+__all__ = ["main"]
