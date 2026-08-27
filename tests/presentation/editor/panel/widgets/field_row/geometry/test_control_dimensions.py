@@ -207,21 +207,38 @@ def test_editor_spinbox_geometry_matches_pre_qfluent_contract() -> None:
     double_spinbox = DoubleSpinBox(panel)
     spinbox.setSymbolVisible(False)
     double_spinbox.setSymbolVisible(False)
+    panel_layout = QVBoxLayout(panel)
+    panel_layout.setContentsMargins(0, 0, 0, 0)
+    panel_layout.setSpacing(0)
+    rendered_fields: list[tuple[QWidget, QWidget, SpinBox | DoubleSpinBox]] = []
 
     for field_key, widget in (
         ("steps", spinbox),
         ("cfg", double_spinbox),
     ):
-        content, _row = _add_inline_row(
+        content, row = _add_inline_row(
             panel=panel,
             widget=widget,
             field_key=field_key,
         )
+        panel_layout.addWidget(content)
+        rendered_fields.append((content, row, widget))
 
-        assert widget.width() == 54
-        assert widget.minimumWidth() == 54
-        assert widget.maximumWidth() == 54
-        assert widget.lineEdit().geometry() == QRect(3, 3, 48, 27)
+    panel.resize(500, panel.sizeHint().height())
+    panel.show()
+    activate_widget_layouts(
+        panel,
+        *(content for content, _row, _widget in rendered_fields),
+        *(row for _content, row, _widget in rendered_fields),
+    )
+    try:
+        for _content, _row, widget in rendered_fields:
+            assert widget.width() == 54
+            assert widget.minimumWidth() == 54
+            assert widget.maximumWidth() == 54
+            assert widget.lineEdit().geometry() == QRect(3, 3, 48, 27)
+    finally:
+        destroy_widget_roots([panel])
 
 
 def test_spinner_slider_visuals_center_inside_editor_control_height() -> None:
