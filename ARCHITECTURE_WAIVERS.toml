@@ -139,7 +139,7 @@ kind = "remediation"
 justification = "The assessed file mixes prompt dispatch and request validation, listener lifecycle and preview routing, input asset staging, output preparation and generation diagnostics. Extract listener lifecycle and output routing from prompt dispatch and asset-staging orchestration."
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
-max_lines = 767
+  max_lines = 742
 next_limit = 613
 debt = "SS-ARCH-012"
 
@@ -269,7 +269,7 @@ kind = "remediation"
 justification = "The assessed file mixes recipe document classification and load orchestration, workflow serialization and destination validation, model and LoRA hash enrichment, cube definition and label resolution. Extract model metadata enrichment from recipe persistence and document classification."
 issue = "chore:SS-ARCH-022"
 review_by = 2026-12-15
-max_lines = 812
+  max_lines = 786
 next_limit = 649
 debt = "SS-ARCH-022"
 
@@ -386,7 +386,7 @@ kind = "remediation"
 justification = "The assessed file mixes image selection materialization and reconciliation, mask selection and validation, loaded cube and workflow-section materialization, mask-picker refresh, active-node preview binding and change publication. Extract picker and preview synchronization from image/mask materialization presentation."
 issue = "chore:SS-ARCH-035"
 review_by = 2026-12-15
-max_lines = 638
+  max_lines = 636
 next_limit = 510
 debt = "SS-ARCH-035"
 
@@ -2094,7 +2094,7 @@ kind = "structural"
 justification = "This module owns one authorization-preserving projection from authoring payload assets to staged Comfy execution payloads. Image and mask path resolution, channel policy, semantic upload fields, ordered regional masks, required-input failures, and payload immutability all govern that single staging transaction."
 issue = "chore:SS-WAIVER-S119"
 review_by = 2026-12-15
-max_lines = 646
+  max_lines = 645
 
 [[waivers]]
 id = "SS-WAIVER-S120"

@@ -58,6 +58,9 @@ from substitute.application.recipes.sugar_label_resolution import (
     resolve_parsed_script_labels,
 )
 from substitute.application.model_metadata import model_kind_for_field
+from substitute.application.workflows.input_asset_diagnostics import (
+    log_recipe_buffer_assets,
+)
 from substitute.application.node_behavior.list_value_resolver import (
     is_blank_picker_value,
 )
@@ -81,7 +84,6 @@ from substitute.shared.util.path_safety import (
 from substitute.shared.logging.logger import get_logger, log_debug, log_info
 
 _LOGGER = get_logger("application.recipes.recipe_io_service")
-_LOAD_IMAGE_CLASSES = frozenset({"LoadImage", "LoadImageMask"})
 
 
 class WorkflowLike(Protocol):
@@ -239,7 +241,7 @@ class RecipeIoService:
                 base_buffers=prepared_buffers,
                 prompt_field_overrides=canonical_prompt_overrides,
             )
-        _log_image_inputs_seen_for_serialization(
+        log_recipe_buffer_assets(
             stripped_buffers=prepared_buffers,
             ordered_aliases=ordered_aliases,
         )
@@ -744,37 +746,6 @@ __all__ = [
     "RecipeDocumentClassification",
     "RecipeIoService",
 ]
-
-
-def _log_image_inputs_seen_for_serialization(
-    *,
-    stripped_buffers: Mapping[str, Mapping[str, JsonValue]],
-    ordered_aliases: list[str],
-) -> None:
-    """Log LoadImage values present in workflow buffers before Sugar encoding."""
-
-    for cube_alias in ordered_aliases:
-        buffer = stripped_buffers.get(cube_alias, {})
-        nodes = buffer.get("nodes", {})
-        if not isinstance(nodes, Mapping):
-            continue
-        for node_name, node_data in nodes.items():
-            if not isinstance(node_data, Mapping):
-                continue
-            node_class = node_data.get("class_type")
-            if node_class not in _LOAD_IMAGE_CLASSES:
-                continue
-            inputs = node_data.get("inputs", {})
-            image_value = inputs.get("image") if isinstance(inputs, Mapping) else None
-            log_debug(
-                _LOGGER,
-                "Serializing workflow image input",
-                ordered_aliases=ordered_aliases,
-                cube_alias=cube_alias,
-                node_name=node_name,
-                node_class=node_class,
-                image_value=image_value,
-            )
 
 
 def _without_blank_model_global_overrides(

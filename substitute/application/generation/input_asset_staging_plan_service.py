@@ -24,11 +24,15 @@ from dataclasses import dataclass
 from substitute.application.workflows.editor_projection_service import (
     DIRECT_WORKFLOW_SECTION_KEY,
 )
-from substitute.application.workflows.input_asset_endpoint_service import (
-    InputAssetEndpointService,
+from substitute.application.workflows.input_asset_field_service import (
+    AuthoredInputAssetField,
+    InputAssetFieldService,
 )
 from substitute.application.workflows.workflow_graph_section_service import (
     WorkflowGraphSectionService,
+)
+from substitute.application.workflows.workflow_node_definition_service import (
+    WorkflowNodeDefinitionService,
 )
 from substitute.domain.workflow import (
     InputAssetCardinality,
@@ -54,13 +58,18 @@ class InputAssetStagingPlanService:
 
     def __init__(
         self,
-        input_asset_endpoint_service: InputAssetEndpointService,
         graph_section_service: WorkflowGraphSectionService,
+        input_asset_field_service: InputAssetFieldService | None = None,
+        *,
+        node_definition_service: WorkflowNodeDefinitionService | None = None,
     ) -> None:
-        """Capture shared endpoint discovery and graph projection authorities."""
+        """Capture asset-field discovery and graph projection authorities."""
 
-        self._input_asset_endpoint_service = input_asset_endpoint_service
         self._graph_section_service = graph_section_service
+        self._input_asset_field_service = (
+            input_asset_field_service
+            or InputAssetFieldService(node_definition_service=node_definition_service)
+        )
 
     def targets_for_prompt(
         self,
@@ -69,41 +78,43 @@ class InputAssetStagingPlanService:
     ) -> tuple[InputAssetStagingTarget, ...]:
         """Return executable upload targets that correspond to authored endpoints."""
 
-        authored: dict[
-            tuple[str, str],
-            tuple[str, InputAssetRole, InputAssetCardinality],
-        ] = {}
+        authored: dict[tuple[str, str], list[AuthoredInputAssetField]] = {}
         for section_key in self._graph_section_service.section_keys(workflow):
             graph = self._graph_section_service.graph(workflow, section_key)
             if graph is None:
                 continue
-            index = self._input_asset_endpoint_service.build_index(section_key, graph)
-            for endpoint in index.endpoints:
-                authored[(section_key, endpoint.node_name)] = (
-                    endpoint.field_key,
-                    endpoint.role,
-                    endpoint.cardinality,
-                )
+            for asset_field in self._input_asset_field_service.fields_for_graph(graph):
+                authored.setdefault(
+                    (section_key, asset_field.node_name),
+                    [],
+                ).append(asset_field)
 
+        compiled_fields: dict[str, list[AuthoredInputAssetField]] = {}
+        for field in self._input_asset_field_service.fields_for_graph(
+            {"nodes": prompt}
+        ):
+            compiled_fields.setdefault(field.node_name, []).append(field)
         targets: list[InputAssetStagingTarget] = []
         for raw_node_id, raw_node in prompt.items():
             if not isinstance(raw_node, Mapping):
                 continue
             node_id = str(raw_node_id)
             identity = _authored_identity(workflow, node_id, raw_node)
-            authored_endpoint = authored.get(identity)
-            if authored_endpoint is None:
+            selected_fields = authored.get(identity)
+            if selected_fields is None:
+                selected_fields = compiled_fields.get(node_id)
+            if selected_fields is None:
                 continue
-            field_key, role, cardinality = authored_endpoint
-            targets.append(
+            targets.extend(
                 InputAssetStagingTarget(
                     executable_node_id=node_id,
                     section_key=identity[0],
                     node_name=identity[1],
-                    field_key=field_key,
-                    role=role,
-                    cardinality=cardinality,
+                    field_key=asset_field.field_key,
+                    role=asset_field.role,
+                    cardinality=asset_field.cardinality,
                 )
+                for asset_field in selected_fields
             )
         return tuple(targets)
 

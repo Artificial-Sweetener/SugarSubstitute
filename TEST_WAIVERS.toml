@@ -47,7 +47,7 @@ disposition = "intentional_real_time"
 rule = "WAIT001"
 candidates = ["WAIT001|tests/qualification/comfy/inpaint/asset_harness.py|<module>.RealComfyInpaintAssetHarness._wait_for_history:wait:time.sleep:1", "WAIT001|tests/qualification/comfy/inpaint/asset_harness.py|<module>.RealComfyInpaintAssetHarness._wait_until_ready:wait:time.sleep:1"]
 paths = ["tests/qualification/comfy/inpaint/asset_harness.py"]
-fingerprint = "sha256:4de1d702af680370c15b6f2c7fbe12fee61c016174944202e06cf35217deb4fc"
+fingerprint = "sha256:17a9195d1b7cb11d8c0999486bac71a550c224f408f569a26e148176942f534d"
 rationale = "tests/qualification/comfy/inpaint/asset_harness.py drives a real external application or managed Comfy process whose lifecycle is intentionally outside the in-process scheduler. The bounded polling delay belongs to qualification orchestration, returns immediately when the external state appears, and preserves timeout diagnostics."
 issue = "chore:SS-TEST-WAIVER-C0174"
 review_by = 2026-12-15
@@ -105,7 +105,7 @@ candidates = [
   "POLL001|tests/qualification/comfy/inpaint/asset_harness.py|<module>.RealComfyInpaintAssetHarness._wait_until_ready:wall-clock-poll:1",
 ]
 paths = ["tests/qualification/comfy/inpaint/asset_harness.py"]
-fingerprint = "sha256:4de1d702af680370c15b6f2c7fbe12fee61c016174944202e06cf35217deb4fc"
+fingerprint = "sha256:17a9195d1b7cb11d8c0999486bac71a550c224f408f569a26e148176942f534d"
 rationale = "This qualification harness starts and queries a real isolated Comfy process whose startup and history publication are external to the in-process scheduler. Its clock bounds external failure, while each loop returns immediately on the required readiness or terminal history state."
 issue = "chore:SS-TEST-WAIVER-C0184"
 review_by = 2026-12-15
@@ -1201,7 +1201,7 @@ disposition = "framework_infrastructure"
 rule = "PROCESS001"
 candidates = ["PROCESS001|tests/qualification/comfy/inpaint/asset_harness.py|<module>:unscoped-child-process:1"]
 paths = ["tests/qualification/comfy/inpaint/asset_harness.py"]
-fingerprint = "sha256:4de1d702af680370c15b6f2c7fbe12fee61c016174944202e06cf35217deb4fc"
+fingerprint = "sha256:17a9195d1b7cb11d8c0999486bac71a550c224f408f569a26e148176942f534d"
 rationale = "The context-managed qualification harness retains one real Comfy child across multiple protocol operations. Its __exit__ owner terminates the process tree on every path, uses bounded waits with kill escalation, closes the log handle, and cleans both temporary environments. The raw Popen lifetime is therefore contained by the harness context rather than the Popen context itself."
 issue = "chore:SS-TEST-WAIVER-C0271"
 review_by = 2026-12-15
