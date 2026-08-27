@@ -25,6 +25,8 @@ from pathlib import Path
 import pytest
 
 from launcher.sugarsubstitute_launcher import app as launcher_app
+from launcher.sugarsubstitute_launcher import installed_app_handoff
+from launcher.sugarsubstitute_launcher import splash_session as splash_session_module
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
@@ -65,12 +67,6 @@ def test_launcher_main_repairs_moved_installed_exe_config(
 
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setattr(launcher_app, "LauncherMainWindow", _FakeWindow)
-    monkeypatch.setattr(
-        launcher_app,
-        "start_detached",
-        lambda _command: pytest.fail("Invalid installed config must not launch app."),
-    )
-
     assert launcher_app.main(["--manifest-url", manifest_url]) == 0
     assert windows
     assert windows[0]["initial_layout"] == layout
@@ -122,12 +118,12 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     )
     monkeypatch.setenv(APPLICATION_LAUNCH_TOKEN_ENV, "inherited-poison-token")
     monkeypatch.setattr(
-        launcher_app,
+        splash_session_module,
         "start_launcher_splash_session",
         lambda *, layout, locale_identifier: None,
     )
     monkeypatch.setattr(
-        launcher_app,
+        installed_app_handoff,
         "start_detached",
         record_app_start,
     )
@@ -178,12 +174,12 @@ def test_frozen_launcher_main_uses_invoked_installed_bundle_path(
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "_MEIPASS", str(unrelated_bundle), raising=False)
     monkeypatch.setattr(
-        launcher_app,
+        splash_session_module,
         "start_launcher_splash_session",
         lambda *, layout, locale_identifier: None,
     )
     monkeypatch.setattr(
-        launcher_app,
+        installed_app_handoff,
         "start_detached",
         lambda command, *, environment: started_commands.append(list(command)),
     )

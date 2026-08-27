@@ -19,6 +19,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: splash-first-startup
+        name: Enforce splash-first startup
+        entry: python -m tools.check_splash_first_startup
+        language: system
+        pass_filenames: false
+        always_run: true
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 2c9f875913ee60ca25ce70243dc24d5b6415598c # v4.6.0

@@ -33,6 +33,7 @@ from launcher.sugarsubstitute_launcher.install_layout import (
 from launcher.sugarsubstitute_launcher.startup_plan import (
     is_installed_app_launchable,
     resolve_install_root,
+    resolve_startup_candidate,
     resolve_startup_plan,
     should_launch_installed_app,
 )
@@ -41,6 +42,33 @@ from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationPlan,
 )
 from tests.launcher.support import write_launcher_executable
+
+
+def test_startup_candidate_does_not_read_installed_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Splash route discovery must defer config parsing until after visibility."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    layout.config_path.parent.mkdir(parents=True)
+    layout.config_path.write_text("not-json", encoding="utf-8")
+    write_launcher_executable(layout)
+
+    def reject_config_load(_cls: type[LauncherConfig], _path: Path) -> LauncherConfig:
+        """Fail if candidate resolution crosses the post-splash boundary."""
+
+        pytest.fail("Startup candidate resolution must not load config.json.")
+
+    monkeypatch.setattr(LauncherConfig, "load", classmethod(reject_config_load))
+
+    candidate = resolve_startup_candidate(
+        explicit_install_root=None,
+        executable_path=layout.executable_path,
+    )
+
+    assert candidate.layout == layout
+    assert candidate.installed_config_found is True
 
 
 def test_launcher_resolves_installed_exe_parent_as_install_root(
