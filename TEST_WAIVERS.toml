@@ -1231,3 +1231,16 @@ fingerprint = "sha256:f576c2d6f8f4e794fc03e08d7d66d3686a356c8085d000e663bd97eab7
 rationale = "This cross-process contention contract launches four simultaneous children that must overlap while claiming one application handoff token. The enclosing try/finally owns the entire child set, bounds every communicate call, kills every survivor, and performs a bounded final wait. Independent Popen context managers would not model simultaneous ownership."
 issue = "chore:SS-TEST-WAIVER-C0273"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0274"
+owner = "Native model-picker focus interaction"
+kind = "classification"
+disposition = "resource_locked"
+rule = "SERIAL001"
+candidates = ["SERIAL001|tests/presentation/widgets/model_picker/test_search_interaction.py|serial-module"]
+paths = ["tests/presentation/widgets/model_picker/test_search_interaction.py"]
+fingerprint = "sha256:d6d558f1dd3776cf477b3e3c9719fd9a0fe4016afd7debdb0b8ae20a8e5da23e"
+rationale = "This module proves real top-level window activation, mouse opening, native keyboard routing, and focus transfer through the production model picker. Separate xdist worker processes share one operating-system foreground focus owner and can therefore steal activation from each other; globally sequential execution preserves the native contract without retries, longer waits, synthetic focus injection, or weakened assertions. Twenty repeated exclusive Windows executions passed after the concurrent hosted failure demonstrated the resource boundary."
+issue = "chore:SS-TEST-WAIVER-C0274"
+review_by = 2026-12-15
