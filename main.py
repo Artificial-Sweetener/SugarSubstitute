@@ -21,17 +21,11 @@ from __future__ import annotations
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QLocale
-
-from substitute.app.bootstrap.startup_timing import StartupTimingRecord
-from sugarsubstitute_shared.application_launch_guard import (
-    ApplicationLaunchGuard,
-    application_launch_install_root,
-    clear_inherited_application_launch_token,
-    inherited_application_launch_token,
-)
-from sugarsubstitute_shared.localization import resolve_early_startup_locale
+if TYPE_CHECKING:
+    from substitute.app.bootstrap.startup_timing import StartupTimingRecord
+    from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
 
 
 _PROCESS_LAUNCH_GUARD: ApplicationLaunchGuard | None = None
@@ -41,12 +35,14 @@ def _record_elapsed(
     records: list[StartupTimingRecord],
     phase: str,
     started_at: float,
+    *,
+    record_type: type[StartupTimingRecord],
 ) -> float:
     """Append one pre-bootstrap timing record and return the current timestamp."""
 
     ended_at = time.perf_counter()
     records.append(
-        StartupTimingRecord(
+        record_type(
             phase=phase,
             elapsed_ms=max(0.0, (ended_at - started_at) * 1000.0),
         )
@@ -56,53 +52,54 @@ def _record_elapsed(
 
 def main() -> None:
     """Execute startup flow and exit with Qt event-loop code."""
+
+    phase_started_at = time.perf_counter()
     app_root = Path(__file__).resolve().parent
     if not _enter_application_launch_guard(argv=sys.argv, app_root=app_root):
         return
-    startup_records: list[StartupTimingRecord] = []
-    phase_started_at = time.perf_counter()
-    phase_started_at = _record_elapsed(
-        startup_records,
-        "entrypoint.resolve_app_root",
-        phase_started_at,
-    )
-    from substitute.app.bootstrap.env_file import load_env_file
-
-    load_env_file(app_root / ".env")
-    phase_started_at = _record_elapsed(
-        startup_records,
-        "entrypoint.load_env_file",
-        phase_started_at,
+    from sugarsubstitute_shared.localization import (
+        resolve_early_startup_locale,
+        system_ui_languages,
     )
     from substitute.app.bootstrap.early_launch_splash import start_early_launch_splash
 
-    phase_started_at = _record_elapsed(
-        startup_records,
-        "entrypoint.import_early_launch_splash",
-        phase_started_at,
-    )
     early_locale = resolve_early_startup_locale(
         sys.argv,
         app_root=app_root,
-        ui_languages=tuple(QLocale.system().uiLanguages()),
+        ui_languages=system_ui_languages(),
     )
     early_splash, cancel_relay = start_early_launch_splash(
         sys.argv,
         app_root,
         early_locale.effective_language.identifier,
     )
+
+    from substitute.app.bootstrap.startup_timing import StartupTimingRecord
+
+    startup_records: list[StartupTimingRecord] = []
     phase_started_at = _record_elapsed(
         startup_records,
         "entrypoint.start_early_launch_splash",
         phase_started_at,
+        record_type=StartupTimingRecord,
     )
     try:
+        from substitute.app.bootstrap.env_file import load_env_file
+
+        load_env_file(app_root / ".env")
+        phase_started_at = _record_elapsed(
+            startup_records,
+            "entrypoint.load_env_file",
+            phase_started_at,
+            record_type=StartupTimingRecord,
+        )
         from substitute.app.bootstrap.startup import run_application
 
         phase_started_at = _record_elapsed(
             startup_records,
             "entrypoint.import_startup",
             phase_started_at,
+            record_type=StartupTimingRecord,
         )
         exit_code = run_application(
             sys.argv,
@@ -121,6 +118,13 @@ def main() -> None:
 
 def _enter_application_launch_guard(*, argv: list[str], app_root: Path) -> bool:
     """Claim this application process before any splash can be created."""
+
+    from sugarsubstitute_shared.application_launch_guard import (
+        ApplicationLaunchGuard,
+        application_launch_install_root,
+        clear_inherited_application_launch_token,
+        inherited_application_launch_token,
+    )
 
     global _PROCESS_LAUNCH_GUARD
     install_root = application_launch_install_root(argv, app_root=app_root)

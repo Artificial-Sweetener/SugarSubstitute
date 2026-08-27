@@ -27,8 +27,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_launcher_app_import_succeeds_without_pyside6() -> None:
-    """Headless startup must not load Qt before selecting an execution mode."""
+def test_launcher_app_import_loads_only_the_splash_routing_surface() -> None:
+    """Importing the entrypoint must not eagerly load post-splash owners."""
 
     script = textwrap.dedent(
         """
@@ -46,6 +46,12 @@ def test_launcher_app_import_succeeds_without_pyside6() -> None:
             name == "PySide6" or name.startswith("PySide6.")
             for name in sys.modules
         )
+        forbidden_modules = {
+            "launcher.sugarsubstitute_launcher.config",
+            "launcher.sugarsubstitute_launcher.installed_app_handoff",
+            "launcher.sugarsubstitute_launcher.update_orchestrator",
+        }
+        assert forbidden_modules.isdisjoint(sys.modules)
         """
     )
 

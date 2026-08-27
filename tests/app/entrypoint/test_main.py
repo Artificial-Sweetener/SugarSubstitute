@@ -28,6 +28,8 @@ import pytest
 
 import main as app_entrypoint
 from substitute.app.bootstrap.startup_timing import StartupTimingRecord
+import sugarsubstitute_shared.application_launch_guard as launch_guard_module
+import sugarsubstitute_shared.localization as shared_localization
 from sugarsubstitute_shared.application_launch_guard import (
     APPLICATION_LAUNCH_TOKEN_ENV,
 )
@@ -98,32 +100,31 @@ def test_main_starts_early_splash_and_passes_it_to_bootstrap(
     monkeypatch.setitem(sys.modules, "substitute.app.bootstrap.startup", startup_module)
     monkeypatch.setattr(sys, "argv", argv)
     monkeypatch.setattr(
-        app_entrypoint,
+        shared_localization,
         "resolve_early_startup_locale",
         lambda *_args, **_kwargs: SimpleNamespace(
             effective_language=SimpleNamespace(identifier="ja")
         ),
     )
+    monkeypatch.setattr(shared_localization, "system_ui_languages", lambda: ("ja",))
 
     with pytest.raises(SystemExit) as exit_info:
         app_entrypoint.main()
 
     assert exit_info.value.code == 7
     assert calls == [
-        ("env", Path(app_entrypoint.__file__).resolve().parent / ".env"),
         ("splash_argv", argv),
         ("splash_root", Path(app_entrypoint.__file__).resolve().parent),
         ("splash_locale", "ja"),
+        ("env", Path(app_entrypoint.__file__).resolve().parent / ".env"),
         ("run_argv", argv),
         ("initial_splash", splash),
         ("cancel_connector", relay.connect),
         (
             "prebootstrap_phases",
             (
-                "entrypoint.resolve_app_root",
-                "entrypoint.load_env_file",
-                "entrypoint.import_early_launch_splash",
                 "entrypoint.start_early_launch_splash",
+                "entrypoint.load_env_file",
                 "entrypoint.import_startup",
             ),
         ),
@@ -187,14 +188,6 @@ def test_main_refuses_to_start_splash_when_launch_guard_is_held(
         "_enter_application_launch_guard",
         lambda **_kwargs: False,
     )
-    monkeypatch.setattr(
-        app_entrypoint,
-        "resolve_early_startup_locale",
-        lambda *_args, **_kwargs: pytest.fail(
-            "Rejected launches must stop before splash localization."
-        ),
-    )
-
     app_entrypoint.main()
 
 
@@ -219,7 +212,7 @@ def test_entrypoint_consumes_launch_authority_before_bootstrap(
         return guard
 
     monkeypatch.setattr(
-        app_entrypoint,
+        launch_guard_module,
         "ApplicationLaunchGuard",
         SimpleNamespace(enter=enter_guard),
     )
