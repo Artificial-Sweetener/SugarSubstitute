@@ -160,7 +160,11 @@ def _open_picker_surface_by_click(
 
     QTest.mouseClick(surface, Qt.MouseButton.LeftButton, pos=QPoint(8, 8))
     app.processEvents()
-    app.processEvents()
+    wait_for_qt_condition(
+        lambda: QApplication.focusWidget() is surface,
+        description="model picker search-surface focus",
+        state=lambda: QApplication.focusWidget(),
+    )
 
     assert field._popup is not None
     assert field._popup.isVisible() is True
