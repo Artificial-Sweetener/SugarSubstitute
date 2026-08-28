@@ -82,6 +82,10 @@ from tools.ci.comfy_probe_support import prepare_environment
 from tools.ci.comfy_source_checkout import prepare_checkout
 from tools.ci.comfy_support_matrix import COMFY_SUPPORT_MATRIX
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
+from tools.ci.historical_nodepack_fixture import (
+    historical_sugarcubes_freshness_key,
+    restore_historical_sugarcubes,
+)
 from tools.ci.owned_process_runner import run_owned_process
 
 
@@ -194,6 +198,7 @@ def _materialize_historical_managed_configuration(
     prepare_environment(repository_root, managed_workspace)
     _record_phase(progress_path, "python_environment", "completed")
     _prepare_qualified_existing_managed_workspace(
+        install_root=install_root,
         workspace=managed_workspace,
         model_root=managed_model_root,
         runtime_state_dir=installation.runtime_state_dir,
@@ -204,6 +209,7 @@ def _materialize_historical_managed_configuration(
 
 def _prepare_qualified_existing_managed_workspace(
     *,
+    install_root: Path,
     workspace: Path,
     model_root: Path,
     runtime_state_dir: Path,
@@ -226,6 +232,18 @@ def _prepare_qualified_existing_managed_workspace(
         env=environment,
     )
     _record_phase(progress_path, "core_nodepacks", "completed")
+    _record_phase(progress_path, "historical_sugarcubes", "started")
+    historical_sugarcubes_version = restore_historical_sugarcubes(
+        install_root=install_root,
+        workspace=workspace,
+        python_executable=python_executable,
+        environment=environment,
+    )
+    _record_phase(
+        progress_path,
+        "historical_sugarcubes",
+        f"completed version={historical_sugarcubes_version}",
+    )
     _record_phase(progress_path, "sugarcubes", "started")
     run_sugarcubes_baseline_maintenance(
         workspace,
@@ -266,7 +284,10 @@ def _prepare_qualified_existing_managed_workspace(
     FileManagedRuntimeConfigurationRepository(runtime_state_dir).save(
         runtime_configuration
     )
-    freshness_key = installed_setup_static_freshness_key(workspace)
+    freshness_key = historical_sugarcubes_freshness_key(
+        installed_setup_static_freshness_key(workspace),
+        historical_version=historical_sugarcubes_version,
+    )
     freshness_key["strategy"] = {
         "source": "existing_qualification_runtime",
         "target": target.value,
