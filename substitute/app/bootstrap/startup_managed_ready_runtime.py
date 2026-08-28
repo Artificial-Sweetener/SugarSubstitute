@@ -63,10 +63,10 @@ from substitute.app.bootstrap.startup_readiness_controller import (
     StartupReadinessController,
     StartupReadinessControllerState,
     StartupReadinessFailureAdapter,
-    StartupReadinessStarter,
     create_bound_startup_readiness_controller,
     create_startup_readiness_failure_adapter,
 )
+from substitute.app.bootstrap.startup_readiness_resources import StartupReadinessStarter
 from substitute.app.bootstrap.ready_shell_trace_fields import (
     ManagedCompatibilityRecoveryTraceStateProtocol,
     PreShowRestoreProjectionTraceStateProtocol,
