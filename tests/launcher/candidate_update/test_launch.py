@@ -30,6 +30,10 @@ from launcher.sugarsubstitute_launcher.candidate_update_launch import (
     launch_prepared_update,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_runtime_mode import (
+    APPLICATION_RUNTIME_MODE_ENV,
+    PACKAGED_APPLICATION_RUNTIME_MODE,
+)
 
 
 class _Guard:
@@ -143,7 +147,12 @@ def test_ready_candidate_commits_without_fallback(tmp_path: Path) -> None:
     )
 
     assert activation.transitions == ["commit"]
-    assert supervisor.environments == [{"GUARD": "candidate"}]
+    assert supervisor.environments == [
+        {
+            "GUARD": "candidate",
+            APPLICATION_RUNTIME_MODE_ENV: PACKAGED_APPLICATION_RUNTIME_MODE,
+        }
+    ]
     assert guard.released is False
 
 
@@ -174,5 +183,11 @@ def test_failed_candidate_rolls_back_and_launches_previous_app(
     assert candidate_guard.released is True
     assert fallback_guard.released is False
     assert started == [
-        (["python", "main.py"], {"GUARD": "fallback"}),
+        (
+            ["python", "main.py"],
+            {
+                "GUARD": "fallback",
+                APPLICATION_RUNTIME_MODE_ENV: PACKAGED_APPLICATION_RUNTIME_MODE,
+            },
+        ),
     ]

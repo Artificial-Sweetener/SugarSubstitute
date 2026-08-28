@@ -120,6 +120,17 @@ def test_existing_runtime_is_converged_before_readiness_is_recorded(
         "tools.ci.historical_managed_configuration.ensure_core_comfy_nodepacks",
         lambda *_args, **_kwargs: operations.append("nodepacks"),
     )
+
+    def _restore_historical_sugarcubes(**_kwargs: object) -> str:
+        """Record restoration and return the historical pin for setup evidence."""
+
+        operations.append("historical_sugarcubes")
+        return "0.11.0"
+
+    monkeypatch.setattr(
+        "tools.ci.historical_managed_configuration.restore_historical_sugarcubes",
+        _restore_historical_sugarcubes,
+    )
     monkeypatch.setattr(
         "tools.ci.historical_managed_configuration.run_sugarcubes_baseline_maintenance",
         lambda *_args, **_kwargs: operations.append("sugarcubes"),
@@ -172,6 +183,11 @@ def test_existing_runtime_is_converged_before_readiness_is_recorded(
         cache.close()
     assert payload["success"] is True
     assert payload["key"]["strategy"]["source"] == ("existing_qualification_runtime")
+    sugarcubes_key = next(
+        item for item in payload["key"]["core_nodepacks"] if item["id"] == "SugarCubes"
+    )
+    assert sugarcubes_key["required_version"] == "0.11.0"
+    assert sugarcubes_key["fallback_archive"].endswith("/v0.11.0.zip")
     expected_force_cpu_mode = sys.platform != "darwin"
     assert payload["request"]["force_cpu_mode"] is expected_force_cpu_mode
     assert payload["runtime_configuration"]["force_cpu_mode"] is expected_force_cpu_mode
@@ -190,6 +206,7 @@ def test_existing_runtime_is_converged_before_readiness_is_recorded(
         "environment",
         "manager",
         "nodepacks",
+        "historical_sugarcubes",
         "sugarcubes",
         "model_root",
         "validation",
@@ -215,6 +232,11 @@ def test_existing_runtime_is_converged_before_readiness_is_recorded(
         "HISTORICAL_MATERIALIZATION phase=manager state=completed",
         "HISTORICAL_MATERIALIZATION phase=core_nodepacks state=started",
         "HISTORICAL_MATERIALIZATION phase=core_nodepacks state=completed",
+        "HISTORICAL_MATERIALIZATION phase=historical_sugarcubes state=started",
+        (
+            "HISTORICAL_MATERIALIZATION phase=historical_sugarcubes "
+            "state=completed version=0.11.0"
+        ),
         "HISTORICAL_MATERIALIZATION phase=sugarcubes state=started",
         "HISTORICAL_MATERIALIZATION phase=sugarcubes state=completed",
         "HISTORICAL_MATERIALIZATION phase=model_root state=started",

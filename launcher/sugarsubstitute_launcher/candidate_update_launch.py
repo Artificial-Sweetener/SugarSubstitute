@@ -32,6 +32,9 @@ from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import start_detached
+from sugarsubstitute_shared.application_runtime_mode import (
+    packaged_application_environment,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -96,7 +99,9 @@ def launch_prepared_update(
         process = readiness_supervisor.launch_until_ready(
             layout=layout,
             command=command,
-            environment=initial_guard.initial_handoff_environment(),
+            environment=packaged_application_environment(
+                initial_guard.initial_handoff_environment()
+            ),
         )
         try:
             activation.commit()
@@ -119,7 +124,9 @@ def launch_prepared_update(
         try:
             fallback_process_starter(
                 command,
-                environment=fallback_guard.initial_handoff_environment(),
+                environment=packaged_application_environment(
+                    fallback_guard.initial_handoff_environment()
+                ),
             )
         except BaseException:
             fallback_guard.release()
