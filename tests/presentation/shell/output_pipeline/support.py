@@ -22,36 +22,75 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any
 
-
 from substitute.presentation.shell.output_image_commit_pipeline import (
     OutputImageCommitRequest,
 )
 
 
 class SignalSpy:
-    def __init__(self) -> None:
-        self.callbacks: list[Callable[[str], None]] = []
+    """Capture signal connections behind a minimal Qt-like boundary."""
 
-    def connect(self, callback: Callable[[str], None]) -> None:
+    def __init__(self) -> None:
+        """Initialize an empty callback collection."""
+
+        self.callbacks: list[Callable[..., None]] = []
+
+    def connect(self, callback: Callable[..., None]) -> None:
+        """Capture one callback connection."""
+
         self.callbacks.append(callback)
 
 
 class PreparationDispatcherSpy:
+    """Capture output preparation and capacity coordination."""
+
     def __init__(self) -> None:
+        """Initialize signals, submissions, and capacity state."""
+
         self.prepared = SignalSpy()
         self.failed = SignalSpy()
         self.submitted: list[OutputImageCommitRequest] = []
+        self.prepared_capacity: Callable[[], int] | None = None
+        self.resume_count = 0
 
     def submit(self, request: OutputImageCommitRequest) -> None:
+        """Capture one output preparation request."""
+
         self.submitted.append(request)
+
+    def set_prepared_capacity(self, capacity: Callable[[], int]) -> None:
+        """Capture the decoded-output admission boundary."""
+
+        self.prepared_capacity = capacity
+
+    def resume(self) -> None:
+        """Record that prepared capacity became available."""
+
+        self.resume_count += 1
 
 
 class CommitQueueSpy:
+    """Expose the bounded commit-queue collaboration contract."""
+
+    def __init__(self) -> None:
+        """Initialize the capacity signal used to resume decoding."""
+
+        self.capacity_available = SignalSpy()
+
     def enqueue_prepared(self, output: object) -> None:
+        """Accept one prepared output."""
+
         _ = output
 
     def enqueue_failed(self, failure: object) -> None:
+        """Accept one failed output preparation."""
+
         _ = failure
+
+    def available_prepared_slots(self) -> int:
+        """Return deterministic decoded-output capacity."""
+
+        return 2
 
 
 class ProjectionSchedulerSpy:

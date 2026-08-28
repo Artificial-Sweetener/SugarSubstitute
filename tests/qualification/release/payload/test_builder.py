@@ -466,9 +466,9 @@ def test_project_requirements_pin_cutecanvas_as_the_canvas_boundary() -> None:
 
     requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-    assert "cutecanvas[sam]==1.0.3" in requirements
-    assert "qpane==3.0.2" in requirements
-    assert "ferrastra==1.0.1" in requirements
+    assert "cutecanvas[sam]==1.0.6" in requirements
+    assert "qpane==3.0.4" in requirements
+    assert "ferrastra==1.0.2" in requirements
 
 
 def _write_fixture_repo(tmp_path: Path) -> Path:

@@ -95,6 +95,7 @@ def test_five_landscape_tiles_reflow_across_wide_square_and_tall_extents(
             ),
         )
     harness.wait_for_output_count("alpha", 5)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 5)
     observed: list[tuple[int, int] | None] = []
     for width, height in ((1400.0, 450.0), (800.0, 800.0), (450.0, 1400.0)):
         previous_snapshot = harness.shell.output_canvas.workspace.gridSnapshot()

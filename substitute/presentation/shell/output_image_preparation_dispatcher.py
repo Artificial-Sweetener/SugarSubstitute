@@ -110,6 +110,8 @@ class OutputImagePreparationDispatcher(QObject):
         self._request_ids = count(1)
         self._close_submitter = close_submitter
         self._queued_preparations: deque[_QueuedOutputPreparation] = deque()
+        self._prepared_capacity: Callable[[], int] | None = None
+        self._inflight_preparations = 0
         self._is_shutdown = False
         self._task_scope = TaskScope(
             submitter=submitter,
@@ -155,6 +157,15 @@ class OutputImagePreparationDispatcher(QObject):
         )
         self._drain_queued_preparations()
 
+    def set_prepared_capacity(self, capacity: Callable[[], int]) -> None:
+        """Install decoded-output capacity and resume safely retained work."""
+        self._prepared_capacity = capacity
+        self._drain_queued_preparations()
+
+    def resume(self) -> None:
+        """Resume retained preparation after a decoded output is committed."""
+        self._drain_queued_preparations()
+
     def shutdown(self) -> None:
         """Cancel pending preparation work and release dispatcher ownership."""
 
@@ -174,6 +185,11 @@ class OutputImagePreparationDispatcher(QObject):
         if self._is_shutdown:
             return
         while self._queued_preparations:
+            if (
+                self._prepared_capacity is not None
+                and self._inflight_preparations >= self._prepared_capacity()
+            ):
+                return
             queued = self._queued_preparations.popleft()
             try:
                 handle = self._task_scope.submit(queued.task_request)
@@ -184,6 +200,7 @@ class OutputImagePreparationDispatcher(QObject):
             except Exception as error:
                 self._publish_submission_failure(queued.commit_request, error)
                 continue
+            self._inflight_preparations += 1
 
             def publish_outcome(
                 outcome: TaskOutcome[
@@ -238,6 +255,7 @@ class OutputImagePreparationDispatcher(QObject):
     ) -> None:
         """Publish one settled output and admit retained work immediately."""
 
+        self._inflight_preparations = max(0, self._inflight_preparations - 1)
         self._publish_outcome(outcome, request)
         self._drain_queued_preparations()
 
@@ -271,8 +289,9 @@ def prepare_output_image(
     request: OutputImageCommitRequest,
     *,
     loader: OutputImageLoader,
+    detach: Callable[[QImage], QImage] | None = None,
 ) -> PreparedOutputImage | FailedOutputImagePreparation:
-    """Load and detach one output image without touching widgets."""
+    """Load and transactionally detach one output image without touching widgets."""
 
     started_at = perf_counter()
     try:
@@ -298,7 +317,22 @@ def prepare_output_image(
                 detail="Image decoder returned no image data.",
             )
 
-        detached = image.copy()
+        detached = image.copy() if detach is None else detach(image)
+        if detached.isNull():
+            log_warning(
+                _LOGGER,
+                "Failed to prepare output image because pixel detachment was rejected",
+                workflow_id=request.workflow_id,
+                node_id=request.node_id,
+                path=request.file_path,
+                source_key=request.source_key,
+                scene_key=request.scene_key,
+            )
+            return FailedOutputImagePreparation(
+                request=request,
+                message=app_text("Failed to load generated image."),
+                detail="Image pixel allocation was rejected by the operating system.",
+            )
         log_timing(
             _LOGGER,
             "Prepared output image",

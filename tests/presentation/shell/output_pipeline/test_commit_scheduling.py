@@ -37,8 +37,33 @@ from tests.presentation.shell.output_pipeline.support import (
     PreparationDispatcherSpy,
     CommitQueueSpy,
     ProjectionCoordinatorSpy,
+    build_pipeline_shell_dependencies,
     noop_project_workflow,
 )
+
+
+def test_pipeline_coordinates_decoded_output_capacity() -> None:
+    """Connect commit capacity to retained preparation admission."""
+
+    dispatcher = PreparationDispatcherSpy()
+    commit_queue = CommitQueueSpy()
+    dependencies = build_pipeline_shell_dependencies()
+    dependencies["preparation_dispatcher"] = dispatcher
+    dependencies["commit_queue"] = commit_queue
+
+    OutputImagePipeline(
+        **dependencies,
+        canvas_host=SimpleNamespace(),
+        projection_scheduler=CanvasProjectionScheduler(
+            project_workflow=noop_project_workflow,
+            active_workflow_id=lambda: "wf",
+            output_canvas_visible=lambda: True,
+        ),
+    )
+
+    assert dispatcher.prepared_capacity is not None
+    assert dispatcher.prepared_capacity() == 2
+    assert commit_queue.capacity_available.callbacks == [dispatcher.resume]
 
 
 def test_pipeline_legacy_submit_preserves_explicit_fallback_metadata() -> None:

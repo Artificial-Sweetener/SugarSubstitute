@@ -147,6 +147,12 @@ class OutputImagePipeline(QObject):
             self._commit_queue.enqueue_prepared
         )
         self._preparation_dispatcher.failed.connect(self._commit_queue.enqueue_failed)
+        self._commit_queue.capacity_available.connect(
+            self._preparation_dispatcher.resume
+        )
+        self._preparation_dispatcher.set_prepared_capacity(
+            self._commit_queue.available_prepared_slots
+        )
         self._connect_canvas_route_changes()
 
     def _project_active_output_projection(
