@@ -67,6 +67,36 @@ def test_subprocess_runtime_runner_replaces_invalid_output_bytes(
     assert output_lines == ["bad\ufffdbyte"]
 
 
+def test_subprocess_runtime_runner_survives_progress_sink_disconnect(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A closed splash connection must not abort a successful runtime update."""
+
+    callback_count = 0
+
+    def disconnected_progress_sink(_line: str) -> None:
+        """Model the launcher splash host closing during reconciliation."""
+
+        nonlocal callback_count
+        callback_count += 1
+        raise ConnectionResetError(10054, "closed")
+
+    with caplog.at_level(
+        logging.WARNING,
+        logger="launcher.sugarsubstitute_launcher.runtime_command",
+    ):
+        SubprocessRuntimeCommandRunner(disconnected_progress_sink).run(
+            [sys.executable, "-c", "print('first'); print('second')"],
+            cwd=tmp_path,
+            env=os.environ,
+        )
+
+    assert callback_count == 1
+    assert "Runtime progress sink disconnected" in caplog.text
+    assert "ConnectionResetError" in caplog.text
+
+
 def test_subprocess_runtime_runner_logs_captured_failure_output(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,

@@ -20,13 +20,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import socket
 import subprocess
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
 
+from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
@@ -44,7 +44,7 @@ from tools.ci.verify_installer_lifecycle import (
     _CandidateReleaseSource,
     _parse_args,
     _verify_candidate_evidence,
-    _verify_candidate_installer_update,
+    _verify_candidate_auto_update,
 )
 
 
@@ -56,8 +56,6 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
             "upgrade",
             "--historical-installer",
             "historical-installer",
-            "--candidate-installer",
-            "candidate-installer",
             "--install-root",
             "installed",
             "--historical-manifest-url",
@@ -72,6 +70,8 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
             "https://example.test/candidate.json",
             "--candidate-version",
             "9999.0.93",
+            "--candidate-channel",
+            "canary",
             "--timeout-seconds",
             "1200",
         ]
@@ -81,59 +81,16 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
     assert arguments.source_cache == Path("source-cache")
 
 
-def test_candidate_installer_updates_history_before_its_only_launch(
+def test_candidate_update_uses_historical_launcher_before_verification(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Portable history must update before its only installed-app launch."""
+    """Qualification must let the historical launcher consume the candidate feed."""
 
     install_root = tmp_path / "installed"
     layout = InstallLayout.from_root(install_root)
-    layout.config_path.parent.mkdir(parents=True)
-    layout.config_path.write_text(
-        json.dumps(
-            {
-                "release_source": {
-                    "kind": "github_release_manifest",
-                    "manifest_url": "https://example.test/history.json",
-                }
-            }
-        ),
-        encoding="utf-8",
-    )
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
     events: list[tuple[str, str]] = []
-    endpoint_port: int | None = None
-
-    def update_once(
-        *,
-        installer_path: Path,
-        install_root: Path,
-        manifest_url: str,
-        timeout_seconds: float,
-        environment: dict[str, str],
-    ) -> None:
-        """Record the real candidate-installer update boundary."""
-
-        assert installer_path == candidate_installer
-        del timeout_seconds, environment
-        assert endpoint_port is not None
-        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            with pytest.raises(OSError):
-                listener.bind(("127.0.0.1", endpoint_port))
-        finally:
-            listener.close()
-        payload = json.loads(
-            InstallLayout.from_root(install_root).config_path.read_text(
-                encoding="utf-8"
-            )
-        )
-        payload["release_source"]["manifest_url"] = manifest_url
-        InstallLayout.from_root(install_root).config_path.write_text(
-            json.dumps(payload),
-            encoding="utf-8",
-        )
-        events.append(("update", manifest_url))
 
     def launch_once(
         *,
@@ -144,9 +101,6 @@ def test_candidate_installer_updates_history_before_its_only_launch(
         """Record the manifest visible to the only installed launch."""
 
         del environment, progress_paths
-        assert endpoint_port is not None
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
-            listener.bind(("127.0.0.1", endpoint_port))
         payload = json.loads(
             InstallLayout.from_root(install_root).config_path.read_text(
                 encoding="utf-8"
@@ -161,14 +115,6 @@ def test_candidate_installer_updates_history_before_its_only_launch(
         del arguments
         events.append(("verify", "9999.0.109"))
 
-    monkeypatch.setattr(
-        "tools.ci.verify_installer_lifecycle.install_candidate_over_historical_install",
-        update_once,
-    )
-    monkeypatch.setattr(
-        "tools.ci.verify_installer_lifecycle.assert_installed_version",
-        lambda *_args, **_kwargs: None,
-    )
     monkeypatch.setattr(
         "tools.ci.verify_installer_lifecycle."
         "assert_historical_installed_launch_contract",
@@ -187,16 +133,14 @@ def test_candidate_installer_updates_history_before_its_only_launch(
         lambda _install_root: None,
     )
 
-    candidate_installer = tmp_path / "candidate-installer"
     with LoopbackPortLease.acquire() as endpoint_lease:
-        endpoint_port = endpoint_lease.port
-        _verify_candidate_installer_update(
-            candidate_installer_path=candidate_installer,
+        _verify_candidate_auto_update(
             install_root=install_root,
             historical_version="0.20.1",
             candidate_version="9999.0.109",
             candidate_manifest_url="https://example.test/candidate.json",
             candidate_release_root=None,
+            candidate_channel="canary",
             endpoint_lease=endpoint_lease,
             managed_workspace=install_root / "comfyui",
             managed_model_root=install_root / "qualified-models",
@@ -205,7 +149,6 @@ def test_candidate_installer_updates_history_before_its_only_launch(
         )
 
     assert events == [
-        ("update", "https://example.test/candidate.json"),
         ("launch", "https://example.test/candidate.json"),
         ("verify", "9999.0.109"),
     ]
@@ -276,6 +219,7 @@ def test_managed_backend_is_verified_before_live_shell_cleanup(
     )
     receipt = ApplicationReadinessReceipt(
         pid=456,
+        parent_pid=123,
         token=evidence.token,
         surface=ApplicationReadinessSurface.MAIN_SHELL,
     )
@@ -287,8 +231,8 @@ def test_managed_backend_is_verified_before_live_shell_cleanup(
     )
     monkeypatch.setattr(
         installer_ui_qualification,
-        "assert_installed_version",
-        lambda *_arguments: events.append("version"),
+        "wait_for_installed_version",
+        lambda **_arguments: events.append("version"),
     )
     monkeypatch.setattr(
         installer_ui_qualification,
@@ -423,6 +367,7 @@ def test_completion_action_pid_must_match_readiness_receipt(
     )
     receipt = ApplicationReadinessReceipt(
         pid=456,
+        parent_pid=123,
         token=evidence.token,
         surface=ApplicationReadinessSurface.MAIN_SHELL,
     )

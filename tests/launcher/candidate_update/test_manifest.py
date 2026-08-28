@@ -37,9 +37,10 @@ def test_lifecycle_candidate_manifest_preserves_release_source_contract(
     LauncherConfig.from_layout(layout=layout).save(layout.config_path)
     candidate_manifest_url = "https://localhost:44443/manifest.json"
 
-    set_update_manifest(layout.root, candidate_manifest_url)
+    set_update_manifest(layout.root, candidate_manifest_url, channel="canary")
 
     updated_config = LauncherConfig.load(layout.config_path)
     assert updated_config.release_source is not None
     assert updated_config.release_source.kind == RELEASE_SOURCE_KIND_GITHUB
     assert updated_config.release_source.manifest_url == candidate_manifest_url
+    assert updated_config.channel == "canary"
