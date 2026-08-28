@@ -77,6 +77,61 @@ def test_entry_identity_changes_require_explicit_replacement() -> None:
         canvas.bind_mask(("Cube", "load_mask"), uuid4(), image_id)
 
 
+def test_section_rename_migrates_every_alias_owned_canvas_identity() -> None:
+    """Renaming a cube must preserve its image, scalar mask, and regional state."""
+
+    image_id = uuid4()
+    mask_id = uuid4()
+    regional_mask_id = uuid4()
+    canvas = WorkflowCanvasState()
+    canvas.bind_image("Old:load_image", image_id)
+    canvas.bind_mask(("Old", "load_mask"), mask_id, image_id)
+    collection = canvas.ensure_regional_mask_collection(("Old", "regions"))
+    collection.add_region(image_id, mask_id=regional_mask_id)
+    canvas.set_mask_visual_opacity(("Old", "load_mask"), 0.25)
+
+    changed = canvas.rename_section("Old", "New")
+
+    assert changed is True
+    assert canvas.image_entry("Old:load_image") is None
+    assert canvas.image_entry("New:load_image") == InputCanvasImageEntry(
+        "New:load_image",
+        image_id,
+    )
+    assert canvas.mask_entry(("New", "load_mask")) == InputCanvasMaskEntry(
+        ("New", "load_mask"),
+        mask_id,
+        image_id,
+    )
+    assert canvas.regional_mask_collection(("Old", "regions")) is None
+    renamed_collection = canvas.regional_mask_collection(("New", "regions"))
+    assert renamed_collection is collection
+    assert renamed_collection.association_key == ("New", "regions")
+    assert canvas.mask_visual_opacities == {("New", "load_mask"): 0.25}
+
+
+def test_section_rename_rejects_target_identity_collisions_atomically() -> None:
+    """A stale target alias must not overwrite either canvas identity."""
+
+    old_image_id = uuid4()
+    target_image_id = uuid4()
+    canvas = WorkflowCanvasState()
+    canvas.bind_image("Old:load_image", old_image_id)
+    canvas.bind_image("New:load_image", target_image_id)
+
+    with pytest.raises(ValueError, match="target identity already exists"):
+        canvas.rename_section("Old", "New")
+
+    assert canvas.image_entry("Old:load_image") == InputCanvasImageEntry(
+        "Old:load_image",
+        old_image_id,
+    )
+    assert canvas.image_entry("New:load_image") == InputCanvasImageEntry(
+        "New:load_image",
+        target_image_id,
+    )
+
+
 def test_production_code_cannot_reintroduce_parallel_canvas_identity_maps() -> None:
     """Reject access to the deleted split image/mask ownership structures."""
 

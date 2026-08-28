@@ -27,10 +27,16 @@ def test_apply_cube_rename_resolves_collisions_and_updates_workflow_state() -> N
     """Rename application should return the resolved alias and keep workflow state aligned."""
     old_cube_state = SimpleNamespace(alias="Old")
     taken_cube_state = SimpleNamespace(alias="Taken")
+    canvas_renames: list[tuple[str, str]] = []
     service = CubeStackService()
     workflow = SimpleNamespace(
         cubes={"Old": old_cube_state, "Taken": taken_cube_state},
         stack_order=["Old", "Taken"],
+        canvas=SimpleNamespace(
+            rename_section=lambda old_alias, new_alias: canvas_renames.append(
+                (old_alias, new_alias)
+            )
+        ),
     )
 
     resolution = service.apply_cube_rename(workflow, "Old", "Taken")
@@ -41,6 +47,7 @@ def test_apply_cube_rename_resolves_collisions_and_updates_workflow_state() -> N
     assert workflow.cubes["Taken 2"] is old_cube_state
     assert old_cube_state.alias == "Taken 2"
     assert workflow.stack_order == ["Taken 2", "Taken"]
+    assert canvas_renames == [("Old", "Taken 2")]
 
 
 def test_resolve_cube_rename_excludes_current_alias_from_collision_check() -> None:
