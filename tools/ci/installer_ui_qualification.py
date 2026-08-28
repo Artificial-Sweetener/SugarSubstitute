@@ -33,7 +33,6 @@ from launcher.sugarsubstitute_launcher.install_layout import (
     InstallLayout,
     default_install_root,
 )
-from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.application_readiness import (
     READINESS_PATH_ENV,
     READINESS_TOKEN_ENV,
@@ -46,6 +45,7 @@ from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationTarget,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
+from tools.ci.installed_version_evidence import wait_for_installed_version
 from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
@@ -297,15 +297,15 @@ def verify_main_shell_evidence(
     """Require UI events, installed version, splash sequence, and main shell."""
 
     receipt: ApplicationReadinessReceipt | None = None
+    verification_timeout = (
+        evidence.plan.timeout_seconds if timeout_seconds is None else timeout_seconds
+    )
+    verification_deadline = time.monotonic() + verification_timeout
     try:
         receipt = _wait_for_readiness_receipt(
             readiness_path=evidence.readiness_path,
             token=evidence.token,
-            timeout_seconds=(
-                evidence.plan.timeout_seconds
-                if timeout_seconds is None
-                else timeout_seconds
-            ),
+            timeout_seconds=verification_timeout,
             candidate_launch=candidate_launch,
             trace_path=evidence.trace_path,
             diagnostic_paths=_evidence_diagnostic_paths(
@@ -320,7 +320,11 @@ def verify_main_shell_evidence(
                 "The completion action and readiness receipt identified different "
                 f"main-shell processes: {expected_main_pid} != {receipt.pid}."
             )
-        assert_installed_version(install_root, expected_version)
+        wait_for_installed_version(
+            install_root=install_root,
+            expected_version=expected_version,
+            timeout_seconds=max(0.0, verification_deadline - time.monotonic()),
+        )
         if required_qualification_events:
             assert_qualification_event_sequence(
                 evidence.event_log_path,
@@ -339,24 +343,6 @@ def verify_main_shell_evidence(
             terminate_verified_process(receipt.pid)
         if candidate_launch is not None and candidate_launch.process.poll() is None:
             terminate_verified_process(candidate_launch.process.pid)
-
-
-def assert_installed_version(install_root: Path, expected_version: str) -> None:
-    """Require both launcher state and app source to identify the expected release."""
-
-    layout = InstallLayout.from_root(install_root)
-    state = LauncherUpdateState.load(layout.state_path)
-    if state.installed_app_version != expected_version:
-        raise InstallerLifecycleError(
-            "Launcher state version mismatch: "
-            f"{state.installed_app_version} != {expected_version}."
-        )
-    expected_line = f'__version__ = "{expected_version}"'
-    version_path = layout.app_dir / "substitute" / "_version.py"
-    if expected_line not in version_path.read_text(encoding="utf-8"):
-        raise InstallerLifecycleError(
-            f"Installed app source does not identify version {expected_version}."
-        )
 
 
 def assert_qualification_event_sequence(
@@ -783,7 +769,6 @@ def _windows_process_exists(pid: int) -> bool:
 __all__ = [
     "InstalledCandidateLaunch",
     "InstallerQualificationEvidence",
-    "assert_installed_version",
     "assert_qualification_event_sequence",
     "assert_startup_trace_sequence",
     "diagnostic_tail",

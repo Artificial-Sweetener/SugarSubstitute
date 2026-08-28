@@ -22,6 +22,7 @@ from collections.abc import Callable, Mapping, Sequence
 import json
 from pathlib import Path
 import subprocess
+import sys
 
 import pytest
 
@@ -103,6 +104,7 @@ def test_supervisor_returns_only_after_matching_receipt(tmp_path: Path) -> None:
                     pid=process.pid,
                     token=environment[READINESS_TOKEN_ENV],
                     surface=ApplicationReadinessSurface.MAIN_SHELL,
+                    parent_pid=999,
                 ).to_json()
             ),
             encoding="utf-8",
@@ -145,6 +147,7 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
                     pid=process.pid,
                     token=environment[READINESS_TOKEN_ENV],
                     surface=ApplicationReadinessSurface.MAIN_SHELL,
+                    parent_pid=999,
                 ).to_json()
             ),
             encoding="utf-8",
@@ -194,6 +197,89 @@ def test_supervisor_rejects_partial_outer_readiness_contract(tmp_path: Path) -> 
     assert started is False
 
 
+def test_supervisor_accepts_shell_process_started_by_windows_venv_launcher(
+    tmp_path: Path,
+) -> None:
+    """A direct interpreter child may prove its virtualenv launcher became ready."""
+
+    receipt_path = tmp_path / "child-shell.json"
+    receipt_path.write_text(
+        json.dumps(
+            ApplicationReadinessReceipt(
+                pid=456,
+                parent_pid=123,
+                token="candidate-token",
+                surface=ApplicationReadinessSurface.MAIN_SHELL,
+            ).to_json()
+        ),
+        encoding="utf-8",
+    )
+
+    ApplicationReadinessSupervisor._validate_receipt(
+        receipt_path=receipt_path,
+        expected_token="candidate-token",
+        expected_pid=123,
+    )
+
+
+@pytest.mark.platforms("windows")
+def test_supervisor_accepts_real_windows_venv_redirector_process(
+    tmp_path: Path,
+) -> None:
+    """Exercise the distinct redirector and interpreter PIDs used in production."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    script = (
+        "import json, os, time; "
+        "from pathlib import Path; "
+        "from sugarsubstitute_shared.application_readiness import "
+        "ApplicationReadinessReceipt, ApplicationReadinessSurface, "
+        "READINESS_PATH_ENV, READINESS_TOKEN_ENV; "
+        "path = Path(os.environ[READINESS_PATH_ENV]); "
+        "path.parent.mkdir(parents=True, exist_ok=True); "
+        "path.write_text(json.dumps(ApplicationReadinessReceipt("
+        "pid=os.getpid(), parent_pid=os.getppid(), "
+        "token=os.environ[READINESS_TOKEN_ENV], "
+        "surface=ApplicationReadinessSurface.MAIN_SHELL).to_json()), "
+        "encoding='utf-8'); "
+        "time.sleep(2)"
+    )
+
+    process = ApplicationReadinessSupervisor(timeout_seconds=5).launch_until_ready(
+        layout=layout,
+        command=[sys.executable, "-c", script],
+        environment={},
+    )
+    receipt_path = layout.launcher_dir / "readiness" / "candidate.json"
+
+    assert not receipt_path.exists()
+    assert process.wait(timeout=5) == 0
+
+
+def test_supervisor_rejects_unrelated_receipt_process_chain(tmp_path: Path) -> None:
+    """A matching private token cannot authorize an unrelated process chain."""
+
+    receipt_path = tmp_path / "unrelated-shell.json"
+    receipt_path.write_text(
+        json.dumps(
+            ApplicationReadinessReceipt(
+                pid=456,
+                parent_pid=455,
+                token="candidate-token",
+                surface=ApplicationReadinessSurface.MAIN_SHELL,
+            ).to_json()
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ApplicationReadinessError, match="launched process"):
+        ApplicationReadinessSupervisor._validate_receipt(
+            receipt_path=receipt_path,
+            expected_token="candidate-token",
+            expected_pid=123,
+        )
+
+
 def test_supervisor_rejects_onboarding_as_candidate_readiness(tmp_path: Path) -> None:
     """Candidate activation must require the real main shell."""
 
@@ -204,6 +290,7 @@ def test_supervisor_rejects_onboarding_as_candidate_readiness(tmp_path: Path) ->
                 pid=123,
                 token="candidate-token",
                 surface=ApplicationReadinessSurface.ONBOARDING,
+                parent_pid=999,
             ).to_json()
         ),
         encoding="utf-8",

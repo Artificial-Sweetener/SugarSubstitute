@@ -43,7 +43,6 @@ from tools.ci.comfy_source_cache import (  # noqa: E402
 )
 from tools.ci.historical_install_qualification import (  # noqa: E402
     assert_historical_user_configuration_preserved,
-    install_candidate_over_historical_install,
     prepare_portable_historical_install,
     seed_historical_user_configuration,
 )
@@ -58,12 +57,12 @@ from tools.ci.external_comfy_readiness_server import (  # noqa: E402
 from tools.ci.installer_ui_qualification import (  # noqa: E402
     InstalledCandidateLaunch,
     InstallerQualificationEvidence,
-    assert_installed_version,
     launch_installed_candidate,
     prepare_qualification_evidence,
     run_current_installer_ui,
     verify_main_shell_evidence,
 )
+from tools.ci.installed_version_evidence import assert_installed_version  # noqa: E402
 from tools.ci.local_release_server import LocalReleaseServer  # noqa: E402
 from tools.ci.loopback_port_lease import LoopbackPortLease  # noqa: E402
 from tools.ci.managed_comfy_qualification import terminate_owned_managed_comfy  # noqa: E402
@@ -175,14 +174,13 @@ def verify_clean_install(
 def verify_upgrade(
     *,
     historical_installer_path: Path,
-    candidate_installer_path: Path,
     install_root: Path,
     historical_manifest_url: str,
     historical_version: str,
     historical_published_at: str,
     candidate_manifest_url: str | None,
     candidate_version: str,
-    candidate_channel: str | None = None,
+    candidate_channel: str,
     expected_update_manifest_url: str | None = None,
     candidate_release_root: Path | None = None,
     historical_release_root: Path | None = None,
@@ -234,8 +232,7 @@ def verify_upgrade(
             managed_workspace=managed_workspace,
             managed_model_root=managed_model_root,
         )
-        _verify_candidate_installer_update(
-            candidate_installer_path=candidate_installer_path,
+        _verify_candidate_auto_update(
             install_root=install_root,
             historical_version=historical_version,
             candidate_version=candidate_version,
@@ -258,13 +255,12 @@ def verify_upgrade(
     )
 
 
-def _verify_candidate_installer_update(
+def _verify_candidate_auto_update(
     *,
-    candidate_installer_path: Path,
     install_root: Path,
     historical_version: str,
     candidate_version: str,
-    candidate_channel: str | None = None,
+    candidate_channel: str,
     expected_update_manifest_url: str | None = None,
     candidate_manifest_url: str | None,
     candidate_release_root: Path | None,
@@ -274,7 +270,7 @@ def _verify_candidate_installer_update(
     preservation_marker: Path,
     timeout_seconds: float,
 ) -> None:
-    """Launch once after candidate activation and require the real main shell."""
+    """Drive the historical installed launcher through its production updater."""
 
     qualification_deadline = time.monotonic() + timeout_seconds
     with _candidate_release_source(
@@ -283,6 +279,8 @@ def _verify_candidate_installer_update(
         certificate_root=install_root.parent / ".candidate-certificate",
     ) as candidate_source:
         try:
+            if candidate_source.manifest_url is None:
+                raise InstallerLifecycleError("Candidate update manifest is missing.")
             evidence = prepare_qualification_evidence(
                 install_root=install_root,
                 expected_version=candidate_version,
@@ -294,21 +292,10 @@ def _verify_candidate_installer_update(
                 ),
             )
             _trust_candidate_source(evidence.environment, candidate_source)
-            install_candidate_over_historical_install(
-                installer_path=candidate_installer_path,
+            set_update_manifest(
                 install_root=install_root,
                 manifest_url=candidate_source.manifest_url,
-                timeout_seconds=_remaining_qualification_timeout(
-                    qualification_deadline,
-                    phase="candidate installer update",
-                ),
-                environment=evidence.environment,
-            )
-            assert_installed_version(install_root, candidate_version)
-            assert_installed_release_channel(
-                install_root=install_root,
-                expected_channel=candidate_channel,
-                expected_update_manifest_url=expected_update_manifest_url,
+                channel=candidate_channel,
             )
             assert_historical_installed_launch_contract(install_root)
             endpoint_lease.release_for_handoff()
@@ -330,6 +317,13 @@ def _verify_candidate_installer_update(
                 timeout_seconds=_remaining_qualification_timeout(
                     qualification_deadline,
                     phase="candidate main-shell readiness",
+                ),
+            )
+            assert_installed_release_channel(
+                install_root=install_root,
+                expected_channel=candidate_channel,
+                expected_update_manifest_url=(
+                    expected_update_manifest_url or candidate_source.manifest_url
                 ),
             )
         finally:
@@ -384,8 +378,13 @@ def _trust_candidate_source(
         environment["UV_SYSTEM_CERTS"] = "true"
 
 
-def set_update_manifest(install_root: Path, manifest_url: str) -> None:
-    """Point a historical installation at the exact candidate manifest."""
+def set_update_manifest(
+    install_root: Path,
+    manifest_url: str,
+    *,
+    channel: str,
+) -> None:
+    """Point a historical installation at the exact candidate update channel."""
 
     layout = InstallLayout.from_root(install_root)
     payload = json.loads(layout.config_path.read_text(encoding="utf-8"))
@@ -395,6 +394,7 @@ def set_update_manifest(install_root: Path, manifest_url: str) -> None:
         "kind": RELEASE_SOURCE_KIND_GITHUB,
         "manifest_url": manifest_url,
     }
+    payload["channel"] = channel
     layout.config_path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -483,7 +483,6 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     )
     upgrade = subparsers.add_parser("upgrade")
     upgrade.add_argument("--historical-installer", type=Path, required=True)
-    upgrade.add_argument("--candidate-installer", type=Path, required=True)
     upgrade.add_argument("--install-root", type=Path, required=True)
     upgrade.add_argument("--historical-manifest-url", required=True)
     upgrade.add_argument("--historical-release-root", type=Path)
@@ -493,7 +492,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     upgrade.add_argument("--candidate-manifest-url")
     upgrade.add_argument("--candidate-release-root", type=Path)
     upgrade.add_argument("--candidate-version", required=True)
-    upgrade.add_argument("--candidate-channel")
+    upgrade.add_argument("--candidate-channel", required=True)
     upgrade.add_argument("--expected-update-manifest-url")
     upgrade.add_argument(
         "--timeout-seconds",
@@ -520,7 +519,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         verify_upgrade(
             historical_installer_path=args.historical_installer,
-            candidate_installer_path=args.candidate_installer,
             install_root=args.install_root,
             historical_manifest_url=args.historical_manifest_url,
             historical_version=args.historical_version,

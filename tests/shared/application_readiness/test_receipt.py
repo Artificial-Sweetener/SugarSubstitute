@@ -34,3 +34,39 @@ def test_legacy_readiness_receipt_remains_parseable_but_not_main_shell() -> None
 
     assert READINESS_SCHEMA_VERSION > 1
     assert receipt.surface is ApplicationReadinessSurface.LEGACY_VISIBLE_SHELL
+    assert receipt.parent_pid is None
+
+
+def test_schema_two_readiness_receipt_remains_parseable_without_parent() -> None:
+    """Retain prior main-shell evidence while withholding descendant identity."""
+
+    receipt = ApplicationReadinessReceipt.from_json(
+        {
+            "pid": 123,
+            "schema_version": 2,
+            "surface": "main_shell",
+            "token": "legacy-token",
+        }
+    )
+
+    assert receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
+    assert receipt.parent_pid is None
+
+
+def test_current_readiness_receipt_requires_a_positive_parent_pid() -> None:
+    """Reject current process-chain evidence without a valid direct parent."""
+
+    try:
+        ApplicationReadinessReceipt.from_json(
+            {
+                "parent_pid": None,
+                "pid": 123,
+                "schema_version": READINESS_SCHEMA_VERSION,
+                "surface": "main_shell",
+                "token": "launch-token",
+            }
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Current readiness evidence accepted no parent PID.")

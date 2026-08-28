@@ -82,6 +82,7 @@ def _write_readiness_receipt(
         pid=os.getpid(),
         token=readiness_token,
         surface=surface,
+        parent_pid=os.getppid(),
     ).to_json()
     try:
         temporary_path.write_text(
