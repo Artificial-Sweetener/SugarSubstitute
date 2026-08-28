@@ -25,8 +25,9 @@ from typing import Final
 
 READINESS_PATH_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_PATH"
 READINESS_TOKEN_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_TOKEN"
-READINESS_SCHEMA_VERSION: Final = 2
+READINESS_SCHEMA_VERSION: Final = 3
 _LEGACY_READINESS_SCHEMA_VERSION: Final = 1
+_SURFACE_READINESS_SCHEMA_VERSION: Final = 2
 
 
 class ApplicationReadinessSurface(str, Enum):
@@ -44,11 +45,13 @@ class ApplicationReadinessReceipt:
     pid: int
     token: str
     surface: ApplicationReadinessSurface
+    parent_pid: int | None
 
     def to_json(self) -> dict[str, object]:
         """Return the stable receipt representation."""
 
         return {
+            "parent_pid": self.parent_pid,
             "pid": self.pid,
             "schema_version": READINESS_SCHEMA_VERSION,
             "surface": self.surface.value,
@@ -67,7 +70,11 @@ class ApplicationReadinessReceipt:
         raw_surface = payload.get("surface")
         if (
             schema_version
-            not in {_LEGACY_READINESS_SCHEMA_VERSION, READINESS_SCHEMA_VERSION}
+            not in {
+                _LEGACY_READINESS_SCHEMA_VERSION,
+                _SURFACE_READINESS_SCHEMA_VERSION,
+                READINESS_SCHEMA_VERSION,
+            }
             or not isinstance(pid, int)
             or pid <= 0
             or not isinstance(token, str)
@@ -79,14 +86,27 @@ class ApplicationReadinessReceipt:
                 pid=pid,
                 token=token,
                 surface=ApplicationReadinessSurface.LEGACY_VISIBLE_SHELL,
+                parent_pid=None,
             )
         if not isinstance(raw_surface, str):
             raise ValueError("Application readiness receipt is invalid.")
+        parent_pid = payload.get("parent_pid")
+        if schema_version == READINESS_SCHEMA_VERSION and (
+            not isinstance(parent_pid, int) or parent_pid <= 0
+        ):
+            raise ValueError("Application readiness receipt is invalid.")
+        if schema_version != READINESS_SCHEMA_VERSION:
+            parent_pid = None
         try:
             surface = ApplicationReadinessSurface(raw_surface)
         except ValueError as error:
             raise ValueError("Application readiness receipt is invalid.") from error
-        return cls(pid=pid, token=token, surface=surface)
+        return cls(
+            pid=pid,
+            token=token,
+            surface=surface,
+            parent_pid=parent_pid,
+        )
 
 
 __all__ = [

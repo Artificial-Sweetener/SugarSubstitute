@@ -82,36 +82,6 @@ def prepare_portable_historical_install(
     )
 
 
-def install_candidate_over_historical_install(
-    *,
-    installer_path: Path,
-    install_root: Path,
-    manifest_url: str | None,
-    timeout_seconds: float,
-    environment: dict[str, str],
-) -> None:
-    """Install candidate bytes over one completed historical installation."""
-
-    command = [
-        str(installer_path.resolve()),
-        "--headless-install",
-        f"--install-root={install_root.resolve()}",
-    ]
-    if manifest_url is not None:
-        command.append(f"--manifest-url={manifest_url}")
-    result = run_owned_process(
-        command,
-        cwd=installer_path.resolve().parent,
-        environment=environment,
-        timeout_seconds=timeout_seconds,
-    )
-    if result.returncode != 0:
-        raise InstallerLifecycleError(
-            f"Candidate installer update exited with {result.returncode}.\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
-
-
 def seed_historical_user_configuration(
     *,
     install_root: Path,
@@ -199,7 +169,6 @@ def _remaining_timeout(deadline: float, *, phase: str) -> float:
 
 __all__ = [
     "assert_historical_user_configuration_preserved",
-    "install_candidate_over_historical_install",
     "prepare_portable_historical_install",
     "seed_historical_user_configuration",
 ]

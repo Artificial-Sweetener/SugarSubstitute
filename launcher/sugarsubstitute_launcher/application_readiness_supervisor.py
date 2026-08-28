@@ -196,7 +196,10 @@ class ApplicationReadinessSupervisor:
             raise ApplicationReadinessError(
                 "Application readiness receipt is invalid."
             ) from error
-        if receipt.token != expected_token or receipt.pid != expected_pid:
+        if receipt.token != expected_token or expected_pid not in {
+            receipt.pid,
+            receipt.parent_pid,
+        }:
             raise ApplicationReadinessError(
                 "Application readiness receipt did not match the launched process."
             )

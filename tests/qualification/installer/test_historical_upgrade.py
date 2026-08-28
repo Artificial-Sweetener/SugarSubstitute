@@ -34,7 +34,6 @@ from tools.ci.drive_windows_installer import (
     _wait_for_onboarding_window,
 )
 from tools.ci.historical_install_qualification import (
-    install_candidate_over_historical_install,
     prepare_portable_historical_install,
 )
 
@@ -106,45 +105,6 @@ def test_portable_historical_path_runs_the_complete_installer_contract(
     assert len(setup_requests) == 1
     assert setup_requests[0][:2] == (workspace, model_root)
     assert 0.0 < setup_requests[0][2] <= 60.0
-
-
-def test_update_uses_real_candidate_installer_over_historical_state(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """Updates must execute the candidate installer's real pipeline."""
-
-    commands: list[list[str]] = []
-
-    def _run(command: list[str], **_kwargs: object) -> object:
-        """Capture the update invocation and report success."""
-
-        commands.append(command)
-        return SimpleNamespace(returncode=0, stdout="", stderr="")
-
-    monkeypatch.setattr(
-        "tools.ci.historical_install_qualification.run_owned_process",
-        _run,
-    )
-    installer = tmp_path / "candidate-installer"
-    install_root = tmp_path / "installed"
-
-    install_candidate_over_historical_install(
-        installer_path=installer,
-        install_root=install_root,
-        manifest_url="https://example.test/candidate/manifest.json",
-        timeout_seconds=60.0,
-        environment={"QUALIFICATION": "1"},
-    )
-
-    assert commands == [
-        [
-            str(installer.resolve()),
-            "--headless-install",
-            f"--install-root={install_root.resolve()}",
-            "--manifest-url=https://example.test/candidate/manifest.json",
-        ]
-    ]
 
 
 def test_portable_historical_install_preserves_one_deadline_through_materialization(
