@@ -38,6 +38,10 @@ from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSourc
 from sugarsubstitute_shared.application_launch_guard import (
     APPLICATION_LAUNCH_TOKEN_ENV,
 )
+from sugarsubstitute_shared.application_runtime_mode import (
+    APPLICATION_RUNTIME_MODE_ENV,
+    PACKAGED_APPLICATION_RUNTIME_MODE,
+)
 from sugarsubstitute_shared.startup_remote_access import (
     STARTUP_REMOTE_DEGRADED_ENV,
 )
@@ -154,6 +158,10 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
     ]
     assert len(child_environments) == 1
     assert APPLICATION_LAUNCH_TOKEN_ENV in child_environments[0]
+    assert (
+        child_environments[0][APPLICATION_RUNTIME_MODE_ENV]
+        == PACKAGED_APPLICATION_RUNTIME_MODE
+    )
     assert (
         child_environments[0].get(STARTUP_REMOTE_DEGRADED_ENV)
         == expected_degraded_value

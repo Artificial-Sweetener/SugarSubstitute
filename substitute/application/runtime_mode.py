@@ -23,6 +23,10 @@ import sys
 from dataclasses import dataclass
 from enum import Enum
 
+from sugarsubstitute_shared.application_runtime_mode import (
+    APPLICATION_RUNTIME_MODE_ENV,
+)
+
 
 class ApplicationRuntimeMode(Enum):
     """Identify whether Substitute is running from source or as a release build."""
@@ -41,7 +45,7 @@ class ApplicationRuntimeModeService:
     def from_environment(cls) -> "ApplicationRuntimeModeService":
         """Build the service from explicit environment or packaging evidence."""
 
-        configured = os.environ.get("SUBSTITUTE_RUNTIME_MODE", "").strip().lower()
+        configured = os.environ.get(APPLICATION_RUNTIME_MODE_ENV, "").strip().lower()
         if configured in {"release", "packaged"}:
             return cls(ApplicationRuntimeMode.RELEASE)
         if configured in {"development", "dev", "source"}:
