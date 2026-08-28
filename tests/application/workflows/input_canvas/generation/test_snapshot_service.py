@@ -16,7 +16,9 @@
 
 """Prove exact image-and-mask external products at the generation barrier."""
 
+import copy
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import UUID
 from uuid import uuid4
 
@@ -55,6 +57,39 @@ from tests.application.workflows.input_canvas.generation.snapshot_service_suppor
     _synthetic_workflow,
     _workflow,
 )
+
+
+def test_generation_without_input_canvas_captures_an_empty_document_bundle() -> None:
+    """A workflow with no Input surfaces must remain directly generatable."""
+
+    captured_requests: list[tuple[tuple[UUID, ...], tuple[UUID, ...]]] = []
+
+    def capture_inputs(
+        *,
+        image_ids: tuple[UUID, ...],
+        mask_ids: tuple[UUID, ...],
+    ) -> InputGenerationCapture:
+        """Record the empty capture boundary used by a text-only workflow."""
+
+        captured_requests.append((image_ids, mask_ids))
+        return InputGenerationCapture(images={}, masks={})
+
+    copy_materializer = SimpleNamespace(
+        prepare_workflow=lambda **kwargs: copy.deepcopy(kwargs["workflow"])
+    )
+    service = InputGenerationSnapshotService(
+        capture_inputs=capture_inputs,
+        select_generation_images=lambda _workflow: GenerationInputImageSelection(()),
+        image_materializer=copy_materializer,
+        mask_materializer=copy_materializer,
+    )
+    workflow = WorkflowState()
+
+    prepared = service.prepare_workflow(workflow_id="text-only", workflow=workflow)
+
+    assert isinstance(prepared, WorkflowState)
+    assert prepared is not workflow
+    assert captured_requests == [((), ())]
 
 
 def test_generation_materializes_one_coherent_bundle_without_mutating_authoring(

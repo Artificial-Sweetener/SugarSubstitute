@@ -161,6 +161,10 @@ def test_compose_input_canvas_controllers_assigns_presenter_services(
     assert (
         composition.workflow_input_canvas_service is shell.workflow_input_canvas_service
     )
+    assert (
+        composition.input_canvas_authority_reconciliation_service
+        is shell.input_canvas_authority_reconciliation_service
+    )
     assert composition.input_canvas_presenter is shell.input_canvas_presenter
     assert (
         composition.input_node_interaction_controller
