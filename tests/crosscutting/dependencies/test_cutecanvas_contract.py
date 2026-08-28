@@ -54,9 +54,9 @@ def test_runtime_requirements_pin_the_complete_canvas_stack() -> None:
 
     requirements = (_ROOT / "requirements.txt").read_text(encoding="utf-8")
 
-    assert "cutecanvas[sam]==1.0.3" in requirements
-    assert "qpane==3.0.2" in requirements
-    assert "ferrastra==1.0.1" in requirements
+    assert "cutecanvas[sam]==1.0.6" in requirements
+    assert "qpane==3.0.4" in requirements
+    assert "ferrastra==1.0.2" in requirements
 
 
 def test_cutecanvas_exposes_the_required_edit_session_facade() -> None:

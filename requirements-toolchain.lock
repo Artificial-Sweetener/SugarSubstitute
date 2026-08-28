@@ -671,9 +671,9 @@ cuda-pathfinder==1.7.0 ; python_full_version < '3.15' and sys_platform == 'linux
 cuda-toolkit==13.0.3.0 ; sys_platform == 'linux' \
     --hash=sha256:d693caaa261214ddd7dbb60d68e71cbed884e68c2be7509778f3051da0b91c3f
     # via torch
-cutecanvas==1.0.3 \
-    --hash=sha256:066b60c9fb08a30c61666a34eebe666c2a4cc4324d00f447ad60c765e16ed02f \
-    --hash=sha256:8eb05fcc9cffeabc82e7f287a853c2f36d5460718c322a911d0182709f199565
+cutecanvas==1.0.6 \
+    --hash=sha256:5a819da67149c363c19880a4b1f6c6ebdecca66134bebf29511cdd2ae4d45953 \
+    --hash=sha256:d8c72ce8bb568a3b9cc32441d78b7a7c925d1dfd932854ffb8f1a3d4a0d88557
     # via -r requirements.txt
 cyclonedx-python-lib==11.12.0 \
     --hash=sha256:0e807521a921a5c3cb8ce1153f8a61d29eedfe76a46aac2796b7c6b573391a54 \
@@ -695,11 +695,11 @@ execnet==2.1.2 \
     --hash=sha256:63d83bfdd9a23e35b9c6a3261412324f964c2ec8dcd8d3c6916ee9373e0befcd \
     --hash=sha256:67fba928dd5a544b783f6056f449e5e3931a5c378b128bc18501f7ea79e296ec
     # via pytest-xdist
-ferrastra==1.0.1 \
-    --hash=sha256:15cbca08a9cce71c9e5c50057623655b732b9d90becfbea7346313ce3638cfd2 \
-    --hash=sha256:405cef49f23999029544086a263045d7d2c857024b8254d8f1ef7365ec44b100 \
-    --hash=sha256:436b9665cb33da14480603e121054867052c29bde2d42118c83780b080e3f9a2 \
-    --hash=sha256:fe29c538ccba90d6381986c1ac2ca25050d04fc7939e2e8ea1f6bac59d507ae2
+ferrastra==1.0.2 \
+    --hash=sha256:5177757ce511771703eb5eb941533bd6003589256c7c5adf7e92381b74a03a2c \
+    --hash=sha256:91257d41bd8a4d88b6cf5c42eee610d640dd960ed03a4bae1def5b090ed31619 \
+    --hash=sha256:b62fb18ef3993f45221d232bbcf20df9c6271a9d6c3de028ecb0f39ee0148b37 \
+    --hash=sha256:b909eeaf814c563d8f58d37d2d848ef4c1523fb8c5dbe17696b39f690727861c
     # via
     #   -r requirements.txt
     #   cutecanvas
@@ -3935,9 +3935,9 @@ pyyaml==6.0.3 \
     #   huggingface-hub
     #   pre-commit
     #   timm
-qpane==3.0.2 \
-    --hash=sha256:b5964c47acc8142ac4e076fd3949dbb9471c7e29062123a235f1cfbaafead877 \
-    --hash=sha256:c4e2f732be8748f44e170769f35e60751154337a287e2f7c2eb2d1411c7164ec
+qpane==3.0.4 \
+    --hash=sha256:72712817c8734d2b7a305d3e8585efd3212dad5cdd469964707fd58884730b8b \
+    --hash=sha256:7441e7d42a78c0a20916e8b26e0dbec699003f167c33893a500343f3d150c292
     # via
     #   -r requirements.txt
     #   cutecanvas

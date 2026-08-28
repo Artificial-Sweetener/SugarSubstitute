@@ -61,6 +61,11 @@ class PreparedOutputImage:
     request: OutputImageCommitRequest
     image: QImage
 
+    def __post_init__(self) -> None:
+        """Reject any prepared result that cannot present authoritative pixels."""
+        if not isinstance(self.image, QImage) or self.image.isNull():
+            raise ValueError("prepared output image must contain valid pixels")
+
 
 @dataclass(frozen=True, slots=True)
 class FailedOutputImagePreparation:

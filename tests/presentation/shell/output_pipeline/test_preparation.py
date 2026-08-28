@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TypeVar
 
+import pytest
 from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtGui import QImage
 
@@ -39,7 +40,7 @@ from substitute.presentation.shell.output_image_preparation_dispatcher import (
     OutputImagePreparationDispatcher,
     prepare_output_image,
 )
-from tests.support.execution import ImmediateTaskSubmitter
+from tests.support.execution import ImmediateTaskSubmitter, QueuedTaskSubmitter
 from tests.support.qt.lifecycle import destroy_qt_object, ensure_qt_application
 
 TResult = TypeVar("TResult")
@@ -125,6 +126,34 @@ def test_prepare_output_image_converts_null_load_to_failure() -> None:
     assert result.request.file_path == Path("E:/missing.png")
 
 
+def test_prepare_output_image_converts_failed_detachment_to_failure() -> None:
+    """Allocation failure must not publish a prepared output containing null pixels."""
+
+    image = QImage(32, 16, QImage.Format.Format_ARGB32)
+    image.fill(1)
+
+    result = prepare_output_image(
+        _request(Path("E:/contended.png")),
+        loader=_Loader(image),
+        detach=lambda _image: QImage(),
+    )
+
+    assert isinstance(result, FailedOutputImagePreparation)
+    assert result.request.file_path == Path("E:/contended.png")
+    assert result.detail is not None
+    assert "allocation was rejected" in result.detail
+
+
+def test_prepared_output_contract_rejects_null_pixels() -> None:
+    """No caller may bypass preparation and publish a null output payload."""
+
+    with pytest.raises(ValueError, match="must contain valid pixels"):
+        PreparedOutputImage(
+            request=_request(Path("E:/null.png")),
+            image=QImage(),
+        )
+
+
 def test_dispatcher_retries_saturation_without_dropping_output() -> None:
     """Temporary lane saturation should retain and eventually prepare the output."""
 
@@ -165,6 +194,46 @@ def test_dispatcher_retries_saturation_without_dropping_output() -> None:
     assert prepared[0].request.file_path == Path("E:/retained.png")
     assert failed == []
 
+    dispatcher.shutdown()
+    destroy_qt_object(dispatcher)
+
+
+def test_dispatcher_retains_encoded_requests_until_decoded_capacity_returns() -> None:
+    """Prepared pixels must remain bounded without dropping queued Comfy outputs."""
+
+    ensure_qt_application()
+    submitter = QueuedTaskSubmitter()
+    capacity = {"slots": 1}
+    dispatcher = OutputImagePreparationDispatcher(
+        loader=_Loader(QImage(8, 8, QImage.Format.Format_ARGB32)),
+        submitter=submitter,
+    )
+    dispatcher.set_prepared_capacity(lambda: capacity["slots"])
+
+    def occupy_decoded_slot(_prepared: PreparedOutputImage) -> None:
+        """Model the commit queue retaining one decoded image."""
+        capacity["slots"] = 0
+
+    dispatcher.prepared.connect(occupy_decoded_slot)
+    dispatcher.submit(_request(Path("E:/first.png")))
+    dispatcher.submit(_request(Path("E:/second.png")))
+    dispatcher.submit(_request(Path("E:/third.png")))
+
+    assert len(submitter.handles) == 1
+    first = submitter.handles[0]
+    first.complete_success(
+        PreparedOutputImage(
+            request=_request(Path("E:/first.png")),
+            image=QImage(8, 8, QImage.Format.Format_ARGB32),
+        )
+    )
+
+    assert len(submitter.handles) == 1
+
+    capacity["slots"] = 1
+    dispatcher.resume()
+
+    assert len(submitter.handles) == 2
     dispatcher.shutdown()
     destroy_qt_object(dispatcher)
 
