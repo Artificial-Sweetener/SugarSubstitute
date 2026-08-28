@@ -25,11 +25,26 @@ from typing import Protocol
 from substitute.domain.workflow import StackManager
 
 
+class WorkflowCanvasStateProtocol(Protocol):
+    """Describe alias-keyed canvas state coupled to cube identity."""
+
+    def rename_section(self, old_section_key: str, new_section_key: str) -> bool:
+        """Migrate canvas identities owned by one renamed cube section."""
+
+
 class WorkflowStateProtocol(Protocol):
     """Describe workflow state shape synchronized by the cube stack service."""
 
     cubes: dict[str, Any]
     stack_order: list[str]
+
+
+class RenameWorkflowStateProtocol(WorkflowStateProtocol, Protocol):
+    """Describe workflow state participating in complete alias migration."""
+
+    @property
+    def canvas(self) -> WorkflowCanvasStateProtocol:
+        """Return alias-keyed canvas state owned by the workflow."""
 
 
 @dataclass(frozen=True)
@@ -164,7 +179,7 @@ class CubeStackService:
 
     def apply_cube_rename(
         self,
-        workflow: WorkflowStateProtocol,
+        workflow: RenameWorkflowStateProtocol,
         old_alias: str,
         requested_alias: str,
     ) -> CubeRenameResolution:
@@ -172,6 +187,7 @@ class CubeStackService:
 
         resolution = self.resolve_cube_rename(workflow, old_alias, requested_alias)
         manager = self._manager_for_workflow(workflow)
+        workflow.canvas.rename_section(old_alias, resolution.resolved_alias)
         manager.rename_cube(old_alias, resolution.resolved_alias)
         cube_state = workflow.cubes.pop(old_alias, None)
         if cube_state is not None:

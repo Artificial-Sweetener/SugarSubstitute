@@ -45,6 +45,23 @@ class WorkflowLookupProtocol(Protocol):
         """Return workflow state for one workflow id."""
 
 
+class InputCanvasAuthorityReportProtocol(Protocol):
+    """Describe retired stale Input surface identities."""
+
+    removed_input_keys: tuple[str, ...]
+
+
+class InputCanvasAuthorityReconciliationProtocol(Protocol):
+    """Describe stale Input surface reconciliation before generation."""
+
+    def reconcile(
+        self,
+        workflows: object,
+        workflow_id: str,
+    ) -> InputCanvasAuthorityReportProtocol:
+        """Retire persisted surfaces that current graph authority rejects."""
+
+
 ScheduleRehydrationStep = Callable[[Callable[[], None]], None]
 MaterializeLoadedCubeInputCanvas = Callable[[str, str], None]
 
@@ -152,9 +169,38 @@ def handle_input_mask_clicked_for_view(
     )
 
 
+def reconcile_input_canvas_authority_for_view(
+    canvas_view: object,
+) -> tuple[str, ...]:
+    """Retire stale Input surfaces through the composed application owner."""
+
+    service = getattr(
+        canvas_view, "input_canvas_authority_reconciliation_service", None
+    )
+    if service is None:
+        raise RuntimeError(
+            "InputCanvasAuthorityReconciliationService is required for Input canvas state."
+        )
+    session = getattr(canvas_view, "workflow_session_service", None)
+    workflows = getattr(session, "workflows", None)
+    workflow_id = str(getattr(session, "active_workflow_id", ""))
+    report = cast(InputCanvasAuthorityReconciliationProtocol, service).reconcile(
+        workflows,
+        workflow_id,
+    )
+    removed_input_keys = tuple(report.removed_input_keys)
+    if removed_input_keys:
+        shell_adapter = getattr(canvas_view, "input_canvas_shell_adapter", None)
+        mark_changed = getattr(shell_adapter, "mark_input_canvas_changed", None)
+        if callable(mark_changed):
+            mark_changed(workflow_id)
+    return removed_input_keys
+
+
 def reconcile_active_input_canvas_image_for_view(canvas_view: object) -> None:
     """Reconcile the active Input image before generation request capture."""
 
+    reconcile_input_canvas_authority_for_view(canvas_view)
     input_canvas_presenter_for_view(canvas_view).reconcile_active_input_canvas_image()
 
 
@@ -297,5 +343,6 @@ __all__ = [
     "materialize_loaded_cube_input_canvas_for_view",
     "reconcile_active_input_canvas_image_for_view",
     "refresh_active_mask_pickers_for_view",
+    "reconcile_input_canvas_authority_for_view",
     "rehydrate_duplicated_workflow_input_canvas",
 ]

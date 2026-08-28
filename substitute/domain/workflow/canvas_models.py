@@ -208,6 +208,89 @@ class WorkflowCanvasState:
 
         return self.image_entries.pop(input_key, None)
 
+    def rename_section(self, old_section_key: str, new_section_key: str) -> bool:
+        """Migrate every canvas identity owned by one renamed graph section."""
+
+        if old_section_key == new_section_key:
+            return False
+
+        def renamed_input_key(input_key: str) -> str:
+            """Return an image key with only the matching section replaced."""
+
+            prefix = f"{old_section_key}:"
+            return (
+                f"{new_section_key}:{input_key[len(prefix) :]}"
+                if input_key.startswith(prefix)
+                else input_key
+            )
+
+        def renamed_association_key(
+            association_key: MaskAssociationKey,
+        ) -> MaskAssociationKey:
+            """Return a mask key with only the matching section replaced."""
+
+            section_key, node_name = association_key
+            return (
+                (new_section_key, node_name)
+                if section_key == old_section_key
+                else association_key
+            )
+
+        renamed_image_keys = {
+            input_key: renamed_input_key(input_key) for input_key in self.image_entries
+        }
+        renamed_mask_keys = {
+            key: renamed_association_key(key) for key in self.mask_entries
+        }
+        renamed_collection_keys = {
+            key: renamed_association_key(key) for key in self.regional_mask_collections
+        }
+        renamed_opacity_keys = {
+            key: renamed_association_key(key) for key in self.mask_visual_opacities
+        }
+        for source_keys, replacements in (
+            (self.image_entries, renamed_image_keys),
+            (self.mask_entries, renamed_mask_keys),
+            (self.regional_mask_collections, renamed_collection_keys),
+            (self.mask_visual_opacities, renamed_opacity_keys),
+        ):
+            if any(
+                target != source and target in source_keys
+                for source, target in replacements.items()
+            ):
+                raise ValueError("Input canvas rename target identity already exists.")
+        changed = any(
+            source != target
+            for replacements in (
+                renamed_image_keys,
+                renamed_mask_keys,
+                renamed_collection_keys,
+                renamed_opacity_keys,
+            )
+            for source, target in replacements.items()
+        )
+        self.image_entries = {
+            target: replace(entry, input_key=target)
+            for source, entry in self.image_entries.items()
+            for target in (renamed_image_keys[source],)
+        }
+        self.mask_entries = {
+            target: replace(entry, association_key=target)
+            for source, entry in self.mask_entries.items()
+            for target in (renamed_mask_keys[source],)
+        }
+        self.regional_mask_collections = {
+            renamed_collection_keys[source]: collection
+            for source, collection in self.regional_mask_collections.items()
+        }
+        for association_key, collection in self.regional_mask_collections.items():
+            collection.association_key = association_key
+        self.mask_visual_opacities = {
+            renamed_opacity_keys[source]: opacity
+            for source, opacity in self.mask_visual_opacities.items()
+        }
+        return changed
+
     def image_ids(self) -> tuple[UUID, ...]:
         """Return Input document image identities owned by this workflow."""
 
