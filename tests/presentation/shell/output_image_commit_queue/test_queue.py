@@ -144,6 +144,39 @@ def test_commit_queue_prioritizes_failed_preparation_within_batch_bound() -> Non
     assert queue.pending_count() == 0
 
 
+def test_commit_queue_reports_capacity_only_after_decoded_pixels_leave() -> None:
+    """The decode dispatcher must receive capacity after a prepared image commits."""
+
+    _app()
+
+    def ignore_projection(_workflow_id: str, _image_id: object = None) -> None:
+        """Ignore projection while exercising decoded-image capacity."""
+
+    scheduler = CanvasProjectionScheduler(
+        project_workflow=ignore_projection,
+        active_workflow_id=lambda: "wf",
+        output_canvas_visible=lambda: True,
+    )
+    queue = PreparedOutputCommitQueue(
+        commit_prepared=lambda _prepared: None,
+        handle_failure=lambda _failure: None,
+        projection_scheduler=scheduler,
+        max_prepared=1,
+    )
+    capacity_events: list[int] = []
+    queue.capacity_available.connect(
+        lambda: capacity_events.append(queue.available_prepared_slots())
+    )
+    queue.enqueue_prepared(_prepared("first"))
+
+    assert queue.available_prepared_slots() == 0
+
+    queue.drain_once()
+
+    assert queue.available_prepared_slots() == 1
+    assert capacity_events == [1]
+
+
 def _prepared(node_id: str) -> PreparedOutputImage:
     """Return a prepared output DTO for commit queue tests."""
 

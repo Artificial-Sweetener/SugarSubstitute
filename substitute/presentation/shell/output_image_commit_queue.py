@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Callable
 
-from PySide6.QtCore import QObject, QTimer
+from PySide6.QtCore import QObject, QTimer, Signal
 
 from substitute.application.workflows.output_canvas_state_service import (
     OutputImageRegistrationResult,
@@ -42,6 +42,8 @@ from substitute.presentation.ui_load_activity import (
 class PreparedOutputCommitQueue(QObject):
     """Commit prepared outputs in bounded GUI-thread batches."""
 
+    capacity_available = Signal()
+
     def __init__(
         self,
         *,
@@ -53,6 +55,7 @@ class PreparedOutputCommitQueue(QObject):
         parent: QObject | None = None,
         interval_ms: int = 0,
         batch_size: int = 1,
+        max_prepared: int = 2,
         output_activity_marker: Callable[[str], None] | None = None,
     ) -> None:
         """Initialize FIFO commit queues and a GUI-thread drain timer."""
@@ -67,6 +70,7 @@ class PreparedOutputCommitQueue(QObject):
         self._prepared: deque[PreparedOutputImage] = deque()
         self._failed: deque[FailedOutputImagePreparation] = deque()
         self._batch_size = max(1, int(batch_size))
+        self._max_prepared = max(1, int(max_prepared))
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(max(0, int(interval_ms)))
@@ -75,6 +79,8 @@ class PreparedOutputCommitQueue(QObject):
     def enqueue_prepared(self, output: PreparedOutputImage) -> None:
         """Queue one prepared output for GUI-thread commit."""
 
+        if not self.available_prepared_slots():
+            raise RuntimeError("prepared output queue capacity was not reserved")
         self._prepared.append(output)
         self._schedule()
 
@@ -104,6 +110,7 @@ class PreparedOutputCommitQueue(QObject):
                     registered_image_id=result.projection_intent.registered_image_id,
                 )
             committed += 1
+            self.capacity_available.emit()
         if self._failed or self._prepared:
             self._schedule()
         if failed_pending_before or prepared_pending_before:
@@ -113,6 +120,10 @@ class PreparedOutputCommitQueue(QObject):
         """Return total queued prepared and failed outputs."""
 
         return len(self._prepared) + len(self._failed)
+
+    def available_prepared_slots(self) -> int:
+        """Return decoded-image slots available for dispatcher reservation."""
+        return max(0, self._max_prepared - len(self._prepared))
 
     def _schedule(self) -> None:
         """Start the commit timer if it is idle."""
