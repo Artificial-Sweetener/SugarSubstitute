@@ -59,10 +59,8 @@ def assert_real_managed_comfy(
         raise InstallerLifecycleError(
             "Managed Comfy installation has no runtime Python."
         )
-    _assert_setup_evidence(
-        workspace,
-        require_governed_setup_record=require_governed_setup_record,
-    )
+    if require_governed_setup_record:
+        _assert_setup_evidence(workspace)
     base_url = f"http://{plan.endpoint_host}:{plan.endpoint_port}"
     system = _get_json(f"{base_url}/system_stats").get("system")
     if not isinstance(system, dict) or not system.get("comfyui_version"):
@@ -123,12 +121,8 @@ def terminate_owned_managed_comfy(install_root: Path) -> None:
         kill_managed_comfy_metadata(metadata)
 
 
-def _assert_setup_evidence(
-    workspace: Path,
-    *,
-    require_governed_setup_record: bool,
-) -> None:
-    """Require non-overlapping successful setup evidence when requested."""
+def _assert_setup_evidence(workspace: Path) -> None:
+    """Require one successful setup-evidence generation for a fresh install."""
 
     records = tuple(
         (workspace / ".substitute" / "cache" / "managed").glob(
@@ -139,15 +133,12 @@ def _assert_setup_evidence(
         raise InstallerLifecycleError(
             "Managed Comfy installation retained overlapping governed setup records."
         )
-    if records:
-        if _read_json(records[0]).get("success") is not True:
-            raise InstallerLifecycleError(
-                "Managed setup evidence did not record success."
-            )
-    elif require_governed_setup_record:
+    if not records:
         raise InstallerLifecycleError(
             "Managed Comfy installation did not retain governed setup evidence."
         )
+    if _read_json(records[0]).get("success") is not True:
+        raise InstallerLifecycleError("Managed setup evidence did not record success.")
 
 
 def _get_json(url: str) -> dict[str, object]:
