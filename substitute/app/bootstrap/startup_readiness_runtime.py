@@ -27,7 +27,7 @@ from substitute.app.bootstrap.startup_probe_tasks import (
     StartupRuntimeCompatibilityProbe,
 )
 from substitute.app.bootstrap.startup_qt_timers import create_startup_qtimer
-from substitute.app.bootstrap.startup_readiness_controller import (
+from substitute.app.bootstrap.startup_readiness_resources import (
     ReadinessTimerProtocol,
     StartupReadinessProbeProtocol,
     StartupRuntimeCompatibilityProbeProtocol,

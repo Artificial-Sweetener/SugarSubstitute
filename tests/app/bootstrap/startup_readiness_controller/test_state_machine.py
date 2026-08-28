@@ -24,22 +24,22 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from pathlib import Path
 
-import pytest
-
 from substitute.app.bootstrap.startup_probe_tasks import (
     ReadinessProbeResult,
     RuntimeCompatibilityProbeResult,
 )
 from substitute.app.bootstrap.startup_readiness_controller import (
-    ReadinessTimerProtocol,
     StartupReadinessController,
     StartupReadinessControllerState,
     StartupReadinessFailureAdapter,
-    StartupReadinessStarter,
-    TimerSignalProtocol,
     create_bound_startup_readiness_controller,
     create_startup_readiness_controller,
     create_startup_readiness_failure_adapter,
+)
+from substitute.app.bootstrap.startup_readiness_resources import (
+    ReadinessTimerProtocol,
+    StartupReadinessStarter,
+    TimerSignalProtocol,
 )
 from substitute.app.bootstrap.startup_readiness_policy import (
     STARTUP_READINESS_MAX_ATTEMPTS,
@@ -266,20 +266,6 @@ class _ComfyHttpReadyState:
     comfy_http_ready: bool = False
 
 
-class _Startable:
-    """Record readiness start calls."""
-
-    def __init__(self) -> None:
-        """Initialize empty start records."""
-
-        self.start_calls = 0
-
-    def start(self) -> None:
-        """Record one start request."""
-
-        self.start_calls += 1
-
-
 def test_startup_readiness_controller_starts_timer_and_requests_probe() -> None:
     """Starting readiness creates probe tasks, starts a timer, and probes the target."""
 
@@ -312,26 +298,18 @@ def test_startup_readiness_controller_pauses_timer_while_probe_runs() -> None:
     assert harness.timer.stopped == 1
 
 
-def test_startup_readiness_starter_requires_bound_controller() -> None:
-    """Readiness starter should fail loudly before the controller is bound."""
+def test_startup_readiness_controller_reuses_resources_after_recovery() -> None:
+    """Restarting readiness must reuse task owners after nodepack recovery."""
 
-    starter = StartupReadinessStarter()
+    harness = _Harness()
 
-    with pytest.raises(RuntimeError, match="controller is not bound"):
-        starter.start()
+    harness.controller.start()
+    harness.timer.stop()
+    harness.controller.start()
 
-
-def test_startup_readiness_starter_forwards_to_bound_controller() -> None:
-    """Readiness starter should forward start requests after binding."""
-
-    starter = StartupReadinessStarter()
-    controller = _Startable()
-
-    starter.bind(controller)
-    starter.start()
-    starter.start()
-
-    assert controller.start_calls == 2
+    assert harness.timer.started == 2
+    assert harness.readiness_probe_builds == 1
+    assert harness.compatibility_probe_builds == 1
 
 
 def test_startup_readiness_failure_adapter_uses_live_transcript() -> None:
@@ -637,6 +615,8 @@ class _Harness:
         self.timer = _Timer()
         self.readiness_probe: _ReadinessProbe
         self.compatibility_probe: _RuntimeCompatibilityProbe
+        self.readiness_probe_builds = 0
+        self.compatibility_probe_builds = 0
         self.events: list[str] = []
         self.failures: list[ComfyStartupIncident] = []
         self.recoveries: list[BackendCompatibilityResult] = []
@@ -689,6 +669,7 @@ class _Harness:
     ) -> _ReadinessProbe:
         """Create and remember one fake readiness probe."""
 
+        self.readiness_probe_builds += 1
         self.readiness_probe = _ReadinessProbe(probe)
         return self.readiness_probe
 
@@ -698,6 +679,7 @@ class _Harness:
     ) -> _RuntimeCompatibilityProbe:
         """Create and remember one fake compatibility probe."""
 
+        self.compatibility_probe_builds += 1
         self.compatibility_probe = _RuntimeCompatibilityProbe(assess)
         return self.compatibility_probe
 
