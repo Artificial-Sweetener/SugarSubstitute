@@ -26,7 +26,7 @@ from typing import cast
 import pytest
 
 from substitute.app.bootstrap import startup_managed_ready_runtime
-from substitute.app.bootstrap.startup_readiness_controller import (
+from substitute.app.bootstrap.startup_readiness_resources import (
     TimerSignalProtocol,
 )
 from substitute.app.bootstrap.startup_probe_tasks import (

@@ -1133,10 +1133,10 @@ owner = "startup readiness controller"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/startup_readiness_controller.py"
 kind = "structural"
-justification = "StartupReadinessController owns one ordered readiness state machine in which HTTP availability must transition into compatibility assessment before the backend becomes ready. Probe ports, failure adaptation, and constructors exist to enforce that single transition contract; separating the stages would split its authoritative state."
+justification = "StartupReadinessController owns one ordered readiness state machine in which HTTP availability must transition into compatibility assessment before the backend becomes ready. Failure adaptation and controller constructors enforce that single transition contract; separating the stages would split its authoritative state."
 issue = "chore:SS-WAIVER-S003"
 review_by = 2026-12-15
-max_lines = 600
+max_lines = 565
 
 [[waivers]]
 id = "SS-WAIVER-S004"
@@ -2116,7 +2116,7 @@ kind = "structural"
 justification = "This module owns one ordered readiness state machine: schedule and pause HTTP probes, adapt failures, assess runtime compatibility, retry transient states, route managed recovery, release warmups, and publish backend readiness. All factories and boundary checks enforce that single transition sequence."
 issue = "chore:SS-WAIVER-S126"
 review_by = 2026-12-15
-max_lines = 593
+max_lines = 586
 
 [[waivers]]
 id = "SS-WAIVER-S130"
