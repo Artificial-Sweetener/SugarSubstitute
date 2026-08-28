@@ -22,7 +22,7 @@ import ast
 from pathlib import Path
 from typing import Any, cast
 
-from substitute.app.bootstrap.startup_readiness_controller import (
+from substitute.app.bootstrap.startup_readiness_resources import (
     TimerSignalProtocol,
     StartupReadinessProbeProtocol,
     StartupRuntimeCompatibilityProbeProtocol,
