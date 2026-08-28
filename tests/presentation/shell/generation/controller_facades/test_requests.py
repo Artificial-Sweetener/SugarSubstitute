@@ -53,6 +53,9 @@ def _base_generation_view(
         ),
         _current_generate_mode="generate",
         get_active_workflow=lambda: workflow,
+        input_canvas_authority_reconciliation_service=SimpleNamespace(
+            reconcile=lambda *_args: SimpleNamespace(removed_input_keys=()),
+        ),
         input_canvas_shell_adapter=SimpleNamespace(
             resolve_workflow_name=lambda _workflow_id: "Recipe"
         ),

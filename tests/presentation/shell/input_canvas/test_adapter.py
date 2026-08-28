@@ -34,6 +34,7 @@ from substitute.presentation.shell.workspace_input_canvas_adapter import (
     input_canvas_presenter_for_view,
     materialize_loaded_cube_input_canvas_for_view,
     reconcile_active_input_canvas_image_for_view,
+    reconcile_input_canvas_authority_for_view,
     refresh_active_mask_pickers_for_view,
     rehydrate_duplicated_workflow_input_canvas,
 )
@@ -99,9 +100,23 @@ def test_input_canvas_intents_delegate_to_presenter() -> None:
             ("materialize", args)
         ),
     )
+
+    def reconcile_authority(workflows: object, workflow_id: str) -> object:
+        """Record authority repair before presenter-level image reconciliation."""
+
+        calls.append(("authority", (workflows, workflow_id)))
+        return SimpleNamespace(removed_input_keys=())
+
     view = SimpleNamespace(
         input_canvas_presenter=presenter,
         input_node_interaction_controller=interaction_controller,
+        input_canvas_authority_reconciliation_service=SimpleNamespace(
+            reconcile=reconcile_authority
+        ),
+        workflow_session_service=SimpleNamespace(
+            workflows={"wf-a": object()},
+            active_workflow_id="wf-a",
+        ),
     )
 
     handle_input_image_changed_for_view(view, "CubeA", "ImageNode", "input.png")
@@ -121,9 +136,38 @@ def test_input_canvas_intents_delegate_to_presenter() -> None:
         ("mask_pickers", ()),
         ("mask_changed", ("CubeA", "MaskNode", "mask.png")),
         ("mask_clicked", ("CubeA", "MaskNode", "mask.png")),
+        ("authority", (view.workflow_session_service.workflows, "wf-a")),
         ("reconcile", ()),
         ("materialize", ("wf-a", "CubeA")),
     ]
+
+
+def test_authority_reconciliation_marks_recovered_canvas_state_changed() -> None:
+    """Recovered legacy state must participate in normal dirty-state persistence."""
+
+    marked: list[str] = []
+    workflows = {"wf-a": object()}
+    view = SimpleNamespace(
+        workflow_session_service=SimpleNamespace(
+            workflows=workflows,
+            active_workflow_id="wf-a",
+        ),
+        input_canvas_authority_reconciliation_service=SimpleNamespace(
+            reconcile=lambda supplied, workflow_id: SimpleNamespace(
+                removed_input_keys=("Removed:Image",)
+                if supplied is workflows and workflow_id == "wf-a"
+                else ()
+            )
+        ),
+        input_canvas_shell_adapter=SimpleNamespace(
+            mark_input_canvas_changed=marked.append
+        ),
+    )
+
+    removed = reconcile_input_canvas_authority_for_view(view)
+
+    assert removed == ("Removed:Image",)
+    assert marked == ["wf-a"]
 
 
 def test_rehydrate_duplicated_workflow_input_canvas_materializes_stack_order(

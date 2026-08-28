@@ -400,6 +400,7 @@ class _InputCompositionShell:
         self._error_presenter = object()
         self.request_session_autosave = object()
         self.workflow_input_canvas_service: object | None = None
+        self.input_canvas_authority_reconciliation_service: object | None = None
         self.input_canvas_presenter: object | None = None
         self.input_node_interaction_controller: object | None = None
         self.input_document_change_observer: object | None = None

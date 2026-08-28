@@ -133,6 +133,9 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
         ),
         _current_generate_mode="generate",
         get_active_workflow=lambda: workflow,
+        input_canvas_authority_reconciliation_service=SimpleNamespace(
+            reconcile=lambda *_args: SimpleNamespace(removed_input_keys=()),
+        ),
         input_canvas_shell_adapter=SimpleNamespace(
             resolve_workflow_name=lambda _workflow_id: "Recipe"
         ),
