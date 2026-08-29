@@ -57,6 +57,9 @@ from launcher.sugarsubstitute_launcher.update_policy import (
     decide_update_check,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from launcher.sugarsubstitute_launcher.update_rollback_reporting import (
+    record_update_rollback,
+)
 from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import (
@@ -64,6 +67,7 @@ from sugarsubstitute_shared.launcher_update.targets import (
     launcher_bundle_target_for_key,
 )
 from sugarsubstitute_shared.launcher_update.versions import compare_release_versions
+from sugarsubstitute_shared.update_rollback_report import UpdateRollbackStage
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -106,6 +110,20 @@ class LauncherBundleStagerProtocol(Protocol):
         """Return the pending update request path."""
 
 
+class UpdateRollbackReporter(Protocol):
+    """Persist diagnostics after an update preparation rollback."""
+
+    def __call__(
+        self,
+        *,
+        install_root: Path,
+        attempted_version: str,
+        stage: UpdateRollbackStage,
+        error: BaseException,
+    ) -> None:
+        """Record one successfully rolled-back update failure."""
+
+
 @dataclass(frozen=True, slots=True)
 class PreLaunchUpdateResult:
     """Describe one launcher pre-launch update attempt."""
@@ -116,6 +134,7 @@ class PreLaunchUpdateResult:
     failure_reason: str | None = None
     launcher_update_request_path: str | None = None
     pending_activation: PendingUpdateActivation | None = None
+    attempted_version: str | None = None
 
 
 class NullLauncherUpdateProgress:
@@ -136,6 +155,7 @@ class LauncherUpdateOrchestrator:
         payload_installer: AppPayloadInstallerProtocol | None = None,
         runtime_reconciler: RuntimeReconciler | None = None,
         launcher_bundle_stager: LauncherBundleStagerProtocol | None = None,
+        rollback_reporter: UpdateRollbackReporter = record_update_rollback,
         launcher_version: str = LAUNCHER_VERSION,
         now: Callable[[], datetime] | None = None,
     ) -> None:
@@ -144,6 +164,7 @@ class LauncherUpdateOrchestrator:
         self._payload_installer = payload_installer or AppPayloadInstaller()
         self._runtime_reconciler = runtime_reconciler or UvRuntimeReconciler()
         self._launcher_bundle_stager = launcher_bundle_stager or LauncherBundleStager()
+        self._rollback_reporter = rollback_reporter
         self._launcher_version = launcher_version
         self._now = _utc_now if now is None else now
 
@@ -271,8 +292,14 @@ class LauncherUpdateOrchestrator:
                 progress.append_log(launcher_text("Preparing SugarSubstitute runtime."))
                 activation.prepare_runtime()
                 self._runtime_reconciler.reconcile(layout=layout, progress=progress)
-            except BaseException:
+            except BaseException as error:
                 activation.rollback()
+                self._rollback_reporter(
+                    install_root=layout.root,
+                    attempted_version=manifest.version,
+                    stage=UpdateRollbackStage.PREPARATION,
+                    error=error,
+                )
                 raise
             progress.append_log(
                 launcher_text(
@@ -284,6 +311,7 @@ class LauncherUpdateOrchestrator:
                 checked_manifest=True,
                 installed_update=True,
                 pending_activation=activation,
+                attempted_version=manifest.version,
             )
 
         state.with_update_check(

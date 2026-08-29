@@ -520,7 +520,7 @@ Vista previa del prompt:
       <translation>Opciones avanzadas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="344"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
       <source>Affected cubes</source>
       <translation>Cubos afectados</translation>
     </message>
@@ -1935,7 +1935,7 @@ Vista previa del prompt:
       <translation>Copiar toda la salida</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="287"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="299"></location>
       <source>Copy report</source>
       <translation>Copiar informe</translation>
     </message>
@@ -2543,7 +2543,7 @@ Install these nodes now?</source>
       <translation>Errores</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
       <source>Exception</source>
       <translation>Excepción</translation>
     </message>
@@ -2633,7 +2633,7 @@ Install these nodes now?</source>
       <translation>No se pudo capturar el contenido del lienzo de entrada para la generación.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="500"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="501"></location>
       <source>Failed to connect generation listener session</source>
       <translation>No se pudo conectar la sesión de escucha de generación</translation>
     </message>
@@ -2653,7 +2653,7 @@ Install these nodes now?</source>
       <translation>No se pudo cargar el estado de la biblioteca de cubos desde el destino activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="229"></location>
+      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="246"></location>
       <source>Failed to load generated image.</source>
       <translation>No se pudo cargar la imagen generada.</translation>
     </message>
@@ -2693,12 +2693,12 @@ Install these nodes now?</source>
       <translation>No se pudo actualizar la visibilidad del editor tras insertar el cubo de forma incremental</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="426"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>No se pudo preparar el recurso del flujo de trabajo %1.%2: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="635"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="636"></location>
       <source>Failed to start generation listener</source>
       <translation>No se pudo iniciar la escucha de generación</translation>
     </message>
@@ -3023,7 +3023,7 @@ Install these nodes now?</source>
       <translation>Ocultar los controles de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
       <source>Hide report</source>
       <translation>Ocultar informe</translation>
     </message>
@@ -3603,12 +3603,12 @@ Install these nodes now?</source>
       <translation>La actualización manual de metadatos necesita un tipo de modelo y un valor.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="681"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="680"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>No se pudieron verificar las dimensiones de la máscara</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="618"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="617"></location>
       <source>Mask dimensions do not match</source>
       <translation>Las dimensiones de la máscara no coinciden</translation>
     </message>
@@ -3968,7 +3968,7 @@ Install these nodes now?</source>
       <translation>Sin miniatura</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="331"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="343"></location>
       <source>Node</source>
       <translation>Nodo</translation>
     </message>
@@ -3993,7 +3993,7 @@ Install these nodes now?</source>
       <translation>Contexto del nodo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="340"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="352"></location>
       <source>Node errors</source>
       <translation>Errores del nodo</translation>
     </message>
@@ -4418,7 +4418,7 @@ Install these nodes now?</source>
       <translation>Preparando la compatibilidad con aceleración administrada.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="999"></location>
+      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="970"></location>
       <source>Preparing the application interface.</source>
       <translation>Preparando la interfaz de la aplicación.</translation>
     </message>
@@ -4488,7 +4488,7 @@ Install these nodes now?</source>
       <translation>Proyecto</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="329"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
       <source>Prompt</source>
       <translation>ID del prompt</translation>
     </message>
@@ -4713,7 +4713,7 @@ Install these nodes now?</source>
       <translation>Volver a acoplar el lienzo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="222"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="231"></location>
       <source>Referenced local image file does not exist.</source>
       <translation>El archivo de imagen local al que se hace referencia no existe.</translation>
     </message>
@@ -4888,7 +4888,7 @@ Install these nodes now?</source>
       <translation>La reparación volverá a instalar ComfyUI con un backend que coincida con el acelerador detectado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="869"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="286"></location>
       <source>Report issue</source>
       <translation>Notificar problema</translation>
     </message>
@@ -4957,7 +4957,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Los nodos personalizados necesarios están instalados.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="194"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="203"></location>
       <source>Required image input has no selected image.</source>
       <translation>La entrada de imagen obligatoria no tiene ninguna imagen seleccionada.</translation>
     </message>
@@ -5622,7 +5622,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar imágenes en el visor de la wiki</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
       <source>Show report</source>
       <translation>Mostrar informe</translation>
     </message>
@@ -5747,7 +5747,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Corrección ortográfica</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="321"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
       <source>Stage</source>
       <translation>Etapa</translation>
     </message>
@@ -6262,7 +6262,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración de carpetas guardada de Substitute necesita corrección</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2735"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2730"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6777,12 +6777,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>La carpeta seleccionada no contiene una instalación completa de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="683"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="682"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>No se pudieron comparar las dimensiones de la máscara seleccionada con la imagen de entrada cargada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="620"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="619"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>Las dimensiones de la máscara seleccionada no coinciden con las de la imagen de entrada cargada.</translation>
     </message>
@@ -7157,6 +7157,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Actualización disponible</translation>
     </message>
     <message>
+      <location filename="../substitute/application/update_rollback_notice.py" line="92"></location>
+      <source>Update failed</source>
+      <translation>La actualización falló</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="305"></location>
       <source>Update selected</source>
       <translation>Actualizar seleccionados</translation>
@@ -7447,6 +7452,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No pudimos encontrar el entorno de Python de ComfyUI</translation>
     </message>
     <message>
+      <location filename="../substitute/application/update_rollback_notice.py" line="93"></location>
+      <source>We tried to update Substitute, but it failed. Substitute is ready to use. Please send an error report to the maintainer.</source>
+      <translation>Intentamos actualizar Substitute, pero falló. Substitute está listo para usarse. Envía un informe de error al responsable del mantenimiento.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="849"></location>
       <source>What happens next</source>
       <translation>Qué ocurrirá a continuación</translation>
@@ -7522,7 +7532,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Windows limita a 255 caracteres cada nombre de archivo o carpeta.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="323"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="335"></location>
       <source>Workflow</source>
       <translation>Flujo de trabajo</translation>
     </message>
@@ -7652,7 +7662,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>[InstalaciónAdministrada] plataforma=%1 acelerador=%2 destino=%3 python=%4 canal=%5 backend=%6 canal_torch=%7 estabilidad=%8</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/managed_environment_validator.py" line="162"></location>
+      <location filename="../substitute/infrastructure/comfy/managed_environment_validator.py" line="174"></location>
       <source>[Validation] torch=%1 backend=%2 channel=%3 device=%4</source>
       <translation>[Validación] torch=%1 backend=%2 canal=%3 dispositivo=%4</translation>
     </message>
@@ -7727,7 +7737,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>ninguno</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="546"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="547"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>queue_prompt no devolvió prompt_id</translation>
     </message>
@@ -7742,7 +7752,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>copia del código fuente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="325"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="337"></location>
       <source>unknown</source>
       <translation>desconocido</translation>
     </message>

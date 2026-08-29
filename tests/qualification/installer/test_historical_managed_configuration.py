@@ -98,6 +98,11 @@ def test_existing_runtime_is_converged_before_readiness_is_recorded(
     workspace = tmp_path / "comfyui"
     model_root = tmp_path / "models"
     workspace.mkdir()
+    maintenance_path = (
+        workspace / "custom_nodes" / "SugarCubes" / "sugarcubes" / "maintenance.py"
+    )
+    maintenance_path.parent.mkdir(parents=True)
+    maintenance_path.touch()
     operations: list[str] = []
 
     def _manager_runtime(*_args: object, **_kwargs: object) -> ComfyManagerRuntime:

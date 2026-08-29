@@ -35,9 +35,15 @@ from substitute.infrastructure.comfy.nodepack_python_dependencies import (
 from substitute.infrastructure.comfy.pinned_nodepack_source import (
     PinnedNodepackSourceInstaller,
 )
+from substitute.infrastructure.comfy.sugarcubes_installation_contract import (
+    sugarcubes_maintenance_path,
+)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 
-_SUGARCUBES_VERSION_NAME = "SUGARCUBES_REQUIRED_VERSION"
+_SUGARCUBES_VERSION_NAMES = (
+    "SUGARCUBES_REQUIRED_VERSION",
+    "SUGARCUBES_REQUIRED_MINIMUM_VERSION",
+)
 _SUGARCUBES_RELEASE_ARCHIVE = (
     "https://github.com/Artificial-Sweetener/SugarCubes/archive/refs/tags/"
 )
@@ -102,28 +108,38 @@ def read_historical_sugarcubes_version(install_root: Path) -> str:
         raise InstallerLifecycleError(
             f"Historical nodepack contract is unreadable: {contract_path}."
         ) from error
-    for statement in module.body:
-        if not isinstance(statement, (ast.Assign, ast.AnnAssign)):
-            continue
-        targets = (
-            statement.targets
-            if isinstance(statement, ast.Assign)
-            else [statement.target]
-        )
-        if not any(
-            isinstance(target, ast.Name) and target.id == _SUGARCUBES_VERSION_NAME
-            for target in targets
-        ):
-            continue
-        value = statement.value
-        if isinstance(value, ast.Constant) and isinstance(value.value, str):
-            version = value.value.strip()
-            if version:
-                return version
-        break
+    for version_name in _SUGARCUBES_VERSION_NAMES:
+        for statement in module.body:
+            if not isinstance(statement, (ast.Assign, ast.AnnAssign)):
+                continue
+            targets = (
+                statement.targets
+                if isinstance(statement, ast.Assign)
+                else [statement.target]
+            )
+            if not any(
+                isinstance(target, ast.Name) and target.id == version_name
+                for target in targets
+            ):
+                continue
+            value = statement.value
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                version = value.value.strip()
+                if version:
+                    return version
+            raise InstallerLifecycleError(
+                "Historical app payload does not declare a literal SugarCubes "
+                "requirement."
+            )
     raise InstallerLifecycleError(
         "Historical app payload does not declare a literal SugarCubes requirement."
     )
+
+
+def historical_sugarcubes_has_maintenance(workspace: Path) -> bool:
+    """Return whether the restored historical release exposes maintenance."""
+
+    return sugarcubes_maintenance_path(workspace).is_file()
 
 
 def historical_sugarcubes_freshness_key(
@@ -158,6 +174,7 @@ def historical_sugarcubes_freshness_key(
 
 __all__ = [
     "historical_sugarcubes_freshness_key",
+    "historical_sugarcubes_has_maintenance",
     "read_historical_sugarcubes_version",
     "restore_historical_sugarcubes",
 ]

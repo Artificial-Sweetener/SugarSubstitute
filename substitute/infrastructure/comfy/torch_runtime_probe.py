@@ -52,9 +52,11 @@ class TorchRuntimeDetails:
     device_name: str | None = None
     device_error: str | None = None
     probe_error: str | None = None
+    component_errors: tuple[str, ...] = ()
 
 
 _TORCH_RUNTIME_PROBE = """
+import importlib
 import json
 
 payload = {
@@ -66,8 +68,17 @@ payload = {
     "device_operation": False,
     "device_name": None,
     "device_error": None,
+    "component_errors": {},
 }
 import torch
+
+for component_name in ("torchvision", "torchaudio"):
+    try:
+        importlib.import_module(component_name)
+    except Exception as error:
+        payload["component_errors"][component_name] = (
+            f"{type(error).__name__}: {error}"
+        )
 
 payload["torch_version"] = getattr(torch, "__version__", None)
 payload["cuda"] = bool(getattr(torch.cuda, "is_available", lambda: False)())
@@ -144,6 +155,7 @@ def query_torch_runtime(
         device_operation=bool(payload.get("device_operation")),
         device_name=_optional_string(payload.get("device_name")),
         device_error=_optional_string(payload.get("device_error")),
+        component_errors=_component_errors(payload.get("component_errors")),
     )
 
 
@@ -154,6 +166,20 @@ def _optional_string(value: object) -> str | None:
         return None
     normalized = str(value).strip()
     return normalized or None
+
+
+def _component_errors(value: object) -> tuple[str, ...]:
+    """Normalize companion-package import failures from the probe payload."""
+
+    if not isinstance(value, dict):
+        return ()
+    errors: list[str] = []
+    for component, detail in sorted(value.items(), key=lambda item: str(item[0])):
+        component_name = _optional_string(component)
+        error_detail = _optional_string(detail)
+        if component_name is not None and error_detail is not None:
+            errors.append(f"{component_name}: {error_detail}")
+    return tuple(errors)
 
 
 __all__ = ["RuntimeCommandRunner", "TorchRuntimeDetails", "query_torch_runtime"]

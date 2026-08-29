@@ -520,7 +520,7 @@ Prompt preview:
       <translation>詳細オプション</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="344"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
       <source>Affected cubes</source>
       <translation>影響を受けるキューブ</translation>
     </message>
@@ -1935,7 +1935,7 @@ Prompt preview:
       <translation>すべての出力をコピー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="287"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="299"></location>
       <source>Copy report</source>
       <translation>レポートをコピー</translation>
     </message>
@@ -2543,7 +2543,7 @@ Install these nodes now?</source>
       <translation>エラー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
       <source>Exception</source>
       <translation>例外</translation>
     </message>
@@ -2633,7 +2633,7 @@ Install these nodes now?</source>
       <translation>生成用の入力キャンバスの内容を取得できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="500"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="501"></location>
       <source>Failed to connect generation listener session</source>
       <translation>生成リスナーセッションに接続できませんでした</translation>
     </message>
@@ -2653,7 +2653,7 @@ Install these nodes now?</source>
       <translation>現在のターゲットからキューブライブラリの状態を読み込めませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="229"></location>
+      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="246"></location>
       <source>Failed to load generated image.</source>
       <translation>生成画像を読み込めませんでした。</translation>
     </message>
@@ -2693,12 +2693,12 @@ Install these nodes now?</source>
       <translation>キューブの差分挿入後にエディターの表示状態を更新できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="426"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>ワークフローアセット %1.%2 を準備できませんでした：%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="635"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="636"></location>
       <source>Failed to start generation listener</source>
       <translation>生成リスナーを開始できませんでした</translation>
     </message>
@@ -3023,7 +3023,7 @@ Install these nodes now?</source>
       <translation>生成コントロールを非表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
       <source>Hide report</source>
       <translation>レポートを隠す</translation>
     </message>
@@ -3603,12 +3603,12 @@ Install these nodes now?</source>
       <translation>メタデータを手動更新するには、モデルの種類と値が必要です。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="681"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="680"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>マスクのサイズを確認できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="618"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="617"></location>
       <source>Mask dimensions do not match</source>
       <translation>マスクのサイズが一致しません</translation>
     </message>
@@ -3968,7 +3968,7 @@ Install these nodes now?</source>
       <translation>サムネイルなし</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="331"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="343"></location>
       <source>Node</source>
       <translation>ノード</translation>
     </message>
@@ -3993,7 +3993,7 @@ Install these nodes now?</source>
       <translation>ノードのコンテキスト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="340"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="352"></location>
       <source>Node errors</source>
       <translation>ノードエラー</translation>
     </message>
@@ -4418,7 +4418,7 @@ Install these nodes now?</source>
       <translation>管理対象のアクセラレーション対応を準備しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="999"></location>
+      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="970"></location>
       <source>Preparing the application interface.</source>
       <translation>アプリケーション画面を準備しています。</translation>
     </message>
@@ -4488,7 +4488,7 @@ Install these nodes now?</source>
       <translation>プロジェクト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="329"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
       <source>Prompt</source>
       <translation>プロンプト</translation>
     </message>
@@ -4713,7 +4713,7 @@ Install these nodes now?</source>
       <translation>キャンバスを再度ドッキング</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="222"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="231"></location>
       <source>Referenced local image file does not exist.</source>
       <translation>参照しているローカル画像ファイルがありません。</translation>
     </message>
@@ -4888,7 +4888,7 @@ Install these nodes now?</source>
       <translation>修復では、検出されたアクセラレーターに合うバックエンドを使用して ComfyUI を再インストールします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="869"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="286"></location>
       <source>Report issue</source>
       <translation>問題を報告</translation>
     </message>
@@ -4957,7 +4957,7 @@ No known extension claimant.</source>
       <translation>必要なカスタムノードはすべてインストールされています。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="194"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="203"></location>
       <source>Required image input has no selected image.</source>
       <translation>必須の画像入力で画像が選択されていません。</translation>
     </message>
@@ -5622,7 +5622,7 @@ No known extension claimant.</source>
       <translation>Wiki ビューアーに画像を表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
       <source>Show report</source>
       <translation>レポートを表示</translation>
     </message>
@@ -5747,7 +5747,7 @@ No known extension claimant.</source>
       <translation>スペルチェック</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="321"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
       <source>Stage</source>
       <translation>段階</translation>
     </message>
@@ -6262,7 +6262,7 @@ No known extension claimant.</source>
       <translation>Substitute に保存されたフォルダー設定を修正する必要があります</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2735"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2730"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6777,12 +6777,12 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>選択したフォルダーには、完全な ComfyUI がインストールされていません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="683"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="682"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>選択したマスクの寸法を、読み込まれた入力画像と照合できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="620"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="619"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>選択したマスクの寸法が、読み込まれた入力画像と一致しません。</translation>
     </message>
@@ -7157,6 +7157,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>更新あり</translation>
     </message>
     <message>
+      <location filename="../substitute/application/update_rollback_notice.py" line="92"></location>
+      <source>Update failed</source>
+      <translation>アップデートに失敗しました</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="305"></location>
       <source>Update selected</source>
       <translation>選択項目を更新</translation>
@@ -7447,6 +7452,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ComfyUI の Python 環境が見つかりませんでした</translation>
     </message>
     <message>
+      <location filename="../substitute/application/update_rollback_notice.py" line="93"></location>
+      <source>We tried to update Substitute, but it failed. Substitute is ready to use. Please send an error report to the maintainer.</source>
+      <translation>Substitute のアップデートを試みましたが、失敗しました。Substitute は使用できます。エラーレポートをメンテナーに送信してください。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="849"></location>
       <source>What happens next</source>
       <translation>次に行われること</translation>
@@ -7522,7 +7532,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>Windows では、個々のファイル名またはフォルダー名は 255 文字までに制限されています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="323"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="335"></location>
       <source>Workflow</source>
       <translation>ワークフロー</translation>
     </message>
@@ -7652,7 +7662,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>[管理対象インストール] プラットフォーム=%1 アクセラレーター=%2 ターゲット=%3 Python=%4 チャンネル=%5 バックエンド=%6 PyTorchチャンネル=%7 安定性=%8</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/managed_environment_validator.py" line="162"></location>
+      <location filename="../substitute/infrastructure/comfy/managed_environment_validator.py" line="174"></location>
       <source>[Validation] torch=%1 backend=%2 channel=%3 device=%4</source>
       <translation>[検証] PyTorch=%1 バックエンド=%2 チャンネル=%3 デバイス=%4</translation>
     </message>
@@ -7727,7 +7737,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>なし</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="546"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="547"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>プロンプト送信後に prompt_id が返されませんでした</translation>
     </message>
@@ -7742,7 +7752,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ソースチェックアウト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="325"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="337"></location>
       <source>unknown</source>
       <translation>不明</translation>
     </message>
