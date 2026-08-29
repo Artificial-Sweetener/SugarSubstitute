@@ -196,9 +196,7 @@ def test_pyinstaller_specs_share_launcher_runtime_data_ownership() -> None:
     assert len(spec_paths) == 7
     for spec_path in spec_paths:
         spec_text = spec_path.read_text(encoding="utf-8")
-        assert "from tools.pyinstaller_support import build_launcher_data_files" in (
-            spec_text
-        )
+        assert "from tools.pyinstaller_support import" in spec_text
         assert "build_launcher_data_files(" in spec_text
         assert "shutil.which" not in spec_text
 

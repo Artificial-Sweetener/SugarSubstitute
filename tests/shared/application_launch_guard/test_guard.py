@@ -246,12 +246,13 @@ def test_launch_guard_replaces_a_dead_owner(tmp_path: Path) -> None:
     """A stale lock should not permanently prevent future application launches."""
 
     install_root = tmp_path / "SugarSubstitute"
-    stale = ApplicationLaunchGuard.enter(
-        install_root,
-        token_factory=lambda: "stale-launch",
+    lock_path = application_launch_lock_path(install_root)
+    lock_path.parent.mkdir(parents=True)
+    lock_path.write_text(
+        '{"handoff_consumed": true, "pid": 999999, '
+        '"restart_token_digest": null, "token_digest": "stale"}',
+        encoding="utf-8",
     )
-
-    assert stale is not None
     replacement = ApplicationLaunchGuard.enter(
         install_root,
         process_is_alive=lambda _pid: False,
@@ -259,21 +260,25 @@ def test_launch_guard_replaces_a_dead_owner(tmp_path: Path) -> None:
     )
     assert replacement is not None
 
-    stale.release()
     assert application_launch_lock_path(install_root).is_file()
     replacement.release()
     assert not application_launch_lock_path(install_root).exists()
 
 
-def test_launch_guard_fails_closed_for_a_malformed_lock(tmp_path: Path) -> None:
-    """Unreadable ownership must not permit a duplicate application launch."""
+def test_launch_guard_recovers_a_malformed_lock_without_a_live_lease(
+    tmp_path: Path,
+) -> None:
+    """Unreadable metadata must not strand an installation without a live owner."""
 
     install_root = tmp_path / "SugarSubstitute"
     lock_path = application_launch_lock_path(install_root)
     lock_path.parent.mkdir(parents=True)
     lock_path.write_text("not-json", encoding="utf-8")
 
-    assert ApplicationLaunchGuard.enter(install_root) is None
+    replacement = ApplicationLaunchGuard.enter(install_root)
+
+    assert replacement is not None
+    replacement.release()
 
 
 def test_launch_guard_builds_an_isolated_child_handoff_environment(
@@ -331,6 +336,8 @@ def test_launch_guard_allows_exactly_one_controlled_restart(tmp_path: Path) -> N
     restart_environment = application.prepare_restart_environment()
     assert restart_environment is not None
     restart_token = restart_environment[APPLICATION_LAUNCH_TOKEN_ENV]
+    release_timer = threading.Timer(0.05, application.release)
+    release_timer.start()
     replacement = ApplicationLaunchGuard.enter(
         install_root,
         inherited_token=restart_token,
@@ -348,7 +355,7 @@ def test_launch_guard_allows_exactly_one_controlled_restart(tmp_path: Path) -> N
     )
 
     replacement.release()
-    application.release()
+    release_timer.join(timeout=1.0)
 
 
 def test_launch_guard_revokes_a_restart_when_process_creation_fails(

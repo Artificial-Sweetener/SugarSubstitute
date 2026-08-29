@@ -520,7 +520,7 @@ Vista previa del prompt:
       <translation>Opciones avanzadas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="360"></location>
       <source>Affected cubes</source>
       <translation>Cubos afectados</translation>
     </message>
@@ -1420,6 +1420,11 @@ Vista previa del prompt:
       <translation>Cierra ComfyUI antes de continuar con la instalación</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="96"></location>
+      <source>Close ComfyUI before starting Substitute</source>
+      <translation>Cierra ComfyUI antes de iniciar Substitute</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="81"></location>
       <source>Close ComfyUI for me</source>
       <translation>Cerrar ComfyUI por mí</translation>
@@ -1635,6 +1640,16 @@ Vista previa del prompt:
       <translation>Carpeta de ComfyUI</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="72"></location>
+      <source>ComfyUI is already running</source>
+      <translation>ComfyUI ya está en ejecución</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="74"></location>
+      <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
+      <translation>ComfyUI ya se está ejecutando en el puerto predeterminado 8188. Substitute necesita iniciar y controlar ComfyUI para funcionar correctamente.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/comfy_environment_service.py" line="173"></location>
       <source>ComfyUI is closed and its Python environment is ready.</source>
       <translation>ComfyUI está cerrado y su entorno de Python está listo.</translation>
@@ -1658,6 +1673,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="285"></location>
       <source>ComfyUI is ready.</source>
       <translation>ComfyUI está listo.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="98"></location>
+      <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
+      <translation>ComfyUI responde en el puerto predeterminado 8188, pero Substitute no pudo verificar su proceso de forma segura. Cierra ComfyUI manualmente y vuelve a iniciar Substitute.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="290"></location>
@@ -1935,7 +1955,7 @@ Vista previa del prompt:
       <translation>Copiar toda la salida</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="299"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="285"></location>
       <source>Copy report</source>
       <translation>Copiar informe</translation>
     </message>
@@ -2543,7 +2563,7 @@ Install these nodes now?</source>
       <translation>Errores</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="349"></location>
       <source>Exception</source>
       <translation>Excepción</translation>
     </message>
@@ -3023,7 +3043,7 @@ Install these nodes now?</source>
       <translation>Ocultar los controles de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
       <source>Hide report</source>
       <translation>Ocultar informe</translation>
     </message>
@@ -3968,7 +3988,7 @@ Install these nodes now?</source>
       <translation>Sin miniatura</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="343"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="347"></location>
       <source>Node</source>
       <translation>Nodo</translation>
     </message>
@@ -3993,7 +4013,7 @@ Install these nodes now?</source>
       <translation>Contexto del nodo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="352"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
       <source>Node errors</source>
       <translation>Errores del nodo</translation>
     </message>
@@ -4488,7 +4508,7 @@ Install these nodes now?</source>
       <translation>Proyecto</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
       <source>Prompt</source>
       <translation>ID del prompt</translation>
     </message>
@@ -4888,7 +4908,7 @@ Install these nodes now?</source>
       <translation>La reparación volverá a instalar ComfyUI con un backend que coincida con el acelerador detectado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="286"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="295"></location>
       <source>Report issue</source>
       <translation>Notificar problema</translation>
     </message>
@@ -5622,7 +5642,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar imágenes en el visor de la wiki</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
       <source>Show report</source>
       <translation>Mostrar informe</translation>
     </message>
@@ -5747,7 +5767,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Corrección ortográfica</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="334"></location>
       <source>Stage</source>
       <translation>Etapa</translation>
     </message>
@@ -7532,7 +7552,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Windows limita a 255 caracteres cada nombre de archivo o carpeta.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="335"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="339"></location>
       <source>Workflow</source>
       <translation>Flujo de trabajo</translation>
     </message>
@@ -7570,6 +7590,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1138"></location>
       <source>Working...</source>
       <translation>Trabajando...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="80"></location>
+      <source>Would you like Substitute to close ComfyUI and continue?</source>
+      <translation>¿Quieres que Substitute cierre ComfyUI y continúe?</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="40"></location>
@@ -7752,7 +7777,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>copia del código fuente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="337"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
       <source>unknown</source>
       <translation>desconocido</translation>
     </message>

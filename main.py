@@ -113,6 +113,7 @@ def main() -> None:
     finally:
         if early_splash is not None:
             early_splash.close()
+        _release_application_launch_guard()
     sys.exit(exit_code)
 
 
@@ -139,6 +140,16 @@ def _enter_application_launch_guard(*, argv: list[str], app_root: Path) -> bool:
         return False
     _PROCESS_LAUNCH_GUARD = guard
     return True
+
+
+def _release_application_launch_guard() -> None:
+    """Release this process's application ownership after every exit path."""
+
+    global _PROCESS_LAUNCH_GUARD
+    guard = _PROCESS_LAUNCH_GUARD
+    _PROCESS_LAUNCH_GUARD = None
+    if guard is not None:
+        guard.release()
 
 
 if __name__ == "__main__":
