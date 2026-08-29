@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from enum import Enum
 import os
 from pathlib import Path
 
@@ -53,13 +52,6 @@ from sugarsubstitute_shared.launcher_update.process import schedule_launcher_upd
 _PRE_LAUNCH_MANIFEST_TIMEOUT_SECONDS = 3.0
 
 
-class InstalledAppHandoffResult(str, Enum):
-    """Describe which process now owns continuation after launcher work."""
-
-    APPLICATION_STARTED = "application_started"
-    LAUNCHER_UPDATE_SCHEDULED = "launcher_update_scheduled"
-
-
 def complete_installed_app_handoff(
     *,
     layout: InstallLayout,
@@ -68,7 +60,7 @@ def complete_installed_app_handoff(
     no_update_check: bool,
     splash_session: LauncherSplashSession | None,
     launch_session: InstalledApplicationLaunchSession,
-) -> InstalledAppHandoffResult:
+) -> None:
     """Run update policy and start the installed app behind its visible splash."""
 
     config = LauncherConfig.load(layout.config_path)
@@ -89,7 +81,7 @@ def complete_installed_app_handoff(
             relaunch=True,
             wait_pid=os.getpid(),
         )
-        return InstalledAppHandoffResult.LAUNCHER_UPDATE_SCHEDULED
+        return
 
     app_command = append_splash_session_args(
         build_app_launch_command(
@@ -110,7 +102,7 @@ def complete_installed_app_handoff(
             activation=update_result.pending_activation,
             fallback_guard_factory=lambda _layout: launch_session.claim_application(),
         )
-        return InstalledAppHandoffResult.APPLICATION_STARTED
+        return
     start_detached(
         app_command,
         environment=installed_application_environment(
@@ -118,7 +110,6 @@ def complete_installed_app_handoff(
             remote_failure_reason=update_result.failure_reason,
         ),
     )
-    return InstalledAppHandoffResult.APPLICATION_STARTED
 
 
 def _normal_launch_release_source(config: LauncherConfig) -> ReleaseSource | None:
@@ -130,4 +121,4 @@ def _normal_launch_release_source(config: LauncherConfig) -> ReleaseSource | Non
     )
 
 
-__all__ = ["InstalledAppHandoffResult", "complete_installed_app_handoff"]
+__all__ = ["complete_installed_app_handoff"]

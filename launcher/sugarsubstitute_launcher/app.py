@@ -123,11 +123,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     startup_plan.config_error or "Installed launcher config is invalid."
                 )
             from launcher.sugarsubstitute_launcher.installed_app_handoff import (
-                InstalledAppHandoffResult,
                 complete_installed_app_handoff,
             )
 
-            handoff_result = complete_installed_app_handoff(
+            complete_installed_app_handoff(
                 layout=layout,
                 launch_guard=launch_guard,
                 locale_argument=locale_argument,
@@ -135,13 +134,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 splash_session=splash_session,
                 launch_session=launch_session,
             )
-            if (
-                handoff_result is InstalledAppHandoffResult.APPLICATION_STARTED
-                and not launch_session.wait_for_application_owner()
-            ):
-                raise RuntimeError(
-                    "The launched application did not acquire native instance ownership."
-                )
             launch_session.release()
             return 0
         except Exception as error:

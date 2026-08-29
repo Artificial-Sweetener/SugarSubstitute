@@ -23,6 +23,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY
+from unittest.mock import Mock
 
 import pytest
 
@@ -38,6 +39,9 @@ from launcher.sugarsubstitute_launcher.config import (
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
+from launcher.sugarsubstitute_launcher.update_activation import (
+    PendingUpdateActivation,
+)
 from sugarsubstitute_shared.application_launch_guard import (
     APPLICATION_LAUNCH_TOKEN_ENV,
 )
@@ -144,7 +148,10 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
     monkeypatch.setattr(
         InstalledApplicationLaunchSession,
         "wait_for_application_owner",
-        lambda self: True,
+        lambda self: pytest.fail(
+            "A completed handoff must not be reclassified through a late lease probe."
+        ),
+        raising=False,
     )
     monkeypatch.setattr(
         launcher_app,
@@ -174,6 +181,81 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
         child_environments[0].get(STARTUP_REMOTE_DEGRADED_ENV)
         == expected_degraded_value
     )
+
+
+def test_launcher_accepts_completed_candidate_handoff_without_late_lease_probe(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A proven update must not become a launcher repair after its handoff."""
+
+    from launcher.sugarsubstitute_launcher.update_orchestrator import (
+        PreLaunchUpdateResult,
+    )
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    write_launcher_executable(layout)
+    layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
+    layout.app_entrypoint.write_text("", encoding="utf-8")
+    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
+    layout.runtime_python.write_text("", encoding="utf-8")
+    activation = Mock(spec=PendingUpdateActivation)
+    candidate_launches: list[dict[str, object]] = []
+
+    class _PreparedUpdateOrchestrator:
+        """Return an application update awaiting candidate activation."""
+
+        def run(self, **_kwargs: object) -> PreLaunchUpdateResult:
+            """Return one prepared update to the installed handoff owner."""
+
+            return PreLaunchUpdateResult(
+                checked_manifest=True,
+                installed_update=True,
+                pending_activation=activation,
+                attempted_version="0.22.1",
+            )
+
+    def record_candidate_launch(**kwargs: object) -> None:
+        """Represent a candidate whose visible-shell proof already completed."""
+
+        candidate_launches.append(kwargs)
+
+    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setattr(
+        installed_app_handoff,
+        "LauncherUpdateOrchestrator",
+        _PreparedUpdateOrchestrator,
+    )
+    monkeypatch.setattr(
+        installed_app_handoff,
+        "launch_prepared_update",
+        record_candidate_launch,
+    )
+    monkeypatch.setattr(
+        splash_session_module,
+        "start_launcher_splash_session",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        InstalledApplicationLaunchSession,
+        "wait_for_application_owner",
+        lambda self: pytest.fail(
+            "A completed candidate must not be reclassified by a late lease probe."
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        launcher_app,
+        "LauncherMainWindow",
+        lambda **_kwargs: pytest.fail("A proven candidate must not open repair UI."),
+    )
+
+    assert launcher_app.main([]) == 0
+    assert len(candidate_launches) == 1
+    assert candidate_launches[0]["layout"] == layout
+    assert candidate_launches[0]["attempted_version"] == "0.22.1"
+    assert candidate_launches[0]["activation"] is activation
 
 
 def test_launcher_main_hands_off_pending_launcher_update_instead_of_app(
