@@ -59,6 +59,22 @@ jobs:
           Copy-Item dist\SugarSubstitute-Setup-Windows-x64.exe build\release-inputs\windows\SugarSubstitute-Setup-Windows-x64.exe
           .\.venv\Scripts\python.exe tools\build_release_payload.py package-launcher --target windows_x64 --bundle-dir build\launcher-bundles\SugarSubstitute --output-path build\release-inputs\windows\installer-payload-windows-x64.zip
 
+      - name: Qualify packaged single-instance behavior offscreen
+        shell: pwsh
+        run: >-
+          .\.venv\Scripts\python.exe -m tools.qualify_single_instance_windows
+          --launcher-bundle build\launcher-bundles\SugarSubstitute
+          --artifact-dir build\qualification\single-instance
+
+      - name: Upload single-instance qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: single-instance-qualification${{ inputs.artifact_suffix }}
+          path: build/qualification/single-instance
+          if-no-files-found: warn
+          retention-days: 1
+
       - name: Upload Windows release inputs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
