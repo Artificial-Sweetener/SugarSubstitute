@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import time
 from typing import Self
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -75,16 +74,6 @@ class InstalledApplicationLaunchSession:
             return
         self._invocation_lease = None
         invocation_lease.release()
-
-    def wait_for_application_owner(self, *, timeout_seconds: float = 30.0) -> bool:
-        """Keep launcher serialization until the child owns its native lease."""
-
-        deadline = time.monotonic() + max(0.0, timeout_seconds)
-        while time.monotonic() < deadline:
-            if ApplicationInstanceLease.owner_exists(self._layout.root):
-                return True
-            time.sleep(0.025)
-        return ApplicationInstanceLease.owner_exists(self._layout.root)
 
 
 def begin_installed_application_launch(

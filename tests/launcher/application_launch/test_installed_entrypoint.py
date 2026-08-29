@@ -136,7 +136,10 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     monkeypatch.setattr(
         InstalledApplicationLaunchSession,
         "wait_for_application_owner",
-        lambda self: True,
+        lambda self: pytest.fail(
+            "A completed handoff must not be reclassified through a late lease probe."
+        ),
+        raising=False,
     )
     monkeypatch.setattr(
         launcher_app,
@@ -287,7 +290,10 @@ def test_frozen_launcher_main_uses_invoked_installed_bundle_path(
     monkeypatch.setattr(
         InstalledApplicationLaunchSession,
         "wait_for_application_owner",
-        lambda self: True,
+        lambda self: pytest.fail(
+            "A completed handoff must not be reclassified through a late lease probe."
+        ),
+        raising=False,
     )
     monkeypatch.setattr(
         launcher_app,
