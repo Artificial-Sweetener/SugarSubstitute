@@ -81,7 +81,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         launch_guard = enter_installed_application_launch(layout)
         if launch_guard is None:
-            return 0
+            from launcher.sugarsubstitute_launcher.active_instance_dialog import (
+                negotiate_active_application,
+            )
+
+            if not negotiate_active_application(
+                layout=layout,
+                locale_override=args.locale_override,
+            ):
+                return 0
+            launch_guard = enter_installed_application_launch(layout)
+            if launch_guard is None:
+                return 0
         from launcher.sugarsubstitute_launcher.splash_session import (
             start_launcher_splash_session,
         )

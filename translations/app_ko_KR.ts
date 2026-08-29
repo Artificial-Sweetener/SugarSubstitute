@@ -465,7 +465,7 @@ Prompt preview:
       <translation>고급 옵션</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="360"></location>
       <source>Affected cubes</source>
       <translation>영향받는 큐브</translation>
     </message>
@@ -1365,6 +1365,11 @@ Prompt preview:
       <translation>설정을 계속하기 전에 ComfyUI 닫기</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="96"></location>
+      <source>Close ComfyUI before starting Substitute</source>
+      <translation>Substitute를 시작하기 전에 ComfyUI를 닫으세요</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="81"></location>
       <source>Close ComfyUI for me</source>
       <translation>Substitute가 ComfyUI 닫기</translation>
@@ -1580,6 +1585,16 @@ Prompt preview:
       <translation>ComfyUI 폴더</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="72"></location>
+      <source>ComfyUI is already running</source>
+      <translation>ComfyUI가 이미 실행 중입니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="74"></location>
+      <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
+      <translation>ComfyUI가 기본 포트 8188에서 이미 실행 중입니다. Substitute가 올바르게 작동하려면 ComfyUI를 직접 시작하고 제어해야 합니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/comfy_environment_service.py" line="173"></location>
       <source>ComfyUI is closed and its Python environment is ready.</source>
       <translation>ComfyUI가 닫혔으며 Python 환경이 준비되었습니다.</translation>
@@ -1603,6 +1618,11 @@ Prompt preview:
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="285"></location>
       <source>ComfyUI is ready.</source>
       <translation>ComfyUI가 준비되었습니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="98"></location>
+      <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
+      <translation>ComfyUI가 기본 포트 8188에서 응답하지만 Substitute가 해당 프로세스를 안전하게 확인하지 못했습니다. ComfyUI를 직접 닫은 후 Substitute를 다시 시작하세요.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="290"></location>
@@ -1880,7 +1900,7 @@ Prompt preview:
       <translation>모든 출력 복사</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="299"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="285"></location>
       <source>Copy report</source>
       <translation>보고서 복사</translation>
     </message>
@@ -2488,7 +2508,7 @@ Install these nodes now?</source>
       <translation>오류</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="349"></location>
       <source>Exception</source>
       <translation>예외</translation>
     </message>
@@ -2968,7 +2988,7 @@ Install these nodes now?</source>
       <translation>생성 컨트롤 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
       <source>Hide report</source>
       <translation>보고서 숨기기</translation>
     </message>
@@ -3913,7 +3933,7 @@ Install these nodes now?</source>
       <translation>썸네일 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="343"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="347"></location>
       <source>Node</source>
       <translation>노드</translation>
     </message>
@@ -3938,7 +3958,7 @@ Install these nodes now?</source>
       <translation>노드 컨텍스트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="352"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
       <source>Node errors</source>
       <translation>노드 오류</translation>
     </message>
@@ -4433,7 +4453,7 @@ Install these nodes now?</source>
       <translation>프로젝트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
       <source>Prompt</source>
       <translation>프롬프트</translation>
     </message>
@@ -4833,7 +4853,7 @@ Install these nodes now?</source>
       <translation>복구하면 감지된 가속기에 맞는 백엔드로 ComfyUI를 다시 설치합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="286"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="295"></location>
       <source>Report issue</source>
       <translation>문제 신고</translation>
     </message>
@@ -5567,7 +5587,7 @@ No known extension claimant.</source>
       <translation>위키 뷰어에 이미지 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
       <source>Show report</source>
       <translation>보고서 표시</translation>
     </message>
@@ -5692,7 +5712,7 @@ No known extension claimant.</source>
       <translation>맞춤법 검사</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="334"></location>
       <source>Stage</source>
       <translation>단계</translation>
     </message>
@@ -7477,7 +7497,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>Windows에서는 개별 파일 또는 폴더 이름을 255자로 제한합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="335"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="339"></location>
       <source>Workflow</source>
       <translation>워크플로</translation>
     </message>
@@ -7515,6 +7535,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1138"></location>
       <source>Working...</source>
       <translation>작업 중...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="80"></location>
+      <source>Would you like Substitute to close ComfyUI and continue?</source>
+      <translation>Substitute가 ComfyUI를 닫고 계속하도록 하시겠습니까?</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="40"></location>
@@ -7697,7 +7722,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>소스 체크아웃</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="337"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
       <source>unknown</source>
       <translation>알 수 없음</translation>
     </message>
