@@ -24,14 +24,20 @@ from pathlib import Path
 
 import pytest
 
+from launcher.sugarsubstitute_launcher import active_instance_dialog
 from launcher.sugarsubstitute_launcher import app as launcher_app
 from launcher.sugarsubstitute_launcher import installed_app_handoff
 from launcher.sugarsubstitute_launcher import splash_session as splash_session_module
+from launcher.sugarsubstitute_launcher.application_launch import (
+    InstalledApplicationLaunchSession,
+    begin_installed_application_launch,
+)
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
 from sugarsubstitute_shared.application_launch_guard import (
     APPLICATION_LAUNCH_TOKEN_ENV,
+    ApplicationLaunchGuard,
 )
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 from tests.launcher.support import (
@@ -128,6 +134,11 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
         record_app_start,
     )
     monkeypatch.setattr(
+        InstalledApplicationLaunchSession,
+        "wait_for_application_owner",
+        lambda self: True,
+    )
+    monkeypatch.setattr(
         launcher_app,
         "LauncherMainWindow",
         lambda **_kwargs: pytest.fail("Installed launch must not show setup UI."),
@@ -146,6 +157,96 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     assert started_environments[0][APPLICATION_LAUNCH_TOKEN_ENV] != (
         "inherited-poison-token"
     )
+
+
+def test_launcher_main_silently_rejects_a_duplicate_during_launcher_work(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A rapid duplicate must exit before constructing splash or dialog UI."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout, release_source=None).save(
+        layout.config_path
+    )
+    write_launcher_executable(layout)
+    layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
+    layout.app_entrypoint.write_text("", encoding="utf-8")
+    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
+    layout.runtime_python.write_text("", encoding="utf-8")
+    first_session = begin_installed_application_launch(layout)
+    assert first_session is not None
+    first_guard = first_session.claim_application()
+    assert first_guard is not None
+
+    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setattr(
+        active_instance_dialog,
+        "negotiate_active_application",
+        lambda **_kwargs: pytest.fail("Launcher work is not a running application."),
+    )
+    monkeypatch.setattr(
+        splash_session_module,
+        "start_launcher_splash_session",
+        lambda **_kwargs: pytest.fail("A duplicate must not create another splash."),
+    )
+
+    try:
+        assert launcher_app.main([]) == 0
+    finally:
+        first_guard.release()
+        first_session.release()
+
+
+def test_launcher_main_negotiates_only_when_an_application_owns_the_lease(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A real application owner should retain the explicit close decision."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout, release_source=None).save(
+        layout.config_path
+    )
+    write_launcher_executable(layout)
+    layout.app_entrypoint.parent.mkdir(parents=True, exist_ok=True)
+    layout.app_entrypoint.write_text("", encoding="utf-8")
+    layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
+    layout.runtime_python.write_text("", encoding="utf-8")
+    application = ApplicationLaunchGuard.enter(layout.root)
+    assert application is not None
+    negotiations: list[Path] = []
+
+    def reject_close(
+        *,
+        layout: InstallLayout,
+        locale_override: str | None,
+    ) -> bool:
+        """Record the real application conflict without constructing UI."""
+
+        assert locale_override is None
+        negotiations.append(layout.root)
+        return False
+
+    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setattr(
+        active_instance_dialog,
+        "negotiate_active_application",
+        reject_close,
+    )
+    monkeypatch.setattr(
+        splash_session_module,
+        "start_launcher_splash_session",
+        lambda **_kwargs: pytest.fail(
+            "Rejected active-app launch must not add a splash."
+        ),
+    )
+
+    try:
+        assert launcher_app.main([]) == 0
+        assert negotiations == [layout.root]
+    finally:
+        application.release()
 
 
 def test_frozen_launcher_main_uses_invoked_installed_bundle_path(
@@ -182,6 +283,11 @@ def test_frozen_launcher_main_uses_invoked_installed_bundle_path(
         installed_app_handoff,
         "start_detached",
         lambda command, *, environment: started_commands.append(list(command)),
+    )
+    monkeypatch.setattr(
+        InstalledApplicationLaunchSession,
+        "wait_for_application_owner",
+        lambda self: True,
     )
     monkeypatch.setattr(
         launcher_app,

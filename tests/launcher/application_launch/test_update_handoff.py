@@ -29,6 +29,9 @@ import pytest
 from launcher.sugarsubstitute_launcher import app as launcher_app
 from launcher.sugarsubstitute_launcher import installed_app_handoff
 from launcher.sugarsubstitute_launcher import splash_session as splash_session_module
+from launcher.sugarsubstitute_launcher.application_launch import (
+    InstalledApplicationLaunchSession,
+)
 from launcher.sugarsubstitute_launcher.config import (
     DEFAULT_RELEASE_MANIFEST_URL,
     LauncherConfig,
@@ -137,6 +140,11 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
         installed_app_handoff,
         "start_detached",
         record_app_start,
+    )
+    monkeypatch.setattr(
+        InstalledApplicationLaunchSession,
+        "wait_for_application_owner",
+        lambda self: True,
     )
     monkeypatch.setattr(
         launcher_app,

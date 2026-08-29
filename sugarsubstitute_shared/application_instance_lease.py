@@ -19,23 +19,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-import time
-from typing import BinaryIO, Self, cast
+from typing import Self
 
+from sugarsubstitute_shared.process_lifetime_lease import ProcessLifetimeLease
 from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
 APPLICATION_INSTANCE_LEASE_NAME = "application-instance.lease"
 
 
-class ApplicationInstanceLease:
+class ApplicationInstanceLease(ProcessLifetimeLease):
     """Own one installation-scoped lease until release or process termination."""
-
-    def __init__(self, path: Path, handle: BinaryIO) -> None:
-        """Retain the locked handle that gives the lease its lifetime."""
-
-        self._path = path
-        self._handle: BinaryIO | None = handle
 
     @classmethod
     def acquire(
@@ -46,21 +40,10 @@ class ApplicationInstanceLease:
     ) -> Self | None:
         """Acquire the process-lifetime lease within one bounded wait."""
 
-        path = application_instance_lease_path(install_root)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        handle = path.open("a+b", buffering=0)
-        _ensure_lock_byte(handle)
-        deadline = time.monotonic() + max(0.0, timeout_seconds)
-        while True:
-            try:
-                _try_lock(handle)
-                break
-            except OSError:
-                if time.monotonic() >= deadline:
-                    handle.close()
-                    return None
-                time.sleep(0.025)
-        return cls(path, handle)
+        return cls.acquire_path(
+            application_instance_lease_path(install_root),
+            timeout_seconds=timeout_seconds,
+        )
 
     @classmethod
     def owner_exists(cls, install_root: Path) -> bool:
@@ -72,24 +55,6 @@ class ApplicationInstanceLease:
         lease.release()
         return False
 
-    @property
-    def path(self) -> Path:
-        """Return the diagnostic path whose open handle carries ownership."""
-
-        return self._path
-
-    def release(self) -> None:
-        """Release process ownership idempotently."""
-
-        handle = self._handle
-        if handle is None:
-            return
-        self._handle = None
-        try:
-            _unlock(handle)
-        finally:
-            handle.close()
-
 
 def application_instance_lease_path(install_root: Path) -> Path:
     """Return the installation-scoped lifetime lease path."""
@@ -100,58 +65,6 @@ def application_instance_lease_path(install_root: Path) -> Path:
         / "locks"
         / APPLICATION_INSTANCE_LEASE_NAME
     )
-
-
-def _ensure_lock_byte(handle: BinaryIO) -> None:
-    """Ensure Windows has one stable byte range available for locking."""
-
-    handle.seek(0, 2)
-    if handle.tell() == 0:
-        handle.write(b"\0")
-        handle.flush()
-    handle.seek(0)
-
-
-def _try_lock(handle: BinaryIO) -> None:
-    """Acquire the platform-native lease without blocking."""
-
-    handle.seek(0)
-    import os
-
-    if os.name == "nt":
-        import msvcrt
-
-        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-        return
-    _posix_flock(handle, "LOCK_EX", "LOCK_NB")
-
-
-def _unlock(handle: BinaryIO) -> None:
-    """Release the platform-native lease."""
-
-    handle.seek(0)
-    import os
-
-    if os.name == "nt":
-        import msvcrt
-
-        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-        return
-    _posix_flock(handle, "LOCK_UN")
-
-
-def _posix_flock(handle: BinaryIO, *flag_names: str) -> None:
-    """Call POSIX flock through a typed dynamic platform boundary."""
-
-    import importlib
-    from collections.abc import Callable
-
-    module = importlib.import_module("fcntl")
-    flock = cast(Callable[[int, int], None], getattr(module, "flock"))
-    operation = 0
-    for flag_name in flag_names:
-        operation |= cast(int, getattr(module, flag_name))
-    flock(handle.fileno(), operation)
 
 
 __all__ = [

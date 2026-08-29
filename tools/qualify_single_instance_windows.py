@@ -92,31 +92,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             clear_splash_qualification_records(layout)
 
             race_started_at = time.perf_counter_ns()
-            race_launchers = [_launch(layout), _launch(layout)]
-            race_launch_elapsed_ms = (
-                time.perf_counter_ns() - race_started_at
-            ) / 1_000_000
+            race_winner = _launch(layout)
+            _wait_for_launcher_before_application(layout)
+            race_duplicate = _launch(layout)
+            race_launchers = [race_winner, race_duplicate]
             active_launchers.extend(race_launchers)
+            _wait_for_exit(race_duplicate)
             race_pid = _wait_for_new_app_pid(layout, previous_pid=first_pid)
+            _wait_for_exit(race_winner)
             race_snapshot = capture_cold_start_snapshot(layout)
             assert_cold_start_snapshot(
                 race_snapshot,
-                expected_launcher_pids=tuple(process.pid for process in race_launchers),
+                expected_launcher_pids=(),
                 expected_app_pid=race_pid,
             )
-            race_snapshot["invocation_start_elapsed_ms"] = race_launch_elapsed_ms
+            race_snapshot["invocation_start_elapsed_ms"] = (
+                time.perf_counter_ns() - race_started_at
+            ) / 1_000_000
+            race_snapshot["rejected_duplicate_launcher_pid"] = race_duplicate.pid
             evidence["rapid_double_invocation"] = race_snapshot
-            _wait_for_value(
-                lambda: (
-                    True
-                    if sum(process.poll() is not None for process in race_launchers)
-                    == 1
-                    else None
-                ),
-                description="one successful launcher handoff",
-            )
-            _terminate_launchers(race_launchers)
-            _terminate_packaged_launcher_processes(layout)
             _wait_for_splash_hosts_exit(layout)
             _assert_app_owners(layout, expected=(race_pid,))
 
@@ -125,15 +119,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             _wait_for_value(
                 lambda: (
                     True
-                    if all(process.poll() is None for process in duplicate_launchers)
+                    if sum(process.poll() is None for process in duplicate_launchers)
+                    == 1
+                    and all(
+                        process.poll() in (None, 0) for process in duplicate_launchers
+                    )
                     else None
                 ),
-                description="headless duplicate launchers to enter negotiation",
+                description="one serialized headless duplicate negotiation",
             )
-            time.sleep(0.5)
+            negotiation_launcher = next(
+                process for process in duplicate_launchers if process.poll() is None
+            )
             _assert_app_owners(layout, expected=(race_pid,))
             evidence["duplicate_launch_preserved_pid"] = race_pid
-            evidence["concurrent_duplicate_count"] = len(duplicate_launchers)
+            evidence["negotiation_launcher_pid"] = negotiation_launcher.pid
+            evidence["suppressed_duplicate_count"] = len(duplicate_launchers) - 1
             _terminate_launchers(duplicate_launchers)
             _terminate_packaged_launcher_processes(layout)
 
@@ -244,6 +245,21 @@ def _wait_for_new_app_pid(
         return pid
 
     return _wait_for_value(current_pid, description="qualification application start")
+
+
+def _wait_for_launcher_before_application(layout: InstallLayout) -> None:
+    """Stop in the exact launch phase that previously produced the false dialog."""
+
+    lock_path = application_launch_lock_path(layout.root)
+    _wait_for_value(
+        lambda: (
+            True
+            if lock_path.is_file()
+            and not ApplicationInstanceLease.owner_exists(layout.root)
+            else None
+        ),
+        description="launcher ownership before application handoff",
+    )
 
 
 def _assert_app_owners(layout: InstallLayout, *, expected: tuple[int, ...]) -> None:

@@ -201,6 +201,18 @@ def test_pyinstaller_specs_share_launcher_runtime_data_ownership() -> None:
         assert "shutil.which" not in spec_text
 
 
+def test_windows_release_build_qualifies_packaged_single_instance_behavior() -> None:
+    """Block release bytes unless the real launcher passes offscreen process proof."""
+
+    build_text = workflow_text("release-build.yml")
+
+    assert "-m tools.qualify_single_instance_windows" in build_text
+    assert "--launcher-bundle build\\launcher-bundles\\SugarSubstitute" in build_text
+    assert "name: single-instance-qualification${{ inputs.artifact_suffix }}" in (
+        build_text
+    )
+
+
 def test_linux_workflow_pins_appimagetool_and_builds_both_native_formats() -> None:
     """Linux packaging should verify its tool and publish AppImage plus Debian."""
 

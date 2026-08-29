@@ -23,9 +23,6 @@ import logging
 from pathlib import Path
 from typing import Protocol
 
-from launcher.sugarsubstitute_launcher.application_launch import (
-    enter_installed_application_launch,
-)
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessSupervisor,
     CandidateProcess,
@@ -106,10 +103,8 @@ def launch_prepared_update(
     attempted_version: str,
     initial_guard: CandidateLaunchGuard,
     activation: CandidateUpdateActivation,
+    fallback_guard_factory: Callable[[InstallLayout], CandidateLaunchGuard | None],
     supervisor: CandidateReadinessSupervisor | None = None,
-    fallback_guard_factory: Callable[
-        [InstallLayout], CandidateLaunchGuard | None
-    ] = enter_installed_application_launch,
     fallback_process_starter: Callable[..., None] = start_detached,
     rollback_reporter: UpdateRollbackReporter = record_update_rollback,
 ) -> None:
