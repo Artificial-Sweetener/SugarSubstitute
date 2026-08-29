@@ -1244,3 +1244,16 @@ fingerprint = "sha256:d6d558f1dd3776cf477b3e3c9719fd9a0fe4016afd7debdb0b8ae20a8e
 rationale = "This module proves real top-level window activation, mouse opening, native keyboard routing, and focus transfer through the production model picker. Separate xdist worker processes share one operating-system foreground focus owner and can therefore steal activation from each other; globally sequential execution preserves the native contract without retries, longer waits, synthetic focus injection, or weakened assertions. Twenty repeated exclusive Windows executions passed after the concurrent hosted failure demonstrated the resource boundary."
 issue = "chore:SS-TEST-WAIVER-C0274"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0275"
+owner = "Floating Output grid rehosting"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/canvas/output/host/test_floating_grid_reflow.py|isolated-module"]
+paths = ["tests/presentation/canvas/output/host/test_floating_grid_reflow.py"]
+fingerprint = "sha256:9e6e1df86c427fee03c9d346fb2463dd1e9981436cff0aedb72e6d968213853a"
+rationale = "This real-shell Output owner moves the production canvas between docked and top-level floating hosts to prove identical physical grid topology and active-composition ownership. A complete Windows ordinary run timed out after the move only after 1,203 prior tests in a reused xdist worker, while five concurrent fresh-process runs passed. Its shell, canvas, floating window, outputs, and filesystem are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0275"
+review_by = 2026-12-15

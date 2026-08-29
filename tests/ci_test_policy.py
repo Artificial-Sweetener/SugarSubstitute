@@ -272,6 +272,10 @@ ISOLATED_TEST_MODULES = frozenset(
         # in one xdist process, while concurrent fresh processes are stable.
         "tests/presentation/canvas/output/real_shell/test_hierarchy_persistence.py",
         "tests/presentation/canvas/output/real_shell/test_workflow_lifecycle.py",
+        # This floating Output rehosting contract can stop receiving layout
+        # updates after prior native Qt work, while fresh processes preserve
+        # its docked-to-floating topology proof without a shared resource.
+        "tests/presentation/canvas/output/host/test_floating_grid_reflow.py",
         # This real-shell decoration-boundary owner requires a fresh native Qt
         # process after prior work, while concurrent fresh processes are stable.
         "tests/qualification/prompt_editor/real_shell/test_decoration_boundaries.py",
