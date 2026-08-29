@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 import os
 from pathlib import Path
 import subprocess
@@ -53,6 +55,7 @@ def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
         },
     )
     observed_environment: dict[str, str] = {}
+    dll_search_path_events: list[str] = []
 
     class _Process:
         """Represent the scheduled updater helper."""
@@ -62,12 +65,29 @@ def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
     def fake_popen(*_args: object, **kwargs: object) -> _Process:
         """Capture the environment passed across the helper boundary."""
 
+        assert dll_search_path_events == ["enter"]
         observed_environment.update(cast(dict[str, str], kwargs["env"]))
         return _Process()
+
+    @contextmanager
+    def clean_dll_search_path() -> Iterator[None]:
+        """Record that native DLL sanitization encloses helper creation."""
+
+        dll_search_path_events.append("enter")
+        try:
+            yield
+        finally:
+            dll_search_path_events.append("exit")
 
     monkeypatch.setattr(
         "sugarsubstitute_shared.launcher_update.process.subprocess.Popen",
         fake_popen,
+    )
+    monkeypatch.setattr(
+        update_process_module,
+        "standard_child_process_dll_search_path",
+        clean_dll_search_path,
+        raising=False,
     )
     request_path, runtime_python, app_dir = _write_scheduled_update_request(tmp_path)
 
@@ -84,6 +104,7 @@ def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
     assert "DYLD_LIBRARY_PATH_ORIG" not in observed_environment
     assert "_PYI_APPLICATION_HOME_DIR" not in observed_environment
     assert observed_environment["QUALIFICATION_TOKEN"] == "preserved"
+    assert dll_search_path_events == ["enter", "exit"]
 
 
 @pytest.mark.platforms("windows")

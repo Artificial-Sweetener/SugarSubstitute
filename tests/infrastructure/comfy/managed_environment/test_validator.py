@@ -282,3 +282,51 @@ def test_validate_managed_environment_rejects_failed_device_operation(
 
     assert result.success is False
     assert "device operation" in result.detail
+
+
+def test_validate_managed_environment_rejects_broken_torch_companion(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Validation should reject a Torch family whose companion cannot import."""
+
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+    responses = iter(
+        (
+            SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "torch_version": "2.13.0+cpu",
+                        "cuda": False,
+                        "xpu": False,
+                        "mps": False,
+                        "hip": None,
+                        "device_operation": True,
+                        "device_name": "CPU",
+                        "component_errors": {
+                            "torchaudio": (
+                                "OSError: libtorchaudio.pyd could not be loaded"
+                            )
+                        },
+                    }
+                ),
+            ),
+        )
+    )
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.managed_environment_validator.run_command",
+        lambda *args, **kwargs: next(responses),
+    )
+
+    result = validate_managed_environment(
+        workspace=tmp_path,
+        expected_accelerator=AcceleratorClass.CPU,
+    )
+
+    assert result.success is False
+    assert "torchaudio" in result.detail
+    assert "libtorchaudio.pyd" in result.detail

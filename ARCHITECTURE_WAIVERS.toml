@@ -1403,17 +1403,6 @@ review_by = 2026-12-15
 max_lines = 753
 
 [[waivers]]
-id = "SS-WAIVER-S028"
-owner = "error report dialog"
-rule = "STRUCT003"
-path = "substitute/presentation/dialogs/error_report_dialog.py"
-kind = "structural"
-justification = "ErrorReportDialog owns one modal presentation of an immutable ErrorReport. Summary/details composition, reveal animation, height synchronization, copy action, severity glyph, and theme rendering all derive from the same dialog state and do not define independent application behavior."
-issue = "chore:SS-WAIVER-S028"
-review_by = 2026-12-15
-max_lines = 517
-
-[[waivers]]
 id = "SS-WAIVER-S029"
 owner = "startup diagnostics dialog"
 rule = "STRUCT003"

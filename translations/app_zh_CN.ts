@@ -520,7 +520,7 @@ Prompt preview:
       <translation>高级选项</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="344"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
       <source>Affected cubes</source>
       <translation>受影响的 Cube</translation>
     </message>
@@ -1935,7 +1935,7 @@ Prompt preview:
       <translation>复制所有输出</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="287"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="299"></location>
       <source>Copy report</source>
       <translation>复制报告</translation>
     </message>
@@ -2543,7 +2543,7 @@ Install these nodes now?</source>
       <translation>错误</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
       <source>Exception</source>
       <translation>异常</translation>
     </message>
@@ -2633,7 +2633,7 @@ Install these nodes now?</source>
       <translation>无法捕获用于生成的输入画布内容。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="500"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="501"></location>
       <source>Failed to connect generation listener session</source>
       <translation>无法连接生成监听会话</translation>
     </message>
@@ -2653,7 +2653,7 @@ Install these nodes now?</source>
       <translation>无法从当前目标加载立方体库状态。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="229"></location>
+      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="246"></location>
       <source>Failed to load generated image.</source>
       <translation>无法加载生成的图像。</translation>
     </message>
@@ -2693,12 +2693,12 @@ Install these nodes now?</source>
       <translation>增量插入立方体后无法刷新编辑器可见性</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="426"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>无法暂存工作流资源 %1.%2：%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="635"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="636"></location>
       <source>Failed to start generation listener</source>
       <translation>无法启动生成监听</translation>
     </message>
@@ -3023,7 +3023,7 @@ Install these nodes now?</source>
       <translation>隐藏生成控件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
       <source>Hide report</source>
       <translation>隐藏报告</translation>
     </message>
@@ -3603,12 +3603,12 @@ Install these nodes now?</source>
       <translation>手动刷新元数据需要模型类型和值。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="681"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="680"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>无法验证蒙版尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="618"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="617"></location>
       <source>Mask dimensions do not match</source>
       <translation>蒙版尺寸不匹配</translation>
     </message>
@@ -3968,7 +3968,7 @@ Install these nodes now?</source>
       <translation>无缩略图</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="331"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="343"></location>
       <source>Node</source>
       <translation>节点</translation>
     </message>
@@ -3993,7 +3993,7 @@ Install these nodes now?</source>
       <translation>节点上下文</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="340"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="352"></location>
       <source>Node errors</source>
       <translation>节点错误</translation>
     </message>
@@ -4418,7 +4418,7 @@ Install these nodes now?</source>
       <translation>正在准备托管的加速支持。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="999"></location>
+      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="970"></location>
       <source>Preparing the application interface.</source>
       <translation>正在准备应用界面。</translation>
     </message>
@@ -4488,7 +4488,7 @@ Install these nodes now?</source>
       <translation>项目</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="329"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
       <source>Prompt</source>
       <translation>提示词</translation>
     </message>
@@ -4713,7 +4713,7 @@ Install these nodes now?</source>
       <translation>重新停靠画布</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="222"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="231"></location>
       <source>Referenced local image file does not exist.</source>
       <translation>引用的本地图像文件不存在。</translation>
     </message>
@@ -4888,7 +4888,7 @@ Install these nodes now?</source>
       <translation>修复过程将重新安装 ComfyUI，并使用与检测到的加速器匹配的后端。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="869"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="286"></location>
       <source>Report issue</source>
       <translation>报告问题</translation>
     </message>
@@ -4957,7 +4957,7 @@ No known extension claimant.</source>
       <translation>所需的自定义节点均已安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="194"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="203"></location>
       <source>Required image input has no selected image.</source>
       <translation>必需的图像输入尚未选择图像。</translation>
     </message>
@@ -5622,7 +5622,7 @@ No known extension claimant.</source>
       <translation>在百科查看器中显示图像</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
       <source>Show report</source>
       <translation>显示报告</translation>
     </message>
@@ -5747,7 +5747,7 @@ No known extension claimant.</source>
       <translation>拼写检查</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="321"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
       <source>Stage</source>
       <translation>阶段</translation>
     </message>
@@ -6262,7 +6262,7 @@ No known extension claimant.</source>
       <translation>Substitute 已保存的文件夹设置需要修复</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2735"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2730"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6777,12 +6777,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>所选文件夹不是完整的 ComfyUI 安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="683"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="682"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>无法根据已加载的输入图像验证所选蒙版尺寸。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="620"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="619"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>所选蒙版尺寸与已加载的输入图像不匹配。</translation>
     </message>
@@ -7157,6 +7157,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>有可用更新</translation>
     </message>
     <message>
+      <location filename="../substitute/application/update_rollback_notice.py" line="92"></location>
+      <source>Update failed</source>
+      <translation>更新失败</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="305"></location>
       <source>Update selected</source>
       <translation>更新所选项</translation>
@@ -7447,6 +7452,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>找不到 ComfyUI 的 Python 环境</translation>
     </message>
     <message>
+      <location filename="../substitute/application/update_rollback_notice.py" line="93"></location>
+      <source>We tried to update Substitute, but it failed. Substitute is ready to use. Please send an error report to the maintainer.</source>
+      <translation>我们尝试更新 Substitute，但更新失败。Substitute 已可正常使用。请向维护者发送错误报告。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="849"></location>
       <source>What happens next</source>
       <translation>接下来会发生什么</translation>
@@ -7522,7 +7532,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>Windows 将每个文件或文件夹名称限制为 255 个字符。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="323"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="335"></location>
       <source>Workflow</source>
       <translation>工作流</translation>
     </message>
@@ -7652,7 +7662,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>[托管安装] 平台=%1 加速器=%2 目标=%3 Python=%4 频道=%5 后端=%6 PyTorch频道=%7 稳定性=%8</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/managed_environment_validator.py" line="162"></location>
+      <location filename="../substitute/infrastructure/comfy/managed_environment_validator.py" line="174"></location>
       <source>[Validation] torch=%1 backend=%2 channel=%3 device=%4</source>
       <translation>[验证] PyTorch=%1 后端=%2 频道=%3 设备=%4</translation>
     </message>
@@ -7727,7 +7737,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="546"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="547"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>提交提示词后未返回 prompt_id</translation>
     </message>
@@ -7742,7 +7752,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>源代码检出版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="325"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="337"></location>
       <source>unknown</source>
       <translation>未知</translation>
     </message>

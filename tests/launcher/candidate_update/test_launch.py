@@ -34,6 +34,10 @@ from sugarsubstitute_shared.application_runtime_mode import (
     APPLICATION_RUNTIME_MODE_ENV,
     PACKAGED_APPLICATION_RUNTIME_MODE,
 )
+from sugarsubstitute_shared.update_rollback_report import (
+    UpdateRollbackReportStore,
+    UpdateRollbackStage,
+)
 
 
 class _Guard:
@@ -140,6 +144,7 @@ def test_ready_candidate_commits_without_fallback(tmp_path: Path) -> None:
     launch_prepared_update(
         layout=layout,
         command=["python", "main.py"],
+        attempted_version="0.21.3",
         initial_guard=guard,
         activation=activation,
         supervisor=supervisor,
@@ -154,6 +159,7 @@ def test_ready_candidate_commits_without_fallback(tmp_path: Path) -> None:
         }
     ]
     assert guard.released is False
+    assert UpdateRollbackReportStore(layout.root).load() is None
 
 
 def test_failed_candidate_rolls_back_and_launches_previous_app(
@@ -170,6 +176,7 @@ def test_failed_candidate_rolls_back_and_launches_previous_app(
     launch_prepared_update(
         layout=layout,
         command=["python", "main.py"],
+        attempted_version="0.21.3",
         initial_guard=candidate_guard,
         activation=activation,
         supervisor=_Supervisor(fail=True),
@@ -191,3 +198,9 @@ def test_failed_candidate_rolls_back_and_launches_previous_app(
             },
         ),
     ]
+    rollback_report = UpdateRollbackReportStore(layout.root).load()
+    assert rollback_report is not None
+    assert rollback_report.attempted_version == "0.21.3"
+    assert rollback_report.stage is UpdateRollbackStage.CANDIDATE_READINESS
+    assert rollback_report.exception_type == "ApplicationReadinessError"
+    assert rollback_report.message == "candidate failed"
