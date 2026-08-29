@@ -20,7 +20,10 @@
 
 from pathlib import Path
 
-from tools.pyinstaller_support import build_launcher_data_files
+from tools.pyinstaller_support import (
+    build_launcher_data_files,
+    exclude_foreign_windows_icu_binaries,
+)
 
 
 launcher_root = Path(SPECPATH)
@@ -61,6 +64,7 @@ a = Analysis(
     noarchive=False,
     optimize=2,
 )
+a.binaries = exclude_foreign_windows_icu_binaries(a.binaries)
 pyz = PYZ(a.pure)
 
 exe = EXE(

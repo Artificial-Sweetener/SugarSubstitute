@@ -520,7 +520,7 @@ Prompt preview:
       <translation>高级选项</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="360"></location>
       <source>Affected cubes</source>
       <translation>受影响的 Cube</translation>
     </message>
@@ -1420,6 +1420,11 @@ Prompt preview:
       <translation>继续设置前请关闭 ComfyUI</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="96"></location>
+      <source>Close ComfyUI before starting Substitute</source>
+      <translation>请先关闭 ComfyUI，再启动 Substitute</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="81"></location>
       <source>Close ComfyUI for me</source>
       <translation>替我关闭 ComfyUI</translation>
@@ -1635,6 +1640,16 @@ Prompt preview:
       <translation>ComfyUI 文件夹</translation>
     </message>
     <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="72"></location>
+      <source>ComfyUI is already running</source>
+      <translation>ComfyUI 已在运行</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="74"></location>
+      <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
+      <translation>ComfyUI 已在默认端口 8188 上运行。为了正常工作，Substitute 需要自行启动并控制 ComfyUI。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/comfy_environment_service.py" line="173"></location>
       <source>ComfyUI is closed and its Python environment is ready.</source>
       <translation>ComfyUI 已关闭，其 Python 环境已准备就绪。</translation>
@@ -1658,6 +1673,11 @@ Prompt preview:
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="285"></location>
       <source>ComfyUI is ready.</source>
       <translation>ComfyUI 已就绪。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="98"></location>
+      <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
+      <translation>ComfyUI 正在默认端口 8188 上响应，但 Substitute 无法安全验证其进程。请自行关闭 ComfyUI，然后重新启动 Substitute。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="290"></location>
@@ -1935,7 +1955,7 @@ Prompt preview:
       <translation>复制所有输出</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="299"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="285"></location>
       <source>Copy report</source>
       <translation>复制报告</translation>
     </message>
@@ -2543,7 +2563,7 @@ Install these nodes now?</source>
       <translation>错误</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="349"></location>
       <source>Exception</source>
       <translation>异常</translation>
     </message>
@@ -3023,7 +3043,7 @@ Install these nodes now?</source>
       <translation>隐藏生成控件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
       <source>Hide report</source>
       <translation>隐藏报告</translation>
     </message>
@@ -3968,7 +3988,7 @@ Install these nodes now?</source>
       <translation>无缩略图</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="343"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="347"></location>
       <source>Node</source>
       <translation>节点</translation>
     </message>
@@ -3993,7 +4013,7 @@ Install these nodes now?</source>
       <translation>节点上下文</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="352"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
       <source>Node errors</source>
       <translation>节点错误</translation>
     </message>
@@ -4488,7 +4508,7 @@ Install these nodes now?</source>
       <translation>项目</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
       <source>Prompt</source>
       <translation>提示词</translation>
     </message>
@@ -4888,7 +4908,7 @@ Install these nodes now?</source>
       <translation>修复过程将重新安装 ComfyUI，并使用与检测到的加速器匹配的后端。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="286"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="295"></location>
       <source>Report issue</source>
       <translation>报告问题</translation>
     </message>
@@ -5622,7 +5642,7 @@ No known extension claimant.</source>
       <translation>在百科查看器中显示图像</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
       <source>Show report</source>
       <translation>显示报告</translation>
     </message>
@@ -5747,7 +5767,7 @@ No known extension claimant.</source>
       <translation>拼写检查</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="334"></location>
       <source>Stage</source>
       <translation>阶段</translation>
     </message>
@@ -7532,7 +7552,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>Windows 将每个文件或文件夹名称限制为 255 个字符。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="335"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="339"></location>
       <source>Workflow</source>
       <translation>工作流</translation>
     </message>
@@ -7570,6 +7590,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1138"></location>
       <source>Working...</source>
       <translation>正在处理...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="80"></location>
+      <source>Would you like Substitute to close ComfyUI and continue?</source>
+      <translation>是否让 Substitute 关闭 ComfyUI 并继续？</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/bounding_box_field.py" line="40"></location>
@@ -7752,7 +7777,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>源代码检出版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="337"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
       <source>unknown</source>
       <translation>未知</translation>
     </message>

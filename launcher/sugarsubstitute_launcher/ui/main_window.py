@@ -23,9 +23,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QTimer, Signal, Slot
-from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QVBoxLayout
-from qfluentwidgets import Theme, setTheme, setThemeColor  # type: ignore[import-untyped]
 from qframelesswindow import AcrylicWindow  # type: ignore[import-untyped]
 from qframelesswindow.titlebar import TitleBar  # type: ignore[import-untyped]
 
@@ -56,6 +54,9 @@ from launcher.sugarsubstitute_launcher.ui.installer_style import (
     apply_installer_style,
 )
 from launcher.sugarsubstitute_launcher.ui.installer_view import InstallerView
+from launcher.sugarsubstitute_launcher.ui.launcher_theme import (
+    configure_launcher_theme,
+)
 from launcher.sugarsubstitute_launcher.ui.window_effects import (
     apply_launcher_window_effects,
 )
@@ -67,7 +68,6 @@ from launcher.sugarsubstitute_launcher.ui.window_geometry import (
 
 
 _LOGGER = logging.getLogger(__name__)
-_ACCENT_COLOR = "#E91E63"
 _WINDOW_WIDTH = 1260
 _WINDOW_HEIGHT = 800
 _TITLEBAR_HEIGHT = 34
@@ -92,8 +92,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Build the launcher shell and initialize installer state."""
 
         super().__init__()
-        setTheme(Theme.DARK)
-        setThemeColor(QColor(_ACCENT_COLOR))
+        configure_launcher_theme()
         self._initial_layout = initial_layout
         self._continue_install = continue_install
         self._initial_release_source = initial_release_source
