@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import sys
 
 from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.domain.onboarding import ComfyEndpoint
@@ -28,15 +27,8 @@ from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
 )
 
-_WORKSPACE_BOOTSTRAP = (
+_LONG_WORKSPACE_BOOTSTRAP = (
     "import os, runpy, sys; "
-    "root = sys.argv.pop(1); script = sys.argv.pop(1); "
-    "os.chdir(root); sys.argv[0] = script; "
-    "runpy.run_path(script, run_name='__main__')"
-)
-_WINDOWS_WORKSPACE_BOOTSTRAP = (
-    "import asyncio, os, runpy, sys; "
-    "asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy()); "
     "root = sys.argv.pop(1); script = sys.argv.pop(1); "
     "os.chdir(root); sys.argv[0] = script; "
     "runpy.run_path(script, run_name='__main__')"
@@ -62,20 +54,11 @@ def build_managed_launch_command(
         *runtime_arguments,
         *manager_runtime.launch_arguments,
     )
-    if sys.platform == "win32":
-        return (
-            subprocess_path(venv_python),
-            "-c",
-            _WINDOWS_WORKSPACE_BOOTSTRAP,
-            subprocess_path(workspace),
-            subprocess_path(workspace / "main.py"),
-            *arguments,
-        )
     if exceeds_windows_legacy_path_limit(workspace):
         return (
             subprocess_path(venv_python),
             "-c",
-            _WORKSPACE_BOOTSTRAP,
+            _LONG_WORKSPACE_BOOTSTRAP,
             subprocess_path(workspace),
             subprocess_path(workspace / "main.py"),
             *arguments,
