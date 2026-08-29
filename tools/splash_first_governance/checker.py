@@ -101,6 +101,7 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
             allowed_module_import_roots=stdlib_roots,
             allowed_pre_boundary_imports=frozenset(
                 {
+                    "launcher.sugarsubstitute_launcher.active_instance_dialog",
                     "launcher.sugarsubstitute_launcher.application_launch",
                     "launcher.sugarsubstitute_launcher.cli",
                     "launcher.sugarsubstitute_launcher.localization",
@@ -118,6 +119,7 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
                     "_native_frozen_executable_path",
                     "enter_installed_application_launch",
                     "format_locale_argument",
+                    "negotiate_active_application",
                     "parse_launcher_args",
                     "resolve_launcher_locale",
                     "resolve_startup_candidate",

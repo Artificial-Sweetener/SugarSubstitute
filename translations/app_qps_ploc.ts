@@ -1094,6 +1094,10 @@ Prömpt prëvïëw:
       <translation>⟦Clösë CömfyÜÏ bëförë sëtüp cöntïnüës ···⟧</translation>
     </message>
     <message>
+      <source>Close ComfyUI before starting Substitute</source>
+      <translation>⟦Clösë CömfyÜÏ bëförë stàrtïng Sübstïtütë ···⟧</translation>
+    </message>
+    <message>
       <source>Close ComfyUI for me</source>
       <translation>⟦Clösë CömfyÜÏ för më ···⟧</translation>
     </message>
@@ -1266,6 +1270,14 @@ Prömpt prëvïëw:
       <translation>⟦CömfyÜÏ földër ···⟧</translation>
     </message>
     <message>
+      <source>ComfyUI is already running</source>
+      <translation>⟦CömfyÜÏ ïs àlrëàdy rünnïng ···⟧</translation>
+    </message>
+    <message>
+      <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
+      <translation>⟦CömfyÜÏ ïs àlrëàdy rünnïng ön thë dëfàült pört 8188. Sübstïtütë nëëds tö stàrt ànd cöntröl CömfyÜÏ ïtsëlf tö wörk cörrëctly. ···⟧</translation>
+    </message>
+    <message>
       <source>ComfyUI is closed and its Python environment is ready.</source>
       <translation>⟦CömfyÜÏ ïs clösëd ànd ïts Pythön ënvïrönmënt ïs rëàdy. ···⟧</translation>
     </message>
@@ -1284,6 +1296,10 @@ Prömpt prëvïëw:
     <message>
       <source>ComfyUI is ready.</source>
       <translation>⟦CömfyÜÏ ïs rëàdy. ···⟧</translation>
+    </message>
+    <message>
+      <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
+      <translation>⟦CömfyÜÏ ïs rëspöndïng ön thë dëfàült pört 8188, büt Sübstïtütë cöüld nöt vërïfy ïts pröcëss sàfëly. Clösë CömfyÜÏ yöürsëlf, thën stàrt Sübstïtütë àgàïn. ···⟧</translation>
     </message>
     <message>
       <source>ComfyUI is still starting.</source>
@@ -6018,6 +6034,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Working...</source>
       <translation>⟦Wörkïng... ···⟧</translation>
+    </message>
+    <message>
+      <source>Would you like Substitute to close ComfyUI and continue?</source>
+      <translation>⟦Wöüld yöü lïkë Sübstïtütë tö clösë CömfyÜÏ ànd cöntïnüë? ···⟧</translation>
     </message>
     <message>
       <source>X coordinate</source>

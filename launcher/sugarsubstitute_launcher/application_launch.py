@@ -34,6 +34,7 @@ def enter_installed_application_launch(
     return ApplicationLaunchGuard.enter(
         layout.root,
         allow_initial_handoff=True,
+        acquire_instance_lease=False,
     )
 
 

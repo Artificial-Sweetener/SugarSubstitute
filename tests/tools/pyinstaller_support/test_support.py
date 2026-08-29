@@ -25,11 +25,24 @@ import pytest
 
 from tools.pyinstaller_support import (
     build_launcher_data_files,
+    exclude_foreign_windows_icu_binaries,
     resolve_uv_executable,
 )
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+
+def test_windows_bundle_excludes_path_discovered_icu_contract_binaries() -> None:
+    """Foreign ICU builds must not shadow the Windows DLL used by QtCore."""
+
+    binaries = [
+        ("icuuc.dll", "foreign/poppler/icuuc.dll", "BINARY"),
+        ("icudt78.dll", "foreign/poppler/icudt78.dll", "BINARY"),
+        ("PySide6/Qt6Core.dll", "environment/PySide6/Qt6Core.dll", "BINARY"),
+    ]
+
+    assert exclude_foreign_windows_icu_binaries(binaries) == [binaries[2]]
 
 
 def test_build_launcher_data_files_includes_every_localization_owner(
