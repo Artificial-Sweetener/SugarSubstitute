@@ -336,6 +336,27 @@ def cancel_restart_application_launch_environment(
         guard.cancel_restart_environment(environment)
 
 
+def recover_unleased_application_launch(install_root: Path) -> bool:
+    """Remove a launch record after both native lifetime owners prove it abandoned."""
+
+    if ApplicationInstanceLease.owner_exists(install_root):
+        return False
+    lock_path = application_launch_lock_path(install_root)
+    try:
+        with serialized_application_launch_record_access(lock_path):
+            record = read_application_launch_record(lock_path)
+            if record is None and not lock_path.exists():
+                return False
+            remove_application_launch_record(lock_path, expected_record=record)
+            return True
+    except (OSError, TimeoutError) as error:
+        _LOGGER.warning(
+            "Abandoned application launch ownership could not be recovered: %r",
+            error,
+        )
+        return False
+
+
 def _has_authorized_handoff(lock_path: Path, expected_digest: str) -> bool:
     """Return whether persisted state authorizes waiting for lease transfer."""
 
@@ -454,5 +475,6 @@ __all__ = [
     "cancel_restart_application_launch_environment",
     "clear_inherited_application_launch_token",
     "inherited_application_launch_token",
+    "recover_unleased_application_launch",
     "restart_application_launch_environment",
 ]

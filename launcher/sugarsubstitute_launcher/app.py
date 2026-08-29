@@ -26,6 +26,9 @@ from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from launcher.sugarsubstitute_launcher.cli import LauncherArguments
+    from launcher.sugarsubstitute_launcher.application_launch import (
+        InstalledApplicationLaunchSession,
+    )
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
     from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
     from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupPlan
@@ -73,13 +76,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     app_launch_error: Exception | None = None
     launch_guard: ApplicationLaunchGuard | None = None
+    launch_session: InstalledApplicationLaunchSession | None = None
     startup_plan: LauncherStartupPlan | None = None
     if should_attempt_installed_app_launch(args=args, candidate=startup_candidate):
         from launcher.sugarsubstitute_launcher.application_launch import (
-            enter_installed_application_launch,
+            begin_installed_application_launch,
         )
 
-        launch_guard = enter_installed_application_launch(layout)
+        launch_session = begin_installed_application_launch(layout)
+        if launch_session is None:
+            return 0
+        launch_guard = launch_session.claim_application()
         if launch_guard is None:
             from launcher.sugarsubstitute_launcher.active_instance_dialog import (
                 negotiate_active_application,
@@ -89,9 +96,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 layout=layout,
                 locale_override=args.locale_override,
             ):
+                launch_session.release()
                 return 0
-            launch_guard = enter_installed_application_launch(layout)
+            launch_guard = launch_session.claim_application()
             if launch_guard is None:
+                launch_session.release()
                 return 0
         from launcher.sugarsubstitute_launcher.splash_session import (
             start_launcher_splash_session,
@@ -114,16 +123,26 @@ def main(argv: Sequence[str] | None = None) -> int:
                     startup_plan.config_error or "Installed launcher config is invalid."
                 )
             from launcher.sugarsubstitute_launcher.installed_app_handoff import (
+                InstalledAppHandoffResult,
                 complete_installed_app_handoff,
             )
 
-            complete_installed_app_handoff(
+            handoff_result = complete_installed_app_handoff(
                 layout=layout,
                 launch_guard=launch_guard,
                 locale_argument=locale_argument,
                 no_update_check=args.no_update_check,
                 splash_session=splash_session,
+                launch_session=launch_session,
             )
+            if (
+                handoff_result is InstalledAppHandoffResult.APPLICATION_STARTED
+                and not launch_session.wait_for_application_owner()
+            ):
+                raise RuntimeError(
+                    "The launched application did not acquire native instance ownership."
+                )
+            launch_session.release()
             return 0
         except Exception as error:
             app_launch_error = error
@@ -161,6 +180,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         startup_plan=startup_plan,
         app_launch_error=app_launch_error,
         launch_guard=launch_guard,
+        launch_session=launch_session,
     )
 
 
@@ -246,6 +266,7 @@ def _run_launcher_window(
     startup_plan: LauncherStartupPlan,
     app_launch_error: Exception | None,
     launch_guard: ApplicationLaunchGuard | None,
+    launch_session: InstalledApplicationLaunchSession | None,
 ) -> int:
     """Show setup or repair UI after installed launch routing is complete."""
 
@@ -302,6 +323,8 @@ def _run_launcher_window(
     finally:
         if launch_guard is not None:
             launch_guard.release()
+        if launch_session is not None:
+            launch_session.release()
 
 
 def _explicit_release_source(manifest_url: str | None) -> ReleaseSource:
