@@ -52,6 +52,9 @@ from substitute.app.bootstrap.startup_qt_timers import StartupQtSchedulerPorts
 from substitute.app.bootstrap.startup_resources import StartupResourceRegistry
 from substitute.app.bootstrap.startup_shutdown import StartupShutdownRuntime
 from substitute.app.bootstrap.startup_timing import StartupTimer
+from substitute.app.bootstrap.update_rollback_notice_startup import (
+    schedule_update_rollback_notice_with_post_show_hydration,
+)
 from substitute.application.execution import DirectExecutionDispatcher
 from substitute.domain.onboarding import InstallationContext
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
@@ -284,7 +287,15 @@ class StartupManagedReadyShellLauncher:
             set_current_shell=self.shell_reload_adapter.set_current_shell,
             schedule_warmups=nonessential_warmup_runtime.schedule,
             request_startup_diagnostics_update=diagnostics_update_adapter.request,
-            schedule_post_show_hydration=post_show_controller.schedule_hydration,
+            schedule_post_show_hydration=lambda: (
+                schedule_update_rollback_notice_with_post_show_hydration(
+                    schedule_hydration=post_show_controller.schedule_hydration,
+                    install_root=context.install_root,
+                    shell_frame=lambda: self.shell_reload_state.shell_frame,
+                    main_window_for_shell=self.shell_ports.main_window_for_shell,
+                    scheduler=self.startup_qt_schedulers.single_shot,
+                )
+            ),
             set_shell_frame=self.shell_reload_state.set_shell_frame,
             set_splash=self.ready_shell_reference_state.set_splash,
             trace_fields=ready_trace_fields,

@@ -24,6 +24,7 @@ import pytest
 
 from tools.ci.historical_nodepack_fixture import (
     historical_sugarcubes_freshness_key,
+    historical_sugarcubes_has_maintenance,
     read_historical_sugarcubes_version,
     restore_historical_sugarcubes,
 )
@@ -44,6 +45,19 @@ def test_historical_pin_is_read_from_the_installed_app_payload(tmp_path: Path) -
     assert read_historical_sugarcubes_version(tmp_path) == "0.11.0"
 
 
+def test_legacy_minimum_is_read_from_the_installed_app_payload(tmp_path: Path) -> None:
+    """Qualification should reconstruct releases predating exact nodepack pins."""
+
+    contract = tmp_path / "app" / "substitute" / "domain" / "comfy_nodepacks.py"
+    contract.parent.mkdir(parents=True)
+    contract.write_text(
+        'SUGARCUBES_REQUIRED_MINIMUM_VERSION = "0.10.0"\n',
+        encoding="utf-8",
+    )
+
+    assert read_historical_sugarcubes_version(tmp_path) == "0.10.0"
+
+
 def test_dynamic_historical_pin_is_rejected(tmp_path: Path) -> None:
     """Qualification must not execute historical source to discover its pin."""
 
@@ -56,6 +70,21 @@ def test_dynamic_historical_pin_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(InstallerLifecycleError, match="literal SugarCubes"):
         read_historical_sugarcubes_version(tmp_path)
+
+
+def test_legacy_release_without_maintenance_remains_valid_input(tmp_path: Path) -> None:
+    """Qualification should recognize releases predating offline maintenance."""
+
+    workspace = tmp_path / "comfyui"
+    assert historical_sugarcubes_has_maintenance(workspace) is False
+
+    maintenance = (
+        workspace / "custom_nodes" / "SugarCubes" / "sugarcubes" / "maintenance.py"
+    )
+    maintenance.parent.mkdir(parents=True)
+    maintenance.touch()
+
+    assert historical_sugarcubes_has_maintenance(workspace) is True
 
 
 def test_restore_uses_historical_release_and_requires_installed_identity(

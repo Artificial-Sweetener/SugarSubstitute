@@ -97,6 +97,18 @@ def validate_managed_environment(
             torch_version=torch_version,
             device_name=device_name,
         )
+    if runtime_details.component_errors:
+        return ManagedEnvironmentValidationResult(
+            success=False,
+            detail=(
+                "Managed workspace Torch companion validation failed: "
+                + "; ".join(runtime_details.component_errors)
+            ),
+            detected_backend=detected_backend,
+            detected_torch_channel=detected_torch_channel,
+            torch_version=torch_version,
+            device_name=device_name,
+        )
     if expected_accelerator is not AcceleratorClass.CPU and (
         detected_backend != expected_accelerator.value
     ):

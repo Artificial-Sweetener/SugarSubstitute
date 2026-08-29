@@ -30,6 +30,11 @@ from launcher.sugarsubstitute_launcher.update_activation import (
     recover_interrupted_update,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from sugarsubstitute_shared.update_rollback_report import (
+    UpdateRollbackReport,
+    UpdateRollbackReportStore,
+    UpdateRollbackStage,
+)
 
 
 def test_pending_update_rolls_back_app_runtime_and_state(tmp_path: Path) -> None:
@@ -73,6 +78,14 @@ def test_pending_update_commit_advances_state_and_removes_backups(
     _write(layout.app_dir / "version.txt", "candidate-app")
     activation.prepare_runtime()
     _write(layout.runtime_dir / "version.txt", "candidate-runtime")
+    rollback_store = UpdateRollbackReportStore(layout.root)
+    rollback_store.save(
+        UpdateRollbackReport.capture(
+            attempted_version="0.3.5",
+            stage=UpdateRollbackStage.PREPARATION,
+            error=RuntimeError("earlier failed update"),
+        )
+    )
 
     activation.commit()
 
@@ -82,6 +95,7 @@ def test_pending_update_commit_advances_state_and_removes_backups(
     assert not (layout.root / "app_previous").exists()
     assert not (layout.root / "runtime_previous").exists()
     assert not (layout.launcher_dir / "pending-app-update.json").exists()
+    assert rollback_store.load() is None
 
 
 def test_interrupted_update_is_recovered_from_durable_journal(

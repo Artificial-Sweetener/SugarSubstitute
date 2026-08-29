@@ -20,6 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 import pytest
+from sugarsubstitute_shared.launch_splash import SplashSessionMessageError
 from sugarsubstitute_shared.localization import render_source_application_text
 from substitute.app.bootstrap import managed_recovery_adapters
 from substitute.application.backend_compatibility import (
@@ -108,6 +109,35 @@ def test_startup_recovery_log_survives_disposed_splash(tmp_path: Path) -> None:
     adapters.emit_recovery_log("late setup line")
 
     assert output_stream.lines == ["late setup line"]
+
+
+def test_startup_recovery_log_survives_rejected_splash_message(
+    tmp_path: Path,
+) -> None:
+    """A splash protocol limit should not abort authoritative runtime repair."""
+
+    class _RejectingSplash:
+        """Reject one recovery line at the optional splash boundary."""
+
+        def append_log(self, _line: str) -> None:
+            """Raise the protocol failure observed during Torch repair."""
+
+            raise SplashSessionMessageError("Splash session message is too large.")
+
+    output_stream = _OutputStream()
+    adapters = managed_recovery_adapters.ManagedRecoveryStartupAdapters(
+        installation_context=_context(tmp_path),
+        splash=lambda: cast(Any, _RejectingSplash()),
+        comfy_output_stream=output_stream,
+        startup_diagnostics=ComfyStartupDiagnosticsCollector(),
+        handle_managed_startup_failure=lambda _incident: None,
+        launch_task_factory=cast(Any, _task_factory),
+        process_pump_task_factory=cast(Any, _task_factory),
+    )
+
+    adapters.emit_recovery_log("large package-install output")
+
+    assert output_stream.lines == ["large package-install output"]
 
 
 def test_startup_recovery_failure_builds_runtime_incident(tmp_path: Path) -> None:

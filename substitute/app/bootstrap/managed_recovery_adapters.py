@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
 
+from sugarsubstitute_shared.launch_splash import SplashSessionMessageError
 from sugarsubstitute_shared.localization import ApplicationText
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
@@ -113,8 +114,13 @@ class ManagedRecoveryStartupAdapters:
         if splash is not None:
             try:
                 splash.append_log(line)
-            except RuntimeError:
-                log_warning(_LOGGER, "Dropped recovery splash log after disposal")
+            except (OSError, RuntimeError, SplashSessionMessageError) as error:
+                log_warning(
+                    _LOGGER,
+                    "Dropped optional recovery splash log",
+                    error_type=type(error).__name__,
+                    line_length=len(line),
+                )
         self._comfy_output_stream.append_line(line)
 
     def handle_recovery_failure(

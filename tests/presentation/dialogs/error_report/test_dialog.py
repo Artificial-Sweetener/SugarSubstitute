@@ -22,7 +22,7 @@ import pytest
 
 from PySide6.QtCore import QAbstractAnimation
 from PySide6.QtTest import QSignalSpy
-from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from PySide6.QtWidgets import QAbstractButton, QApplication, QLabel, QWidget
 from qfluentwidgets import PrimaryPushButton  # type: ignore[import-untyped]
 from shiboken6 import delete
 
@@ -36,6 +36,7 @@ from substitute.presentation.dialogs.error_report_dialog import (
     ErrorReportDialog,
     ReportSeverityGlyphWidget,
 )
+from substitute.application.update_rollback_notice import SUGARSUBSTITUTE_ISSUES_URL
 
 pytestmark = pytest.mark.usefixtures("qt_clipboard_owner")
 
@@ -350,6 +351,74 @@ def test_error_report_dialog_copies_complete_report_to_clipboard() -> None:
         dialog._copy_report()
 
         assert QApplication.clipboard().text() == report_text
+    finally:
+        dialog.close()
+        delete(dialog)
+        app.processEvents()
+
+
+def test_update_rollback_dialog_uses_standard_layout_and_links_reporter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A restored update should add only passive behavior and a footer action."""
+
+    app = _app()
+    opened_urls: list[str] = []
+
+    def open_url(url: str) -> bool:
+        """Capture the requested trusted URL."""
+
+        opened_urls.append(url)
+        return True
+
+    monkeypatch.setattr(
+        "substitute.presentation.dialogs.error_report_update_rollback_action._open_external_url",
+        open_url,
+    )
+    dialog = ErrorReportDialog(
+        report=ErrorReport(
+            kind=ErrorReportKind.SUBSTITUTE_INTERNAL,
+            severity=DiagnosticSeverity.WARNING,
+            title="Update failed",
+            message="Substitute is ready to use.",
+            stage="update_rollback",
+            operation_context=SubstituteOperationContext(
+                operation="application_update",
+                values={
+                    "attempted_version": "0.21.3",
+                    "issues_url": SUGARSUBSTITUTE_ISSUES_URL,
+                },
+            ),
+        ),
+        report_text="Update rollback report",
+    )
+
+    try:
+        summary_text = {
+            label.text()
+            for label in dialog._summary_frame.findChildren(QLabel)
+            if label.text()
+        }
+        assert dialog.isClosableOnMaskClicked()
+        assert dialog._report_editor.isHidden()
+        assert dialog._report_issue_button is not None
+        assert dialog._report_issue_button.text() == "Report issue"
+        assert "Stage" in summary_text
+        assert "update_rollback" in summary_text
+        assert "Workflow" not in summary_text
+        assert "unknown" not in summary_text
+        assert "Attempted version" not in summary_text
+        footer_actions = [
+            widget.text()
+            for index in range(dialog.buttonLayout.count())
+            if (widget := dialog.buttonLayout.itemAt(index).widget()) is not None
+            and isinstance(widget, QAbstractButton)
+        ]
+        assert footer_actions == ["Copy report", "Report issue", "Close"]
+
+        dialog._report_issue_button.click()
+
+        assert opened_urls == [SUGARSUBSTITUTE_ISSUES_URL]
     finally:
         dialog.close()
         delete(dialog)

@@ -27,6 +27,9 @@ import shutil
 import secrets
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.update_rollback_reporting import (
+    discard_update_rollback_report,
+)
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 
 
@@ -126,6 +129,7 @@ class PendingUpdateActivation:
             committed_journal.to_json(),
         )
         self._successful_state.save(self._layout.state_path)
+        discard_update_rollback_report(self._layout.root)
         for path in (
             _previous_app_dir(self._layout),
             _previous_runtime_dir(self._layout),

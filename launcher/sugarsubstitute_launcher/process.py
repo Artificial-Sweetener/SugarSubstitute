@@ -18,17 +18,16 @@
 
 from __future__ import annotations
 
-import contextlib
-import ctypes
 import subprocess
 import sys
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
 from sugarsubstitute_shared.subprocess_environment import (
     clean_frozen_parent_environment,
+    standard_child_process_dll_search_path,
 )
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
@@ -132,7 +131,7 @@ def spawn_detached_process(
         log_file.flush()
         working_directory = _command_working_directory(command)
         try:
-            with _standard_child_process_dll_search_path():
+            with standard_child_process_dll_search_path():
                 process = subprocess.Popen(  # noqa: S603
                     list(command),
                     cwd=(
@@ -176,24 +175,6 @@ def _command_working_directory(command: Sequence[str]) -> Path | None:
     if entrypoint.is_file():
         return entrypoint.parent
     return None
-
-
-@contextlib.contextmanager
-def _standard_child_process_dll_search_path() -> Iterator[None]:
-    """Prevent PyInstaller's DLL search path from leaking into child processes."""
-
-    if sys.platform != "win32" or not bool(getattr(sys, "frozen", False)):
-        yield
-        return
-
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    meipass = getattr(sys, "_MEIPASS", None)
-    kernel32.SetDllDirectoryW(None)
-    try:
-        yield
-    finally:
-        if isinstance(meipass, str) and meipass:
-            kernel32.SetDllDirectoryW(meipass)
 
 
 def _app_startup_log_path(command: Sequence[str]) -> Path:

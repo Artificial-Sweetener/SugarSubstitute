@@ -353,6 +353,63 @@ def test_supervisor_terminates_candidate_on_readiness_timeout(tmp_path: Path) ->
     assert process.killed is False
 
 
+def test_default_supervisor_allows_long_candidate_repair(tmp_path: Path) -> None:
+    """The production deadline should cover a substantial dependency repair."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    process = _CandidateProcess()
+    child_environment: dict[str, str] = {}
+    elapsed_seconds = 0.0
+
+    def monotonic() -> float:
+        """Return the synthetic elapsed startup time."""
+
+        return elapsed_seconds
+
+    def start(
+        _command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Capture the readiness contract for the long-running candidate."""
+
+        child_environment.update(environment)
+        return process, tmp_path / "startup.log"
+
+    def advance_repair(_seconds: float) -> None:
+        """Advance ten minutes before publishing visible-shell readiness."""
+
+        nonlocal elapsed_seconds
+        elapsed_seconds += 60.0
+        if elapsed_seconds < 600.0:
+            return
+        receipt_path = Path(child_environment[READINESS_PATH_ENV])
+        receipt_path.parent.mkdir(parents=True, exist_ok=True)
+        receipt_path.write_text(
+            json.dumps(
+                ApplicationReadinessReceipt(
+                    pid=process.pid,
+                    token=child_environment[READINESS_TOKEN_ENV],
+                    surface=ApplicationReadinessSurface.MAIN_SHELL,
+                    parent_pid=999,
+                ).to_json()
+            ),
+            encoding="utf-8",
+        )
+
+    result = ApplicationReadinessSupervisor(
+        process_starter=start,
+        monotonic=monotonic,
+        wait=advance_repair,
+    ).launch_until_ready(
+        layout=layout,
+        command=["python", "main.py"],
+        environment={},
+    )
+
+    assert result is process
+    assert process.terminated is False
+
+
 def _increasing_clock(*, step: float = 0.1) -> Callable[[], float]:
     """Return a callable deterministic monotonic clock."""
 

@@ -5688,6 +5688,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Üpdàtë àvàïlàblë ···⟧</translation>
     </message>
     <message>
+      <source>Update failed</source>
+      <translation>⟦Üpdàtë fàïlëd ···⟧</translation>
+    </message>
+    <message>
       <source>Update selected</source>
       <translation>⟦Üpdàtë sëlëctëd ···⟧</translation>
     </message>
@@ -5918,6 +5922,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>We couldn't find ComfyUI's Python environment</source>
       <translation>⟦Wë cöüldn't fïnd CömfyÜÏ's Pythön ënvïrönmënt ···⟧</translation>
+    </message>
+    <message>
+      <source>We tried to update Substitute, but it failed. Substitute is ready to use. Please send an error report to the maintainer.</source>
+      <translation>⟦Wë trïëd tö üpdàtë Sübstïtütë, büt ït fàïlëd. Sübstïtütë ïs rëàdy tö üsë. Plëàsë sënd àn ërrör rëpört tö thë màïntàïnër. ···⟧</translation>
     </message>
     <message>
       <source>What happens next</source>
