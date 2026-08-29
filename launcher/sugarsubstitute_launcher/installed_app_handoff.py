@@ -89,9 +89,13 @@ def complete_installed_app_handoff(
         splash_session,
     )
     if update_result.pending_activation is not None:
+        attempted_version = update_result.attempted_version
+        if attempted_version is None:
+            raise RuntimeError("Prepared update is missing its attempted version.")
         launch_prepared_update(
             layout=layout,
             command=app_command,
+            attempted_version=attempted_version,
             initial_guard=launch_guard,
             activation=update_result.pending_activation,
         )

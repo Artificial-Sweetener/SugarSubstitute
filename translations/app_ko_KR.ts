@@ -465,7 +465,7 @@ Prompt preview:
       <translation>고급 옵션</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="344"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
       <source>Affected cubes</source>
       <translation>영향받는 큐브</translation>
     </message>
@@ -1880,7 +1880,7 @@ Prompt preview:
       <translation>모든 출력 복사</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="287"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="299"></location>
       <source>Copy report</source>
       <translation>보고서 복사</translation>
     </message>
@@ -2488,7 +2488,7 @@ Install these nodes now?</source>
       <translation>오류</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
       <source>Exception</source>
       <translation>예외</translation>
     </message>
@@ -2578,7 +2578,7 @@ Install these nodes now?</source>
       <translation>생성에 사용할 입력 캔버스 내용을 캡처하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="500"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="501"></location>
       <source>Failed to connect generation listener session</source>
       <translation>생성 리스너 세션에 연결하지 못했습니다</translation>
     </message>
@@ -2598,7 +2598,7 @@ Install these nodes now?</source>
       <translation>활성 대상에서 큐브 라이브러리 상태를 불러오지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="229"></location>
+      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="246"></location>
       <source>Failed to load generated image.</source>
       <translation>생성된 이미지를 불러오지 못했습니다.</translation>
     </message>
@@ -2638,12 +2638,12 @@ Install these nodes now?</source>
       <translation>큐브를 증분 삽입한 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="425"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="426"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>워크플로 자산 %1.%2 준비 실패: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="635"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="636"></location>
       <source>Failed to start generation listener</source>
       <translation>생성 리스너를 시작하지 못했습니다</translation>
     </message>
@@ -2968,7 +2968,7 @@ Install these nodes now?</source>
       <translation>생성 컨트롤 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
       <source>Hide report</source>
       <translation>보고서 숨기기</translation>
     </message>
@@ -3548,12 +3548,12 @@ Install these nodes now?</source>
       <translation>메타데이터를 수동으로 새로 고치려면 모델 종류와 값이 필요합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="681"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="680"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>마스크 크기를 확인할 수 없습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="618"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="617"></location>
       <source>Mask dimensions do not match</source>
       <translation>마스크 크기가 일치하지 않습니다</translation>
     </message>
@@ -3913,7 +3913,7 @@ Install these nodes now?</source>
       <translation>썸네일 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="331"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="343"></location>
       <source>Node</source>
       <translation>노드</translation>
     </message>
@@ -3938,7 +3938,7 @@ Install these nodes now?</source>
       <translation>노드 컨텍스트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="340"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="352"></location>
       <source>Node errors</source>
       <translation>노드 오류</translation>
     </message>
@@ -4363,7 +4363,7 @@ Install these nodes now?</source>
       <translation>관리형 가속 지원을 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="999"></location>
+      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="970"></location>
       <source>Preparing the application interface.</source>
       <translation>애플리케이션 인터페이스를 준비하는 중입니다.</translation>
     </message>
@@ -4433,7 +4433,7 @@ Install these nodes now?</source>
       <translation>프로젝트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="329"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
       <source>Prompt</source>
       <translation>프롬프트</translation>
     </message>
@@ -4658,7 +4658,7 @@ Install these nodes now?</source>
       <translation>캔버스 도킹</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="222"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="231"></location>
       <source>Referenced local image file does not exist.</source>
       <translation>참조된 로컬 이미지 파일이 없습니다.</translation>
     </message>
@@ -4833,7 +4833,7 @@ Install these nodes now?</source>
       <translation>복구하면 감지된 가속기에 맞는 백엔드로 ComfyUI를 다시 설치합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="869"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="286"></location>
       <source>Report issue</source>
       <translation>문제 신고</translation>
     </message>
@@ -4902,7 +4902,7 @@ No known extension claimant.</source>
       <translation>필요한 사용자 지정 노드가 설치되어 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="194"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="203"></location>
       <source>Required image input has no selected image.</source>
       <translation>필수 이미지 입력에 선택된 이미지가 없습니다.</translation>
     </message>
@@ -5567,7 +5567,7 @@ No known extension claimant.</source>
       <translation>위키 뷰어에 이미지 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="354"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="366"></location>
       <source>Show report</source>
       <translation>보고서 표시</translation>
     </message>
@@ -5692,7 +5692,7 @@ No known extension claimant.</source>
       <translation>맞춤법 검사</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="321"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="333"></location>
       <source>Stage</source>
       <translation>단계</translation>
     </message>
@@ -6207,7 +6207,7 @@ No known extension claimant.</source>
       <translation>Substitute에 저장된 폴더 설정을 수정해야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2735"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2730"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6722,12 +6722,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>선택한 폴더는 완전한 ComfyUI 설치가 아닙니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="683"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="682"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>선택한 마스크 크기가 불러온 입력 이미지와 맞는지 확인하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="620"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="619"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>선택한 마스크 크기가 불러온 입력 이미지와 일치하지 않습니다.</translation>
     </message>
@@ -7102,6 +7102,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>업데이트 가능</translation>
     </message>
     <message>
+      <location filename="../substitute/application/update_rollback_notice.py" line="92"></location>
+      <source>Update failed</source>
+      <translation>업데이트 실패</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="305"></location>
       <source>Update selected</source>
       <translation>선택 항목 업데이트</translation>
@@ -7392,6 +7397,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>ComfyUI의 Python 환경을 찾지 못했습니다</translation>
     </message>
     <message>
+      <location filename="../substitute/application/update_rollback_notice.py" line="93"></location>
+      <source>We tried to update Substitute, but it failed. Substitute is ready to use. Please send an error report to the maintainer.</source>
+      <translation>Substitute 업데이트를 시도했지만 실패했습니다. Substitute는 사용할 준비가 되었습니다. 관리자에게 오류 보고서를 보내 주세요.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="849"></location>
       <source>What happens next</source>
       <translation>다음 단계</translation>
@@ -7467,7 +7477,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>Windows에서는 개별 파일 또는 폴더 이름을 255자로 제한합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="323"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="335"></location>
       <source>Workflow</source>
       <translation>워크플로</translation>
     </message>
@@ -7597,7 +7607,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>[관리형 설치] 플랫폼=%1 가속기=%2 대상=%3 python=%4 채널=%5 백엔드=%6 torch_채널=%7 안정성=%8</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/managed_environment_validator.py" line="162"></location>
+      <location filename="../substitute/infrastructure/comfy/managed_environment_validator.py" line="174"></location>
       <source>[Validation] torch=%1 backend=%2 channel=%3 device=%4</source>
       <translation>[검증] torch=%1 백엔드=%2 채널=%3 장치=%4</translation>
     </message>
@@ -7672,7 +7682,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>없음</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="546"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="547"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>queue_prompt에서 prompt_id를 반환하지 않음</translation>
     </message>
@@ -7687,7 +7697,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>소스 체크아웃</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="325"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="337"></location>
       <source>unknown</source>
       <translation>알 수 없음</translation>
     </message>

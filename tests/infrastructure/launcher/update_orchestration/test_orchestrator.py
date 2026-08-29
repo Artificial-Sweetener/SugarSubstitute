@@ -34,6 +34,10 @@ from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from sugarsubstitute_shared.update_rollback_report import (
+    UpdateRollbackReportStore,
+    UpdateRollbackStage,
+)
 from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
 from sugarsubstitute_shared.launcher_update.targets import LauncherBundleTarget
 
@@ -86,6 +90,7 @@ def test_pre_launch_update_commits_new_version_only_after_launch_readiness(
     assert runtime_reconciler.reconciled_layouts == [layout]
     assert not layout.state_path.exists()
     assert result.pending_activation is not None
+    assert result.attempted_version == "0.4.0"
     result.pending_activation.commit()
     assert LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
     assert progress.lines == [
@@ -200,6 +205,7 @@ def test_pre_launch_update_failure_returns_safe_result(tmp_path: Path) -> None:
     assert result.installed_update is False
     assert result.failure_reason == "RuntimeError"
     assert not layout.state_path.exists()
+    assert UpdateRollbackReportStore(layout.root).load() is None
 
 
 def test_pre_launch_update_runtime_failure_does_not_record_new_version(
@@ -225,6 +231,11 @@ def test_pre_launch_update_runtime_failure_does_not_record_new_version(
     assert result.installed_update is False
     assert result.failure_reason == "RuntimeError"
     assert not layout.state_path.exists()
+    rollback_report = UpdateRollbackReportStore(layout.root).load()
+    assert rollback_report is not None
+    assert rollback_report.attempted_version == "0.4.0"
+    assert rollback_report.stage is UpdateRollbackStage.PREPARATION
+    assert rollback_report.exception_type == "RuntimeError"
 
 
 def test_pre_launch_update_stages_newer_launcher_after_runtime_is_ready(

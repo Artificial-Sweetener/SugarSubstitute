@@ -9,7 +9,7 @@
       <translation>%1 no pudo usar esta ruta larga de Windows, aunque SugarSubstitute sí puede: %2. Elige una carpeta más corta para esta operación o habilita las rutas Win32 largas en Windows y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="308"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="309"></location>
       <source>App entrypoint: %1</source>
       <translation>Punto de entrada de la aplicación: %1</translation>
     </message>
@@ -19,7 +19,7 @@
       <translation>Examinar...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="179"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="200"></location>
       <source>Checking for SugarSubstitute updates.</source>
       <translation>Buscando actualizaciones de SugarSubstitute.</translation>
     </message>
@@ -59,12 +59,12 @@
       <translation>Continuando la instalación desde el iniciador instalado.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="322"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="323"></location>
       <source>Could not install the Python runtime.</source>
       <translation>No se pudo instalar el entorno de ejecución de Python.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="325"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="326"></location>
       <source>Could not start SugarSubstitute setup.</source>
       <translation>No se pudo iniciar la instalación de SugarSubstitute.</translation>
     </message>
@@ -74,7 +74,7 @@
       <translation>Carpeta raíz de instalación creada: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="281"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="283"></location>
       <source>Details: %1</source>
       <translation>Detalles: %1</translation>
     </message>
@@ -94,7 +94,7 @@
       <translation>Instalar</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="225"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="227"></location>
       <source>Install root is not prepared yet.</source>
       <translation>La carpeta raíz de instalación aún no está preparada.</translation>
     </message>
@@ -104,12 +104,12 @@
       <translation>Instalar el entorno de ejecución</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="278"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="305"></location>
       <source>Installed SugarSubstitute %1.</source>
       <translation>Se instaló SugarSubstitute %1.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="302"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="303"></location>
       <source>Installed app payload version: %1</source>
       <translation>Versión instalada de la aplicación: %1</translation>
     </message>
@@ -119,17 +119,17 @@
       <translation>Iniciador instalado: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="291"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="293"></location>
       <source>Installer returned an invalid layout.</source>
       <translation>El instalador devolvió una estructura no válida.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="239"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="241"></location>
       <source>Installing Python runtime and app dependencies.</source>
       <translation>Instalando el entorno de ejecución de Python y las dependencias de la aplicación.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="255"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="276"></location>
       <source>Installing SugarSubstitute %1.</source>
       <translation>Instalando SugarSubstitute %1.</translation>
     </message>
@@ -159,12 +159,12 @@
       <translation>Preparando la instalación de SugarSubstitute.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="271"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="292"></location>
       <source>Preparing SugarSubstitute runtime.</source>
       <translation>Preparando el entorno de ejecución de SugarSubstitute.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="338"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="366"></location>
       <source>Preparing launcher %1.</source>
       <translation>Preparando el iniciador %1.</translation>
     </message>
@@ -189,12 +189,12 @@
       <translation>Instalación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="230"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="232"></location>
       <source>Setup command is not available yet.</source>
       <translation>El comando de instalación aún no está disponible.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="279"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="281"></location>
       <source>Setup failed. Check the details below and try again.</source>
       <translation>La instalación ha fallado. Consulta los detalles siguientes y vuelve a intentarlo.</translation>
     </message>
@@ -239,12 +239,12 @@
       <translation>Instalación de SugarSubstitute</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="360"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="388"></location>
       <source>The launcher will restart to finish updating.</source>
       <translation>El iniciador se reiniciará para completar la actualización.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="241"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="243"></location>
       <source>This can take a while the first time.</source>
       <translation>La primera vez puede tardar un poco.</translation>
     </message>

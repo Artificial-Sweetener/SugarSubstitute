@@ -84,6 +84,7 @@ from tools.ci.comfy_support_matrix import COMFY_SUPPORT_MATRIX
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.historical_nodepack_fixture import (
     historical_sugarcubes_freshness_key,
+    historical_sugarcubes_has_maintenance,
     restore_historical_sugarcubes,
 )
 from tools.ci.owned_process_runner import run_owned_process
@@ -244,13 +245,20 @@ def _prepare_qualified_existing_managed_workspace(
         "historical_sugarcubes",
         f"completed version={historical_sugarcubes_version}",
     )
-    _record_phase(progress_path, "sugarcubes", "started")
-    run_sugarcubes_baseline_maintenance(
-        workspace,
-        python_executable=python_executable,
-        env=environment,
-    )
-    _record_phase(progress_path, "sugarcubes", "completed")
+    if historical_sugarcubes_has_maintenance(workspace):
+        _record_phase(progress_path, "sugarcubes", "started")
+        run_sugarcubes_baseline_maintenance(
+            workspace,
+            python_executable=python_executable,
+            env=environment,
+        )
+        _record_phase(progress_path, "sugarcubes", "completed")
+    else:
+        _record_phase(
+            progress_path,
+            "sugarcubes",
+            "skipped reason=entrypoint_unavailable",
+        )
     _record_phase(progress_path, "model_root", "started")
     configure_backend_model_root(
         workspace=workspace,
