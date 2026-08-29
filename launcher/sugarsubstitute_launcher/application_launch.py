@@ -18,18 +18,87 @@
 
 from __future__ import annotations
 
+import time
+from typing import Self
+
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_instance_lease import ApplicationInstanceLease
 from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
+from sugarsubstitute_shared.application_launch_guard import (
+    recover_unleased_application_launch,
+)
 from sugarsubstitute_shared.application_runtime_mode import (
     packaged_application_environment,
 )
+from sugarsubstitute_shared.launcher_invocation_lease import LauncherInvocationLease
 from sugarsubstitute_shared.startup_remote_access import StartupRemoteAccess
 
 
-def enter_installed_application_launch(
+class InstalledApplicationLaunchSession:
+    """Serialize one launcher transaction and classify application ownership."""
+
+    def __init__(
+        self,
+        layout: InstallLayout,
+        invocation_lease: LauncherInvocationLease,
+    ) -> None:
+        """Retain exclusive launcher ownership until handoff work finishes."""
+
+        self._layout = layout
+        self._invocation_lease: LauncherInvocationLease | None = invocation_lease
+
+    @classmethod
+    def begin(cls, layout: InstallLayout) -> Self | None:
+        """Return one launcher session or reject a concurrent launcher silently."""
+
+        invocation_lease = LauncherInvocationLease.acquire(layout.root)
+        if invocation_lease is None:
+            return None
+        return cls(layout, invocation_lease)
+
+    def claim_application(self) -> ApplicationLaunchGuard | None:
+        """Claim app handoff or report that a real application owns its lease."""
+
+        guard = _claim_installed_application_launch(self._layout)
+        if guard is not None or ApplicationInstanceLease.owner_exists(
+            self._layout.root
+        ):
+            return guard
+        recover_unleased_application_launch(self._layout.root)
+        return _claim_installed_application_launch(self._layout)
+
+    def release(self) -> None:
+        """Release launcher serialization without changing application ownership."""
+
+        invocation_lease = self._invocation_lease
+        if invocation_lease is None:
+            return
+        self._invocation_lease = None
+        invocation_lease.release()
+
+    def wait_for_application_owner(self, *, timeout_seconds: float = 30.0) -> bool:
+        """Keep launcher serialization until the child owns its native lease."""
+
+        deadline = time.monotonic() + max(0.0, timeout_seconds)
+        while time.monotonic() < deadline:
+            if ApplicationInstanceLease.owner_exists(self._layout.root):
+                return True
+            time.sleep(0.025)
+        return ApplicationInstanceLease.owner_exists(self._layout.root)
+
+
+def begin_installed_application_launch(
+    layout: InstallLayout,
+) -> InstalledApplicationLaunchSession | None:
+    """Begin one launcher transaction before any splash or dialog construction."""
+
+    return InstalledApplicationLaunchSession.begin(layout)
+
+
+def _claim_installed_application_launch(
     layout: InstallLayout,
 ) -> ApplicationLaunchGuard | None:
-    """Claim one shortcut launch and authorize its single app child."""
+    """Claim one application handoff within an exclusive launcher transaction."""
 
     return ApplicationLaunchGuard.enter(
         layout.root,
@@ -53,4 +122,8 @@ def installed_application_environment(
     )
 
 
-__all__ = ["enter_installed_application_launch", "installed_application_environment"]
+__all__ = [
+    "InstalledApplicationLaunchSession",
+    "begin_installed_application_launch",
+    "installed_application_environment",
+]
