@@ -44,7 +44,7 @@ from tests.support.prompt_editor.projection_engine_support import (
     surface_for,
 )
 
-from .support import _diagnostic_column_centers
+from .support import _diagnostic_column_centers, wait_for_diagnostic_layer
 
 
 def test_projection_surface_diagnostic_renders_wavy_error_underline(
@@ -52,7 +52,7 @@ def test_projection_surface_diagnostic_renders_wavy_error_underline(
 ) -> None:
     """Prompt diagnostics should render as a wavy semantic-error underline."""
 
-    app = ensure_qapp()
+    _ = ensure_qapp()
     word = "missspelledword"
     box = show_prompt_editor(
         widgets,
@@ -77,7 +77,7 @@ def test_projection_surface_diagnostic_renders_wavy_error_underline(
             ),
         )
     )
-    process_events(app)
+    wait_for_diagnostic_layer(surface, has_underlines=True)
     after = render_surface_viewport(surface)
 
     centers = _diagnostic_column_centers(before, after, fragments[0])
@@ -118,7 +118,7 @@ def test_projection_surface_wildcard_diagnostic_follows_projected_token(
             ),
         )
     )
-    process_events(app)
+    wait_for_diagnostic_layer(surface, has_underlines=True)
     after = render_surface_viewport(surface)
 
     centers = _diagnostic_column_centers(before, after, fragments[0])
