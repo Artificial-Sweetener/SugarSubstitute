@@ -2950,8 +2950,8 @@ def _attach_main_window_to_shell(
             startup_diagnostics_button,
             startup_diagnostics_ignore_repository,
         )
-    _move_workflow_tabbar_to_shell(frame, typed_main_window)
     frame.add_body_widget(main_window)
+    _move_workflow_tabbar_to_shell(frame, typed_main_window)
     sync_app_orb_overlay = getattr(frame, "sync_app_orb_overlay", None)
     if callable(sync_app_orb_overlay):
         sync_app_orb_overlay()

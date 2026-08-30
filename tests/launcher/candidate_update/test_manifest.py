@@ -25,7 +25,7 @@ from launcher.sugarsubstitute_launcher.config import (
     LauncherConfig,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from tools.ci.verify_installer_lifecycle import set_update_manifest
+from tools.ci.historical_update_qualification import set_update_manifest
 
 
 def test_lifecycle_candidate_manifest_preserves_release_source_contract(
