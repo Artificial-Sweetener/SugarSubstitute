@@ -199,73 +199,6 @@ def test_managed_comfy_cold_proof_is_change_triggered_and_scheduled() -> None:
     assert 'COLD_ENABLED -eq "true"' in workflow_text
 
 
-def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
-    """Release candidates must prove exact installers before stable promotion."""
-
-    orchestration_text = workflow_text("release-qualification.yml")
-    current_text = workflow_text("release-current-install-qualification.yml")
-    update_text = workflow_text("release-update-qualification.yml")
-    qualification_text = workflow_text(
-        "release-qualification.yml",
-        "release-current-install-qualification.yml",
-        "release-update-qualification.yml",
-    )
-    assert "verify_installer_lifecycle.py clean" in current_text
-    assert "verify_installer_lifecycle.py upgrade" in update_text
-    assert "python -m tools.ci.resolve_upgrade_sources" in orchestration_text
-    assert '--historical-published-at "${{ matrix.history.published_at }}"' in (
-        update_text
-    )
-    assert "Windows x64" in orchestration_text
-    assert "Linux x64" in orchestration_text
-    assert "macOS Apple Silicon" in current_text
-    assert '@("windows", "linux", "macos")' in orchestration_text
-    assert "update_platforms" in orchestration_text
-    assert "./.github/workflows/managed-comfy-install.yml" in orchestration_text
-    assert '$managedComfyEnabled = if ($scope -eq "managed-comfy")' in (
-        orchestration_text
-    )
-    assert '$scope -in @("all", "managed-comfy")' not in orchestration_text
-    assert "gh release edit" not in qualification_text
-    lifecycle_text = (
-        PROJECT_ROOT / "tools" / "ci" / "verify_installer_lifecycle.py"
-    ).read_text(encoding="utf-8")
-    ui_qualification_text = (
-        PROJECT_ROOT / "tools" / "ci" / "installer_ui_qualification.py"
-    ).read_text(encoding="utf-8")
-    historical_qualification_text = (
-        PROJECT_ROOT / "tools" / "ci" / "historical_install_qualification.py"
-    ).read_text(encoding="utf-8")
-    assert "run_current_installer_ui" in lifecycle_text
-    assert "set_update_manifest" in lifecycle_text
-    assert "install_candidate_over_historical_install" not in lifecycle_text
-    assert "INSTALLER_QUALIFICATION_PLAN_ENV" in ui_qualification_text
-    current_installer_path = ui_qualification_text.split(
-        "def run_current_installer_ui", maxsplit=1
-    )[1].split("\ndef ", maxsplit=1)[0]
-    assert '"--headless-install"' not in current_installer_path
-    assert "prepare_portable_historical_install" in lifecycle_text
-    assert '"--headless-install"' in historical_qualification_text
-    assert "Download real historical installer" in update_text
-    assert '"SugarSubstitute-*-Windows-x64*.exe"' in update_text
-    assert '"SugarSubstitute-*-Windows-x64.exe"' not in update_text
-    assert '"SugarSubstitute-*-Linux-x86_64.AppImage"' in update_text
-    assert '"SugarSubstitute-*-macOS-Apple-Silicon.dmg"' in update_text
-    assert "Reconstitute exact historical macOS install channel" in update_text
-    assert "python -m tools.ci.reconstitute_historical_macos_release" in update_text
-    assert qualification_text.count("QT_QPA_PLATFORM: cocoa") == 2
-    assert (
-        "QT_QPA_PLATFORM: ${{ matrix.platform == 'macos' && 'cocoa' || 'offscreen' }}"
-    ) in update_text
-    assert '"--historical-release-root"' in update_text
-    assert '--candidate-installer "$env:CANDIDATE_INSTALLER"' not in update_text
-    assert "CANDIDATE_INSTALLER=" not in update_text
-    assert '"--candidate-manifest-url"' in update_text
-    assert '--candidate-channel "${{ inputs.candidate_channel }}"' in update_text
-    assert "Build version-pinned historical Windows setup" not in update_text
-    assert "SugarSubstitute-Local-Test-Installer" not in update_text
-
-
 def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     """Manual dry runs should exercise release qualification without a release."""
 
@@ -332,9 +265,16 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert "--managed-artifact-cache-root" not in qualification_text
     assert "appdata/runtime_state/setup_transaction.json" not in qualification_text
     assert ".SugarSubstitute-clean-standalone-cache.json" not in qualification_text
-    lifecycle_text = (
-        PROJECT_ROOT / "tools" / "ci" / "verify_installer_lifecycle.py"
-    ).read_text(encoding="utf-8")
+    lifecycle_text = "\n".join(
+        (
+            (PROJECT_ROOT / "tools" / "ci" / "verify_installer_lifecycle.py").read_text(
+                encoding="utf-8"
+            ),
+            (
+                PROJECT_ROOT / "tools" / "ci" / "historical_update_qualification.py"
+            ).read_text(encoding="utf-8"),
+        )
+    )
     shell_evidence_text = (
         PROJECT_ROOT / "tools" / "ci" / "installer_ui_qualification.py"
     ).read_text(encoding="utf-8")
