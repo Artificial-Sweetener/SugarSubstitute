@@ -537,9 +537,6 @@ def create_startup_managed_ready_runtime_resources(
 ) -> StartupManagedReadyRuntimeResources:
     """Create runtime resources consumed by managed-ready startup orchestration."""
 
-    managed_compatibility_checker = (
-        managed_ready_ports.create_runtime_compatibility_checker()
-    )
     startup_diagnostics = managed_ready_ports.create_startup_diagnostics_collector()
     startup_ignore_repository = (
         managed_ready_ports.create_startup_diagnostics_ignore_repository(context)
@@ -557,7 +554,7 @@ def create_startup_managed_ready_runtime_resources(
     managed_startup_compatibility_assessor = (
         create_managed_startup_compatibility_assessor(
             comfy_state=comfy_state,
-            checker=managed_compatibility_checker,
+            checker=managed_ready_ports.create_runtime_compatibility_checker(),
             target=context.comfy_target,
         )
     )
@@ -1187,6 +1184,7 @@ def create_startup_managed_ready_runtime_resources(
         )
 
     managed_recovery_controller_adapters = create_managed_recovery_controller_adapters(
+        installation_context=context,
         startup_resources=startup_resources,
         execution_runtime=execution_runtime,
         execution_dispatcher_factory=execution_dispatcher_factory,

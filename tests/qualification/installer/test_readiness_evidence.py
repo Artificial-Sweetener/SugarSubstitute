@@ -30,10 +30,10 @@ import pytest
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci import installer_ui_qualification
+from tools.ci.installer_process_diagnostics import process_tree_diagnostics
 from tools.ci.installer_ui_qualification import (
     InstalledCandidateLaunch,
     launch_installed_candidate,
-    process_tree_diagnostics,
 )
 
 
@@ -206,7 +206,7 @@ def test_stalled_process_diagnostics_expose_runtime_location(
             return "sleeping"
 
     monkeypatch.setattr(
-        "tools.ci.installer_ui_qualification.psutil.Process",
+        "tools.ci.installer_process_diagnostics.psutil.Process",
         lambda _pid: _Process(),
     )
 
@@ -219,3 +219,75 @@ def test_stalled_process_diagnostics_expose_runtime_location(
         "/installed/launcher-bin/libpython3.12.so",
     ]
     assert payload[0]["num_threads"] == 2
+
+
+def test_process_tree_diagnostics_tolerates_unavailable_memory_maps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Diagnostics should remain available where psutil omits memory maps."""
+
+    class _Process:
+        """Expose the portable psutil process surface used by diagnostics."""
+
+        pid = 123
+
+        def children(self, *, recursive: bool) -> list[_Process]:
+            """Return no child processes."""
+
+            assert recursive is True
+            return []
+
+        def cmdline(self) -> list[str]:
+            """Return one deterministic command line."""
+
+            return ["/installed/SugarSubstitute"]
+
+        def cpu_times(self) -> tuple[float, float, float, float]:
+            """Return bounded CPU counters."""
+
+            return (1.0, 2.0, 0.0, 0.0)
+
+        def cwd(self) -> str:
+            """Return the installation root."""
+
+            return "/installed"
+
+        def exe(self) -> str:
+            """Return the installed executable."""
+
+            return "/installed/SugarSubstitute"
+
+        def name(self) -> str:
+            """Return the process name."""
+
+            return "SugarSubstitute"
+
+        def num_threads(self) -> int:
+            """Return the process thread count."""
+
+            return 2
+
+        def open_files(self) -> list[SimpleNamespace]:
+            """Return no open files."""
+
+            return []
+
+        def ppid(self) -> int:
+            """Return a deterministic parent PID."""
+
+            return 45
+
+        def status(self) -> str:
+            """Return the current process status."""
+
+            return "sleeping"
+
+    monkeypatch.setattr(
+        "tools.ci.installer_process_diagnostics.psutil.Process",
+        lambda _pid: _Process(),
+    )
+
+    payload = json.loads(process_tree_diagnostics(123))
+
+    assert payload[0]["mapped_runtime_paths"] == []
+    assert payload[0]["status"] == "sleeping"
