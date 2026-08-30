@@ -109,6 +109,7 @@ def reveal_ready_shell_main_window(
     set_current_shell(revealed_shell_frame)
     startup_timer.mark("main_shell_shown")
     trace_mark("main_shell.shown", **dict(trace_fields()))
+    schedule_readiness_receipt()
     update_backend_state("ready" if comfy_http_ready else "starting")
     log_info(
         _LOGGER,
@@ -118,7 +119,6 @@ def reveal_ready_shell_main_window(
     connect_restore_finalized_warmups()
     request_startup_diagnostics_update()
     schedule_post_show_hydration()
-    schedule_readiness_receipt()
     return ReadyShellRevealResult(
         shell_frame=revealed_shell_frame,
         splash=active_splash,
