@@ -19,30 +19,24 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
-from dataclasses import dataclass
-import json
 import os
 from pathlib import Path
 import sys
 import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from launcher.sugarsubstitute_launcher.config import (  # noqa: E402
-    RELEASE_SOURCE_KIND_GITHUB,
-    LauncherConfig,
+from tools.ci.candidate_release_source import (  # noqa: E402
+    candidate_release_source,
+    trust_candidate_source,
 )
-from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
-from sugarsubstitute_shared.tls import EXTRA_CA_FILE_ENV  # noqa: E402
 from tools.ci.comfy_source_cache import (  # noqa: E402
     require_comfy_source_repository,
 )
 from tools.ci.historical_install_qualification import (  # noqa: E402
-    assert_historical_user_configuration_preserved,
     prepare_portable_historical_install,
     seed_historical_user_configuration,
 )
@@ -50,22 +44,22 @@ from tools.ci.historical_launch_qualification import (  # noqa: E402
     assert_historical_installed_launch_contract,
 )
 from tools.ci.historical_release_contract import historical_install_environment  # noqa: E402
+from tools.ci.historical_update_qualification import (  # noqa: E402
+    HistoricalUpdateQualification,
+    assert_installed_release_channel,
+    qualify_historical_update,
+)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError  # noqa: E402
 from tools.ci.external_comfy_readiness_server import (  # noqa: E402
     ExternalComfyReadinessServer,
 )
 from tools.ci.installer_ui_qualification import (  # noqa: E402
-    InstalledCandidateLaunch,
-    InstallerQualificationEvidence,
-    launch_installed_candidate,
     prepare_qualification_evidence,
     run_current_installer_ui,
     verify_main_shell_evidence,
 )
 from tools.ci.installed_version_evidence import assert_installed_version  # noqa: E402
-from tools.ci.local_release_server import LocalReleaseServer  # noqa: E402
 from tools.ci.loopback_port_lease import LoopbackPortLease  # noqa: E402
-from tools.ci.managed_comfy_qualification import terminate_owned_managed_comfy  # noqa: E402
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
 _REQUIRED_INSTALLER_EVENTS = (
@@ -76,41 +70,6 @@ _REQUIRED_INSTALLER_EVENTS = (
     "onboarding.completion.ready",
     "onboarding.open_substitute.clicked",
 )
-
-
-@dataclass(frozen=True, slots=True)
-class _CandidateReleaseSource:
-    """Describe the candidate manifest and optional local trust anchor."""
-
-    manifest_url: str | None
-    certificate_path: Path | None
-    request_log_path: Path | None = None
-
-
-@contextmanager
-def _candidate_release_source(
-    *,
-    release_root: Path | None,
-    manifest_url: str | None,
-    certificate_root: Path,
-) -> Iterator[_CandidateReleaseSource]:
-    """Serve temporary artifacts or retain the published manifest source."""
-
-    if release_root is None:
-        yield _CandidateReleaseSource(
-            manifest_url=manifest_url,
-            certificate_path=None,
-        )
-        return
-    with LocalReleaseServer(
-        release_root=release_root,
-        certificate_root=certificate_root,
-    ) as server:
-        yield _CandidateReleaseSource(
-            manifest_url=server.manifest_url,
-            certificate_path=server.trust_bundle_path,
-            request_log_path=server.request_log_path,
-        )
 
 
 def verify_clean_install(
@@ -128,7 +87,7 @@ def verify_clean_install(
     _require_empty_install_root(install_root)
     qualification_deadline = time.monotonic() + timeout_seconds
     with ExternalComfyReadinessServer() as external_comfy:
-        with _candidate_release_source(
+        with candidate_release_source(
             release_root=candidate_release_root,
             manifest_url=None,
             certificate_root=install_root.parent / ".candidate-certificate",
@@ -141,7 +100,7 @@ def verify_clean_install(
                 timeout_seconds=timeout_seconds,
                 target_mode="remote",
             )
-            _trust_candidate_source(evidence.environment, candidate_source)
+            trust_candidate_source(evidence.environment, candidate_source)
             run_current_installer_ui(
                 installer_path=installer_path,
                 install_root=install_root,
@@ -179,6 +138,7 @@ def verify_upgrade(
     historical_version: str,
     historical_published_at: str,
     candidate_manifest_url: str | None,
+    candidate_installer_path: Path | None,
     candidate_version: str,
     candidate_channel: str,
     expected_update_manifest_url: str | None = None,
@@ -195,7 +155,7 @@ def verify_upgrade(
     managed_model_root = install_root.resolve() / "qualified-models"
     source_repository = require_comfy_source_repository(cache_path=source_cache_path)
     with LoopbackPortLease.acquire() as endpoint_lease:
-        with _candidate_release_source(
+        with candidate_release_source(
             release_root=historical_release_root,
             manifest_url=historical_manifest_url,
             certificate_root=install_root.parent / ".historical-certificate",
@@ -207,7 +167,7 @@ def verify_upgrade(
                 published_at=historical_published_at,
                 install_root=install_root,
             )
-            _trust_candidate_source(historical_environment, historical_source)
+            trust_candidate_source(historical_environment, historical_source)
             prepare_portable_historical_install(
                 repository_root=REPOSITORY_ROOT,
                 installer_path=historical_installer_path,
@@ -232,204 +192,31 @@ def verify_upgrade(
             managed_workspace=managed_workspace,
             managed_model_root=managed_model_root,
         )
-        _verify_candidate_auto_update(
-            install_root=install_root,
-            historical_version=historical_version,
-            candidate_version=candidate_version,
-            candidate_channel=candidate_channel,
-            expected_update_manifest_url=expected_update_manifest_url,
-            candidate_manifest_url=candidate_manifest_url,
-            candidate_release_root=candidate_release_root,
-            endpoint_lease=endpoint_lease,
-            managed_workspace=managed_workspace,
-            managed_model_root=managed_model_root,
-            preservation_marker=preservation_marker,
-            timeout_seconds=_remaining_qualification_timeout(
-                qualification_deadline,
-                phase="candidate update and readiness",
-            ),
-        )
-    print(
-        f"INSTALLER_UPGRADE_READY from={historical_version} to={candidate_version}",
-        flush=True,
-    )
-
-
-def _verify_candidate_auto_update(
-    *,
-    install_root: Path,
-    historical_version: str,
-    candidate_version: str,
-    candidate_channel: str,
-    expected_update_manifest_url: str | None = None,
-    candidate_manifest_url: str | None,
-    candidate_release_root: Path | None,
-    endpoint_lease: LoopbackPortLease,
-    managed_workspace: Path,
-    managed_model_root: Path,
-    preservation_marker: Path,
-    timeout_seconds: float,
-) -> None:
-    """Drive the historical installed launcher through its production updater."""
-
-    qualification_deadline = time.monotonic() + timeout_seconds
-    with _candidate_release_source(
-        release_root=candidate_release_root,
-        manifest_url=candidate_manifest_url,
-        certificate_root=install_root.parent / ".candidate-certificate",
-    ) as candidate_source:
-        try:
-            if candidate_source.manifest_url is None:
-                raise InstallerLifecycleError("Candidate update manifest is missing.")
-            evidence = prepare_qualification_evidence(
-                install_root=install_root,
-                expected_version=candidate_version,
-                endpoint_port=endpoint_lease.port,
-                phase=f"upgrade-{historical_version}",
-                timeout_seconds=_remaining_qualification_timeout(
-                    qualification_deadline,
-                    phase="candidate qualification setup",
-                ),
-            )
-            _trust_candidate_source(evidence.environment, candidate_source)
-            set_update_manifest(
-                install_root=install_root,
-                manifest_url=candidate_source.manifest_url,
-                channel=candidate_channel,
-            )
-            assert_historical_installed_launch_contract(install_root)
-            endpoint_lease.release_for_handoff()
-            candidate_launch = launch_installed_candidate(
-                install_root=install_root,
-                environment=evidence.environment,
-                progress_paths=(candidate_source.request_log_path,),
-            )
-            _verify_candidate_evidence(
+        route = qualify_historical_update(
+            HistoricalUpdateQualification(
                 install_root=install_root,
                 historical_version=historical_version,
                 candidate_version=candidate_version,
-                evidence=evidence,
-                candidate_launch=candidate_launch,
-                candidate_source=candidate_source,
+                candidate_channel=candidate_channel,
+                candidate_manifest_url=candidate_manifest_url,
+                candidate_release_root=candidate_release_root,
+                candidate_installer_path=candidate_installer_path,
+                expected_update_manifest_url=expected_update_manifest_url,
                 managed_workspace=managed_workspace,
                 managed_model_root=managed_model_root,
                 preservation_marker=preservation_marker,
                 timeout_seconds=_remaining_qualification_timeout(
                     qualification_deadline,
-                    phase="candidate main-shell readiness",
+                    phase="candidate update and readiness",
                 ),
-            )
-            assert_installed_release_channel(
-                install_root=install_root,
-                expected_channel=candidate_channel,
-                expected_update_manifest_url=(
-                    expected_update_manifest_url or candidate_source.manifest_url
-                ),
-            )
-        finally:
-            terminate_owned_managed_comfy(install_root)
-
-
-def _verify_candidate_evidence(
-    *,
-    install_root: Path,
-    historical_version: str,
-    candidate_version: str,
-    evidence: InstallerQualificationEvidence,
-    candidate_launch: InstalledCandidateLaunch | None,
-    expected_main_pid: int | None = None,
-    candidate_source: _CandidateReleaseSource,
-    managed_workspace: Path,
-    managed_model_root: Path,
-    preservation_marker: Path,
-    timeout_seconds: float,
-) -> None:
-    """Require candidate readiness and exact preservation of historical state."""
-
-    verify_main_shell_evidence(
-        install_root=install_root,
-        expected_version=candidate_version,
-        evidence=evidence,
-        required_qualification_events=(),
-        require_governed_setup_record=False,
-        candidate_launch=candidate_launch,
-        expected_main_pid=expected_main_pid,
-        additional_diagnostic_paths=(candidate_source.request_log_path,),
-        timeout_seconds=timeout_seconds,
-    )
-    assert_historical_user_configuration_preserved(
-        preservation_marker=preservation_marker,
-        historical_version=historical_version,
-        managed_workspace=managed_workspace,
-        managed_model_root=managed_model_root,
-    )
-
-
-def _trust_candidate_source(
-    environment: dict[str, str],
-    candidate_source: _CandidateReleaseSource,
-) -> None:
-    """Add the temporary release certificate only to qualification children."""
-
-    if candidate_source.certificate_path is not None:
-        environment["SSL_CERT_FILE"] = str(candidate_source.certificate_path)
-        environment[EXTRA_CA_FILE_ENV] = str(candidate_source.certificate_path)
-        environment["UV_NATIVE_TLS"] = "1"
-        environment["UV_SYSTEM_CERTS"] = "true"
-
-
-def set_update_manifest(
-    install_root: Path,
-    manifest_url: str,
-    *,
-    channel: str,
-) -> None:
-    """Point a historical installation at the exact candidate update channel."""
-
-    layout = InstallLayout.from_root(install_root)
-    payload = json.loads(layout.config_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise InstallerLifecycleError("Historical launcher config is invalid.")
-    payload["release_source"] = {
-        "kind": RELEASE_SOURCE_KIND_GITHUB,
-        "manifest_url": manifest_url,
-    }
-    payload["channel"] = channel
-    layout.config_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-
-
-def assert_installed_release_channel(
-    *,
-    install_root: Path,
-    expected_channel: str | None,
-    expected_update_manifest_url: str | None,
-) -> None:
-    """Require a published installer to persist its authoritative update feed."""
-
-    if expected_channel is None and expected_update_manifest_url is None:
-        return
-    if expected_channel is None or expected_update_manifest_url is None:
-        raise InstallerLifecycleError(
-            "Release-channel qualification requires both channel and manifest URL."
+            ),
+            endpoint_lease=endpoint_lease,
         )
-    layout = InstallLayout.from_root(install_root)
-    config = LauncherConfig.load(layout.config_path)
-    if config.channel != expected_channel:
-        raise InstallerLifecycleError(
-            "Installed release channel mismatch: "
-            f"expected {expected_channel}, got {config.channel}."
-        )
-    if config.release_source is None:
-        raise InstallerLifecycleError("Installed release update source is missing.")
-    if config.release_source.manifest_url != expected_update_manifest_url:
-        raise InstallerLifecycleError(
-            "Installed release manifest URL mismatch: "
-            f"expected {expected_update_manifest_url}, "
-            f"got {config.release_source.manifest_url}."
-        )
+    print(
+        "INSTALLER_UPGRADE_READY "
+        f"from={historical_version} to={candidate_version} route={route.value}",
+        flush=True,
+    )
 
 
 def _require_empty_install_root(install_root: Path) -> None:
@@ -491,6 +278,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     upgrade.add_argument("--source-cache", type=Path, required=True)
     upgrade.add_argument("--candidate-manifest-url")
     upgrade.add_argument("--candidate-release-root", type=Path)
+    upgrade.add_argument("--candidate-installer", type=Path)
     upgrade.add_argument("--candidate-version", required=True)
     upgrade.add_argument("--candidate-channel", required=True)
     upgrade.add_argument("--expected-update-manifest-url")
@@ -526,6 +314,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             historical_release_root=args.historical_release_root,
             source_cache_path=args.source_cache,
             candidate_manifest_url=args.candidate_manifest_url,
+            candidate_installer_path=args.candidate_installer,
             candidate_version=args.candidate_version,
             candidate_channel=args.candidate_channel,
             expected_update_manifest_url=args.expected_update_manifest_url,

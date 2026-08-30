@@ -34,6 +34,12 @@ from sugarsubstitute_shared.application_readiness import (
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci import installer_ui_qualification
+from tools.ci.candidate_release_source import CandidateReleaseSource
+from tools.ci.historical_update_qualification import (
+    HistoricalUpdateQualification,
+    _verify_candidate_evidence,
+    qualify_historical_update,
+)
 from tools.ci.installer_ui_qualification import (
     InstalledCandidateLaunch,
     prepare_qualification_evidence,
@@ -41,10 +47,7 @@ from tools.ci.installer_ui_qualification import (
 )
 from tools.ci.loopback_port_lease import LoopbackPortLease
 from tools.ci.verify_installer_lifecycle import (
-    _CandidateReleaseSource,
     _parse_args,
-    _verify_candidate_evidence,
-    _verify_candidate_auto_update,
 )
 
 
@@ -68,6 +71,8 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
             "source-cache",
             "--candidate-manifest-url",
             "https://example.test/candidate.json",
+            "--candidate-installer",
+            "candidate-installer",
             "--candidate-version",
             "9999.0.93",
             "--candidate-channel",
@@ -79,6 +84,7 @@ def test_upgrade_cli_accepts_one_shared_installer_chain_timeout() -> None:
 
     assert arguments.timeout_seconds == 1200.0
     assert arguments.source_cache == Path("source-cache")
+    assert arguments.candidate_installer == Path("candidate-installer")
 
 
 def test_candidate_update_uses_historical_launcher_before_verification(
@@ -116,36 +122,43 @@ def test_candidate_update_uses_historical_launcher_before_verification(
         events.append(("verify", "9999.0.109"))
 
     monkeypatch.setattr(
-        "tools.ci.verify_installer_lifecycle."
+        "tools.ci.historical_update_qualification."
         "assert_historical_installed_launch_contract",
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(
-        "tools.ci.verify_installer_lifecycle.launch_installed_candidate",
+        "tools.ci.historical_update_qualification.launch_installed_candidate",
         launch_once,
     )
     monkeypatch.setattr(
-        "tools.ci.verify_installer_lifecycle._verify_candidate_evidence",
+        "tools.ci.historical_update_qualification._verify_candidate_evidence",
         verify_candidate,
     )
     monkeypatch.setattr(
-        "tools.ci.verify_installer_lifecycle.terminate_owned_managed_comfy",
+        "tools.ci.historical_update_qualification.terminate_owned_managed_comfy",
         lambda _install_root: None,
     )
 
     with LoopbackPortLease.acquire() as endpoint_lease:
-        _verify_candidate_auto_update(
-            install_root=install_root,
-            historical_version="0.20.1",
-            candidate_version="9999.0.109",
-            candidate_manifest_url="https://example.test/candidate.json",
-            candidate_release_root=None,
-            candidate_channel="canary",
+        qualify_historical_update(
+            HistoricalUpdateQualification(
+                install_root=install_root,
+                historical_version="0.20.1",
+                candidate_version="9999.0.109",
+                candidate_manifest_url="https://example.test/candidate.json",
+                candidate_release_root=None,
+                candidate_installer_path=None,
+                candidate_channel="canary",
+                expected_update_manifest_url=None,
+                managed_workspace=install_root / "comfyui",
+                managed_model_root=install_root / "qualified-models",
+                preservation_marker=(
+                    install_root / "user" / "settings" / "marker.json"
+                ),
+                timeout_seconds=30.0,
+            ),
             endpoint_lease=endpoint_lease,
-            managed_workspace=install_root / "comfyui",
-            managed_model_root=install_root / "qualified-models",
-            preservation_marker=install_root / "user" / "settings" / "marker.json",
-            timeout_seconds=30.0,
+            platform="win32",
         )
 
     assert events == [
@@ -177,28 +190,37 @@ def test_candidate_evidence_requires_real_managed_comfy_before_preservation(
         events.append("live-managed-shell")
 
     monkeypatch.setattr(
-        "tools.ci.verify_installer_lifecycle.verify_main_shell_evidence",
+        "tools.ci.historical_update_qualification.verify_main_shell_evidence",
         require_live_shell,
     )
     monkeypatch.setattr(
-        "tools.ci.verify_installer_lifecycle."
+        "tools.ci.historical_update_qualification."
         "assert_historical_user_configuration_preserved",
         lambda **_arguments: events.append("preservation"),
     )
 
-    _verify_candidate_evidence(
+    qualification = HistoricalUpdateQualification(
         install_root=tmp_path / "installed",
         historical_version="0.20.1",
         candidate_version="9999.0.109",
-        evidence=evidence,
-        candidate_launch=None,
-        candidate_source=_CandidateReleaseSource(
-            manifest_url="https://example.test/candidate.json",
-            certificate_path=None,
-        ),
+        candidate_channel="canary",
+        candidate_manifest_url="https://example.test/candidate.json",
+        candidate_release_root=None,
+        candidate_installer_path=None,
+        expected_update_manifest_url=None,
         managed_workspace=tmp_path / "installed" / "comfyui",
         managed_model_root=tmp_path / "installed" / "qualified-models",
         preservation_marker=tmp_path / "installed" / "marker.json",
+        timeout_seconds=30.0,
+    )
+    _verify_candidate_evidence(
+        qualification=qualification,
+        evidence=evidence,
+        candidate_launch=None,
+        candidate_source=CandidateReleaseSource(
+            manifest_url="https://example.test/candidate.json",
+            certificate_path=None,
+        ),
         timeout_seconds=30.0,
     )
 

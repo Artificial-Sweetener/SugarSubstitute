@@ -102,6 +102,66 @@ def test_attach_main_window_to_shell_syncs_app_orb_after_body_attachment() -> No
     _destroy_qt_widgets(frame, main_window)
 
 
+def test_attach_main_window_to_shell_mounts_body_before_moving_titlebar_child(
+    monkeypatch: Any,
+) -> None:
+    """Mount the body first so native child moves stay within one window tree."""
+
+    _ensure_runtime_qapplication()
+    events: list[str] = []
+
+    class _FakeFrame(QWidget):
+        def __init__(self) -> None:
+            """Create a shell-frame double without optional titlebar controls."""
+
+            super().__init__()
+            self.generationActionCluster = None
+            self.comfyOutputToggleButton = None
+            self.startupDiagnosticsButton = None
+
+        def add_body_widget(self, _widget: QWidget) -> None:
+            """Record the native body mount."""
+
+            events.append("body")
+
+    class _FakeMainWindow(QWidget):
+        comfy_output_panel_visibility_changed = SimpleNamespace(
+            connect=lambda *_args: None
+        )
+
+        def __init__(self) -> None:
+            """Create the protocol attributes used by shell attachment."""
+
+            super().__init__()
+            self.comfy_runtime_actions = SimpleNamespace(
+                set_comfy_output_panel_visible=lambda _visible: None,
+                is_comfy_output_panel_visible=lambda: False,
+            )
+            self.shell_frame_integration_controller = SimpleNamespace(
+                set_generation_titlebar_control_registry=lambda _registry: None,
+                attach_startup_diagnostics_titlebar=(
+                    lambda _button, _ignore_repository: None
+                ),
+            )
+
+    monkeypatch.setattr(
+        composition,
+        "_move_workflow_tabbar_to_shell",
+        lambda _frame, _main_window: events.append("tabbar"),
+    )
+    frame = _FakeFrame()
+    main_window = _FakeMainWindow()
+
+    composition._attach_main_window_to_shell(
+        cast(composition.CustomWindow, frame),
+        main_window,
+    )
+
+    assert events == ["body", "tabbar"]
+
+    _destroy_qt_widgets(frame, main_window)
+
+
 def test_attach_main_window_to_shell_uses_generation_action_owner() -> None:
     """Titlebar generation controls should call shell-owned generation actions."""
 
