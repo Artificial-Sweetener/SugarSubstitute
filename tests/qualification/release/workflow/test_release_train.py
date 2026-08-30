@@ -76,6 +76,18 @@ def test_canary_isolated_release_train_contract() -> None:
     assert dependabot_text.count("target-branch: canary") == 3
 
 
+def test_publication_resolves_the_stable_version_from_complete_history() -> None:
+    """Keep final Stable version resolution backed by every release commit."""
+
+    publication_text = workflow_text("release-publication.yml")
+
+    checkout = publication_text.split(
+        "      - name: Checkout publication source", maxsplit=1
+    )[1].split("\n\n", maxsplit=1)[0]
+    assert "          fetch-depth: 0" in checkout
+    assert "&& 0 || 1" not in checkout
+
+
 def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
     """Native Canary installers must receive immutable build-channel metadata."""
 
