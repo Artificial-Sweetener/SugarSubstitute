@@ -28,14 +28,12 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import QEvent, QObject, QSize, Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
-from qfluentwidgets import ScrollArea, TransparentToolButton  # type: ignore[import-untyped]
-
-try:
-    from qfluentwidgets import BodyLabel, StrongBodyLabel
-except ImportError:  # pragma: no cover - lightweight test stubs
-    BodyLabel = QLabel
-    StrongBodyLabel = QLabel
+from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
+from qfluentwidgets import (  # type: ignore[import-untyped]
+    ScrollArea,
+    StrongBodyLabel,
+    TransparentToolButton,
+)
 
 from substitute.application.generation import (
     GenerationQueueJob,

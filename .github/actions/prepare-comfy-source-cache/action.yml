@@ -1,0 +1,87 @@
+name: Prepare verified Comfy source cache
+description: Restore or acquire exact immutable Comfy source objects before qualification.
+
+inputs:
+  python:
+    description: Repository environment interpreter used by the source owner.
+    required: true
+  cache-path:
+    description: Repository-relative disposable bare Git source cache.
+    required: false
+    default: build/comfy-source-cache
+
+outputs:
+  cache-path:
+    description: Absolute path to the verified immutable source cache.
+    value: ${{ steps.prepare.outputs.cache-path }}
+  cache-hit:
+    description: Whether the exact matrix-addressed cache restored.
+    value: ${{ steps.result.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve Comfy source-cache identity
+      id: identity
+      shell: pwsh
+      env:
+        CACHE_PATH: ${{ inputs.cache-path }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        $matrixPath = Resolve-Path -LiteralPath "tools/ci/comfy_support_matrix.py"
+        $matrixHash = (Get-FileHash -LiteralPath $matrixPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $cachePath = [IO.Path]::GetFullPath($env:CACHE_PATH)
+        "primary-key=comfy-source-v1-$matrixHash" >> $env:GITHUB_OUTPUT
+        "cache-path=$cachePath" >> $env:GITHUB_OUTPUT
+
+    - name: Restore trusted Comfy source cache
+      id: trusted-cache
+      if: >-
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'repository_dispatch' ||
+        github.event_name == 'schedule'
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ steps.identity.outputs.cache-path }}
+        key: ${{ steps.identity.outputs.primary-key }}
+        enableCrossOsArchive: true
+
+    - name: Restore untrusted Comfy source cache read-only
+      id: untrusted-cache
+      if: >-
+        github.event_name != 'push' &&
+        github.event_name != 'workflow_dispatch' &&
+        github.event_name != 'repository_dispatch' &&
+        github.event_name != 'schedule'
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ steps.identity.outputs.cache-path }}
+        key: ${{ steps.identity.outputs.primary-key }}
+        enableCrossOsArchive: true
+
+    - name: Record Comfy source-cache result
+      id: result
+      shell: pwsh
+      env:
+        TRUSTED_HIT: ${{ steps.trusted-cache.outputs.cache-hit }}
+        UNTRUSTED_HIT: ${{ steps.untrusted-cache.outputs.cache-hit }}
+      run: |
+        $exactHit = $env:TRUSTED_HIT -eq "true" -or $env:UNTRUSTED_HIT -eq "true"
+        "cache-hit=$($exactHit.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+        "Comfy source cache exact hit: $($exactHit.ToString().ToLowerInvariant())"
+
+    - name: Validate or acquire exact Comfy source objects
+      id: prepare
+      shell: pwsh
+      env:
+        CACHE_PATH: ${{ steps.identity.outputs.cache-path }}
+        PYTHON_EXECUTABLE: ${{ inputs.python }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        & $env:PYTHON_EXECUTABLE -m tools.ci.comfy_source_cache --cache-path $env:CACHE_PATH
+        if ($LASTEXITCODE -ne 0) {
+          throw "Exact Comfy source acquisition failed."
+        }
+        $verifiedPath = (Resolve-Path -LiteralPath $env:CACHE_PATH).Path
+        "cache-path=$verifiedPath" >> $env:GITHUB_OUTPUT

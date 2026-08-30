@@ -31,6 +31,7 @@ _SCALAR_WIDGET_TYPES = frozenset(
         "BOOL",
         "BOUNDING_BOX",
         "COLOR",
+        "COLORS",
         "COMBO",
         "CURVE",
         "FLOAT",
@@ -337,6 +338,8 @@ def _compatible_widget_value(value: object, field_definition: object) -> bool:
         return isinstance(value, str)
     if normalized == "COLOR":
         return isinstance(value, str)
+    if normalized == "COLORS":
+        return isinstance(value, Mapping | list | tuple)
     if normalized in {"BOUNDING_BOX", "CURVE"}:
         return isinstance(value, Mapping)
     if normalized == "AUDIO_RECORD":

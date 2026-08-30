@@ -6,10 +6,10 @@ owner = "application bootstrap"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/composition.py"
 kind = "remediation"
-justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract lazy adapter definitions and shell presentation from the application composition root."
+justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2848
+max_lines = 2843
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -48,7 +48,7 @@ kind = "remediation"
 justification = "The assessed file mixes ready-shell launch orchestration, failure queue and cancellation, target activation and shell construction, prompt editor and workspace warmup, post-show hydration and diagnostics. Extract warmup and hydration task ownership from shell launch coordination."
 issue = "chore:SS-ARCH-005"
 review_by = 2026-12-15
-max_lines = 1761
+max_lines = 1734
 next_limit = 1559
 debt = "SS-ARCH-005"
 
@@ -61,7 +61,7 @@ kind = "remediation"
 justification = "The assessed file mixes factory protocol declarations, ready-shell runtime resource graph composition, managed recovery and readiness binding, prompt editor and CuteCanvas warmup integration. Extract factory port declarations and feature-specific warmup adapters from runtime resource composition."
 issue = "chore:SS-ARCH-006"
 review_by = 2026-12-15
-max_lines = 1135
+max_lines = 1122
 next_limit = 910
 debt = "SS-ARCH-006"
 
@@ -139,7 +139,7 @@ kind = "remediation"
 justification = "The assessed file mixes prompt dispatch and request validation, listener lifecycle and preview routing, input asset staging, output preparation and generation diagnostics. Extract listener lifecycle and output routing from prompt dispatch and asset-staging orchestration."
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
-max_lines = 767
+  max_lines = 742
 next_limit = 613
 debt = "SS-ARCH-012"
 
@@ -269,7 +269,7 @@ kind = "remediation"
 justification = "The assessed file mixes recipe document classification and load orchestration, workflow serialization and destination validation, model and LoRA hash enrichment, cube definition and label resolution. Extract model metadata enrichment from recipe persistence and document classification."
 issue = "chore:SS-ARCH-022"
 review_by = 2026-12-15
-max_lines = 812
+  max_lines = 786
 next_limit = 649
 debt = "SS-ARCH-022"
 
@@ -386,7 +386,7 @@ kind = "remediation"
 justification = "The assessed file mixes image selection materialization and reconciliation, mask selection and validation, loaded cube and workflow-section materialization, mask-picker refresh, active-node preview binding and change publication. Extract picker and preview synchronization from image/mask materialization presentation."
 issue = "chore:SS-ARCH-035"
 review_by = 2026-12-15
-max_lines = 638
+  max_lines = 636
 next_limit = 510
 debt = "SS-ARCH-035"
 
@@ -617,11 +617,11 @@ owner = "editor field rows"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/widgets/field_row.py"
 kind = "remediation"
-justification = "The assessed file mixes scalar and grouped row construction, field label/control sizing policy, visibility and layout selection, divider styling, dynamic relayout event filtering and parent invalidation. Extract relayout observation and sizing policy from field-row construction."
+justification = "The assessed file mixes scalar and grouped row construction, field label/control sizing policy, field visibility application, divider styling, dynamic relayout event filtering and parent invalidation. Extract relayout observation and sizing policy from field-row construction."
 issue = "chore:SS-ARCH-053"
 review_by = 2026-12-15
-max_lines = 729
-next_limit = 583
+max_lines = 726
+next_limit = 580
 debt = "SS-ARCH-053"
 
 [[waivers]]
@@ -633,7 +633,7 @@ kind = "remediation"
 justification = "The assessed file mixes async executor and request-channel composition, Danbooru dialog and external-action composition, projection and editing collaborator composition, autocomplete and LoRA feature composition, context-menu and syntax collaborator composition, top-level bundle assembly. Split feature-specific subfactories from the top-level prompt-editor composition boundary."
 issue = "chore:SS-ARCH-054"
 review_by = 2026-12-15
-max_lines = 1099
+max_lines = 1101
 next_limit = 879
 debt = "SS-ARCH-054"
 
@@ -815,7 +815,7 @@ kind = "remediation"
 justification = "The assessed file mixes window chrome, layout, and navigation rail, page flow and dynamic height, draft, issue, progress, and completion presentation, attached Python discovery and recovery, observed-process termination, filesystem browsing and default-path policy. Extract environment recovery, process termination, and path selection from onboarding window presentation."
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
-max_lines = 1515
+max_lines = 1520
 next_limit = 1212
 debt = "SS-ARCH-068"
 
@@ -945,7 +945,7 @@ kind = "remediation"
 justification = "The assessed file mixes definition-load background task, runtime-build background task, active workflow and alias validation, placeholder tab and progress presentation, loaded runtime mutation and rollback, icon, editor reveal, and shell handoff. Extract definition/runtime execution and UI transaction state from shell handoff and reveal presentation."
 issue = "chore:SS-ARCH-078"
 review_by = 2026-12-15
-max_lines = 1344
+max_lines = 1353
 next_limit = 1075
 debt = "SS-ARCH-078"
 
@@ -1080,19 +1080,6 @@ next_limit = 1518
 debt = "SS-ARCH-088"
 
 [[waivers]]
-id = "SS-WAIVER-R089"
-owner = "toggle menu buttons"
-rule = "STRUCT003"
-path = "substitute/presentation/widgets/menu_buttons.py"
-kind = "remediation"
-justification = "The assessed file mixes headless fallback signal and Qt object model, fallback popup button implementations, popup lifecycle diagnostics, dropdown toggle behavior, split-button toggle behavior, concrete QFluent button variants. Extract fallback widget emulation and popup diagnostics from production toggle-button behavior."
-issue = "chore:SS-ARCH-089"
-review_by = 2026-12-15
-max_lines = 572
-next_limit = 500
-debt = "SS-ARCH-089"
-
-[[waivers]]
 id = "SS-WAIVER-R090"
 owner = "model picker field"
 rule = "STRUCT003"
@@ -1114,7 +1101,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow tab item painting and unread animation, orb-cutout and corner-overlay geometry, workflow tabbar selection and route mapping, workflow context-menu commands, pointer drag preview, settling, and reordering, layout, visibility, and theme chrome. Extract tab-item visuals, corner overlay, and drag-session coordination from workflow tabbar commands and layout."
 issue = "chore:SS-ARCH-091"
 review_by = 2026-12-15
-max_lines = 1378
+max_lines = 1386
 next_limit = 1102
 debt = "SS-ARCH-091"
 
@@ -1138,7 +1125,7 @@ kind = "structural"
 justification = "StartupManagedReadyLaunchRuntime is one per-launch factory facade over a single immutable runtime resource graph. Its methods expose construction of the stages in that graph without owning their behavior; splitting the facade would scatter one composition boundary across otherwise ownerless modules."
 issue = "chore:SS-WAIVER-S002"
 review_by = 2026-12-15
-max_lines = 575
+max_lines = 573
 
 [[waivers]]
 id = "SS-WAIVER-S003"
@@ -1146,10 +1133,10 @@ owner = "startup readiness controller"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/startup_readiness_controller.py"
 kind = "structural"
-justification = "StartupReadinessController owns one ordered readiness state machine in which HTTP availability must transition into compatibility assessment before the backend becomes ready. Probe ports, failure adaptation, and constructors exist to enforce that single transition contract; separating the stages would split its authoritative state."
+justification = "StartupReadinessController owns one ordered readiness state machine in which HTTP availability must transition into compatibility assessment before the backend becomes ready. Failure adaptation and controller constructors enforce that single transition contract; separating the stages would split its authoritative state."
 issue = "chore:SS-WAIVER-S003"
 review_by = 2026-12-15
-max_lines = 600
+max_lines = 565
 
 [[waivers]]
 id = "SS-WAIVER-S004"
@@ -1414,17 +1401,6 @@ justification = "CubeAliasEditor is one custom single-line text-control implemen
 issue = "chore:SS-WAIVER-S027"
 review_by = 2026-12-15
 max_lines = 753
-
-[[waivers]]
-id = "SS-WAIVER-S028"
-owner = "error report dialog"
-rule = "STRUCT003"
-path = "substitute/presentation/dialogs/error_report_dialog.py"
-kind = "structural"
-justification = "ErrorReportDialog owns one modal presentation of an immutable ErrorReport. Summary/details composition, reveal animation, height synchronization, copy action, severity glyph, and theme rendering all derive from the same dialog state and do not define independent application behavior."
-issue = "chore:SS-WAIVER-S028"
-review_by = 2026-12-15
-max_lines = 517
 
 [[waivers]]
 id = "SS-WAIVER-S029"
@@ -1776,7 +1752,7 @@ kind = "structural"
 justification = "GenerationQueueItemRow is one mounted row control over one job-row model. Thumbnail, labels, cancel/open actions, drag pointer publication, hover/pressed painting, tooltip, elision, and resize behavior all render or interact with that same row state."
 issue = "chore:SS-WAIVER-S060"
 review_by = 2026-12-15
-max_lines = 646
+max_lines = 566
 
 [[waivers]]
 id = "SS-WAIVER-S061"
@@ -1787,7 +1763,7 @@ kind = "structural"
 justification = "GenerationQueueRowsView is one reorderable queue-list control. Row reconciliation, bucket dividers, drag proxy, drop placeholder, autoscroll, insertion targeting, and scroll restoration jointly maintain the visible ordering of the same queue model."
 issue = "chore:SS-WAIVER-S061"
 review_by = 2026-12-15
-max_lines = 727
+max_lines = 697
 
 [[waivers]]
 id = "SS-WAIVER-S062"
@@ -1810,17 +1786,6 @@ justification = "SettingsCard and InteractiveSettingsCard are one reusable contr
 issue = "chore:SS-WAIVER-S063"
 review_by = 2026-12-15
 max_lines = 558
-
-[[waivers]]
-id = "SS-WAIVER-S064"
-owner = "Settings expander control"
-rule = "STRUCT003"
-path = "substitute/presentation/settings/settings_expander.py"
-kind = "structural"
-justification = "The module implements one WinUI-style expander control family. Header/content surfaces, clipping, chevron, separators, animation, geometry, row, and switch variant are private visual parts that share one expansion and attachment state."
-issue = "chore:SS-WAIVER-S064"
-review_by = 2026-12-15
-max_lines = 710
 
 [[waivers]]
 id = "SS-WAIVER-S065"
@@ -1875,7 +1840,7 @@ kind = "structural"
 justification = "ComboBox is one editable popup control over one item, committed selection, search text, highlight, completion, and popup state. Item mutation, keyboard/mouse routing, popup lifecycle, width calculation, and closed/inline painting enforce the same control contract."
 issue = "chore:SS-WAIVER-S069"
 review_by = 2026-12-15
-max_lines = 724
+max_lines = 604
 
 [[waivers]]
 id = "SS-WAIVER-S070"
@@ -1900,17 +1865,6 @@ review_by = 2026-12-15
 max_lines = 507
 
 [[waivers]]
-id = "SS-WAIVER-S072"
-owner = "seed entry control"
-rule = "STRUCT003"
-path = "substitute/presentation/widgets/seed_box.py"
-kind = "structural"
-justification = "SeedBox is one compound numeric control with fixed/random modes. Split-button geometry, mode menu/icon, integer filtering, range clamping, keyboard/wheel input, and value publication all share one seed value and mode state."
-issue = "chore:SS-WAIVER-S072"
-review_by = 2026-12-15
-max_lines = 547
-
-[[waivers]]
 id = "SS-WAIVER-S073"
 owner = "cube stack tab control"
 rule = "STRUCT003"
@@ -1931,3 +1885,345 @@ justification = "The module defines one reusable control family: a themed tab to
 issue = "chore:SS-WAIVER-S074"
 review_by = 2026-12-15
 max_lines = 1021
+
+[[waivers]]
+id = "SS-WAIVER-R092"
+owner = "startup measurement harness"
+rule = "STRUCT003"
+path = "tools/startup_harness.py"
+kind = "remediation"
+justification = "The assessed file mixes direct, managed, and maintenance startup-cycle orchestration, startup trace, console timeline, and diagnostic parsing, measurement correlation and summary projection, HTTP readiness and route probing, manager configuration mutation and subprocess lifecycle, command-line configuration. Extract process/configuration control and trace interpretation into focused collaborators behind the startup-cycle harness."
+issue = "chore:SS-ARCH-092"
+review_by = 2026-12-15
+max_lines = 2024
+next_limit = 1619
+debt = "SS-ARCH-092"
+
+[[waivers]]
+id = "SS-WAIVER-R093"
+owner = "production editor projection trace"
+rule = "STRUCT003"
+path = "tools/editor_projection_rig/production_trace.py"
+kind = "remediation"
+justification = "The assessed file mixes scenario and workflow fixture orchestration, production editor-panel and shell construction, runtime projection instrumentation, widget and field invariant analysis, trace aggregation and budget summaries. Extract production mounting/instrumentation and invariant/report analysis from scenario execution."
+issue = "chore:SS-ARCH-093"
+review_by = 2026-12-15
+max_lines = 1217
+next_limit = 973
+debt = "SS-ARCH-093"
+
+[[waivers]]
+id = "SS-WAIVER-R094"
+owner = "prompt abuse action dispatch"
+rule = "STRUCT003"
+path = "tools/prompt_editor_abuse/action_driver.py"
+kind = "remediation"
+justification = "The assessed file mixes generic mounted prompt-editor action host and collaborator composition, action checkpoint/timing/semantic-completion orchestration, keyboard/text/event-drain dispatch, source selection and caret projection, and diagnostic/picker/context-menu feature invocation. Extract keyboard/text/drain dispatch and diagnostic/picker/context-menu feature interaction from the generic mounted action host."
+issue = "chore:SS-ARCH-094"
+review_by = 2026-12-15
+max_lines = 912
+next_limit = 821
+debt = "SS-ARCH-094"
+
+[[waivers]]
+id = "SS-WAIVER-S075"
+owner = "regional separator abuse workloads"
+rule = "STRUCT003"
+path = "tools/prompt_editor_abuse/region_separator_workloads.py"
+kind = "structural"
+justification = "This module owns one declarative catalog of hostile regional-separator scenarios. Every builder produces the same immutable abuse-scenario contract, and the navigation, authoring, paste, churn, and lifecycle variants must remain together so coverage over the separator state space stays explicit and reviewable."
+issue = "chore:SS-WAIVER-S075"
+review_by = 2026-12-15
+max_lines = 980
+
+[[waivers]]
+id = "SS-WAIVER-R095"
+owner = "localization source catalog"
+rule = "STRUCT003"
+path = "tools/localization_catalog.py"
+kind = "remediation"
+justification = "The assessed file mixes application, shared, and launcher message extraction, dynamic and unmarked visible-text validation, presentation assignment and return classification, pseudo-localization transformation, AST source ownership and literal-discovery heuristics. Extract visible-source AST classification and pseudo-localization from catalog extraction and surface-specific source configuration."
+issue = "chore:SS-ARCH-095"
+review_by = 2026-12-15
+max_lines = 804
+next_limit = 643
+debt = "SS-ARCH-095"
+
+[[waivers]]
+id = "SS-WAIVER-R096"
+owner = "Windows installer automation"
+rule = "STRUCT003"
+path = "tools/ci/drive_windows_installer.py"
+kind = "remediation"
+justification = "The assessed file mixes native Windows process and structure bindings, installer and onboarding UI automation, historical shell and diagnostic evidence collection, isolated desktop launch and process termination, command-line orchestration. Extract native process/desktop control and historical evidence projection from installer UI workflow automation."
+issue = "chore:SS-ARCH-096"
+review_by = 2026-12-15
+max_lines = 706
+next_limit = 564
+debt = "SS-ARCH-096"
+
+[[waivers]]
+id = "SS-WAIVER-R097"
+owner = "installer UI qualification"
+rule = "STRUCT003"
+path = "tools/ci/installer_ui_qualification.py"
+kind = "remediation"
+justification = "The assessed file mixes qualification evidence preparation, current installer execution, installed candidate launch, shell and event-sequence verification, cross-platform process termination, readiness receipt and startup trace interpretation. Extract installed-process lifecycle and evidence/trace verification from qualification workflow orchestration; process identity diagnostics and durable installed-version evidence now have independent owners."
+issue = "chore:SS-ARCH-097"
+review_by = 2026-12-15
+max_lines = 632
+next_limit = 558
+debt = "SS-ARCH-097"
+
+[[waivers]]
+id = "SS-WAIVER-S076"
+owner = "prompt abuse structural policy"
+rule = "STRUCT003"
+path = "tools/prompt_editor_abuse/structural_policy.py"
+kind = "structural"
+justification = "This module owns one pure decision table for converting a prompt-abuse action and its measured counters into structural violations. The action classifications, counter limits, exact expectations, and violation formatting implement one atomic policy contract whose rules must be reviewed and changed together."
+issue = "chore:SS-WAIVER-S076"
+review_by = 2026-12-15
+max_lines = 630
+
+[[waivers]]
+id = "SS-WAIVER-S077"
+owner = "prompt reorder abuse action host"
+rule = "STRUCT003"
+path = "tools/prompt_editor_abuse/reorder_action_host.py"
+kind = "structural"
+justification = "This module owns one mounted pointer-reorder abuse contract: resolve a semantic drag target, dispatch the production pointer route, and compare the resulting overlay and render state with that target. Its geometry and mismatch helpers are private evidence computations for that single action host rather than independent application responsibilities."
+issue = "chore:SS-WAIVER-S077"
+review_by = 2026-12-15
+max_lines = 611
+
+[[waivers]]
+id = "SS-WAIVER-S078"
+owner = "prompt reorder abuse workloads"
+rule = "STRUCT003"
+path = "tools/prompt_editor_abuse/reorder_workloads.py"
+kind = "structural"
+justification = "This module owns one declarative catalog of hostile prompt-reorder scenarios. Every builder emits the same scenario/action contract and collectively covers the source, target, boundary, partition, and post-commit state space; splitting variants would fragment coverage ownership without isolating an independent lifecycle."
+issue = "chore:SS-WAIVER-S078"
+review_by = 2026-12-15
+max_lines = 605
+
+[[waivers]]
+id = "SS-WAIVER-S080"
+owner = "real-shell prompt editor projection state"
+rule = "STRUCT003"
+path = "tests/support/prompt_editor/real_shell/projection_state.py"
+kind = "structural"
+justification = "projection_owner_state owns one immutable diagnostic input assembled atomically from revision lineage, semantic and projection documents, layout and paint identities, caret and selection state, transient overlays, scrollbars, and undo history. These fields form one cross-owner snapshot schema consumed together by PromptEditorSnapshotCapture; splitting them would fragment identity and freshness relationships or duplicate source traversal."
+issue = "chore:SS-WAIVER-S080"
+review_by = 2026-12-15
+max_lines = 561
+
+[[waivers]]
+id = "SS-WAIVER-S150"
+owner = "managed-ready full application route"
+rule = "STRUCT003"
+path = "tests/app/bootstrap/application_startup/test_managed_ready_full_route.py"
+kind = "structural"
+justification = "This module owns one atomic managed-ready application launch transaction. Its local application, runtime-service boundary, scheduler, splash, shell, readiness, compatibility, warmup, restore, and cleanup doubles share one deterministic event trace that proves activation after the event loop, timer ordering before shell construction, readiness before backend-ready, restoration before reveal, splash closure before showing the shell, and terminal resource cleanup. Splitting those local participants would fragment the trace owner, duplicate callback and timer identity, or weaken the complete route's fault sensitivity."
+issue = "chore:SS-WAIVER-S150"
+review_by = 2026-12-15
+max_lines = 616
+
+[[waivers]]
+id = "SS-WAIVER-S104"
+owner = "shell shutdown coordinator contract"
+rule = "STRUCT003"
+path = "tests/app/bootstrap/shutdown_coordinator/test_coordinator.py"
+kind = "structural"
+justification = "This module owns one terminal shutdown state machine. Cleanup ordering, duplicate requests, delayed progress, retry, recovery choice, force close, UI-thread updates, responsiveness, and final close authorization all transition the same single shutdown attempt and its owned dialogs."
+issue = "chore:SS-WAIVER-S104"
+review_by = 2026-12-15
+max_lines = 791
+
+[[waivers]]
+id = "SS-WAIVER-S108"
+owner = "Comfy gateway port adapter contract"
+rule = "STRUCT003"
+path = "tests/infrastructure/comfy/gateway_adapter/test_port_contract.py"
+kind = "structural"
+justification = "This module owns one infrastructure-to-application port translation boundary. Listener updates, output and lifecycle callbacks, queue requests and results, structured failures, listener startup, interruption, inspection, and deletion all verify that no infrastructure types escape the same adapter."
+issue = "chore:SS-WAIVER-S108"
+review_by = 2026-12-15
+max_lines = 732
+
+[[waivers]]
+id = "SS-WAIVER-S111"
+owner = "prompt context-menu snapshot contract"
+rule = "STRUCT003"
+path = "tests/presentation/editor/prompt_editor/context_menu/test_snapshot_identity.py"
+kind = "structural"
+justification = "This module owns one immutable context-menu snapshot assembly contract. Identity, per-concern readiness, safe failure logging, stale position rejection, and prepared LoRA, diagnostic, scene, segment, and Danbooru actions all form one atomic read of revisioned feature state."
+issue = "chore:SS-WAIVER-S111"
+review_by = 2026-12-15
+max_lines = 696
+
+[[waivers]]
+id = "SS-WAIVER-S114"
+owner = "recipe model load resolution contract"
+rule = "STRUCT003"
+path = "tests/application/recipes/model_load_resolution/test_resolver.py"
+kind = "structural"
+justification = "This module owns one pre-materialization model resolution decision. Literal, override, local hash, backend hash, CivitAI, inline LoRA, safety scan, and thumbnail-policy cases are ordered evidence sources and gates for the same resolved recipe model reference or blocking issue."
+issue = "chore:SS-WAIVER-S114"
+review_by = 2026-12-15
+max_lines = 686
+
+[[waivers]]
+id = "SS-WAIVER-S119"
+owner = "generation asset staging contract"
+rule = "STRUCT003"
+path = "tests/application/generation/ordered_input_asset_staging/test_comfy_asset_staging_service.py"
+kind = "structural"
+justification = "This module owns one authorization-preserving projection from authoring payload assets to staged Comfy execution payloads. Image and mask path resolution, channel policy, semantic upload fields, ordered regional masks, required-input failures, and payload immutability all govern that single staging transaction."
+issue = "chore:SS-WAIVER-S119"
+review_by = 2026-12-15
+  max_lines = 645
+
+[[waivers]]
+id = "SS-WAIVER-S120"
+owner = "real-shell output canvas harness"
+rule = "STRUCT003"
+path = "tests/support/real_output_canvas/harness.py"
+kind = "structural"
+justification = "This module owns one user-level driver for the real-shell output canvas. Workflow and output seeding, preview and final delivery, route selection, rendered control interaction, workflow lifecycle, projection waiting, and snapshot capture are operations over the same mounted shell and active output session."
+issue = "chore:SS-WAIVER-S120"
+review_by = 2026-12-15
+max_lines = 618
+
+[[waivers]]
+id = "SS-WAIVER-S126"
+owner = "startup readiness controller contract"
+rule = "STRUCT003"
+path = "tests/app/bootstrap/startup_readiness_controller/test_state_machine.py"
+kind = "structural"
+justification = "This module owns one ordered readiness state machine: schedule and pause HTTP probes, adapt failures, assess runtime compatibility, retry transient states, route managed recovery, release warmups, and publish backend readiness. All factories and boundary checks enforce that single transition sequence."
+issue = "chore:SS-WAIVER-S126"
+review_by = 2026-12-15
+max_lines = 586
+
+[[waivers]]
+id = "SS-WAIVER-S130"
+owner = "input mask visual opacity contract"
+rule = "STRUCT003"
+path = "tests/presentation/canvas/input/document/test_mask_opacity.py"
+kind = "structural"
+justification = "This module owns one node-scoped visual-opacity transaction across editor control, workflow state, and mounted input document. Live preview, commit, associated mask layers, inheritance, persistence, restore, history, undo, and reconciliation all synchronize the same opacity value without changing mask coverage."
+issue = "chore:SS-WAIVER-S130"
+review_by = 2026-12-15
+max_lines = 586
+
+[[waivers]]
+id = "SS-WAIVER-S131"
+owner = "effective scheduled LoRA provider contract"
+rule = "STRUCT003"
+path = "tests/application/prompt_editor/lora/effective_provider/test_provider.py"
+kind = "structural"
+justification = "This module owns one cached resolution from workflow prompt context to effective scheduled LoRAs. Field eligibility, live choices, graph-effective compilation, catalog enrichment, token-based invalidation, and reuse across prompt fields all preserve the same context identity and result."
+issue = "chore:SS-WAIVER-S131"
+review_by = 2026-12-15
+max_lines = 585
+
+[[waivers]]
+id = "SS-WAIVER-S134"
+owner = "prompt context-menu request presenter contract"
+rule = "STRUCT003"
+path = "tests/presentation/editor/prompt_editor/context_menu/test_request_presenter.py"
+kind = "structural"
+justification = "This module owns one adaptation from a prepared, revisioned prompt context snapshot to the shell menu request. Optional readiness, save eligibility, unavailable-state suppression, callbacks, selection restoration, insertion context, and parent resolution all serve the same one-shot menu presentation transaction."
+issue = "chore:SS-WAIVER-S134"
+review_by = 2026-12-15
+max_lines = 569
+
+[[waivers]]
+id = "SS-WAIVER-S136"
+owner = "input node live preview contract"
+rule = "STRUCT003"
+path = "tests/presentation/canvas/input/preview/test_live_previews.py"
+kind = "structural"
+justification = "This module owns one shared-document preview contract for input node widgets. Document/view teardown, aspect-preserving image and mask rendering, authoritative coverage, workflow restore and rebinding, rounded picker presentation, and regional mask rows all observe the same CuteCanvas document entries."
+issue = "chore:SS-WAIVER-S136"
+review_by = 2026-12-15
+max_lines = 571
+
+[[waivers]]
+id = "SS-WAIVER-S138"
+owner = "manual model metadata refresh contract"
+rule = "STRUCT003"
+path = "tests/application/model_metadata/manual_refresh/test_service.py"
+kind = "structural"
+justification = "This module owns one user-requested metadata refresh transaction. Backend identity and fingerprint lookup, CivitAI policy and response handling, metadata association, thumbnail preservation or download, cache persistence, update publication, cancellation, and failure preservation all produce one refreshed model record."
+issue = "chore:SS-WAIVER-S138"
+review_by = 2026-12-15
+max_lines = 547
+
+[[waivers]]
+id = "SS-WAIVER-S140"
+owner = "input canvas planning contract"
+rule = "STRUCT003"
+path = "tests/application/workflows/input_canvas_plan_service/test_plan.py"
+kind = "structural"
+justification = "This module owns one pure planning decision from authored workflow graph and live definitions to input canvas bindings. Spatial authority, dimension consensus, synthetic surfaces, ordered regional masks, authored image-mask relationships, section boundaries, conflicts, and diagnostics all shape the same immutable plan."
+issue = "chore:SS-WAIVER-S140"
+review_by = 2026-12-15
+max_lines = 511
+
+[[waivers]]
+id = "SS-WAIVER-S142"
+owner = "prompt autocomplete controller test fixture"
+rule = "STRUCT003"
+path = "tests/support/prompt_editor/controller_support.py"
+kind = "structural"
+justification = "This module owns one reusable typed fixture for autocomplete controller tests. Import isolation, session construction, key events, scene publication, ghost snapshots, LoRA items, gateways, menu selection, editor, scheduled-context, wildcard channel, and cursor doubles jointly mount the same autocomplete lifecycle."
+issue = "chore:SS-WAIVER-S142"
+review_by = 2026-12-15
+max_lines = 539
+
+[[waivers]]
+id = "SS-WAIVER-S143"
+owner = "canvas tool strip contract"
+rule = "STRUCT003"
+path = "tests/presentation/canvas/tools/test_tool_strip.py"
+kind = "structural"
+justification = "This module owns one compact canvas tool-strip control. Contribution layout, active indicator animation, reduced motion, click and hover feedback, disabled explanations, palette rebinding, teardown, grouped tools, context selection, and localization all operate on the same projected tool registry and active mode."
+issue = "chore:SS-WAIVER-S143"
+review_by = 2026-12-15
+max_lines = 536
+
+[[waivers]]
+id = "SS-WAIVER-S144"
+owner = "visible projection commit contract"
+rule = "STRUCT003"
+path = "tests/presentation/editor/panel/visible_projection_commit/test_commit.py"
+kind = "structural"
+justification = "This module owns one final publication gate for prepared editor projections. Visibility checks, deleted Qt safety, hidden retry, background build commit, deactivation, attached and superseded completion transfer, repeated finalization, and coordinator ownership all preserve one pending visible-commit lifecycle."
+issue = "chore:SS-WAIVER-S144"
+review_by = 2026-12-15
+max_lines = 530
+
+[[waivers]]
+id = "SS-WAIVER-S148"
+owner = "prompt wildcard overlay contract"
+rule = "STRUCT003"
+path = "tests/presentation/editor/prompt_editor/overlays/wildcard_tokens/test_projection_contract.py"
+kind = "structural"
+justification = "This module owns one inline wildcard token presentation and interaction contract. Collapsed placeholder text, italic tag geometry, baseline, missing state, numeric controls, wheel mutation, copy source, active-range tracking, hover, resize, scroll, and coexistence with emphasis all share the same wildcard token state."
+issue = "chore:SS-WAIVER-S148"
+review_by = 2026-12-15
+  max_lines = 523
+
+[[waivers]]
+id = "SS-WAIVER-S149"
+owner = "ComfyUI Manager provisioner contract"
+rule = "STRUCT003"
+path = "tests/infrastructure/comfy/manager_provisioner/test_provisioning.py"
+kind = "structural"
+justification = "This module owns one capability-driven Manager provisioning transaction. Managed versus attached policy, integrated and legacy runtime selection, exact requirements, optional backend support, stale replacement, validation before removal, user-owned checkout preservation, and cleanup all produce one authorized runtime outcome."
+issue = "chore:SS-WAIVER-S149"
+review_by = 2026-12-15
+max_lines = 512

@@ -22,7 +22,6 @@ from collections.abc import Sequence
 import json
 import os
 from pathlib import Path
-import socket
 import subprocess
 import shutil
 import sys
@@ -36,38 +35,11 @@ from substitute.domain.comfy_manager import ComfyManagerRuntime
 from substitute.infrastructure.comfy.manager_environment import (
     manager_runtime_environment,
 )
+from tools.ci.loopback_port_lease import LoopbackPortLease
 
-COMFYUI_REPOSITORY: Final[str] = "https://github.com/Comfy-Org/ComfyUI.git"
 STARTUP_TIMEOUT_SECONDS: Final[float] = 420.0
 REQUEST_TIMEOUT_SECONDS: Final[float] = 10.0
 OUTPUT_LIMIT: Final[int] = 80_000
-
-
-def prepare_checkout(workspace: Path, tag: str) -> None:
-    """Clone an exact immutable upstream tag unless it is already prepared."""
-
-    if workspace.is_dir():
-        actual_tag = git_output(workspace, "describe", "--tags", "--exact-match")
-        if actual_tag != tag:
-            raise RuntimeError(
-                f"Existing compatibility workspace is {actual_tag!r}, expected {tag!r}."
-            )
-        return
-    workspace.parent.mkdir(parents=True, exist_ok=True)
-    run_checked(
-        [
-            "git",
-            "clone",
-            "--branch",
-            tag,
-            "--depth",
-            "1",
-            "--filter=blob:none",
-            COMFYUI_REPOSITORY,
-            str(workspace),
-        ],
-        cwd=workspace.parent,
-    )
 
 
 def prepare_environment(repository_root: Path, workspace: Path) -> Path:
@@ -173,35 +145,37 @@ def probe_server(
 ) -> dict[str, object]:
     """Launch Comfy headlessly, verify runtime APIs, and leave no child process."""
 
-    port = _available_loopback_port()
-    environment = manager_runtime_environment(
-        workspace,
-        os.environ,
-        use_pygit2=runtime.uses_pygit2,
-    )
-    environment["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
-    environment["PYTHONIOENCODING"] = "utf-8"
-    command = [
-        str(python_executable),
-        str(workspace / "main.py"),
-        "--listen",
-        "127.0.0.1",
-        "--port",
-        str(port),
-        "--cpu",
-        *runtime.launch_arguments,
-    ]
-    process = subprocess.Popen(
-        command,
-        cwd=workspace,
-        env=environment,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
-    )
+    with LoopbackPortLease.acquire() as endpoint_lease:
+        port = endpoint_lease.port
+        environment = manager_runtime_environment(
+            workspace,
+            os.environ,
+            use_pygit2=runtime.uses_pygit2,
+        )
+        environment["SUGARSUBSTITUTE_SKIP_TTS_INSTALLER"] = "1"
+        environment["PYTHONIOENCODING"] = "utf-8"
+        command = [
+            str(python_executable),
+            str(workspace / "main.py"),
+            "--listen",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--cpu",
+            *runtime.launch_arguments,
+        ]
+        endpoint_lease.release_for_handoff()
+        process = subprocess.Popen(
+            command,
+            cwd=workspace,
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
+        )
     output: list[str] = []
     reader = threading.Thread(
         target=_drain_output,
@@ -239,7 +213,12 @@ def probe_server(
         reader.join(timeout=10)
 
 
-def run_checked(command: Sequence[str], *, cwd: Path) -> None:
+def run_checked(
+    command: Sequence[str],
+    *,
+    cwd: Path,
+    timeout_seconds: float | None = None,
+) -> None:
     """Run a logged command without opening a separate console window."""
 
     subprocess.run(
@@ -247,6 +226,7 @@ def run_checked(command: Sequence[str], *, cwd: Path) -> None:
         cwd=cwd,
         check=True,
         creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
+        timeout=timeout_seconds,
     )
 
 
@@ -262,6 +242,7 @@ def git_output(workspace: Path, *arguments: str) -> str:
         encoding="utf-8",
         errors="replace",
         creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
+        timeout=30,
     )
     return result.stdout.strip()
 
@@ -307,14 +288,6 @@ def _require_json(url: str) -> object:
         return json.loads(response.read())
 
 
-def _available_loopback_port() -> int:
-    """Reserve and release one currently available loopback port."""
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        probe.bind(("127.0.0.1", 0))
-        return int(probe.getsockname()[1])
-
-
 def _drain_output(stream: TextIO | None, output: list[str]) -> None:
     """Drain child output to prevent blocking while retaining diagnostics."""
 
@@ -351,7 +324,6 @@ __all__ = [
     "assert_runtime",
     "git_output",
     "log",
-    "prepare_checkout",
     "prepare_environment",
     "probe_server",
     "run_checked",

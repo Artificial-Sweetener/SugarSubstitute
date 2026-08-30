@@ -114,6 +114,23 @@ def run_application(
         ),
     )
     app = runtime_bootstrap.app
+    from substitute.app.bootstrap.application_instance_control import (
+        start_application_instance_control,
+        stop_application_instance_control,
+    )
+
+    start_application_instance_control(install_root)
+    from substitute.app.bootstrap.default_comfy_preflight import (
+        negotiate_default_comfy_listener,
+    )
+
+    if not no_comfy and not negotiate_default_comfy_listener(
+        ensure_theme=runtime_bootstrap.configure_theme
+    ):
+        stop_application_instance_control()
+        if initial_splash is not None:
+            initial_splash.close()
+        return 0
     resolved_appearance = runtime_bootstrap.resolved_appearance
     comfy_output_stream = runtime_bootstrap.comfy_output_stream
     runtime_services = runtime_bootstrap.runtime_services
@@ -142,27 +159,30 @@ def run_application(
         runtime_services=runtime_services,
         restart_launch_command=restart_launch_command,
     )
-    exit_code: int = run_startup_shell_flow(
-        no_comfy=no_comfy,
-        handoff_geometry=handoff_geometry,
-        readiness_assessment=readiness_assessment,
-        installation_context=installation_context,
-        app=app,
-        resolved_appearance=resolved_appearance,
-        configure_theme=runtime_bootstrap.configure_theme,
-        comfy_output_stream=comfy_output_stream,
-        runtime_services=runtime_services,
-        startup_timer=startup_timer,
-        startup_resources=startup_resources,
-        initial_restore_plan=initial_restore_plan,
-        startup_support_graph=startup_support_graph,
-        shell_runtime_graph=shell_runtime_graph,
-        ready_app_launch=ready_app_launch,
-        initial_splash_cancel_connector=initial_splash_cancel_connector,
-        show_onboarding_window=composition.show_onboarding_window,
-        show_repair_window=composition.show_repair_window,
-        start_ready_app_process=start_ready_app_process,
-    )
+    try:
+        exit_code: int = run_startup_shell_flow(
+            no_comfy=no_comfy,
+            handoff_geometry=handoff_geometry,
+            readiness_assessment=readiness_assessment,
+            installation_context=installation_context,
+            app=app,
+            resolved_appearance=resolved_appearance,
+            configure_theme=runtime_bootstrap.configure_theme,
+            comfy_output_stream=comfy_output_stream,
+            runtime_services=runtime_services,
+            startup_timer=startup_timer,
+            startup_resources=startup_resources,
+            initial_restore_plan=initial_restore_plan,
+            startup_support_graph=startup_support_graph,
+            shell_runtime_graph=shell_runtime_graph,
+            ready_app_launch=ready_app_launch,
+            initial_splash_cancel_connector=initial_splash_cancel_connector,
+            show_onboarding_window=composition.show_onboarding_window,
+            show_repair_window=composition.show_repair_window,
+            start_ready_app_process=start_ready_app_process,
+        )
+    finally:
+        stop_application_instance_control()
     return exit_code
 
 

@@ -25,6 +25,7 @@ import sys
 from sugarsubstitute_shared.launcher_update.models import LauncherUpdateRequest
 from sugarsubstitute_shared.subprocess_environment import (
     clean_frozen_parent_environment,
+    standard_child_process_dll_search_path,
 )
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
@@ -65,23 +66,24 @@ def schedule_launcher_update(
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     with log_path.open("a", encoding="utf-8") as output:
-        process = subprocess.Popen(  # noqa: S603
-            [
-                subprocess_path(runtime_python),
-                "-m",
-                "sugarsubstitute_shared.launcher_update.helper",
-                subprocess_path(request_path),
-            ],
-            cwd=subprocess_working_directory(install_root),
-            env=environment,
-            stdin=subprocess.DEVNULL,
-            stdout=output,
-            stderr=subprocess.STDOUT,
-            close_fds=True,
-            creationflags=creationflags,
-            startupinfo=startupinfo,
-            shell=False,
-        )
+        with standard_child_process_dll_search_path():
+            process = subprocess.Popen(  # noqa: S603
+                [
+                    subprocess_path(runtime_python),
+                    "-m",
+                    "sugarsubstitute_shared.launcher_update.helper",
+                    subprocess_path(request_path),
+                ],
+                cwd=subprocess_working_directory(install_root),
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                close_fds=True,
+                creationflags=creationflags,
+                startupinfo=startupinfo,
+                shell=False,
+            )
     return process.pid
 
 

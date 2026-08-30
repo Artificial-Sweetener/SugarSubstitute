@@ -18,10 +18,12 @@
 
 from __future__ import annotations
 
+import contextlib
+import ctypes
 import os
 from pathlib import Path
 import sys
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 
 
 def clean_frozen_parent_environment(
@@ -58,6 +60,24 @@ def clean_frozen_parent_environment(
         if variable_name.startswith("_PYI_"):
             child_environment.pop(variable_name, None)
     return child_environment
+
+
+@contextlib.contextmanager
+def standard_child_process_dll_search_path() -> Iterator[None]:
+    """Prevent a frozen Windows parent's private DLL path reaching a child."""
+
+    if sys.platform != "win32" or not bool(getattr(sys, "frozen", False)):
+        yield
+        return
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    meipass = getattr(sys, "_MEIPASS", None)
+    kernel32.SetDllDirectoryW(None)
+    try:
+        yield
+    finally:
+        if isinstance(meipass, str) and meipass:
+            kernel32.SetDllDirectoryW(meipass)
 
 
 def _restore_original_library_path(
@@ -108,4 +128,7 @@ def _is_relative_to(path: Path, parent: Path) -> bool:
     return True
 
 
-__all__ = ["clean_frozen_parent_environment"]
+__all__ = [
+    "clean_frozen_parent_environment",
+    "standard_child_process_dll_search_path",
+]

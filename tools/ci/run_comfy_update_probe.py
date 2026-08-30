@@ -48,11 +48,11 @@ from tools.ci.comfy_probe_support import (
     assert_runtime,
     git_output,
     log,
-    prepare_checkout,
     prepare_environment,
     probe_server,
-    run_checked,
 )
+from tools.ci.comfy_source_checkout import checkout_tag, prepare_checkout
+from tools.ci.comfy_source_cache import require_comfy_source_repository
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -70,7 +70,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         / "comfy-updates"
         / f"{source.comfyui_tag}-to-{target.comfyui_tag}"
     )
-    prepare_checkout(workspace, source.comfyui_tag)
+    source_repository = require_comfy_source_repository(
+        cache_path=arguments.source_cache
+    )
+    prepare_checkout(
+        workspace,
+        source.comfyui_tag,
+        source_repository=source_repository,
+    )
     python_executable = prepare_environment(repository_root, workspace)
     ensure_managed_comfy_setup(
         workspace=workspace,
@@ -97,7 +104,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "manager_requirements.txt",
     )
 
-    _checkout_target(workspace, target.comfyui_tag)
+    checkout_tag(workspace, target.comfyui_tag)
     assert_manager_requirement(workspace, target.manager_version)
     target_head = git_output(workspace, "rev-parse", "HEAD")
     tracked_marker = workspace / "README.md"
@@ -228,25 +235,9 @@ def _parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-tag", required=True)
     parser.add_argument("--target-tag", required=True)
+    parser.add_argument("--source-cache", type=Path, required=True)
     parser.add_argument("--workspace", type=Path)
     return parser.parse_args(argv)
-
-
-def _checkout_target(workspace: Path, tag: str) -> None:
-    """Simulate an external updater changing only the ComfyUI checkout."""
-
-    run_checked(
-        [
-            "git",
-            "fetch",
-            "--depth",
-            "1",
-            "origin",
-            f"refs/tags/{tag}:refs/tags/{tag}",
-        ],
-        cwd=workspace,
-    )
-    run_checked(["git", "checkout", "--detach", tag], cwd=workspace)
 
 
 def _save_contract_file(workspace: Path, destination: Path, name: str) -> Path:

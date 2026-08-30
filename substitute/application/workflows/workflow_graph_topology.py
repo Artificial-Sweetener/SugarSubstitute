@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from substitute.application.workflows.workflow_node_definition_service import (
@@ -53,6 +53,16 @@ class WorkflowGraphEdge:
         return None
 
 
+@dataclass(frozen=True, slots=True)
+class WorkflowGraphOutput:
+    """Describe one authored graph output bound to a provider socket."""
+
+    boundary_key: str
+    provider_name: str
+    output_index: int
+    output_type: str | None
+
+
 class WorkflowGraphTopology:
     """Provide typed edge, reachability, and spatial-root queries for one section."""
 
@@ -66,6 +76,7 @@ class WorkflowGraphTopology:
         self._nodes = graph_nodes(graph)
         self._definitions = node_definitions
         self._edges = self._build_edges()
+        self._outputs = self._build_outputs(graph)
         outgoing: dict[str, list[WorkflowGraphEdge]] = {}
         incoming: dict[str, list[WorkflowGraphEdge]] = {}
         for edge in self._edges:
@@ -85,6 +96,12 @@ class WorkflowGraphTopology:
         """Return every normalized connection in authored order."""
 
         return self._edges
+
+    @property
+    def outputs(self) -> tuple[WorkflowGraphOutput, ...]:
+        """Return every normalized public graph output in authored order."""
+
+        return self._outputs
 
     def output_types(self, node_name: str) -> tuple[str, ...]:
         """Return normalized live output types for one node."""
@@ -112,6 +129,28 @@ class WorkflowGraphTopology:
         """Return incoming connections for one node."""
 
         return self._incoming.get(node_name, ())
+
+    def exported_outputs(self, node_name: str) -> tuple[WorkflowGraphOutput, ...]:
+        """Return public graph outputs provided by one authored node."""
+
+        return tuple(
+            output for output in self._outputs if output.provider_name == node_name
+        )
+
+    def used_output_indexes(self, node_name: str) -> tuple[int, ...]:
+        """Return internally consumed or publicly exported output sockets once."""
+
+        return tuple(
+            dict.fromkeys(
+                (
+                    *(edge.output_index for edge in self.outgoing_edges(node_name)),
+                    *(
+                        output.output_index
+                        for output in self.exported_outputs(node_name)
+                    ),
+                )
+            )
+        )
 
     def connected_spatial_inputs(
         self,
@@ -216,6 +255,39 @@ class WorkflowGraphTopology:
                 )
         return tuple(edges)
 
+    def _build_outputs(
+        self,
+        graph: Mapping[str, object],
+    ) -> tuple[WorkflowGraphOutput, ...]:
+        """Normalize canonical graph boundary output endpoint forms."""
+
+        raw_outputs = graph.get("outputs", {})
+        if not isinstance(raw_outputs, Mapping):
+            return ()
+        outputs: list[WorkflowGraphOutput] = []
+        for raw_boundary_key, value in raw_outputs.items():
+            endpoint = _output_endpoint(value)
+            if endpoint is None:
+                continue
+            provider_name, output_index = endpoint
+            if provider_name not in self._nodes:
+                continue
+            output_types = self.output_types(provider_name)
+            output_type = (
+                output_types[output_index]
+                if 0 <= output_index < len(output_types)
+                else None
+            )
+            outputs.append(
+                WorkflowGraphOutput(
+                    boundary_key=str(raw_boundary_key),
+                    provider_name=provider_name,
+                    output_index=output_index,
+                    output_type=output_type,
+                )
+            )
+        return tuple(outputs)
+
     def _input_type(self, node_name: str, field_key: str) -> str | None:
         """Return one declared live input socket type."""
 
@@ -247,9 +319,38 @@ def _is_link(value: object) -> bool:
     )
 
 
+def _output_endpoint(value: object) -> tuple[str, int] | None:
+    """Read canonical string, sequence, or mapping graph output endpoints."""
+
+    if isinstance(value, str) and value:
+        return value, 0
+    if isinstance(value, Mapping):
+        symbol = value.get("symbol")
+        slot = value.get("slot", 0)
+    elif isinstance(value, Sequence) and not isinstance(
+        value,
+        (str, bytes, bytearray),
+    ):
+        if not value:
+            return None
+        symbol = value[0]
+        slot = value[1] if len(value) > 1 else 0
+    else:
+        return None
+    if (
+        isinstance(symbol, str)
+        and isinstance(slot, int)
+        and not isinstance(slot, bool)
+        and slot >= 0
+    ):
+        return symbol, slot
+    return None
+
+
 __all__ = [
     "CANVAS_SOURCE_SOCKET_TYPES",
     "SPATIAL_SOCKET_TYPES",
     "WorkflowGraphEdge",
+    "WorkflowGraphOutput",
     "WorkflowGraphTopology",
 ]

@@ -26,12 +26,13 @@ from .model import ArchitecturePolicy
 
 
 def production_line_count(path: Path) -> int:
-    """Count nonblank physical lines that are not comment-only lines."""
+    """Count nonblank physical lines that are not language comment-only lines."""
 
+    lines = normalized_source(path).splitlines()
+    if path.suffix in {".js", ".mjs", ".cjs"}:
+        return _javascript_production_line_count(lines)
     return sum(
-        1
-        for line in normalized_source(path).splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
+        1 for line in lines if line.strip() and not line.lstrip().startswith("#")
     )
 
 
@@ -58,17 +59,52 @@ def governed_source_paths(
     root: Path,
     policy: ArchitecturePolicy,
 ) -> tuple[Path, ...]:
-    """Return exact Python source paths below the configured runtime roots."""
+    """Return exact authored-code paths declared by the architecture policy."""
 
-    candidates = (
+    rooted_candidates = {
         path
         for source_root in policy.source_roots
         for path in (root / source_root).rglob("*")
-        if path.is_file() and path.suffix in {".py", ".pyi"}
-    )
+        if path.is_file() and path.suffix in policy.source_extensions
+    }
+    exact_candidates = {
+        path
+        for source_file in policy.source_files
+        if (path := root / source_file).is_file()
+        and path.suffix in policy.source_extensions
+    }
     return tuple(
         path
-        for path in sorted(candidates)
+        for path in sorted(rooted_candidates | exact_candidates)
         if path.relative_to(root).as_posix() not in policy.excluded_paths
         and "__pycache__" not in path.parts
     )
+
+
+def _javascript_production_line_count(lines: list[str]) -> int:
+    """Count JavaScript source while excluding standalone line and block comments."""
+
+    count = 0
+    inside_block_comment = False
+    for line in lines:
+        remaining = line.strip()
+        if not remaining:
+            continue
+        while remaining:
+            if inside_block_comment:
+                if "*/" not in remaining:
+                    break
+                inside_block_comment = False
+                remaining = remaining.split("*/", maxsplit=1)[1].strip()
+                continue
+            if remaining.startswith("//"):
+                break
+            if remaining.startswith("/*"):
+                if "*/" not in remaining[2:]:
+                    inside_block_comment = True
+                    break
+                remaining = remaining.split("*/", maxsplit=1)[1].strip()
+                continue
+            count += 1
+            break
+    return count

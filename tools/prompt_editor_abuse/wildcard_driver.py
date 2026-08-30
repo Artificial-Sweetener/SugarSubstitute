@@ -26,13 +26,11 @@ from typing import Any
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QEventLoop
-from PySide6.QtGui import QGuiApplication
-
 from substitute.application.managed_text_assets.wildcard_csv_document_parser import (
     parse_wildcard_csv_document,
 )
 from substitute.application.prompt_editor.diagnostics.models import PromptDiagnosticKind
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 from .execution import execute_mounted_scenario
 from .models import (
     PromptAbuseCorrectnessSnapshot,
@@ -101,16 +99,17 @@ def run_wildcard_scenario(
 
 
 def _settle_editor(editor: Any, expected_source: str) -> tuple[float, bool]:
-    """Drain queued work until wildcard source, projection, and semantics agree."""
+    """Wait until wildcard source, projection, and semantic owners agree."""
 
     started_at = perf_counter()
-    while not _editor_is_current(editor, expected_source):
-        elapsed_ms = (perf_counter() - started_at) * 1_000.0
-        if elapsed_ms >= _SETTLE_TIMEOUT_MS:
-            return elapsed_ms, False
-        app = QGuiApplication.instance()
-        if app is not None:
-            app.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 1)
+    try:
+        wait_for_qt_condition(
+            lambda: _editor_is_current(editor, expected_source),
+            timeout_ms=int(_SETTLE_TIMEOUT_MS),
+            description="wildcard source, projection, and semantic owners to settle",
+        )
+    except AssertionError:
+        return (perf_counter() - started_at) * 1_000.0, False
     return (perf_counter() - started_at) * 1_000.0, True
 
 

@@ -213,27 +213,6 @@ def _ensure_managed_comfy_setup(
         finally:
             setup_cache.close()
 
-    trace_mark("managed_setup.detect_hardware.start")
-    with trace_span("managed_setup.detect_hardware"):
-        detection = (
-            detect_hardware(force_cpu=True) if force_cpu_mode else detect_hardware()
-        )
-    with trace_span("managed_setup.select_install_strategy"):
-        strategy = select_install_strategy(
-            detection=detection,
-            force_cpu=force_cpu_mode,
-            prefer_edge_torch=prefer_edge_torch,
-            prefer_edge_comfy=prefer_edge_comfy_channel,
-        )
-    runtime_configuration = managed_runtime_configuration_from_strategy(
-        workspace=workspace,
-        detection=detection,
-        strategy=strategy,
-        force_cpu_mode=force_cpu_mode,
-        prefer_edge_torch=prefer_edge_torch,
-        prefer_edge_comfy_channel=prefer_edge_comfy_channel,
-    )
-    runtime_recorder.record_selection(runtime_configuration)
     try:
         if remove_invalid_bootstrap_workspace(workspace):
             emit_log(
@@ -256,6 +235,28 @@ def _ensure_managed_comfy_setup(
                 "Use My Current ComfyUI for this folder, or choose an empty folder "
                 "for managed setup."
             )
+
+        trace_mark("managed_setup.detect_hardware.start")
+        with trace_span("managed_setup.detect_hardware"):
+            detection = (
+                detect_hardware(force_cpu=True) if force_cpu_mode else detect_hardware()
+            )
+        with trace_span("managed_setup.select_install_strategy"):
+            strategy = select_install_strategy(
+                detection=detection,
+                force_cpu=force_cpu_mode,
+                prefer_edge_torch=prefer_edge_torch,
+                prefer_edge_comfy=prefer_edge_comfy_channel,
+            )
+        runtime_configuration = managed_runtime_configuration_from_strategy(
+            workspace=workspace,
+            detection=detection,
+            strategy=strategy,
+            force_cpu_mode=force_cpu_mode,
+            prefer_edge_torch=prefer_edge_torch,
+            prefer_edge_comfy_channel=prefer_edge_comfy_channel,
+        )
+        runtime_recorder.record_selection(runtime_configuration)
 
         emit_status(on_status, "Preparing the managed ComfyUI install strategy.")
         emit_log(

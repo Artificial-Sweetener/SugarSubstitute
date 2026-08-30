@@ -1,0 +1,168 @@
+name: release prepublication
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: "Stable or Canary channel to prepare"
+        required: true
+        type: string
+      canary_run_number:
+        description: "Run number used to construct a Canary version"
+        required: false
+        default: ""
+        type: string
+      qualification_version:
+        description: "Synthetic Stable version used by non-publishing qualification"
+        required: false
+        default: ""
+        type: string
+      run_tests:
+        description: "Run the complete required test workflow before preparation"
+        required: false
+        default: true
+        type: boolean
+      force_candidate:
+        description: "Prepare a private candidate even when no release is due"
+        required: false
+        default: false
+        type: boolean
+      qualification_scope:
+        description: "Exact release qualification slice to execute"
+        required: false
+        default: "all"
+        type: string
+      release_input_run_id:
+        description: "Optional run containing unchanged native release inputs"
+        required: false
+        default: ""
+        type: string
+      release_input_artifact_suffix:
+        description: "Suffix identifying native input artifacts in a shared run"
+        required: false
+        default: ""
+        type: string
+      qualification_candidate_run_id:
+        description: "Optional run containing an already-staged private candidate"
+        required: false
+        default: ""
+        type: string
+      qualification_candidate_version:
+        description: "Exact version inside an already-staged private candidate"
+        required: false
+        default: ""
+        type: string
+      candidate_artifact_name:
+        description: "Unique private artifact name for the prepared candidate"
+        required: false
+        default: "non-release-candidate-channel"
+        type: string
+      upgrade_selection:
+        description: "Historical upgrade depth for focused remediation"
+        required: false
+        default: "complete"
+        type: string
+      qualification_timeout_seconds:
+        description: "Total installer-chain timeout"
+        required: false
+        default: "3600"
+        type: string
+    outputs:
+      candidate_artifact_name:
+        description: "Private artifact containing the qualified candidate"
+        value: ${{ jobs.stage-candidate.outputs.candidate_artifact_name }}
+      candidate_run_id:
+        description: "Run containing the private candidate artifact"
+        value: ${{ jobs.stage-candidate.outputs.candidate_run_id }}
+      candidate_version:
+        description: "Version embedded into the qualified candidate"
+        value: ${{ jobs.stage-candidate.outputs.candidate_version }}
+      candidate_channel:
+        description: "Channel embedded into the qualified candidate"
+        value: ${{ jobs.stage-candidate.outputs.candidate_channel }}
+      staged:
+        description: "Whether a private candidate completed staging"
+        value: ${{ jobs.stage-candidate.outputs.staged }}
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  tests:
+    name: Required cross-platform tests
+    if: inputs.run_tests
+    uses: ./.github/workflows/tests.yml
+
+  determine-version:
+    name: Resolve semantic release version
+    needs: tests
+    if: >-
+      always() && (
+        !inputs.run_tests ||
+        needs.tests.result == 'success'
+      )
+    uses: ./.github/workflows/release-version.yml
+    with:
+      channel: ${{ inputs.channel }}
+      canary_run_number: ${{ inputs.canary_run_number }}
+      qualification_version: ${{ inputs.qualification_version }}
+
+  build-release:
+    name: Build native release inputs
+    needs: determine-version
+    if: >-
+      always() &&
+      inputs.qualification_candidate_run_id == '' &&
+      inputs.release_input_run_id == '' &&
+      needs.determine-version.result == 'success' && (
+        needs.determine-version.outputs.should_release == 'true' ||
+        inputs.force_candidate
+      )
+    uses: ./.github/workflows/release-build.yml
+    with:
+      version: ${{ needs.determine-version.outputs.version }}
+      channel: ${{ needs.determine-version.outputs.channel }}
+      artifact_suffix: ${{ inputs.release_input_artifact_suffix }}
+
+  stage-candidate:
+    name: Stage private release candidate
+    needs:
+      - determine-version
+      - build-release
+    if: >-
+      always() &&
+      needs.determine-version.result == 'success' && (
+        (
+          inputs.qualification_candidate_run_id != '' &&
+          inputs.qualification_candidate_version != ''
+        ) ||
+        needs.build-release.result == 'success' ||
+        inputs.release_input_run_id != ''
+      )
+    uses: ./.github/workflows/release-candidate.yml
+    with:
+      version: ${{ inputs.qualification_candidate_version || needs.determine-version.outputs.version }}
+      channel: ${{ needs.determine-version.outputs.channel }}
+      release_input_run_id: ${{ inputs.release_input_run_id }}
+      release_input_artifact_suffix: ${{ inputs.release_input_artifact_suffix }}
+      existing_candidate_run_id: ${{ inputs.qualification_candidate_run_id }}
+      candidate_artifact_name: ${{ inputs.candidate_artifact_name }}
+
+  qualify-candidate:
+    name: Qualify staged installer and update bytes
+    needs: stage-candidate
+    if: >-
+      always() &&
+      needs.stage-candidate.result == 'success' &&
+      needs.stage-candidate.outputs.staged == 'true'
+    uses: ./.github/workflows/release-qualification.yml
+    with:
+      candidate_version: ${{ needs.stage-candidate.outputs.candidate_version }}
+      candidate_tag: ''
+      candidate_channel: ${{ needs.stage-candidate.outputs.candidate_channel }}
+      candidate_artifact_name: ${{ needs.stage-candidate.outputs.candidate_artifact_name }}
+      candidate_run_id: ${{ needs.stage-candidate.outputs.candidate_run_id }}
+      qualification_scope: ${{ inputs.qualification_scope }}
+      upgrade_selection: ${{ inputs.upgrade_selection }}
+      qualification_timeout_seconds: ${{ inputs.qualification_timeout_seconds }}

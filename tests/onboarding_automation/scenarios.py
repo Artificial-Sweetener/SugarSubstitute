@@ -44,6 +44,7 @@ from substitute.presentation.onboarding.onboarding_models import (
     OnboardingTargetMode,
 )
 from tests.onboarding_automation.environment_fixture import synthetic_python_binding
+from tests.onboarding_automation.external_comfy_fixture import ExternalComfyFixture
 from tests.onboarding_automation.fixture_paths import ScenarioPaths
 
 
@@ -74,6 +75,7 @@ class ScenarioDefinition:
     assert_managed_summary: bool = False
     attached_python_executable: Path | None = None
     force_cpu_mode: bool = False
+    external_fixture: ExternalComfyFixture | None = None
 
 
 class ScenarioExecutionMode(str, Enum):
@@ -155,11 +157,15 @@ class ImmediateSuccessFlowService:
         )
 
 
-def build_scenarios(paths: ScenarioPaths) -> dict[str, ScenarioDefinition]:
+def build_scenarios(
+    paths: ScenarioPaths,
+    *,
+    external_fixture: ExternalComfyFixture,
+) -> dict[str, ScenarioDefinition]:
     """Return the onboarding automation scenarios available to the runner."""
 
-    managed_root = paths.repo_root / "automation_sandboxes" / "managed_smoke"
-    attached_root = paths.repo_root / "automation_sandboxes" / "attached_smoke"
+    managed_root = paths.sandbox_root / "managed_smoke"
+    attached_root = paths.sandbox_root / "attached_smoke"
     onboarding_readiness = ReadinessAssessment(
         route=BootstrapRoute.ONBOARDING,
         issues=(),
@@ -187,15 +193,16 @@ def build_scenarios(paths: ScenarioPaths) -> dict[str, ScenarioDefinition]:
             target_mode=OnboardingTargetMode.ATTACHED_LOCAL,
             install_root=attached_root,
             endpoint_host="127.0.0.1",
-            endpoint_port=8188,
+            endpoint_port=external_fixture.endpoint.port,
             managed_workspace_path=attached_root / "comfyui",
-            attached_workspace_path=paths.external_comfy_root,
+            attached_workspace_path=external_fixture.workspace_root,
             readiness_assessment=onboarding_readiness,
             execution_mode=ScenarioExecutionMode.SYNTHETIC,
             expected_outcome=ScenarioOutcome.SUCCESS,
             attached_python_executable=(
-                paths.external_comfy_root / "venv" / "Scripts" / "python.exe"
+                external_fixture.workspace_root / "venv" / "Scripts" / "python.exe"
             ),
+            external_fixture=external_fixture,
         ),
         "managed_clean_real": ScenarioDefinition(
             name="managed_clean_real",
@@ -289,9 +296,9 @@ def build_scenarios(paths: ScenarioPaths) -> dict[str, ScenarioDefinition]:
             target_mode=OnboardingTargetMode.ATTACHED_LOCAL,
             install_root=paths.repo_root,
             endpoint_host="127.0.0.1",
-            endpoint_port=8190,
+            endpoint_port=external_fixture.endpoint.port,
             managed_workspace_path=paths.repo_root / "comfyui",
-            attached_workspace_path=paths.external_comfy_root,
+            attached_workspace_path=external_fixture.workspace_root,
             readiness_assessment=onboarding_readiness,
             execution_mode=ScenarioExecutionMode.REAL,
             expected_outcome=ScenarioOutcome.SUCCESS,
@@ -300,6 +307,7 @@ def build_scenarios(paths: ScenarioPaths) -> dict[str, ScenarioDefinition]:
             provision_external_fixture=True,
             launch_external_fixture=True,
             provisioning_timeout_seconds=1800.0,
+            external_fixture=external_fixture,
         ),
         "attached_missing_workspace_real": ScenarioDefinition(
             name="attached_missing_workspace_real",
@@ -308,9 +316,10 @@ def build_scenarios(paths: ScenarioPaths) -> dict[str, ScenarioDefinition]:
             target_mode=OnboardingTargetMode.ATTACHED_LOCAL,
             install_root=paths.repo_root,
             endpoint_host="127.0.0.1",
-            endpoint_port=8190,
+            endpoint_port=external_fixture.endpoint.port,
             managed_workspace_path=paths.repo_root / "comfyui",
-            attached_workspace_path=paths.external_comfy_root / "missing-workspace",
+            attached_workspace_path=external_fixture.workspace_root
+            / "missing-workspace",
             readiness_assessment=onboarding_readiness,
             execution_mode=ScenarioExecutionMode.REAL,
             expected_outcome=ScenarioOutcome.FAILURE,
@@ -319,6 +328,7 @@ def build_scenarios(paths: ScenarioPaths) -> dict[str, ScenarioDefinition]:
             provision_external_fixture=True,
             launch_external_fixture=True,
             provisioning_timeout_seconds=1800.0,
+            external_fixture=external_fixture,
         ),
         "attached_unreachable_real": ScenarioDefinition(
             name="attached_unreachable_real",
@@ -327,9 +337,9 @@ def build_scenarios(paths: ScenarioPaths) -> dict[str, ScenarioDefinition]:
             target_mode=OnboardingTargetMode.ATTACHED_LOCAL,
             install_root=paths.repo_root,
             endpoint_host="127.0.0.1",
-            endpoint_port=8190,
+            endpoint_port=external_fixture.endpoint.port,
             managed_workspace_path=paths.repo_root / "comfyui",
-            attached_workspace_path=paths.external_comfy_root,
+            attached_workspace_path=external_fixture.workspace_root,
             readiness_assessment=onboarding_readiness,
             execution_mode=ScenarioExecutionMode.REAL,
             expected_outcome=ScenarioOutcome.FAILURE,
@@ -338,6 +348,7 @@ def build_scenarios(paths: ScenarioPaths) -> dict[str, ScenarioDefinition]:
             provision_external_fixture=True,
             launch_external_fixture=False,
             provisioning_timeout_seconds=1800.0,
+            external_fixture=external_fixture,
         ),
     }
 

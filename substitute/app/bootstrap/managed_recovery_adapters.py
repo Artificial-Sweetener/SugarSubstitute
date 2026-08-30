@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
 
+from sugarsubstitute_shared.launch_splash import SplashSessionMessageError
 from sugarsubstitute_shared.localization import ApplicationText
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
@@ -43,7 +44,10 @@ from substitute.application.comfy_startup_diagnostics.startup_failure_report_ser
 )
 from substitute.domain.comfy_startup_diagnostics import ComfyStartupIncident
 from substitute.domain.comfy_nodepacks import CoreNodepackId
-from substitute.domain.onboarding import InstallationContext
+from substitute.domain.onboarding import (
+    InstallationContext,
+    ManagedRuntimeConfiguration,
+)
 from substitute.domain.onboarding.models import (
     ComfyTargetConfiguration,
     ComfyTargetMode,
@@ -62,6 +66,9 @@ from substitute.infrastructure.comfy.nodepack_reconciliation import (
 )
 from substitute.infrastructure.comfy.sugarcubes_startup_maintenance import (
     attempt_sugarcubes_startup_maintenance,
+)
+from substitute.infrastructure.onboarding.file_managed_runtime_repository import (
+    FileManagedRuntimeConfigurationRepository,
 )
 from substitute.shared.logging.logger import get_logger, log_warning
 
@@ -113,8 +120,13 @@ class ManagedRecoveryStartupAdapters:
         if splash is not None:
             try:
                 splash.append_log(line)
-            except RuntimeError:
-                log_warning(_LOGGER, "Dropped recovery splash log after disposal")
+            except (OSError, RuntimeError, SplashSessionMessageError) as error:
+                log_warning(
+                    _LOGGER,
+                    "Dropped optional recovery splash log",
+                    error_type=type(error).__name__,
+                    line_length=len(line),
+                )
         self._comfy_output_stream.append_line(line)
 
     def handle_recovery_failure(
@@ -207,6 +219,7 @@ def create_managed_recovery_startup_adapters(
 
 def create_managed_recovery_controller_adapters(
     *,
+    installation_context: InstallationContext,
     startup_resources: StartupResourceRegistry,
     execution_runtime: object,
     execution_dispatcher_factory: Callable[[], object],
@@ -223,9 +236,29 @@ def create_managed_recovery_controller_adapters(
             submitter,
         ),
         cleanup_state=cleanup_managed_recovery_state,
-        reconcile_owned_comfy_dependencies=reconcile_owned_comfy_dependencies,
+        reconcile_owned_comfy_dependencies=lambda target, nodepacks, emit_log: (
+            reconcile_owned_comfy_dependencies(
+                target,
+                nodepacks,
+                emit_log,
+                runtime_configuration=_load_managed_runtime_configuration(
+                    installation_context
+                ),
+            )
+        ),
         confirmed_termination_status=confirmed_managed_recovery_termination_status(),
     )
+
+
+def _load_managed_runtime_configuration(
+    context: InstallationContext,
+) -> ManagedRuntimeConfiguration | None:
+    """Load the active managed runtime selection for recovery."""
+
+    repository = FileManagedRuntimeConfigurationRepository(
+        context.installation.runtime_state_dir
+    )
+    return repository.load() if repository.exists() else None
 
 
 def create_managed_recovery_submitter(
@@ -260,6 +293,8 @@ def reconcile_owned_comfy_dependencies(
     target: ComfyTargetConfiguration,
     nodepacks: frozenset[CoreNodepackId],
     emit_log: RecoveryLogCallback,
+    *,
+    runtime_configuration: ManagedRuntimeConfiguration | None = None,
 ) -> None:
     """Reconcile Substitute-owned Comfy dependencies for one owned local target."""
 
@@ -275,7 +310,12 @@ def reconcile_owned_comfy_dependencies(
         )
 
     if target.mode is ComfyTargetMode.MANAGED_LOCAL:
-        reconcile_managed_local_owned_dependencies(workspace, nodepacks, emit_log)
+        reconcile_managed_local_owned_dependencies(
+            workspace,
+            nodepacks,
+            emit_log,
+            runtime_configuration=runtime_configuration,
+        )
         return
 
     binding = target.python_binding
@@ -293,11 +333,18 @@ def reconcile_managed_local_owned_dependencies(
     workspace: Path,
     nodepacks: frozenset[CoreNodepackId],
     emit_log: RecoveryLogCallback,
+    *,
+    runtime_configuration: ManagedRuntimeConfiguration | None,
 ) -> None:
     """Run full managed setup when Substitute owns the Comfy installation."""
 
+    selection = runtime_configuration or ManagedRuntimeConfiguration()
+
     ensure_managed_comfy_setup(
         workspace=workspace,
+        force_cpu_mode=selection.force_cpu_mode,
+        prefer_edge_torch=selection.prefer_edge_torch,
+        prefer_edge_comfy_channel=selection.prefer_edge_comfy_channel,
         repair_existing_runtime=True,
         refresh_core_nodepacks=nodepacks,
         on_status=emit_log,

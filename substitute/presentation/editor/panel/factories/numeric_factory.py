@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from math import isfinite
 from typing import Any, cast
 
 from PySide6.QtCore import Qt
@@ -74,6 +75,56 @@ def _to_int(value: object) -> int:
     return int(cast(Any, value))
 
 
+def _is_valid_numeric_value(value: object, *, field_type: str) -> bool:
+    """Return whether one external value can safely initialize its numeric editor."""
+
+    try:
+        numeric_value = _to_int(value) if field_type == "INT" else _to_float(value)
+    except (TypeError, ValueError, OverflowError):
+        return False
+    return isfinite(numeric_value)
+
+
+def _recover_numeric_value(
+    *,
+    value: object,
+    field_type: object,
+    field_meta: Mapping[str, object],
+    constraints: Mapping[str, object],
+    node_name: str,
+    field_key: str,
+) -> object:
+    """Recover invalid Comfy numeric values without changing persisted workflow data."""
+
+    if field_type not in {"INT", "FLOAT"}:
+        return value
+    if _is_valid_numeric_value(value, field_type=field_type):
+        return value
+
+    default_value = field_meta.get("default")
+    if _is_valid_numeric_value(default_value, field_type=field_type):
+        recovered_value = default_value
+        recovery_source = "comfy_default"
+    else:
+        minimum = constraints.get("min")
+        if _is_valid_numeric_value(minimum, field_type=field_type):
+            recovered_value = minimum
+            recovery_source = "minimum_constraint"
+        else:
+            recovered_value = 0
+            recovery_source = "neutral_zero"
+
+    log_warning(
+        _LOGGER,
+        "Recovered invalid Comfy numeric editor value",
+        node_name=node_name,
+        field_key=field_key,
+        field_type=field_type,
+        recovery_source=recovery_source,
+    )
+    return recovered_value
+
+
 @dataclass(frozen=True, slots=True)
 class NumericFieldBuildRequest:
     """Carry prepared numeric field data to numeric field factories."""
@@ -94,6 +145,14 @@ class NumericFieldFactory:
     def build_field_widget(self, request: NumericFieldBuildRequest) -> object | None:
         """Return a numeric field widget, or None when this field is not numeric."""
 
+        recovered_value = _recover_numeric_value(
+            value=request.value,
+            field_type=request.field_type,
+            field_meta=request.field_meta,
+            constraints=request.constraints,
+            node_name=request.node_name,
+            field_key=request.key,
+        )
         for factory in (
             widget_factory_spinner_slider,
             widget_factory_seedbox,
@@ -104,7 +163,7 @@ class NumericFieldFactory:
                 request.parent,
                 request.node_name,
                 request.key,
-                request.value,
+                recovered_value,
                 request.field_meta,
                 field_type=request.field_type,
                 field_presentation=request.field_presentation,

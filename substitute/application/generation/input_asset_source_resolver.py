@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from substitute.application.generation.input_asset_staging_plan_service import (
     InputAssetStagingTarget,
@@ -238,7 +238,12 @@ def _looks_like_local_path(value: str) -> bool:
     """Return whether a graph value appears to reference a filesystem path."""
 
     path = Path(value)
-    return path.is_absolute() or "\\" in value or "/" in value
+    return (
+        path.is_absolute()
+        or PureWindowsPath(value).is_absolute()
+        or PurePosixPath(value).is_absolute()
+        or "\\" in value
+    )
 
 
 __all__ = [

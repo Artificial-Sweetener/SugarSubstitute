@@ -25,7 +25,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from threading import Lock
+from threading import Event, Lock
 from typing import IO, Any, Protocol
 
 from substitute.application.execution import (
@@ -76,6 +76,7 @@ class LaunchSplashCancelRelay:
         """Initialize the relay without an attached bootstrap callback."""
 
         self._lock = Lock()
+        self._cancellation_event = Event()
         self._callback: SplashCancelCallback | None = None
         self._cancel_requested = False
 
@@ -86,6 +87,7 @@ class LaunchSplashCancelRelay:
         with self._lock:
             self._cancel_requested = True
             callback = self._callback
+        self._cancellation_event.set()
         if callback is not None:
             callback()
 
@@ -104,6 +106,11 @@ class LaunchSplashCancelRelay:
 
         with self._lock:
             return self._cancel_requested
+
+    def wait_for_cancel(self, timeout: float) -> bool:
+        """Wait for the splash helper to request cancellation."""
+
+        return self._cancellation_event.wait(timeout)
 
 
 class LaunchSplashClient(Protocol):

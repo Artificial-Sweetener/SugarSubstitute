@@ -106,7 +106,7 @@ class InputCanvasDocument(QObject):
         self,
         *,
         features: tuple[str, ...],
-        execution_runtime: ExecutionRuntime | None = None,
+        execution_runtime: ExecutionRuntime,
     ) -> None:
         """Create the durable document, detached session, and editing surface."""
 

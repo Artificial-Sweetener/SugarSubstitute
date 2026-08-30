@@ -56,6 +56,9 @@ from substitute.application.recipes.workflow_export_service import WorkflowExpor
 from substitute.application.recipes.workflow_payload_nodes import (
     executable_prompt_nodes,
 )
+from substitute.application.workflows.input_asset_diagnostics import (
+    log_generation_payload_assets,
+)
 from substitute.domain.common import WorkflowId
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.recipes import parse_sugar_script_document
@@ -84,7 +87,6 @@ from substitute.application.generation.visual_run_context_builder import (
 from substitute.application.prompt_wildcards import PromptWildcardPreprocessingService
 from substitute.shared.logging.logger import (
     get_logger,
-    log_debug,
     log_exception,
     log_warning,
 )
@@ -95,7 +97,6 @@ _UUID_CLASS_RE = re.compile(
 )
 _LOGGER = get_logger("application.generation.generation_service")
 DEFAULT_PROJECTS_DIR = Path.cwd() / "user" / "projects"
-_LOAD_IMAGE_CLASSES = frozenset({"LoadImage", "LoadImageMask"})
 
 
 def _call_accepts_keyword(callable_obj: Callable[..., object], keyword: str) -> bool:
@@ -355,7 +356,7 @@ class GenerationService:
                     )
                 )
             unresolved = find_unresolved_uuid_class_types(workflow_payload)
-            _log_payload_image_inputs(
+            log_generation_payload_assets(
                 workflow_payload,
                 workflow_id=request.workflow_id,
                 workflow_name=request.workflow_name,
@@ -431,7 +432,7 @@ class GenerationService:
                     ),
                 )
             workflow_payload = staging_result.workflow_payload
-            _log_payload_image_inputs(
+            log_generation_payload_assets(
                 workflow_payload,
                 workflow_id=request.workflow_id,
                 workflow_name=request.workflow_name,
@@ -547,7 +548,7 @@ class GenerationService:
                     error_report=queue_result.error_report,
                 ),
             )
-        _log_payload_image_inputs(
+        log_generation_payload_assets(
             workflow_payload,
             workflow_id=request.workflow_id,
             workflow_name=request.workflow_name,
@@ -712,35 +713,6 @@ def find_unresolved_uuid_class_types(workflow_payload: dict[str, object]) -> lis
         if _UUID_CLASS_RE.match(class_type):
             unresolved.add(class_type)
     return sorted(unresolved)
-
-
-def _log_payload_image_inputs(
-    workflow_payload: dict[str, object],
-    *,
-    workflow_id: WorkflowId,
-    workflow_name: str,
-    stage: str,
-) -> None:
-    """Log LoadImage values present in a compiled or staged generation payload."""
-
-    for node_id, node_data in executable_prompt_nodes(workflow_payload).items():
-        if not isinstance(node_data, dict):
-            continue
-        node_class = node_data.get("class_type")
-        if node_class not in _LOAD_IMAGE_CLASSES:
-            continue
-        inputs = node_data.get("inputs", {})
-        image_value = inputs.get("image") if isinstance(inputs, dict) else None
-        log_debug(
-            _LOGGER,
-            "Generation payload image input",
-            workflow_id=workflow_id,
-            workflow_name=workflow_name,
-            stage=stage,
-            node_id=node_id,
-            node_class=node_class,
-            image_value=image_value,
-        )
 
 
 def _cube_numbers_by_alias(request: PreparedGenerationRequest) -> dict[str, int]:

@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 import os
 from pathlib import Path
 import shutil
@@ -26,6 +26,7 @@ import sys
 
 
 PyInstallerDataFile = tuple[str, str]
+PyInstallerBinary = tuple[str, str, str]
 
 
 def build_launcher_data_files(
@@ -77,8 +78,27 @@ def resolve_uv_executable(
     )
 
 
+def exclude_foreign_windows_icu_binaries(
+    binaries: Iterable[PyInstallerBinary],
+) -> list[PyInstallerBinary]:
+    """Keep PATH-discovered ICU builds from shadowing the Windows ICU contract."""
+
+    return [
+        binary for binary in binaries if not _is_windows_icu_contract_name(binary[0])
+    ]
+
+
+def _is_windows_icu_contract_name(destination: str) -> bool:
+    """Return whether a collected DLL should resolve from Windows itself."""
+
+    name = Path(destination).name.casefold()
+    return name == "icuuc.dll" or (name.startswith("icudt") and name.endswith(".dll"))
+
+
 __all__ = [
     "PyInstallerDataFile",
+    "PyInstallerBinary",
     "build_launcher_data_files",
+    "exclude_foreign_windows_icu_binaries",
     "resolve_uv_executable",
 ]

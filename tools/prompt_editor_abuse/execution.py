@@ -36,6 +36,7 @@ from .models import (
 )
 from .statistics import summarize_latencies
 from .structural_policy import prompt_abuse_structural_violations
+from .structural_instrumentation import structural_instrumentation_active
 
 type PromptAbuseSettler = Callable[[str], tuple[float, bool]]
 type PromptAbuseCorrectnessCapture = Callable[[], PromptAbuseCorrectnessSnapshot]
@@ -60,6 +61,7 @@ def execute_mounted_scenario(
     dispatch_samples: list[PromptAbuseDispatchSample] = []
     counter_probe = PromptAbuseActionCounterProbe(editor)
     action_owner_deltas: list[PromptAbuseActionOwnerDelta] = []
+    complete_structural_actions = structural_instrumentation_active()
     burst_started_at = perf_counter()
     for action_index, action in enumerate(scenario.actions):
         dispatch_samples.extend(
@@ -72,6 +74,14 @@ def execute_mounted_scenario(
                 runtime_telemetry=deep_trace_enabled,
                 counter_probe=counter_probe,
                 counter_deltas=action_owner_deltas,
+                complete_action=(
+                    _structural_action_completion(
+                        settle,
+                        action.expected_source,
+                    )
+                    if complete_structural_actions
+                    else None
+                ),
             )
         )
         if after_action is not None:
@@ -131,6 +141,36 @@ def execute_mounted_scenario(
             action_owner_delta_snapshot
         ),
     )
+
+
+def _complete_structural_action(
+    settle: PromptAbuseSettler,
+    expected_source: str | None,
+) -> None:
+    """Close an instrumented action only after its authoritative work settles."""
+
+    if expected_source is None:
+        return
+    _elapsed_ms, settled = settle(expected_source)
+    if not settled:
+        raise AssertionError(
+            "Structural action did not reach current source, projection, and "
+            "semantic owners before its counter interval closed."
+        )
+
+
+def _structural_action_completion(
+    settle: PromptAbuseSettler,
+    expected_source: str | None,
+) -> Callable[[], None]:
+    """Return one typed completion boundary for an instrumented action."""
+
+    def complete() -> None:
+        """Settle the action's authoritative owners before counter capture."""
+
+        _complete_structural_action(settle, expected_source)
+
+    return complete
 
 
 __all__ = [

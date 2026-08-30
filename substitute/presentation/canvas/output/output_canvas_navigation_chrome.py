@@ -20,8 +20,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Protocol, cast
+from weakref import ref
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QObject, QTimer
+from shiboken6 import isValid
 
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
@@ -165,11 +167,50 @@ def update_output_tabbar_container(
         show_set_selector=show_set_selector,
     )
 
-    scheduler = single_shot if single_shot is not None else QTimer.singleShot
-    scheduler(
-        0,
-        lambda: _apply_deferred_source_navigation_geometry(
-            host,
+    _schedule_deferred_source_navigation_geometry(
+        host,
+        scheduler=single_shot if single_shot is not None else QTimer.singleShot,
+        navigation_controller=navigation_controller,
+        show_source_navigation=show_source_navigation,
+        show_source_tabs=show_source_tabs,
+        show_source_selector=show_source_selector,
+        show_scene_selector=show_scene_selector,
+        show_set_selector=show_set_selector,
+        source_selector=source_selector,
+        scene_w=scene_w,
+        selector_w=selector_w,
+        padding_left=padding_left,
+        padding_bottom=padding_bottom,
+        extra_pad=extra_pad,
+        gap=gap,
+    )
+
+
+def _schedule_deferred_source_navigation_geometry(
+    host: object,
+    *,
+    scheduler: Callable[[int, Callable[[], None]], None],
+    navigation_controller: OutputCanvasNavigationController,
+    show_source_navigation: bool,
+    show_source_tabs: bool,
+    show_source_selector: bool,
+    show_scene_selector: bool,
+    show_set_selector: bool,
+    source_selector: object | None,
+    scene_w: int,
+    selector_w: int,
+    padding_left: int,
+    padding_bottom: int,
+    extra_pad: int,
+    gap: int,
+) -> None:
+    """Schedule geometry only while a Qt navigation host remains valid."""
+
+    def apply(live_host: object) -> None:
+        """Apply the settled geometry for one still-live host."""
+
+        _apply_deferred_source_navigation_geometry(
+            live_host,
             navigation_controller=navigation_controller,
             show_source_navigation=show_source_navigation,
             show_source_tabs=show_source_tabs,
@@ -183,8 +224,22 @@ def update_output_tabbar_container(
             padding_bottom=padding_bottom,
             extra_pad=extra_pad,
             gap=gap,
-        ),
-    )
+        )
+
+    if isinstance(host, QObject):
+        host_reference = ref(host)
+
+        def apply_if_host_remains_live() -> None:
+            """Ignore a deferred refresh after Qt has destroyed its host."""
+
+            live_host = host_reference()
+            if live_host is not None and isValid(live_host):
+                apply(live_host)
+
+        scheduler(0, apply_if_host_remains_live)
+        return
+
+    scheduler(0, lambda: apply(host))
 
 
 def _apply_deferred_source_navigation_geometry(

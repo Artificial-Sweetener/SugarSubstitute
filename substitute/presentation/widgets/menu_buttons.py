@@ -18,413 +18,93 @@
 
 from __future__ import annotations
 
+
 import sys
-from typing import Callable
+from typing import TYPE_CHECKING, Callable, Protocol, cast
 
-try:
-    from shiboken6 import isValid as _is_valid_shiboken_object
-except ImportError:  # pragma: no cover - fallback for lightweight test stubs
-    _is_valid_shiboken_object = None
+from PySide6.QtCore import QEvent
+from PySide6.QtGui import QCursor
+from shiboken6 import isValid as _is_valid_shiboken_object
 
-try:
-    from PySide6.QtCore import QEvent
-    from PySide6.QtGui import QCursor
-except ImportError:  # pragma: no cover - fallback for lightweight test stubs
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QWidget
 
-    class QEvent:  # type: ignore[no-redef]
-        """Provide the event constants consumed by popup tracking."""
+    class _SignalLike(Protocol):
+        """Describe the QFluent signal operations used by the adapters."""
 
-        Hide = 18
-        Close = 19
-        Destroy = 16
+        def connect(self, callback: object) -> None:
+            """Connect one callback or relay."""
 
-        class Type:
-            """Mirror Qt's nested event enum shape."""
+        def disconnect(self, callback: object | None = None) -> None:
+            """Disconnect one callback or all callbacks."""
 
-            Hide = 18
-            Close = 19
-            Destroy = 16
+        def emit(self, *args: object) -> None:
+            """Emit one signal payload."""
 
-    class QCursor:  # type: ignore[no-redef]
-        """Provide a minimal cursor facade for lightweight test stubs."""
+    class _ButtonPart(QWidget):
+        """Describe a real split-button child at the untyped package boundary."""
 
-        @staticmethod
-        def pos() -> tuple[int, int]:
-            """Return a stable origin position."""
+        clicked: _SignalLike
 
-            return (0, 0)
+    class ToolButton(QWidget):
+        """Describe the typed ToolButton method used by the mixin."""
 
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            """Accept the constructor overloads owned by QFluent."""
 
-try:
-    from qfluentwidgets import DropDownToolButton as _RuntimeDropDownToolButton
-    from qfluentwidgets import PrimarySplitPushButton as _RuntimePrimarySplitPushButton
-    from qfluentwidgets import SplitToolButton as _RuntimeSplitToolButton
-    from qfluentwidgets import ToolButton as _RuntimeToolButton
-    from qfluentwidgets import (
-        TransparentDropDownToolButton as _RuntimeTransparentDropDownToolButton,
+        def mouseReleaseEvent(self, event: object) -> None:
+            """Forward one release event through the QFluent base."""
+
+    class DropDownToolButton(ToolButton):
+        """Describe the dropdown methods supplied by QFluent."""
+
+        def setMenu(self, menu: object) -> None:
+            """Attach one popup menu."""
+
+        def _showMenu(self) -> None:
+            """Show the attached popup menu."""
+
+    class TransparentDropDownToolButton(DropDownToolButton):
+        """Describe the transparent dropdown QFluent variant."""
+
+    class _SplitButtonBase(QWidget):
+        """Describe the split-button surface used by toggle adapters."""
+
+        dropButton: _ButtonPart
+        dropDownClicked: _SignalLike
+        button: _ButtonPart
+        clicked: _SignalLike
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            """Accept the constructor overloads owned by QFluent."""
+
+        def setFlyout(self, flyout: object) -> None:
+            """Attach one popup flyout."""
+
+        def setDropButton(self, button: object) -> None:
+            """Replace the drop-arrow child."""
+
+        def showFlyout(self) -> None:
+            """Show the attached popup flyout."""
+
+    class SplitToolButton(_SplitButtonBase):
+        """Describe the QFluent split tool-button variant."""
+
+    class PrimarySplitPushButton(_SplitButtonBase):
+        """Describe the QFluent primary split-button variant."""
+
+else:
+    from qfluentwidgets import (  # type: ignore[import-untyped]
+        DropDownToolButton,
+        PrimarySplitPushButton,
+        SplitToolButton,
+        ToolButton,
+        TransparentDropDownToolButton,
     )
-except (ImportError, AttributeError):  # pragma: no cover - fallback for tests only
-    _RuntimeDropDownToolButton = None
-    _RuntimePrimarySplitPushButton = None
-    _RuntimeSplitToolButton = None
-    _RuntimeToolButton = None
-    _RuntimeTransparentDropDownToolButton = None
 
 from substitute.shared.logging.logger import get_logger, log_debug
 
 _LOGGER = get_logger("presentation.widgets.menu_buttons")
-
-
-class _FallbackSignal:
-    """Provide a minimal signal implementation for fallback widget classes."""
-
-    def __init__(self) -> None:
-        """Initialize the empty callback list."""
-
-        self._callbacks: list[object] = []
-
-    def connect(self, callback: object) -> None:
-        """Register one callback or signal relay."""
-
-        self._callbacks.append(callback)
-
-    def disconnect(self, callback: object | None = None) -> None:
-        """Remove one callback or clear all callbacks when omitted."""
-
-        if callback is None:
-            self._callbacks.clear()
-            return
-        self._callbacks.remove(callback)
-
-    def emit(self, *args: object) -> None:
-        """Invoke all registered callbacks with the supplied arguments."""
-
-        for callback in list(self._callbacks):
-            relay = getattr(callback, "emit", None)
-            if callable(relay):
-                relay(*args)
-                continue
-            callback(*args)
-
-
-class _FallbackObject:
-    """Provide event-filter plumbing used by popup tracking helpers."""
-
-    def __init__(self, *_args: object, **_kwargs: object) -> None:
-        """Initialize the installed event-filter collection."""
-
-        self._event_filters: list[object] = []
-
-    def installEventFilter(self, event_filter: object) -> None:
-        """Register one event filter."""
-
-        self._event_filters.append(event_filter)
-
-    def removeEventFilter(self, event_filter: object) -> None:
-        """Remove one previously installed event filter."""
-
-        if event_filter in self._event_filters:
-            self._event_filters.remove(event_filter)
-
-    def _dispatch_event(self, event: object) -> None:
-        """Deliver one event object to installed filters."""
-
-        for event_filter in list(self._event_filters):
-            handler = getattr(event_filter, "eventFilter", None)
-            if callable(handler):
-                handler(self, event)
-
-    def eventFilter(self, _watched: object, _event: object) -> bool:
-        """Accept event-filter delegation without side effects."""
-
-        return False
-
-
-class _FallbackWidget(_FallbackObject):
-    """Provide the QWidget-like behavior required by wrapper tests."""
-
-    def __init__(self, parent: object | None = None) -> None:
-        """Initialize geometry, visibility, and lifecycle state."""
-
-        super().__init__()
-        self._parent = parent
-        self._visible = False
-        self._width = 120
-        self._height = 32
-        self._position = (0, 0)
-        self.destroyed = _FallbackSignal()
-        self.closedSignal = _FallbackSignal()
-
-    def width(self) -> int:
-        """Return the configured width."""
-
-        return self._width
-
-    def height(self) -> int:
-        """Return the configured height."""
-
-        return self._height
-
-    def mapToGlobal(self, point: object) -> object:
-        """Return the supplied point unchanged."""
-
-        return point
-
-    def hide(self) -> None:
-        """Hide the widget and notify observers."""
-
-        self._visible = False
-        self._dispatch_event(_FallbackEvent(_event_type("Hide", 18)))
-        self.closedSignal.emit()
-
-    def close(self) -> None:
-        """Close the widget and notify observers."""
-
-        self._visible = False
-        self._dispatch_event(_FallbackEvent(_event_type("Close", 19)))
-        self.closedSignal.emit()
-
-    def isVisible(self) -> bool:
-        """Return the current visible state."""
-
-        return self._visible
-
-    def show(self) -> None:
-        """Mark the widget visible."""
-
-        self._visible = True
-
-    def move(self, x: int, y: int) -> None:
-        """Store the widget position."""
-
-        self._position = (x, y)
-
-    def raise_(self) -> None:
-        """Accept z-order raises without side effects."""
-
-
-class _FallbackEvent:
-    """Provide a minimal event object for fallback popup lifecycle hooks."""
-
-    def __init__(self, event_type: int) -> None:
-        """Store one event type."""
-
-        self._event_type = event_type
-
-    def type(self) -> int:
-        """Return the stored event type."""
-
-        return self._event_type
-
-
-class _FallbackClickableWidget(_FallbackWidget):
-    """Provide a widget stub with a clicked signal and enable state."""
-
-    def __init__(self, parent: object | None = None) -> None:
-        """Initialize click signaling and enabled state."""
-
-        super().__init__(parent)
-        self.clicked = _FallbackSignal()
-        self._enabled = True
-
-    def setEnabled(self, enabled: bool) -> None:
-        """Record the enabled state."""
-
-        self._enabled = enabled
-
-    def setFixedWidth(self, width: int) -> None:
-        """Store the fixed width."""
-
-        self._width = width
-
-    def setFixedHeight(self, height: int) -> None:
-        """Store the fixed height."""
-
-        self._height = height
-
-    def setMinimumWidth(self, width: int) -> None:
-        """Store the minimum width as the current width."""
-
-        self._width = width
-
-    def setMaximumWidth(self, width: int) -> None:
-        """Store the maximum width as the current width."""
-
-        self._width = width
-
-    def setObjectName(self, _name: str) -> None:
-        """Accept object-name assignment without side effects."""
-
-    def setStyleSheet(self, _style: str) -> None:
-        """Accept style updates without side effects."""
-
-
-class _FallbackToolButton(_FallbackClickableWidget):
-    """Provide a minimal QFluent-like tool button base."""
-
-    def __init__(self, *_args: object, **_kwargs: object) -> None:
-        """Initialize mouse-release tracking and icon state."""
-
-        super().__init__()
-        self._icon = None
-        self._tooltip = ""
-
-    def mouseReleaseEvent(self, _event: object) -> None:
-        """Accept mouse-release forwarding without side effects."""
-
-    def setIcon(self, icon: object) -> None:
-        """Store the current icon payload."""
-
-        self._icon = icon
-
-    def setToolTip(self, tooltip: str) -> None:
-        """Store the tooltip text."""
-
-        self._tooltip = tooltip
-
-    def setCursor(self, _cursor: object) -> None:
-        """Accept cursor updates without side effects."""
-
-
-class _FallbackDropDownToolButton(_FallbackToolButton):
-    """Provide a minimal dropdown tool-button base."""
-
-    def __init__(self, *_args: object, **_kwargs: object) -> None:
-        """Initialize menu storage."""
-
-        super().__init__()
-        self._menu: object | None = None
-
-    def setMenu(self, menu: object) -> None:
-        """Store one attached popup menu."""
-
-        self._menu = menu
-
-    def menu(self) -> object | None:
-        """Return the attached popup menu."""
-
-        return self._menu
-
-    def _showMenu(self) -> None:
-        """Execute the attached menu when present."""
-
-        menu = self.menu()
-        if menu is not None and hasattr(menu, "exec"):
-            menu.exec(None)
-
-
-class _FallbackTransparentDropDownToolButton(_FallbackDropDownToolButton):
-    """Reuse the fallback dropdown base for the transparent variant."""
-
-
-class _FallbackSplitButtonBase(_FallbackWidget):
-    """Provide shared split-button child wiring for fallback wrappers."""
-
-    def __init__(self, *_args: object, **_kwargs: object) -> None:
-        """Initialize primary and drop-button children plus flyout state."""
-
-        super().__init__()
-        self.flyout: object | None = None
-        self.clicked = _FallbackSignal()
-        self.dropDownClicked = _FallbackSignal()
-        self.button = _FallbackClickableWidget(self)
-        self.dropButton = _FallbackClickableWidget(self)
-        self.button.clicked.connect(self.clicked)
-        self.dropButton.clicked.connect(self.dropDownClicked)
-        self.dropButton.clicked.connect(self.showFlyout)
-
-    def setFlyout(self, flyout: object) -> None:
-        """Store the attached popup flyout."""
-
-        self.flyout = flyout
-
-    def showFlyout(self) -> None:
-        """Execute the attached flyout when present."""
-
-        if self.flyout is not None and hasattr(self.flyout, "exec"):
-            self.flyout.exec(None)
-
-    def setDropButton(self, button: _FallbackClickableWidget) -> None:
-        """Replace the drop button and restore inherited signal wiring."""
-
-        self.dropButton = button
-        self.dropButton.clicked.connect(self.dropDownClicked)
-        self.dropButton.clicked.connect(self.showFlyout)
-
-    def setIcon(self, _icon: object) -> None:
-        """Accept icon updates without side effects."""
-
-    def setCursor(self, _cursor: object) -> None:
-        """Accept cursor updates without side effects."""
-
-    def setToolTip(self, _tooltip: str) -> None:
-        """Accept tooltip updates without side effects."""
-
-    def setEnabled(self, _enabled: bool) -> None:
-        """Accept enabled-state updates without side effects."""
-
-    def setFixedWidth(self, width: int) -> None:
-        """Store the fixed width."""
-
-        self._width = width
-
-    def setFixedHeight(self, height: int) -> None:
-        """Store the fixed height."""
-
-        self._height = height
-
-    def setMinimumWidth(self, width: int) -> None:
-        """Store the minimum width as the current width."""
-
-        self._width = width
-
-    def setMaximumWidth(self, width: int) -> None:
-        """Store the maximum width as the current width."""
-
-        self._width = width
-
-
-class _FallbackSplitToolButton(_FallbackSplitButtonBase):
-    """Provide the fallback split-tool-button base."""
-
-
-class _FallbackPrimarySplitPushButton(_FallbackSplitButtonBase):
-    """Provide the fallback primary split-push-button base."""
-
-
-if (
-    _RuntimeToolButton is None
-    or _RuntimeDropDownToolButton is None
-    or _RuntimeTransparentDropDownToolButton is None
-    or _RuntimeSplitToolButton is None
-    or _RuntimePrimarySplitPushButton is None
-):
-    ToolButton = _FallbackToolButton
-    DropDownToolButton = _FallbackDropDownToolButton
-    TransparentDropDownToolButton = _FallbackTransparentDropDownToolButton
-    SplitToolButton = _FallbackSplitToolButton
-    PrimarySplitPushButton = _FallbackPrimarySplitPushButton
-else:  # pragma: no cover - exercised in the real application runtime
-    ToolButton = _RuntimeToolButton
-    DropDownToolButton = _RuntimeDropDownToolButton
-    TransparentDropDownToolButton = _RuntimeTransparentDropDownToolButton
-    SplitToolButton = _RuntimeSplitToolButton
-    PrimarySplitPushButton = _RuntimePrimarySplitPushButton
-
-
-def _event_type(attr_name: str, fallback: int) -> int:
-    """Resolve QEvent constants across Qt enum styles and test doubles."""
-
-    enum_owner = getattr(QEvent, "Type", QEvent)
-    event_type = getattr(enum_owner, attr_name, None)
-    if event_type is None:
-        event_type = getattr(QEvent, attr_name, None)
-    if event_type is None:
-        return fallback
-    try:
-        return int(event_type)
-    except TypeError:
-        return fallback
 
 
 def _is_usable_qt_wrapper(candidate: object | None) -> bool:
@@ -432,8 +112,6 @@ def _is_usable_qt_wrapper(candidate: object | None) -> bool:
 
     if candidate is None:
         return False
-    if _is_valid_shiboken_object is None:
-        return True
     return bool(_is_valid_shiboken_object(candidate))
 
 
@@ -665,9 +343,9 @@ class _PopupToggleMixin:
             and callable(event_type)
             and event_type()
             in {
-                _event_type("Hide", 18),
-                _event_type("Close", 19),
-                _event_type("Destroy", 16),
+                QEvent.Type.Hide,
+                QEvent.Type.Close,
+                QEvent.Type.Destroy,
             }
         ):
             self._on_tracked_popup_closed(watched)
@@ -684,14 +362,15 @@ class _ToggleDropDownButtonMixin(_PopupToggleMixin):
     def setMenu(self, menu: object) -> None:
         """Attach one menu and register it with the shared popup tracker."""
 
-        super().setMenu(menu)
+        cast(DropDownToolButton, super()).setMenu(menu)
         self._track_attached_popup(menu)
 
     def mouseReleaseEvent(self, event: object) -> None:
         """Forward base release handling and then toggle the attached menu."""
 
-        ToolButton.mouseReleaseEvent(self, event)
-        self._toggle_attached_popup(self._showMenu)
+        runtime_button = cast(DropDownToolButton, self)
+        ToolButton.mouseReleaseEvent(runtime_button, event)
+        self._toggle_attached_popup(runtime_button._showMenu)
 
 
 class _ToggleSplitButtonMixin(_PopupToggleMixin):
@@ -705,13 +384,13 @@ class _ToggleSplitButtonMixin(_PopupToggleMixin):
     def setFlyout(self, flyout: object) -> None:
         """Attach one flyout and register it with the shared popup tracker."""
 
-        super().setFlyout(flyout)
+        cast("_SplitButtonBase", super()).setFlyout(flyout)
         self._track_attached_popup(flyout)
 
     def setDropButton(self, button: object) -> None:
         """Replace the drop button and restore toggle-aware arrow wiring."""
 
-        super().setDropButton(button)
+        cast("_SplitButtonBase", super()).setDropButton(button)
         self._wire_toggle_drop_button()
 
     def _wire_toggle_drop_button(self) -> None:
@@ -730,7 +409,10 @@ class _ToggleSplitButtonMixin(_PopupToggleMixin):
             try:
                 disconnect()
             except TypeError:
-                for callback in (self.showFlyout, self._toggle_drop_flyout):
+                for callback in (
+                    cast("_SplitButtonBase", self).showFlyout,
+                    self._toggle_drop_flyout,
+                ):
                     try:
                         disconnect(callback)
                     except (TypeError, RuntimeError, ValueError):
@@ -738,14 +420,14 @@ class _ToggleSplitButtonMixin(_PopupToggleMixin):
 
         connect = getattr(clicked_signal, "connect", None)
         if callable(connect):
-            connect(self.dropDownClicked)
+            connect(cast("_SplitButtonBase", self).dropDownClicked)
             connect(self._toggle_drop_flyout)
             self._toggle_wired_drop_button = drop_button
 
     def _toggle_drop_flyout(self) -> None:
         """Toggle the tracked flyout instead of always reopening it."""
 
-        self._toggle_attached_popup(self.showFlyout)
+        self._toggle_attached_popup(cast("_SplitButtonBase", self).showFlyout)
 
     def _is_cursor_over_popup_trigger(self) -> bool:
         """Return whether the cursor is currently over the drop-arrow trigger."""

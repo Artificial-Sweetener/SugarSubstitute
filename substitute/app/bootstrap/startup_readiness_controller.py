@@ -36,6 +36,13 @@ from substitute.app.bootstrap.startup_readiness_policy import (
     STARTUP_READINESS_MAX_ATTEMPTS,
     should_retry_startup_compatibility,
 )
+from substitute.app.bootstrap.startup_readiness_resources import (
+    ReadinessTimerProtocol,
+    StartupReadinessProbeProtocol,
+    StartupReadinessResources,
+    StartupReadinessStarter,
+    StartupRuntimeCompatibilityProbeProtocol,
+)
 from substitute.app.bootstrap.startup_trace import trace_mark
 from substitute.application.backend_compatibility import BackendCompatibilityResult
 from substitute.domain.comfy_startup_diagnostics import ComfyStartupIncident
@@ -44,93 +51,6 @@ from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 _LOGGER = get_logger("app.bootstrap.startup_readiness_controller")
 _READINESS_TIMER_INTERVAL_MS = 250
-
-
-class TimerSignalProtocol(Protocol):
-    """Describe the timer signal interface used by readiness orchestration."""
-
-    def connect(self, callback: Callable[[], None]) -> None:
-        """Connect one no-argument timeout callback."""
-
-
-class ReadinessTimerProtocol(Protocol):
-    """Describe the timer operations required by readiness orchestration."""
-
-    timeout: TimerSignalProtocol
-
-    def setInterval(self, interval_ms: int) -> None:
-        """Set the timer interval in milliseconds."""
-
-    def start(self) -> None:
-        """Start or restart the timer."""
-
-    def stop(self) -> None:
-        """Stop the timer."""
-
-
-class StartupReadinessProbeProtocol(Protocol):
-    """Describe the readiness probe task surface used by the controller."""
-
-    def connect_finished(
-        self, callback: Callable[[ReadinessProbeResult], None]
-    ) -> None:
-        """Connect one readiness completion callback."""
-
-    def request_probe(self, *, host: str, port: int) -> int | None:
-        """Request one asynchronous readiness probe."""
-
-    def accept_result(self, result: ReadinessProbeResult) -> bool:
-        """Return whether a result is current and accepted."""
-
-    def cancel_current(self) -> None:
-        """Cancel the current probe result."""
-
-
-class StartupRuntimeCompatibilityProbeProtocol(Protocol):
-    """Describe the runtime compatibility probe surface used by the controller."""
-
-    def connect_finished(
-        self,
-        callback: Callable[[RuntimeCompatibilityProbeResult], None],
-    ) -> None:
-        """Connect one compatibility completion callback."""
-
-    def request_assessment(self) -> int | None:
-        """Request one asynchronous compatibility assessment."""
-
-    def accept_result(self, result: RuntimeCompatibilityProbeResult) -> bool:
-        """Return whether a result is current and accepted."""
-
-    def cancel_current(self) -> None:
-        """Cancel the current compatibility result."""
-
-
-class StartupReadinessStartProtocol(Protocol):
-    """Start readiness polling."""
-
-    def start(self) -> None:
-        """Start readiness polling."""
-
-
-class StartupReadinessStarter:
-    """Late-bind readiness start/restart callbacks across startup controllers."""
-
-    def __init__(self) -> None:
-        """Initialize without a bound readiness controller."""
-
-        self._controller: StartupReadinessStartProtocol | None = None
-
-    def bind(self, controller: StartupReadinessStartProtocol) -> None:
-        """Bind the readiness controller that owns timer startup."""
-
-        self._controller = controller
-
-    def start(self) -> None:
-        """Start readiness through the bound controller."""
-
-        if self._controller is None:
-            raise RuntimeError("Startup readiness controller is not bound.")
-        self._controller.start()
 
 
 @dataclass
@@ -293,6 +213,7 @@ class StartupReadinessController:
         self._try_show_main_window = try_show_main_window
         self._trace_fields = trace_fields
         self._timer_interval_ms = timer_interval_ms
+        self._resources: StartupReadinessResources | None = None
 
     def start(self) -> None:
         """Start polling Comfy HTTP readiness independently of shell hydration."""
@@ -301,6 +222,30 @@ class StartupReadinessController:
         if self._is_startup_cancelled():
             trace_mark("readiness_timer.start_skipped", reason="startup_cancelled")
             return
+        resources = self._resources
+        resources_reused = resources is not None
+        if resources is None:
+            resources = self._create_resources()
+            self._resources = resources
+        resources.timer.start()
+        trace_mark(
+            "readiness_timer.started",
+            interval_ms=self._timer_interval_ms,
+            resources_reused=resources_reused,
+        )
+        log_info(
+            _LOGGER,
+            "Startup readiness timer started",
+            target_mode=self._target.mode.value,
+            host=self._target.endpoint.host,
+            port=self._target.endpoint.port,
+            interval_ms=self._timer_interval_ms,
+            resources_reused=resources_reused,
+        )
+
+    def _create_resources(self) -> StartupReadinessResources:
+        """Create and connect the readiness resources once for this startup."""
+
         readiness_probe = self._readiness_probe_factory(self._readiness_probe)
         compatibility_probe = self._runtime_compatibility_probe_factory(
             self._assess_runtime_compatibility
@@ -327,15 +272,10 @@ class StartupReadinessController:
         )
         timer.setInterval(self._timer_interval_ms)
         timer.timeout.connect(lambda: self.check_ready(timer, readiness_probe))
-        timer.start()
-        trace_mark("readiness_timer.started", interval_ms=self._timer_interval_ms)
-        log_info(
-            _LOGGER,
-            "Startup readiness timer started",
-            target_mode=self._target.mode.value,
-            host=self._target.endpoint.host,
-            port=self._target.endpoint.port,
-            interval_ms=self._timer_interval_ms,
+        return StartupReadinessResources(
+            timer=timer,
+            readiness_probe=readiness_probe,
+            compatibility_probe=compatibility_probe,
         )
 
     def check_ready(
@@ -682,14 +622,9 @@ def create_bound_startup_readiness_controller(
 
 __all__ = [
     "ComfyHttpReadyStateProtocol",
-    "ReadinessTimerProtocol",
     "StartupReadinessController",
     "StartupReadinessControllerState",
     "StartupReadinessFailureAdapter",
-    "StartupReadinessProbeProtocol",
-    "StartupReadinessStarter",
-    "StartupReadinessStartProtocol",
-    "StartupRuntimeCompatibilityProbeProtocol",
     "create_bound_startup_readiness_controller",
     "create_startup_readiness_controller",
     "create_startup_readiness_failure_adapter",

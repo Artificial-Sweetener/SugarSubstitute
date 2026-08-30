@@ -18,12 +18,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import ssl
 import subprocess
-from threading import Lock, Thread
+from threading import Condition, Lock, Thread
 import time
 from typing import Any, Self, cast
 
@@ -31,12 +32,11 @@ import certifi
 
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
 
-LOCAL_RELEASE_PORT = 44_443
-LOCAL_RELEASE_BASE_URL = f"https://localhost:{LOCAL_RELEASE_PORT}"
+LOCAL_RELEASE_BASE_URL_PLACEHOLDER = "https://localhost.invalid"
 
 
 class LocalReleaseServer:
-    """Serve immutable candidate artifacts from a fixed CI-only HTTPS origin."""
+    """Serve immutable candidate artifacts from one owned loopback origin."""
 
     def __init__(self, *, release_root: Path, certificate_root: Path) -> None:
         """Validate the release root and prepare its trusted localhost endpoint."""
@@ -51,10 +51,8 @@ class LocalReleaseServer:
         self.request_log_path = certificate_root / "requests.jsonl"
         self.request_log_path.unlink(missing_ok=True)
         self._request_log_lock = Lock()
-        self._qualification_manifest = _qualification_manifest_bytes(
-            manifest_path=self.release_root / "manifest.json",
-            release_root=self.release_root,
-        )
+        self._request_log_condition = Condition(self._request_log_lock)
+        self._request_events: list[tuple[str, str]] = []
         self.certificate_path, key_path = _create_localhost_certificate(
             certificate_root
         )
@@ -63,19 +61,35 @@ class LocalReleaseServer:
             certificate_path=self.certificate_path,
         )
         self._server = ThreadingHTTPServer(
-            ("127.0.0.1", LOCAL_RELEASE_PORT),
-            self._handler_class(),
+            ("127.0.0.1", 0),
+            SimpleHTTPRequestHandler,
         )
+        self._qualification_manifest = _qualification_manifest_bytes(
+            manifest_path=self.release_root / "manifest.json",
+            release_root=self.release_root,
+            base_url=self.base_url,
+        )
+        self._server.RequestHandlerClass = self._handler_class()
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        tls.load_cert_chain(certfile=self.certificate_path, keyfile=key_path)
+        tls.load_cert_chain(
+            certfile=self.certificate_path,
+            keyfile=key_path,
+        )
         self._server.socket = tls.wrap_socket(self._server.socket, server_side=True)
         self._thread: Thread | None = None
 
     @property
     def manifest_url(self) -> str:
-        """Return the fixed manifest URL encoded into non-release candidate assets."""
+        """Return the manifest URL for this exact loopback endpoint."""
 
-        return f"{LOCAL_RELEASE_BASE_URL}/manifest.json"
+        return f"{self.base_url}/manifest.json"
+
+    @property
+    def base_url(self) -> str:
+        """Return the dynamically allocated HTTPS origin."""
+
+        host, port = self._server.server_address[:2]
+        return f"https://localhost:{port}" if host == "127.0.0.1" else ""
 
     def __enter__(self) -> Self:
         """Start serving the candidate channel."""
@@ -89,12 +103,50 @@ class LocalReleaseServer:
         return self
 
     def __exit__(self, *_args: object) -> None:
-        """Stop the endpoint and release its fixed port."""
+        """Stop the endpoint and release its allocated port."""
 
         self._server.shutdown()
         self._server.server_close()
         if self._thread is not None:
             self._thread.join(timeout=5.0)
+
+    def require_completed_requests(
+        self,
+        expected_paths: Sequence[str],
+        *,
+        timeout_seconds: float,
+    ) -> None:
+        """Wait for exact durable completions from asynchronous request handlers."""
+
+        expected = tuple(expected_paths)
+
+        def completed_paths_match() -> bool:
+            """Return whether durable completion records match the exact contract."""
+
+            return (
+                tuple(
+                    path
+                    for event, path in self._request_events
+                    if event == "request.completed"
+                )
+                == expected
+            )
+
+        with self._request_log_condition:
+            completed = self._request_log_condition.wait_for(
+                completed_paths_match,
+                timeout=timeout_seconds,
+            )
+            actual = tuple(
+                path
+                for event, path in self._request_events
+                if event == "request.completed"
+            )
+        if not completed:
+            raise TimeoutError(
+                "Candidate release server did not durably complete the expected "
+                f"requests: expected={expected!r} actual={actual!r}."
+            )
 
     def _handler_class(self) -> type[SimpleHTTPRequestHandler]:
         """Bind standard file serving to the exact candidate directory."""
@@ -102,7 +154,8 @@ class LocalReleaseServer:
         release_root = self.release_root
         qualification_manifest = self._qualification_manifest
         request_log_path = self.request_log_path
-        request_log_lock = self._request_log_lock
+        request_log_condition = self._request_log_condition
+        request_events = self._request_events
 
         class _Handler(SimpleHTTPRequestHandler):
             """Serve candidate files without noisy request logging."""
@@ -118,32 +171,73 @@ class LocalReleaseServer:
             def do_GET(self) -> None:
                 """Record access and serve the loopback-qualified manifest view."""
 
-                with request_log_lock:
+                request_path = self.path
+                started_at = time.monotonic_ns()
+                self._record_request(
+                    event="request.started",
+                    path=request_path,
+                    time_ns=time.time_ns(),
+                )
+                try:
+                    if request_path.partition("?")[0] == "/manifest.json":
+                        self.send_response(200)
+                        self.send_header(
+                            "Content-Type", "application/json; charset=utf-8"
+                        )
+                        self.send_header(
+                            "Content-Length", str(len(qualification_manifest))
+                        )
+                        self.end_headers()
+                        self.wfile.write(qualification_manifest)
+                    else:
+                        super().do_GET()
+                except Exception as error:
+                    self._record_request(
+                        event="request.failed",
+                        path=request_path,
+                        time_ns=time.time_ns(),
+                        duration_ns=time.monotonic_ns() - started_at,
+                        error_type=type(error).__name__,
+                    )
+                    raise
+                self._record_request(
+                    event="request.completed",
+                    path=request_path,
+                    time_ns=time.time_ns(),
+                    duration_ns=time.monotonic_ns() - started_at,
+                )
+
+            def _record_request(
+                self, *, event: str, path: str, **fields: object
+            ) -> None:
+                """Append one durable request lifecycle record for qualification."""
+
+                with request_log_condition:
                     with request_log_path.open("a", encoding="utf-8") as output:
                         output.write(
                             json.dumps(
                                 {
+                                    "event": event,
                                     "method": "GET",
-                                    "path": self.path,
-                                    "time_ns": time.time_ns(),
+                                    "path": path,
+                                    **fields,
                                 },
                                 sort_keys=True,
                             )
                             + "\n"
                         )
-                if self.path.partition("?")[0] == "/manifest.json":
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/json; charset=utf-8")
-                    self.send_header("Content-Length", str(len(qualification_manifest)))
-                    self.end_headers()
-                    self.wfile.write(qualification_manifest)
-                    return
-                super().do_GET()
+                    request_events.append((event, path))
+                    request_log_condition.notify_all()
 
         return _Handler
 
 
-def _qualification_manifest_bytes(*, manifest_path: Path, release_root: Path) -> bytes:
+def _qualification_manifest_bytes(
+    *,
+    manifest_path: Path,
+    release_root: Path,
+    base_url: str,
+) -> bytes:
     """Build an in-memory manifest view that resolves staged assets locally."""
 
     decoded: object = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -151,7 +245,7 @@ def _qualification_manifest_bytes(*, manifest_path: Path, release_root: Path) ->
     if not isinstance(decoded, dict):
         raise ValueError("Candidate release manifest must be a JSON object.")
     payload = cast(dict[str, object], decoded)
-    _rewrite_qualification_asset(payload.get("app"), release_root)
+    _rewrite_qualification_asset(payload.get("app"), release_root, base_url)
     for collection_name in ("launchers", "installers"):
         collection = payload.get(collection_name)
         if not isinstance(collection, dict):
@@ -159,11 +253,15 @@ def _qualification_manifest_bytes(*, manifest_path: Path, release_root: Path) ->
                 f"Candidate release manifest field must be an object: {collection_name}"
             )
         for asset_payload in collection.values():
-            _rewrite_qualification_asset(asset_payload, release_root)
+            _rewrite_qualification_asset(asset_payload, release_root, base_url)
     return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
-def _rewrite_qualification_asset(asset_payload: object, release_root: Path) -> None:
+def _rewrite_qualification_asset(
+    asset_payload: object,
+    release_root: Path,
+    base_url: str,
+) -> None:
     """Point one present staged asset at the trusted loopback server."""
 
     asset = ReleaseAsset.from_json(asset_payload)
@@ -177,11 +275,13 @@ def _rewrite_qualification_asset(asset_payload: object, release_root: Path) -> N
     if not isinstance(asset_payload, dict):
         raise ValueError("Candidate release asset must be a JSON object.")
     mutable_payload = cast(dict[str, object], asset_payload)
-    mutable_payload["url"] = f"{LOCAL_RELEASE_BASE_URL}/{asset.filename}"
+    mutable_payload["url"] = f"{base_url}/{asset.filename}"
 
 
-def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:
-    """Create a one-day localhost CA certificate trusted only by the harness."""
+def _create_localhost_certificate(
+    certificate_root: Path,
+) -> tuple[Path, Path]:
+    """Create a fast one-day EC localhost CA trusted only by the harness."""
 
     config_path = certificate_root / "openssl-local-release.cnf"
     certificate_path = certificate_root / "localhost.pem"
@@ -197,7 +297,7 @@ def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:
                 "CN = localhost",
                 "[v3_req]",
                 "basicConstraints = critical, CA:TRUE",
-                "keyUsage = critical, digitalSignature, keyEncipherment, keyCertSign",
+                "keyUsage = critical, digitalSignature, keyCertSign",
                 "extendedKeyUsage = serverAuth",
                 "subjectAltName = @alt_names",
                 "[alt_names]",
@@ -214,7 +314,9 @@ def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:
             "req",
             "-x509",
             "-newkey",
-            "rsa:2048",
+            "ec",
+            "-pkeyopt",
+            "ec_paramgen_curve:prime256v1",
             "-nodes",
             "-days",
             "1",
@@ -230,7 +332,7 @@ def _create_localhost_certificate(certificate_root: Path) -> tuple[Path, Path]:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    return certificate_path, key_path
+    return certificate_path.resolve(), key_path.resolve()
 
 
 def _create_qualification_trust_bundle(
@@ -250,4 +352,4 @@ def _create_qualification_trust_bundle(
     return bundle_path.resolve()
 
 
-__all__ = ["LOCAL_RELEASE_BASE_URL", "LOCAL_RELEASE_PORT", "LocalReleaseServer"]
+__all__ = ["LOCAL_RELEASE_BASE_URL_PLACEHOLDER", "LocalReleaseServer"]

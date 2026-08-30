@@ -20,92 +20,17 @@ from __future__ import annotations
 
 import argparse
 import logging
-import subprocess
-import sys
 from collections.abc import Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from time import perf_counter
 
 from tests.ci_test_policy import SERIAL_TEST_MODULES
+from tools.ci.test_module_process import TestModuleRun, run_test_module
+from tools.ci.test_partition_summary import write_test_partition_summary
 
 
 _LOGGER = logging.getLogger(__name__)
-_MODULE_TIMEOUT_SECONDS = 600
-
-
-def junit_path_for_module(junit_directory: Path, module_path: str) -> Path:
-    """Return one collision-free JUnit path for a repository test module."""
-
-    filename = module_path.removesuffix(".py").replace("/", "__") + ".xml"
-    return junit_directory / filename
-
-
-def build_serial_test_command(
-    *,
-    module_path: str,
-    junit_path: Path,
-    base_temp: Path,
-) -> tuple[str, ...]:
-    """Build the isolated pytest command for one serial test module."""
-
-    return (
-        sys.executable,
-        "-m",
-        "pytest",
-        "-n",
-        "0",
-        "-q",
-        module_path,
-        f"--junitxml={junit_path}",
-        f"--basetemp={base_temp}",
-    )
-
-
-def prepare_module_base_temp(
-    *,
-    base_temp_root: Path,
-    junit_path: Path,
-) -> Path:
-    """Create and return the parent-owned base-temp path for one module."""
-
-    base_temp_root.mkdir(parents=True, exist_ok=True)
-    base_temp = base_temp_root / junit_path.stem
-    return base_temp
-
-
-def run_serial_test_module(
-    *,
-    project_root: Path,
-    module_path: str,
-    junit_directory: Path,
-    base_temp_root: Path,
-) -> int:
-    """Run one module in a fresh process and return its pytest exit code."""
-
-    junit_path = junit_path_for_module(junit_directory, module_path)
-    base_temp = prepare_module_base_temp(
-        base_temp_root=base_temp_root,
-        junit_path=junit_path,
-    )
-    command = build_serial_test_command(
-        module_path=module_path,
-        junit_path=junit_path,
-        base_temp=base_temp,
-    )
-    completed = subprocess.run(  # noqa: S603
-        command,
-        cwd=project_root,
-        check=False,
-        timeout=_MODULE_TIMEOUT_SECONDS,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    if completed.returncode != 0:
-        _LOGGER.error("Pytest output for %s:\n%s", module_path, completed.stdout)
-    return completed.returncode
 
 
 def run_serial_test_modules(
@@ -117,26 +42,43 @@ def run_serial_test_modules(
     """Run all serial modules independently and return the failing paths."""
 
     junit_directory.mkdir(parents=True, exist_ok=True)
+    started_at = perf_counter()
+    runs: list[TestModuleRun] = []
     with TemporaryDirectory(prefix="sugarsubstitute-serial-") as temp_directory:
         base_temp_root = Path(temp_directory)
         failures: list[str] = []
         total = len(module_paths)
         for index, module_path in enumerate(module_paths, start=1):
             _LOGGER.info("Serial module %d/%d: %s", index, total, module_path)
-            return_code = run_serial_test_module(
+            result = run_test_module(
                 project_root=project_root,
                 module_path=module_path,
                 junit_directory=junit_directory,
                 base_temp_root=base_temp_root,
             )
-            if return_code != 0:
+            runs.append(result)
+            if not result.passed:
                 failures.append(module_path)
-                _LOGGER.error(
-                    "Serial module failed with exit code %d: %s",
-                    return_code,
-                    module_path,
-                )
-        return tuple(failures)
+                _log_failure(result)
+    write_test_partition_summary(
+        junit_directory=junit_directory,
+        lane="serial",
+        worker_count=1,
+        duration_seconds=perf_counter() - started_at,
+        runs=tuple(runs),
+    )
+    return tuple(failures)
+
+
+def _log_failure(result: TestModuleRun) -> None:
+    """Log one complete failed fresh-process result."""
+
+    _LOGGER.error("Pytest output for %s:\n%s", result.module_path, result.output)
+    _LOGGER.error(
+        "Serial module failed with exit code %d: %s",
+        result.return_code,
+        result.module_path,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:

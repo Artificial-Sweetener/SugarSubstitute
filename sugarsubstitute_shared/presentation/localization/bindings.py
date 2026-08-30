@@ -22,7 +22,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
-from PySide6.QtCore import QEvent, QObject, QSignalBlocker
+from PySide6.QtCore import QEvent, QObject, QSignalBlocker, Slot
 from PySide6.QtWidgets import QComboBox, QTableWidget
 
 from sugarsubstitute_shared.localization import ApplicationMessage, ApplicationText
@@ -96,10 +96,11 @@ class LocalizationBindings(QObject):
     def __init__(self, owner: QObject) -> None:
         """Observe the owner while retaining all language-neutral callbacks."""
 
-        super().__init__(owner)
-        self._owner = owner
+        self._owner: QObject | None = owner
         self._bindings: list[Callable[[], None]] = []
+        super().__init__(owner)
         owner.installEventFilter(self)
+        owner.destroyed.connect(self._release)
 
     def bind_text(self, target: TextTarget, text: TextFactory) -> None:
         """Bind a label, button, action, or other normal text property."""
@@ -228,7 +229,9 @@ class LocalizationBindings(QObject):
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         """Refresh this owner's bindings during Qt language-change propagation."""
 
-        if watched is self._owner and event.type() == QEvent.Type.LanguageChange:
+        if watched is getattr(self, "_owner", None) and (
+            event.type() == QEvent.Type.LanguageChange
+        ):
             self.retranslate()
         return False
 
@@ -237,6 +240,16 @@ class LocalizationBindings(QObject):
 
         self._bindings.append(binding)
         binding()
+
+    @Slot()
+    def _release(self) -> None:
+        """Release target callbacks before Qt destroys the owning subtree."""
+
+        if hasattr(self, "_owner"):
+            self._owner = None
+        bindings = getattr(self, "_bindings", None)
+        if bindings is not None:
+            bindings.clear()
 
 
 class LocalizedComboItemTextBinding(QObject):
@@ -251,11 +264,12 @@ class LocalizedComboItemTextBinding(QObject):
     ) -> None:
         """Retain the item identity and refresh it without emitting changes."""
 
-        super().__init__(combo)
-        self._combo = combo
+        self._combo: QComboBox | None = combo
         self._item_index = item_index
         self._message = message
+        super().__init__(combo)
         combo.installEventFilter(self)
+        combo.destroyed.connect(self._release)
         self.retranslate()
 
     def update(self, item_index: int, message: ApplicationMessage) -> None:
@@ -268,10 +282,11 @@ class LocalizedComboItemTextBinding(QObject):
     def retranslate(self) -> None:
         """Refresh the owned item without exposing a false selection change."""
 
-        if not 0 <= self._item_index < self._combo.count():
+        combo = self._combo
+        if combo is None or not 0 <= self._item_index < combo.count():
             return
-        blocker = QSignalBlocker(self._combo)
-        self._combo.setItemText(
+        blocker = QSignalBlocker(combo)
+        combo.setItemText(
             self._item_index,
             render_application_text(self._message),
         )
@@ -280,9 +295,18 @@ class LocalizedComboItemTextBinding(QObject):
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         """Refresh the item when Qt announces an application language change."""
 
-        if watched is self._combo and event.type() == QEvent.Type.LanguageChange:
+        if watched is getattr(self, "_combo", None) and (
+            event.type() == QEvent.Type.LanguageChange
+        ):
             self.retranslate()
         return False
+
+    @Slot()
+    def _release(self) -> None:
+        """Release the combo wrapper before Qt destroys its native owner."""
+
+        if hasattr(self, "_combo"):
+            self._combo = None
 
 
 def set_localized_combo_items(

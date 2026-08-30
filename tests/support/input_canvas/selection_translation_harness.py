@@ -32,7 +32,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QColor, QImage, QMouseEvent
 from PySide6.QtWidgets import QApplication
-from cutecanvas import CuteCanvas
+from cutecanvas import CuteCanvas, ExecutionRuntime
 
 from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
     create_input_canvas_tool_system,
@@ -50,16 +50,17 @@ from substitute.presentation.canvas.input.input_tool_options import (
 from tests.support.input_canvas.tool_context_projection import (
     project_authored_input_tool_context,
 )
+from tests.support.qt.lifecycle import destroy_qt_object
 
 
 class InputSelectionTranslationHarness:
     """Own one mounted SugarSubstitute Input selection drag."""
 
-    def __init__(self) -> None:
+    def __init__(self, execution_runtime: ExecutionRuntime) -> None:
         """Mount production Input chrome around one image and mask."""
 
-        self.application = self._application()
-        self.input_canvas = InputCanvas()
+        self._application()
+        self.input_canvas = InputCanvas(execution_runtime=execution_runtime)
         runtime = create_input_canvas_tool_system()
         install_input_tool_options(runtime, self.input_canvas.document.tool_options)
         install_input_contextual_toolbar(
@@ -106,7 +107,6 @@ class InputSelectionTranslationHarness:
             CuteCanvas.CONTROL_MODE_SELECT_RECTANGLE
         ):
             raise RuntimeError("Mounted Input canvas rejected rectangle selection")
-        self._drain_events()
 
     def drag_selection(self, *, start_scene: QPoint, delta: QPoint, steps: int) -> None:
         """Translate the selection through exact synchronous pointer samples."""
@@ -156,13 +156,7 @@ class InputSelectionTranslationHarness:
         """Release the mounted Input document and queued Qt ownership."""
 
         self.input_canvas.close()
-        self.input_canvas.deleteLater()
-        self._drain_events()
-
-    def process_events(self) -> None:
-        """Drain bounded presentation work scheduled by a test action."""
-
-        self._drain_events()
+        destroy_qt_object(self.input_canvas)
 
     def _install_document(self) -> None:
         """Create one image, one mask, and stable one-to-one scene mapping."""
@@ -185,7 +179,6 @@ class InputSelectionTranslationHarness:
         )
         self.input_canvas.resize(900, 700)
         self.input_canvas.show()
-        self._drain_events()
         self.canvas.setZoom1To1()
 
     def _mouse_event(
@@ -205,12 +198,6 @@ class InputSelectionTranslationHarness:
             buttons,
             Qt.KeyboardModifier.NoModifier,
         )
-
-    def _drain_events(self) -> None:
-        """Settle bounded zero-timer and deferred-layout work."""
-
-        for _cycle in range(8):
-            self.application.processEvents()
 
     @staticmethod
     def _application() -> QApplication:
