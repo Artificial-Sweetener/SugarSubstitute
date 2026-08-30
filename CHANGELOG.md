@@ -1,3 +1,40 @@
+# [0.22.0](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.21.2...v0.22.0) (2026-08-30)
+
+
+### Bug Fixes
+
+* **canvas:** preserve generated images through memory contention ([5731441](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/5731441494facb11b04d6149c1fc401a46093970))
+* **ci:** report package cache restoration accurately ([8890965](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/8890965de8e7de69a1e0b5ae865196401445c7dd))
+* **comfy:** preserve managed runtime policy during recovery ([b4613e2](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b4613e2418a971a689f505784cbd36d19765c8e6))
+* **comfy:** prevent repeated connection reset errors ([fb34b9a](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/fb34b9a6a84b7b3c8ed2e54d9d15add83ba39e1e))
+* **comfy:** restore reliable multi-stage generations ([b257e32](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b257e32b55da99cd84d2be384e9bf3c588faf7d1))
+* **inputs:** load every declared image asset through Comfy ([ee72b6b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/ee72b6b499574d8899b19eb409acce56c48e02c0))
+* **inputs:** recover generation after Input surface changes ([0269bb0](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/0269bb0456d51a8e948528f2a6e460bf055f2291))
+* **installer:** make app payload extraction deterministic ([f91392f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/f91392f1d9a7ac9d57018fcf265e714d7316d7a7))
+* **installer:** preserve reliable cross-platform launch migrations ([d041936](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/d0419360325b84af59468dfcd619ee04667b837e))
+* **installer:** prevent setup handoff stalls ([db0464d](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/db0464dac9ef5836f55ab06bbbde8a6b258741b2))
+* **launcher:** prevent false repair prompts after successful updates ([d42574b](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/d42574be758cd0c0a3c861300c66995b66950e01))
+* **release:** preserve Stable version resolution during publication ([419b0b9](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/419b0b935f5b8a3950920ab0dcd9565e283573f5))
+* **startup:** make first managed launch deterministic ([3770429](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/37704295bad7a218b4690ef3cbad9a934b50b937))
+* **startup:** prevent duplicate app and splash instances ([4a18a15](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/4a18a153493bf279e64acf1424d6b669d2d3da32))
+* **startup:** prevent rapid launches from starting duplicate instances ([3ce1765](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/3ce1765f14f40ddf129e3d5a89530600d337a0fb))
+* **startup:** publish readiness when the main shell appears ([d74b96f](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/d74b96f4fe09cd0326f5aa6d1636a9529149542b))
+* **startup:** show the splash before application startup work ([1378109](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/13781094be2e8581d2d2d786c63bf534faf5cd6d))
+* **updates:** apply managed nodepack pins after app updates ([b2fe321](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b2fe32111ddb3f0c9f996ba4ab969353a4286efe))
+* **updates:** finish startup after managed nodepack repairs ([792da18](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/792da189cb98eefc3da7f2485199e417514eb74f))
+* **updates:** recover failed upgrades and explain the rollback ([fb9cfda](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/fb9cfda2e6e913d182b78f70955560713554497a))
+* **updates:** restore reliable Windows automatic updates ([2f57864](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/2f57864243119bc695892fe95001891838fd01cb))
+
+
+### Features
+
+* **comfy:** make managed workflows and releases self-contained ([b15aa4c](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/b15aa4c5b429051d0b99ce5893135c7f1abf9380))
+
+
+### Performance Improvements
+
+* **ci:** keep hosted dependency reuse lean and deterministic ([d89fddc](https://github.com/Artificial-Sweetener/SugarSubstitute/commit/d89fddc184053c8a70d08d15ec48caebc4085b99))
+
 ## [0.21.2](https://github.com/Artificial-Sweetener/SugarSubstitute/compare/v0.21.1...v0.21.2) (2026-08-22)
 
 
