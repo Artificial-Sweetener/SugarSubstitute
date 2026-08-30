@@ -88,6 +88,12 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
         calls.append("show")
         return shown_shell_frame
 
+    def schedule_readiness_receipt() -> bool:
+        """Record readiness scheduling at the visible-shell boundary."""
+
+        calls.append("schedule_readiness")
+        return True
+
     result = ready_shell_reveal.reveal_ready_shell_main_window(
         splash=_CloseSplash(calls),
         shell_frame=shell_frame,
@@ -103,6 +109,7 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
         request_startup_diagnostics_update=lambda: calls.append("diagnostics"),
         schedule_post_show_hydration=lambda: calls.append("schedule_hydration"),
         trace_fields=lambda: {"route": "ready"},
+        schedule_readiness_receipt=schedule_readiness_receipt,
     )
 
     assert result.shell_frame is shown_shell_frame
@@ -121,6 +128,7 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
         "phase:end:startup.show_main_window",
         "set_current",
         "mark:main_shell_shown",
+        "schedule_readiness",
         "backend:ready",
         "connect_warmups",
         "diagnostics",
