@@ -65,7 +65,7 @@ next_extraction = "Extract warmup and hydration task ownership from shell launch
 id = "SS-ARCH-006"
 owner = "startup managed-ready runtime"
 paths = ["substitute/app/bootstrap/startup_managed_ready_runtime.py"]
-fingerprint = "sha256:d20ca2a30a738ec78583bb93b7b0a2f3976260defa4925cedcd41217af567a7d"
+fingerprint = "sha256:6ee1868a18bc94c62d60d0d75111654c6be177869e85dc65a2f80e018872e8d9"
 issue = "chore:SS-ARCH-006"
 review_by = 2026-12-15
 responsibilities = [
@@ -1457,7 +1457,7 @@ next_extraction = "Extract native process/desktop control and historical evidenc
 id = "SS-ARCH-097"
 owner = "installer UI qualification"
 paths = ["tools/ci/installer_ui_qualification.py"]
-fingerprint = "sha256:9756144f09eba411f61a628b157e7071f6b45bfde562a76cc7fce5b707a876f4"
+fingerprint = "sha256:e45336aefb7e3c6689a7ab4960fea36f1bec280c72fa289f7e53496dd6b4c54b"
 issue = "chore:SS-ARCH-097"
 review_by = 2026-12-15
 responsibilities = [
@@ -1465,7 +1465,7 @@ responsibilities = [
   "current installer execution",
   "installed candidate launch",
   "shell and event-sequence verification",
-  "cross-platform process termination and diagnostics",
+  "cross-platform process termination",
   "readiness receipt and startup trace interpretation",
 ]
 next_extraction = "Extract installed-process lifecycle and evidence/trace verification from qualification workflow orchestration; durable installed-version evidence now has an independent owner."

@@ -25,6 +25,7 @@ from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
 from substitute.domain.onboarding import (
     ComfyTargetMode,
+    ManagedRuntimeConfiguration,
 )
 
 from .support import (
@@ -76,6 +77,42 @@ def test_reconcile_owned_dependencies_for_managed_target_runs_managed_setup(
         )
     ]
     assert logs == ["status", "log"]
+
+
+def test_managed_recovery_preserves_persisted_runtime_selection(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Managed recovery should reuse the active runtime selection policy."""
+
+    observed: dict[str, object] = {}
+
+    def fake_setup(**kwargs: object) -> None:
+        """Capture the managed setup policy supplied by recovery."""
+
+        observed.update(kwargs)
+
+    monkeypatch.setattr(
+        managed_recovery_adapters,
+        "ensure_managed_comfy_setup",
+        fake_setup,
+    )
+    runtime_configuration = ManagedRuntimeConfiguration(
+        force_cpu_mode=True,
+        prefer_edge_torch=True,
+        prefer_edge_comfy_channel=True,
+    )
+
+    managed_recovery_adapters.reconcile_owned_comfy_dependencies(
+        _target(tmp_path, ComfyTargetMode.MANAGED_LOCAL),
+        frozenset({CoreNodepackId.SUGARCUBES}),
+        lambda _line: None,
+        runtime_configuration=runtime_configuration,
+    )
+
+    assert observed["force_cpu_mode"] is True
+    assert observed["prefer_edge_torch"] is True
+    assert observed["prefer_edge_comfy_channel"] is True
 
 
 def test_reconcile_owned_dependencies_for_attached_target_runs_nodepack_policy(

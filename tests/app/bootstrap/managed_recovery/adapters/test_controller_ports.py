@@ -17,15 +17,21 @@
 """Exercise one managed-recovery adapter behavior owner."""
 
 from __future__ import annotations
+from pathlib import Path
 from typing import Any, cast
 import pytest
 from substitute.app.bootstrap import managed_recovery_adapters
 from substitute.app.bootstrap.startup_resources import StartupResourceRegistry
+from substitute.domain.onboarding import ManagedRuntimeConfiguration
+from substitute.infrastructure.onboarding.file_managed_runtime_repository import (
+    FileManagedRuntimeConfigurationRepository,
+)
 
 from .support import (
     _ExecutionRuntime,
     _ManagedState,
     _Submitter,
+    _context,
 )
 
 
@@ -52,6 +58,7 @@ def test_create_managed_recovery_controller_adapters_groups_concrete_ports() -> 
     submitter = _Submitter()
     execution_runtime = _ExecutionRuntime(submitter)
     adapters = managed_recovery_adapters.create_managed_recovery_controller_adapters(
+        installation_context=cast(Any, object()),
         startup_resources=registry,
         execution_runtime=execution_runtime,
         execution_dispatcher_factory=lambda: object(),
@@ -75,13 +82,59 @@ def test_create_managed_recovery_controller_adapters_groups_concrete_ports() -> 
         adapters.cleanup_state
         is managed_recovery_adapters.cleanup_managed_recovery_state
     )
-    assert (
-        adapters.reconcile_owned_comfy_dependencies
-        is managed_recovery_adapters.reconcile_owned_comfy_dependencies
-    )
+    assert callable(adapters.reconcile_owned_comfy_dependencies)
     assert adapters.confirmed_termination_status == (
         managed_recovery_adapters.confirmed_managed_recovery_termination_status()
     )
+
+
+def test_controller_reconciliation_loads_active_runtime_selection(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The controller adapter should load persisted managed runtime policy."""
+
+    context = _context(tmp_path)
+    selection = ManagedRuntimeConfiguration(
+        force_cpu_mode=True,
+        prefer_edge_torch=True,
+        prefer_edge_comfy_channel=True,
+    )
+    FileManagedRuntimeConfigurationRepository(
+        context.installation.runtime_state_dir
+    ).save(selection)
+    observed: list[ManagedRuntimeConfiguration | None] = []
+
+    def fake_reconcile(
+        _target: object,
+        _nodepacks: object,
+        _emit_log: object,
+        *,
+        runtime_configuration: ManagedRuntimeConfiguration | None = None,
+    ) -> None:
+        """Capture the runtime selection loaded by the controller adapter."""
+
+        observed.append(runtime_configuration)
+
+    monkeypatch.setattr(
+        managed_recovery_adapters,
+        "reconcile_owned_comfy_dependencies",
+        fake_reconcile,
+    )
+    adapters = managed_recovery_adapters.create_managed_recovery_controller_adapters(
+        installation_context=context,
+        startup_resources=StartupResourceRegistry(),
+        execution_runtime=_ExecutionRuntime(_Submitter()),
+        execution_dispatcher_factory=lambda: object(),
+    )
+
+    adapters.reconcile_owned_comfy_dependencies(
+        context.comfy_target,
+        frozenset(),
+        lambda _line: None,
+    )
+
+    assert observed == [selection]
 
 
 def test_cleanup_managed_recovery_state_uses_process_manager(
