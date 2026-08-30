@@ -45,6 +45,7 @@ from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationTarget,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
+from tools.ci.installer_process_diagnostics import process_tree_diagnostics
 from tools.ci.installed_version_evidence import wait_for_installed_version
 from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
 
@@ -631,69 +632,6 @@ def installed_launch_has_progress(launch: InstalledCandidateLaunch) -> bool:
     return any(
         _path_signature(path) != baseline
         for path, baseline in launch.progress_baselines
-    )
-
-
-def process_tree_diagnostics(pid: int) -> str:
-    """Render bounded non-secret identity for one qualification process tree."""
-
-    try:
-        root = psutil.Process(pid)
-    except psutil.NoSuchProcess:
-        return f"<launcher process {pid} already exited>"
-    except psutil.AccessDenied:
-        return f"<launcher process {pid} could not be inspected>"
-    try:
-        processes = (root, *root.children(recursive=True))
-    except (psutil.NoSuchProcess, psutil.AccessDenied):
-        processes = (root,)
-    records: list[dict[str, object]] = []
-    for process in processes:
-        try:
-            opened_files = [
-                str(open_file.path) for open_file in process.open_files()[:20]
-            ]
-            mapped_runtime_paths = sorted(
-                {
-                    str(memory_map.path)
-                    for memory_map in process.memory_maps(grouped=True)
-                    if _is_relevant_runtime_mapping(str(memory_map.path))
-                }
-            )[:60]
-            records.append(
-                {
-                    "cmdline": [str(argument) for argument in process.cmdline()],
-                    "cpu_times": [float(value) for value in process.cpu_times()[:4]],
-                    "cwd": str(process.cwd()),
-                    "exe": str(process.exe()),
-                    "mapped_runtime_paths": mapped_runtime_paths,
-                    "name": str(process.name()),
-                    "num_threads": int(process.num_threads()),
-                    "open_files": opened_files,
-                    "pid": int(process.pid),
-                    "ppid": int(process.ppid()),
-                    "status": str(process.status()),
-                }
-            )
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            records.append({"pid": int(process.pid), "status": "unavailable"})
-    return json.dumps(records, indent=2, sort_keys=True)
-
-
-def _is_relevant_runtime_mapping(path: str) -> bool:
-    """Return whether one mapped file identifies the frozen startup subsystem."""
-
-    normalized = path.casefold()
-    return any(
-        marker in normalized
-        for marker in (
-            "python",
-            "pyside",
-            "qt6",
-            "libqt",
-            "ssl",
-            "truststore",
-        )
     )
 
 
