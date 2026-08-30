@@ -93,6 +93,10 @@ def test_candidate_update_uses_historical_launcher_before_verification(
 ) -> None:
     """Qualification must let the historical launcher consume the candidate feed."""
 
+    monkeypatch.setattr(
+        "tools.ci.historical_update_qualification.sys.platform",
+        "win32",
+    )
     install_root = tmp_path / "installed"
     layout = InstallLayout.from_root(install_root)
     LauncherConfig.from_layout(layout=layout).save(layout.config_path)
