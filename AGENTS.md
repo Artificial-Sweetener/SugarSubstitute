@@ -81,9 +81,11 @@ The commands below assume the repository virtual environment is active or that
 `python` otherwise resolves to its interpreter.
 
 - Focused tests: `python -m pytest -n auto -q <paths>`
-- Full parallel tests: `python -m pytest -n auto -q -m "not serial"`
+- Full parallel tests: `python -m pytest -n auto -q -m "not serial and not isolated"`
+- Full isolated tests: `python -m tools.ci.run_isolated_test_modules --junit-dir=build/test-results/local-isolated`
 - Full serial tests: `python -m tools.ci.run_serial_test_modules --junit-dir=build/test-results/local-serial`
 - Architecture: `python -m tools.check_architecture`
+- Test governance: `python -m tools.check_test_governance`
 - Lint: `python -m ruff check .`
 - Format: `python -m ruff format .`
 - Type check: `python -m mypy --strict substitute tests`
@@ -152,7 +154,7 @@ ownership or new behavior in a mixed file.
 
 ## Architecture Governance
 
-`ARCHITECTURE_POLICY.toml` defines the enforced authored-runtime scope. The
+`ARCHITECTURE_POLICY.toml` defines the enforced authored-code scope. The
 structural soft ceiling is 350 nonblank, noncomment lines and the hard gate is
 500. Generated Qt resource modules are exact policy exclusions because their
 shape is owned by the resource compiler. File size is an ownership alarm, not
@@ -202,6 +204,16 @@ Run `python -m tools.check_architecture` after changing authored runtime
 structure or architecture state. The checker runs in pre-commit and CI and
 rejects new hard-gate overages, stale fingerprints, expired records, unbounded
 remediation, invalid links, duplicate dispositions, and unused waivers.
+
+`TEST_POLICY.toml` defines mechanically discoverable test-layout and execution
+review candidates. `TEST_DEBT.toml` records assessed inappropriate current test
+design, and `TEST_WAIVERS.toml` records exact reviewed classifications or
+debt-linked remediation exceptions. Candidate discovery is evidence, not an
+automated judgment. Every discovered candidate requires source-level review;
+the checker validates exact source fingerprints, current candidate locators,
+review dates, unique dispositions, and debt links. Run
+`python -m tools.check_test_governance` after changing test placement,
+isolation, timing, resources, or execution policy.
 
 ## Code Organization and Readability
 
@@ -301,9 +313,9 @@ remediation, invalid links, duplicate dispositions, and unused waivers.
 
 ### Prompt Editor Harness
 
-- Use the real-shell prompt editor harness for prompt editor and editor panel behavior debugging: `tests/real_shell_prompt_editor_harness.py`.
+- Use the real-shell prompt editor harness for prompt editor and editor panel behavior debugging: `tests/support/prompt_editor/real_shell_harness.py`.
 - Prefer harness owner-state diagnostics over screenshots. The harness mounts the production prompt editor through the real shell/editor panel path and captures autocomplete, projection, caret, selection, scroll, popup, paint/cache, undo, and transient-overlay state.
-- Add or expand deterministic real-shell scenarios in `tests/test_real_shell_prompt_editor_autocomplete_scenarios.py` and invariant coverage in `tests/test_real_shell_prompt_editor_harness.py` whenever a prompt editor bug exposes a new failure class.
+- Add or expand deterministic real-shell scenarios in `tests/qualification/prompt_editor/real_shell/test_autocomplete_scenarios.py` and invariant coverage in `tests/qualification/prompt_editor/real_shell/test_harness_contract.py` whenever a prompt editor bug exposes a new failure class.
 - Expand the seeded abuse actions and invariants when debugging editor panel behavior that the harness cannot yet explain. The harness is expected to grow with newly discovered editor failure modes rather than being bypassed.
 
 ### Toolbar Rendering Harness
@@ -328,8 +340,9 @@ remediation, invalid links, duplicate dispositions, and unused waivers.
 - A commit containing any non-Markdown file is not documentation-only,
   including changes to workflows, dependency or release metadata,
   architecture registries, scripts, tests, resources, or generated artifacts.
-  Run the complete repository format, lint, strict type, parallel test, and
-  serial test gates before committing it, not merely because a turn is ending.
+  Run the complete repository format, lint, strict type, parallel test,
+  isolated test, and serial test gates before committing it, not merely because
+  a turn is ending.
 - Full-gate results remain valid for the exact commit-relevant worktree they verified and may be reused if that content has not changed. Staging, unstaging, and ignored verification artifacts do not invalidate them.
 - After a commit-relevant change, rerun every affected gate; rerun all gates when impact is uncertain.
 - CI must run the complete applicable suite on Windows, Linux, and macOS for
@@ -365,7 +378,8 @@ remediation, invalid links, duplicate dispositions, and unused waivers.
 - A normal implementation handoff has passing focused tests and targeted format, lint, and strict typing checks for the blast area.
 - Architecture governance passes for the exact current source and registry state.
 - A non-documentation-only commit has passing full repository format, lint,
-  strict typing, parallel test, and serial test gates for its exact contents.
+  strict typing, parallel test, isolated test, and serial test gates for its
+  exact contents.
 - A documentation-only commit has an inspected diff, clean `git diff --check`,
   and passing applicable documentation-specific validation.
 

@@ -29,6 +29,7 @@ from sugarsubstitute_shared.localization import (
     LocalizationPreferenceStore,
     ResolvedLocale,
     resolve_locale,
+    system_ui_languages,
 )
 
 if TYPE_CHECKING:
@@ -54,14 +55,12 @@ def resolve_launcher_locale(
     *,
     locale_override: str | None,
 ) -> ResolvedLocale:
-    """Resolve GUI and handoff language before a QApplication is required."""
-
-    from PySide6.QtCore import QLocale
+    """Resolve GUI and handoff language without importing the Qt runtime."""
 
     preference = _preference_store(layout).load()
     return resolve_locale(
         preference,
-        ui_languages=tuple(QLocale.system().uiLanguages()),
+        ui_languages=system_ui_languages(),
         process_override=locale_override,
     )
 

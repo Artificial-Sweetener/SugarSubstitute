@@ -16,137 +16,16 @@ concurrency:
   group: tests-${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
-env:
-  NODE_VERSION: "22.14.0"
-  PYTHON_VERSION: "3.12.10"
-  LINUX_PYTHON_VERSION: "3.12.13"
-  # photoshop 0.21.9 requires wheel<0.42; the app never invokes the affected
-  # wheel unpack command. Remove this exception when that constraint is removed.
-  PIP_AUDIT_IGNORED_VULNERABILITY: CVE-2026-24049
-  QT_QPA_PLATFORM: offscreen
-  QT_OPENGL: software
-  SUBSTITUTE_DISABLE_APP_USER_MODEL_ID: "1"
-  SUBSTITUTE_DISABLE_CUTECANVAS_SAM_WARMUP: "1"
-  LINUX_QT_PACKAGES: >-
-    xvfb libegl1 libfontconfig1 libgl1 libpulse0 libxcb-cursor0 libxcb-icccm4
-    libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
-    libxcb-util1 libxcb-xkb1 libxkbcommon-x11-0 libxkbcommon0
-
 jobs:
   quality:
     name: Quality gates
-    runs-on: windows-latest
-    timeout-minutes: 60
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - name: Create virtual environment
-        run: python -m venv .venv
-      - name: Install project and quality dependencies
-        shell: pwsh
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          .\.venv\Scripts\python.exe -m pip install --requirement requirements-toolchain.txt
-      - name: Install release dependencies
-        run: npm ci
-      - name: Audit release dependencies
-        run: npm run audit:release
-      - name: Check license headers
-        run: .\.venv\Scripts\python.exe tools\license_headers.py --check
-      - name: Check architecture governance
-        run: .\.venv\Scripts\python.exe tools\check_architecture.py
-      - name: Check formatting
-        run: .\.venv\Scripts\ruff.exe format --check .
-      - name: Lint
-        run: .\.venv\Scripts\ruff.exe check .
-      - name: Type check
-        run: .\.venv\Scripts\mypy.exe --strict substitute tests
+    uses: ./.github/workflows/quality-gates.yml
 
   platform-tests:
-    name: Tests (${{ matrix.name }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows x64
-            os: windows-latest
-            python-version: "3.12.10"
-            python: ./.venv/Scripts/python.exe
-            artifact: windows
-          - name: Linux x64
-            os: ubuntu-24.04
-            python-version: "3.12.13"
-            python: ./.venv/bin/python
-            artifact: linux
-          - name: macOS Apple Silicon
-            os: macos-15
-            python-version: "3.12.10"
-            python: ./.venv/bin/python
-            artifact: macos
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 180
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install Linux Qt runtime dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y $LINUX_QT_PACKAGES
-      - name: Create virtual environment
-        run: python -m venv .venv
-      - name: Install project and test dependencies
-        run: |
-          ${{ matrix.python }} -m pip install --requirement requirements-toolchain.txt
-      - name: Verify installed runtime dependency graph
-        run: ${{ matrix.python }} -m pip check
-      - name: Audit installed Python dependency graph
-        run: >-
-          ${{ matrix.python }} -m pip_audit
-          --local --strict --progress-spinner off
-          --ignore-vuln ${{ env.PIP_AUDIT_IGNORED_VULNERABILITY }}
-      - name: Prepare test result directory
-        run: >-
-          ${{ matrix.python }} -c
-          "from pathlib import Path; Path('build/test-results').mkdir(parents=True, exist_ok=True)"
-      - name: Run parallel-safe test partition
-        run: >-
-          ${{ matrix.python }} -m pytest -n auto -q -m "not serial"
-          --junitxml=build/test-results/${{ matrix.artifact }}-parallel.xml
-      - name: Run serial test partition
-        if: ${{ !cancelled() }}
-        run: >-
-          ${{ matrix.python }} -m tools.ci.run_serial_test_modules
-          --junit-dir=build/test-results/${{ matrix.artifact }}-serial
-      - name: Upload test results
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-results-${{ matrix.artifact }}
-          path: build/test-results
-          if-no-files-found: warn
-          retention-days: 7
+    name: Supported-platform tests
+    uses: ./.github/workflows/platform-tests.yml
 
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Reject newly introduced vulnerable dependencies
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
-        with:
-          fail-on-severity: moderate
+    uses: ./.github/workflows/dependency-review.yml

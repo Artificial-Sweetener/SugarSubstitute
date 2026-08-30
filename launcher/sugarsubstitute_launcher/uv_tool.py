@@ -25,11 +25,12 @@ from pathlib import Path
 from launcher.sugarsubstitute_launcher.downloader import AssetDownloader
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset
-from launcher.sugarsubstitute_launcher.payload import (
+from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningError
+from sugarsubstitute_shared.launcher_update.archive import (
+    SecureArchiveError,
     safe_extract_tar_gzip,
     safe_extract_zip,
 )
-from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningError
 
 
 class VerifiedUvExecutableProvider:
@@ -122,12 +123,21 @@ def _copy_uv_executable(*, source_path: Path, destination_path: Path) -> Path:
 def _extract_uv_archive(*, archive_path: Path, destination_dir: Path) -> None:
     """Extract one supported official uv release archive safely."""
 
-    if archive_path.name.endswith(".zip"):
-        safe_extract_zip(zip_path=archive_path, destination_dir=destination_dir)
-        return
-    if archive_path.name.endswith((".tar.gz", ".tgz")):
-        safe_extract_tar_gzip(tar_path=archive_path, destination_dir=destination_dir)
-        return
+    try:
+        if archive_path.name.endswith(".zip"):
+            safe_extract_zip(
+                zip_path=archive_path,
+                destination_dir=destination_dir,
+                symlink_policy="reject",
+            )
+            return
+        if archive_path.name.endswith((".tar.gz", ".tgz")):
+            safe_extract_tar_gzip(
+                tar_path=archive_path, destination_dir=destination_dir
+            )
+            return
+    except SecureArchiveError as error:
+        raise RuntimeProvisioningError(str(error)) from error
     raise RuntimeProvisioningError(
         f"Unsupported uv archive format: {archive_path.name}"
     )

@@ -258,7 +258,7 @@ class _ThreadPoolTaskHandle(Generic[TResult]):
         """Attach completion handling to the supplied future."""
 
         self._request = request
-        self._future = future
+        self._future: Future[TaskOutcome[TResult]] | None = future
         self._dispatcher = dispatcher
         self._execution_state = execution_state
         self._logger = logger
@@ -293,9 +293,12 @@ class _ThreadPoolTaskHandle(Generic[TResult]):
 
         with self._lock:
             outcome = self._outcome
+            future = self._future
         if outcome is not None:
             return outcome.status
-        if self._future.cancelled():
+        if future is None:
+            raise RuntimeError("Pending task handle has no execution future.")
+        if future.cancelled():
             return "cancelled"
         if self._execution_state.started:
             return "running"
@@ -321,8 +324,12 @@ class _ThreadPoolTaskHandle(Generic[TResult]):
         """Request cancellation of this task."""
 
         _require_non_blank(reason, field_name="reason")
-        self._execution_state.request_cancel(reason=reason)
-        self._future.cancel()
+        with self._lock:
+            future = self._future
+            if future is None:
+                return
+            self._execution_state.request_cancel(reason=reason)
+        future.cancel()
 
     def _finish(self, future: Future[TaskOutcome[TResult]]) -> None:
         """Build and publish one terminal outcome."""
@@ -332,6 +339,7 @@ class _ThreadPoolTaskHandle(Generic[TResult]):
             if self._outcome is not None:
                 return
             self._outcome = outcome
+            self._future = None
             callbacks = tuple(self._callbacks)
             self._callbacks.clear()
         self._log_outcome(outcome)

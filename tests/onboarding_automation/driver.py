@@ -18,97 +18,53 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-import json
-import os
 from pathlib import Path
-import time
 from collections.abc import Callable
 from typing import TypeVar, cast
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QWidget
 from qfluentwidgets import LineEdit, RadioButton  # type: ignore[import-untyped]
 
-from substitute.application.onboarding import OnboardingFlowService
 from substitute.application.onboarding.comfy_environment_service import (
     ComfyEnvironmentService,
-)
-from substitute.app.bootstrap.installation_context import (
-    build_onboarding_service_bundle,
 )
 from substitute.app.bootstrap.app_layout import resolve_app_layout
 from substitute.app.bootstrap.onboarding_execution import (
     create_onboarding_environment_submitter,
     create_onboarding_provisioning_submitter_factory,
 )
-from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy_setup
-from substitute.infrastructure.comfy.attached_install import (
-    prepare_verified_attached_comfy_setup,
-)
-from substitute.infrastructure.comfy.workspace_python_discovery import (
-    WorkspacePythonGateway,
-)
-from substitute.infrastructure.comfy.managed_process_containment import (
-    ManagedProcessHandle,
-)
-from substitute.infrastructure.comfy.managed_shutdown import kill_managed_comfy
 from substitute.presentation.onboarding import OnboardingController, OnboardingWindow
 from substitute.presentation.onboarding.comfy_environment_coordinator import (
     ComfyEnvironmentCoordinator,
 )
-from substitute.presentation.onboarding.onboarding_controller import (
-    OnboardingFlowServiceLike,
-)
 from substitute.presentation.widgets.spin_box import SpinBox
-from tests.onboarding_automation.external_comfy_fixture import (
-    launch_external_comfy_fixture,
-    provision_external_comfy_workspace,
-    reset_external_comfy_root,
-)
 from tests.onboarding_automation.environment_fixture import (
     QuiescentProcessGateway,
-    StaticPythonGateway,
-    synthetic_python_binding,
 )
-from tests.execution_test_helpers import ExecutionRuntimeStub
-from tests.onboarding_automation.install_state import reset_install_state
+from tests.support.execution.runtime_support import ExecutionRuntimeStub
+from tests.onboarding_automation.fixture_owner import OnboardingScenarioFixtureOwner
+from tests.onboarding_automation.result import ScenarioResult
 from tests.onboarding_automation.scenarios import (
-    ImmediateSuccessFlowService,
     ScenarioDefinition,
-    ScenarioExecutionMode,
     ScenarioOutcome,
-    build_draft_state,
 )
 from tests.onboarding_automation.screenshot_capture import capture_widget
+from tests.support.qt.lifecycle import (
+    activate_widget_layouts,
+    destroy_qt_object,
+    ensure_qt_application,
+)
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 
 _WIDGET_T = TypeVar("_WIDGET_T", bound=QWidget)
-_FORCED_MANAGED_FAILURE_STAGE_ENV = "SUGARSUB_FORCE_MANAGED_FAILURE_STAGE"
 _BANNED_FAILURE_TERMS = (
     "remediation",
     "invalid repository state",
     "provisioner",
 )
-
-
-@dataclass(frozen=True)
-class ScenarioResult:
-    """Capture the observable result of one onboarding automation run."""
-
-    scenario: str
-    success: bool
-    current_page: str
-    status_text: str
-    detail_text: str
-    launch_command: tuple[str, ...]
-    screenshot_dir: str
-
-    def to_json(self) -> str:
-        """Return the result as stable JSON."""
-
-        return json.dumps(asdict(self), indent=2)
 
 
 class OnboardingAutomationDriver:
@@ -124,10 +80,10 @@ class OnboardingAutomationDriver:
 
         self._scenario = scenario
         self._screenshot_dir = screenshot_dir
-        self._app = _ensure_application()
-        self._external_process: ManagedProcessHandle | None = None
-        self._prepare_fixture_state()
-        flow_service = self._build_flow_service()
+        ensure_qt_application()
+        self._fixture_owner = OnboardingScenarioFixtureOwner(scenario)
+        self._fixture_owner.prepare()
+        flow_service = self._fixture_owner.build_flow_service()
         execution_runtime = ExecutionRuntimeStub()
         self._controller = OnboardingController(
             initial_install_root=scenario.install_root,
@@ -138,16 +94,7 @@ class OnboardingAutomationDriver:
                 execution_runtime
             ),
         )
-        python_gateway = (
-            StaticPythonGateway(
-                synthetic_python_binding(
-                    scenario.attached_python_executable
-                    or scenario.install_root / ".venv" / "Scripts" / "python.exe"
-                )
-            )
-            if scenario.execution_mode is ScenarioExecutionMode.SYNTHETIC
-            else WorkspacePythonGateway()
-        )
+        python_gateway = self._fixture_owner.build_python_gateway()
         environment_submitter = create_onboarding_environment_submitter(
             execution_runtime,
             self._controller,
@@ -167,7 +114,11 @@ class OnboardingAutomationDriver:
         )
         self._window.show()
         self._window.raise_()
-        self._process_events(150)
+        activate_widget_layouts(
+            self._window,
+            self._window.root_container,
+            self._window.page_stack,
+        )
 
     def run(self) -> ScenarioResult:
         """Execute the scripted onboarding interactions and return their result."""
@@ -203,7 +154,6 @@ class OnboardingAutomationDriver:
                 self._window.managed_local_page.runtime_summary_panel.force_cpu_checkbox.setChecked(
                     self._scenario.force_cpu_mode
                 )
-                self._process_events(50)
             elif self._scenario.target_mode.value == "attached_local":
                 self._wait_for_page("OnboardingAttachedLocalPage")
                 self._capture("attached_local")
@@ -276,7 +226,7 @@ class OnboardingAutomationDriver:
                 self._wait_for_provisioning_button_text("Try again")
                 self._assert_user_facing_failure_copy()
                 self._capture("failure")
-                self._clear_forced_failure_stage()
+                self._fixture_owner.clear_forced_failure_stage()
                 self._click("OnboardingPrimaryButton")
                 self._wait_for_provisioning_button_text("Review setup")
             else:
@@ -308,12 +258,14 @@ class OnboardingAutomationDriver:
                 screenshot_dir=str(self._screenshot_dir),
             )
         finally:
-            self._clear_forced_failure_stage()
-            self._window._emit_close_requested_on_close = False
-            self._window.close()
-            self._process_events(50)
-            if self._external_process is not None:
-                kill_managed_comfy(self._external_process)
+            try:
+                self._window._emit_close_requested_on_close = False
+                self._window.close()
+                self._controller.shutdown()
+                destroy_qt_object(self._window)
+                destroy_qt_object(self._controller)
+            finally:
+                self._fixture_owner.close()
 
     def _current_page_name(self) -> str:
         """Return the object name for the current page widget."""
@@ -335,14 +287,12 @@ class OnboardingAutomationDriver:
 
         widget = self._widget(QWidget, object_name)
         QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
-        self._process_events(100)
 
     def _set_line_edit(self, object_name: str, value: Path | str) -> None:
         """Set one named line edit through its real widget instance."""
 
         widget = self._widget(LineEdit, object_name)
         widget.setText(str(value))
-        self._process_events(50)
         if widget.text() != str(value):
             raise AssertionError(
                 f"Line edit {object_name} did not keep the expected value."
@@ -353,14 +303,12 @@ class OnboardingAutomationDriver:
 
         widget = self._widget(SpinBox, object_name)
         widget.setValue(value)
-        self._process_events(50)
 
     def _select_target_mode(self, mode_value: str) -> None:
         """Select one target-mode card through its radio control."""
 
         radio = self._widget(RadioButton, f"OnboardingTargetCardRadio_{mode_value}")
         QTest.mouseClick(radio, Qt.MouseButton.LeftButton)
-        self._process_events(100)
 
     def _capture(self, checkpoint_name: str) -> None:
         """Capture the current onboarding window to a deterministic PNG path."""
@@ -411,12 +359,13 @@ class OnboardingAutomationDriver:
     ) -> None:
         """Wait until the supplied predicate succeeds or raise on timeout."""
 
-        deadline = time.monotonic() + timeout_seconds
-        while time.monotonic() < deadline:
-            self._process_events(50)
-            if predicate():
-                return
-        raise TimeoutError(f"Timed out waiting for {description}.")
+        try:
+            wait_for_qt_condition(
+                predicate,
+                timeout_ms=round(timeout_seconds * 1000),
+            )
+        except AssertionError as error:
+            raise TimeoutError(f"Timed out waiting for {description}.") from error
 
     def _assert_managed_summary(self) -> None:
         """Assert that the managed-local summary panel shows the selected strategy."""
@@ -435,49 +384,6 @@ class OnboardingAutomationDriver:
                 "Managed runtime summary did not show the selected torch channel."
             )
 
-    def _process_events(self, wait_ms: int) -> None:
-        """Flush the Qt event queue and optionally wait a short interval."""
-
-        self._app.processEvents()
-        QTest.qWait(wait_ms)
-        self._app.processEvents()
-
-    def _build_flow_service(self) -> OnboardingFlowServiceLike:
-        """Build the real or synthetic flow service required by the scenario."""
-
-        if self._scenario.execution_mode is ScenarioExecutionMode.SYNTHETIC:
-            return ImmediateSuccessFlowService(build_draft_state(self._scenario))
-        return OnboardingFlowService(
-            service_bundle_factory=build_onboarding_service_bundle,
-            managed_workspace_provisioner=ensure_managed_comfy_setup,
-            entrypoint_path=resolve_scenario_entrypoint(self._scenario.install_root),
-            attached_workspace_provisioner=prepare_verified_attached_comfy_setup,
-        )
-
-    def _prepare_fixture_state(self) -> None:
-        """Reset and provision any filesystem or external-fixture state required."""
-
-        self._clear_forced_failure_stage()
-        if self._scenario.reset_install_state:
-            reset_install_state(self._scenario.install_root)
-        if self._scenario.reset_external_fixture:
-            reset_external_comfy_root()
-        if self._scenario.provision_external_fixture:
-            provision_external_comfy_workspace()
-        if self._scenario.launch_external_fixture:
-            self._external_process = launch_external_comfy_fixture()
-        if self._scenario.prepare_stale_managed_workspace:
-            stale_python = (
-                self._scenario.managed_workspace_path
-                / ".venv"
-                / "Scripts"
-                / "python.exe"
-            )
-            stale_python.parent.mkdir(parents=True, exist_ok=True)
-            stale_python.write_text("", encoding="utf-8")
-        if self._scenario.managed_failure_stage is not None:
-            self._set_forced_failure_stage(self._scenario.managed_failure_stage)
-
     def _assert_user_facing_failure_copy(self) -> None:
         """Fail the scenario when banned developer-facing language reaches the UI."""
 
@@ -493,27 +399,8 @@ class OnboardingAutomationDriver:
                     f"Failure surface exposed banned wording: {banned_term}"
                 )
 
-    def _set_forced_failure_stage(self, stage: str) -> None:
-        """Apply one deterministic managed-install failure stage for the scenario."""
-
-        os.environ[_FORCED_MANAGED_FAILURE_STAGE_ENV] = stage
-
-    def _clear_forced_failure_stage(self) -> None:
-        """Remove any forced managed-install failure stage from the environment."""
-
-        os.environ.pop(_FORCED_MANAGED_FAILURE_STAGE_ENV, None)
-
 
 def resolve_scenario_entrypoint(install_root: Path) -> Path:
     """Resolve the real source or installed entrypoint used by one setup scenario."""
 
     return resolve_app_layout(install_root).entrypoint_path
-
-
-def _ensure_application() -> QApplication:
-    """Return the active QApplication instance for automation runs."""
-
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
-    return cast(QApplication, app)

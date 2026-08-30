@@ -52,6 +52,9 @@ from substitute.app.bootstrap.startup_qt_timers import StartupQtSchedulerPorts
 from substitute.app.bootstrap.startup_resources import StartupResourceRegistry
 from substitute.app.bootstrap.startup_shutdown import StartupShutdownRuntime
 from substitute.app.bootstrap.startup_timing import StartupTimer
+from substitute.app.bootstrap.update_rollback_notice_startup import (
+    schedule_update_rollback_notice_with_post_show_hydration,
+)
 from substitute.application.execution import DirectExecutionDispatcher
 from substitute.domain.onboarding import InstallationContext
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
@@ -126,12 +129,6 @@ class StartupManagedReadyShellLauncher:
             set_comfy_state=self.ready_shell_runtime_state.set_comfy_state,
             trace_fields=ready_trace_fields,
         )
-        if _should_pre_activate_managed_target(context):
-            try:
-                target_activation_task.activate()
-            except Exception:
-                failure_queue.request_startup_cancel()
-                raise
 
         resolved_appearance = self.resolve_appearance()
         managed_ready_launch.create_managed_startup_prelude(
@@ -290,7 +287,15 @@ class StartupManagedReadyShellLauncher:
             set_current_shell=self.shell_reload_adapter.set_current_shell,
             schedule_warmups=nonessential_warmup_runtime.schedule,
             request_startup_diagnostics_update=diagnostics_update_adapter.request,
-            schedule_post_show_hydration=post_show_controller.schedule_hydration,
+            schedule_post_show_hydration=lambda: (
+                schedule_update_rollback_notice_with_post_show_hydration(
+                    schedule_hydration=post_show_controller.schedule_hydration,
+                    install_root=context.install_root,
+                    shell_frame=lambda: self.shell_reload_state.shell_frame,
+                    main_window_for_shell=self.shell_ports.main_window_for_shell,
+                    scheduler=self.startup_qt_schedulers.single_shot,
+                )
+            ),
             set_shell_frame=self.shell_reload_state.set_shell_frame,
             set_splash=self.ready_shell_reference_state.set_splash,
             trace_fields=ready_trace_fields,
@@ -351,6 +356,7 @@ class StartupManagedReadyShellLauncher:
         )
         managed_ready_launch.schedule_startup_tasks(
             queue=failure_queue.queue,
+            prepare_main_window=self.shell_ports.prepare_main_window,
             target_activation_task=target_activation_task,
             shell_build_task=shell_build_task,
             metadata_bridge_task=metadata_bridge_task,
@@ -436,13 +442,6 @@ def create_startup_managed_ready_shell_launcher(
         initial_shell_placement=initial_shell_placement,
         provisional_restore_projection=provisional_restore_projection,
     )
-
-
-def _should_pre_activate_managed_target(context: InstallationContext) -> bool:
-    """Return whether activation can safely begin before theme/prelude work."""
-
-    target = context.comfy_target
-    return bool(target.launch_owned and target.workspace_path is not None)
 
 
 __all__ = (

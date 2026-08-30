@@ -33,33 +33,29 @@ from substitute.presentation.localization import (
 from sugarsubstitute_shared.localization import ApplicationText
 
 from collections.abc import Callable
-from typing import cast
-
-from PySide6.QtCore import QRectF, Qt, QPropertyAnimation
-from PySide6.QtGui import QGuiApplication, QPainter, QPaintEvent
+from PySide6.QtCore import Qt, QPropertyAnimation
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
     QLayout,
-    QLabel,
     QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import (  # type: ignore[import-untyped]
-    InfoBarIcon,
-    PlainTextEdit,
-    StrongBodyLabel,
-    Theme,
-    drawIcon,
-)
+from qfluentwidgets import PlainTextEdit, StrongBodyLabel  # type: ignore[import-untyped]
+from qfluentwidgets import FluentIcon as FIF
 from substitute.presentation.dialogs.full_window_modal import FullWindowModalBase
 
-from substitute.application.errors import (
-    DiagnosticSeverity,
-    ErrorReport,
-    ErrorReportKind,
+from substitute.application.errors import ErrorReport, ErrorReportKind
+from substitute.presentation.dialogs.error_report_glyph import (
+    ReportSeverityGlyphWidget,
+    header_glyph_size,
+    header_icon_top_offset,
+)
+from substitute.presentation.dialogs.error_report_update_rollback_action import (
+    UpdateRollbackIssueAction,
 )
 from substitute.presentation.motion import (
     ENTER_EASING_CURVE,
@@ -106,11 +102,13 @@ class ErrorReportDialog(FullWindowModalBase):
         del open_console
         self._report = report
         self._report_text = report_text
+        self._is_update_rollback = UpdateRollbackIssueAction.applies_to(report)
+        self._update_rollback_action = UpdateRollbackIssueAction.from_report(report)
         self._details_visible = False
         self._details_animation_target_visible = False
         self._dialog_max_height = _dialog_max_height(self.modal_owner)
 
-        self.setClosableOnMaskClicked(False)
+        self.setClosableOnMaskClicked(self._update_rollback_action is not None)
         self.setModal(True)
         self.widget.setMinimumWidth(_DIALOG_WIDTH)
         self.widget.setMaximumWidth(_DIALOG_WIDTH)
@@ -196,7 +194,7 @@ class ErrorReportDialog(FullWindowModalBase):
             QSizePolicy.Policy.Preferred,
         )
 
-        icon_size = _header_glyph_size(self._title_label, self._message_label)
+        icon_size = header_glyph_size(self._title_label, self._message_label)
         header_text_width = _header_text_column_width(icon_size)
         self._title_label.setMaximumWidth(header_text_width)
         self._message_label.setWordWrap(True)
@@ -208,7 +206,7 @@ class ErrorReportDialog(FullWindowModalBase):
         icon_layout = QVBoxLayout(icon_cell)
         icon_layout.setContentsMargins(
             0,
-            _header_icon_top_offset(self._title_label, self._message_label, icon_size),
+            header_icon_top_offset(self._title_label, self._message_label, icon_size),
             0,
             0,
         )
@@ -291,6 +289,21 @@ class ErrorReportDialog(FullWindowModalBase):
         self._copy_button.clicked.connect(self._copy_report)
         self.buttonLayout.addWidget(self._copy_button, 0, Qt.AlignmentFlag.AlignVCenter)
 
+        self._report_issue_button: LocalizedPushButton | None = None
+        if self._update_rollback_action is not None:
+            self._report_issue_button = LocalizedPushButton(
+                app_text("Report issue"), self.buttonGroup
+            )
+            self._report_issue_button.setIcon(FIF.FEEDBACK)
+            self._report_issue_button.setFixedHeight(_ACTION_BUTTON_HEIGHT)
+            self._report_issue_button.setMinimumWidth(_ACTION_BUTTON_MINIMUM_WIDTH)
+            self._report_issue_button.clicked.connect(self._update_rollback_action.open)
+            self.buttonLayout.addWidget(
+                self._report_issue_button,
+                0,
+                Qt.AlignmentFlag.AlignVCenter,
+            )
+
         self._close_button = LocalizedPrimaryPushButton(
             app_text("Close"), self.buttonGroup
         )
@@ -319,12 +332,15 @@ class ErrorReportDialog(FullWindowModalBase):
         node = self._report.node
         rows: list[tuple[ApplicationText, str]] = [
             (app_text("Stage"), self._report.stage),
-            (
-                app_text("Workflow"),
-                self._report.workflow_id
-                or render_application_text(app_text("unknown")),
-            ),
         ]
+        if not self._is_update_rollback:
+            rows.append(
+                (
+                    app_text("Workflow"),
+                    self._report.workflow_id
+                    or render_application_text(app_text("unknown")),
+                )
+            )
         if self._report.prompt_id:
             rows.append((app_text("Prompt"), self._report.prompt_id))
         if node is not None:
@@ -503,53 +519,6 @@ def _header_text_column_width(icon_width: int) -> int:
     )
 
 
-class ReportSeverityGlyphWidget(QWidget):
-    """Draw qfluent's WinUI severity glyph without an InfoBar surface."""
-
-    def __init__(
-        self,
-        *,
-        size: int,
-        severity: DiagnosticSeverity,
-        parent: QWidget | None = None,
-    ) -> None:
-        """Initialize the fixed-size modal header glyph."""
-
-        super().__init__(parent)
-        self._glyph_size = size
-        self._severity = severity
-        self.setFixedSize(size, size)
-
-    def paintEvent(self, _event: QPaintEvent) -> None:  # noqa: N802
-        """Paint the qfluent glyph that matches the report severity."""
-
-        painter = QPainter(self)
-        painter.setRenderHints(
-            QPainter.RenderHint.Antialiasing | QPainter.RenderHint.SmoothPixmapTransform
-        )
-        drawIcon(
-            _severity_icon(self._severity),
-            painter,
-            QRectF(0, 0, self._glyph_size, self._glyph_size),
-            theme=Theme.LIGHT,
-        )
-
-    def icon_path(self) -> str:
-        """Return the qfluent asset used by the modal header."""
-
-        return cast("str", _severity_icon(self._severity).path(Theme.LIGHT))
-
-
-def _severity_icon(severity: DiagnosticSeverity) -> InfoBarIcon:
-    """Return the qfluent InfoBar icon for one diagnostic severity."""
-
-    if severity == DiagnosticSeverity.WARNING:
-        return InfoBarIcon.WARNING
-    if severity == DiagnosticSeverity.INFO:
-        return InfoBarIcon.INFORMATION
-    return InfoBarIcon.ERROR
-
-
 def _affected_cube_count(report: ErrorReport) -> int:
     """Return the Cube Library drift count from report operation context."""
 
@@ -566,48 +535,6 @@ def _dialog_max_height(parent: QWidget) -> int:
     """Return a modal height cap that keeps the dialog inside its parent."""
 
     return max(_MIN_DIALOG_HEIGHT, parent.height() - _DIALOG_HEIGHT_MARGIN)
-
-
-def _header_glyph_size(title: QLabel, message: QLabel) -> int:
-    """Return an error glyph size matching the visible two-row text bounds."""
-
-    ink_top, ink_bottom = _header_text_ink_bounds(title, message)
-    return max(16, ink_bottom - ink_top - 1)
-
-
-def _header_text_ink_bounds(title: QLabel, message: QLabel) -> tuple[int, int]:
-    """Return the visible text bounds of the two-line header stack."""
-
-    title_ink_top, title_ink_bottom = _label_ink_bounds(title, 0)
-    message_top = title.fontMetrics().height() + _HEADER_TEXT_SPACING
-    message_ink_top, message_ink_bottom = _label_ink_bounds(message, message_top)
-    return min(title_ink_top, message_ink_top), max(
-        title_ink_bottom,
-        message_ink_bottom,
-    )
-
-
-def _header_icon_top_offset(title: QLabel, message: QLabel, icon_size: int) -> int:
-    """Return the icon top offset inside the two-row grid-spanning cell."""
-
-    title_top = 0
-    message_bottom = (
-        title.fontMetrics().height() + _HEADER_TEXT_SPACING + message.height()
-    )
-    cell_center = (title_top + message_bottom) / 2
-    ink_top, ink_bottom = _header_text_ink_bounds(title, message)
-    ink_center = (ink_top + ink_bottom) / 2
-    centered_top = round(cell_center - (icon_size / 2))
-    return max(0, centered_top + int(ink_center - cell_center))
-
-
-def _label_ink_bounds(label: QLabel, top: int) -> tuple[int, int]:
-    """Return vertical text ink bounds relative to the header origin."""
-
-    metrics = label.fontMetrics()
-    rect = metrics.tightBoundingRect(label.text() or " ")
-    ink_top = top + metrics.ascent() + rect.top()
-    return ink_top, ink_top + rect.height()
 
 
 def _clear_layout(layout: QLayout) -> None:

@@ -1,0 +1,34 @@
+name: Set up verified Node toolchain
+description: Restore lock-addressed npm inputs and install the exact release toolchain.
+
+inputs:
+  node-version:
+    description: Exact hosted Node.js version for this job.
+    required: true
+  install-dependencies:
+    description: Whether this job needs the lockfile-synchronized release packages.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up exact hosted Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ inputs.install-dependencies == 'true' && 'npm' || '' }}
+        cache-dependency-path: ${{ inputs.install-dependencies == 'true' && 'package-lock.json' || '' }}
+
+    - name: Install exact release dependencies
+      if: inputs.install-dependencies == 'true'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $true
+        $expectedPackageManager = node -p "require('./package.json').packageManager"
+        $actualPackageManager = "npm@$(corepack npm --version)"
+        if ($actualPackageManager -ne $expectedPackageManager) {
+          throw "Expected $expectedPackageManager but Corepack resolved $actualPackageManager."
+        }
+        corepack npm ci

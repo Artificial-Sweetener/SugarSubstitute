@@ -23,9 +23,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QTimer, Signal, Slot
-from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QVBoxLayout
-from qfluentwidgets import Theme, setTheme, setThemeColor  # type: ignore[import-untyped]
 from qframelesswindow import AcrylicWindow  # type: ignore[import-untyped]
 from qframelesswindow.titlebar import TitleBar  # type: ignore[import-untyped]
 
@@ -56,6 +54,9 @@ from launcher.sugarsubstitute_launcher.ui.installer_style import (
     apply_installer_style,
 )
 from launcher.sugarsubstitute_launcher.ui.installer_view import InstallerView
+from launcher.sugarsubstitute_launcher.ui.launcher_theme import (
+    configure_launcher_theme,
+)
 from launcher.sugarsubstitute_launcher.ui.window_effects import (
     apply_launcher_window_effects,
 )
@@ -67,7 +68,6 @@ from launcher.sugarsubstitute_launcher.ui.window_geometry import (
 
 
 _LOGGER = logging.getLogger(__name__)
-_ACCENT_COLOR = "#E91E63"
 _WINDOW_WIDTH = 1260
 _WINDOW_HEIGHT = 800
 _TITLEBAR_HEIGHT = 34
@@ -92,8 +92,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Build the launcher shell and initialize installer state."""
 
         super().__init__()
-        setTheme(Theme.DARK)
-        setThemeColor(QColor(_ACCENT_COLOR))
+        configure_launcher_theme()
         self._initial_layout = initial_layout
         self._continue_install = continue_install
         self._initial_release_source = initial_release_source
@@ -220,6 +219,8 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
     def _start_setup_worker(self) -> None:
         """Start runtime provisioning and onboarding handoff in a worker thread."""
 
+        if self.execution.initial_running:
+            return
         self._show_status_output()
         if self._installed_application is None:
             self._append_log(launcher_text("Install root is not prepared yet."))
@@ -284,7 +285,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
     @Slot(object)
     def _handle_initial_install_succeeded(self, result: object) -> None:
-        """Continue setup after launcher and payload installation."""
+        """Accept installed artifacts while their worker finishes cleanup."""
 
         if not isinstance(result, InstalledApplication):
             self._handle_initial_install_failed(
@@ -292,7 +293,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             )
             return
         self._accept_installed_application(result)
-        self._start_setup_worker()
 
     def _accept_installed_application(self, application: InstalledApplication) -> None:
         """Store installed artifacts and project their visible completion details."""
@@ -355,10 +355,13 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
     @Slot()
     def _handle_initial_install_finished(self) -> None:
-        """Restore initial-install controls after the Qt worker has stopped."""
+        """Advance only after the initial Qt worker has released ownership."""
 
         if self._ui_state is LauncherUiState.PREPARE_INSTALL:
             self._refresh_primary_button()
+            return
+        if self._ui_state is LauncherUiState.INSTALL_RUNTIME:
+            QTimer.singleShot(0, self._start_setup_worker)
 
     def _refresh_primary_button(self) -> None:
         """Project the current setup phase onto editable and primary controls."""

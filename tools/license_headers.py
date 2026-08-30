@@ -122,7 +122,16 @@ def rewrite_source(
     expected_start = f"{comment_prefix}    {PROJECT_TAGLINE}"
 
     if insertion_index < len(lines) and lines[insertion_index] == expected_start:
-        body_start = _existing_header_end(lines, insertion_index, comment_prefix) + 1
+        try:
+            body_start = (
+                _existing_header_end(lines, insertion_index, comment_prefix) + 1
+            )
+        except UnsupportedLicenseHeaderError:
+            body_start = _incomplete_owned_header_body_start(
+                lines,
+                insertion_index,
+                comment_prefix,
+            )
     elif _has_unknown_gpl_header(lines, insertion_index, comment_prefix):
         raise UnsupportedLicenseHeaderError(
             "An unrecognized GPL header appears before the source body."
@@ -131,12 +140,11 @@ def rewrite_source(
     body = lines[body_start:]
     while body and not body[0].strip():
         body.pop(0)
-    canonical_lines = (
-        lines[:insertion_index]
-        + list(render_header(comment_prefix, current_year))
-        + [""]
-        + body
+    canonical_lines = lines[:insertion_index] + list(
+        render_header(comment_prefix, current_year)
     )
+    if body:
+        canonical_lines += [""] + body
     return newline.join(canonical_lines) + newline
 
 
@@ -297,6 +305,23 @@ def _existing_header_end(
             break
     raise UnsupportedLicenseHeaderError(
         "The SugarSubstitute header is incomplete or malformed."
+    )
+
+
+def _incomplete_owned_header_body_start(
+    lines: list[str], start_index: int, comment_prefix: str
+) -> int:
+    """Return the source body after an exact incomplete owned header."""
+
+    for index in range(start_index + 1, min(len(lines), start_index + 30)):
+        if not lines[index].strip():
+            return index + 1
+        if not lines[index].startswith(comment_prefix):
+            return index
+    if len(lines) < start_index + 30:
+        return len(lines)
+    raise UnsupportedLicenseHeaderError(
+        "The SugarSubstitute header is incomplete and has no source boundary."
     )
 
 

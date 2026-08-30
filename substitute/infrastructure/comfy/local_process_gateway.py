@@ -37,6 +37,15 @@ _PROCESS_EXIT_TIMEOUT_SECONDS = 5.0
 class PsutilLocalComfyProcessGateway:
     """Discover exact Comfy Python processes through cross-platform process facts."""
 
+    def inspect(self, pid: int) -> LocalComfyProcess | None:
+        """Return a verified Comfy identity for one exact process identifier."""
+
+        try:
+            process = psutil.Process(pid)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+            return None
+        return _identify_comfy_process(process)
+
     def scan(self) -> tuple[LocalComfyProcess, ...]:
         """Return confidently identified local ComfyUI Python processes."""
 

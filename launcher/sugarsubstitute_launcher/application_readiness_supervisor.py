@@ -38,7 +38,7 @@ from sugarsubstitute_shared.application_readiness import (
 )
 
 
-DEFAULT_READINESS_TIMEOUT_SECONDS = 300.0
+DEFAULT_READINESS_TIMEOUT_SECONDS = 3600.0
 _POLL_INTERVAL_SECONDS = 0.05
 _TERMINATION_TIMEOUT_SECONDS = 5.0
 
@@ -196,7 +196,10 @@ class ApplicationReadinessSupervisor:
             raise ApplicationReadinessError(
                 "Application readiness receipt is invalid."
             ) from error
-        if receipt.token != expected_token or receipt.pid != expected_pid:
+        if receipt.token != expected_token or expected_pid not in {
+            receipt.pid,
+            receipt.parent_pid,
+        }:
             raise ApplicationReadinessError(
                 "Application readiness receipt did not match the launched process."
             )

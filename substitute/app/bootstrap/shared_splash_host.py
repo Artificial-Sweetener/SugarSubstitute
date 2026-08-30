@@ -22,7 +22,10 @@ from sugarsubstitute_shared.presentation.localization import app_text
 
 import argparse
 import json
+import os
+from pathlib import Path
 import sys
+import time
 from typing import Any, TextIO, cast
 
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -47,6 +50,10 @@ from sugarsubstitute_shared.launch_splash import (
     splash_cancel_signal_path,
 )
 from sugarsubstitute_shared.localization import parse_locale_override
+
+
+_SURFACE_EVIDENCE_ENV = "SUGAR_SUBSTITUTE_SPLASH_SURFACE_EVIDENCE"
+_SURFACE_EVIDENCE_DIRECTORY = "qualification-splash-surfaces"
 
 
 class SplashSessionQtBridge(QObject):
@@ -118,6 +125,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     splash.center_on_screen()
     splash.show()
+    app.processEvents()
+    _write_surface_evidence(app=app, splash=splash)
     _write_ready_message(stream=sys.stdout, server=server)
 
     timeout_timer = QTimer()
@@ -162,6 +171,31 @@ def _write_ready_message(*, stream: TextIO, server: SplashSessionServer) -> None
     }
     stream.write(json.dumps(payload, ensure_ascii=True, separators=(",", ":")) + "\n")
     stream.flush()
+
+
+def _write_surface_evidence(*, app: QApplication, splash: Any) -> None:
+    """Record offscreen surface facts only for explicit startup qualification."""
+
+    if os.environ.get(_SURFACE_EVIDENCE_ENV) != "1":
+        return
+    top_level_widgets = tuple(app.topLevelWidgets())
+    payload = {
+        "created_monotonic_ns": time.monotonic_ns(),
+        "host_pid": os.getpid(),
+        "platform_name": app.platformName(),
+        "splash_is_visible": bool(splash.isVisible()),
+        "top_level_surface_count": len(top_level_widgets),
+        "visible_top_level_surface_count": sum(
+            widget.isVisible() for widget in top_level_widgets
+        ),
+    }
+    evidence_dir = Path.cwd() / "user" / _SURFACE_EVIDENCE_DIRECTORY
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    evidence_path = evidence_dir / f"{os.getpid()}.json"
+    evidence_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _handle_shared_cancel_requested(

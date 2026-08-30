@@ -25,6 +25,8 @@ from substitute.application.workflows.canvas_dimension_authority_service import 
 )
 from substitute.application.workflows.input_asset_endpoint_service import (
     InputAssetEndpointService,
+)
+from substitute.application.workflows.input_asset_field_policy import (
     declared_input_type,
 )
 from substitute.application.workflows.workflow_graph_topology import (

@@ -102,7 +102,15 @@ class SubprocessRuntimeCommandRunner:
                 if line:
                     captured_output.append(line)
                     if self._output_callback is not None:
-                        self._output_callback(line)
+                        try:
+                            self._output_callback(line)
+                        except OSError as error:
+                            _LOGGER.warning(
+                                "Runtime progress sink disconnected; continuing "
+                                "command | error_type=%s",
+                                type(error).__name__,
+                            )
+                            self._output_callback = None
 
         return_code = process.wait()
         if return_code != 0:

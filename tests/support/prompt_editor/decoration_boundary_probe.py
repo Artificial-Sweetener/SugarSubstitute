@@ -27,11 +27,12 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
     PromptProjectionToken,
     PromptProjectionTokenKind,
 )
-from tests.real_shell_prompt_editor_harness import (
+from tests.support.prompt_editor.real_shell.models import (
     PromptEditorStateSnapshot,
     PromptFieldHandle,
-    RealShellPromptEditorHarness,
 )
+from tests.support.prompt_editor.real_shell.input_driver import PromptEditorInputDriver
+from tests.support.prompt_editor.real_shell.snapshots import PromptEditorSnapshotCapture
 
 type PromptDecorationBoundary = Literal[
     "leading",
@@ -95,10 +96,16 @@ DECORATION_BOUNDARY_CASES = (
 class RealShellPromptDecorationBoundaryProbe:
     """Place and observe carets at semantic decoration boundaries."""
 
-    def __init__(self, harness: RealShellPromptEditorHarness) -> None:
-        """Store the real-shell harness that owns editor lifecycle."""
+    def __init__(
+        self,
+        *,
+        input_driver: PromptEditorInputDriver,
+        snapshots: PromptEditorSnapshotCapture,
+    ) -> None:
+        """Bind only the input and snapshot owners used by this probe."""
 
-        self._harness = harness
+        self._input = input_driver
+        self._snapshots = snapshots
 
     def token_for_kind(
         self,
@@ -125,8 +132,8 @@ class RealShellPromptDecorationBoundaryProbe:
         """Place the caret at one token boundary and return settled owner state."""
 
         position = decoration_boundary_position(token, boundary)
-        self._harness.set_source_cursor_position(field, position)
-        snapshot = self._harness.capture_state_snapshot(
+        self._input.set_source_cursor_position(field, position)
+        snapshot = self._snapshots.capture(
             field,
             label=f"{token.kind.value}-{boundary}-placed",
         )
@@ -135,8 +142,8 @@ class RealShellPromptDecorationBoundaryProbe:
             boundary == "trailing"
             and snapshot.caret_state_placement != expected_placement
         ):
-            self._harness.press_key(field, Qt.Key.Key_Right)
-            snapshot = self._harness.capture_state_snapshot(
+            self._input.press_key(field, Qt.Key.Key_Right)
+            snapshot = self._snapshots.capture(
                 field,
                 label=f"{token.kind.value}-{boundary}-selected",
             )

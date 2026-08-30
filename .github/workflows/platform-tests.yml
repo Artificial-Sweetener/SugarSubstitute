@@ -1,0 +1,88 @@
+name: supported-platform test suite
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+  # photoshop 0.21.9 requires wheel<0.42; the app never invokes the affected
+  # wheel unpack command. Remove this exception when that constraint is removed.
+  PIP_AUDIT_IGNORED_VULNERABILITY: CVE-2026-24049
+  QT_QPA_PLATFORM: offscreen
+  QT_OPENGL: software
+  SUBSTITUTE_DISABLE_APP_USER_MODEL_ID: "1"
+  SUBSTITUTE_DISABLE_CUTECANVAS_SAM_WARMUP: "1"
+
+jobs:
+  platform-tests:
+    name: Tests (${{ matrix.name }} / ${{ matrix.partition }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04, macos-15]
+        partition: [ordinary, fresh]
+        include:
+          - name: Windows x64
+            os: windows-latest
+            python-version: "3.12.10"
+            python: ./.venv/Scripts/python.exe
+            artifact: windows
+          - name: Linux x64
+            os: ubuntu-24.04
+            python-version: "3.12.13"
+            python: ./.venv/bin/python
+            artifact: linux
+          - name: macOS Apple Silicon
+            os: macos-15
+            python-version: "3.12.10"
+            python: ./.venv/bin/python
+            artifact: macos
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up verified Python toolchain
+        uses: ./.github/actions/setup-python-toolchain
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Linux Qt runtime dependencies
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/setup-linux-qt
+      - name: Audit installed Python dependency graph
+        if: matrix.partition == 'ordinary'
+        run: >-
+          ${{ matrix.python }} -m pip_audit
+          --local --strict --progress-spinner off
+          --ignore-vuln ${{ env.PIP_AUDIT_IGNORED_VULNERABILITY }}
+      - name: Prepare test result directory
+        run: >-
+          ${{ matrix.python }} -c
+          "from pathlib import Path; Path('build/test-results').mkdir(parents=True, exist_ok=True)"
+      - name: Run parallel-safe test partition
+        if: matrix.partition == 'ordinary'
+        run: >-
+          ${{ matrix.python }} -m pytest -n auto -q -m "not serial and not isolated"
+          --junitxml=build/test-results/${{ matrix.artifact }}-parallel.xml
+      - name: Run fresh-process test partition
+        if: matrix.partition == 'fresh'
+        run: >-
+          ${{ matrix.python }} -m tools.ci.run_isolated_test_modules
+          --junit-dir=build/test-results/${{ matrix.artifact }}-isolated
+      - name: Run serial test partition
+        if: ${{ !cancelled() && matrix.partition == 'fresh' }}
+        run: >-
+          ${{ matrix.python }} -m tools.ci.run_serial_test_modules
+          --junit-dir=build/test-results/${{ matrix.artifact }}-serial
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results-${{ matrix.artifact }}-${{ matrix.partition }}
+          path: build/test-results
+          if-no-files-found: warn
+          retention-days: 7

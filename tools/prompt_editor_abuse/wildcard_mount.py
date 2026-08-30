@@ -36,9 +36,15 @@ from substitute.presentation.editor.prompt_editor.runtime_services import (
     PromptEditorRuntimeServices,
 )
 from substitute.presentation.managed_text_assets import WildcardManagementOpener
-from tests.execution_test_helpers import immediate_editor_panel_execution_factories
-from tests.prompt_autocomplete_test_helpers import EmptyPromptAutocompleteGateway
-from tests.prompt_projection_test_helpers import StaticPromptWildcardCatalogGateway
+from tests.support.execution.runtime_support import (
+    immediate_editor_panel_execution_factories,
+)
+from tests.support.prompt_editor.autocomplete_support import (
+    EmptyPromptAutocompleteGateway,
+)
+from tests.support.prompt_editor.projection_engine_support import (
+    StaticPromptWildcardCatalogGateway,
+)
 
 from .models import PromptAbuseScenario
 
@@ -103,7 +109,6 @@ def mount_wildcard_editor(
             modal.close()
             if modal_owner is not None:
                 modal_owner.close()
-            process_events(cycles=8)
             modal.deleteLater()
             if modal_owner is not None:
                 modal_owner.deleteLater()

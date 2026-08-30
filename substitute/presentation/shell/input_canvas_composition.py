@@ -31,6 +31,9 @@ from substitute.application.workflows.generation_input_image_selection_service i
 from substitute.application.workflows.input_canvas_capability_service import (
     InputCanvasCapabilityService,
 )
+from substitute.application.workflows.input_canvas_authority_reconciliation_service import (
+    InputCanvasAuthorityReconciliationService,
+)
 from substitute.application.workflows.input_canvas_interaction_profile_service import (
     InputCanvasInteractionProfileService,
 )
@@ -138,6 +141,7 @@ class MainWindowInputCanvasComposition:
     """Hold Input-canvas collaborators composed after canvas widgets exist."""
 
     workflow_input_canvas_service: Any
+    input_canvas_authority_reconciliation_service: Any
     input_canvas_tool_controller: Any
     input_canvas_tool_profile_controller: Any
     input_shared_edge_resize_policy: InputSharedEdgeResizePolicy
@@ -355,6 +359,12 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         input_canvas_plan_service=shell.input_canvas_plan_service,
         graph_section_service=shell.graph_section_service,
     )
+    input_canvas_authority_reconciliation_service = (
+        InputCanvasAuthorityReconciliationService(
+            select_generation_images=image_selection_service.select,
+            input_canvas_state_service=shell.input_canvas_state_service,
+        )
+    )
     input_generation_image_materializer = InputGenerationImageMaterializer(
         canvas_io_service=shell.canvas_io_service,
         association_service=image_association_service,
@@ -406,6 +416,9 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     )
     composition = MainWindowInputCanvasComposition(
         workflow_input_canvas_service=workflow_input_canvas_service,
+        input_canvas_authority_reconciliation_service=(
+            input_canvas_authority_reconciliation_service
+        ),
         input_canvas_tool_controller=input_canvas_tool_controller,
         input_canvas_tool_profile_controller=input_canvas_tool_profile_controller,
         input_shared_edge_resize_policy=input_shared_edge_resize_policy,
@@ -429,6 +442,9 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         synthetic_canvas_resolution_controller=synthetic_resolution_controller,
     )
     shell.workflow_input_canvas_service = composition.workflow_input_canvas_service
+    shell.input_canvas_authority_reconciliation_service = (
+        composition.input_canvas_authority_reconciliation_service
+    )
     shell.input_canvas_tool_controller = composition.input_canvas_tool_controller
     shell.input_canvas_tool_profile_controller = (
         composition.input_canvas_tool_profile_controller

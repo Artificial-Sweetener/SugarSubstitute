@@ -32,7 +32,10 @@ from substitute.application.errors import (
     ErrorReportKind,
     SubstituteOperationContext,
 )
-from substitute.domain.workflow import WorkflowState
+from substitute.application.workflows.input_asset_picker_refresh_service import (
+    scalar_mask_picker_identities,
+)
+from substitute.domain.workflow import InputCanvasPlan, WorkflowState
 from substitute.presentation.canvas.input.input_node_preview_coordinator import (
     InputNodePreviewCoordinator,
 )
@@ -85,6 +88,13 @@ class _WorkflowInputCanvasServicePort(Protocol):
         image_id: UUID,
     ) -> object:
         """Resolve a CuteCanvas image id to a workflow graph input identity."""
+
+    def input_canvas_plan(
+        self,
+        workflow: WorkflowState,
+        section_key: str,
+    ) -> InputCanvasPlan:
+        """Return semantic image and mask bindings for one graph section."""
 
     def materialize_input_image(
         self,
@@ -448,27 +458,16 @@ class InputCanvasPresenter:
         if active_workflow is None or self._active_editor_panel_provider() is None:
             return
         self.bind_active_node_previews()
-        cubes = getattr(active_workflow, "cubes", {})
-        if not isinstance(cubes, Mapping):
-            return
         projects_dir = self._projects_dir_provider()
-        for cube_alias, cube_state in cubes.items():
-            if not isinstance(cube_alias, str):
-                continue
-            buffer = getattr(cube_state, "buffer", {})
-            nodes = buffer.get("nodes", {}) if isinstance(buffer, Mapping) else {}
-            if not isinstance(nodes, Mapping):
-                continue
-            for node_name, node_data in nodes.items():
-                if not isinstance(node_name, str) or not isinstance(node_data, Mapping):
-                    continue
-                if node_data.get("class_type") != "LoadImageMask":
-                    continue
-                self.refresh_mask_picker_from_asset_state(
-                    cube_alias,
-                    node_name,
-                    projects_dir=projects_dir,
-                )
+        for cube_alias, node_name in scalar_mask_picker_identities(
+            active_workflow,
+            self._workflow_input_canvas_service.input_canvas_plan,
+        ):
+            self.refresh_mask_picker_from_asset_state(
+                cube_alias,
+                node_name,
+                projects_dir=projects_dir,
+            )
 
     def bind_active_node_previews(self) -> frozenset[tuple[str, str]]:
         """Bind current panel previews from authoritative active workflow state."""

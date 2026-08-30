@@ -25,9 +25,9 @@ from typing import Any, cast
 from unittest.mock import patch
 from uuid import UUID
 
-from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QRectF, Qt
+from PySide6.QtCore import QEvent, QObject, QPoint, QRectF, Qt
 from PySide6.QtGui import QColor, QImage
-from PySide6.QtTest import QTest
+from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QWidget
 from cutecanvas import PixelSelectionMode, VectorShapeKind
 
@@ -48,7 +48,13 @@ from substitute.application.workflows.workflow_node_definition_service import (
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.infrastructure.persistence import QtImageStore
+from substitute.presentation.canvas.input.input_canvas_tool_catalog import (
+    InputCanvasToolId,
+)
 from substitute.presentation.canvas.input.input_canvas_view import InputCanvas
+from substitute.presentation.canvas.input.input_node_preview_widget import (
+    InputNodePreviewWidget,
+)
 from substitute.presentation.editor.panel.widgets.fields.load_image import ImagePicker
 from substitute.presentation.editor.panel.widgets.fields.load_mask import MaskPicker
 from substitute.presentation.shell.input_canvas_composition import (
@@ -57,7 +63,27 @@ from substitute.presentation.shell.input_canvas_composition import (
 from substitute.presentation.shell.main_window_dependencies import (
     InstallationPathBundle,
 )
-from tests.real_shell_prompt_editor_harness import RealShellPromptEditorHarness
+from tests.support.prompt_editor.real_shell.scenario import (
+    PromptEditorRealShellScenario,
+)
+
+
+class _MousePressObserver(QObject):
+    """Observe real press delivery without consuming the canvas event."""
+
+    def __init__(self) -> None:
+        """Initialize an undelivered observation."""
+
+        super().__init__()
+        self.delivered = False
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        """Record one mouse press and preserve normal target dispatch."""
+
+        del watched
+        if event.type() is QEvent.Type.MouseButtonPress:
+            self.delivered = True
+        return False
 
 
 class RealShellInputEditorHarness:
@@ -84,7 +110,9 @@ class RealShellInputEditorHarness:
                 "SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM": "1",
             },
         ):
-            self._base = RealShellPromptEditorHarness()
+            self._base = PromptEditorRealShellScenario(
+                artifact_root=self.root / "prompt-editor-artifacts"
+            )
         self.shell = cast(Any, self._base.shell)
         self.shell.path_bundle = self._path_bundle(self.root)
         self.shell.node_definition_gateway.install_recorded_definitions(
@@ -150,9 +178,10 @@ class RealShellInputEditorHarness:
         picker = cast(
             ImagePicker, self.picker(ImagePicker, cube_alias, self.IMAGE_NODE)
         )
+        self.picker(MaskPicker, cube_alias, self.MASK_NODE)
         picker.set_thumbnail(str(path))
         picker.imageSelected.emit(str(path))
-        self.process_events(8)
+        self.wait_until(lambda: self._image_selection_is_active(cube_alias))
 
     def picker(
         self,
@@ -167,7 +196,6 @@ class RealShellInputEditorHarness:
             return picker
         panel = self.shell.editor_panels[self.WORKFLOW_ID]
         panel.reveal_loaded_cube(cube_alias)
-        self.process_events(10)
         self.wait_until(
             lambda: (
                 self._find_picker(
@@ -195,10 +223,9 @@ class RealShellInputEditorHarness:
         )
         if item_id is None:
             raise RuntimeError("Production Input canvas rejected retained rectangle")
-        self.process_events(12)
 
-    def add_brush_dab(self, point: QPoint, *, brush_size: int) -> None:
-        """Commit one brush dab through the mounted production canvas widget."""
+    def add_brush_dab(self, *, brush_size: int) -> None:
+        """Commit one brush dab at the active scene center after press delivery."""
 
         input_canvas = self.input_canvas
         input_canvas.resize(400, 300)
@@ -206,14 +233,54 @@ class RealShellInputEditorHarness:
         assert input_canvas.document.set_active_mask_id(self.mask_id)
         input_canvas.canvas.setBrushSize(brush_size)
         input_canvas.canvas.setControlMode(input_canvas.canvas.CONTROL_MODE_DRAW_BRUSH)
-        self.process_events(12)
-        QTest.mouseClick(
+        mask_changes = QSignalSpy(input_canvas.document.maskContentChanged)
+        press_observer = _MousePressObserver()
+
+        def active_scene_center() -> QPoint | None:
+            """Map the authoritative rendered scene center into panel coordinates."""
+
+            scene = input_canvas.canvas.currentScene()
+            if scene is None:
+                return None
+            panel_bounds = input_canvas.canvas.sceneToPanelRect(QRectF(scene.bounds))
+            if panel_bounds is None:
+                return None
+            point = panel_bounds.center().toPoint()
+            return point if input_canvas.canvas.rect().contains(point) else None
+
+        self.wait_until(
+            lambda: (
+                input_canvas.canvas.isVisible()
+                and input_canvas.canvas.isEnabled()
+                and input_canvas.canvas.size() == input_canvas.size()
+                and active_scene_center() is not None
+                and input_canvas.canvas.getControlMode()
+                == input_canvas.canvas.CONTROL_MODE_DRAW_BRUSH
+            )
+        )
+        point = active_scene_center()
+        if point is None:
+            raise RuntimeError(
+                "Production Input canvas exposed no drawable scene center"
+            )
+        input_canvas.canvas.installEventFilter(press_observer)
+        try:
+            QTest.mousePress(
+                input_canvas.canvas,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+                point,
+            )
+            self.wait_until(lambda: press_observer.delivered)
+        finally:
+            input_canvas.canvas.removeEventFilter(press_observer)
+        QTest.mouseRelease(
             input_canvas.canvas,
             Qt.MouseButton.LeftButton,
             Qt.KeyboardModifier.NoModifier,
             point,
         )
-        self.process_events(12)
+        self.wait_until(lambda: mask_changes.count() > 0)
 
     def prepare_generation(self) -> WorkflowState:
         """Capture and materialize one execution-only workflow revision."""
@@ -235,10 +302,6 @@ class RealShellInputEditorHarness:
             )
         return cast(Path, lifecycle.archive_path)
 
-    def process_events(self, cycles: int = 4) -> None:
-        """Drain bounded queued shell and renderer work."""
-        self._base.process_events(cycles=cycles)
-
     def wait_until(self, predicate: Callable[[], bool]) -> None:
         """Wait for one observable production-shell condition with a bound."""
         self._base.wait_until(predicate)
@@ -251,17 +314,9 @@ class RealShellInputEditorHarness:
         self._closed = True
         input_document = self.input_canvas.document
         output_document = self.shell.output_canvas.document
-        execution_runtimes = (
-            input_document.runtime.execution_runtime,
-            output_document.runtime.execution_runtime,
-        )
-        self._base.close()
         input_document.close()
         output_document.close()
-        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
-        self.process_events(8)
-        for execution_runtime in execution_runtimes:
-            execution_runtime.shutdown(wait=True)
+        self._base.close()
 
     def _mount_workflow(self, workflow: WorkflowState) -> None:
         """Install one workflow and its real editor-panel surface."""
@@ -284,12 +339,48 @@ class RealShellInputEditorHarness:
         self.shell.editor_panel = panel
         panel.show()
         panel.reveal_loaded_cube(self.CUBE_ALIAS)
-        self.process_events(10)
         self._base.wait_until(
             lambda: (
                 self._find_picker(ImagePicker, self.IMAGE_NODE) is not None
                 and self._find_picker(MaskPicker, self.MASK_NODE) is not None
             ),
+        )
+
+    def _image_selection_is_active(self, cube_alias: str) -> bool:
+        """Return whether selection, previews, canvas, and tools share one subject."""
+
+        image_picker = self._find_picker(
+            ImagePicker,
+            self.IMAGE_NODE,
+            cube_alias=cube_alias,
+        )
+        mask_picker = self._find_picker(
+            MaskPicker,
+            self.MASK_NODE,
+            cube_alias=cube_alias,
+        )
+        image_entry = self.workflow.canvas.image_entry(
+            f"{cube_alias}:{self.IMAGE_NODE}"
+        )
+        mask_entry = self.workflow.canvas.mask_entry((cube_alias, self.MASK_NODE))
+        palette = self.shell.input_canvas_tool_controller.palette
+        navigation = palette.presentation_for(InputCanvasToolId.PAN_ZOOM)
+        rectangle = palette.presentation_for(InputCanvasToolId.MASK_RECTANGLE)
+        return (
+            image_picker is not None
+            and mask_picker is not None
+            and image_entry is not None
+            and mask_entry is not None
+            and isinstance(image_picker.live_preview(), InputNodePreviewWidget)
+            and isinstance(mask_picker.live_preview(), InputNodePreviewWidget)
+            and self.workflow.canvas.input_image_uuid == image_entry.image_id
+            and self.workflow.canvas.active_input_mask_uuid == mask_entry.mask_id
+            and self.input_canvas.document.active_mask_id() == mask_entry.mask_id
+            and self.shell.canvas_host.is_canvas_visible("Input")
+            and navigation is not None
+            and navigation.enabled
+            and rectangle is not None
+            and rectangle.enabled
         )
 
     def _picker(self, picker_type: type[Any], node_name: str) -> Any:

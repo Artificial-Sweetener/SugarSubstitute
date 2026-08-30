@@ -1,0 +1,68 @@
+name: release version resolution
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: "Release channel selected by the event owner"
+        required: true
+        type: string
+      canary_run_number:
+        description: "Run number used to construct a Canary version"
+        required: false
+        default: ""
+        type: string
+      qualification_version:
+        description: "Synthetic version used by focused dry-run qualification"
+        required: false
+        default: ""
+        type: string
+    outputs:
+      version:
+        description: "Resolved semantic release version"
+        value: ${{ jobs.resolve.outputs.version }}
+      should_release:
+        description: "Whether the source contains a releasable change"
+        value: ${{ jobs.resolve.outputs.should_release }}
+      first_release:
+        description: "Whether this is the flattened repository's first release"
+        value: ${{ jobs.resolve.outputs.first_release }}
+      channel:
+        description: "Selected Stable or Canary channel"
+        value: ${{ jobs.resolve.outputs.channel }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22.22.2"
+
+jobs:
+  resolve:
+    name: Resolve semantic release version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release-version.outputs.version }}
+      should_release: ${{ steps.release-version.outputs.should_release }}
+      first_release: ${{ steps.release-version.outputs.first_release }}
+      channel: ${{ inputs.channel }}
+
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up verified Node toolchain
+        uses: ./.github/actions/setup-node-toolchain
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Resolve next release version
+        id: release-version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUGAR_SUBSTITUTE_CANARY_RUN_NUMBER: ${{ inputs.canary_run_number }}
+          SUGAR_SUBSTITUTE_QUALIFICATION_VERSION: ${{ inputs.qualification_version }}
+        run: node scripts/resolve-next-release-version.mjs

@@ -9,9 +9,9 @@
 PySide6==6.11.1
 PySide6-Fluent-Widgets[full]==1.11.3
 PySideSix-Frameless-Window==0.8.2
-ferrastra==1.0.1
-qpane==3.0.2
-cutecanvas[sam]==1.0.3
+ferrastra==1.0.2
+qpane==3.0.4
+cutecanvas[sam]==1.0.6
 
 # Networking and IO
 requests==2.34.2

@@ -172,4 +172,5 @@ class InstallerQualificationPlan:
 __all__ = [
     "INSTALLER_QUALIFICATION_PLAN_ENV",
     "InstallerQualificationPlan",
+    "InstallerQualificationTarget",
 ]

@@ -1,0 +1,179 @@
+name: release native builds
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Exact semantic version embedded into every native artifact"
+        required: true
+        type: string
+      channel:
+        description: "Stable or Canary channel embedded into every native artifact"
+        required: true
+        type: string
+      artifact_suffix:
+        description: "Optional suffix keeping concurrent native inputs distinct"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22.22.2"
+  PYTHON_VERSION: "3.12.10"
+  LINUX_PYTHON_VERSION: "3.12.13"
+
+jobs:
+  build-windows:
+    name: Build Windows x64 installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up verified Python toolchain
+        uses: ./.github/actions/setup-python-toolchain
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up exact Node runtime
+        uses: ./.github/actions/setup-node-toolchain
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          install-dependencies: "false"
+
+      - name: Apply release version
+        shell: pwsh
+        run: node scripts\update-release-versions.mjs ${{ inputs.version }} ${{ inputs.channel }}
+
+      - name: Build Windows launcher artifacts
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          .\.venv\Scripts\python.exe -m PyInstaller launcher\SugarSubstitute-Setup-Windows-x64.spec --noconfirm --clean
+          .\.venv\Scripts\python.exe -m PyInstaller launcher\SugarSubstitute-Windows-x64.spec --noconfirm --clean --distpath build\launcher-bundles
+          New-Item -ItemType Directory -Force build\release-inputs\windows | Out-Null
+          Copy-Item dist\SugarSubstitute-Setup-Windows-x64.exe build\release-inputs\windows\SugarSubstitute-Setup-Windows-x64.exe
+          .\.venv\Scripts\python.exe tools\build_release_payload.py package-launcher --target windows_x64 --bundle-dir build\launcher-bundles\SugarSubstitute --output-path build\release-inputs\windows\installer-payload-windows-x64.zip
+
+      - name: Qualify packaged single-instance behavior offscreen
+        shell: pwsh
+        run: >-
+          .\.venv\Scripts\python.exe -m tools.qualify_single_instance_windows
+          --launcher-bundle build\launcher-bundles\SugarSubstitute
+          --artifact-dir build\qualification\single-instance
+
+      - name: Upload single-instance qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: single-instance-qualification${{ inputs.artifact_suffix }}
+          path: build/qualification/single-instance
+          if-no-files-found: warn
+          retention-days: 1
+
+      - name: Upload Windows release inputs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-inputs-windows${{ inputs.artifact_suffix }}
+          path: build/release-inputs/windows
+          if-no-files-found: error
+          retention-days: 1
+
+  build-macos:
+    name: Build macOS Apple Silicon installer
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up verified Python toolchain
+        uses: ./.github/actions/setup-python-toolchain
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up exact Node runtime
+        uses: ./.github/actions/setup-node-toolchain
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          install-dependencies: "false"
+
+      - name: Apply release version
+        run: node scripts/update-release-versions.mjs ${{ inputs.version }} ${{ inputs.channel }}
+
+      - name: Build Apple Silicon launcher artifacts
+        run: |
+          test "$(uname -m)" = "arm64"
+          .venv/bin/python tools/build_macos_icon.py --source substitute/presentation/resources/app_icons/source.png --output build/app_icon.icns
+          .venv/bin/python -m PyInstaller launcher/SugarSubstitute-Setup-macOS-arm64.spec --noconfirm --clean
+          .venv/bin/python -m PyInstaller launcher/SugarSubstitute-macOS-arm64.spec --noconfirm --clean --distpath build/launcher-bundles
+
+      - name: Ad-hoc sign and package Apple Silicon artifacts
+        run: |
+          codesign --force --deep --sign - "build/launcher-bundles/SugarSubstitute.app"
+          codesign --force --deep --sign - "dist/SugarSubstitute Setup.app"
+          codesign --verify --deep --strict --verbose=2 "build/launcher-bundles/SugarSubstitute.app"
+          codesign --verify --deep --strict --verbose=2 "dist/SugarSubstitute Setup.app"
+          mkdir -p build/release-inputs/macos
+          mkdir -p build/installed-launcher-bundle
+          ditto "build/launcher-bundles/SugarSubstitute.app" "build/installed-launcher-bundle/SugarSubstitute.app"
+          .venv/bin/python tools/build_release_payload.py package-launcher --target macos_arm64 --bundle-dir build/installed-launcher-bundle --output-path build/release-inputs/macos/installer-payload-macos-arm64.zip
+          .venv/bin/python tools/build_macos_dmg.py --setup-app "dist/SugarSubstitute Setup.app" --output build/release-inputs/macos/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg
+
+      - name: Upload Apple Silicon release inputs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-inputs-macos${{ inputs.artifact_suffix }}
+          path: build/release-inputs/macos
+          if-no-files-found: error
+          retention-days: 1
+
+  build-linux:
+    name: Build Linux x64 installers
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up verified Python toolchain
+        uses: ./.github/actions/setup-python-toolchain
+        with:
+          python-version: ${{ env.LINUX_PYTHON_VERSION }}
+
+      - name: Set up exact Node runtime
+        uses: ./.github/actions/setup-node-toolchain
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          install-dependencies: "false"
+
+      - name: Apply release version
+        run: node scripts/update-release-versions.mjs ${{ inputs.version }} ${{ inputs.channel }}
+
+      - name: Build Linux launcher bundles
+        run: |
+          test "$(uname -m)" = "x86_64"
+          .venv/bin/python -m PyInstaller launcher/SugarSubstitute-Setup-Linux-x64.spec --noconfirm --clean
+          .venv/bin/python -m PyInstaller launcher/SugarSubstitute-Linux-x64.spec --noconfirm --clean --distpath build/launcher-bundles
+
+      - name: Set up verified AppImage packaging tool
+        id: appimagetool
+        uses: ./.github/actions/setup-appimagetool
+
+      - name: Package Linux release inputs
+        run: |
+          mkdir -p build/release-inputs/linux
+          .venv/bin/python tools/build_release_payload.py package-launcher --target linux_x64 --bundle-dir build/launcher-bundles/SugarSubstitute --output-path build/release-inputs/linux/installer-payload-linux-x64.zip
+          .venv/bin/python tools/build_linux_installers.py --setup-bundle "dist/SugarSubstitute Setup" --icon substitute/presentation/resources/app_icons/app_icon_256.png --appimagetool "${{ steps.appimagetool.outputs.path }}" --version ${{ inputs.version }} --appimage-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-x86_64.AppImage --deb-output build/release-inputs/linux/SugarSubstitute-Installer-Linux-amd64.deb
+
+      - name: Upload Linux release inputs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-inputs-linux${{ inputs.artifact_suffix }}
+          path: build/release-inputs/linux
+          if-no-files-found: error
+          retention-days: 1

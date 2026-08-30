@@ -47,6 +47,14 @@ class LauncherStartupPlan:
     config_error: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class LauncherStartupCandidate:
+    """Describe the minimal install candidate needed to start a splash."""
+
+    layout: InstallLayout
+    installed_config_found: bool
+
+
 def resolve_install_root(
     *,
     explicit_install_root: Path | None,
@@ -77,13 +85,36 @@ def resolve_startup_plan(
     native_executable_path: Path | None = None,
     working_directory_path: Path | None = None,
 ) -> LauncherStartupPlan:
-    """Resolve setup, installed, or repair behavior from package-owned paths."""
+    """Resolve and validate setup, installed, or repair startup state."""
+
+    return assess_startup_candidate(
+        resolve_startup_candidate(
+            explicit_install_root=explicit_install_root,
+            executable_path=executable_path,
+            frozen_support_path=frozen_support_path,
+            invocation_path=invocation_path,
+            native_executable_path=native_executable_path,
+            working_directory_path=working_directory_path,
+        )
+    )
+
+
+def resolve_startup_candidate(
+    *,
+    explicit_install_root: Path | None,
+    executable_path: Path,
+    frozen_support_path: Path | None = None,
+    invocation_path: Path | None = None,
+    native_executable_path: Path | None = None,
+    working_directory_path: Path | None = None,
+) -> LauncherStartupCandidate:
+    """Find a possible installed layout without reading its configuration."""
 
     if explicit_install_root is not None:
-        return LauncherStartupPlan(
-            layout=InstallLayout.from_root(explicit_install_root),
+        layout = InstallLayout.from_root(explicit_install_root)
+        return LauncherStartupCandidate(
+            layout=layout,
             installed_config_found=False,
-            installed_config_valid=True,
         )
 
     target = detect_launcher_target()
@@ -130,12 +161,42 @@ def resolve_startup_plan(
             continue
         checked_roots.add(candidate_layout.root)
         if candidate_layout.config_path.is_file():
-            return _resolve_installed_config_plan(candidate_layout)
+            return LauncherStartupCandidate(
+                layout=candidate_layout,
+                installed_config_found=True,
+            )
 
-    return LauncherStartupPlan(
+    return LauncherStartupCandidate(
         layout=InstallLayout.from_root(default_install_root(executable_path)),
         installed_config_found=False,
-        installed_config_valid=True,
+    )
+
+
+def assess_startup_candidate(
+    candidate: LauncherStartupCandidate,
+) -> LauncherStartupPlan:
+    """Validate one discovered candidate after its splash is visible."""
+
+    if not candidate.installed_config_found:
+        return LauncherStartupPlan(
+            layout=candidate.layout,
+            installed_config_found=False,
+            installed_config_valid=True,
+        )
+    return _resolve_installed_config_plan(candidate.layout)
+
+
+def should_attempt_installed_app_launch(
+    *,
+    args: LauncherArguments,
+    candidate: LauncherStartupCandidate,
+) -> bool:
+    """Return whether one candidate warrants immediate splash presentation."""
+
+    if args.continue_install or args.repair:
+        return False
+    return candidate.installed_config_found and is_installed_app_launchable(
+        candidate.layout
     )
 
 
@@ -207,7 +268,7 @@ def should_launch_installed_app(
     args: LauncherArguments,
     startup_plan: LauncherStartupPlan,
 ) -> bool:
-    """Return whether this launcher invocation should start the installed app."""
+    """Return whether validated startup state can launch the installed app."""
 
     if args.continue_install or args.repair:
         return False
@@ -244,10 +305,14 @@ def should_show_repair(
 
 
 __all__ = [
+    "LauncherStartupCandidate",
     "LauncherStartupPlan",
+    "assess_startup_candidate",
     "is_installed_app_launchable",
     "resolve_install_root",
+    "resolve_startup_candidate",
     "resolve_startup_plan",
+    "should_attempt_installed_app_launch",
     "should_launch_installed_app",
     "should_show_repair",
 ]

@@ -22,6 +22,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
+from tests.support.qt.semantic_wait import wait_for_qt_condition
+
 
 class MountedWidgetInput:
     """Own hit-tested physical input for mounted real-shell fixtures."""
@@ -34,6 +36,7 @@ class MountedWidgetInput:
     def click(self, widget: QWidget, *, subject: str) -> None:
         """Click a visible widget through the topmost target at its center."""
 
+        wait_for_qt_condition(lambda: self.is_targetable(widget))
         if not widget.isVisible():
             raise AssertionError(
                 f"{subject} is not visible: widget={type(widget).__name__}; "
@@ -58,6 +61,17 @@ class MountedWidgetInput:
             hit_widget,
             Qt.MouseButton.LeftButton,
             pos=hit_widget.mapFromGlobal(global_position),
+        )
+
+    def is_targetable(self, widget: QWidget) -> bool:
+        """Return whether a widget's center is reachable through mounted Qt chrome."""
+
+        if not widget.isVisible():
+            return False
+        global_position = widget.mapToGlobal(widget.rect().center())
+        hit_widget = self._application.widgetAt(global_position)
+        return hit_widget is widget or (
+            hit_widget is not None and widget.isAncestorOf(hit_widget)
         )
 
 

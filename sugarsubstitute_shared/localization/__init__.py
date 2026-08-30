@@ -48,6 +48,7 @@ from sugarsubstitute_shared.localization.resolution import (
     normalize_locale_tag,
     resolve_locale,
 )
+from sugarsubstitute_shared.localization.system_languages import system_ui_languages
 
 __all__ = [
     "ApplicationMessage",
@@ -70,4 +71,5 @@ __all__ = [
     "resolve_locale",
     "resolve_early_startup_locale",
     "render_source_application_text",
+    "system_ui_languages",
 ]

@@ -60,6 +60,12 @@ _CUBE_LOAD_PERF_PREFIX = "Cube load performance"
 CubePayload = dict[str, Any]
 
 
+def _schedule_next_gui_turn(callback: Callable[[], None]) -> None:
+    """Schedule one callback in the next GUI event-loop turn."""
+
+    QTimer.singleShot(0, callback)
+
+
 class TabItemView(Protocol):
     """Define route-key behavior required for cube-tab updates."""
 
@@ -182,6 +188,9 @@ class CubeLoadUiCallbacks:
         Callable[[str, str, Callable[[], None]], None] | None
     ) = None
     refresh_loaded_cube_surface_async: Callable[..., None] | None = None
+    schedule_next_gui_turn: Callable[[Callable[[], None]], None] = (
+        _schedule_next_gui_turn
+    )
 
 
 @dataclass(frozen=True)
@@ -820,7 +829,9 @@ def load_cube_async(
                 requested_alias=alias_name,
                 cube_load_trace_id=resolved_trace_id,
             )
-            QTimer.singleShot(0, lambda: finish_ui_handoff(delayed_started_at))
+            callbacks.schedule_next_gui_turn(
+                lambda: finish_ui_handoff(delayed_started_at)
+            )
 
         def refresh_loaded_surface(delayed_started_at: float) -> None:
             """Refresh editor surfaces in a scheduled GUI event-loop turn."""
@@ -855,9 +866,8 @@ def load_cube_async(
                     requested_alias=alias_name,
                     cube_load_trace_id=resolved_trace_id,
                 )
-                QTimer.singleShot(
-                    0,
-                    lambda: materialize_input_canvas(delayed_started_at),
+                callbacks.schedule_next_gui_turn(
+                    lambda: materialize_input_canvas(delayed_started_at)
                 )
 
             def complete_refresh() -> None:
@@ -1104,7 +1114,9 @@ def load_cube_async(
                 requested_alias=alias_name,
                 cube_load_trace_id=resolved_trace_id,
             )
-            QTimer.singleShot(0, lambda: refresh_loaded_surface(delayed_started_at))
+            callbacks.schedule_next_gui_turn(
+                lambda: refresh_loaded_surface(delayed_started_at)
+            )
 
         log_timing(
             _LOGGER,
@@ -1127,7 +1139,7 @@ def load_cube_async(
             requested_alias=alias_name,
             cube_load_trace_id=resolved_trace_id,
         )
-        QTimer.singleShot(0, synchronize_stack_order)
+        callbacks.schedule_next_gui_turn(synchronize_stack_order)
 
     def finish_loaded_definition(result: _CubeDefinitionLoadResult) -> None:
         """Queue runtime preparation after definition loading."""

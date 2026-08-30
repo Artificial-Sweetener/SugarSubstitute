@@ -23,7 +23,6 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
-import socket
 import subprocess
 import sys
 import time
@@ -34,7 +33,6 @@ from launcher.sugarsubstitute_launcher.install_layout import (
     InstallLayout,
     default_install_root,
 )
-from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.application_readiness import (
     READINESS_PATH_ENV,
     READINESS_TOKEN_ENV,
@@ -44,8 +42,11 @@ from sugarsubstitute_shared.application_readiness import (
 from sugarsubstitute_shared.installer_qualification import (
     INSTALLER_QUALIFICATION_PLAN_ENV,
     InstallerQualificationPlan,
+    InstallerQualificationTarget,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
+from tools.ci.installer_process_diagnostics import process_tree_diagnostics
+from tools.ci.installed_version_evidence import wait_for_installed_version
 from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
@@ -106,6 +107,7 @@ def prepare_qualification_evidence(
     endpoint_port: int,
     phase: str,
     timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
+    target_mode: InstallerQualificationTarget = "managed_local",
 ) -> InstallerQualificationEvidence:
     """Build inherited automation and readiness state for one continuous chain."""
 
@@ -129,10 +131,16 @@ def prepare_qualification_evidence(
         endpoint_port=endpoint_port,
         event_log_path=event_log_path,
         timeout_seconds=timeout_seconds,
-        target_mode="managed_local",
-        managed_workspace_path=resolved_root / "comfyui",
-        managed_model_root=resolved_root / "qualified-models",
-        force_cpu_mode=sys.platform != "darwin",
+        target_mode=target_mode,
+        managed_workspace_path=(
+            resolved_root / "comfyui" if target_mode == "managed_local" else None
+        ),
+        managed_model_root=(
+            resolved_root / "qualified-models"
+            if target_mode == "managed_local"
+            else None
+        ),
+        force_cpu_mode=target_mode == "managed_local" and sys.platform != "darwin",
     )
     environment = dict(os.environ)
     environment[READINESS_PATH_ENV] = str(readiness_path)
@@ -290,15 +298,15 @@ def verify_main_shell_evidence(
     """Require UI events, installed version, splash sequence, and main shell."""
 
     receipt: ApplicationReadinessReceipt | None = None
+    verification_timeout = (
+        evidence.plan.timeout_seconds if timeout_seconds is None else timeout_seconds
+    )
+    verification_deadline = time.monotonic() + verification_timeout
     try:
         receipt = _wait_for_readiness_receipt(
             readiness_path=evidence.readiness_path,
             token=evidence.token,
-            timeout_seconds=(
-                evidence.plan.timeout_seconds
-                if timeout_seconds is None
-                else timeout_seconds
-            ),
+            timeout_seconds=verification_timeout,
             candidate_launch=candidate_launch,
             trace_path=evidence.trace_path,
             diagnostic_paths=_evidence_diagnostic_paths(
@@ -313,7 +321,11 @@ def verify_main_shell_evidence(
                 "The completion action and readiness receipt identified different "
                 f"main-shell processes: {expected_main_pid} != {receipt.pid}."
             )
-        assert_installed_version(install_root, expected_version)
+        wait_for_installed_version(
+            install_root=install_root,
+            expected_version=expected_version,
+            timeout_seconds=max(0.0, verification_deadline - time.monotonic()),
+        )
         if required_qualification_events:
             assert_qualification_event_sequence(
                 evidence.event_log_path,
@@ -321,42 +333,17 @@ def verify_main_shell_evidence(
                 required_events=required_qualification_events,
             )
         assert_startup_trace_sequence(evidence.trace_path)
-        assert_real_managed_comfy(
-            install_root=install_root,
-            plan=evidence.plan,
-            require_governed_setup_record=require_governed_setup_record,
-        )
+        if evidence.plan.target_mode == "managed_local":
+            assert_real_managed_comfy(
+                install_root=install_root,
+                plan=evidence.plan,
+                require_governed_setup_record=require_governed_setup_record,
+            )
     finally:
         if receipt is not None:
             terminate_verified_process(receipt.pid)
         if candidate_launch is not None and candidate_launch.process.poll() is None:
             terminate_verified_process(candidate_launch.process.pid)
-
-
-def available_loopback_port() -> int:
-    """Reserve and release one loopback port for the managed Comfy launch."""
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        probe.bind(("127.0.0.1", 0))
-        return int(probe.getsockname()[1])
-
-
-def assert_installed_version(install_root: Path, expected_version: str) -> None:
-    """Require both launcher state and app source to identify the expected release."""
-
-    layout = InstallLayout.from_root(install_root)
-    state = LauncherUpdateState.load(layout.state_path)
-    if state.installed_app_version != expected_version:
-        raise InstallerLifecycleError(
-            "Launcher state version mismatch: "
-            f"{state.installed_app_version} != {expected_version}."
-        )
-    expected_line = f'__version__ = "{expected_version}"'
-    version_path = layout.app_dir / "substitute" / "_version.py"
-    if expected_line not in version_path.read_text(encoding="utf-8"):
-        raise InstallerLifecycleError(
-            f"Installed app source does not identify version {expected_version}."
-        )
 
 
 def assert_qualification_event_sequence(
@@ -648,69 +635,6 @@ def installed_launch_has_progress(launch: InstalledCandidateLaunch) -> bool:
     )
 
 
-def process_tree_diagnostics(pid: int) -> str:
-    """Render bounded non-secret identity for one qualification process tree."""
-
-    try:
-        root = psutil.Process(pid)
-    except psutil.NoSuchProcess:
-        return f"<launcher process {pid} already exited>"
-    except psutil.AccessDenied:
-        return f"<launcher process {pid} could not be inspected>"
-    try:
-        processes = (root, *root.children(recursive=True))
-    except (psutil.NoSuchProcess, psutil.AccessDenied):
-        processes = (root,)
-    records: list[dict[str, object]] = []
-    for process in processes:
-        try:
-            opened_files = [
-                str(open_file.path) for open_file in process.open_files()[:20]
-            ]
-            mapped_runtime_paths = sorted(
-                {
-                    str(memory_map.path)
-                    for memory_map in process.memory_maps(grouped=True)
-                    if _is_relevant_runtime_mapping(str(memory_map.path))
-                }
-            )[:60]
-            records.append(
-                {
-                    "cmdline": [str(argument) for argument in process.cmdline()],
-                    "cpu_times": [float(value) for value in process.cpu_times()[:4]],
-                    "cwd": str(process.cwd()),
-                    "exe": str(process.exe()),
-                    "mapped_runtime_paths": mapped_runtime_paths,
-                    "name": str(process.name()),
-                    "num_threads": int(process.num_threads()),
-                    "open_files": opened_files,
-                    "pid": int(process.pid),
-                    "ppid": int(process.ppid()),
-                    "status": str(process.status()),
-                }
-            )
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            records.append({"pid": int(process.pid), "status": "unavailable"})
-    return json.dumps(records, indent=2, sort_keys=True)
-
-
-def _is_relevant_runtime_mapping(path: str) -> bool:
-    """Return whether one mapped file identifies the frozen startup subsystem."""
-
-    normalized = path.casefold()
-    return any(
-        marker in normalized
-        for marker in (
-            "python",
-            "pyside",
-            "qt6",
-            "libqt",
-            "ssl",
-            "truststore",
-        )
-    )
-
-
 def _path_signature(path: Path) -> tuple[bool, int]:
     """Return a race-tolerant existence and size signature for one evidence file."""
 
@@ -783,10 +707,8 @@ def _windows_process_exists(pid: int) -> bool:
 __all__ = [
     "InstalledCandidateLaunch",
     "InstallerQualificationEvidence",
-    "assert_installed_version",
     "assert_qualification_event_sequence",
     "assert_startup_trace_sequence",
-    "available_loopback_port",
     "diagnostic_tail",
     "installed_launch_has_progress",
     "launch_installed_candidate",

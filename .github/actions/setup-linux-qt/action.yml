@@ -1,0 +1,40 @@
+name: Set up Linux Qt runtime
+description: Install the shared native Qt runtime only when the runner image lacks it.
+
+runs:
+  using: composite
+  steps:
+    - name: Install missing Linux Qt runtime packages
+      shell: bash
+      run: |
+        set -euo pipefail
+        packages=(
+          xvfb
+          libegl1
+          libfontconfig1
+          libgl1
+          libpulse0
+          libxcb-cursor0
+          libxcb-icccm4
+          libxcb-image0
+          libxcb-keysyms1
+          libxcb-render-util0
+          libxcb-shape0
+          libxcb-util1
+          libxcb-xkb1
+          libxkbcommon-x11-0
+          libxkbcommon0
+        )
+        missing_packages=()
+        for package in "${packages[@]}"; do
+          if ! dpkg-query --show --showformat='${db:Status-Abbrev}' "$package" 2>/dev/null | grep --quiet '^ii '; then
+            missing_packages+=("$package")
+          fi
+        done
+        if (( ${#missing_packages[@]} == 0 )); then
+          echo "The runner image already contains the complete Linux Qt runtime."
+          exit 0
+        fi
+        echo "Installing missing Linux Qt packages: ${missing_packages[*]}"
+        sudo apt-get update
+        sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "${missing_packages[@]}"

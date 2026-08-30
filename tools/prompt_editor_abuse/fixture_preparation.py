@@ -20,16 +20,16 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from tests.real_shell_prompt_editor_harness import (
-    PromptFieldHandle,
-    RealShellPromptEditorHarness,
+from tests.support.prompt_editor.real_shell.models import PromptFieldHandle
+from tests.support.prompt_editor.real_shell.scenario import (
+    PromptEditorRealShellScenario,
 )
 
 from .models import PromptAbuseScenario
 
 
 def prepare_prompt_abuse_fixture_state(
-    harness: RealShellPromptEditorHarness,
+    harness: PromptEditorRealShellScenario,
     field: PromptFieldHandle,
     scenario: PromptAbuseScenario,
 ) -> None:

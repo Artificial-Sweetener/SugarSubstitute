@@ -20,11 +20,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 import logging
+from pathlib import Path
 from typing import Protocol
 
-from launcher.sugarsubstitute_launcher.application_launch import (
-    enter_installed_application_launch,
-)
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessSupervisor,
     CandidateProcess,
@@ -32,6 +30,13 @@ from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import start_detached
+from launcher.sugarsubstitute_launcher.update_rollback_reporting import (
+    record_update_rollback,
+)
+from sugarsubstitute_shared.application_runtime_mode import (
+    packaged_application_environment,
+)
+from sugarsubstitute_shared.update_rollback_report import UpdateRollbackStage
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,17 +82,31 @@ class CandidateReadinessSupervisor(Protocol):
         """Return the candidate process after readiness."""
 
 
+class UpdateRollbackReporter(Protocol):
+    """Persist diagnostics after the previous application is restored."""
+
+    def __call__(
+        self,
+        *,
+        install_root: Path,
+        attempted_version: str,
+        stage: UpdateRollbackStage,
+        error: BaseException,
+    ) -> None:
+        """Record one successfully rolled-back update failure."""
+
+
 def launch_prepared_update(
     *,
     layout: InstallLayout,
     command: Sequence[str],
+    attempted_version: str,
     initial_guard: CandidateLaunchGuard,
     activation: CandidateUpdateActivation,
+    fallback_guard_factory: Callable[[InstallLayout], CandidateLaunchGuard | None],
     supervisor: CandidateReadinessSupervisor | None = None,
-    fallback_guard_factory: Callable[
-        [InstallLayout], CandidateLaunchGuard | None
-    ] = enter_installed_application_launch,
     fallback_process_starter: Callable[..., None] = start_detached,
+    rollback_reporter: UpdateRollbackReporter = record_update_rollback,
 ) -> None:
     """Commit after visible readiness or restore and relaunch the prior app."""
 
@@ -96,7 +115,9 @@ def launch_prepared_update(
         process = readiness_supervisor.launch_until_ready(
             layout=layout,
             command=command,
-            environment=initial_guard.initial_handoff_environment(),
+            environment=packaged_application_environment(
+                initial_guard.initial_handoff_environment()
+            ),
         )
         try:
             activation.commit()
@@ -105,6 +126,12 @@ def launch_prepared_update(
             raise
     except BaseException as candidate_error:
         activation.rollback()
+        rollback_reporter(
+            install_root=layout.root,
+            attempted_version=attempted_version,
+            stage=UpdateRollbackStage.CANDIDATE_READINESS,
+            error=candidate_error,
+        )
         _LOGGER.error(
             "Candidate update failed readiness and was rolled back.",
             exc_info=True,
@@ -119,7 +146,9 @@ def launch_prepared_update(
         try:
             fallback_process_starter(
                 command,
-                environment=fallback_guard.initial_handoff_environment(),
+                environment=packaged_application_environment(
+                    fallback_guard.initial_handoff_environment()
+                ),
             )
         except BaseException:
             fallback_guard.release()
@@ -131,5 +160,6 @@ __all__ = [
     "CandidateReadinessSupervisor",
     "CandidateUpdateActivation",
     "CandidateUpdateRollbackError",
+    "UpdateRollbackReporter",
     "launch_prepared_update",
 ]

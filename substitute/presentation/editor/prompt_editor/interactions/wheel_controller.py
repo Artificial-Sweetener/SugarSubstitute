@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
 
-from PySide6.QtCore import QElapsedTimer, QPointF, QTimer
+from PySide6.QtCore import QElapsedTimer, QObject, QPointF, QTimer
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QApplication, QScrollBar, QWidget
 from shiboken6 import isValid
@@ -55,8 +55,8 @@ class PromptWheelScrollResult(Enum):
 class PromptTokenWeightWheelIntentController:
     """Own token-weight wheel dwell, activation, and accent publication."""
 
-    def __init__(self) -> None:
-        """Create token-wheel state without binding external policy callbacks."""
+    def __init__(self, timer_owner: QObject) -> None:
+        """Create token-wheel state whose refresh timer follows its Qt owner."""
 
         self._token_pointer_moved: (
             Callable[[PromptProjectionToken, QPointF], None] | None
@@ -76,7 +76,7 @@ class PromptTokenWeightWheelIntentController:
         self._candidate_token: PromptProjectionToken | None = None
         self._candidate_global_position: QPointF | None = None
         self._ready_token: PromptProjectionToken | None = None
-        self._refresh_timer = QTimer()
+        self._refresh_timer = QTimer(timer_owner)
         self._refresh_timer.setInterval(50)
         self._refresh_timer.timeout.connect(self._refresh_ready_token)
 

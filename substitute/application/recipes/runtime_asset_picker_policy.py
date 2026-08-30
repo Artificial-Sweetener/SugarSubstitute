@@ -18,14 +18,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-
-_LEGACY_RUNTIME_ASSET_PICKER_FIELDS = frozenset(
-    {
-        ("LoadImage", "image"),
-        ("LoadImageMask", "image"),
-    }
+from substitute.application.workflows.input_asset_field_policy import (
+    InputAssetFieldPolicy,
 )
+
+_INPUT_ASSET_FIELD_POLICY = InputAssetFieldPolicy()
 
 
 def is_runtime_asset_picker_field(
@@ -36,12 +33,11 @@ def is_runtime_asset_picker_field(
 ) -> bool:
     """Return whether staging, rather than picker fallback, owns the value."""
 
-    if (class_type, input_name) in _LEGACY_RUNTIME_ASSET_PICKER_FIELDS:
-        return True
-    if not isinstance(field_spec, Sequence) or len(field_spec) < 2:
-        return False
-    metadata = field_spec[1]
-    return isinstance(metadata, Mapping) and metadata.get("image_upload") is True
+    return _INPUT_ASSET_FIELD_POLICY.is_asset_field(
+        class_type=class_type,
+        field_key=input_name,
+        field_info=field_spec,
+    )
 
 
 __all__ = ["is_runtime_asset_picker_field"]

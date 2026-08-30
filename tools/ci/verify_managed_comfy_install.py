@@ -22,7 +22,6 @@ import argparse
 import json
 import os
 from pathlib import Path
-import socket
 import subprocess
 import sys
 import time
@@ -47,6 +46,7 @@ from substitute.infrastructure.comfy.standalone_environment.pinned_catalog impor
 from substitute.infrastructure.comfy.standalone_environment.provisioner import (  # noqa: E402
     StandaloneEnvironmentProvisioner,
 )
+from tools.ci.loopback_port_lease import LoopbackPortLease  # noqa: E402
 
 
 _DEFAULT_TIMEOUT_SECONDS = 600.0
@@ -88,30 +88,32 @@ def verify_managed_comfy_install(
             "Installed standalone metadata does not match the repository pin."
         )
 
-    port = _available_loopback_port()
-    log_path = workspace.parent / "managed-comfy-startup.log"
-    command = [
-        str(virtual_python),
-        str(workspace / "main.py"),
-        "--listen",
-        "127.0.0.1",
-        "--port",
-        str(port),
-        "--disable-auto-launch",
-        "--cpu",
-    ]
-    environment = dict(os.environ)
-    environment["PYTHONNOUSERSITE"] = "1"
-    with log_path.open("w", encoding="utf-8", errors="replace") as log_file:
-        process = subprocess.Popen(  # noqa: S603
-            command,
-            cwd=workspace,
-            env=environment,
-            stdin=subprocess.DEVNULL,
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            shell=False,
-        )
+    with LoopbackPortLease.acquire() as endpoint_lease:
+        port = endpoint_lease.port
+        log_path = workspace.parent / "managed-comfy-startup.log"
+        command = [
+            str(virtual_python),
+            str(workspace / "main.py"),
+            "--listen",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--disable-auto-launch",
+            "--cpu",
+        ]
+        environment = dict(os.environ)
+        environment["PYTHONNOUSERSITE"] = "1"
+        with log_path.open("w", encoding="utf-8", errors="replace") as log_file:
+            endpoint_lease.release_for_handoff()
+            process = subprocess.Popen(  # noqa: S603
+                command,
+                cwd=workspace,
+                env=environment,
+                stdin=subprocess.DEVNULL,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                shell=False,
+            )
     try:
         base_url = f"http://127.0.0.1:{port}"
         _wait_for_comfy_api(
@@ -206,14 +208,6 @@ def _read_json(url: str) -> dict[str, object]:
             f"Comfy API returned non-object JSON: {url}"
         )
     return {str(key): value for key, value in payload.items()}
-
-
-def _available_loopback_port() -> int:
-    """Reserve and return one currently available loopback TCP port."""
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
-        listener.bind(("127.0.0.1", 0))
-        return int(listener.getsockname()[1])
 
 
 def _stop_process(process: subprocess.Popen[bytes]) -> None:

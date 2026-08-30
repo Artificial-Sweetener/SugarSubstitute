@@ -31,6 +31,8 @@ from substitute.shared.diagnostics.prompt_editor_work import (
     prompt_editor_work_event,
 )
 
+from ..qt_lifecycle import qt_object_is_alive
+
 
 class PromptShellChromeHost(Protocol):
     """Describe host widget APIs needed by QFluent chrome ownership."""
@@ -194,6 +196,8 @@ class PromptShellQFluentChrome:
         """Clean up only after focus has conclusively left the editor flow."""
 
         host = cast(QWidget, self._host)
+        if not qt_object_is_alive(host):
+            return
         focus_widget = QApplication.focusWidget()
         if focus_widget is host or (
             focus_widget is not None and host.isAncestorOf(focus_widget)

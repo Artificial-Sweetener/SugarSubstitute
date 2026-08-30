@@ -1,0 +1,26 @@
+name: Set up verified AppImage packaging tool
+description: Acquire the exact checksum-verified AppImage packaging binary.
+
+outputs:
+  path:
+    description: Absolute path to the verified AppImage packaging executable.
+    value: ${{ steps.acquire.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Acquire checksum-verified AppImage packaging tool
+      id: acquire
+      shell: bash
+      env:
+        TOOL_SHA256: a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0
+        TOOL_URL: https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+      run: |
+        set -euo pipefail
+        tool_path="${RUNNER_TEMP}/sugarsubstitute-appimagetool-${TOOL_SHA256}"
+        if [ ! -f "$tool_path" ]; then
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 --output "$tool_path" "$TOOL_URL"
+        fi
+        echo "${TOOL_SHA256}  ${tool_path}" | sha256sum --check
+        chmod 755 "$tool_path"
+        echo "path=${tool_path}" >> "$GITHUB_OUTPUT"

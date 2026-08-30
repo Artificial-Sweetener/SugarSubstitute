@@ -31,6 +31,7 @@ from .model import (
     ArchitectureWaiver,
     Diagnostic,
 )
+from .system_git_policy import validate_system_git_policy
 
 _OWNERSHIP_RESPONSE = (
     "Assess the file's concern, authoritative state owner, dependency direction, "
@@ -65,15 +66,19 @@ def validate_repository(
         *_validate_state(root, policy, state, current_date),
     ]
     diagnostics.extend(_validate_structure(root, policy, state, current_date))
-    from tools.architecture_governance.system_git_policy import (
-        validate_system_git_policy,
-    )
-
     diagnostics.extend(validate_system_git_policy(root))
     if (root / "substitute/app/bootstrap/persistent_cache_catalog.py").is_file():
         from tools.cache_governance.validation import validate_cache_governance
 
         diagnostics.extend(validate_cache_governance(root))
+    if (
+        root / "substitute/application/workflows/input_asset_field_policy.py"
+    ).is_file():
+        from tools.input_asset_governance.validation import (
+            validate_input_asset_governance,
+        )
+
+        diagnostics.extend(validate_input_asset_governance(root))
     return sorted(
         diagnostics,
         key=lambda item: (item.path, item.rule, item.severity, item.message),
@@ -99,6 +104,23 @@ def _validate_policy(root: Path, policy: ArchitecturePolicy) -> list[Diagnostic]
                     "POLICY002",
                     "ARCHITECTURE_POLICY.toml",
                     f"source root {source_root.as_posix()} does not exist",
+                )
+            )
+    for source_file in policy.source_files:
+        if not (root / source_file).is_file():
+            diagnostics.append(
+                Diagnostic(
+                    "POLICY004",
+                    "ARCHITECTURE_POLICY.toml",
+                    f"source file {source_file.as_posix()} does not exist",
+                )
+            )
+        elif source_file.suffix not in policy.source_extensions:
+            diagnostics.append(
+                Diagnostic(
+                    "POLICY005",
+                    "ARCHITECTURE_POLICY.toml",
+                    f"source file {source_file.as_posix()} has an ungoverned extension",
                 )
             )
     for excluded_path in sorted(policy.excluded_paths):
