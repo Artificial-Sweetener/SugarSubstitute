@@ -107,13 +107,14 @@ def qualify_historical_update(
     qualification: HistoricalUpdateQualification,
     *,
     endpoint_lease: LoopbackPortLease,
+    platform: str | None = None,
 ) -> HistoricalUpdateRoute:
     """Migrate history through its required route and prove the candidate shell."""
 
     deadline = time.monotonic() + qualification.timeout_seconds
     route = historical_update_route(
         historical_version=qualification.historical_version,
-        platform=sys.platform,
+        platform=sys.platform if platform is None else platform,
     )
     with candidate_release_source(
         release_root=qualification.candidate_release_root,
