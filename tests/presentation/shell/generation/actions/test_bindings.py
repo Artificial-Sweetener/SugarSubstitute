@@ -35,6 +35,9 @@ from substitute.presentation.shell.workspace_generation_action_adapter import (
     GenerationActionBindingView,
     build_generation_action_bindings,
 )
+from substitute.presentation.shell.workspace_generation_controller import (
+    QueuedGenerationPreparationJob,
+)
 
 
 from tests.presentation.shell.generation.actions.support import (
@@ -106,7 +109,9 @@ def test_build_generation_action_bindings_routes_feedback_and_randomizes_request
             build_generation_request=lambda: request,
             randomize_generation_request_seeds=_randomize,
             build_queued_generation_snapshots=lambda: (),
-            capture_queued_generation_preparation=lambda: object(),
+            capture_queued_generation_preparation=lambda: cast(
+                QueuedGenerationPreparationJob, object()
+            ),
         ),
     )
 
@@ -176,7 +181,9 @@ def test_locking_after_generation_reuses_the_submitted_seed() -> None:
             build_generation_request=_build_request,
             randomize_generation_request_seeds=_randomize,
             build_queued_generation_snapshots=lambda: (),
-            capture_queued_generation_preparation=lambda: object(),
+            capture_queued_generation_preparation=lambda: cast(
+                QueuedGenerationPreparationJob, object()
+            ),
         ),
     )
 

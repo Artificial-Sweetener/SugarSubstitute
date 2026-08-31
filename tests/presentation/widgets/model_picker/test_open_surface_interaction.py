@@ -100,6 +100,22 @@ def test_model_picker_field_mouse_drag_can_select_search_text() -> None:
     destroy_qt_object(host)
 
 
+def test_empty_model_picker_routes_to_discovery_without_opening_blank_popup() -> None:
+    """Clicking an empty picker should offer discovery instead of a blank wall."""
+
+    calls: list[str] = []
+    field = ModelPickerField(
+        choice_source=_FakeModelCatalog(()),
+        empty_model_action=lambda: calls.append("discover"),
+    )
+
+    field.open_picker()
+
+    assert calls == ["discover"]
+    assert field._popup is None
+    destroy_qt_object(field)
+
+
 def _open_field(host: QWidget) -> ModelPickerField:
     """Create one visible picker field with a deterministic catalog."""
 

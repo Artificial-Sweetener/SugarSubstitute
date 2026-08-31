@@ -71,6 +71,7 @@ class EditorPanelModelServiceBundle:
     choice_resolver: RichChoiceResolver | None = None
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None
+    empty_model_picker_action: Callable[[str], None] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +102,7 @@ class EditorPanelFieldFactoryServices:
     model_choice_snapshot_controller: object | None = None
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None
+    empty_model_picker_action: Callable[[str], None] | None = None
 
 
 @dataclass(frozen=True, slots=True)

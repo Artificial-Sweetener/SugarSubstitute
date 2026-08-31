@@ -41,7 +41,11 @@ WINDOWS_X64_BUNDLE = LauncherBundleTarget(
     bundle_root=Path("."),
     executable_relative_path=Path("SugarSubstitute.exe"),
     support_relative_path=Path("launcher-bin"),
-    replacement_roots=(Path("SugarSubstitute.exe"), Path("launcher-bin")),
+    replacement_roots=(
+        Path("SugarSubstitute.exe"),
+        Path("Repair.exe"),
+        Path("launcher-bin"),
+    ),
     executable_mode=None,
 )
 MACOS_ARM64_BUNDLE = LauncherBundleTarget(

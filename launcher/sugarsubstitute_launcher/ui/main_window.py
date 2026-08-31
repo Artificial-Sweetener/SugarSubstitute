@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import QTimer, Signal, Slot
@@ -31,12 +32,19 @@ from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstalledApplication,
     ReleaseManifestSource,
 )
+from launcher.sugarsubstitute_launcher.application.model_onboarding import (
+    default_installer_capabilities,
+)
+from launcher.sugarsubstitute_launcher.application.repair.models import RepairScope
 from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
     create_continued_installation_request,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.resources import launcher_icon
+from launcher.sugarsubstitute_launcher.repair_handoff import (
+    launch_prepared_repair_helper,
+)
 from launcher.sugarsubstitute_launcher.ui.installation_execution import (
     QtInstallationExecutor,
 )
@@ -57,6 +65,17 @@ from launcher.sugarsubstitute_launcher.ui.installer_view import InstallerView
 from launcher.sugarsubstitute_launcher.ui.launcher_theme import (
     configure_launcher_theme,
 )
+from launcher.sugarsubstitute_launcher.ui.model_onboarding_controller import (
+    InstallerModelOnboardingController,
+)
+from launcher.sugarsubstitute_launcher.ui.model_onboarding_execution import (
+    QtModelOnboardingExecutor,
+)
+from launcher.sugarsubstitute_launcher.ui.experience_models import RepairChoice
+from launcher.sugarsubstitute_launcher.ui.repair_preparation_execution import (
+    QtRepairPreparationExecutor,
+    require_repair_preparation,
+)
 from launcher.sugarsubstitute_launcher.ui.window_effects import (
     apply_launcher_window_effects,
 )
@@ -65,12 +84,14 @@ from launcher.sugarsubstitute_launcher.ui.window_geometry import (
     parse_handoff_geometry,
     serialize_handoff_geometry,
 )
+from sugarsubstitute_shared.model_discovery import ModelOnboardingService
 
 
 _LOGGER = logging.getLogger(__name__)
 _WINDOW_WIDTH = 1260
 _WINDOW_HEIGHT = 800
 _TITLEBAR_HEIGHT = 34
+ModelOnboardingServiceFactory = Callable[[Path], ModelOnboardingService]
 
 
 class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
@@ -88,16 +109,23 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         initial_release_source: ReleaseManifestSource,
         workflow_factory: InstallationWorkflowFactory,
         handoff_geometry: str | None = None,
+        model_onboarding_service_factory: ModelOnboardingServiceFactory | None = None,
     ) -> None:
         """Build the launcher shell and initialize installer state."""
 
         super().__init__()
+        self.setObjectName("LauncherWindow")
         configure_launcher_theme()
         self._initial_layout = initial_layout
         self._continue_install = continue_install
         self._initial_release_source = initial_release_source
         self._workflow_factory = workflow_factory
         self._handoff_geometry = handoff_geometry
+        self._repair_mode = repair
+        self._model_onboarding_service_factory = model_onboarding_service_factory
+        self._model_onboarding_controller: InstallerModelOnboardingController | None = (
+            None
+        )
         self._setup_handoff_close_pending = False
         self._installed_application: InstalledApplication | None = None
         self._setup_command: list[str] | None = None
@@ -110,6 +138,10 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             workflow_factory=workflow_factory,
             parent=self,
         )
+        self.repair_execution = QtRepairPreparationExecutor(parent=self)
+        self.model_onboarding_execution = QtModelOnboardingExecutor(parent=self)
+        self.repair_execution.succeeded.connect(self._handle_repair_prepared)
+        self.repair_execution.failed.connect(self._handle_repair_preparation_failed)
         self.execution.log.connect(self._append_log)
         self.execution.initial_failed.connect(self._handle_initial_install_failed)
         self.execution.initial_succeeded.connect(self._handle_initial_install_succeeded)
@@ -126,6 +158,11 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             )
         if repair:
             self._append_log(launcher_text("Repair mode requested."))
+            self.view.show_repair_scope()
+            self.view.repair_page.continue_requested.connect(
+                self._handle_repair_continue
+            )
+            self.view.repair_page.cancel_requested.connect(self.close)
         if not update_check_enabled:
             self._append_log(launcher_text("Update check disabled for this launch."))
         self._refresh_primary_button()
@@ -181,6 +218,65 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         if self._ui_state is LauncherUiState.START_SETUP:
             self._start_setup_handoff()
 
+    def _handle_repair_continue(self) -> None:
+        """Prepare the explicitly selected repair before detached replacement."""
+
+        if self.repair_execution.running:
+            return
+        scope = (
+            RepairScope.FULL_MANAGED_COMFY
+            if self.view.repair_page.choice is RepairChoice.FULL_MANAGED_COMFY
+            else RepairScope.APPLICATION
+        )
+        self.view.repair_page.set_status(
+            launcher_text(
+                "Downloading and verifying this installer's exact release. "
+                "Your active installation has not been changed yet."
+            ),
+            working=True,
+        )
+        self.repair_execution.start(
+            layout=self._initial_layout,
+            release_source=self._initial_release_source,
+            scope=scope,
+        )
+
+    @Slot(object)
+    def _handle_repair_prepared(self, result: object) -> None:
+        """Launch the independent helper only after every artifact is verified."""
+
+        try:
+            preparation = require_repair_preparation(result)
+            request = preparation.request.with_process_behavior(
+                wait_pid=None,
+                wait_process_created_at=None,
+                relaunch=True,
+            )
+            request.save(preparation.request_path)
+            launch_prepared_repair_helper(request_path=preparation.request_path)
+        except Exception as error:
+            _LOGGER.exception("Could not hand off prepared repair.")
+            self._handle_repair_preparation_failed(launcher_failure_detail(error))
+            return
+        self.view.repair_page.set_status(
+            launcher_text("Repair is ready. Closing this window to replace app files."),
+            working=True,
+        )
+        self.handoff_completed.emit()
+        QTimer.singleShot(0, self.close)
+
+    @Slot(str)
+    def _handle_repair_preparation_failed(self, details: str) -> None:
+        """Restore the repair action after a staging or handoff failure."""
+
+        self.view.repair_page.set_status(
+            launcher_text(
+                "Repair could not be prepared. Nothing in the active installation was changed. Details: %1",
+                details,
+            ),
+            working=False,
+        )
+
     def _start_initial_install_worker(self) -> None:
         """Install launcher and app payload in the current setup window."""
 
@@ -193,12 +289,45 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self.view.set_path_controls_enabled(False)
         self._append_log(launcher_text("Preparing SugarSubstitute install."))
 
-        self.execution.start_initial(
+        started = self.execution.start_initial(
             layout=InstallLayout.from_root(install_root),
             frozen_setup=_current_frozen_executable() is not None,
             release_source=self._initial_release_source,
             handoff_geometry=self._current_handoff_geometry(),
         )
+        if (
+            started
+            and not self._repair_mode
+            and self._model_onboarding_service_factory is not None
+        ):
+            self._offer_model_onboarding(install_root)
+
+    def _offer_model_onboarding(self, install_root: Path) -> bool:
+        """Offer zero-model onboarding against the selected managed model root."""
+
+        factory = self._model_onboarding_service_factory
+        if factory is None:
+            return False
+        service = factory(install_root / "comfyui" / "models")
+        controller = InstallerModelOnboardingController(
+            view=self.view,
+            service=service,
+            capabilities=default_installer_capabilities(),
+            on_finished=self._resume_after_model_onboarding,
+            executor=self.model_onboarding_execution,
+        )
+        self._model_onboarding_controller = controller
+        return controller.offer_if_eligible()
+
+    def _resume_after_model_onboarding(self) -> None:
+        """Continue the install after optional model selection releases the view."""
+
+        self._refresh_primary_button()
+        if (
+            self._ui_state is LauncherUiState.INSTALL_RUNTIME
+            and not self.execution.initial_running
+        ):
+            QTimer.singleShot(0, self._start_setup_worker)
 
     def _install_app_payload(self) -> None:
         """Install the app source payload for source-run development setup."""
@@ -361,7 +490,9 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._refresh_primary_button()
             return
         if self._ui_state is LauncherUiState.INSTALL_RUNTIME:
-            QTimer.singleShot(0, self._start_setup_worker)
+            controller = self._model_onboarding_controller
+            if controller is None or not controller.active:
+                QTimer.singleShot(0, self._start_setup_worker)
 
     def _refresh_primary_button(self) -> None:
         """Project the current setup phase onto editable and primary controls."""

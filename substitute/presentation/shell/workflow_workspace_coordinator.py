@@ -1338,6 +1338,10 @@ class WorkflowWorkspaceCoordinator:
             cube_count=len(getattr(cloned_workflow, "cubes", {}) or {}),
             stack_order_count=len(getattr(cloned_workflow, "stack_order", []) or []),
         )
+        unsaved_work_service = getattr(view, "unsaved_work_service", None)
+        mark_document_dirty = getattr(unsaved_work_service, "mark_dirty", None)
+        if callable(mark_document_dirty):
+            mark_document_dirty(transition.workflow_id)
         return transition.workflow_id
 
     def _materialize_workflow_cube_stack(
@@ -1402,6 +1406,10 @@ class WorkflowWorkspaceCoordinator:
         """Close one workflow and project the selected successor exactly once."""
 
         view = self._view
+        unsaved_controller = getattr(view, "unsaved_work_controller", None)
+        confirm_close = getattr(unsaved_controller, "confirm_workflow_close", None)
+        if callable(confirm_close) and not confirm_close(workflow_id):
+            return
         ordered_ids = self._workflow_ids_in_order()
         close_push_result = self._buffer_closed_workflow(
             workflow_id,
@@ -1413,6 +1421,10 @@ class WorkflowWorkspaceCoordinator:
         )
         self._dispose_workflow_ui(workflow_id)
         self._surface_invalidation_service.remove_workflow(workflow_id)
+        unsaved_work_service = getattr(view, "unsaved_work_service", None)
+        remove_document_state = getattr(unsaved_work_service, "remove", None)
+        if callable(remove_document_state):
+            remove_document_state(workflow_id)
         workflow_progress_service = getattr(view, "workflow_progress_service", None)
         remove_workflow_progress = getattr(
             workflow_progress_service,
@@ -1485,6 +1497,13 @@ class WorkflowWorkspaceCoordinator:
             old_workflow_id,
             decision.workflow_id,
         )
+        unsaved_work_service = getattr(view, "unsaved_work_service", None)
+        rename_document_state = getattr(unsaved_work_service, "rename", None)
+        if callable(rename_document_state):
+            rename_document_state(old_workflow_id, decision.workflow_id)
+        mark_document_dirty = getattr(unsaved_work_service, "mark_dirty", None)
+        if callable(mark_document_dirty):
+            mark_document_dirty(decision.workflow_id)
         workflow_progress_service = getattr(view, "workflow_progress_service", None)
         rename_workflow_progress = getattr(
             workflow_progress_service,

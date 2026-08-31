@@ -24,6 +24,9 @@ from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.platforms import LauncherTarget
 from launcher.sugarsubstitute_launcher.platforms import LauncherOperatingSystem
+from sugarsubstitute_shared.launcher_update.targets import (
+    launcher_bundle_target_for_key,
+)
 from tools.release_assets.zip_support import iter_directory_entries, write_path_to_zip
 
 
@@ -107,10 +110,17 @@ def validate_installed_launcher_bundle(
             "Installed launcher bundle must include "
             f"{target.support_relative_path}: {launcher_bundle_dir}"
         )
+    replacement_roots = launcher_bundle_target_for_key(target.key).replacement_roots
     allowed_roots = {
-        target.executable_relative_path.parts[0],
-        target.support_relative_path.parts[0],
+        replacement_root.parts[0] for replacement_root in replacement_roots
     }
+    for replacement_root in replacement_roots:
+        replacement_path = launcher_bundle_dir / replacement_root
+        if not replacement_path.exists():
+            raise FileNotFoundError(
+                f"Installed launcher bundle is missing {replacement_root}: "
+                f"{launcher_bundle_dir}"
+            )
     unexpected_roots = sorted(
         child.name
         for child in launcher_bundle_dir.iterdir()
@@ -134,6 +144,7 @@ def validate_installed_launcher_archive(
         names = set(archive.namelist())
     executable_name = target.executable_relative_path.as_posix()
     support_prefix = target.support_relative_path.as_posix().rstrip("/") + "/"
+    replacement_roots = launcher_bundle_target_for_key(target.key).replacement_roots
     if executable_name not in names:
         raise FileNotFoundError(
             f"Launcher archive is missing {executable_name}: {archive_path}"
@@ -141,4 +152,18 @@ def validate_installed_launcher_archive(
     if not any(name.startswith(support_prefix) for name in names):
         raise FileNotFoundError(
             f"Launcher archive is missing {support_prefix}: {archive_path}"
+        )
+    missing_roots = [
+        replacement_root.as_posix()
+        for replacement_root in replacement_roots
+        if replacement_root.as_posix() not in names
+        and not any(
+            name.startswith(replacement_root.as_posix().rstrip("/") + "/")
+            for name in names
+        )
+    ]
+    if missing_roots:
+        raise FileNotFoundError(
+            "Launcher archive is missing replacement roots "
+            f"{', '.join(missing_roots)}: {archive_path}"
         )

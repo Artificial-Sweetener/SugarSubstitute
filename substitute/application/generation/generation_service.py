@@ -149,6 +149,13 @@ class AssetStagingService(Protocol):
         """Return an execution-ready workflow payload."""
 
 
+class ModelUsageRecorder(Protocol):
+    """Record model identities after a generation is accepted by ComfyUI."""
+
+    def record_queued_payload(self, workflow_payload: Mapping[str, object]) -> int:
+        """Record exact referenced models and return their count."""
+
+
 class GenerationService:
     """Own generation orchestration independent from presentation widgets."""
 
@@ -169,6 +176,7 @@ class GenerationService:
         direct_workflow_execution_projector: DirectWorkflowExecutionProjector
         | None = None,
         visual_run_context_builder: VisualRunContextBuilder | None = None,
+        model_usage_recorder: ModelUsageRecorder | None = None,
         output_dir: Path = DEFAULT_PROJECTS_DIR,
         client_id: str = "substitute",
     ) -> None:
@@ -193,6 +201,7 @@ class GenerationService:
         self._visual_run_context_builder = (
             visual_run_context_builder or VisualRunContextBuilder()
         )
+        self._model_usage_recorder = model_usage_recorder
         self._output_dir = output_dir
         self._client_id = client_id
         self._active_listener_handles: list[ListenerHandle] = []
@@ -550,6 +559,17 @@ class GenerationService:
                     error_report=queue_result.error_report,
                 ),
             )
+        if self._model_usage_recorder is not None:
+            try:
+                self._model_usage_recorder.record_queued_payload(workflow_payload)
+            except (OSError, RuntimeError, TypeError, ValueError) as error:
+                log_exception(
+                    _LOGGER,
+                    "Failed to record queued generation model usage",
+                    workflow_id=request.workflow_id,
+                    prompt_id=prompt_id,
+                    error=error,
+                )
         log_generation_payload_assets(
             workflow_payload,
             workflow_id=request.workflow_id,
