@@ -520,7 +520,7 @@ Prompt preview:
       <translation>詳細オプション</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="360"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="99"></location>
       <source>Affected cubes</source>
       <translation>影響を受けるキューブ</translation>
     </message>
@@ -1420,7 +1420,7 @@ Prompt preview:
       <translation>セットアップを続ける前に ComfyUI を終了してください</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="96"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="109"></location>
       <source>Close ComfyUI before starting Substitute</source>
       <translation>Substitute を起動する前に ComfyUI を終了してください</translation>
     </message>
@@ -1640,12 +1640,12 @@ Prompt preview:
       <translation>ComfyUI フォルダー</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="72"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="85"></location>
       <source>ComfyUI is already running</source>
       <translation>ComfyUI はすでに実行中です</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="74"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="87"></location>
       <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
       <translation>ComfyUI は既定のポート 8188 ですでに実行中です。Substitute が正しく動作するには、ComfyUI を自身で起動して制御する必要があります。</translation>
     </message>
@@ -1675,7 +1675,7 @@ Prompt preview:
       <translation>ComfyUI は準備完了です。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="98"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="111"></location>
       <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
       <translation>ComfyUI は既定のポート 8188 で応答していますが、Substitute はそのプロセスを安全に確認できませんでした。ComfyUI を手動で終了してから、Substitute をもう一度起動してください。</translation>
     </message>
@@ -1955,7 +1955,7 @@ Prompt preview:
       <translation>すべての出力をコピー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="285"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="404"></location>
       <source>Copy report</source>
       <translation>レポートをコピー</translation>
     </message>
@@ -2563,7 +2563,7 @@ Install these nodes now?</source>
       <translation>エラー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="349"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="92"></location>
       <source>Exception</source>
       <translation>例外</translation>
     </message>
@@ -3043,7 +3043,7 @@ Install these nodes now?</source>
       <translation>生成コントロールを非表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="451"></location>
       <source>Hide report</source>
       <translation>レポートを隠す</translation>
     </message>
@@ -3988,7 +3988,7 @@ Install these nodes now?</source>
       <translation>サムネイルなし</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="347"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="90"></location>
       <source>Node</source>
       <translation>ノード</translation>
     </message>
@@ -4013,7 +4013,7 @@ Install these nodes now?</source>
       <translation>ノードのコンテキスト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="97"></location>
       <source>Node errors</source>
       <translation>ノードエラー</translation>
     </message>
@@ -4063,7 +4063,7 @@ Install these nodes now?</source>
       <translation>生成キューに追加する件数</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="46"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="74"></location>
       <source>OK</source>
       <translation>決定</translation>
     </message>
@@ -4508,7 +4508,7 @@ Install these nodes now?</source>
       <translation>プロジェクト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="88"></location>
       <source>Prompt</source>
       <translation>プロンプト</translation>
     </message>
@@ -4908,7 +4908,7 @@ Install these nodes now?</source>
       <translation>修復では、検出されたアクセラレーターに合うバックエンドを使用して ComfyUI を再インストールします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="295"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="869"></location>
       <source>Report issue</source>
       <translation>問題を報告</translation>
     </message>
@@ -5035,6 +5035,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="646"></location>
       <source>Restart ComfyUI manually</source>
       <translation>ComfyUI を手動で再起動</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="339"></location>
+      <source>Restart SugarSubstitute</source>
+      <translation>SugarSubstitute を再起動</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="937"></location>
@@ -5177,7 +5182,7 @@ No known extension claimant.</source>
       <translation>Sugar Substitute の起動スプラッシュを実行します。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="195"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="229"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute のスプラッシュホストを実行します。</translation>
     </message>
@@ -5220,6 +5225,11 @@ No known extension claimant.</source>
       <location filename="../substitute/application/errors.py" line="622"></location>
       <source>Runtime and system information</source>
       <translation>ランタイムとシステム情報</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="109"></location>
+      <source>Runtime context</source>
+      <translation>ランタイム コンテキスト</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="611"></location>
@@ -5642,7 +5652,7 @@ No known extension claimant.</source>
       <translation>Wiki ビューアーに画像を表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="451"></location>
       <source>Show report</source>
       <translation>レポートを表示</translation>
     </message>
@@ -5747,6 +5757,11 @@ No known extension claimant.</source>
       <translation>保存されたランタイムパスの一部が、このインストールと一致しなくなっています。</translation>
     </message>
     <message>
+      <location filename="../substitute/application/crash_reports.py" line="36"></location>
+      <source>Something unexpected stopped SugarSubstitute. You can copy this report and share it with the maintainers.</source>
+      <translation>予期しない問題により SugarSubstitute が停止しました。このレポートをコピーして、メンテナーと共有できます。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="73"></location>
       <source>Source: %1</source>
       <translation>発生元：%1</translation>
@@ -5767,7 +5782,7 @@ No known extension claimant.</source>
       <translation>スペルチェック</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="334"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="79"></location>
       <source>Stage</source>
       <translation>段階</translation>
     </message>
@@ -6282,7 +6297,7 @@ No known extension claimant.</source>
       <translation>Substitute に保存されたフォルダー設定を修正する必要があります</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2730"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2735"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6385,6 +6400,16 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/settings/about_page.py" line="387"></location>
       <source>SugarSubstitute</source>
       <translation>SugarSubstitute</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="31"></location>
+      <source>SugarSubstitute crashed</source>
+      <translation>SugarSubstitute がクラッシュしました</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="33"></location>
+      <source>SugarSubstitute did not close normally</source>
+      <translation>SugarSubstitute が正常に終了しませんでした</translation>
     </message>
     <message>
       <location filename="../substitute/application/about/license_text.py" line="23"></location>
@@ -6730,6 +6755,11 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <location filename="../substitute/infrastructure/security/keyring_civitai_credential_store.py" line="135"></location>
       <source>The operating-system credential store rejected the key.</source>
       <translation>オペレーティングシステムの認証情報ストアがキーを拒否しました。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="41"></location>
+      <source>The previous SugarSubstitute session ended without completing shutdown. The report below may help determine why.</source>
+      <translation>前回の SugarSubstitute セッションは、シャットダウンを完了せずに終了しました。以下のレポートが原因の特定に役立つ可能性があります。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/readiness_service.py" line="263"></location>
@@ -7177,7 +7207,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>更新あり</translation>
     </message>
     <message>
-      <location filename="../substitute/application/update_rollback_notice.py" line="92"></location>
+      <location filename="../substitute/application/update_rollback_notice.py" line="88"></location>
       <source>Update failed</source>
       <translation>アップデートに失敗しました</translation>
     </message>
@@ -7472,7 +7502,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ComfyUI の Python 環境が見つかりませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/application/update_rollback_notice.py" line="93"></location>
+      <location filename="../substitute/application/update_rollback_notice.py" line="89"></location>
       <source>We tried to update Substitute, but it failed. Substitute is ready to use. Please send an error report to the maintainer.</source>
       <translation>Substitute のアップデートを試みましたが、失敗しました。Substitute は使用できます。エラーレポートをメンテナーに送信してください。</translation>
     </message>
@@ -7552,7 +7582,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>Windows では、個々のファイル名またはフォルダー名は 255 文字までに制限されています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="339"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="83"></location>
       <source>Workflow</source>
       <translation>ワークフロー</translation>
     </message>
@@ -7592,7 +7622,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>処理中...</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="80"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="93"></location>
       <source>Would you like Substitute to close ComfyUI and continue?</source>
       <translation>Substitute で ComfyUI を終了して続行しますか？</translation>
     </message>
@@ -7777,7 +7807,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ソースチェックアウト</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="84"></location>
       <source>unknown</source>
       <translation>不明</translation>
     </message>

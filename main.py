@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from substitute.app.bootstrap.startup_timing import StartupTimingRecord
     from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
+    from sugarsubstitute_shared.crash_reporting.runtime import ProcessCrashRuntime
 
 
 _PROCESS_LAUNCH_GUARD: ApplicationLaunchGuard | None = None
@@ -55,7 +56,9 @@ def main() -> None:
 
     phase_started_at = time.perf_counter()
     app_root = Path(__file__).resolve().parent
+    crash_runtime = _install_crash_runtime(argv=sys.argv, app_root=app_root)
     if not _enter_application_launch_guard(argv=sys.argv, app_root=app_root):
+        _request_clean_exit(crash_runtime)
         return
     from sugarsubstitute_shared.localization import (
         resolve_early_startup_locale,
@@ -114,7 +117,48 @@ def main() -> None:
         if early_splash is not None:
             early_splash.close()
         _release_application_launch_guard()
+    _request_clean_exit(crash_runtime)
     sys.exit(exit_code)
+
+
+def _install_crash_runtime(
+    *,
+    argv: list[str],
+    app_root: Path,
+) -> ProcessCrashRuntime | None:
+    """Install process crash hooks before importing application bootstrap code."""
+
+    from sugarsubstitute_shared.application_launch_guard import (
+        application_launch_install_root,
+    )
+    from sugarsubstitute_shared.crash_reporting.protocol import CrashRunContext
+
+    context = CrashRunContext.from_environment()
+    if context is None:
+        return None
+    from substitute._version import __version__
+    from sugarsubstitute_shared.crash_reporting.runtime import (
+        install_process_crash_runtime,
+    )
+
+    return install_process_crash_runtime(
+        context=context,
+        application_version=__version__,
+        launch_arguments=argv,
+        install_root=application_launch_install_root(argv, app_root=app_root),
+    )
+
+
+def _request_clean_exit(runtime: ProcessCrashRuntime | None) -> None:
+    """Declare a normal terminal outcome after all application cleanup succeeds."""
+
+    if runtime is None:
+        return
+    if runtime.clean_exit_outcome is not None:
+        return
+    from sugarsubstitute_shared.crash_reporting.protocol import CleanExitOutcome
+
+    runtime.request_clean_exit(CleanExitOutcome.CLOSED)
 
 
 def _enter_application_launch_guard(*, argv: list[str], app_root: Path) -> bool:
@@ -152,5 +196,24 @@ def _release_application_launch_guard() -> None:
         guard.release()
 
 
-if __name__ == "__main__":
+def _run_entrypoint() -> None:
+    """Become a source supervisor or run the already-supervised app child."""
+
+    from sugarsubstitute_shared.crash_reporting.protocol import CrashRunContext
+
+    if CrashRunContext.from_environment() is None:
+        from launcher.sugarsubstitute_launcher.source_crash_supervision import (
+            supervise_source_application,
+        )
+
+        raise SystemExit(
+            supervise_source_application(
+                argv=sys.argv,
+                app_root=Path(__file__).resolve().parent,
+            )
+        )
     main()
+
+
+if __name__ == "__main__":
+    _run_entrypoint()

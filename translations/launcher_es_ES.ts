@@ -19,7 +19,7 @@
       <translation>Examinar...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="80"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="93"></location>
       <source>Cancel</source>
       <translation>Cancelar</translation>
     </message>
@@ -49,12 +49,12 @@
       <translation>Elige dónde debe guardar Substitute su instalación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="79"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="92"></location>
       <source>Close Substitute and start</source>
       <translation>Cerrar Substitute e iniciar</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="91"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="104"></location>
       <source>Close the running Substitute window yourself, then start Substitute again.</source>
       <translation>Cierra manualmente la ventana de Substitute que está en ejecución y vuelve a iniciar Substitute.</translation>
     </message>
@@ -154,12 +154,12 @@
       <translation>Salida en directo</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="99"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="112"></location>
       <source>OK</source>
       <translation>Aceptar</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="71"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="84"></location>
       <source>Only one instance of Substitute is supported at a time. Would you like to close the running instance and start this one?</source>
       <translation>Solo se admite una instancia de Substitute a la vez. ¿Quieres cerrar la instancia en ejecución e iniciar esta?</translation>
     </message>
@@ -254,12 +254,12 @@
       <translation>Paso 1 de 4</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="90"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="103"></location>
       <source>Substitute could not close the running instance</source>
       <translation>Substitute no pudo cerrar la instancia en ejecución</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="70"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="83"></location>
       <source>Substitute is already running</source>
       <translation>Substitute ya está en ejecución</translation>
     </message>
@@ -338,6 +338,144 @@
     <message>
       <source>Off</source>
       <translation>Desactivado</translation>
+    </message>
+  </context>
+  <context>
+    <name>AppText</name>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="99"></location>
+      <source>%1: %2</source>
+      <translation>%1: %2</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/full_window_modal.py" line="47"></location>
+      <source>Cancel</source>
+      <translation>Cancelar</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="327"></location>
+      <source>Close</source>
+      <translation>Cerrar</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="300"></location>
+      <source>Copy report</source>
+      <translation>Copiar informe</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="82"></location>
+      <source>Error summary</source>
+      <translation>Resumen de errores</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="61"></location>
+      <source>Exception</source>
+      <translation>Excepción</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="90"></location>
+      <source>Exception type: %1</source>
+      <translation>Tipo de excepción: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="375"></location>
+      <source>Hide report</source>
+      <translation>Ocultar informe</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="85"></location>
+      <source>Kind: %1</source>
+      <translation>Tipo: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="87"></location>
+      <source>Message: %1</source>
+      <translation>Mensaje: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/full_window_modal.py" line="46"></location>
+      <source>OK</source>
+      <translation>Aceptar</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="311"></location>
+      <source>Report issue</source>
+      <translation>Notificar problema</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="339"></location>
+      <source>Restart SugarSubstitute</source>
+      <translation>Reiniciar SugarSubstitute</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="109"></location>
+      <source>Runtime context</source>
+      <translation>Contexto de ejecución</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="84"></location>
+      <source>Severity: %1</source>
+      <translation>Gravedad: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="375"></location>
+      <source>Show report</source>
+      <translation>Mostrar informe</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="46"></location>
+      <source>Something unexpected stopped SugarSubstitute. You can copy this report and share it with the maintainers.</source>
+      <translation>Algo inesperado detuvo SugarSubstitute. Puedes copiar este informe y compartirlo con los responsables del mantenimiento.</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="57"></location>
+      <source>Stage</source>
+      <translation>Etapa</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="88"></location>
+      <source>Stage: %1</source>
+      <translation>Etapa: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="97"></location>
+      <source>Substitute operation context</source>
+      <translation>Contexto de operación de Substitute</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="41"></location>
+      <source>SugarSubstitute crashed</source>
+      <translation>SugarSubstitute se bloqueó</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="43"></location>
+      <source>SugarSubstitute did not close normally</source>
+      <translation>SugarSubstitute no se cerró correctamente</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="51"></location>
+      <source>The previous SugarSubstitute session ended without completing shutdown. The report below may help determine why.</source>
+      <translation>La sesión anterior de SugarSubstitute terminó sin completar el cierre. El informe siguiente puede ayudar a determinar el motivo.</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="86"></location>
+      <source>Title: %1</source>
+      <translation>Título: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="106"></location>
+      <source>Traceback</source>
+      <translation>Traza inversa</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="58"></location>
+      <source>Workflow</source>
+      <translation>Flujo de trabajo</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="58"></location>
+      <source>unknown</source>
+      <translation>desconocido</translation>
     </message>
   </context>
 </TS>

@@ -79,6 +79,35 @@ class InstallLayout:
         return self.root / self.target.support_relative_path
 
     @property
+    def crashpad_runtime_path(self) -> Path:
+        """Return the packaged native Crashpad runtime directory."""
+
+        return self.launcher_support_path / "crashpad"
+
+    @property
+    def crashpad_handler_path(self) -> Path:
+        """Return the platform Crashpad exception-handler executable."""
+
+        executable_name = (
+            "crashpad_handler.exe"
+            if self.target.operating_system is LauncherOperatingSystem.WINDOWS
+            else "crashpad_handler"
+        )
+        return self.crashpad_runtime_path / executable_name
+
+    @property
+    def crashpad_client_library_path(self) -> Path:
+        """Return the platform SugarSubstitute Crashpad client bridge."""
+
+        if self.target.operating_system is LauncherOperatingSystem.WINDOWS:
+            filename = "sugarsubstitute_crashpad_client.dll"
+        elif self.target.operating_system is LauncherOperatingSystem.MACOS:
+            filename = "sugarsubstitute_crashpad_client.dylib"
+        else:
+            filename = "sugarsubstitute_crashpad_client.so"
+        return self.crashpad_runtime_path / filename
+
+    @property
     def launcher_dir(self) -> Path:
         """Return the launcher-owned mutable state directory."""
 
