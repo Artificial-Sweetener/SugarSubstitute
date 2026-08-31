@@ -29,7 +29,10 @@ from sugarsubstitute_shared.localization import (
     render_source_application_text,
 )
 
-from substitute.domain.generation import OutputResultPosition
+from substitute.domain.generation import (
+    OutputResultPosition,
+    canonical_output_source_key,
+)
 from substitute.domain.workflow import (
     ImageMeta,
     OutputFocusMode,
@@ -333,7 +336,11 @@ def _source_key_for(image_id: UUID, image_meta: ImageMeta) -> str:
     """Return stable grouping identity for one output image."""
 
     if image_meta.source_key:
-        return image_meta.source_key
+        return canonical_output_source_key(
+            source_key=image_meta.source_key,
+            source_label=image_meta.source_label,
+            node_id=image_meta.node_id,
+        )
     if image_meta.cube_name:
         return image_meta.cube_name
     return str(image_id)

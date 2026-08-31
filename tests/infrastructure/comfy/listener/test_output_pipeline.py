@@ -108,7 +108,7 @@ def test_listener_output_pipeline_builds_source_resolver_for_cube_outputs() -> N
 
     assert pipeline.cube_output_node_ids == {"2"}
     assert source_identity.node_id == "2"
-    assert source_identity.source_key == "wf-1:2"
+    assert source_identity.source_key == "cube:CubeA"
     assert source_identity.cube_alias == "CubeA"
 
 

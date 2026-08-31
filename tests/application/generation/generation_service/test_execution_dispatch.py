@@ -103,7 +103,7 @@ def test_run_single_generation_happy_path_queues_and_starts_listener() -> None:
     assert visual_context is not None
     assert visual_context.workflow_id == "wf-1"
     assert visual_context.client_id == run_client_id
-    assert visual_context.sources["N1"]["sourceKey"] == "wf-1:N1"
+    assert visual_context.sources["N1"]["sourceKey"] == "node:N1"
     assert len(fake_gateway.listener_requests) == 1
     listener_request = fake_gateway.listener_requests[0]
     assert listener_request.workflow_id == "wf-1"
@@ -119,6 +119,9 @@ def test_run_single_generation_happy_path_queues_and_starts_listener() -> None:
     assert getattr(recorder.run_started[0], "prompt_id") == "pid-1"
     assert getattr(recorder.run_started[0], "output_session_id") == (
         listener_request.generation_run_id
+    )
+    assert getattr(recorder.run_started[0], "preview_source_keys") == frozenset(
+        {"node:N1"}
     )
     assert workflow_export_service.calls[0]["output_dir"] == (
         Path.cwd() / "user" / "projects"

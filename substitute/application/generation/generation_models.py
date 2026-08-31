@@ -106,6 +106,7 @@ class GenerationRunStarted:
     output_session_id: str
     prompt_id: str
     client_id: str
+    preview_source_keys: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)

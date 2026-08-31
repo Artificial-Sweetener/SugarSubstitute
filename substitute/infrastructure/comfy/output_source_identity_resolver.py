@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, Mapping, cast
 
 from substitute.application.cubes import cube_alias_body
+from substitute.domain.generation import output_source_key_for_cube
 from substitute.shared.util.path_safety import safe_component
 
 
@@ -210,7 +211,6 @@ def resolve_output_source_identity_for_node(
         return OutputSourceResolution(
             source_identity=output_source_identity_for_node(
                 node_id,
-                workflow_id=workflow_id,
                 workflow_payload=workflow_payload,
             ),
             diagnostic=OutputSourceDiagnostic(
@@ -232,7 +232,6 @@ def resolve_output_source_identity_for_node(
         return OutputSourceResolution(
             source_identity=output_source_identity_for_node(
                 node_id,
-                workflow_id=workflow_id,
                 workflow_payload=workflow_payload,
             ),
             diagnostic=OutputSourceDiagnostic(
@@ -250,7 +249,6 @@ def resolve_output_source_identity_for_node(
     return OutputSourceResolution(
         source_identity=output_source_identity_for_node(
             cube_output_node_id,
-            workflow_id=workflow_id,
             workflow_payload=workflow_payload,
         )
     )
@@ -259,7 +257,6 @@ def resolve_output_source_identity_for_node(
 def output_source_identity_for_node(
     node_id: str,
     *,
-    workflow_id: str,
     workflow_payload: dict[str, object],
 ) -> OutputSourceIdentity:
     """Return canvas source identity for one executable output node."""
@@ -268,7 +265,10 @@ def output_source_identity_for_node(
     source_label = cube_alias or node_id
     return OutputSourceIdentity(
         node_id=node_id,
-        source_key=f"{workflow_id}:{node_id}",
+        source_key=output_source_key_for_cube(
+            cube_alias=cube_alias,
+            node_id=node_id,
+        ),
         source_label=source_label,
         cube_alias=cube_alias,
     )
