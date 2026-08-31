@@ -42,18 +42,24 @@ def create_startup_shutdown_coordinator(
     app: AppQuitProtocol,
     cleanup: CleanupFn,
     before_cleanup: Callable[[object | None], None],
+    authorize_shutdown: Callable[[object | None], bool] | None = None,
     cleanup_bypass: CleanupBypassFn | None,
     cleanup_submitter: TaskSubmitter,
 ) -> ShutdownCoordinator:
     """Create the shell shutdown coordinator for one startup runtime."""
 
+    coordinator_kwargs: dict[str, object] = {
+        "app": app,
+        "cleanup": cleanup,
+        "cleanup_submitter": cleanup_submitter,
+        "cleanup_lane": "disk_io_low_priority",
+        "before_cleanup": before_cleanup,
+        "skip_cleanup_on_force_close": cleanup_bypass,
+    }
+    if authorize_shutdown is not None:
+        coordinator_kwargs["authorize_shutdown"] = authorize_shutdown
     return ShutdownCoordinator(
-        app=app,
-        cleanup=cleanup,
-        cleanup_submitter=cleanup_submitter,
-        cleanup_lane="disk_io_low_priority",
-        before_cleanup=before_cleanup,
-        skip_cleanup_on_force_close=cleanup_bypass,
+        **cast(Any, coordinator_kwargs),
     )
 
 
@@ -75,17 +81,23 @@ def create_startup_shutdown_request_ports(
     app: AppQuitProtocol,
     cleanup: CleanupFn,
     before_cleanup: Callable[[object | None], None],
+    authorize_shutdown: Callable[[object | None], bool] | None = None,
     cleanup_bypass: CleanupBypassFn | None,
     cleanup_submitter: TaskSubmitter,
 ) -> StartupShutdownRequestPorts:
     """Create the object-level shutdown request ports used by startup."""
 
+    coordinator_kwargs: dict[str, object] = {
+        "app": app,
+        "cleanup": cleanup,
+        "before_cleanup": before_cleanup,
+        "cleanup_bypass": cleanup_bypass,
+        "cleanup_submitter": cleanup_submitter,
+    }
+    if authorize_shutdown is not None:
+        coordinator_kwargs["authorize_shutdown"] = authorize_shutdown
     coordinator = create_startup_shutdown_coordinator(
-        app=app,
-        cleanup=cleanup,
-        before_cleanup=before_cleanup,
-        cleanup_bypass=cleanup_bypass,
-        cleanup_submitter=cleanup_submitter,
+        **cast(Any, coordinator_kwargs),
     )
     request_shell_shutdown = shell_shutdown_request(coordinator)
     from substitute.app.bootstrap.application_instance_control import (

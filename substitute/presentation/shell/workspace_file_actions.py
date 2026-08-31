@@ -659,7 +659,7 @@ class WorkspaceFileActions:
         except (TypeError, ValueError):
             return False
 
-    def on_save_clicked(self, *, sugar_scripts_dir: Path | None = None) -> None:
+    def on_save_clicked(self, *, sugar_scripts_dir: Path | None = None) -> bool:
         """Save the active workflow into its workflow-named script directory."""
 
         view = self._view
@@ -693,6 +693,9 @@ class WorkspaceFileActions:
                     workflow=active_workflow,
                     sugar_scripts_dir=resolved_sugar_scripts_dir,
                 )
+            workflow_id = view.workflow_session_service.active_workflow_id
+            self._mark_workflow_saved(workflow_id, recipe_path)
+            return True
         except (AttributeError, OSError, RuntimeError, TypeError, ValueError):
             log_context: dict[str, str] = {
                 "workflow_name": workflow_name,
@@ -701,13 +704,14 @@ class WorkspaceFileActions:
             if recipe_path is not None:
                 log_context["destination_path"] = str(recipe_path)
             self._log_exception(_LOGGER, "Failed to save recipe", **log_context)
+            return False
 
     def on_save_as_clicked(
         self,
         *,
         sugar_scripts_dir: Path | None = None,
         file_dialog: FileDialogProtocol = _DEFAULT_FILE_DIALOG,
-    ) -> None:
+    ) -> bool:
         """Save the active workflow to a user-selected destination path."""
 
         view = self._view
@@ -730,7 +734,7 @@ class WorkspaceFileActions:
                 "Sugar Script (*.sugar)",
             )
             if not file_path_str:
-                return
+                return False
 
             destination_path = Path(file_path_str).resolve()
             validated_destination_path = (
@@ -754,6 +758,9 @@ class WorkspaceFileActions:
                     workflow_name=workflow_name,
                     workflow=active_workflow,
                 )
+            workflow_id = view.workflow_session_service.active_workflow_id
+            self._mark_workflow_saved(workflow_id, validated_destination_path)
+            return True
         except (AttributeError, OSError, RuntimeError, TypeError, ValueError):
             log_context: dict[str, str] = {
                 "workflow_name": workflow_name,
@@ -762,6 +769,15 @@ class WorkspaceFileActions:
             if destination_path is not None:
                 log_context["destination_path"] = str(destination_path)
             self._log_exception(_LOGGER, "Failed to save recipe as", **log_context)
+            return False
+
+    def _mark_workflow_saved(self, workflow_id: str, source_path: Path) -> None:
+        """Clear explicit-save dirty state after persistence succeeds."""
+
+        service = getattr(self._view, "unsaved_work_service", None)
+        mark_saved = getattr(service, "mark_saved", None)
+        if callable(mark_saved):
+            mark_saved(workflow_id, source_path)
 
     def on_export_comfy_workflow_clicked(
         self,
@@ -1348,6 +1364,7 @@ class WorkspaceFileActions:
             cube_loader=cube_loader,
         )
         _mark_recipe_surfaces_dirty(self._view, target_workflow_id)
+        self._mark_workflow_saved(target_workflow_id, source_path)
 
         if loaded_document.source_kind == "png":
             self._restore_loaded_recipe_png_outputs(

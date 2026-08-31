@@ -215,6 +215,11 @@ if TYPE_CHECKING:
         normalize_default_workflow_tab_label,
         workflow_tab_display_text,
     )
+    from substitute.application.workflows.unsaved_work_service import (
+        UnsavedWorkDecision,
+        UnsavedWorkService,
+        WorkflowDocumentState,
+    )
     from substitute.domain.links import (
         NodeLinkEndpoint,
         NodeLinkEndpointIndex,
@@ -234,6 +239,9 @@ if TYPE_CHECKING:
     )
 
 _EXPORT_MODULES = {
+    "UnsavedWorkDecision": "substitute.application.workflows.unsaved_work_service",
+    "UnsavedWorkService": "substitute.application.workflows.unsaved_work_service",
+    "WorkflowDocumentState": "substitute.application.workflows.unsaved_work_service",
     "DIRECT_WORKFLOW_SECTION_KEY": (
         "substitute.application.workflows.editor_projection_service"
     ),
@@ -659,6 +667,9 @@ __all__ = [
     "WorkflowLinkReconciliationService",
     "WorkflowTabCreation",
     "WorkflowTabService",
+    "UnsavedWorkService",
+    "UnsavedWorkDecision",
+    "WorkflowDocumentState",
     "build_output_canvas_projection",
     "bind_output_canvas_session",
     "default_output_compare_state",
