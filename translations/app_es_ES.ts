@@ -1420,7 +1420,7 @@ Vista previa del prompt:
       <translation>Cierra ComfyUI antes de continuar con la instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="96"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="109"></location>
       <source>Close ComfyUI before starting Substitute</source>
       <translation>Cierra ComfyUI antes de iniciar Substitute</translation>
     </message>
@@ -1465,6 +1465,11 @@ Vista previa del prompt:
       <translation>Consola de Comfy</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="83"></location>
+      <source>Comfy disconnected</source>
+      <translation>Comfy se desconectó</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="915"></location>
       <source>Comfy environment management is available.</source>
       <translation>La administración del entorno de Comfy está disponible.</translation>
@@ -1483,6 +1488,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="841"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy no está disponible</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="165"></location>
+      <source>Comfy reconnected</source>
+      <translation>Comfy se volvió a conectar</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="999"></location>
@@ -1508,6 +1518,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1034"></location>
       <source>Comfy restart status is unavailable.</source>
       <translation>El estado del reinicio de Comfy no está disponible.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="152"></location>
+      <source>Comfy restarted</source>
+      <translation>Comfy se reinició</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="924"></location>
@@ -1640,12 +1655,12 @@ Vista previa del prompt:
       <translation>Carpeta de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="72"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="85"></location>
       <source>ComfyUI is already running</source>
       <translation>ComfyUI ya está en ejecución</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="74"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="87"></location>
       <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
       <translation>ComfyUI ya se está ejecutando en el puerto predeterminado 8188. Substitute necesita iniciar y controlar ComfyUI para funcionar correctamente.</translation>
     </message>
@@ -1675,7 +1690,7 @@ Vista previa del prompt:
       <translation>ComfyUI está listo.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="98"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="111"></location>
       <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
       <translation>ComfyUI responde en el puerto predeterminado 8188, pero Substitute no pudo verificar su proceso de forma segura. Cierra ComfyUI manualmente y vuelve a iniciar Substitute.</translation>
     </message>
@@ -1700,7 +1715,7 @@ Vista previa del prompt:
       <translation>ComfyUI busca aquí los checkpoints, LoRA, VAE y demás archivos de modelos. Puedes mantener la opción predeterminada o elegir una carpeta que ya uses.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="171"></location>
+      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="172"></location>
       <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
       <translation>ComfyUI debe reiniciarse para poder usar las dependencias de cubos reparadas.</translation>
     </message>
@@ -2643,7 +2658,7 @@ Install these nodes now?</source>
       <translation>Ha fallado: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="905"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="874"></location>
       <source>Failed to allocate output run number.</source>
       <translation>No se pudo asignar el número de ejecución de salida.</translation>
     </message>
@@ -2653,7 +2668,7 @@ Install these nodes now?</source>
       <translation>No se pudo capturar el contenido del lienzo de entrada para la generación.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="501"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="502"></location>
       <source>Failed to connect generation listener session</source>
       <translation>No se pudo conectar la sesión de escucha de generación</translation>
     </message>
@@ -2713,12 +2728,12 @@ Install these nodes now?</source>
       <translation>No se pudo actualizar la visibilidad del editor tras insertar el cubo de forma incremental</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="426"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>No se pudo preparar el recurso del flujo de trabajo %1.%2: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="636"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="631"></location>
       <source>Failed to start generation listener</source>
       <translation>No se pudo iniciar la escucha de generación</translation>
     </message>
@@ -2883,7 +2898,7 @@ Install these nodes now?</source>
       <translation>No se puede generar porque todos los cubos tienen un error de ejecución.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1096"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1067"></location>
       <source>Generation dispatch failed.</source>
       <translation>No se pudo enviar la generación.</translation>
     </message>
@@ -5067,7 +5082,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reiniciar la interfaz</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="72"></location>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="110"></location>
+      <source>Restarting Comfy</source>
+      <translation>Reiniciando Comfy</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="134"></location>
       <source>Retry</source>
       <translation>Reintentar</translation>
     </message>
@@ -5177,7 +5197,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Ejecutar la pantalla de inicio de Sugar Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="195"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="229"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>Ejecutar el host de la pantalla de inicio de SugarSubstitute.</translation>
     </message>
@@ -6282,7 +6302,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración de carpetas guardada de Substitute necesita corrección</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2730"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2721"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -7592,7 +7612,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Trabajando...</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="80"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="93"></location>
       <source>Would you like Substitute to close ComfyUI and continue?</source>
       <translation>¿Quieres que Substitute cierre ComfyUI y continúe?</translation>
     </message>
@@ -7762,7 +7782,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>ninguno</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="547"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="548"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>queue_prompt no devolvió prompt_id</translation>
     </message>

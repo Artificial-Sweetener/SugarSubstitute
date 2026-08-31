@@ -72,6 +72,7 @@ from substitute.application.generation.generation_models import (
     GenerationFailure,
     GenerationStartResult,
     PreparedGenerationRequest,
+    generation_failure_from_listener,
 )
 from substitute.application.generation.generation_run_started_notifier import (
     notify_generation_run_started,
@@ -561,15 +562,9 @@ class GenerationService:
 
         def on_listener_failed(event: ListenerFailure) -> None:
             callbacks.on_failure(
-                GenerationFailure(
-                    stage="listen",
-                    workflow_id=event.workflow_id,
-                    generation_run_id=event.generation_run_id,
-                    prompt_id=event.prompt_id,
+                generation_failure_from_listener(
+                    event,
                     client_id=run_client_id,
-                    message=event.error,
-                    detail=event.detail,
-                    error_report=event.error_report,
                 )
             )
 

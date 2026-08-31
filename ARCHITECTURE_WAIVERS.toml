@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2843
+max_lines = 2836
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -139,7 +139,7 @@ kind = "remediation"
 justification = "The assessed file mixes prompt dispatch and request validation, listener lifecycle and preview routing, input asset staging, output preparation and generation diagnostics. Extract listener lifecycle and output routing from prompt dispatch and asset-staging orchestration."
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
-  max_lines = 742
+  max_lines = 737
 next_limit = 613
 debt = "SS-ARCH-012"
 
@@ -152,7 +152,7 @@ kind = "remediation"
 justification = "The assessed file mixes pending-job ordering and batch bookkeeping, output run-number reservation and commit, dispatch and Comfy interruption lifecycle, live progress and output projection, observer publication and terminal history. Extract output-run allocation and live-result projection from queue ordering and dispatch lifecycle."
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
-max_lines = 1577
+max_lines = 1566
 next_limit = 1261
 debt = "SS-ARCH-013"
 
@@ -958,7 +958,7 @@ kind = "remediation"
 justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, output and transfer composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Split feature-specific composition modules behind a narrow main-window assembly boundary."
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
-max_lines = 1014
+max_lines = 1001
 next_limit = 811
 debt = "SS-ARCH-080"
 
