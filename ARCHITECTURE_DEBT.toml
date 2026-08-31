@@ -155,7 +155,7 @@ next_extraction = "Extract error payload interpretation and report rendering fro
 id = "SS-ARCH-012"
 owner = "generation execution"
 paths = ["substitute/application/generation/generation_service.py"]
-  fingerprint = "sha256:84ed569380e0cdb7b9beba0edb3522327f069446c3f8b97a9cc29a2380807955"
+fingerprint = "sha256:e1617b467131c16717570f3d420484db5dcdff4c05ad4e5e78f15ae532b03515"
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
 responsibilities = [
@@ -495,22 +495,6 @@ responsibilities = [
   "host adapter discovery and signal dispatch",
 ]
 next_extraction = "Extract layout measurement and selector synchronization from navigation intents and selection policy."
-
-[[debts]]
-id = "SS-ARCH-038"
-owner = "output canvas presentation"
-paths = ["substitute/presentation/canvas/output/output_canvas_view.py"]
-fingerprint = "sha256:f054d242a372a10908278655d85513d93e7598976d83ea7191096795773b1ebc"
-issue = "chore:SS-ARCH-038"
-review_by = 2026-12-15
-responsibilities = [
-  "CuteCanvas workspace and document hosting",
-  "output navigation chrome and compare state",
-  "preview registry and lane presentation",
-  "transfer and external-editor integration",
-  "projection-session and interaction event routing",
-]
-next_extraction = "Extract preview-lane and transfer integration from the mounted CuteCanvas workspace view."
 
 [[debts]]
 id = "SS-ARCH-039"
@@ -1275,18 +1259,17 @@ next_extraction = "Extract closed-workflow persistence/resource cleanup and tab 
 id = "SS-ARCH-085"
 owner = "workspace canvas actions"
 paths = ["substitute/presentation/shell/workspace_canvas_actions.py"]
-fingerprint = "sha256:1f87e14f0f3f8c437da1060fdf12fe36ce97da7cdce697adb8609e0b77d9719e"
+fingerprint = "sha256:4e0877498c0e25a34b560e2b9a77faf498432689388a994cb36c406a87e2e7ee"
 issue = "chore:SS-ARCH-085"
 review_by = 2026-12-15
 responsibilities = [
   "output focus and navigation mutation",
-  "preview presentation and lifecycle",
   "external editor and asset reveal actions",
   "generated and loaded output ingestion",
   "output preparation and authorization",
   "canvas host visibility and error presentation",
 ]
-next_extraction = "Split preview lifecycle, external actions, and output ingestion from output-navigation commands."
+next_extraction = "Split external actions and output ingestion from output-navigation commands."
 
 [[debts]]
 id = "SS-ARCH-086"

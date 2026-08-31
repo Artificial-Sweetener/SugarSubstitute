@@ -102,7 +102,7 @@ def test_ambiguous_output_source_mapping_warns_once() -> None:
     second = resolver.resolve("0")
 
     assert first == second
-    assert first.source_key == "workflow-1:0"
+    assert first.source_key == "cube:Cube"
     assert [diagnostic.level for diagnostic in diagnostics] == ["warning", "debug"]
     assert all(
         diagnostic.message

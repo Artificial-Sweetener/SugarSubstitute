@@ -22,7 +22,7 @@ import uuid
 from types import SimpleNamespace
 
 
-from substitute.application.workflows.output_preview_registry import (
+from substitute.application.workflows.output_preview_results import (
     OutputPreviewAcceptance,
 )
 from substitute.application.workflows.output_canvas_state_service import (

@@ -25,10 +25,12 @@ from uuid import UUID
 
 from substitute.application.workflows.output_canvas_session import OutputCanvasSession
 from substitute.application.workflows.output_preview_registry import (
-    OutputPreviewAcceptance,
     OutputPreviewLane,
     OutputPreviewLanePlacement,
     OutputPreviewRegistry,
+)
+from substitute.application.workflows.output_preview_results import (
+    OutputPreviewAcceptance,
 )
 
 
@@ -50,8 +52,8 @@ class OutputDocumentPreviewPresenter:
     document: OutputPreviewDocumentPort
     output_session: Callable[[], OutputCanvasSession | None]
     refresh_preview_scope: Callable[[], None]
-    present_source_preview: Callable[[UUID], None]
-    present_scene_previews: Callable[[tuple[OutputPreviewLane, ...]], None]
+    present_source_preview: Callable[[UUID, bool], None]
+    present_scene_previews: Callable[[tuple[OutputPreviewLane, ...]], bool]
 
     def apply_preview_acceptance(self, acceptance: OutputPreviewAcceptance) -> None:
         """Apply one session-authorized preview acceptance to Output document content."""
@@ -74,17 +76,19 @@ class OutputDocumentPreviewPresenter:
         for lane in lanes:
             self.document.admit_image(lane.preview_id, lane.image, title="Preview")
         self.refresh_preview_scope()
-        source_lane = _source_lane(lanes)
-        if source_lane is not None:
-            self.present_source_preview(source_lane.preview_id)
-            return
         scene_lanes = tuple(
             lane
             for lane in lanes
             if lane.key.placement is OutputPreviewLanePlacement.SCENE
         )
-        if scene_lanes:
-            self.present_scene_previews(scene_lanes)
+        if scene_lanes and self.present_scene_previews(scene_lanes):
+            return
+        source_lane = _source_lane(lanes)
+        if source_lane is not None:
+            self.present_source_preview(
+                source_lane.preview_id,
+                source_lane.preview_id in acceptance.created_preview_ids,
+            )
 
     def close_final_output_preview_lane(self, preview_ids: tuple[UUID, ...]) -> None:
         """Retire preview compositions superseded by one finalized output lane."""

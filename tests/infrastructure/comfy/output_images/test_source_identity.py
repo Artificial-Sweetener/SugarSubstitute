@@ -159,7 +159,7 @@ def test_resolve_output_source_identity_reports_ambiguous_mapping_once() -> None
         ambiguous_warning_keys=warning_keys,
     )
 
-    assert first.source_identity.source_key == "wf-1:shared"
+    assert first.source_identity.source_key == "cube:Shared"
     assert first.source_identity.source_label == "Shared"
     assert first.diagnostic is not None
     assert first.diagnostic.level == "warning"
@@ -183,7 +183,7 @@ def test_resolve_output_source_identity_reports_missing_mapping() -> None:
         ambiguous_warning_keys=set(),
     )
 
-    assert result.source_identity.source_key == "wf-1:lonely"
+    assert result.source_identity.source_key == "cube:Lonely"
     assert result.source_identity.source_label == "Lonely"
     assert result.diagnostic is not None
     assert result.diagnostic.level == "warning"
@@ -210,7 +210,6 @@ def test_output_cube_numbers_match_alias_body_and_node_id() -> None:
     numbers = output_cube_numbers_by_alias(workflow_payload)
     identity = output_source_identity_for_node(
         "output-1",
-        workflow_id="wf-1",
         workflow_payload=workflow_payload,
     )
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 
-from substitute.application.workflows.output_preview_registry import (
+from substitute.application.workflows.output_preview_results import (
     OutputPreviewAcceptance,
 )
 from substitute.domain.workflow import (

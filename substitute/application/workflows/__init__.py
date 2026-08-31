@@ -144,13 +144,15 @@ if TYPE_CHECKING:
         OutputCompareState,
     )
     from substitute.application.workflows.output_preview_registry import (
-        OutputPreviewAcceptance,
-        OutputPreviewCloseResult,
         OutputPreviewLane,
         OutputPreviewLaneKey,
         OutputPreviewLanePlacement,
         OutputPreviewRegistry,
         OutputPreviewRejectionReason,
+    )
+    from substitute.application.workflows.output_preview_results import (
+        OutputPreviewAcceptance,
+        OutputPreviewCloseResult,
     )
     from substitute.application.workflows.output_scene_run_service import (
         OutputSceneRunService,
@@ -392,12 +394,8 @@ _EXPORT_MODULES = {
     "OutputPreviewCloseIdentity": (
         "substitute.application.workflows.output_canvas_state_service"
     ),
-    "OutputPreviewAcceptance": (
-        "substitute.application.workflows.output_preview_registry"
-    ),
-    "OutputPreviewCloseResult": (
-        "substitute.application.workflows.output_preview_registry"
-    ),
+    "OutputPreviewAcceptance": "substitute.application.workflows.output_preview_results",
+    "OutputPreviewCloseResult": "substitute.application.workflows.output_preview_results",
     "OutputPreviewLane": "substitute.application.workflows.output_preview_registry",
     "OutputPreviewLaneKey": (
         "substitute.application.workflows.output_preview_registry"
