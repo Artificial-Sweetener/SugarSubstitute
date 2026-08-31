@@ -168,6 +168,60 @@ def test_registry_rejects_stale_prompt_or_client_identity() -> None:
     assert registry.images_by_id() == {}
 
 
+def test_registry_accepts_expected_source_before_first_final_output() -> None:
+    """An active run may preview an expected source before session projection exists."""
+
+    registry = OutputPreviewRegistry(_uuid_factory=uuid_sequence())
+    session = build_registry_session(source_keys=())
+    authorization = VisualAuthorizationService()
+    authorization.register_run(
+        workflow_id="wf",
+        generation_run_id="run",
+        prompt_id="prompt",
+        client_id="client",
+        preview_source_keys=frozenset({"wf:save"}),
+    )
+
+    result = registry.accept_preview(
+        build_preview_event(source_key="wf:save"),
+        session=session,
+        active_workflow_id="wf",
+        authorize_preview=authorization.authorize_preview,
+        is_valid_source_placeholder=authorization.authorize_preview_source,
+    )
+
+    assert result.accepted is True
+    assert result.lanes[0].key.source_key == "wf:save"
+
+
+def test_registry_rejects_unexpected_source_before_first_final_output() -> None:
+    """A backend source absent from run metadata must not create a preview lane."""
+
+    registry = OutputPreviewRegistry()
+    session = build_registry_session(source_keys=())
+    authorization = VisualAuthorizationService()
+    authorization.register_run(
+        workflow_id="wf",
+        generation_run_id="run",
+        prompt_id="prompt",
+        client_id="client",
+        preview_source_keys=frozenset({"wf:save"}),
+    )
+
+    result = registry.accept_preview(
+        build_preview_event(source_key="wf:other"),
+        session=session,
+        active_workflow_id="wf",
+        authorize_preview=authorization.authorize_preview,
+        is_valid_source_placeholder=authorization.authorize_preview_source,
+    )
+
+    assert (
+        result.rejection_reason is OutputPreviewRejectionReason.SOURCE_OUTSIDE_SESSION
+    )
+    assert registry.images_by_id() == {}
+
+
 def test_registry_retires_old_session_previews_without_accepting_route_mutation() -> (
     None
 ):

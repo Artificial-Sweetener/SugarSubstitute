@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 from PySide6.QtGui import (
     QColor,
 )
@@ -29,8 +29,10 @@ from substitute.application.workflows.output_detail_inspection import (
     OutputDetailInspectionGroup,
 )
 from substitute.application.workflows.output_preview_registry import (
-    OutputPreviewAcceptance,
     OutputPreviewRegistry,
+)
+from substitute.application.workflows.output_preview_results import (
+    OutputPreviewAcceptance,
 )
 from substitute.presentation.canvas.output.output_canvas_view import OutputCanvas
 from substitute.presentation.canvas.output.output_document import OutputCanvasDocument
@@ -41,6 +43,7 @@ from .rendering_support import _wait_for_rendered_color
 from .support import (
     _image,
     _app,
+    _empty_projection,
     _projection,
     _session,
     _source_preview_lane,
@@ -294,6 +297,200 @@ def test_comfy_preview_event_reaches_the_visible_output_document(
         replacement_target = canvas.workspace.canvasFor(replacement_target_id)
         assert replacement_target is not None
         assert _wait_for_rendered_color(app, replacement_target, QColor("blue"))
+    finally:
+        canvas.close()
+        destroy_qt_object(canvas)
+
+
+def test_first_run_batch_preview_frames_replace_same_visible_lane(
+    execution_runtime: ExecutionRuntime,
+) -> None:
+    """Display and replace preview frames before the first final output exists."""
+
+    app = _app()
+    boundary = create_canvas_session_boundary()
+    registry = OutputPreviewRegistry()
+    canvas = OutputCanvas(
+        execution_runtime=execution_runtime,
+        preview_registry=registry,
+        route_session_boundary=boundary,
+    )
+    try:
+        canvas.resize(640, 480)
+        canvas.show()
+        session = _session(boundary, _empty_projection())
+        canvas.bind_projection_session(session)
+
+        first = registry.accept_preview(
+            _live_preview_event(_image("green")),
+            session=session,
+            active_workflow_id="workflow",
+            authorize_preview=lambda _identity: True,
+            is_valid_source_placeholder=lambda _identity: True,
+        )
+        assert first.accepted
+        canvas.apply_preview_acceptance(first)
+        preview_id = first.lanes[0].preview_id
+        assert tuple(canvas.tabbar.items) == ("source",)
+        assert canvas.active_source_key == "source"
+        target_id = canvas.document.composition_id_for(preview_id)
+        assert target_id is not None
+        target = canvas.workspace.canvasFor(target_id)
+        assert target is not None
+        assert _wait_for_rendered_color(app, target, QColor("green"))
+
+        replacement = registry.accept_preview(
+            _live_preview_event(_image("blue")),
+            session=session,
+            active_workflow_id="workflow",
+            authorize_preview=lambda _identity: True,
+            is_valid_source_placeholder=lambda _identity: True,
+        )
+        assert replacement.accepted
+        assert replacement.lanes[0].preview_id == preview_id
+        canvas.apply_preview_acceptance(replacement)
+        replacement_target_id = canvas.document.composition_id_for(preview_id)
+        assert replacement_target_id is not None
+        replacement_target = canvas.workspace.canvasFor(replacement_target_id)
+        assert replacement_target is not None
+        assert _wait_for_rendered_color(app, replacement_target, QColor("blue"))
+    finally:
+        canvas.close()
+        destroy_qt_object(canvas)
+
+
+def test_streaming_preview_tab_does_not_steal_focus_after_source_navigation(
+    execution_runtime: ExecutionRuntime,
+) -> None:
+    """Keep later frames behind their placeholder tab after manual navigation."""
+
+    app = _app()
+    final_id = uuid4()
+    boundary = create_canvas_session_boundary()
+    registry = OutputPreviewRegistry()
+    canvas = OutputCanvas(
+        execution_runtime=execution_runtime,
+        preview_registry=registry,
+        route_session_boundary=boundary,
+    )
+    try:
+        canvas.resize(640, 480)
+        canvas.show()
+        assert canvas.document.admit_image(final_id, _image("red"))
+        session = _session(boundary, _projection(final_id, uuid4()))
+        canvas.bind_projection_session(session)
+
+        first = registry.accept_preview(
+            _live_preview_event(_image("green"), source_key="upscale"),
+            session=session,
+            active_workflow_id="workflow",
+            authorize_preview=lambda _identity: True,
+            is_valid_source_placeholder=lambda _identity: True,
+        )
+        assert first.accepted
+        canvas.apply_preview_acceptance(first)
+        preview_id = first.lanes[0].preview_id
+        assert tuple(canvas.tabbar.items) == ("source", "upscale")
+        assert canvas.active_source_key == "upscale"
+
+        selected_finals: list[str] = []
+        canvas.activeOutputChanged.connect(selected_finals.append)
+        canvas.tabbar.setCurrentItem("source")
+        app.processEvents()
+        assert canvas.active_source_key == "source"
+        assert selected_finals == [str(final_id)]
+
+        replacement = registry.accept_preview(
+            _live_preview_event(_image("blue"), source_key="upscale"),
+            session=session,
+            active_workflow_id="workflow",
+            authorize_preview=lambda _identity: True,
+            is_valid_source_placeholder=lambda _identity: True,
+        )
+        assert replacement.accepted
+        assert replacement.created_preview_ids == ()
+        canvas.apply_preview_acceptance(replacement)
+        assert canvas.active_source_key == "source"
+        assert selected_finals == [str(final_id)]
+
+        canvas.tabbar.setCurrentItem("upscale")
+        app.processEvents()
+        assert canvas.active_source_key == "upscale"
+        preview_composition = canvas.document.composition_id_for(preview_id)
+        assert preview_composition is not None
+        assert canvas.workspace.session.presentation.target_ids == (
+            preview_composition,
+        )
+    finally:
+        canvas.close()
+        destroy_qt_object(canvas)
+
+
+def test_scene_previews_form_live_overview_before_any_final_output(
+    execution_runtime: ExecutionRuntime,
+) -> None:
+    """Keep running scene previews isolated and visible in a live overview grid."""
+
+    _app()
+    boundary = create_canvas_session_boundary()
+    registry = OutputPreviewRegistry()
+    canvas = OutputCanvas(
+        execution_runtime=execution_runtime,
+        preview_registry=registry,
+        route_session_boundary=boundary,
+    )
+    try:
+        canvas.resize(640, 480)
+        canvas.show()
+        session = _session(boundary, _empty_projection())
+        canvas.bind_projection_session(session)
+
+        preview_ids: list[UUID] = []
+        for order, (scene_key, color) in enumerate(
+            (("scene-a", "green"), ("scene-b", "blue"))
+        ):
+            acceptance = registry.accept_preview(
+                _live_preview_event(
+                    _image(color),
+                    scene_run_id="scene-run",
+                    scene_key=scene_key,
+                    scene_title=scene_key,
+                    scene_order=order,
+                    scene_count=2,
+                ),
+                session=session,
+                active_workflow_id="workflow",
+                authorize_preview=lambda _identity: True,
+                is_valid_source_placeholder=lambda _identity: True,
+                is_valid_scene_placeholder=lambda _scene, _identity: True,
+            )
+            assert acceptance.accepted
+            preview_ids.extend(
+                lane.preview_id
+                for lane in acceptance.lanes
+                if lane.key.placement.value == "scene"
+            )
+            canvas.apply_preview_acceptance(acceptance)
+
+        assert canvas.active_scene_overview is True
+        assert canvas.scene_count == 2
+        target_ids = canvas.workspace.session.presentation.target_ids
+        assert {
+            canvas.document.composition_id_for(preview_id) for preview_id in preview_ids
+        } <= set(target_ids)
+
+        canvas._document_navigation._select_scene("scene-a")
+        assert canvas.active_scene_overview is False
+        assert canvas.active_scene_key == "scene-a"
+        assert tuple(canvas.tabbar.items) == ("source",)
+        source_preview_id = next(
+            lane.preview_id
+            for lane in registry.lanes_for_session(session)
+            if lane.key.placement.value == "source" and lane.key.scene_key == "scene-a"
+        )
+        source_composition = canvas.document.composition_id_for(source_preview_id)
+        assert source_composition is not None
+        assert canvas.workspace.session.presentation.target_ids == (source_composition,)
     finally:
         canvas.close()
         destroy_qt_object(canvas)

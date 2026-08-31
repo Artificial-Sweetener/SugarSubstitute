@@ -104,7 +104,7 @@ def test_run_single_generation_queues_staged_payload_when_staging_is_configured(
     assert preview_method == "latent2rgb"
     assert sugar_script == 'use "cube" as A'
     assert visual_context is not None
-    assert visual_context.sources["1"]["sourceKey"] == "wf-1:1"
+    assert visual_context.sources["1"]["sourceKey"] == "node:1"
 
 
 def test_run_single_generation_queues_selected_image_not_cube_default() -> None:

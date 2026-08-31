@@ -417,19 +417,6 @@ next_limit = 750
 debt = "SS-ARCH-037"
 
 [[waivers]]
-id = "SS-WAIVER-R038"
-owner = "output canvas presentation"
-rule = "STRUCT003"
-path = "substitute/presentation/canvas/output/output_canvas_view.py"
-kind = "remediation"
-justification = "The assessed file mixes CuteCanvas workspace and document hosting, output navigation chrome and compare state, preview registry and lane presentation, transfer and external-editor integration, projection-session and interaction event routing. Extract preview-lane and transfer integration from the mounted CuteCanvas workspace view."
-issue = "chore:SS-ARCH-038"
-review_by = 2026-12-15
-max_lines = 523
-next_limit = 500
-debt = "SS-ARCH-038"
-
-[[waivers]]
 id = "SS-WAIVER-R039"
 owner = "cube stack cart"
 rule = "STRUCT003"
@@ -1033,10 +1020,10 @@ owner = "workspace canvas actions"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/workspace_canvas_actions.py"
 kind = "remediation"
-justification = "The assessed file mixes output focus and navigation mutation, preview presentation and lifecycle, external editor and asset reveal actions, generated and loaded output ingestion, output preparation and authorization, canvas host visibility and error presentation. Split preview lifecycle, external actions, and output ingestion from output-navigation commands."
+justification = "The assessed file mixes output focus and navigation mutation, external editor and asset reveal actions, generated and loaded output ingestion, output preparation and authorization, canvas host visibility and error presentation. Split external actions and output ingestion from output-navigation commands."
 issue = "chore:SS-ARCH-085"
 review_by = 2026-12-15
-max_lines = 916
+max_lines = 833
 next_limit = 732
 debt = "SS-ARCH-085"
 
@@ -1213,7 +1200,7 @@ kind = "structural"
 justification = "The module is a declarative lazy-export manifest for one package boundary: TYPE_CHECKING imports, __all__, and the lazy symbol map describe the same API surface. Its size follows the exported contract, and partitioning it would create multiple competing manifests for one namespace."
 issue = "chore:SS-WAIVER-S010"
 review_by = 2026-12-15
-max_lines = 668
+max_lines = 666
 
 [[waivers]]
 id = "SS-WAIVER-S011"
@@ -1232,10 +1219,10 @@ owner = "output preview registry"
 rule = "STRUCT003"
 path = "substitute/application/workflows/output_preview_registry.py"
 kind = "structural"
-justification = "OutputPreviewRegistry is one in-memory aggregate for preview-lane admission, identity, lookup, and retirement. Its value models and predicates encode the same lane invariants, and separating admission from storage would create two owners for registry consistency."
+justification = "OutputPreviewRegistry is one in-memory aggregate for preview-lane admission, identity, lookup, and retirement. Its acceptance predicates and mutations enforce the same lane-consistency invariant, and separating admission from storage would create two owners for registry consistency."
 issue = "chore:SS-WAIVER-S012"
 review_by = 2026-12-15
-max_lines = 544
+max_lines = 534
 
 [[waivers]]
 id = "SS-WAIVER-S013"
@@ -1807,7 +1794,7 @@ kind = "structural"
 justification = "GenerationFeedbackCoalescer is the single pending-state owner between high-frequency generation callbacks and UI rendering. Submission, authorization, keying, replacement, retirement, terminal ordering, and draining all enforce one coalesced batch contract."
 issue = "chore:SS-WAIVER-S066"
 review_by = 2026-12-15
-max_lines = 621
+max_lines = 618
 
 [[waivers]]
 id = "SS-WAIVER-S067"

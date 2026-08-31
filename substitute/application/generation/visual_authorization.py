@@ -43,6 +43,7 @@ class AcceptedVisualRun:
     generation_run_id: str
     prompt_id: str
     client_id: str
+    preview_source_keys: frozenset[str]
     state: VisualRunState = VisualRunState.RUNNING
 
 
@@ -66,6 +67,7 @@ class VisualAuthorizationService:
         generation_run_id: str,
         prompt_id: str,
         client_id: str,
+        preview_source_keys: frozenset[str] = frozenset(),
     ) -> None:
         """Accept one run and supersede older active runs for the workflow."""
 
@@ -81,6 +83,7 @@ class VisualAuthorizationService:
             generation_run_id=generation_run_id,
             prompt_id=prompt_id,
             client_id=client_id,
+            preview_source_keys=preview_source_keys,
             state=VisualRunState.RUNNING,
         )
         self._active_run_by_workflow[workflow_id] = generation_run_id
@@ -102,6 +105,7 @@ class VisualAuthorizationService:
             generation_run_id=run.generation_run_id,
             prompt_id=run.prompt_id,
             client_id=run.client_id,
+            preview_source_keys=run.preview_source_keys,
             state=VisualRunState.COMPLETED,
         )
 
@@ -129,6 +133,16 @@ class VisualAuthorizationService:
             run.state is VisualRunState.RUNNING
             and self._active_run_by_workflow.get(identity.workflow_id)
             == identity.generation_run_id
+        )
+
+    def authorize_preview_source(self, identity: GenerationVisualIdentity) -> bool:
+        """Allow an expected run source to create its first transient lane."""
+
+        run = self._matching_run(identity)
+        return (
+            run is not None
+            and self.authorize_preview(identity)
+            and identity.source_key in run.preview_source_keys
         )
 
     def authorize_final_output(self, identity: GenerationVisualIdentity) -> bool:
@@ -171,6 +185,7 @@ class VisualAuthorizationService:
             generation_run_id=run.generation_run_id,
             prompt_id=run.prompt_id,
             client_id=run.client_id,
+            preview_source_keys=run.preview_source_keys,
             state=state,
         )
         if self._active_run_by_workflow.get(workflow_id) == generation_run_id:
