@@ -37,13 +37,11 @@ from substitute.application.errors import (
 from substitute.application.ports.file_manager_gateway import FileRevealResult
 from substitute.application.ports import GenerationVisualIdentity, OutputImageUpdate
 from substitute.application.workflows.output_preview_registry import (
-    OutputPreviewAcceptance,
     OutputPreviewRegistry,
     OutputPreviewRejectionReason,
 )
-from substitute.application.workflows.output_visual_events import (
-    LivePreviewEvent,
-    OutputSceneIdentity,
+from substitute.application.workflows.output_preview_results import (
+    OutputPreviewAcceptance,
 )
 from substitute.application.workflows.output_canvas_state_service import (
     OutputImageRegistrationResult,
@@ -54,7 +52,6 @@ from substitute.application.workflows.output_canvas_focus_service import (
     OutputFocusMutationResult,
     OutputFocusSnapshot,
 )
-from substitute.application.workflows.output_canvas_session import OutputCanvasSession
 from substitute.application.workflows.output_scene_navigation_selection import (
     OutputSceneNavigationSelection,
 )
@@ -67,6 +64,9 @@ from substitute.presentation.shell.output_image_commit_pipeline import (
 )
 from substitute.presentation.shell.generation_feedback_presenter import (
     generation_feedback_presenter_for,
+)
+from substitute.presentation.shell.workspace_preview_actions import (
+    WorkspacePreviewActions,
 )
 from substitute.presentation.shell.workflow_surface_invalidation import (
     CANVAS_AND_GENERATION_SURFACES,
@@ -440,6 +440,10 @@ class WorkspaceCanvasActions:
         self._view = view
         self._error_presenter = error_presenter
         self._asset_reveal_service = asset_reveal_service
+        self._preview_actions = WorkspacePreviewActions(
+            view,
+            self._log_missing_output_canvas,
+        )
 
     def on_active_output_changed(self, uuid_str: str) -> None:
         """Persist the currently selected output image id into workflow state."""
@@ -532,83 +536,12 @@ class WorkspaceCanvasActions:
     ) -> None:
         """Display preview image only after strict identity and session checks."""
 
-        if not isinstance(preview, LivePreviewEvent):
-            return
-        view = self._view
-        workflow_id = preview.identity.workflow_id
-        output_canvas = view.canvas_host.canvas_for("Output")
-        if output_canvas is None:
-            self._log_missing_output_canvas(workflow_id)
-            return
-        session = self._output_session_for_preview(output_canvas, workflow_id)
-        if session is None:
-            return
-        authorization = getattr(view, "visual_authorization_service", None)
-        authorize_preview = getattr(authorization, "authorize_preview", None)
-        if not callable(authorize_preview):
-            return
-        acceptance = view.output_preview_registry.accept_preview(
-            preview,
-            session=session,
-            active_workflow_id=view.workflow_session_service.active_workflow_id,
-            authorize_preview=authorize_preview,
-            is_valid_scene_placeholder=self._valid_scene_preview_placeholder,
-        )
-        if not acceptance.accepted and not acceptance.retired_preview_ids:
-            return
-        apply_preview = getattr(output_canvas, "apply_preview_acceptance", None)
-        if callable(apply_preview):
-            apply_preview(acceptance)
-            return
-        self._log_missing_output_canvas(workflow_id)
-
-    def _output_session_for_preview(
-        self,
-        output_canvas: object,
-        workflow_id: str,
-    ) -> OutputCanvasSession | None:
-        """Return or bind the active visible Output session for a preview."""
-
-        view = self._view
-        session_service = getattr(view, "workflow_session_service", None)
-        active_workflow_id = str(
-            getattr(session_service, "active_workflow_id", "") or ""
-        )
-        if workflow_id != active_workflow_id:
-            return None
-        session = getattr(output_canvas, "_output_session", None)
-        if (
-            isinstance(session, OutputCanvasSession)
-            and session.workflow_id.value == workflow_id
-        ):
-            return session
-        canvas_host = getattr(view, "canvas_host", None)
-        is_canvas_visible = getattr(canvas_host, "is_canvas_visible", None)
-        if callable(is_canvas_visible) and not bool(is_canvas_visible("Output")):
-            return None
-        workflows = getattr(session_service, "workflows", None)
-        if not isinstance(workflows, Mapping):
-            return None
-        coordinator = getattr(view, "output_canvas_projection_coordinator", None)
-        project_workflow = getattr(coordinator, "project_workflow", None)
-        if not callable(project_workflow):
-            return None
-        project_workflow(workflows, workflow_id)
-        session = getattr(output_canvas, "_output_session", None)
-        return session if isinstance(session, OutputCanvasSession) else None
+        self._preview_actions.display_preview_image(preview)
 
     def clear_output_previews(self, workflow_id: str) -> None:
         """Clear transient output previews for the active workflow only."""
 
-        view = self._view
-        if workflow_id != view.workflow_session_service.active_workflow_id:
-            return
-        output_canvas = view.canvas_host.canvas_for("Output")
-        clear_previews = getattr(output_canvas, "clear_previews", None)
-        if callable(clear_previews):
-            clear_previews()
-        else:
-            self._log_missing_output_canvas(workflow_id)
+        self._preview_actions.clear_output_previews(workflow_id)
 
     def open_image_in_external_editor(
         self,
@@ -815,26 +748,6 @@ class WorkspaceCanvasActions:
         generation_feedback_presenter_for(self._view).log_missing_output_canvas(
             workflow_id
         )
-
-    def _valid_scene_preview_placeholder(
-        self,
-        scene: OutputSceneIdentity,
-        identity: GenerationVisualIdentity,
-    ) -> bool:
-        """Return whether a scene preview is known to the active scene run."""
-
-        scene_run_service = getattr(self._view, "output_scene_run_service", None)
-        run_for_id = getattr(scene_run_service, "run_for_id", None)
-        if not callable(run_for_id):
-            return False
-        run = run_for_id(scene.run_id)
-        if run is None or getattr(run, "workflow_id", None) != identity.workflow_id:
-            return False
-        scene_entry = getattr(run, "scene_for_key", lambda _scene_key: None)(scene.key)
-        if scene_entry is None:
-            return False
-        status = getattr(scene_entry, "status", "")
-        return status in {"pending", "dispatching", "comfy_pending", "running"}
 
     def _schedule_registered_output_projection(
         self,

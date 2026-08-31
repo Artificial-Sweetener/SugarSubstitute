@@ -70,10 +70,12 @@ from substitute.application.generation.asset_staging_service import (
 from substitute.application.generation.generation_models import (
     GenerationCallbacks,
     GenerationFailure,
-    GenerationRunStarted,
     GenerationStartResult,
     PreparedGenerationRequest,
     generation_failure_from_listener,
+)
+from substitute.application.generation.generation_run_started_notifier import (
+    notify_generation_run_started,
 )
 from substitute.application.generation.preview_preference_service import (
     GenerationPreviewMethodResolver,
@@ -585,16 +587,15 @@ class GenerationService:
             on_timing=callbacks.on_timing,
             on_completed=on_listener_completed,
         )
-        if callbacks.on_run_started is not None:
-            callbacks.on_run_started(
-                GenerationRunStarted(
-                    workflow_id=request.workflow_id,
-                    generation_run_id=generation_run_id,
-                    output_session_id=request.scene_run_id or generation_run_id,
-                    prompt_id=prompt_id,
-                    client_id=run_client_id,
-                )
-            )
+        notify_generation_run_started(
+            callbacks.on_run_started,
+            workflow_id=request.workflow_id,
+            generation_run_id=generation_run_id,
+            output_session_id=request.scene_run_id or generation_run_id,
+            prompt_id=prompt_id,
+            client_id=run_client_id,
+            visual_context=visual_context,
+        )
         listener_result = self._comfy_gateway.start_listener(
             request=ListenerStartRequest(
                 prompt_id=prompt_id,
@@ -812,7 +813,6 @@ __all__ = [
     "GenerationCallbacks",
     "GenerationFailure",
     "GenerationRequest",
-    "GenerationRunStarted",
     "GenerationService",
     "GenerationStartResult",
     "PreparedGenerationRequest",

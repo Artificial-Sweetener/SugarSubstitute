@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from uuid import UUID, uuid4
 
@@ -31,6 +31,10 @@ from substitute.application.workflows.output_canvas_projection import (
 from substitute.application.workflows.output_canvas_session import OutputCanvasSession
 from substitute.application.workflows.output_canvas_state_service import (
     OutputPreviewCloseIdentity,
+)
+from substitute.application.workflows.output_preview_results import (
+    OutputPreviewAcceptance,
+    OutputPreviewCloseResult,
 )
 from substitute.application.workflows.output_visual_events import (
     LivePreviewEvent,
@@ -140,45 +144,6 @@ class OutputPreviewLane:
     accepted_for_overview: bool = False
 
 
-@dataclass(frozen=True, slots=True)
-class OutputPreviewAcceptance:
-    """Return the result of accepting or rejecting one preview event."""
-
-    accepted: bool
-    lanes: tuple[OutputPreviewLane, ...] = ()
-    retired_preview_ids: tuple[UUID, ...] = ()
-    rejection_reason: OutputPreviewRejectionReason | None = None
-
-    @classmethod
-    def rejected(
-        cls,
-        reason: OutputPreviewRejectionReason,
-        *,
-        retired_preview_ids: tuple[UUID, ...] = (),
-    ) -> "OutputPreviewAcceptance":
-        """Return a rejected preview result."""
-
-        return cls(
-            accepted=False,
-            retired_preview_ids=retired_preview_ids,
-            rejection_reason=reason,
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class OutputPreviewCloseResult:
-    """Describe preview lanes closed by a matching final output."""
-
-    closed_preview_ids: tuple[UUID, ...]
-    completed_keys: tuple[OutputPreviewLaneKey, ...]
-
-    @property
-    def closed(self) -> bool:
-        """Return whether any preview lane was closed."""
-
-        return bool(self.closed_preview_ids)
-
-
 @dataclass(slots=True)
 class OutputPreviewRegistry:
     """Track transient Output preview lanes independently from widgets."""
@@ -194,6 +159,8 @@ class OutputPreviewRegistry:
         session: OutputCanvasSession,
         active_workflow_id: str,
         authorize_preview: Callable[[GenerationVisualIdentity], bool] | None,
+        is_valid_source_placeholder: Callable[[GenerationVisualIdentity], bool]
+        | None = None,
         is_valid_scene_placeholder: Callable[
             [OutputSceneIdentity, GenerationVisualIdentity], bool
         ]
@@ -231,7 +198,10 @@ class OutputPreviewRegistry:
                 event,
                 OutputPreviewRejectionReason.UNAUTHORIZED_RUN,
             )
-        if not _source_is_allowed(identity.source_key, session):
+        if not _source_is_allowed(identity.source_key, session) and not (
+            callable(is_valid_source_placeholder)
+            and is_valid_source_placeholder(visual_identity)
+        ):
             return self._reject(
                 event,
                 OutputPreviewRejectionReason.SOURCE_OUTSIDE_SESSION,
@@ -257,10 +227,14 @@ class OutputPreviewRegistry:
                 OutputPreviewRejectionReason.COMPLETED_LANE,
                 retired_preview_ids=retired_ids,
             )
+        created_preview_ids = tuple(
+            lane.preview_id for lane in lanes if lane.key not in self._lanes
+        )
         accepted_lanes = tuple(self._store_lane(lane) for lane in lanes)
         return OutputPreviewAcceptance(
             accepted=True,
             lanes=accepted_lanes,
+            created_preview_ids=created_preview_ids,
             retired_preview_ids=retired_ids,
         )
 
@@ -309,6 +283,16 @@ class OutputPreviewRegistry:
             and lane.session_revision != session.revision
         )
         return self._remove_keys(keys)
+
+    def rebind_workflow_session(self, session: OutputCanvasSession) -> None:
+        """Carry active workflow lanes across navigation-only session revisions."""
+
+        for key, lane in tuple(self._lanes.items()):
+            if key.workflow_id != session.workflow_id.value:
+                continue
+            if lane.session_revision == session.revision:
+                continue
+            self._lanes[key] = replace(lane, session_revision=session.revision)
 
     def lanes_for_session(
         self,
@@ -642,8 +626,6 @@ def _is_null_image(image: object) -> bool:
 
 
 __all__ = [
-    "OutputPreviewAcceptance",
-    "OutputPreviewCloseResult",
     "OutputPreviewLane",
     "OutputPreviewLaneKey",
     "OutputPreviewLanePlacement",
