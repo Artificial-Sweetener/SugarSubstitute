@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Hashable
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol, cast
@@ -38,12 +38,26 @@ from substitute.application.execution import (
 from substitute.application.generation.failure_summary import (
     summarize_generation_failure,
 )
+from substitute.application.generation.dispatch_availability import (
+    GenerationDispatchAvailability,
+)
 from substitute.application.generation.generation_models import (
     GenerationCallbacks,
     GenerationFailure,
     GenerationRunStarted,
     GenerationStartResult,
     PreparedGenerationRequest,
+)
+from substitute.application.generation.queue_models import (
+    GenerationJobLifecycleAction,
+    GenerationJobLifecycleEvent,
+    GenerationJobLifecycleObserver,
+    GenerationQueueBatchEntry,
+    GenerationQueueChangeKind,
+    GenerationQueueStateChange,
+    QueueObserver,
+    QueueBatchContext,
+    QueueProjectionCacheKey,
 )
 from substitute.application.ports.comfy_gateway import (
     GenerationExecutionTiming,
@@ -119,67 +133,6 @@ class OutputRunProjectionCacheKeyProvider(Protocol):
         """Return a key that changes when pending output projection may change."""
 
 
-GenerationQueueChangeKind = Literal["structural", "progress"]
-QueueObserver = Callable[["GenerationQueueStateChange"], None]
-GenerationJobLifecycleAction = Literal[
-    "enqueued",
-    "dispatching",
-    "running",
-    "output",
-    "completed",
-    "failed",
-    "skipped",
-    "cancelled",
-]
-
-
-@dataclass(frozen=True, slots=True)
-class GenerationJobLifecycleEvent:
-    """Describe one queue lifecycle transition with its generation snapshot."""
-
-    action: GenerationJobLifecycleAction
-    job: GenerationQueueJob
-
-
-@dataclass(frozen=True, slots=True)
-class GenerationQueueStateChange:
-    """Describe one queue publication for UI and action projection."""
-
-    jobs: tuple[GenerationQueueJob, ...]
-    change_kind: GenerationQueueChangeKind
-    changed_job_id: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class QueueProjectionCacheKey:
-    """Identify one valid projected queue state."""
-
-    queue_revision: int
-    output_projection_key: Hashable
-
-
-@dataclass(frozen=True, slots=True)
-class GenerationQueueBatchEntry:
-    """Pair one prepared snapshot with its queue callbacks for batched insertion."""
-
-    snapshot: GenerationJobSnapshot
-    callbacks: GenerationCallbacks
-
-
-@dataclass(frozen=True, slots=True)
-class QueueBatchContext:
-    """Describe one queue insertion transaction for logging and diagnostics."""
-
-    snapshot_count: int
-    scene_run_id: str | None
-    scene_count: int | None
-    workflow_id: str | None
-    workflow_name: str | None
-
-
-GenerationJobLifecycleObserver = Callable[[GenerationJobLifecycleEvent], None]
-
-
 class GenerationJobQueueService:
     """Own queued generation snapshots and sequential dispatch."""
 
@@ -242,6 +195,13 @@ class GenerationJobQueueService:
         self._active_job_id: str | None = None
         self._dispatch_tokens_by_job_id: dict[str, str] = {}
         self._dispatch_request_id = 0
+        self._dispatch_availability = GenerationDispatchAvailability(
+            resume_dispatch=self._schedule_dispatch_next_if_idle,
+            pending_job_count=lambda: sum(
+                job.status == "pending" for job in self._jobs
+            ),
+            active_job_id=lambda: self._active_job_id,
+        )
         self._is_shutdown = False
 
     def add_observer(self, observer: QueueObserver) -> None:
@@ -254,6 +214,16 @@ class GenerationJobQueueService:
                 change_kind="structural",
             )
         )
+
+    def set_dispatch_available(self, available: bool) -> None:
+        """Hold pending work while Comfy cannot accept generation requests."""
+
+        self._dispatch_availability.set_available(available)
+
+    def set_connection_lost_handler(self, handler: Callable[[], None]) -> None:
+        """Bind the outage transition that must precede listener failure advance."""
+
+        self._dispatch_availability.bind_connection_lost_handler(handler)
 
     def remove_observer(self, observer: QueueObserver) -> None:
         """Unregister one queue observer when a shell surface is disposed."""
@@ -608,7 +578,6 @@ class GenerationJobQueueService:
         self._queue_projection_revision += 1
         self._projected_jobs_cache = None
         self._projected_jobs_cache_key = None
-        pass
 
     def cube_execution_duration_ms(
         self,
@@ -921,6 +890,8 @@ class GenerationJobQueueService:
         """Dispatch the first pending job when no active job is running."""
 
         if self._is_shutdown:
+            return
+        if not self._dispatch_availability.available:
             return
         if self._active_job_id is not None:
             return
@@ -1341,6 +1312,9 @@ class GenerationJobQueueService:
         job = self._job_by_id(job_id)
         if job is None or job.status in TERMINAL_GENERATION_JOB_STATUSES:
             return
+        self._dispatch_availability.report_listener_failure(
+            connection_lost=failure.connection_lost
+        )
         self._mark_failed(job_id, failure.message, detail=failure.detail)
         callbacks.on_failure(failure)
 

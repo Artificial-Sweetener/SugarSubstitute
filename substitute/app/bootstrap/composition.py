@@ -43,6 +43,10 @@ from substitute.application.appearance.appearance_preference_service import (
     AppearancePreferenceService,
 )
 from substitute.app.bootstrap.appearance_runtime import AppearanceRuntimeController
+from substitute.app.bootstrap.backend_event_listener_composition import (
+    build_comfy_connection_monitor_factory,
+    start_backend_event_listener_task,
+)
 from substitute.app.bootstrap.localization_composition import (
     build_application_localization_runtime,
     build_node_presentation_service,
@@ -911,28 +915,6 @@ def _create_generation_listener_task(
         context=context,
         work=work,
         dispatcher=dispatcher,
-        thread_name=thread_name,
-    )
-
-
-def _create_backend_event_listener_task(
-    *,
-    runtime_services: ApplicationRuntimeServices,
-    registry_key: str,
-    identity: TaskIdentity,
-    context: ExecutionContext,
-    work: LongLivedWork[None],
-    thread_name: str,
-) -> LongLivedTaskHandle[None]:
-    """Create and register one long-lived backend event listener task."""
-
-    return runtime_services.execution_runtime.start_long_lived(
-        "backend_event_listener",
-        registry_key,
-        identity=identity,
-        context=context,
-        work=work,
-        dispatcher=DirectExecutionDispatcher(),
         thread_name=thread_name,
     )
 
@@ -2374,8 +2356,8 @@ def _build_main_window_dependencies(
                 reason="cube_library_event_received",
             ),
             task_factory=lambda identity, task_context, work, thread_name: (
-                _create_backend_event_listener_task(
-                    runtime_services=runtime_services,
+                start_backend_event_listener_task(
+                    execution_runtime=runtime_services.execution_runtime,
                     registry_key="cube_library",
                     identity=identity,
                     context=task_context,
@@ -2403,8 +2385,8 @@ def _build_main_window_dependencies(
             ),
             latest_change_provider=model_metadata_backend.get_latest_model_catalog_change,
             task_factory=lambda identity, task_context, work, thread_name: (
-                _create_backend_event_listener_task(
-                    runtime_services=runtime_services,
+                start_backend_event_listener_task(
+                    execution_runtime=runtime_services.execution_runtime,
                     registry_key="model_catalog",
                     identity=identity,
                     context=task_context,
@@ -2414,6 +2396,12 @@ def _build_main_window_dependencies(
             ),
         )
 
+    create_comfy_connection_monitor = build_comfy_connection_monitor_factory(
+        endpoint=context.comfy_target.endpoint,
+        execution_runtime=runtime_services.execution_runtime,
+        qt_owner=generation_queue_transition_relay,
+    )
+
     record_dependency_phase("listener_factories")
 
     dependencies = MainWindowDependencies(
@@ -2421,6 +2409,9 @@ def _build_main_window_dependencies(
         cube_library_client=cube_library_backend,
         create_cube_library_event_listener=create_cube_library_event_listener,
         create_model_catalog_event_listener=create_model_catalog_event_listener,
+        create_comfy_connection_monitor=create_comfy_connection_monitor,
+        comfy_target=context.comfy_target,
+        managed_comfy_restart_requester=(runtime_services.managed_comfy_runtime_owner),
         create_scoped_metadata_refresh_service=create_scoped_metadata_refresh_service,
         cube_icon_factory=cube_icon_factory,
         invalidate_cube_catalog_cache=cube_repository.invalidate_cache,

@@ -51,13 +51,16 @@ from substitute.presentation.editor.panel.lora_metadata_refresh_controller impor
 )
 from substitute.presentation.errors import ErrorPresenter
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
-from substitute.presentation.restart_requirements import RestartRequirementUiController
 from substitute.infrastructure.comfy.workflow_document_repository import (
     ComfyWorkflowDocumentRepository,
 )
 
 from .canvas_route_controller import canvas_route_controller_for
 from .comfy_runtime_actions import ComfyRuntimeActions
+from .comfy_connection_composition import (
+    ComfyConnectionRuntimeComposition,
+    compose_comfy_connection_runtime,
+)
 from .cube_library_update_controller import CubeLibraryUpdateController
 from .cube_stack_presentation_controller import (
     CubeStackMaterialSurface,
@@ -99,6 +102,9 @@ from .output_image_preparation_dispatcher import (
 )
 from .progress_overlay_controller import ProgressOverlayController
 from .restore_projection_controller import RestoreProjectionController
+from .restart_requirement_composition import (
+    compose_restart_requirement_ui_controller,
+)
 from .restored_workflow_materializer import RestoredWorkflowMaterializer
 from .search_overlay_controller import SearchOverlayController
 from .session_autosave_controller import SessionAutosaveController
@@ -250,6 +256,7 @@ class MainWindowRuntimeControllerComposition:
     model_catalog_update_controller: Any
     settings_route_controller: Any
     restart_requirement_ui_controller: Any
+    comfy_connection: ComfyConnectionRuntimeComposition
 
 
 @dataclass(frozen=True)
@@ -954,8 +961,11 @@ def compose_runtime_controllers(
         shell,
         error_presenter=error_presenter,
     )
-    restart_requirement_ui_controller = _compose_restart_requirement_ui_controller(
-        shell
+    restart_requirement_ui_controller = compose_restart_requirement_ui_controller(shell)
+    comfy_connection = compose_comfy_connection_runtime(
+        shell,
+        dependencies=dependencies,
+        settings_route_controller=settings_route_controller,
     )
     composition = MainWindowRuntimeControllerComposition(
         generation_job_queue_observer=generation_job_queue_observer,
@@ -965,6 +975,7 @@ def compose_runtime_controllers(
         model_catalog_update_controller=model_catalog_update_controller,
         settings_route_controller=settings_route_controller,
         restart_requirement_ui_controller=restart_requirement_ui_controller,
+        comfy_connection=comfy_connection,
     )
     shell._generation_job_queue_observer = composition.generation_job_queue_observer
     shell.generation_interrupt_failure_presenter = (
@@ -976,37 +987,7 @@ def compose_runtime_controllers(
     shell.restart_requirement_ui_controller = (
         composition.restart_requirement_ui_controller
     )
-    settings_route_controller.create_settings_workspace()
     return composition
-
-
-def _compose_restart_requirement_ui_controller(shell: Any) -> object | None:
-    """Attach the restart cart controller to the toolbar button when available."""
-
-    button = getattr(shell, "pendingRestartButton", None)
-    service = getattr(shell, "restart_requirement_service", None)
-    actions = getattr(shell, "comfy_runtime_actions", None)
-    restart_full_app = getattr(actions, "request_comfy_restart", None)
-    if button is None or service is None or not callable(restart_full_app):
-        return None
-    return cast(
-        object,
-        RestartRequirementUiController(
-            service=service,
-            button=button,
-            restart_full_app=restart_full_app,
-            restart_window=lambda: _request_shell_gui_reload(shell),
-            parent=shell,
-        ),
-    )
-
-
-def _request_shell_gui_reload(shell: Any) -> None:
-    """Invoke the current shell GUI reload callback when the restart cart asks."""
-
-    reload_gui = getattr(shell, "request_full_gui_reload", None)
-    if callable(reload_gui):
-        reload_gui()
 
 
 def connect_shell_signals(
