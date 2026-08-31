@@ -147,6 +147,18 @@ def _projection(
     )
 
 
+def _empty_projection() -> OutputCanvasProjection:
+    """Build an Output projection before the run has produced a final image."""
+
+    return OutputCanvasProjection(
+        sources=(),
+        active_source_key=None,
+        active_set_index=1,
+        active_uuid=None,
+        set_count=0,
+    )
+
+
 def _linked_projection(
     first_id: UUID,
     second_id: UUID,
@@ -236,8 +248,17 @@ def _source_preview_lane(
     )
 
 
-def _live_preview_event(image: QImage) -> LivePreviewEvent:
-    """Build one strict source preview emitted by the Comfy feedback path."""
+def _live_preview_event(
+    image: QImage,
+    *,
+    source_key: str = "source",
+    scene_run_id: str | None = None,
+    scene_key: str | None = None,
+    scene_title: str | None = None,
+    scene_order: int | None = None,
+    scene_count: int | None = None,
+) -> LivePreviewEvent:
+    """Build one strict preview emitted by the Comfy feedback path."""
 
     event = LivePreviewEvent.from_update(
         PreviewImageUpdate(
@@ -247,8 +268,13 @@ def _live_preview_event(image: QImage) -> LivePreviewEvent:
             prompt_id="prompt",
             client_id="client",
             node_id="preview-node",
-            source_key="source",
+            source_key=source_key,
             source_label="Source",
+            scene_run_id=scene_run_id,
+            scene_key=scene_key,
+            scene_title=scene_title,
+            scene_order=scene_order,
+            scene_count=scene_count,
         )
     )
     assert event is not None

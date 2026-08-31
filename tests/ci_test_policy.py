@@ -270,6 +270,7 @@ ISOLATED_TEST_MODULES = frozenset(
         "tests/presentation/workflows/cube_stack/test_scroll_and_indicator.py",
         # These real-shell Output contracts can abort after prior native Qt work
         # in one xdist process, while concurrent fresh processes are stable.
+        "tests/presentation/canvas/output/real_shell/test_hierarchy_navigation.py",
         "tests/presentation/canvas/output/real_shell/test_hierarchy_persistence.py",
         "tests/presentation/canvas/output/real_shell/test_workflow_lifecycle.py",
         # This floating Output rehosting contract can stop receiving layout
