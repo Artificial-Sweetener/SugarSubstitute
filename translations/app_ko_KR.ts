@@ -1365,7 +1365,7 @@ Prompt preview:
       <translation>설정을 계속하기 전에 ComfyUI 닫기</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="96"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="109"></location>
       <source>Close ComfyUI before starting Substitute</source>
       <translation>Substitute를 시작하기 전에 ComfyUI를 닫으세요</translation>
     </message>
@@ -1410,6 +1410,11 @@ Prompt preview:
       <translation>Comfy 콘솔</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="83"></location>
+      <source>Comfy disconnected</source>
+      <translation>Comfy 연결이 끊어졌습니다</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="915"></location>
       <source>Comfy environment management is available.</source>
       <translation>Comfy 환경 관리를 사용할 수 있습니다.</translation>
@@ -1428,6 +1433,11 @@ Prompt preview:
       <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="841"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy를 사용할 수 없습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="165"></location>
+      <source>Comfy reconnected</source>
+      <translation>Comfy가 다시 연결되었습니다</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="999"></location>
@@ -1453,6 +1463,11 @@ Prompt preview:
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1034"></location>
       <source>Comfy restart status is unavailable.</source>
       <translation>Comfy 다시 시작 상태를 사용할 수 없습니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="152"></location>
+      <source>Comfy restarted</source>
+      <translation>Comfy가 다시 시작되었습니다</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="924"></location>
@@ -1585,12 +1600,12 @@ Prompt preview:
       <translation>ComfyUI 폴더</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="72"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="85"></location>
       <source>ComfyUI is already running</source>
       <translation>ComfyUI가 이미 실행 중입니다</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="74"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="87"></location>
       <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
       <translation>ComfyUI가 기본 포트 8188에서 이미 실행 중입니다. Substitute가 올바르게 작동하려면 ComfyUI를 직접 시작하고 제어해야 합니다.</translation>
     </message>
@@ -1620,7 +1635,7 @@ Prompt preview:
       <translation>ComfyUI가 준비되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="98"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="111"></location>
       <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
       <translation>ComfyUI가 기본 포트 8188에서 응답하지만 Substitute가 해당 프로세스를 안전하게 확인하지 못했습니다. ComfyUI를 직접 닫은 후 Substitute를 다시 시작하세요.</translation>
     </message>
@@ -1645,7 +1660,7 @@ Prompt preview:
       <translation>ComfyUI는 이 폴더에서 체크포인트, LoRA, VAE 및 기타 모델 파일을 찾습니다. 기본값을 유지하거나 이미 사용하는 폴더를 선택할 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="171"></location>
+      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="172"></location>
       <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
       <translation>복구된 큐브 종속성을 사용하려면 먼저 ComfyUI를 다시 시작해야 합니다.</translation>
     </message>
@@ -2588,7 +2603,7 @@ Install these nodes now?</source>
       <translation>실패 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="905"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="874"></location>
       <source>Failed to allocate output run number.</source>
       <translation>출력 실행 번호를 할당하지 못했습니다.</translation>
     </message>
@@ -2598,7 +2613,7 @@ Install these nodes now?</source>
       <translation>생성에 사용할 입력 캔버스 내용을 캡처하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="501"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="502"></location>
       <source>Failed to connect generation listener session</source>
       <translation>생성 리스너 세션에 연결하지 못했습니다</translation>
     </message>
@@ -2658,12 +2673,12 @@ Install these nodes now?</source>
       <translation>큐브를 증분 삽입한 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="426"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>워크플로 자산 %1.%2 준비 실패: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="636"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="631"></location>
       <source>Failed to start generation listener</source>
       <translation>생성 리스너를 시작하지 못했습니다</translation>
     </message>
@@ -2828,7 +2843,7 @@ Install these nodes now?</source>
       <translation>모든 큐브에 런타임 오류가 있어 생성을 실행할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1096"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1067"></location>
       <source>Generation dispatch failed.</source>
       <translation>생성 전송에 실패했습니다.</translation>
     </message>
@@ -5012,7 +5027,12 @@ No known extension claimant.</source>
       <translation>GUI 다시 시작</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="72"></location>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="110"></location>
+      <source>Restarting Comfy</source>
+      <translation>Comfy를 다시 시작하는 중</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="134"></location>
       <source>Retry</source>
       <translation>다시 시도</translation>
     </message>
@@ -5122,7 +5142,7 @@ No known extension claimant.</source>
       <translation>Sugar Substitute 실행 시작 화면을 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="195"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="229"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute 시작 화면 호스트를 실행합니다.</translation>
     </message>
@@ -6227,7 +6247,7 @@ No known extension claimant.</source>
       <translation>Substitute에 저장된 폴더 설정을 수정해야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2730"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2721"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -7537,7 +7557,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>작업 중...</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="80"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="93"></location>
       <source>Would you like Substitute to close ComfyUI and continue?</source>
       <translation>Substitute가 ComfyUI를 닫고 계속하도록 하시겠습니까?</translation>
     </message>
@@ -7707,7 +7727,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>없음</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="547"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="548"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>queue_prompt에서 prompt_id를 반환하지 않음</translation>
     </message>

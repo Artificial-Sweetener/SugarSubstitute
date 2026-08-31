@@ -17,13 +17,12 @@
 """Test durable and visual generation callback routing."""
 
 from __future__ import annotations
-
-from __future__ import annotations
 from pathlib import Path
 from substitute.application.generation import (
     GenerationRequest,
 )
 from substitute.application.ports import (
+    ListenerFailure,
     OutputImageUpdate,
     PreviewImageUpdate,
     QueuePromptResult,
@@ -146,3 +145,48 @@ def test_visual_callbacks_forward_without_clearing_durable_output() -> None:
         "wf-origin",
     ]
     assert len(recorder.outputs) == 1
+
+
+def test_listener_disconnect_preserves_typed_connection_loss() -> None:
+    """Listener failure mapping should retain connection-loss classification."""
+
+    recorder = _CallbackRecorder([], [], [], [], [], [])
+    fake_gateway = _FakeGateway(
+        queue_results=[
+            QueuePromptResult(
+                status="queued",
+                prompt_id="pid-1",
+                payload={"prompt_id": "pid-1"},
+                error=None,
+            )
+        ]
+    )
+    service = _build_generation_service(
+        recipe_io_service=_FakeRecipeIoService(),
+        workflow_export_service=_FakeWorkflowExportService(
+            {"N1": {"class_type": "KSampler"}}
+        ),
+        comfy_gateway=fake_gateway,
+    )
+    service.run_single_generation(
+        request=GenerationRequest(
+            workflow_id="wf-origin",
+            workflow_name="Workflow Origin",
+            workflow=_build_workflow(),
+        ),
+        callbacks=_build_generation_callbacks(recorder),
+    )
+    listener_request = fake_gateway.listener_requests[0]
+
+    fake_gateway.listener_callbacks[0].on_failed(
+        ListenerFailure(
+            workflow_id="wf-origin",
+            generation_run_id=listener_request.generation_run_id,
+            prompt_id="pid-1",
+            error="connection closed",
+            connection_lost=True,
+        )
+    )
+
+    assert len(recorder.failures) == 1
+    assert recorder.failures[0].connection_lost is True

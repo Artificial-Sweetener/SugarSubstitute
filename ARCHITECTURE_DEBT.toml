@@ -4,7 +4,7 @@ schema_version = 1
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]
-  fingerprint = "sha256:c340ee6a0b72eb24f3ff72acf87e7e0d1d782a10a245e931732202e8caed5658"
+  fingerprint = "sha256:9c6cf7da90b3373bd27e6edd8f2beabe9b5cf3bcb17c14915af2dbe649062029"
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
 responsibilities = [
@@ -155,7 +155,7 @@ next_extraction = "Extract error payload interpretation and report rendering fro
 id = "SS-ARCH-012"
 owner = "generation execution"
 paths = ["substitute/application/generation/generation_service.py"]
-  fingerprint = "sha256:84ed569380e0cdb7b9beba0edb3522327f069446c3f8b97a9cc29a2380807955"
+  fingerprint = "sha256:4512d17d4c245c8ae9b3ed4a3d92841c4107ded708e4dfeb087c49ea26cd70c7"
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
 responsibilities = [
@@ -170,11 +170,11 @@ next_extraction = "Extract listener lifecycle and output routing from prompt dis
 id = "SS-ARCH-013"
 owner = "generation job queue"
 paths = ["substitute/application/generation/job_queue_service.py"]
-fingerprint = "sha256:00c16e6b8f3a2d5aeb965337a08c12c4ced1f35af09f4259de9079bc4f4dc97c"
+fingerprint = "sha256:f931369229205752e5f64f812d0361853f7156cea4299b5aaf743f9f1f04c5fc"
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
 responsibilities = [
-  "pending-job ordering and batch bookkeeping",
+  "pending-job ordering and batch insertion orchestration",
   "output run-number reservation and commit",
   "dispatch and Comfy interruption lifecycle",
   "live progress and output projection",
@@ -1191,7 +1191,7 @@ next_extraction = "Extract override/dependent-control refresh and callback adapt
 id = "SS-ARCH-080"
 owner = "main window composition"
 paths = ["substitute/presentation/shell/main_window_composition.py"]
-fingerprint = "sha256:02f855fbe3ac9feaa238e08d0fbaebceed6a3da30e9ba31ae054a47f2299c5c6"
+fingerprint = "sha256:0edbbb3cf75126316e08235d347df631c5a384279e1844a665d3e2eb7eec5ab8"
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
 responsibilities = [
@@ -1202,7 +1202,7 @@ responsibilities = [
   "shell and runtime controller composition",
   "signal connection and reload integration",
 ]
-next_extraction = "Split feature-specific composition modules behind a narrow main-window assembly boundary."
+next_extraction = "Continue splitting feature-specific composition modules behind the narrowed main-window assembly boundary."
 
 [[debts]]
 id = "SS-ARCH-081"

@@ -29,6 +29,7 @@ from substitute.application.errors import ErrorReport
 from substitute.application.ports.comfy_gateway import (
     GenerationExecutionTiming,
     ListenerCompleted,
+    ListenerFailure,
     ModelLoadProgressUpdate,
     OutputImageUpdate,
     PreviewImageUpdate,
@@ -68,11 +69,32 @@ class GenerationFailure:
     stage: str
     workflow_id: WorkflowId
     message: ApplicationText
+    connection_lost: bool = False
     generation_run_id: str | None = None
     prompt_id: str | None = None
     client_id: str | None = None
     detail: str | None = None
     error_report: ErrorReport | None = None
+
+
+def generation_failure_from_listener(
+    failure: ListenerFailure,
+    *,
+    client_id: str,
+) -> GenerationFailure:
+    """Translate one infrastructure-neutral listener failure for generation users."""
+
+    return GenerationFailure(
+        stage="listen",
+        workflow_id=failure.workflow_id,
+        generation_run_id=failure.generation_run_id,
+        prompt_id=failure.prompt_id,
+        client_id=client_id,
+        message=failure.error,
+        connection_lost=failure.connection_lost,
+        detail=failure.detail,
+        error_report=failure.error_report,
+    )
 
 
 @dataclass(frozen=True)
@@ -118,4 +140,5 @@ __all__ = [
     "GenerationRunStarted",
     "GenerationStartResult",
     "PreparedGenerationRequest",
+    "generation_failure_from_listener",
 ]

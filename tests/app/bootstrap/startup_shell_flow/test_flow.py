@@ -394,6 +394,14 @@ class _RuntimeServices:
 
         self.execution_runtime = _ExecutionRuntime()
         self.persistent_cache_runtime = _CacheRuntime()
+        self.managed_comfy_runtime_owner = _ManagedComfyRuntimeOwner()
+
+
+class _ManagedComfyRuntimeOwner:
+    """Expose managed Comfy restart cleanup for shell-flow type checks."""
+
+    def close(self) -> None:
+        """Accept managed Comfy runtime cleanup."""
 
 
 class _CacheRuntime:

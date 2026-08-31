@@ -19,7 +19,7 @@
       <translation>浏览...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="80"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="93"></location>
       <source>Cancel</source>
       <translation>取消</translation>
     </message>
@@ -49,12 +49,12 @@
       <translation>选择 Substitute 保存设置文件的位置</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="79"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="92"></location>
       <source>Close Substitute and start</source>
       <translation>关闭 Substitute 并启动</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="91"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="104"></location>
       <source>Close the running Substitute window yourself, then start Substitute again.</source>
       <translation>请自行关闭正在运行的 Substitute 窗口，然后重新启动 Substitute。</translation>
     </message>
@@ -154,12 +154,12 @@
       <translation>实时输出</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="99"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="112"></location>
       <source>OK</source>
       <translation>确定</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="71"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="84"></location>
       <source>Only one instance of Substitute is supported at a time. Would you like to close the running instance and start this one?</source>
       <translation>Substitute 一次只支持一个实例。是否关闭正在运行的实例并启动此实例？</translation>
     </message>
@@ -254,12 +254,12 @@
       <translation>第 1 步，共 4 步</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="90"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="103"></location>
       <source>Substitute could not close the running instance</source>
       <translation>Substitute 无法关闭正在运行的实例</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="70"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="83"></location>
       <source>Substitute is already running</source>
       <translation>Substitute 已在运行</translation>
     </message>

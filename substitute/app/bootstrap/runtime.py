@@ -30,6 +30,9 @@ from substitute.app.bootstrap.localization_composition import (
     ComfyNodeLocalizationRuntime,
     build_comfy_node_localization_runtime,
 )
+from substitute.app.bootstrap.managed_comfy_runtime_owner import (
+    ManagedComfyRuntimeOwner,
+)
 from substitute.app.bootstrap.persistent_cache_catalog import (
     CACHE_ID_COMFY_I18N,
     CACHE_ID_RESTORE_PROJECTION,
@@ -83,6 +86,7 @@ class ApplicationRuntimeServices:
     session_finalization_service: SessionFinalizationService
     session_persistence_submitter: TaskSubmitter
     execution_runtime: ExecutionRuntime
+    managed_comfy_runtime_owner: ManagedComfyRuntimeOwner
 
 
 def build_application_runtime_services(
@@ -93,6 +97,10 @@ def build_application_runtime_services(
     appearance_runtime: AppearanceRuntimeController,
 ) -> ApplicationRuntimeServices:
     """Compose process-lifetime services available to shell construction."""
+
+    from substitute.app.bootstrap.managed_comfy_runtime_composition import (
+        build_managed_comfy_runtime_owner,
+    )
 
     persistent_cache_runtime = prepare_persistent_cache_runtime(
         context.cache_dir,
@@ -162,6 +170,12 @@ def build_application_runtime_services(
         ),
         session_persistence_submitter=session_autosave_submitter,
         execution_runtime=execution_runtime,
+        managed_comfy_runtime_owner=build_managed_comfy_runtime_owner(
+            context=context,
+            comfy_output_stream=comfy_output_stream,
+            execution_runtime=execution_runtime,
+            qt_owner=qt_owner,
+        ),
     )
 
 
