@@ -1130,6 +1130,10 @@ Prömpt prëvïëw:
       <translation>⟦Cömfy Cönsölë ···⟧</translation>
     </message>
     <message>
+      <source>Comfy disconnected</source>
+      <translation>⟦Cömfy dïscönnëctëd ···⟧</translation>
+    </message>
+    <message>
       <source>Comfy environment management is available.</source>
       <translation>⟦Cömfy ënvïrönmënt mànàgëmënt ïs àvàïlàblë. ···⟧</translation>
     </message>
@@ -1144,6 +1148,10 @@ Prömpt prëvïëw:
     <message>
       <source>Comfy is unavailable</source>
       <translation>⟦Cömfy ïs ünàvàïlàblë ···⟧</translation>
+    </message>
+    <message>
+      <source>Comfy reconnected</source>
+      <translation>⟦Cömfy rëcönnëctëd ···⟧</translation>
     </message>
     <message>
       <source>Comfy restart could not be started.</source>
@@ -1164,6 +1172,10 @@ Prömpt prëvïëw:
     <message>
       <source>Comfy restart status is unavailable.</source>
       <translation>⟦Cömfy rëstàrt stàtüs ïs ünàvàïlàblë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Comfy restarted</source>
+      <translation>⟦Cömfy rëstàrtëd ···⟧</translation>
     </message>
     <message>
       <source>Comfy root: %1 | process %2</source>
@@ -4012,6 +4024,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Restart the GUI</source>
       <translation>⟦Rëstàrt thë GÜÏ ···⟧</translation>
+    </message>
+    <message>
+      <source>Restarting Comfy</source>
+      <translation>⟦Rëstàrtïng Cömfy ···⟧</translation>
     </message>
     <message>
       <source>Retry</source>

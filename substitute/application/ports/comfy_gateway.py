@@ -268,6 +268,7 @@ class ListenerFailure:
     generation_run_id: str
     prompt_id: str
     error: str
+    connection_lost: bool = False
     detail: str | None = None
     error_report: ErrorReport | None = None
 

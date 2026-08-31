@@ -151,8 +151,12 @@ def test_application_runtime_services_schedule_session_autosave_on_disk_lane(
             "name": "disk_io_low_priority",
             "owner_id": "session_persistence",
         },
+        {
+            "name": "startup",
+            "owner_id": "managed_comfy_crash_recovery",
+        },
     ]
-    assert len(execution_runtime.dispatchers) == 2
+    assert len(execution_runtime.dispatchers) == 3
     assert all(
         isinstance(dispatcher, QtOwnerThreadDispatcher)
         for dispatcher in execution_runtime.dispatchers

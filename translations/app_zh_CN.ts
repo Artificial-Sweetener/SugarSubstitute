@@ -1420,7 +1420,7 @@ Prompt preview:
       <translation>继续设置前请关闭 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="96"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="109"></location>
       <source>Close ComfyUI before starting Substitute</source>
       <translation>请先关闭 ComfyUI，再启动 Substitute</translation>
     </message>
@@ -1465,6 +1465,11 @@ Prompt preview:
       <translation>Comfy 控制台</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="83"></location>
+      <source>Comfy disconnected</source>
+      <translation>Comfy 已断开连接</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="915"></location>
       <source>Comfy environment management is available.</source>
       <translation>Comfy 环境管理可用。</translation>
@@ -1483,6 +1488,11 @@ Prompt preview:
       <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="841"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy 不可用</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="165"></location>
+      <source>Comfy reconnected</source>
+      <translation>Comfy 已重新连接</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="999"></location>
@@ -1508,6 +1518,11 @@ Prompt preview:
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1034"></location>
       <source>Comfy restart status is unavailable.</source>
       <translation>Comfy 重启状态不可用。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="152"></location>
+      <source>Comfy restarted</source>
+      <translation>Comfy 已重启</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="924"></location>
@@ -1640,12 +1655,12 @@ Prompt preview:
       <translation>ComfyUI 文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="72"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="85"></location>
       <source>ComfyUI is already running</source>
       <translation>ComfyUI 已在运行</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="74"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="87"></location>
       <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
       <translation>ComfyUI 已在默认端口 8188 上运行。为了正常工作，Substitute 需要自行启动并控制 ComfyUI。</translation>
     </message>
@@ -1675,7 +1690,7 @@ Prompt preview:
       <translation>ComfyUI 已就绪。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="98"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="111"></location>
       <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
       <translation>ComfyUI 正在默认端口 8188 上响应，但 Substitute 无法安全验证其进程。请自行关闭 ComfyUI，然后重新启动 Substitute。</translation>
     </message>
@@ -1700,7 +1715,7 @@ Prompt preview:
       <translation>ComfyUI 会在此处查找 checkpoint、LoRA、VAE 和其他模型文件。您可以保留默认位置，也可以选择已有的文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="171"></location>
+      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="172"></location>
       <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
       <translation>必须重启 ComfyUI，之后才能使用已修复的立方体依赖项。</translation>
     </message>
@@ -2643,7 +2658,7 @@ Install these nodes now?</source>
       <translation>失败 - %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="905"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="874"></location>
       <source>Failed to allocate output run number.</source>
       <translation>无法分配输出运行编号。</translation>
     </message>
@@ -2653,7 +2668,7 @@ Install these nodes now?</source>
       <translation>无法捕获用于生成的输入画布内容。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="501"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="502"></location>
       <source>Failed to connect generation listener session</source>
       <translation>无法连接生成监听会话</translation>
     </message>
@@ -2713,12 +2728,12 @@ Install these nodes now?</source>
       <translation>增量插入立方体后无法刷新编辑器可见性</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="426"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>无法暂存工作流资源 %1.%2：%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="636"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="631"></location>
       <source>Failed to start generation listener</source>
       <translation>无法启动生成监听</translation>
     </message>
@@ -2883,7 +2898,7 @@ Install these nodes now?</source>
       <translation>无法生成，因为每个立方体都有运行时错误。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1096"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1067"></location>
       <source>Generation dispatch failed.</source>
       <translation>生成任务派发失败。</translation>
     </message>
@@ -5067,7 +5082,12 @@ No known extension claimant.</source>
       <translation>重启图形界面</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="72"></location>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="110"></location>
+      <source>Restarting Comfy</source>
+      <translation>正在重启 Comfy</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="134"></location>
       <source>Retry</source>
       <translation>重试</translation>
     </message>
@@ -5177,7 +5197,7 @@ No known extension claimant.</source>
       <translation>运行 Sugar Substitute 启动画面。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="195"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="229"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>运行 SugarSubstitute 启动画面宿主。</translation>
     </message>
@@ -6282,7 +6302,7 @@ No known extension claimant.</source>
       <translation>Substitute 已保存的文件夹设置需要修复</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2730"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2721"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -7592,7 +7612,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>正在处理...</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="80"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="93"></location>
       <source>Would you like Substitute to close ComfyUI and continue?</source>
       <translation>是否让 Substitute 关闭 ComfyUI 并继续？</translation>
     </message>
@@ -7762,7 +7782,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="547"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="548"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>提交提示词后未返回 prompt_id</translation>
     </message>

@@ -22,6 +22,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
+    from substitute.app.bootstrap.managed_comfy_runtime_owner import (
+        ManagedComfyRuntimeOwner,
+    )
     from substitute.app.bootstrap.launch_splash import LaunchSplashClient
     from substitute.app.bootstrap.startup_model_metadata import (
         ModelMetadataUpdateSignalBridgeProtocol,
@@ -48,10 +51,28 @@ class ReadyShellRuntimeState:
     comfy_state: object | None = None
     metadata_update_bridge: ModelMetadataUpdateSignalBridgeProtocol | None = None
 
+    def bind_managed_comfy_runtime_owner(
+        self,
+        owner: ManagedComfyRuntimeOwner,
+    ) -> None:
+        """Make one process-lifetime owner authoritative for managed state."""
+
+        setattr(self, "_managed_comfy_runtime_owner", owner)
+        owner.bind_state_observer(self._record_owned_comfy_state)
+        owner.set_state(self.comfy_state)
+
+    def _record_owned_comfy_state(self, state: object | None) -> None:
+        """Mirror owner replacements for existing shutdown and diagnostics readers."""
+
+        self.comfy_state = state
+
     def set_comfy_state(self, state: object | None) -> None:
         """Store the managed Comfy state produced during startup."""
 
         self.comfy_state = state
+        owner = getattr(self, "_managed_comfy_runtime_owner", None)
+        if owner is not None:
+            cast("ManagedComfyRuntimeOwner", owner).set_state(state)
 
     def set_metadata_update_bridge(
         self,

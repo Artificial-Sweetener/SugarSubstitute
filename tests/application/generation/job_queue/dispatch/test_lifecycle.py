@@ -232,6 +232,86 @@ def test_failed_active_job_dispatches_next_pending_job() -> None:
     ]
 
 
+def test_dispatch_unavailable_holds_pending_job_after_active_failure() -> None:
+    """A Comfy outage should preserve pending work after the active job fails."""
+
+    dispatcher = _FakeDispatcher()
+    service = _service(dispatcher)
+
+    service.enqueue_snapshot(_snapshot("First"), _callbacks())
+    service.enqueue_snapshot(_snapshot("Second"), _callbacks())
+    service.set_dispatch_available(False)
+    dispatcher.callbacks[0].on_failure(
+        GenerationFailure(
+            stage="listen",
+            workflow_id="wf-first",
+            prompt_id="pid-1",
+            message="Comfy disconnected",
+        )
+    )
+
+    assert [job.status for job in service.jobs()] == ["failed", "pending"]
+    assert [request.workflow_name for request in dispatcher.requests] == ["First"]
+
+    service.set_dispatch_available(True)
+
+    assert [job.status for job in service.jobs()] == ["failed", "running"]
+    assert [request.workflow_name for request in dispatcher.requests] == [
+        "First",
+        "Second",
+    ]
+
+
+def test_dispatch_unavailable_holds_new_work_until_comfy_recovers() -> None:
+    """Work enqueued during an outage should dispatch only after recovery."""
+
+    dispatcher = _FakeDispatcher()
+    service = _service(dispatcher)
+    service.set_dispatch_available(False)
+
+    service.enqueue_snapshot(_snapshot("Pending"), _callbacks())
+
+    assert [job.status for job in service.jobs()] == ["pending"]
+    assert dispatcher.requests == []
+
+    service.set_dispatch_available(True)
+
+    assert [job.status for job in service.jobs()] == ["running"]
+    assert [request.workflow_name for request in dispatcher.requests] == ["Pending"]
+
+
+def test_listener_disconnect_gates_queue_before_active_failure_advances() -> None:
+    """Typed listener disconnects should hold pending work without a monitor race."""
+
+    dispatcher = _FakeDispatcher()
+    service = _service(dispatcher)
+    connection_losses: list[str] = []
+
+    def handle_connection_lost() -> None:
+        """Record the outage and gate dispatch through its public policy port."""
+
+        connection_losses.append("lost")
+        service.set_dispatch_available(False)
+
+    service.set_connection_lost_handler(handle_connection_lost)
+    service.enqueue_snapshot(_snapshot("First"), _callbacks())
+    service.enqueue_snapshot(_snapshot("Second"), _callbacks())
+
+    dispatcher.callbacks[0].on_failure(
+        GenerationFailure(
+            stage="listen",
+            workflow_id="wf-first",
+            prompt_id="pid-1",
+            message="Comfy disconnected",
+            connection_lost=True,
+        )
+    )
+
+    assert connection_losses == ["lost"]
+    assert [job.status for job in service.jobs()] == ["failed", "pending"]
+    assert [request.workflow_name for request in dispatcher.requests] == ["First"]
+
+
 def test_dispatch_reconciles_with_comfy_queue_when_available() -> None:
     """Queue dispatch should inspect Comfy queue state for external work logging."""
 

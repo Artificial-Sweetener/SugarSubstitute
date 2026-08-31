@@ -44,6 +44,7 @@ if TYPE_CHECKING:
         CivitaiPreferenceService,
     )
     from substitute.application.comfy_environment import ComfyEnvironmentService
+    from substitute.application.comfy_connection import ManagedComfyRestartRequester
     from substitute.application.controls import ControlBindingService
     from substitute.application.cube_library import CubeLibraryManagementService
     from substitute.application.cubes import CubeLoadService
@@ -139,6 +140,7 @@ if TYPE_CHECKING:
     from substitute.application.workspace_state.restore_projection_models import (
         RestoreProjectionCacheRepository,
     )
+    from substitute.domain.onboarding import ComfyTargetConfiguration
     from substitute.presentation.editor.panel.service_bundle import (
         EditorPanelExecutionFactories,
     )
@@ -202,6 +204,22 @@ ModelCatalogEventListenerFactory = Callable[
     [ModelCatalogUpdateCallback],
     ModelCatalogEventListenerLifecycle,
 ]
+
+
+class ComfyConnectionMonitorLifecycle(Protocol):
+    """Describe persistent Comfy connection monitoring owned by the shell."""
+
+    def start(self) -> None:
+        """Start connection health monitoring."""
+
+    def stop(self) -> None:
+        """Stop connection health monitoring."""
+
+
+ComfyConnectionMonitorFactory = Callable[
+    [Callable[[], None], Callable[[], None]],
+    ComfyConnectionMonitorLifecycle,
+]
 ScopedMetadataRefreshServiceFactory = Callable[
     ["ModelMetadataUpdateSink"],
     "ScopedMetadataRefreshService",
@@ -216,6 +234,9 @@ class MainWindowDependencies:
     cube_library_client: CubeLibraryClient
     create_cube_library_event_listener: CubeLibraryEventListenerFactory
     create_model_catalog_event_listener: ModelCatalogEventListenerFactory
+    create_comfy_connection_monitor: ComfyConnectionMonitorFactory
+    comfy_target: ComfyTargetConfiguration
+    managed_comfy_restart_requester: ManagedComfyRestartRequester
     create_scoped_metadata_refresh_service: ScopedMetadataRefreshServiceFactory
     cube_icon_factory: CubeIconFactory
     invalidate_cube_catalog_cache: Callable[[], None]

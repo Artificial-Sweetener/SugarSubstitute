@@ -81,6 +81,7 @@ def test_startup_event_loop_runs_shutdown_sequence_in_order(
         "trace:startup.event_loop.exit:{'exit_code': 7}",
         "splash.close",
         "resources.shutdown_all",
+        "managed_comfy_runtime.close",
         "trace:startup.shutdown.cleanup.start:{}",
         "runtime.cleanup",
         "trace:startup.shutdown.cleanup.end:{}",
@@ -320,7 +321,22 @@ class _RuntimeServices:
         """Create the execution runtime fake."""
 
         self.execution_runtime = _ExecutionRuntime(calls)
+        self.managed_comfy_runtime_owner = _ManagedComfyRuntime(calls)
         self.persistent_cache_runtime = _CacheRuntime(calls)
+
+
+class _ManagedComfyRuntime:
+    """Record managed Comfy runtime-owner closure."""
+
+    def __init__(self, calls: list[str]) -> None:
+        """Store call records."""
+
+        self._calls = calls
+
+    def close(self) -> None:
+        """Record restart-orchestration closure."""
+
+        self._calls.append("managed_comfy_runtime.close")
 
 
 class _CacheRuntime:
@@ -347,5 +363,9 @@ def _assert_protocol_shapes() -> None:
     cast(startup_event_loop.StartupShutdownRuntimeProtocol, _ShutdownRuntime(calls))
     cast(startup_event_loop.StartupShellReloadProtocol, _ShellReload())
     cast(startup_event_loop.StartupCacheRuntimeProtocol, _CacheRuntime(calls))
+    cast(
+        startup_event_loop.StartupManagedComfyRuntimeProtocol,
+        _ManagedComfyRuntime(calls),
+    )
     cast(startup_event_loop.StartupRuntimeServicesProtocol, _RuntimeServices(calls))
     cast(Any, calls)
