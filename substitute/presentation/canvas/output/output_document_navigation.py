@@ -28,10 +28,16 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
 )
 
 from substitute.application.workflows.output_canvas_projection import (
+    OutputCanvasImageItem,
     OutputCanvasSceneGroup,
     OutputCanvasSourceGroup,
 )
 from substitute.application.workflows.output_compare_state import OutputCompareState
+from substitute.application.workflows.output_preview_projection import (
+    overlay_preview_scenes,
+    overlay_preview_sources,
+)
+from substitute.application.workflows.output_preview_registry import OutputPreviewLane
 from substitute.presentation.canvas.output.output_canvas_navigation_bar import (
     selector_width_for_widget_text,
 )
@@ -164,6 +170,16 @@ class OutputDocumentNavigation:
         sync_output_comparison_navigation_buttons(self.host)
         update_output_tabbar_container(self.host)
 
+    def visible_sources(self) -> dict[str, OutputCanvasSourceGroup]:
+        """Return final sources overlaid with current transient placeholders."""
+
+        return self._visible_sources()
+
+    def scene_groups(self) -> dict[str, OutputCanvasSceneGroup]:
+        """Return final scenes overlaid with current transient placeholders."""
+
+        return self._scene_groups()
+
     def handle_workspace_presentation(self, presentation: CanvasPresentation) -> None:
         """Persist user divider movement forwarded by the public workspace state."""
 
@@ -193,8 +209,8 @@ class OutputDocumentNavigation:
         if projection is None:
             return False
         if self.host.active_scene_overview:
-            for scene in projection.scene_groups:
-                if scene.primary_image_id == image_id:
+            for scene in self._scene_groups().values():
+                if image_id in {scene.preview_image_id, scene.primary_image_id}:
                     select_output_scene(
                         self.host,
                         scene.scene_key,
@@ -208,6 +224,9 @@ class OutputDocumentNavigation:
         for source in self._visible_sources().values():
             for item in source.images_by_set.values():
                 if item.image_id == image_id:
+                    if self._activate_preview_item(source.source_key, item):
+                        return True
+                    self.host.release_preview_navigation()
                     activate_output_item(
                         self.host,
                         source.source_key,
@@ -380,6 +399,16 @@ class OutputDocumentNavigation:
     def _select_set(self, set_index: int) -> None:
         """Apply one set picker choice through existing product navigation policy."""
 
+        source_key = self.host.active_source_key
+        source = self._visible_sources().get(source_key or "")
+        if source is not None:
+            item = source.images_by_set.get(set_index)
+            if item is not None and self._activate_preview_item(
+                source.source_key,
+                item,
+            ):
+                return
+        self.host.release_preview_navigation()
         select_output_set(
             self.host,
             set_index,
@@ -390,6 +419,15 @@ class OutputDocumentNavigation:
     def _select_source(self, source_key: str) -> None:
         """Apply one source tab or picker choice through product navigation policy."""
 
+        source = self._visible_sources().get(source_key)
+        item = (
+            None
+            if source is None
+            else source.images_by_set.get(self.host.active_set_index)
+        )
+        if item is not None and self._activate_preview_item(source_key, item):
+            return
+        self.host.release_preview_navigation()
         select_output_source(
             self.host,
             source_key,
@@ -397,15 +435,30 @@ class OutputDocumentNavigation:
             update_tabbar_container=lambda: update_output_tabbar_container(self.host),
         )
 
+    def _activate_preview_item(
+        self,
+        source_key: str,
+        item: OutputCanvasImageItem,
+    ) -> bool:
+        """Activate one preview placeholder without persisting a nonexistent final UUID."""
+
+        lane = self.host._preview_registry.lane_for_id(item.image_id)
+        if lane is None:
+            return False
+        activate_output_item(
+            self.host,
+            source_key,
+            item,
+            emit_selection=False,
+            update_tabbar_container=lambda: update_output_tabbar_container(self.host),
+        )
+        self.host.present_preview_selection(lane.preview_id)
+        return True
+
     def _select_scene(self, scene_key: str) -> None:
         """Apply one scene picker choice through product navigation policy."""
 
-        select_output_scene(
-            self.host,
-            scene_key,
-            scene_groups_by_key=self._scene_groups(),
-            update_tabbar_container=lambda: update_output_tabbar_container(self.host),
-        )
+        self.host._preview_navigation.select_scene(scene_key, self._scene_groups())
 
     def _visible_sources(self) -> dict[str, OutputCanvasSourceGroup]:
         """Return sources valid for the current scene-level navigation scope."""
@@ -413,8 +466,14 @@ class OutputDocumentNavigation:
         projection = self.host._output_projection
         if projection is None or self.host.active_scene_overview:
             return {}
-        if projection.scene_count <= 1:
-            return {source.source_key: source for source in projection.sources}
+        lanes = self._preview_lanes()
+        if self.host.scene_count <= 1:
+            sources = overlay_preview_sources(
+                projection.sources,
+                lanes,
+                scene_key=None,
+            )
+            return {source.source_key: source for source in sources}
         scene = self._scene_groups().get(self.host.active_scene_key or "")
         return (
             {}
@@ -426,21 +485,20 @@ class OutputDocumentNavigation:
         """Return current final scene groups keyed by their stable workflow identity."""
 
         projection = self.host._output_projection
-        groups = (
-            {}
-            if projection is None
-            else {scene.scene_key: scene for scene in projection.scene_groups}
+        scenes = overlay_preview_scenes(
+            () if projection is None else projection.scene_groups,
+            self._preview_lanes(),
         )
-        session = getattr(self.host, "_output_session", None)
-        registry = getattr(self.host, "_preview_registry", None)
-        preview_groups = (
-            registry.preview_scene_groups(session)
-            if session is not None and registry is not None
-            else {}
-        )
-        for scene_key, preview_group in preview_groups.items():
-            groups.setdefault(scene_key, preview_group)
-        return groups
+        return {scene.scene_key: scene for scene in scenes}
+
+    def _preview_lanes(self) -> tuple[OutputPreviewLane, ...]:
+        """Return preview lanes belonging to the bound Output session."""
+
+        session = self.host._output_session
+        registry = self.host._preview_registry
+        if session is None or registry is None:
+            return ()
+        return registry.lanes_for_session(session)
 
     def _scene_picker_width(self, items: tuple[CanvasNavPickerItem, ...]) -> int:
         """Return a scene menu width that fits its anchor and localized labels."""

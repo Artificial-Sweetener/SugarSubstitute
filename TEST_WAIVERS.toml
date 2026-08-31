@@ -1257,3 +1257,16 @@ fingerprint = "sha256:9e6e1df86c427fee03c9d346fb2463dd1e9981436cff0aedb72e6d9682
 rationale = "This real-shell Output owner moves the production canvas between docked and top-level floating hosts to prove identical physical grid topology and active-composition ownership. A complete Windows ordinary run timed out after the move only after 1,203 prior tests in a reused xdist worker, while five concurrent fresh-process runs passed. Its shell, canvas, floating window, outputs, and filesystem are test-local with no shared file, port, environment, subprocess, or cross-process resource; fresh-process isolation is sufficient, and serialization would be inappropriate."
 issue = "chore:SS-TEST-WAIVER-C0275"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0276"
+owner = "Real-shell Output hierarchy navigation"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/canvas/output/real_shell/test_hierarchy_navigation.py|isolated-module"]
+paths = ["tests/presentation/canvas/output/real_shell/test_hierarchy_navigation.py"]
+fingerprint = "sha256:9b3a4aebeeef64d54ee296c864536f3ca6c30479c53af6b2f8422c290205c3dd"
+rationale = "This native Qt module mounts the real shell, workflow workspace, output canvas, output projection, and hierarchy navigation surfaces. Its missing-batch source-switch contract aborted in CuteCanvas construction only after prior native Qt work in an ordinary xdist worker, while the complete six-test module passed in one fresh process and in twenty concurrent fresh-process launches across five four-worker rounds. It owns no shared file, port, environment, subprocess, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0276"
+review_by = 2026-12-15

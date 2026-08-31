@@ -29,6 +29,10 @@ from substitute.application.recipes.workflow_payload_nodes import (
     executable_prompt_nodes,
 )
 from substitute.domain.common import WorkflowId
+from substitute.domain.generation import (
+    output_source_key_for_cube,
+    output_source_key_for_node,
+)
 
 
 class VisualRunContextBuilder:
@@ -51,7 +55,7 @@ class VisualRunContextBuilder:
         """Return Backend routing metadata with explicit sources taking priority."""
 
         prompt_nodes = executable_prompt_nodes(workflow_payload)
-        node_to_output_source = _node_to_cube_output_source(prompt_nodes, workflow_id)
+        node_to_output_source = _node_to_cube_output_source(prompt_nodes)
         explicit_by_node = {
             source.node_id: {
                 "sourceKey": source.source_key,
@@ -68,7 +72,7 @@ class VisualRunContextBuilder:
             if source is None:
                 label = _source_label_for_prompt_node(node_id, node_data)
                 source = {
-                    "sourceKey": f"{workflow_id}:{node_id}",
+                    "sourceKey": output_source_key_for_node(node_id),
                     "sourceLabel": label,
                     "cubeAlias": label,
                 }
@@ -103,7 +107,6 @@ def _source_label_for_prompt_node(node_id: str, node_data: dict[str, object]) ->
 
 def _node_to_cube_output_source(
     prompt_nodes: Mapping[str, object],
-    workflow_id: WorkflowId,
 ) -> dict[str, dict[str, str]]:
     """Map upstream executable nodes to their unambiguous cube-output source."""
 
@@ -116,7 +119,10 @@ def _node_to_cube_output_source(
             continue
         label = _source_label_for_prompt_node(node_id, node_data)
         source = {
-            "sourceKey": f"{workflow_id}:{node_id}",
+            "sourceKey": output_source_key_for_cube(
+                cube_alias=label,
+                node_id=node_id,
+            ),
             "sourceLabel": label,
             "cubeAlias": label,
         }
@@ -151,7 +157,7 @@ def _upstream_node_ids(
         inputs = node_data.get("inputs")
         if not isinstance(inputs, Mapping):
             continue
-        for upstream_node_id in _linked_node_ids(inputs.values()):
+        for upstream_node_id in _linked_node_ids(tuple(inputs.values())):
             if upstream_node_id not in visited:
                 pending.append(upstream_node_id)
     return visited

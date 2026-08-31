@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from uuid import UUID, uuid4
 
 from PySide6.QtCore import QEvent, Qt, Signal
@@ -27,7 +27,6 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 from cutecanvas import ExecutionRuntime, OutboundMimeProvider
 
 from substitute.application.workflows.canvas_route_projector_port import (
-    CanvasRouteIdentity,
     CanvasRouteSessionBoundaryPort,
     OutputRouteScope,
 )
@@ -51,9 +50,10 @@ from substitute.application.workflows.output_compare_resolution import (
     resolve_output_compare_selection,
 )
 from substitute.application.workflows.output_preview_registry import (
-    OutputPreviewAcceptance,
-    OutputPreviewLane,
     OutputPreviewRegistry,
+)
+from substitute.application.workflows.output_preview_results import (
+    OutputPreviewAcceptance,
 )
 from substitute.presentation.canvas.output.output_canvas_chrome import (
     install_output_navigation_chrome_theme_refresh,
@@ -84,6 +84,10 @@ from substitute.presentation.canvas.output.output_document_route_projector impor
 )
 from substitute.presentation.canvas.output.output_projection_content_synchronizer import (
     OutputProjectionContentSynchronizer,
+)
+from substitute.presentation.canvas.output.output_preview_navigation_presenter import (
+    OutputPreviewNavigationPresenter,
+    scene_overview_image_ids,
 )
 from substitute.presentation.canvas.output.output_canvas_zoom_indicators import (
     OutputCanvasZoomIndicators,
@@ -148,7 +152,6 @@ class OutputCanvas(QWidget):
         self._output_session: OutputCanvasSession | None = None
         self._output_projection: OutputCanvasProjection | None = None
         self._visible_compare_state = OutputCompareState()
-
         self.active_source_key: str | None = None
         self.active_scene_key: str | None = None
         self.active_scene_overview = False
@@ -223,13 +226,14 @@ class OutputCanvas(QWidget):
             ),
         )
         self._document_navigation = OutputDocumentNavigation(self)
+        self._preview_navigation = OutputPreviewNavigationPresenter(self)
         self._preview_presenter = OutputDocumentPreviewPresenter(
             preview_registry=lambda: self._preview_registry,
             document=self.document,
             output_session=lambda: self._output_session,
             refresh_preview_scope=self._bind_preview_scope,
-            present_source_preview=self._present_source_preview,
-            present_scene_previews=self._present_scene_previews,
+            present_source_preview=self._preview_navigation.present_source_preview,
+            present_scene_previews=self._preview_navigation.present_scene_previews,
         )
         install_output_navigation_chrome_theme_refresh(
             host=self,
@@ -379,6 +383,9 @@ class OutputCanvas(QWidget):
     def bind_projection_session(self, session: OutputCanvasSession) -> None:
         """Apply one authorized projection through the Output document workspace."""
 
+        previous_source_key = self.active_source_key
+        previous_set_index = self.active_set_index
+        self._preview_registry.rebind_workflow_session(session)
         self._output_session = session
         projection = session.projection
         self._output_projection = projection
@@ -387,6 +394,10 @@ class OutputCanvas(QWidget):
         self.active_scene_overview = projection.active_scene_overview
         self.active_source_key = projection.active_source_key
         self.active_set_index = projection.active_set_index
+        self._preview_navigation.restore_selection(
+            previous_source_key,
+            previous_set_index,
+        )
         if self.active_set_index > 0:
             self.last_real_set_index = self.active_set_index
         self.set_count = projection.set_count
@@ -442,20 +453,14 @@ class OutputCanvas(QWidget):
                 ):
                     return
         if projection.active_scene_overview:
-            session = self._output_session
-            preview_scenes = (
-                self._preview_registry.preview_scene_groups(session)
-                if session is not None
-                else {}
-            )
             self.document.present_grid(
-                _scene_overview_image_ids(
+                scene_overview_image_ids(
                     projection,
-                    preview_scenes=preview_scenes,
+                    preview_scenes=self._document_navigation.scene_groups(),
                 )
             )
             return
-        sources = _visible_sources(projection)
+        sources = tuple(self._document_navigation.visible_sources().values())
         if projection.active_set_index == 0:
             source = next(
                 (
@@ -468,6 +473,8 @@ class OutputCanvas(QWidget):
             if source is not None:
                 self.document.present_grid(_source_image_ids(source))
                 return
+        if self._preview_navigation.present_active_item(projection):
+            return
         if projection.active_uuid is not None:
             self._route_projector.apply_final_image_route(
                 output_route_identity_for_projection(projection),
@@ -498,51 +505,22 @@ class OutputCanvas(QWidget):
                 allowed_composition_ids=members.composition_ids,
             )
         )
-
-    def _present_source_preview(self, preview_id: UUID) -> None:
-        """Present one authorized source preview through the document route boundary."""
-
-        self._route_projector.apply_final_image_route(
-            CanvasRouteIdentity(
-                route_kind="output_image",
-                route_key=f"image:{preview_id}",
-                primary_image_id=preview_id,
-            ),
-            preview_id,
-        )
-
-    def _present_scene_previews(
-        self,
-        lanes: tuple[OutputPreviewLane, ...],
-    ) -> None:
-        """Present accepted scene-preview representatives when overview is active."""
-
-        session = self._output_session
-        if session is None:
-            return
-        preview_scenes = self._preview_registry.preview_scene_groups(session)
-        if not preview_scenes:
-            return
-        reported_scene_count = max(
-            (lane.scene_count or 0 for lane in lanes),
-            default=0,
-        )
-        self.scene_count = max(
-            self.scene_count,
-            reported_scene_count,
-            len(preview_scenes),
-        )
-        if self.scene_count > 1 and self.active_scene_key is None:
-            self.active_scene_key = next(iter(preview_scenes), None)
-            self.active_scene_overview = True
-        if not self.active_scene_overview:
-            return
-        image_ids = _scene_overview_image_ids(
-            self._output_projection,
-            preview_scenes=preview_scenes,
-        )
-        self.document.present_grid(image_ids)
         self._document_navigation.synchronize_projection()
+
+    def present_preview_selection(self, preview_id: UUID) -> None:
+        """Present one user-selected placeholder and preserve it across final refreshes."""
+
+        self._preview_navigation.present_selection(preview_id)
+
+    def present_preview_grid(self, image_ids: tuple[UUID, ...]) -> None:
+        """Present one user-selected grid containing a transient placeholder."""
+
+        self._preview_navigation.present_grid(image_ids)
+
+    def release_preview_navigation(self) -> None:
+        """Release transient focus before normal final-output navigation."""
+
+        self._preview_navigation.release()
 
     def _activate_workspace_target(self, composition_id: UUID) -> None:
         """Forward one document-grid activation to existing Output navigation signals."""
@@ -561,58 +539,10 @@ class OutputCanvas(QWidget):
             self._document_navigation.handle_workspace_presentation(presentation)
 
 
-def _visible_sources(
-    projection: OutputCanvasProjection,
-) -> tuple[OutputCanvasSourceGroup, ...]:
-    """Return source groups selected by the active scene context."""
-
-    if projection.scene_count <= 1 or projection.active_scene_key is None:
-        return projection.sources
-    scene = next(
-        (
-            scene
-            for scene in projection.scene_groups
-            if scene.scene_key == projection.active_scene_key
-        ),
-        None,
-    )
-    return projection.sources if scene is None else scene.sources
-
-
 def _source_image_ids(source: OutputCanvasSourceGroup) -> tuple[UUID, ...]:
     """Return ordered image identities for one source-grid presentation."""
 
     return tuple(item.image_id for _index, item in sorted(source.images_by_set.items()))
-
-
-def _scene_overview_image_ids(
-    projection: OutputCanvasProjection | None,
-    *,
-    preview_scenes: Mapping[str, object] | None = None,
-) -> tuple[UUID, ...]:
-    """Return ordered final or live-preview representatives for one scene overview."""
-
-    preview_by_key = preview_scenes or {}
-    image_ids: list[UUID] = []
-    final_scene_keys: set[str] = set()
-    if projection is not None:
-        for scene in projection.scene_groups:
-            final_scene_keys.add(scene.scene_key)
-            preview = preview_by_key.get(scene.scene_key)
-            preview_id = getattr(preview, "preview_image_id", None)
-            image_id = preview_id or scene.primary_image_id
-            if isinstance(image_id, UUID):
-                image_ids.append(image_id)
-    for scene_key, preview in sorted(
-        preview_by_key.items(),
-        key=lambda item: int(getattr(item[1], "order", 0)),
-    ):
-        if scene_key in final_scene_keys:
-            continue
-        preview_id = getattr(preview, "preview_image_id", None)
-        if isinstance(preview_id, UUID):
-            image_ids.append(preview_id)
-    return tuple(dict.fromkeys(image_ids))
 
 
 __all__ = ["OutputCanvas"]

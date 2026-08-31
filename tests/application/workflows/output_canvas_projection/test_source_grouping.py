@@ -156,6 +156,90 @@ def test_projection_keeps_duplicate_labels_separate_by_source_key() -> None:
     assert [source.label for source in projection.sources] == ["Output", "Output"]
 
 
+def test_projection_merges_run_scoped_keys_for_the_same_output_node() -> None:
+    """Restored finals and a new run must not duplicate the four cube tabs."""
+
+    workflow = WorkflowState()
+    ids = [uuid4() for _ in range(6)]
+    workflow.output_image_uuids = ids
+    metadata = {
+        ids[0]: build_meta(
+            "Text to Image",
+            source_key="workflow-old:8",
+            node_id="8",
+            list_index=0,
+        ),
+        ids[1]: build_meta(
+            "Diffusion Upscale",
+            source_key="workflow-old:17",
+            node_id="17",
+            list_index=0,
+        ),
+        ids[2]: build_meta(
+            "Text to Image",
+            source_key="workflow-new:108",
+            node_id="108",
+            list_index=0,
+        ),
+        ids[3]: build_meta(
+            "Diffusion Upscale",
+            source_key="workflow-new:117",
+            node_id="117",
+            list_index=0,
+        ),
+        ids[4]: build_meta(
+            "Automask Detailer",
+            source_key="workflow-new:29",
+            node_id="29",
+            list_index=0,
+        ),
+        ids[5]: build_meta(
+            "Automask Detailer 2",
+            source_key="workflow-new:36",
+            node_id="36",
+            list_index=0,
+        ),
+    }
+
+    projection = build_output_canvas_projection(workflow, metadata)
+
+    assert [source.source_key for source in projection.sources] == [
+        "cube:Text to Image",
+        "cube:Diffusion Upscale",
+        "cube:Automask Detailer",
+        "cube:Automask Detailer 2",
+    ]
+    assert [source.label for source in projection.sources] == [
+        "Text to Image",
+        "Diffusion Upscale",
+        "Automask Detailer",
+        "Automask Detailer 2",
+    ]
+
+
+def test_projection_preserves_explicit_source_keys_unrelated_to_node_identity() -> None:
+    """Authored source keys must remain distinct when node metadata is incidental."""
+
+    workflow = WorkflowState()
+    first_id = uuid4()
+    second_id = uuid4()
+    workflow.output_image_uuids = [first_id, second_id]
+
+    projection = build_output_canvas_projection(
+        workflow,
+        {
+            first_id: build_meta(
+                "Output", source_key="alpha", node_id="7", list_index=0
+            ),
+            second_id: build_meta(
+                "Output", source_key="beta", node_id="7", list_index=0
+            ),
+        },
+    )
+
+    assert [source.source_key for source in projection.sources] == ["alpha", "beta"]
+
+
 def test_projection_allows_ragged_source_groups() -> None:
     """Sources with fewer set images should remain selectable."""
 
