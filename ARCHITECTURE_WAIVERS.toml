@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2843
+max_lines = 2846
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -1929,7 +1929,7 @@ owner = "localization source catalog"
 rule = "STRUCT003"
 path = "tools/localization_catalog.py"
 kind = "remediation"
-justification = "The assessed file mixes application, shared, and launcher message extraction, dynamic and unmarked visible-text validation, presentation assignment and return classification, pseudo-localization transformation, AST source ownership and literal-discovery heuristics. Extract visible-source AST classification and pseudo-localization from catalog extraction and surface-specific source configuration."
+justification = "The assessed file mixes application, shared, and launcher message extraction, dynamic and unmarked visible-text validation, presentation assignment and return classification, pseudo-localization transformation, AST source ownership and literal-discovery heuristics. Extract visible-source AST classification and pseudo-localization from catalog extraction."
 issue = "chore:SS-ARCH-095"
 review_by = 2026-12-15
 max_lines = 804

@@ -4,7 +4,7 @@ schema_version = 1
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]
-  fingerprint = "sha256:c340ee6a0b72eb24f3ff72acf87e7e0d1d782a10a245e931732202e8caed5658"
+  fingerprint = "sha256:f90c3d17f656285f6de15205469e9f1612658b4d16b9fbee1b49203d8e19dca6"
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
 responsibilities = [
@@ -1408,7 +1408,7 @@ next_extraction = "Extract keyboard/text/drain dispatch and diagnostic/picker/co
 id = "SS-ARCH-095"
 owner = "localization source catalog"
 paths = ["tools/localization_catalog.py"]
-fingerprint = "sha256:71f64bd45530acc438a4fa14d1f04cbe86dbc394bd3e1420661b3b1ad210d401"
+fingerprint = "sha256:cfdaf3b46c7a14a12b45d15170b3460ba5c0df987694f9e5fe2c3d9b10a6272c"
 issue = "chore:SS-ARCH-095"
 review_by = 2026-12-15
 responsibilities = [
@@ -1418,7 +1418,7 @@ responsibilities = [
   "pseudo-localization transformation",
   "AST source ownership and literal-discovery heuristics",
 ]
-next_extraction = "Extract visible-source AST classification and pseudo-localization from catalog extraction and surface-specific source configuration."
+next_extraction = "Extract visible-source AST classification and pseudo-localization from catalog extraction."
 
 [[debts]]
 id = "SS-ARCH-096"

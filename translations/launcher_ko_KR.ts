@@ -19,7 +19,7 @@
       <translation>찾아보기...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="80"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="93"></location>
       <source>Cancel</source>
       <translation>취소</translation>
     </message>
@@ -49,12 +49,12 @@
       <translation>Substitute 설정을 보관할 위치 선택</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="79"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="92"></location>
       <source>Close Substitute and start</source>
       <translation>Substitute를 닫고 시작</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="91"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="104"></location>
       <source>Close the running Substitute window yourself, then start Substitute again.</source>
       <translation>실행 중인 Substitute 창을 직접 닫은 후 Substitute를 다시 시작하세요.</translation>
     </message>
@@ -154,12 +154,12 @@
       <translation>실시간 출력</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="99"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="112"></location>
       <source>OK</source>
       <translation>확인</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="71"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="84"></location>
       <source>Only one instance of Substitute is supported at a time. Would you like to close the running instance and start this one?</source>
       <translation>Substitute는 한 번에 하나의 인스턴스만 지원합니다. 실행 중인 인스턴스를 닫고 이 인스턴스를 시작하시겠습니까?</translation>
     </message>
@@ -254,12 +254,12 @@
       <translation>4단계 중 1단계</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="90"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="103"></location>
       <source>Substitute could not close the running instance</source>
       <translation>Substitute가 실행 중인 인스턴스를 닫지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="70"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="83"></location>
       <source>Substitute is already running</source>
       <translation>Substitute가 이미 실행 중입니다</translation>
     </message>
@@ -338,6 +338,144 @@
     <message>
       <source>Off</source>
       <translation>꺼짐</translation>
+    </message>
+  </context>
+  <context>
+    <name>AppText</name>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="99"></location>
+      <source>%1: %2</source>
+      <translation>%1: %2</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/full_window_modal.py" line="47"></location>
+      <source>Cancel</source>
+      <translation>취소</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="327"></location>
+      <source>Close</source>
+      <translation>닫기</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="300"></location>
+      <source>Copy report</source>
+      <translation>보고서 복사</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="82"></location>
+      <source>Error summary</source>
+      <translation>오류 요약</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="61"></location>
+      <source>Exception</source>
+      <translation>예외</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="90"></location>
+      <source>Exception type: %1</source>
+      <translation>예외 유형: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="375"></location>
+      <source>Hide report</source>
+      <translation>보고서 숨기기</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="85"></location>
+      <source>Kind: %1</source>
+      <translation>종류: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="87"></location>
+      <source>Message: %1</source>
+      <translation>메시지: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/full_window_modal.py" line="46"></location>
+      <source>OK</source>
+      <translation>확인</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="311"></location>
+      <source>Report issue</source>
+      <translation>문제 신고</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="339"></location>
+      <source>Restart SugarSubstitute</source>
+      <translation>SugarSubstitute 다시 시작</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="109"></location>
+      <source>Runtime context</source>
+      <translation>런타임 컨텍스트</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="84"></location>
+      <source>Severity: %1</source>
+      <translation>심각도: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="375"></location>
+      <source>Show report</source>
+      <translation>보고서 표시</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="46"></location>
+      <source>Something unexpected stopped SugarSubstitute. You can copy this report and share it with the maintainers.</source>
+      <translation>예기치 않은 문제로 SugarSubstitute가 중지되었습니다. 이 보고서를 복사하여 관리자와 공유할 수 있습니다.</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="57"></location>
+      <source>Stage</source>
+      <translation>단계</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="88"></location>
+      <source>Stage: %1</source>
+      <translation>단계: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="97"></location>
+      <source>Substitute operation context</source>
+      <translation>Substitute 작업 컨텍스트</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="41"></location>
+      <source>SugarSubstitute crashed</source>
+      <translation>SugarSubstitute가 충돌했습니다</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="43"></location>
+      <source>SugarSubstitute did not close normally</source>
+      <translation>SugarSubstitute가 정상적으로 종료되지 않았습니다</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="51"></location>
+      <source>The previous SugarSubstitute session ended without completing shutdown. The report below may help determine why.</source>
+      <translation>이전 SugarSubstitute 세션이 종료 절차를 완료하지 못한 채 끝났습니다. 아래 보고서가 원인을 파악하는 데 도움이 될 수 있습니다.</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="86"></location>
+      <source>Title: %1</source>
+      <translation>제목: %1</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="106"></location>
+      <source>Traceback</source>
+      <translation>트레이스백</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="58"></location>
+      <source>Workflow</source>
+      <translation>워크플로</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="58"></location>
+      <source>unknown</source>
+      <translation>알 수 없음</translation>
     </message>
   </context>
 </TS>
