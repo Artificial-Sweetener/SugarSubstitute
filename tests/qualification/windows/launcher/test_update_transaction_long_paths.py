@@ -51,6 +51,10 @@ def test_transaction_promotes_launcher_inside_long_install_root(
             "old launcher",
             encoding="utf-8",
         )
+        (install_root / "LauncherUi.exe").write_text(
+            "old launcher UI",
+            encoding="utf-8",
+        )
         (install_root / "Repair.exe").write_text("old repair", encoding="utf-8")
         (install_root / "launcher-bin").mkdir()
         (install_root / "launcher-bin" / "runtime.txt").write_text(
@@ -60,6 +64,10 @@ def test_transaction_promotes_launcher_inside_long_install_root(
         staged_root.mkdir(parents=True)
         (staged_root / "SugarSubstitute.exe").write_text(
             "new launcher",
+            encoding="utf-8",
+        )
+        (staged_root / "LauncherUi.exe").write_text(
+            "new launcher UI",
             encoding="utf-8",
         )
         (staged_root / "Repair.exe").write_text("new repair", encoding="utf-8")
@@ -83,6 +91,9 @@ def test_transaction_promotes_launcher_inside_long_install_root(
         assert (install_root / "SugarSubstitute.exe").read_text(
             encoding="utf-8"
         ) == "new launcher"
+        assert (install_root / "LauncherUi.exe").read_text(
+            encoding="utf-8"
+        ) == "new launcher UI"
         assert (install_root / "launcher-bin" / "runtime.txt").read_text(
             encoding="utf-8"
         ) == "new runtime"

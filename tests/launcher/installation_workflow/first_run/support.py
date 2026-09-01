@@ -100,6 +100,7 @@ def write_valid_launcher_bundle_zip(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("SugarSubstitute.exe", b"launcher")
+        archive.writestr("LauncherUi.exe", b"launcher UI")
         archive.writestr("Repair.exe", b"repair launcher")
         archive.writestr("launcher-bin/python312.dll", b"dll")
     return path
