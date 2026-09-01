@@ -167,11 +167,11 @@ def _qualify_idle_footprint(
 
 
 def _wait_for_dump(database: Path) -> Path:
-    """Return the single minidump emitted before the bounded deadline."""
+    """Return the single minidump committed anywhere in the Crashpad database."""
 
     deadline = time.monotonic() + _DUMP_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
-        dumps = tuple((database / "reports").glob("*.dmp"))
+        dumps = tuple(database.rglob("*.dmp"))
         if len(dumps) == 1:
             return dumps[0]
         if len(dumps) > 1:
