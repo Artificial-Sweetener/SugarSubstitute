@@ -22,6 +22,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 
 from PySide6.QtCore import QCoreApplication, QTimer
 
@@ -42,11 +43,17 @@ from sugarsubstitute_shared.launch_splash import (
 )
 
 
+APPLICATION_CLAIM_DELAY_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_APPLICATION_CLAIM_DELAY_SECONDS"
+)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Claim production ownership and remain available for graceful shutdown."""
 
     arguments = sys.argv if argv is None else argv
     install_root = application_launch_install_root(arguments, app_root=Path.cwd())
+    _delay_application_claim()
     inherited_token = inherited_application_launch_token()
     guard = ApplicationLaunchGuard.enter(
         install_root,
@@ -122,6 +129,14 @@ def main(argv: list[str] | None = None) -> int:
             marker_path.unlink(missing_ok=True)
         owner_marker_path.unlink(missing_ok=True)
         guard.release()
+
+
+def _delay_application_claim() -> None:
+    """Apply the explicit qualification-only launch-race delay."""
+
+    delay = float(os.environ.pop(APPLICATION_CLAIM_DELAY_ENV, "0"))
+    if delay > 0:
+        time.sleep(delay)
 
 
 if __name__ == "__main__":

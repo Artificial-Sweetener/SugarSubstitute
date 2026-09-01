@@ -14,11 +14,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify Crashpad qualification accepts platform-specific database states."""
+"""Verify cross-platform Crashpad qualification process discovery."""
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
-from tools.qualify_crashpad_runtime import _wait_for_dump
+import psutil  # type: ignore[import-untyped]
+
+from tools.qualify_crashpad_runtime import _is_handler_process, _wait_for_dump
 
 
 def test_wait_for_dump_finds_pending_posix_report(tmp_path: Path) -> None:
@@ -29,3 +32,37 @@ def test_wait_for_dump_finds_pending_posix_report(tmp_path: Path) -> None:
     dump.write_bytes(b"MDMP")
 
     assert _wait_for_dump(tmp_path / "database") == dump
+
+
+def test_handler_process_matches_exact_executable_and_database(tmp_path: Path) -> None:
+    """Identify a detached POSIX handler by its unique database argument."""
+
+    handler = (tmp_path / "runtime" / "crashpad_handler").resolve()
+    database = (tmp_path / "idle" / "database").resolve()
+    process = MagicMock(spec=psutil.Process)
+    process.exe.return_value = str(handler)
+    process.cmdline.return_value = [
+        str(handler),
+        f"--database={database}",
+        "--monitor-self",
+    ]
+
+    assert _is_handler_process(process, handler=handler, database=database)
+
+
+def test_handler_process_rejects_another_database(tmp_path: Path) -> None:
+    """Exclude unrelated handlers that share the qualified executable."""
+
+    handler = (tmp_path / "runtime" / "crashpad_handler").resolve()
+    process = MagicMock(spec=psutil.Process)
+    process.exe.return_value = str(handler)
+    process.cmdline.return_value = [
+        str(handler),
+        f"--database={tmp_path / 'another-database'}",
+    ]
+
+    assert not _is_handler_process(
+        process,
+        handler=handler,
+        database=tmp_path / "idle" / "database",
+    )
