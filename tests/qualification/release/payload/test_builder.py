@@ -239,6 +239,7 @@ def test_local_release_channel_writes_optional_launcher_bundle_asset(
     )
     with zipfile.ZipFile(launcher_zip) as archive:
         assert "SugarSubstitute.exe" in archive.namelist()
+        assert "LauncherUi.exe" in archive.namelist()
         assert "launcher-bin/python312.dll" in archive.namelist()
     assert result.installer_assets["windows_x64_exe"].filename == installer_exe.name
     assert installer_exe.read_text(encoding="utf-8") == "setup"
@@ -496,6 +497,7 @@ def _write_fixture_launcher_bundle(root: Path) -> Path:
     """Write a minimal PyInstaller onedir launcher bundle fixture."""
 
     _write_file(root / "SugarSubstitute.exe", "launcher")
+    _write_file(root / "LauncherUi.exe", "launcher UI")
     _write_file(root / "Repair.exe", "repair launcher")
     _write_file(root / "launcher-bin" / "python312.dll", "dll")
     return root

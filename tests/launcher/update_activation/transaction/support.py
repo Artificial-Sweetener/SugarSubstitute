@@ -34,6 +34,7 @@ def _write_installed_layout(root: Path) -> Path:
 
     root.mkdir(parents=True)
     (root / "SugarSubstitute.exe").write_text("old launcher", encoding="utf-8")
+    (root / "LauncherUi.exe").write_text("old launcher UI", encoding="utf-8")
     (root / "Repair.exe").write_text("old repair", encoding="utf-8")
     (root / "launcher-bin").mkdir()
     (root / "launcher-bin" / "runtime.txt").write_text("old", encoding="utf-8")
@@ -77,6 +78,7 @@ def _write_bundle(path: Path, *, marker: str) -> Path:
 
     with zipfile.ZipFile(path, "w") as bundle:
         bundle.writestr("SugarSubstitute.exe", marker)
+        bundle.writestr("LauncherUi.exe", f"{marker} UI")
         bundle.writestr("Repair.exe", f"{marker} repair")
         bundle.writestr("launcher-bin/runtime.txt", "new")
     return path
@@ -87,6 +89,7 @@ def _write_bundle_tree(path: Path, *, marker: str) -> None:
 
     path.mkdir(parents=True)
     (path / "SugarSubstitute.exe").write_text(marker, encoding="utf-8")
+    (path / "LauncherUi.exe").write_text(f"{marker} UI", encoding="utf-8")
     (path / "Repair.exe").write_text(f"{marker} repair", encoding="utf-8")
     (path / "launcher-bin").mkdir()
     (path / "launcher-bin" / "runtime.txt").write_text("new", encoding="utf-8")
