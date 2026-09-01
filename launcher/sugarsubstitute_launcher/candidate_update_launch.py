@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 import logging
 from pathlib import Path
 from typing import Protocol
@@ -58,19 +58,6 @@ class CandidateUpdateActivation(Protocol):
 
     def rollback(self) -> None:
         """Restore the prior update state."""
-
-
-class CandidateLaunchGuard(Protocol):
-    """Authorize one application process handoff."""
-
-    def initial_handoff_environment(
-        self,
-        environment: Mapping[str, str] | None = None,
-    ) -> dict[str, str]:
-        """Return the authorized child environment."""
-
-    def release(self) -> None:
-        """Release launch ownership."""
 
 
 class CandidateReadinessSupervisor(Protocol):
@@ -135,9 +122,8 @@ def launch_prepared_update(
     layout: InstallLayout,
     command: Sequence[str],
     attempted_version: str,
-    initial_guard: CandidateLaunchGuard,
+    environment: Mapping[str, str],
     activation: CandidateUpdateActivation,
-    fallback_guard_factory: Callable[[InstallLayout], CandidateLaunchGuard | None],
     supervisor: CandidateReadinessSupervisor | None = None,
     crash_supervisor: CandidateCrashSupervisor | None = None,
     rollback_reporter: UpdateRollbackReporter = record_update_rollback,
@@ -148,9 +134,7 @@ def launch_prepared_update(
     crash_owner = crash_supervisor or ApplicationCrashSupervisor()
     prepared = crash_owner.prepare(
         layout=layout,
-        environment=packaged_application_environment(
-            initial_guard.initial_handoff_environment()
-        ),
+        environment=packaged_application_environment(environment),
     )
     try:
         process = readiness_supervisor.launch_until_ready(
@@ -184,24 +168,11 @@ def launch_prepared_update(
             "Candidate update failed readiness and was rolled back.",
             exc_info=True,
         )
-        initial_guard.release()
-        fallback_guard = fallback_guard_factory(layout)
-        if fallback_guard is None:
-            raise CandidateUpdateRollbackError(
-                "The previous SugarSubstitute version was restored but could not "
-                "acquire launch ownership."
-            ) from candidate_error
-        try:
-            crash_owner.supervise(
-                layout=layout,
-                command=command,
-                environment=packaged_application_environment(
-                    fallback_guard.initial_handoff_environment()
-                ),
-            )
-        except BaseException:
-            fallback_guard.release()
-            raise
+        crash_owner.supervise(
+            layout=layout,
+            command=command,
+            environment=packaged_application_environment(environment),
+        )
         return
     crash_owner.supervise_process(
         layout=layout,
@@ -211,7 +182,6 @@ def launch_prepared_update(
 
 
 __all__ = [
-    "CandidateLaunchGuard",
     "CandidateCrashSupervisor",
     "CandidateReadinessSupervisor",
     "CandidateUpdateActivation",

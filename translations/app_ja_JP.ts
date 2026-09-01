@@ -635,7 +635,7 @@ Prompt preview:
       <translation>予定されている変更を適用できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="65"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="62"></location>
       <source>Apply preset</source>
       <translation>プリセットを適用</translation>
     </message>
@@ -860,7 +860,7 @@ Prompt preview:
       <translation>ジョブをキャンセル</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="236"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="278"></location>
       <source>Cancel loading</source>
       <translation>読み込みをキャンセル</translation>
     </message>
@@ -1735,9 +1735,9 @@ Prompt preview:
       <translation>ComfyUI はまだ起動中です。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/managed_startup_progress.py" line="41"></location>
-      <source>ComfyUI is taking longer than usual…</source>
-      <translation>ComfyUI の起動に通常より時間がかかっています…</translation>
+      <location filename="../substitute/application/managed_startup_progress.py" line="50"></location>
+      <source>ComfyUI is taking longer than usual%1</source>
+      <translation>ComfyUI の起動に通常より時間がかかっています%1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="295"></location>
@@ -3111,6 +3111,11 @@ Install these nodes now?</source>
       <translation>フルキューパネルを非表示</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="53"></location>
+      <source>Hide advanced inputs</source>
+      <translation>詳細入力を非表示</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
       <source>Hide full queue panel</source>
       <translation>キューパネル全体を非表示</translation>
@@ -4139,6 +4144,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/errors.py" line="533"></location>
       <source>Node ID: %1</source>
       <translation>ノード ID：%1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="70"></location>
+      <source>Node actions</source>
+      <translation>ノードの操作</translation>
     </message>
     <message>
       <location filename="../substitute/application/errors.py" line="528"></location>
@@ -5325,12 +5335,12 @@ No known extension claimant.</source>
       <translation>右に回転</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="239"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="271"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Sugar Substitute の起動スプラッシュを実行します。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="229"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="236"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute のスプラッシュホストを実行します。</translation>
     </message>
@@ -5405,7 +5415,7 @@ No known extension claimant.</source>
       <translation>保存</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="267"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="224"></location>
       <source>Save %1 preset</source>
       <translation>%1 プリセットを保存</translation>
     </message>
@@ -5435,7 +5445,7 @@ No known extension claimant.</source>
       <translation>続行する前に「%1」への変更を保存しますか？</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="258"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="215"></location>
       <source>Save current %1 as preset...</source>
       <translation>現在の %1 をプリセットとして保存...</translation>
     </message>
@@ -5790,6 +5800,11 @@ No known extension claimant.</source>
       <translation>フルキューパネルを表示</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="52"></location>
+      <source>Show advanced inputs</source>
+      <translation>詳細入力を表示</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/settings_expander_surfaces.py" line="339"></location>
       <source>Show all settings</source>
       <translation>すべての設定を表示</translation>
@@ -6020,9 +6035,24 @@ No known extension claimant.</source>
       <translation>%2 ステップ中 %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/managed_startup_progress.py" line="36"></location>
-      <source>Still waiting—custom nodes, slow storage, or a startup issue may be delaying ComfyUI.</source>
-      <translation>まだ待機中です。カスタムノード、低速なストレージ、または起動時の問題により、ComfyUI の起動が遅れている可能性があります。</translation>
+      <location filename="../substitute/application/launch_activity.py" line="48"></location>
+      <source>Still updating Substitute BackEnd—network, slow storage, or package installation may be causing the delay</source>
+      <translation>Substitute BackEnd を引き続き更新しています—ネットワーク、低速なストレージ、またはパッケージのインストールにより遅延している可能性があります</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="67"></location>
+      <source>Still updating Substitute Comfy nodepacks—network, slow storage, or package installation may be causing the delay</source>
+      <translation>Substitute の Comfy ノードパックを引き続き更新しています—ネットワーク、低速なストレージ、またはパッケージのインストールにより遅延している可能性があります</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="57"></location>
+      <source>Still updating SugarCubes—network, slow storage, or package installation may be causing the delay</source>
+      <translation>SugarCubes を引き続き更新しています—ネットワーク、低速なストレージ、またはパッケージのインストールにより遅延している可能性があります</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/managed_startup_progress.py" line="44"></location>
+      <source>Still waiting—custom nodes, slow storage, or a startup issue may be delaying ComfyUI%1</source>
+      <translation>まだ待機中です—カスタムノード、低速なストレージ、または起動時の問題により ComfyUI の起動が遅れている可能性があります%1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/generation_action_projection.py" line="31"></location>
@@ -7441,19 +7471,34 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>更新しています</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/managed_compatibility_recovery.py" line="198"></location>
-      <source>Updating Substitute BackEnd before opening.</source>
-      <translation>Substitute BackEnd を更新しています。完了後にアプリを開きます。</translation>
+      <location filename="../substitute/application/launch_activity.py" line="44"></location>
+      <source>Updating Substitute BackEnd</source>
+      <translation>Substitute BackEnd を更新しています</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/managed_compatibility_recovery.py" line="201"></location>
-      <source>Updating Substitute Comfy nodepacks before opening.</source>
-      <translation>Substitute の Comfy ノードパックを更新しています。完了後にアプリを開きます。</translation>
+      <location filename="../substitute/application/launch_activity.py" line="45"></location>
+      <source>Updating Substitute BackEnd is taking longer than usual</source>
+      <translation>Substitute BackEnd の更新に通常より時間がかかっています</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/managed_compatibility_recovery.py" line="200"></location>
-      <source>Updating SugarCubes before opening.</source>
-      <translation>SugarCubes を更新しています。完了後にアプリを開きます。</translation>
+      <location filename="../substitute/application/launch_activity.py" line="63"></location>
+      <source>Updating Substitute Comfy nodepacks</source>
+      <translation>Substitute の Comfy ノードパックを更新しています</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="64"></location>
+      <source>Updating Substitute Comfy nodepacks is taking longer than usual</source>
+      <translation>Substitute の Comfy ノードパックの更新に通常より時間がかかっています</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="55"></location>
+      <source>Updating SugarCubes</source>
+      <translation>SugarCubes を更新しています</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="56"></location>
+      <source>Updating SugarCubes is taking longer than usual</source>
+      <translation>SugarCubes の更新に通常より時間がかかっています</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1301"></location>
@@ -7666,7 +7711,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>Comfy の復帰を待っています。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/managed_startup_progress.py" line="43"></location>
+      <location filename="../substitute/application/managed_startup_progress.py" line="51"></location>
       <source>Waiting for ComfyUI to become ready%1</source>
       <translation>ComfyUI の起動を待っています%1</translation>
     </message>

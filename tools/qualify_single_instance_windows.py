@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Qualify packaged Windows single-instance behavior against real processes."""
+"""Qualify packaged Windows instance-broker behavior against real processes."""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from collections.abc import Callable, Sequence
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import time
@@ -31,18 +32,18 @@ from typing import TypeVar
 import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from sugarsubstitute_shared.application_instance_control import (
-    ApplicationShutdownRequestResult,
-    request_active_application_shutdown,
-)
-from sugarsubstitute_shared.application_instance_lease import ApplicationInstanceLease
-from sugarsubstitute_shared.application_launch_guard import application_launch_lock_path
 from tools.single_instance_cold_start_evidence import (
     SPLASH_SURFACE_EVIDENCE_ENV,
     assert_cold_start_snapshot,
     capture_cold_start_snapshot,
-    clear_splash_qualification_records,
     splash_host_pids,
+)
+from tools.single_instance_qualification_app import (
+    APPLICATION_REGISTRATION_DELAY_ENV,
+    APPLICATION_RESTART_AFTER_INVOCATIONS_ENV,
+    application_preregistration_marker_path,
+    invocation_evidence_path,
+    restart_evidence_path,
 )
 from tools.single_instance_qualification_installation import (
     prepare_qualification_installation,
@@ -50,14 +51,16 @@ from tools.single_instance_qualification_installation import (
 
 
 _TIMEOUT_SECONDS = 30.0
+_REGISTRATION_DELAY_SECONDS = 5.0
+_BURST_SIZE = 16
 _T = TypeVar("_T")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the packaged-launcher qualification and persist its evidence."""
+    """Run native election, burst, and crash-recovery qualification."""
 
     if os.name != "nt":
-        raise RuntimeError("Packaged single-instance qualification requires Windows.")
+        raise RuntimeError("Packaged instance qualification requires Windows.")
     arguments = _parse_arguments(argv)
     repository_root = Path(__file__).resolve().parents[1]
     artifact_dir = arguments.artifact_dir.resolve()
@@ -65,116 +68,93 @@ def main(argv: Sequence[str] | None = None) -> int:
     evidence: dict[str, object] = {}
 
     with tempfile.TemporaryDirectory(prefix="SugarSubstitute-instance-") as temporary:
-        install_root = Path(temporary) / "SugarSubstitute"
         layout = prepare_qualification_installation(
             repository_root=repository_root,
             launcher_bundle=arguments.launcher_bundle.resolve(),
-            install_root=install_root,
+            install_root=Path(temporary) / "SugarSubstitute",
         )
-        active_launchers: list[subprocess.Popen[bytes]] = []
+        launchers: list[subprocess.Popen[bytes]] = []
         try:
-            first_launcher = _launch(layout)
-            active_launchers.append(first_launcher)
-            first_pid = _wait_for_new_app_pid(layout)
-            single_snapshot = capture_cold_start_snapshot(layout)
-            assert_cold_start_snapshot(
-                single_snapshot,
-                expected_launcher_pids=(first_launcher.pid,),
-                expected_app_pid=first_pid,
-            )
-            evidence["single_cold_start"] = single_snapshot
-            _wait_for_splash_hosts_exit(layout)
-            _assert_app_owners(layout, expected=(first_pid,))
-
-            _request_shutdown_and_wait(layout)
-            _wait_for_process_exit(first_pid)
-            _wait_for_exit(first_launcher)
-            clear_splash_qualification_records(layout)
-
-            race_started_at = time.perf_counter_ns()
-            race_winner = _launch(layout)
-            _wait_for_launcher_before_application(layout)
-            race_duplicate = _launch(layout)
-            race_launchers = [race_winner, race_duplicate]
-            active_launchers.extend(race_launchers)
-            _wait_for_exit(race_duplicate)
-            race_pid = _wait_for_new_app_pid(layout, previous_pid=first_pid)
-            race_snapshot = capture_cold_start_snapshot(layout)
-            assert_cold_start_snapshot(
-                race_snapshot,
-                expected_launcher_pids=(race_winner.pid,),
-                expected_app_pid=race_pid,
-            )
-            race_snapshot["invocation_start_elapsed_ms"] = (
-                time.perf_counter_ns() - race_started_at
-            ) / 1_000_000
-            race_snapshot["rejected_duplicate_launcher_pid"] = race_duplicate.pid
-            evidence["rapid_double_invocation"] = race_snapshot
-            _wait_for_splash_hosts_exit(layout)
-            _assert_app_owners(layout, expected=(race_pid,))
-
-            duplicate_launchers = [_launch(layout) for _index in range(5)]
-            active_launchers.extend(duplicate_launchers)
-            _wait_for_value(
-                lambda: (
-                    True
-                    if sum(process.poll() is None for process in duplicate_launchers)
-                    == 1
-                    and all(
-                        process.poll() in (None, 0) for process in duplicate_launchers
-                    )
-                    else None
-                ),
-                description="one serialized headless duplicate negotiation",
-            )
-            negotiation_launcher = next(
-                process for process in duplicate_launchers if process.poll() is None
-            )
-            _assert_app_owners(layout, expected=(race_pid,))
-            evidence["duplicate_launch_preserved_pid"] = race_pid
-            evidence["negotiation_launcher_pid"] = negotiation_launcher.pid
-            evidence["suppressed_duplicate_count"] = len(duplicate_launchers) - 1
-            _terminate_launchers(duplicate_launchers)
-
-            _request_shutdown_and_wait(layout)
-            _wait_for_process_exit(race_pid)
-            _wait_for_exit(race_winner)
-            replacement_launcher = _launch(layout)
-            active_launchers.append(replacement_launcher)
-            replacement_pid = _wait_for_new_app_pid(layout, previous_pid=race_pid)
-            _wait_for_splash_hosts_exit(layout)
-            _assert_app_owners(layout, expected=(replacement_pid,))
-            evidence["graceful_replacement_pid"] = replacement_pid
-
-            _request_shutdown_and_wait(layout)
-            _wait_for_process_exit(replacement_pid)
-            _wait_for_exit(replacement_launcher)
-            lock_path = application_launch_lock_path(layout.root)
-            lock_path.parent.mkdir(parents=True, exist_ok=True)
-            lock_path.write_text("truncated-not-json", encoding="utf-8")
-            malformed_recovery_launcher = _launch(layout)
-            active_launchers.append(malformed_recovery_launcher)
-            malformed_recovery_pid = _wait_for_new_app_pid(layout)
-            _wait_for_splash_hosts_exit(layout)
-            evidence["malformed_record_recovery_pid"] = malformed_recovery_pid
-
-            psutil.Process(malformed_recovery_pid).kill()
-            _wait_for_process_exit(malformed_recovery_pid)
-            _wait_for_exit(malformed_recovery_launcher)
-            crash_recovery_launcher = _launch(layout)
-            active_launchers.append(crash_recovery_launcher)
-            crash_recovery_pid = _wait_for_new_app_pid(
+            primary = _launch(
                 layout,
-                previous_pid=malformed_recovery_pid,
+                registration_delay_seconds=_REGISTRATION_DELAY_SECONDS,
+                restart_after_invocations=_BURST_SIZE * 2,
+            )
+            launchers.append(primary)
+            _wait_for_preregistration(layout)
+            burst = [_launch(layout) for _index in range(_BURST_SIZE)]
+            launchers.extend(burst)
+            _wait_for_clean_exits(burst)
+            app_pid = _wait_for_new_app_pid(layout, supervisor=primary)
+            _wait_for_invocation_count(layout, _BURST_SIZE)
+            _wait_for_splash_hosts_exit(layout)
+            _assert_single_child(layout, app_pid)
+            snapshot = capture_cold_start_snapshot(layout)
+            assert_cold_start_snapshot(
+                snapshot,
+                expected_launcher_pids=(primary.pid,),
+                expected_app_pid=app_pid,
+            )
+            evidence["startup_burst"] = {
+                **snapshot,
+                "forwarded_invocation_count": len(burst),
+                "forwarder_exit_codes": [process.returncode for process in burst],
+            }
+
+            steady_burst = [_launch(layout) for _index in range(_BURST_SIZE)]
+            launchers.extend(steady_burst)
+            _wait_for_clean_exits(steady_burst)
+            restart_evidence = _wait_for_restart_evidence(
+                layout,
+                expected_pid=app_pid,
+                expected_invocation_count=_BURST_SIZE * 2,
+            )
+            restarted_pid = _wait_for_new_app_pid(
+                layout,
+                previous_pid=app_pid,
+                supervisor=primary,
+            )
+            _assert_single_child(layout, restarted_pid)
+            evidence["steady_state_burst"] = {
+                "application_pid": app_pid,
+                "forwarded_invocation_count": len(steady_burst),
+            }
+            evidence["supervised_restart"] = {
+                **restart_evidence,
+                "restarted_application_pid": restarted_pid,
+                "supervisor_pid": primary.pid,
+            }
+
+            psutil.Process(primary.pid).kill()
+            _wait_for_process_exit(primary.pid)
+            _wait_for_process_exit(restarted_pid)
+            replacement = _launch(layout)
+            launchers.append(replacement)
+            replacement_pid = _wait_for_new_app_pid(
+                layout,
+                previous_pid=restarted_pid,
+                supervisor=replacement,
             )
             _wait_for_splash_hosts_exit(layout)
-            _assert_app_owners(layout, expected=(crash_recovery_pid,))
-            evidence["crash_recovery_pid"] = crash_recovery_pid
-            _request_shutdown_and_wait(layout)
-            _wait_for_process_exit(crash_recovery_pid)
-            _wait_for_exit(crash_recovery_launcher)
+            _assert_single_child(layout, replacement_pid)
+            evidence["supervisor_crash_recovery"] = {
+                "terminated_supervisor_pid": primary.pid,
+                "terminated_child_pid": restarted_pid,
+                "replacement_supervisor_pid": replacement.pid,
+                "replacement_child_pid": replacement_pid,
+            }
+            _assert_no_live_ownership_files(layout)
+            evidence["native_ownership"] = {
+                "created_live_ownership_files": [],
+                "election": "first-local-named-pipe-instance",
+                "peer_scope": "same-user-session",
+                "remote_clients": "rejected",
+            }
+        except BaseException:
+            _capture_failure_diagnostics(layout, artifact_dir)
+            raise
         finally:
-            _terminate_launchers(active_launchers)
+            _terminate_launchers(launchers)
             _terminate_qualification_apps(layout)
             _terminate_installation_processes(layout)
 
@@ -205,13 +185,25 @@ def _parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _launch(layout: InstallLayout) -> subprocess.Popen[bytes]:
-    """Start one real packaged launcher invocation without desktop surfaces."""
+def _launch(
+    layout: InstallLayout,
+    *,
+    registration_delay_seconds: float | None = None,
+    restart_after_invocations: int | None = None,
+) -> subprocess.Popen[bytes]:
+    """Start one packaged launcher invocation without desktop surfaces."""
 
     environment = os.environ.copy()
     environment["QT_QPA_PLATFORM"] = "offscreen"
     environment[SPLASH_SURFACE_EVIDENCE_ENV] = "1"
-
+    if registration_delay_seconds is not None:
+        environment[APPLICATION_REGISTRATION_DELAY_ENV] = str(
+            registration_delay_seconds
+        )
+    if restart_after_invocations is not None:
+        environment[APPLICATION_RESTART_AFTER_INVOCATIONS_ENV] = str(
+            restart_after_invocations
+        )
     return subprocess.Popen(  # noqa: S603
         [str(layout.executable_path), "--no-update-check", "--locale=en"],
         cwd=layout.root,
@@ -223,16 +215,32 @@ def _launch(layout: InstallLayout) -> subprocess.Popen[bytes]:
     )
 
 
+def _wait_for_preregistration(layout: InstallLayout) -> None:
+    """Wait until the elected supervisor has started its delayed child."""
+
+    marker_path = application_preregistration_marker_path(layout.root)
+    _wait_for_value(
+        lambda: True if marker_path.is_file() else None,
+        description="application preregistration phase",
+    )
+
+
 def _wait_for_new_app_pid(
     layout: InstallLayout,
     *,
     previous_pid: int | None = None,
+    supervisor: subprocess.Popen[bytes] | None = None,
 ) -> int:
-    """Wait for a live qualification app marker with a new process identity."""
+    """Wait for a live registered child with a new process identity."""
 
     marker_path = layout.user_dir / "qualification-app.json"
 
     def current_pid() -> int | None:
+        if supervisor is not None and supervisor.poll() is not None:
+            raise RuntimeError(
+                f"Application supervisor {supervisor.pid} exited with "
+                f"{supervisor.returncode} before its child registered."
+            )
         try:
             payload = json.loads(marker_path.read_text(encoding="utf-8"))
         except (FileNotFoundError, OSError, json.JSONDecodeError):
@@ -246,62 +254,113 @@ def _wait_for_new_app_pid(
             return None
         return pid
 
-    return _wait_for_value(current_pid, description="qualification application start")
+    return _wait_for_value(current_pid, description="registered application child")
 
 
-def _wait_for_launcher_before_application(layout: InstallLayout) -> None:
-    """Stop in the exact launch phase that previously produced the false dialog."""
+def _qualification_app_pids(layout: InstallLayout) -> tuple[int, ...]:
+    """Return live registered children in the disposable installation."""
 
-    lock_path = application_launch_lock_path(layout.root)
-    _wait_for_value(
-        lambda: (
-            True
-            if lock_path.is_file()
-            and not ApplicationInstanceLease.owner_exists(layout.root)
-            else None
-        ),
-        description="launcher ownership before application handoff",
-    )
-
-
-def _assert_app_owners(layout: InstallLayout, *, expected: tuple[int, ...]) -> None:
-    """Assert exactly the expected interpreters successfully claimed app ownership."""
-
-    observed = tuple(sorted(_qualification_app_pids(layout, live_only=True)))
-    if observed != tuple(sorted(expected)):
-        raise AssertionError(
-            f"Expected qualification app owners {expected}, observed {observed}."
-        )
-    if not ApplicationInstanceLease.owner_exists(layout.root):
-        raise AssertionError(
-            "The expected application owner does not hold its OS lease."
-        )
-
-
-def _qualification_app_pids(
-    layout: InstallLayout,
-    *,
-    live_only: bool,
-) -> tuple[int, ...]:
-    """Return interpreters that wrote an accepted-owner qualification marker."""
-
-    marker_dir = layout.user_dir / "qualification-owners"
     matches: list[int] = []
-    for marker_path in marker_dir.glob("*.json"):
+    for marker_path in (layout.user_dir / "qualification-owners").glob("*.json"):
         try:
             payload = json.loads(marker_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
         pid = payload.get("pid") if isinstance(payload, dict) else None
-        if not isinstance(pid, int):
-            continue
-        if not live_only or psutil.pid_exists(pid):
+        if isinstance(pid, int) and psutil.pid_exists(pid):
             matches.append(pid)
     return tuple(matches)
 
 
+def _wait_for_invocation_count(layout: InstallLayout, expected_count: int) -> None:
+    """Require every acknowledged secondary launch to be handled exactly once."""
+
+    evidence_path = invocation_evidence_path(layout.root)
+
+    def observed_count() -> int | None:
+        try:
+            payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            return None
+        count = payload.get("count") if isinstance(payload, dict) else None
+        return count if count == expected_count else None
+
+    _wait_for_value(
+        observed_count,
+        description=f"{expected_count} exactly-once forwarded invocations",
+    )
+
+
+def _wait_for_restart_evidence(
+    layout: InstallLayout,
+    *,
+    expected_pid: int,
+    expected_invocation_count: int,
+) -> dict[str, object]:
+    """Require a real child-to-supervisor restart request at the exact count."""
+
+    evidence_path = restart_evidence_path(layout.root)
+
+    def accepted_evidence() -> dict[str, object] | None:
+        try:
+            payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            return None
+        if not isinstance(payload, dict):
+            return None
+        if payload != {
+            "accepted": True,
+            "invocation_count": expected_invocation_count,
+            "pid": expected_pid,
+        }:
+            return None
+        return payload
+
+    return _wait_for_value(
+        accepted_evidence,
+        description="authenticated supervised application restart",
+    )
+
+
+def _assert_single_child(layout: InstallLayout, expected_pid: int) -> None:
+    """Prove exactly one registered application child remains live."""
+
+    observed = tuple(sorted(_qualification_app_pids(layout)))
+    if observed != (expected_pid,):
+        raise AssertionError(f"Expected one child {expected_pid}, observed {observed}.")
+
+
+def _assert_no_live_ownership_files(layout: InstallLayout) -> None:
+    """Prove the packaged run created none of the removed ownership artifacts."""
+
+    forbidden = (
+        "application-instance.lease",
+        "launcher-invocation.lease",
+        "application-launch.mutex",
+        "application-launch.lock",
+        "app-update.lock",
+    )
+    historical_lock_directory = layout.launcher_dir / "locks"
+    created = [
+        name for name in forbidden if (historical_lock_directory / name).exists()
+    ]
+    if created:
+        raise AssertionError(f"Removed ownership files were recreated: {created}")
+
+
+def _wait_for_clean_exits(processes: Sequence[subprocess.Popen[bytes]]) -> None:
+    """Require every forwarded launcher invocation to acknowledge and exit cleanly."""
+
+    for process in processes:
+        process.wait(timeout=_TIMEOUT_SECONDS)
+        if process.returncode != 0:
+            raise AssertionError(
+                f"Forwarding launcher {process.pid} exited with {process.returncode}."
+            )
+
+
 def _wait_for_splash_hosts_exit(layout: InstallLayout) -> None:
-    """Prove every launcher splash host exits after the app adopts its session."""
+    """Prove every launcher splash host exits after child adoption."""
 
     _wait_for_value(
         lambda: True if not splash_host_pids(layout) else None,
@@ -309,30 +368,8 @@ def _wait_for_splash_hosts_exit(layout: InstallLayout) -> None:
     )
 
 
-def _request_shutdown_and_wait(layout: InstallLayout) -> None:
-    """Request graceful shutdown and prove both IPC and lease release."""
-
-    result = request_active_application_shutdown(layout.root)
-    if result is not ApplicationShutdownRequestResult.ACCEPTED:
-        raise AssertionError(f"Graceful shutdown request was not accepted: {result}")
-    _wait_for_value(
-        lambda: (
-            True if not ApplicationInstanceLease.owner_exists(layout.root) else None
-        ),
-        description="application lease release",
-    )
-
-
-def _wait_for_exit(process: subprocess.Popen[bytes]) -> None:
-    """Wait for one packaged supervisor after its application reaches terminal state."""
-
-    process.wait(timeout=_TIMEOUT_SECONDS)
-    if process.returncode != 0:
-        raise AssertionError(f"Packaged launcher exited with {process.returncode}.")
-
-
 def _wait_for_process_exit(pid: int) -> None:
-    """Wait until a force-terminated qualification process is gone."""
+    """Wait until one supervisor or child process is gone."""
 
     _wait_for_value(
         lambda: True if not psutil.pid_exists(pid) else None,
@@ -357,7 +394,7 @@ def _wait_for_value(
 
 
 def _terminate_launchers(processes: Sequence[subprocess.Popen[bytes]]) -> None:
-    """Stop only still-running launcher processes created by this qualification."""
+    """Stop only still-running launchers created by this qualification."""
 
     for process in processes:
         if process.poll() is None:
@@ -372,9 +409,9 @@ def _terminate_launchers(processes: Sequence[subprocess.Popen[bytes]]) -> None:
 
 
 def _terminate_qualification_apps(layout: InstallLayout) -> None:
-    """Stop only app processes belonging to the disposable qualification layout."""
+    """Stop remaining children belonging to the disposable installation."""
 
-    for pid in _qualification_app_pids(layout, live_only=True):
+    for pid in _qualification_app_pids(layout):
         try:
             process = psutil.Process(pid)
             process.kill()
@@ -384,7 +421,7 @@ def _terminate_qualification_apps(layout: InstallLayout) -> None:
 
 
 def _terminate_installation_processes(layout: InstallLayout) -> None:
-    """Stop remaining launcher or runtime helpers rooted in the disposable install."""
+    """Stop remaining helpers rooted in the disposable installation."""
 
     root_key = os.path.normcase(str(layout.root))
     owned: list[psutil.Process] = []
@@ -408,7 +445,29 @@ def _terminate_installation_processes(layout: InstallLayout) -> None:
             process.kill()
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-    psutil.wait_procs(alive, timeout=3.0)
+
+
+def _capture_failure_diagnostics(
+    layout: InstallLayout,
+    artifact_dir: Path,
+) -> None:
+    """Retain bounded launcher and crash evidence before disposal."""
+
+    diagnostics_dir = artifact_dir / "failure-diagnostics"
+    diagnostics_dir.mkdir(parents=True, exist_ok=True)
+    for source in (
+        layout.logs_dir / "launcher.log",
+        layout.logs_dir / "app-startup.log",
+    ):
+        if source.is_file():
+            shutil.copy2(source, diagnostics_dir / source.name)
+    crash_diagnostics = layout.appdata_dir / "diagnostics"
+    if crash_diagnostics.is_dir():
+        shutil.copytree(
+            crash_diagnostics,
+            diagnostics_dir / "app-diagnostics",
+            dirs_exist_ok=True,
+        )
 
 
 if __name__ == "__main__":

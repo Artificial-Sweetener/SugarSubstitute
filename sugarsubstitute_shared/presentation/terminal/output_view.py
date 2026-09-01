@@ -219,9 +219,35 @@ class TerminalOutputView(QFrame):
             self._append_visible_line(mutation.styled_line)
         elif mutation.kind is TerminalOutputMutationKind.REPLACE_LAST_LINE:
             self._replace_last_visible_line(mutation.styled_line)
+        elif mutation.kind is TerminalOutputMutationKind.REMOVE_LAST_LINE:
+            self._remove_last_visible_line()
         else:
             raise ValueError(f"Unsupported terminal output mutation: {mutation.kind!r}")
         self._request_follow_tail_update()
+
+    def _remove_last_visible_line(self) -> None:
+        """Remove the rendered tail row without rebuilding durable history."""
+
+        if not self._log_view.toPlainText():
+            return
+        document = self._log_view.document()
+        last_block = document.lastBlock()
+        cursor = QTextCursor(document)
+        if last_block.previous().isValid():
+            cursor.setPosition(last_block.previous().position())
+            cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock)
+            cursor.movePosition(
+                QTextCursor.MoveOperation.End,
+                QTextCursor.MoveMode.KeepAnchor,
+            )
+        else:
+            cursor.setPosition(last_block.position())
+            cursor.movePosition(
+                QTextCursor.MoveOperation.EndOfBlock,
+                QTextCursor.MoveMode.KeepAnchor,
+            )
+        cursor.removeSelectedText()
+        self._log_view.setTextCursor(cursor)
 
     def _append_visible_line(self, line: TerminalStyledLine) -> None:
         """Append one rendered line without rebuilding the whole document."""

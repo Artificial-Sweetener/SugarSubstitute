@@ -35,9 +35,6 @@ if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
-from sugarsubstitute_shared.application_launch_guard import (  # noqa: E402
-    application_launch_lock_path,
-)
 from tools.ci.historical_release_contract import (  # noqa: E402
     HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME,
 )
@@ -653,7 +650,7 @@ def _historical_startup_diagnostics(install_root: Path) -> str:
         layout.appdata_dir / "diagnostics" / "logs" / "sugarsubstitute.log",
         layout.appdata_dir / "runtime_state" / "managed_comfy_process.json",
         layout.root / HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME,
-        application_launch_lock_path(layout.root),
+        layout.launcher_dir / "locks" / "application-launch.lock",
     )
     return "\n\n".join(f"{path}:\n{diagnostic_tail(path)}" for path in paths)
 

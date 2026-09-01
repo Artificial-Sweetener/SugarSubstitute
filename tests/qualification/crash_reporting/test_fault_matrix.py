@@ -27,7 +27,6 @@ import sys
 
 import pytest
 
-from launcher.sugarsubstitute_launcher import restart_supervision
 from launcher.sugarsubstitute_launcher.candidate_update_launch import (
     launch_prepared_update,
 )
@@ -41,9 +40,6 @@ from sugarsubstitute_shared.crash_reporting import (
     CrashBoundary,
     CrashIncidentStore,
     CrashKind,
-)
-from sugarsubstitute_shared.application_launch_guard import (
-    APPLICATION_LAUNCH_TOKEN_ENV,
 )
 from substitute.application.crash_reports import build_crash_error_report
 from substitute.application.errors import render_error_report
@@ -250,45 +246,6 @@ def test_real_launcher_ui_child_crash_is_durable_and_presented(
     assert incidents[0].attachments == ("python-fault.log",)
 
 
-def test_real_restart_handoff_preserves_crash_supervision(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """An authorized replacement process must remain supervised until failure."""
-
-    layout = InstallLayout.from_root(tmp_path / "restart")
-    reports: list[str] = []
-    supervisor = ApplicationCrashSupervisor(
-        process_starter=_start_child,
-        reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
-        native_runtime_resolver=lambda _layout: (
-            tmp_path / "unused-handler",
-            tmp_path / "unused-client",
-        ),
-    )
-    monkeypatch.setenv(APPLICATION_LAUNCH_TOKEN_ENV, "qualified-restart-token")
-    monkeypatch.setattr(
-        restart_supervision,
-        "build_app_launch_command",
-        lambda *, layout: (sys.executable, "-m", _CHILD_MODULE, "python_main"),
-    )
-    monkeypatch.setattr(
-        restart_supervision,
-        "ApplicationCrashSupervisor",
-        lambda: supervisor,
-    )
-
-    return_code = restart_supervision.supervise_restarted_application(layout=layout)
-
-    incidents = CrashIncidentStore(
-        layout.appdata_dir / "diagnostics" / "crashes"
-    ).pending()
-    assert return_code != 0
-    assert len(incidents) == 1
-    assert reports == [incidents[0].incident_id]
-    assert incidents[0].boundary is CrashBoundary.PROCESS_MAIN
-
-
 class _RealCandidateReadiness:
     """Launch a real candidate while treating process creation as readiness."""
 
@@ -304,28 +261,6 @@ class _RealCandidateReadiness:
         del layout
         process, _fault_log = _start_child(command, environment)
         return process
-
-
-class _CandidateGuard:
-    """Provide the inherited environment required by a real child process."""
-
-    def __init__(self) -> None:
-        """Create an unreleased candidate guard."""
-
-        self.released = False
-
-    def initial_handoff_environment(
-        self,
-        environment: Mapping[str, str] | None = None,
-    ) -> dict[str, str]:
-        """Return a complete child environment for the candidate."""
-
-        return dict(environment or os.environ)
-
-    def release(self) -> None:
-        """Record release if rollback transfers launch ownership."""
-
-        self.released = True
 
 
 class _CandidateActivation:
@@ -355,7 +290,6 @@ def test_real_update_candidate_handoff_preserves_crash_supervision(
     layout = InstallLayout.from_root(tmp_path / "candidate")
     reports: list[str] = []
     activation = _CandidateActivation()
-    guard = _CandidateGuard()
     crash_supervisor = ApplicationCrashSupervisor(
         process_starter=_start_child,
         reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
@@ -369,9 +303,8 @@ def test_real_update_candidate_handoff_preserves_crash_supervision(
         layout=layout,
         command=(sys.executable, "-m", _CHILD_MODULE, "python_main"),
         attempted_version="qualification",
-        initial_guard=guard,
+        environment=os.environ,
         activation=activation,
-        fallback_guard_factory=lambda _layout: pytest.fail("unexpected fallback"),
         supervisor=_RealCandidateReadiness(),
         crash_supervisor=crash_supervisor,
     )
@@ -380,7 +313,6 @@ def test_real_update_candidate_handoff_preserves_crash_supervision(
         layout.appdata_dir / "diagnostics" / "crashes"
     ).pending()
     assert activation.transitions == ["commit"]
-    assert guard.released is False
     assert len(incidents) == 1
     assert reports == [incidents[0].incident_id]
     assert incidents[0].boundary is CrashBoundary.PROCESS_MAIN

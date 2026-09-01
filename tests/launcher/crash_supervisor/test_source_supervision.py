@@ -20,10 +20,12 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+from typing import Self
 
 import pytest
 
 from launcher.sugarsubstitute_launcher import source_crash_supervision
+from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
@@ -57,6 +59,34 @@ def test_source_launch_restarts_itself_under_crashpad_supervisor(
             calls.append(kwargs)
             return 23
 
+    class _Broker:
+        """Represent the elected source supervisor without opening real IPC."""
+
+        def child_environment(self, environment: object) -> dict[str, str]:
+            """Return one isolated marker environment."""
+
+            _ = environment
+            return {"TEST_INSTANCE_BROKER": "connected"}
+
+        def consume_restart_request(self) -> bool:
+            """Finish after the first recorded child."""
+
+            return False
+
+        def __enter__(self) -> Self:
+            """Retain election through the recorded child lifetime."""
+
+            return self
+
+        def __exit__(self, *_exc_info: object) -> None:
+            """Release the fake election."""
+
+    monkeypatch.setattr(
+        ApplicationInstanceBroker,
+        "elect",
+        lambda **_kwargs: _Broker(),
+    )
+
     monkeypatch.setattr(
         source_crash_supervision,
         "ApplicationCrashSupervisor",
@@ -76,6 +106,7 @@ def test_source_launch_restarts_itself_under_crashpad_supervisor(
         subprocess_path(app_root / "main.py"),
         "--locale=ja",
     ]
+    assert calls[0]["environment"] == {"TEST_INSTANCE_BROKER": "connected"}
     layout = calls[0]["layout"]
     assert isinstance(layout, InstallLayout)
     target_root = (

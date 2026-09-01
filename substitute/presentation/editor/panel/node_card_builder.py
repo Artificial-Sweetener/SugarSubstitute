@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import partial
 from typing import Any
@@ -57,6 +57,8 @@ from .node_card.accordion_motion import (
     set_accordion_surface_attachment,
 )
 from .node_card.accordion_section_layout import AccordionSectionLayoutBinding
+from .node_card.advanced_input_binding import AdvancedInputCardBinding
+from .node_card.action_menu import NodeCardActionMenuBinding
 from .node_card.body_composer import NodeCardBodyComposer
 from .node_card.body_contribution import (
     NodeCardBodyContributionContext,
@@ -70,13 +72,16 @@ from .node_card.mode_controller import (
     NodeCardModeBinding,
     apply_title_row_interaction,
 )
+from .node_card.panel_snapshot import (
+    NodePanelSnapshot,
+    capture_node_panel_snapshot,
+)
 from .node_card.variant import resolve_node_card_variant
 from substitute.presentation.editor.panel.menus.node_input_preset_menu_source import (
     NodeInputPresetSource,
 )
 from substitute.presentation.editor.panel.menus.node_title_preset_actions import (
     NodeInputPresetContext,
-    bind_node_title_preset_actions,
 )
 from substitute.presentation.editor.panel.node_presentation_adapter import (
     build_node_presentation_request,
@@ -156,30 +161,6 @@ from substitute.shared.logging.logger import (
 )
 
 _LOGGER = get_logger("presentation.editor.panel.node_card_builder")
-
-
-@dataclass(frozen=True)
-class NodePanelSnapshot:
-    """Capture the panel state NodeCardBuilder needs for one build pass."""
-
-    cube_id: str | None
-    current_alias: str | None
-    cube_states: Mapping[str, Any]
-    stack_order: Sequence[str]
-
-    def first_alias_for_class_type(self, node_type: str) -> str | None:
-        """Return the first cube alias in stack order containing the requested node type."""
-
-        for alias in self.stack_order:
-            cube_state = self.cube_states.get(alias)
-            buffer = getattr(cube_state, "buffer", {}) if cube_state is not None else {}
-            for node_data in (buffer.get("nodes", {}) or {}).values():
-                if (
-                    isinstance(node_data, dict)
-                    and node_data.get("class_type") == node_type
-                ):
-                    return alias
-        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -328,21 +309,6 @@ class NodeCardBuilder:
             field_rows=self._field_rows,
         )
 
-    def _snapshot_panel(self, cube_state: Any, alias: str | None) -> NodePanelSnapshot:
-        """Capture the panel state needed while building one node card."""
-
-        cube_id = getattr(cube_state, "cube_id", None)
-        raw_cube_states = self.panel._cube_states or {}
-        cube_states = raw_cube_states if isinstance(raw_cube_states, Mapping) else {}
-        raw_stack_order = self.panel._stack_order or []
-        stack_order = raw_stack_order if isinstance(raw_stack_order, Sequence) else ()
-        return NodePanelSnapshot(
-            cube_id=cube_id,
-            current_alias=alias,
-            cube_states=cube_states,
-            stack_order=stack_order,
-        )
-
     @staticmethod
     def _cube_buffer(cube_state: Any) -> dict[str, Any]:
         """Return the mutable cube buffer when present."""
@@ -454,7 +420,11 @@ class NodeCardBuilder:
             )
             return None
         snapshot_started_at = panel_projection_observability_started_at()
-        snapshot = self._snapshot_panel(cube_state, alias)
+        snapshot = capture_node_panel_snapshot(
+            panel=self.panel,
+            cube_state=cube_state,
+            alias=alias,
+        )
         presentation_request = build_node_presentation_request(
             node_definition_gateway=self._services.node_definition_gateway,
             node_name=node_name,
@@ -713,6 +683,18 @@ class NodeCardBuilder:
             )
             build_transaction.discard(wrapper)
             raise
+        advanced_input_binding = AdvancedInputCardBinding.create(
+            panel=self.panel,
+            wrapper=wrapper,
+            card_surface=node_card,
+            content_body=content_body,
+            content_layout=content_layout,
+            editor_state=cube_state,
+            alias=alias,
+            node_name=node_name,
+            field_specs=field_specs,
+            allow_unbounded_height=allow_unbounded_content_height,
+        )
         has_rows = content_layout.count() > 0
         has_title_controls = bool(resolved_behavior.card.title_controls) or bool(
             display_decision is not None and display_decision.show_enabled_switch
@@ -749,6 +731,7 @@ class NodeCardBuilder:
             cube_state=cube_state,
             parent=node_card,
             node_presentation=node_presentation,
+            advanced_input_binding=advanced_input_binding,
         )
         _log_node_card_build_timing(
             "node_card.create_title_row",
@@ -787,6 +770,8 @@ class NodeCardBuilder:
                     content_body=content_body,
                     attached=True,
                 )
+        if advanced_input_binding is not None:
+            advanced_input_binding.attach_title_row(title_row)
         wrapper_layout = QVBoxLayout(wrapper)
         wrapper_layout.setContentsMargins(0, 0, 0, 0)
         wrapper_layout.setSpacing(0)
@@ -815,6 +800,10 @@ class NodeCardBuilder:
             "node_search_aliases", list(node_presentation.search_aliases)
         )
         wrapper.setProperty("has_title_controls", has_title_controls)
+        wrapper.setProperty(
+            "has_advanced_input_action",
+            advanced_input_binding is not None,
+        )
         wrapper.setProperty("base_card_visible", True)
         presentation_binding.retranslate()
         if parent is None:
@@ -1284,6 +1273,7 @@ class NodeCardBuilder:
         inputs: Mapping[str, object] | None = None,
         field_specs: Mapping[str, ResolvedFieldSpec] | None = None,
         node_presentation: NodePresentation,
+        advanced_input_binding: AdvancedInputCardBinding | None = None,
     ) -> tuple[QWidget, AccordionChevronWidget | None]:
         """Build the title row from resolved card behavior."""
 
@@ -1328,17 +1318,6 @@ class NodeCardBuilder:
                 tooltip_targets=(card_title, title_icon, title_label),
             ),
         )
-        if inputs is not None and field_specs is not None:
-            self._bind_node_input_preset_menu(
-                title_row=card_title,
-                node_name=node_name,
-                node_type=node_type,
-                inputs=inputs,
-                field_specs=field_specs,
-                cube_state=cube_state,
-                cube_alias=snapshot.current_alias,
-            )
-
         if (
             TitleControl.NODE_LINK_SELECTOR in resolved_behavior.card.title_controls
             or TitleControl.PROMPT_LINK_SELECTOR
@@ -1412,6 +1391,29 @@ class NodeCardBuilder:
             enabled_switch_wrapper=enabled_switch_wrapper,
         )
 
+        if inputs is not None and field_specs is not None:
+            is_connection = getattr(self.panel, "is_connection", None)
+            input_widgets = getattr(self.panel, "input_widgets_by_field_key", {})
+            if not isinstance(input_widgets, Mapping):
+                input_widgets = {}
+            NodeCardActionMenuBinding.create(
+                title_row=card_title,
+                title_layout=title_layout,
+                preset_context=NodeInputPresetContext(
+                    cube_alias=snapshot.current_alias,
+                    node_name=node_name,
+                    node_type=node_type,
+                    inputs=inputs,
+                    field_specs=field_specs,
+                    cube_state=cube_state,
+                    input_widgets_by_field_key=input_widgets,
+                ),
+                preset_source=self._node_input_preset_source,
+                dialog_parent=self._preset_dialog_parent,
+                is_connection=is_connection if callable(is_connection) else None,
+                advanced_inputs=advanced_input_binding,
+            )
+
         if no_chevron:
             return card_title, None
 
@@ -1419,48 +1421,6 @@ class NodeCardBuilder:
         title_layout.addWidget(chevron)
         card_title.set_interactive_targets((title_icon, title_label, chevron))
         return card_title, chevron
-
-    def _bind_node_input_preset_menu(
-        self,
-        *,
-        title_row: QWidget,
-        node_name: str,
-        node_type: str,
-        inputs: Mapping[str, object],
-        field_specs: Mapping[str, ResolvedFieldSpec],
-        cube_state: Any,
-        cube_alias: str | None,
-    ) -> None:
-        """Bind node input preset actions to the title row when available."""
-
-        prepare_menu = getattr(
-            self._node_input_preset_source,
-            "prepare_node_input_preset_menu_model",
-            None,
-        )
-        if callable(prepare_menu):
-            prepare_menu(node_type=node_type, reason="node_card_built")
-        is_connection = getattr(self.panel, "is_connection", None)
-        if not callable(is_connection):
-            return
-        input_widgets = getattr(self.panel, "input_widgets_by_field_key", {})
-        if not isinstance(input_widgets, Mapping):
-            input_widgets = {}
-        bind_node_title_preset_actions(
-            title_row=title_row,
-            context=NodeInputPresetContext(
-                cube_alias=cube_alias,
-                node_name=node_name,
-                node_type=node_type,
-                inputs=inputs,
-                field_specs=field_specs,
-                cube_state=cube_state,
-                input_widgets_by_field_key=input_widgets,
-            ),
-            preset_source=self._node_input_preset_source,
-            dialog_parent=self._preset_dialog_parent,
-            is_connection=is_connection,
-        )
 
     def _preset_dialog_parent(self) -> QWidget:
         """Return the widget that should own node preset save modals."""

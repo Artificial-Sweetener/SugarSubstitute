@@ -23,8 +23,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
 
-from sugarsubstitute_shared.launch_splash import SplashSessionMessageError
-from sugarsubstitute_shared.localization import ApplicationText
+from sugarsubstitute_shared.launch_splash import (
+    SplashActivity,
+    SplashSessionMessageError,
+)
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
 from substitute.app.bootstrap.launch_splash import LaunchSplashClient
@@ -33,6 +35,7 @@ from substitute.app.bootstrap.managed_compatibility_recovery import (
     RecoveryLogCallback,
 )
 from substitute.application.execution import TaskSubmitter
+from substitute.application.launch_activity import LocalizedSplashActivity
 from substitute.app.bootstrap.managed_target_activation import activate_target
 from substitute.app.bootstrap.startup_resources import StartupResourceRegistry
 from substitute.application.backend_compatibility import BackendCompatibilityResult
@@ -106,12 +109,43 @@ class ManagedRecoveryStartupAdapters:
         self._launch_task_factory = launch_task_factory
         self._process_pump_task_factory = process_pump_task_factory
 
-    def append_recovery_message(self, message: ApplicationText) -> None:
-        """Append one managed recovery message to the current splash."""
+    def start_recovery_activity(self, activity: LocalizedSplashActivity) -> None:
+        """Start localized managed recovery activity on the current splash."""
 
         splash = self._splash()
-        if splash is not None:
-            splash.append_log(render_application_text(message))
+        if splash is None:
+            return
+        try:
+            splash.start_activity(
+                SplashActivity(
+                    initial_text=render_application_text(activity.initial_text),
+                    long_wait_text=render_application_text(activity.long_wait_text),
+                    extended_wait_text=render_application_text(
+                        activity.extended_wait_text
+                    ),
+                )
+            )
+        except (OSError, RuntimeError, SplashSessionMessageError) as error:
+            log_warning(
+                _LOGGER,
+                "Could not start optional recovery splash activity",
+                error_type=type(error).__name__,
+            )
+
+    def clear_recovery_activity(self) -> None:
+        """Stop managed recovery activity on the current splash."""
+
+        splash = self._splash()
+        if splash is None:
+            return
+        try:
+            splash.clear_activity()
+        except (OSError, RuntimeError, SplashSessionMessageError) as error:
+            log_warning(
+                _LOGGER,
+                "Could not clear optional recovery splash activity",
+                error_type=type(error).__name__,
+            )
 
     def emit_recovery_log(self, line: str) -> None:
         """Forward one managed recovery output line to startup sinks."""

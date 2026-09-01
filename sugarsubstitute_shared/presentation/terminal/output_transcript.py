@@ -33,6 +33,7 @@ class TerminalOutputMutationKind(Enum):
 
     APPEND_LINE = "append_line"
     REPLACE_LAST_LINE = "replace_last_line"
+    REMOVE_LAST_LINE = "remove_last_line"
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,19 @@ class TerminalOutputTranscript:
 
         self._stable_lines.clear()
         self._transient_line = None
+
+    def clear_transient_line(self) -> TerminalOutputMutation | None:
+        """Remove the active redraw row without changing durable history."""
+
+        if self._transient_line is None:
+            return None
+        self._transient_line = None
+        empty_line = TerminalStyledLine(plain_text="", spans=())
+        return TerminalOutputMutation(
+            kind=TerminalOutputMutationKind.REMOVE_LAST_LINE,
+            line="",
+            styled_line=empty_line,
+        )
 
     def snapshot(self) -> tuple[str, ...]:
         """Return the retained transcript lines in display order."""

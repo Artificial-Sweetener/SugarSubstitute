@@ -64,6 +64,12 @@ class ResolvedFieldSpec:
     raw_value: object | None = None
     value_source: FieldValueSource = FieldValueSource.EXPLICIT
 
+    @property
+    def is_advanced(self) -> bool:
+        """Return whether authoritative Comfy metadata classifies this field advanced."""
+
+        return self.meta_info.get("advanced") is True
+
 
 @dataclass(frozen=True)
 class EditorBehaviorSnapshot:
