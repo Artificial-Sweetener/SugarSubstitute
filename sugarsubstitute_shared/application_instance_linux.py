@@ -97,7 +97,7 @@ def acquire_linux_session_bus(identity: str) -> LinuxSessionBusResult:
                 _DO_NOT_QUEUE,
             )
         )
-    except (ImportError, OSError, RuntimeError, ValueError):
+    except (ImportError, KeyError, OSError, RuntimeError, ValueError):
         _LOGGER.info(
             "Linux session D-Bus is unavailable; using abstract socket election",
             exc_info=True,
