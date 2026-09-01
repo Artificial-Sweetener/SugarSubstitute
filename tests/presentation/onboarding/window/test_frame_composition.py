@@ -42,10 +42,8 @@ from substitute.presentation.onboarding.onboarding_models import (
 from substitute.presentation.onboarding.onboarding_window import (
     OnboardingWindow,
 )
-from substitute.presentation.shell.window_frame import (
-    ShellBackdropMode,
-    SubstituteWindowFrame,
-)
+from substitute.presentation.shell.window_effects import ShellBackdropMode
+from substitute.presentation.shell.window_frame import SubstituteWindowFrame
 from substitute.presentation.widgets.spin_box import SpinBox
 
 from tests.support.qt.lifecycle import ensure_qt_application

@@ -33,8 +33,11 @@ from PySide6.QtWidgets import QApplication
 
 from sugarsubstitute_shared.launch_splash.activity import SplashActivity
 
-from substitute.app.bootstrap.theme import configure_theme
-from substitute.domain.appearance import AppearanceThemeMode
+from substitute.app.bootstrap.splash_arguments import (
+    backdrop_mode_from_argument,
+    theme_mode_from_argument,
+)
+from substitute.app.bootstrap.splash_cancel import notify_cancel_requested
 from substitute.application.execution import (
     CancellationToken,
     ExecutionContext,
@@ -44,10 +47,6 @@ from substitute.app.bootstrap.standalone_long_lived_execution import (
     StandaloneLongLivedExecutionOwner,
 )
 from substitute.presentation.resources.app_icon import application_icon
-from substitute.presentation.shell.window_frame import ShellBackdropMode
-from substitute.shared.qfluentwidgets_banner import (
-    suppress_qfluentwidgets_import_banner,
-)
 
 _PARENT_POLL_INTERVAL_MS = 1000
 _SYNCHRONIZE = 0x00100000
@@ -80,17 +79,16 @@ def main(argv: list[str] | None = None) -> int:
     if app is None:
         app = QApplication([sys.argv[0]])
     app = cast(QApplication, app)
-    with suppress_qfluentwidgets_import_banner():
-        configure_theme(
-            theme_mode=_theme_mode_from_arg(args.theme_mode),
-            accent_color=args.accent_color or "#E91E63",
-        )
-        app.setWindowIcon(application_icon())
-        from substitute.presentation.shell.splash_window import SplashWindow
+    app.setWindowIcon(application_icon())
+    from substitute.presentation.shell.splash_window import SplashWindow
 
-        splash = SplashWindow(backdrop_mode=_backdrop_mode_from_arg(args.backdrop_mode))
+    splash = SplashWindow(
+        backdrop_mode=backdrop_mode_from_argument(args.backdrop_mode),
+        theme_mode=theme_mode_from_argument(args.theme_mode),
+        accent_color=args.accent_color or "#E91E63",
+    )
     splash.cancelRequested.connect(
-        lambda: _handle_cancel_requested(app=app, stream=sys.stdout)
+        lambda: notify_cancel_requested(app=app, stream=sys.stdout)
     )
     splash.center_on_screen()
     splash.show()
@@ -155,12 +153,6 @@ def decode_splash_message(line: str) -> dict[str, str] | None:
         if isinstance(value, str):
             message[key] = value
     return message
-
-
-def encode_splash_helper_event(message: dict[str, str]) -> str:
-    """Return one compact helper-to-parent splash event."""
-
-    return json.dumps(message, ensure_ascii=True, separators=(",", ":"))
 
 
 def parent_process_is_alive(parent_pid: int) -> bool:
@@ -239,17 +231,6 @@ def _activity_from_message(message: dict[str, str]) -> SplashActivity | None:
         return None
 
 
-def _handle_cancel_requested(*, app: QApplication, stream: TextIO) -> None:
-    """Notify the parent process that the user canceled startup loading."""
-
-    try:
-        stream.write(encode_splash_helper_event({"type": "cancel"}) + "\n")
-        stream.flush()
-    except OSError:
-        pass
-    app.quit()
-
-
 def _windows_process_is_alive(pid: int) -> bool:
     """Return whether one Windows process handle is still signaled as running."""
 
@@ -277,36 +258,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _theme_mode_from_arg(raw_value: str | None) -> AppearanceThemeMode:
-    """Return one appearance theme mode parsed from a helper CLI argument."""
-
-    if raw_value is None:
-        return AppearanceThemeMode.DARK
-    try:
-        return AppearanceThemeMode(raw_value)
-    except ValueError:
-        return AppearanceThemeMode.DARK
-
-
-def _backdrop_mode_from_arg(raw_value: str | None) -> ShellBackdropMode | None:
-    """Return one shell backdrop mode parsed from a helper CLI argument."""
-
-    if raw_value is None:
-        return ShellBackdropMode.MICA
-    if raw_value == "none":
-        return None
-    if raw_value == ShellBackdropMode.ACRYLIC.value:
-        return ShellBackdropMode.ACRYLIC
-    return ShellBackdropMode.MICA
-
-
 if __name__ == "__main__":
     raise SystemExit(main())
 
 
 __all__ = [
     "decode_splash_message",
-    "encode_splash_helper_event",
     "main",
     "parent_process_is_alive",
 ]

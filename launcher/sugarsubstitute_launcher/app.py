@@ -92,15 +92,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         resolved_locale.effective_language.identifier
     )
 
-    from launcher.sugarsubstitute_launcher.crash_routing import (
-        recover_pending_crash_reports,
-    )
-
-    recover_pending_crash_reports(
-        layout=layout,
-        locale_override=args.locale_override,
-    )
-
     app_launch_error: Exception | None = None
     broker: ApplicationInstanceBroker | None = None
     startup_plan: LauncherStartupPlan | None = None
@@ -124,6 +115,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             splash_session = start_launcher_splash_session(
                 layout=layout,
                 locale_identifier=resolved_locale.effective_language.identifier,
+            )
+            from launcher.sugarsubstitute_launcher.crash_routing import (
+                recover_pending_crash_reports,
+            )
+
+            recover_pending_crash_reports(
+                layout=layout,
+                locale_override=args.locale_override,
             )
             from launcher.sugarsubstitute_launcher.startup_plan import (
                 assess_startup_candidate,

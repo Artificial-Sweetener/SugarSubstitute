@@ -60,10 +60,10 @@ from substitute.application.ports import (
 from substitute.application.errors import SubstituteOperationContext
 from substitute.presentation.errors import ErrorPresenter, ErrorReportPresenterProtocol
 from substitute.presentation.shell.cube_loader import (
-    CubeIconFactoryProtocol,
     CubeLoadPresentationIntent,
     load_cube_async,
 )
+from substitute.presentation.resources.cube_icon_resolver import CubeIconFactoryProtocol
 from substitute.presentation.shell.cube_removal_projection import (
     clear_cube_runtime_issues,
     remove_editor_cube_section,

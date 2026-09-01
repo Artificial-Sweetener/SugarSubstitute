@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from substitute.application.cubes import cube_name_from_alias, cube_target_model
 from substitute.application.display_labels import beautify_label
 from substitute.domain.workflow import is_cube_bypassed
 from sugarsubstitute_shared.presentation.localization import (
@@ -28,7 +29,7 @@ from sugarsubstitute_shared.presentation.localization import (
 def cube_section_title(alias: str, cube_state: object | None) -> str:
     """Return the visible editor title for one cube section."""
 
-    title = beautify_label(alias)
+    title = beautify_label(cube_name_from_alias(alias, cube_target_model(cube_state)))
     if cube_state is not None and is_cube_bypassed(cube_state):
         return translate_application_message("%1 (bypassed)", title)
     return title

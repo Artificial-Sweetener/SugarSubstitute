@@ -44,7 +44,10 @@ from substitute.application.node_behavior import NodeBehaviorRuntimeState
 from substitute.presentation.shell.cube_stack_presenter import (
     CubeStackPresenter,
     CubeStackProtocol,
-    CubeTabIconResolver,
+)
+from substitute.presentation.resources.cube_icon_resolver import (
+    CubeIconFactoryProtocol,
+    CubeIconResolver,
 )
 from substitute.shared.logging.logger import (
     get_logger,
@@ -116,22 +119,6 @@ class WorkflowSessionState(Protocol):
 
     active_workflow_id: str
     workflows: dict[str, Any]
-
-
-class CubeIconFactoryProtocol(Protocol):
-    """Resolve cube icon descriptors into presentation-compatible icon payloads."""
-
-    def icon_for_cube(
-        self,
-        *,
-        cube_id: str,
-        display_name: str,
-        icon: object | None,
-        catalog_revision: str = "",
-        cube_content_hash: str = "",
-        render_size: int | None = None,
-    ) -> object:
-        """Return a Qt-compatible icon payload for one loaded cube."""
 
 
 @dataclass(frozen=True)
@@ -703,7 +690,7 @@ def load_cube_async(
 
         phase_started_at = perf_counter()
         presentation_result = CubeStackPresenter(
-            icon_resolver=CubeTabIconResolver(
+            icon_resolver=CubeIconResolver(
                 cube_icon_factory=callbacks.cube_icon_factory,
             ),
         ).promote_placeholder(
@@ -1491,7 +1478,6 @@ def _find_tab_index(cube_stack: CubeStackView, route_key: str) -> int | None:
 
 
 __all__ = [
-    "CubeIconFactoryProtocol",
     "CubeLoadExecutionRoute",
     "CubeLoadExecutionRouteFactory",
     "CubeLoadPresentationIntent",

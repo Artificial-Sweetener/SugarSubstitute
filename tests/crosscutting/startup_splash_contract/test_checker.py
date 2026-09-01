@@ -22,8 +22,10 @@ from pathlib import Path
 import textwrap
 
 from tools.splash_first_governance import (
+    SplashDependencyContract,
     SplashFirstContract,
     validate_contract_source,
+    validate_dependency_source,
 )
 
 
@@ -169,6 +171,53 @@ def test_checker_rejects_missing_or_duplicated_visibility_boundaries() -> None:
 
     assert [item.code for item in missing_diagnostics] == ["SPLASH001"]
     assert [item.code for item in duplicated_diagnostics] == ["SPLASH001"]
+
+
+def test_checker_rejects_heavy_transitive_splash_dependencies() -> None:
+    """The protected pre-paint closure cannot acquire application-wide imports."""
+
+    source = _source(
+        """
+        from substitute.presentation.shell.window_frame import ShellBackdropMode
+        import scipy
+        """
+    )
+    contract = SplashDependencyContract(
+        relative_path=Path("splash.py"),
+        forbidden_import_prefixes=frozenset(
+            {"scipy", "substitute.presentation.shell.window_frame"}
+        ),
+    )
+
+    diagnostics = validate_dependency_source(source, contract=contract, path=_PATH)
+
+    assert [(item.code, item.line) for item in diagnostics] == [
+        ("SPLASH006", 2),
+        ("SPLASH006", 3),
+    ]
+
+
+def test_checker_protects_imports_before_a_dependency_paint_boundary() -> None:
+    """Session infrastructure may load after paint but never before it."""
+
+    source = _source(
+        """
+        def main():
+            from session.server import SplashSessionServer
+            splash.show()
+            from session.client import SplashSessionClient
+        """
+    )
+    contract = SplashDependencyContract(
+        relative_path=Path("splash.py"),
+        forbidden_import_prefixes=frozenset({"session"}),
+        function_name="main",
+        boundary_call="splash.show",
+    )
+
+    diagnostics = validate_dependency_source(source, contract=contract, path=_PATH)
+
+    assert [(item.code, item.line) for item in diagnostics] == [("SPLASH006", 3)]
 
 
 def _source(value: str) -> str:

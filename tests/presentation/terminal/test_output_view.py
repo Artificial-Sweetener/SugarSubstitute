@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any, cast
 
 import pytest
 from PySide6.QtCore import QObject, Qt
@@ -230,7 +231,7 @@ def test_terminal_output_view_disables_qfluent_smooth_scrolling(
 
     view = TerminalOutputView()
     owned_qt_objects.append(view)
-    scroll_delegate = view.log_view.scrollDelegate
+    scroll_delegate = cast(Any, view.log_view).scrollDelegate
 
     assert scroll_delegate.useAni is False
     assert scroll_delegate.verticalSmoothScroll.smoothMode is SmoothMode.NO_SMOOTH

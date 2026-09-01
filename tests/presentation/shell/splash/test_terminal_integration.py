@@ -33,9 +33,7 @@ from substitute.presentation.splash_animation import (
     SplashPaperFlipWidget,
     SplashPoseLibraryError,
 )
-from substitute.presentation.shell.window_frame import (
-    ShellBackdropMode,
-)
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 from substitute.presentation.shell.splash_window import SplashWindow
 from tests.support.qt.lifecycle import destroy_qt_object
 from tests.support.qt.semantic_wait import wait_for_qt_condition

@@ -52,11 +52,10 @@ from substitute.domain.workspace_snapshot import (
     OutputImageReference,
     WorkflowSnapshot,
 )
+from substitute.presentation.resources import cube_icon_resolver
 from substitute.presentation.shell.cube_stack_presenter import (
-    CubeIconFactoryProtocol,
     CubeStackPresenter,
     CubeStackProtocol,
-    CubeTabIconResolver,
 )
 from substitute.presentation.shell.workflow_surface_refresh_scheduler import (
     WorkflowSurfaceRefreshScheduler,
@@ -440,7 +439,7 @@ class WorkflowWorkspaceView(Protocol):
     cube_stacks: dict[str, WorkflowCubeStackProtocol]
     editor_panels: dict[str, LifecycleWidgetProtocol]
     override_managers: dict[str, OverrideManagerProtocol | None]
-    cube_icon_factory: CubeIconFactoryProtocol
+    cube_icon_factory: cube_icon_resolver.CubeIconFactoryProtocol
     cube_stack_container: WidgetContainerProtocol
     editor_panel_container: WidgetContainerProtocol
 
@@ -1384,7 +1383,7 @@ class WorkflowWorkspaceCoordinator:
         if resolved_active_cube_alias not in stack_order:
             resolved_active_cube_alias = stack_order[-1] if stack_order else None
         result = CubeStackPresenter(
-            icon_resolver=CubeTabIconResolver(
+            icon_resolver=cube_icon_resolver.CubeIconResolver(
                 cube_icon_factory=getattr(view, "cube_icon_factory", None),
             ),
         ).rebuild_stack(
