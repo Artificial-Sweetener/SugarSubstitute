@@ -18,9 +18,16 @@
 
 from typing import cast
 
-from sugarsubstitute_shared.application_instance_macos import MacOSMessagePortClaim
+import pytest
+
+from sugarsubstitute_shared import application_instance_macos
+from sugarsubstitute_shared.application_instance_macos import (
+    MacOSMessagePortClaim,
+    MacOSMessagePortElection,
+)
 from sugarsubstitute_shared.application_instance_macos_core_foundation import (
     CoreFoundationMessagePortApi,
+    LocalMessagePortCreation,
 )
 from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
 
@@ -46,6 +53,35 @@ class _DataApi:
         self.next_identifier += 1
         self.values[identifier] = payload
         return identifier
+
+
+class _DuplicateNameApi:
+    """Model Core Foundation returning an existing same-process local port."""
+
+    def __init__(self) -> None:
+        """Record released Core Foundation objects."""
+
+        self.released: list[int] = []
+
+    def create_name(self, _value: str) -> int:
+        """Return one fake retained name."""
+
+        return 10
+
+    def create_local_port(
+        self,
+        _name: int,
+        _callback: object,
+        _context: object,
+    ) -> LocalMessagePortCreation:
+        """Return the already-owned port without claiming its name."""
+
+        return LocalMessagePortCreation(port=20, created=False)
+
+    def release(self, value: int) -> None:
+        """Record release of each retained fake object."""
+
+        self.released.append(value)
 
 
 def test_native_message_queues_until_broker_handler_is_bound() -> None:
@@ -87,3 +123,22 @@ def test_native_message_rejects_malformed_invocation() -> None:
     response = claim.receive_message(1)
 
     assert api.values[response] == b"rejected"
+
+
+def test_existing_local_message_port_is_a_secondary_election(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Treat Core Foundation's returned existing port as election loss."""
+
+    api = _DuplicateNameApi()
+    monkeypatch.setattr(
+        application_instance_macos,
+        "CoreFoundationMessagePortApi",
+        lambda: api,
+    )
+
+    result = application_instance_macos.acquire_macos_message_port("instance")
+
+    assert result.election is MacOSMessagePortElection.SECONDARY
+    assert result.claim is None
+    assert api.released == [10, 20]

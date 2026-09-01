@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ctypes
 import ctypes.util
+from dataclasses import dataclass
 
 
 UTF8_ENCODING = 0x08000100
@@ -32,6 +33,14 @@ MessagePortCallback = ctypes.CFUNCTYPE(
     ctypes.c_void_p,
     ctypes.c_void_p,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class LocalMessagePortCreation:
+    """Describe whether Core Foundation created or returned a named local port."""
+
+    port: int
+    created: bool
 
 
 class MessagePortContext(ctypes.Structure):
@@ -75,8 +84,8 @@ class CoreFoundationMessagePortApi:
         name: int,
         callback: object,
         context: MessagePortContext,
-    ) -> int:
-        """Atomically claim one named local message port."""
+    ) -> LocalMessagePortCreation:
+        """Atomically claim one named port and expose duplicate-name results."""
 
         should_free_info = ctypes.c_bool(False)
         port = self._core_foundation.CFMessagePortCreateLocal(
@@ -86,7 +95,10 @@ class CoreFoundationMessagePortApi:
             ctypes.byref(context),
             ctypes.byref(should_free_info),
         )
-        return int(port) if port else 0
+        return LocalMessagePortCreation(
+            port=int(port) if port else 0,
+            created=bool(port) and not should_free_info.value,
+        )
 
     def create_remote_port(self, name: int) -> int:
         """Connect to one named local message port in this bootstrap session."""
@@ -265,6 +277,7 @@ class CoreFoundationMessagePortApi:
 
 __all__ = [
     "CoreFoundationMessagePortApi",
+    "LocalMessagePortCreation",
     "MAXIMUM_MESSAGE_BYTES",
     "MessagePortCallback",
     "MessagePortContext",
