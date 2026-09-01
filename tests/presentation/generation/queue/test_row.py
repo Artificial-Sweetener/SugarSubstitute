@@ -19,8 +19,10 @@
 from __future__ import annotations
 
 import pytest
-from PySide6.QtCore import QObject, QPoint, Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QSignalSpy, QTest
+
+from sugarsubstitute_shared.presentation.fluent_tooltips import FluentToolTipFilter
 
 from substitute.presentation.generation.queue_item_row import (
     GenerationQueueItemRow,
@@ -134,9 +136,11 @@ def test_queue_row_routes_body_and_action_tooltips(
         assert row._title_label.toolTip() == ""
         assert row._subtitle_label.toolTip() == ""
         assert row._action_button.toolTip() == action_tooltip
-        assert row._tooltip_filter is not None
-        assert isinstance(row._tooltip_filter, QObject)
+        assert isinstance(row._tooltip_filter, FluentToolTipFilter)
         assert row._tooltip_filter.parent() is row
+        assert row._text_column.findChild(FluentToolTipFilter) is None
+        assert row._title_label.findChild(FluentToolTipFilter) is None
+        assert row._subtitle_label.findChild(FluentToolTipFilter) is None
     finally:
         destroy_qt_object(row)
 
