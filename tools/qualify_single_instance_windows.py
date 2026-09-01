@@ -47,7 +47,10 @@ from tools.single_instance_cold_start_evidence import (
 from tools.single_instance_qualification_installation import (
     prepare_qualification_installation,
 )
-from tools.single_instance_qualification_app import APPLICATION_CLAIM_DELAY_ENV
+from tools.single_instance_qualification_app import (
+    APPLICATION_CLAIM_DELAY_ENV,
+    application_preclaim_marker_path,
+)
 
 
 _TIMEOUT_SECONDS = 30.0
@@ -98,7 +101,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 layout,
                 application_claim_delay_seconds=(_RACE_APPLICATION_CLAIM_DELAY_SECONDS),
             )
-            _wait_for_launcher_before_application(layout)
+            _wait_for_application_preclaim(layout)
             race_duplicate = _launch(layout)
             race_launchers = [race_winner, race_duplicate]
             active_launchers.extend(race_launchers)
@@ -260,18 +263,24 @@ def _wait_for_new_app_pid(
     return _wait_for_value(current_pid, description="qualification application start")
 
 
-def _wait_for_launcher_before_application(layout: InstallLayout) -> None:
-    """Stop in the exact launch phase that previously produced the false dialog."""
+def _wait_for_application_preclaim(layout: InstallLayout) -> None:
+    """Wait until the qualification app reaches its delayed ownership claim."""
 
-    lock_path = application_launch_lock_path(layout.root)
+    marker_path = application_preclaim_marker_path(layout.root)
+
+    def active_preclaim_pid() -> int | None:
+        try:
+            payload = json.loads(marker_path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            return None
+        pid = payload.get("pid") if isinstance(payload, dict) else None
+        if not isinstance(pid, int) or not psutil.pid_exists(pid):
+            return None
+        return pid
+
     _wait_for_value(
-        lambda: (
-            True
-            if lock_path.is_file()
-            and not ApplicationInstanceLease.owner_exists(layout.root)
-            else None
-        ),
-        description="launcher ownership before application handoff",
+        active_preclaim_pid,
+        description="qualification application pre-claim phase",
     )
 
 
