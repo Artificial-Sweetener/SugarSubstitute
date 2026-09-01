@@ -256,6 +256,7 @@ def test_emit_failure_logs_disconnect_warning(
         )
 
     assert sink.failures[0].error == "closed"
+    assert sink.failures[0].connection_lost is True
     assert any(
         "Comfy websocket listener disconnected before prompt completion"
         in record.message

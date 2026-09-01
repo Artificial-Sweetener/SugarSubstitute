@@ -301,6 +301,39 @@ def test_failed_participant_blocks_snapshot_and_releases_save_guard() -> None:
     assert repository.saved == [_snapshot()]
 
 
+def test_required_save_persists_prerequisites_and_snapshot_before_returning() -> None:
+    """Pre-action persistence should be complete rather than merely scheduled."""
+
+    events: list[str] = []
+
+    class OrderedRepository(_Repository):
+        """Record publication after prerequisite persistence."""
+
+        def save(self, snapshot: SessionSnapshot) -> None:
+            """Record durable session publication."""
+
+            events.append("session")
+            super().save(snapshot)
+
+    repository = OrderedRepository()
+    service = SessionAutosaveService(
+        save_service=SessionSaveService(
+            capture_service=_CaptureService(),
+            repository=repository,
+        )
+    )
+
+    result = service.save_durably(
+        cast(SnapshotCapturePort, object()),
+        participants=(_PersistenceParticipant(events),),
+        reason="before_generation",
+    )
+
+    assert result is True
+    assert events == ["participant-1", "session"]
+    assert repository.saved == [_snapshot()]
+
+
 def _snapshot() -> SessionSnapshot:
     """Build one deterministic session snapshot for autosave tests."""
 

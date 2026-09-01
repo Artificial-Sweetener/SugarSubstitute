@@ -52,6 +52,78 @@ def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
     assert args.verify_release_connectivity is False
     assert args.manifest_url is None
     assert args.locale_override == "ja"
+    assert args.crash_report_incident_id is None
+    assert args.restart_application is False
+    assert args.launcher_ui_child is False
+    assert args.negotiate_active_application is False
+
+
+def test_launcher_args_parse_internal_crash_report_mode(tmp_path: Path) -> None:
+    """Accept a pending incident only when its installation root is explicit."""
+
+    install_root = tmp_path / "SugarSubstitute"
+
+    args = parse_launcher_args(
+        [
+            "--show-crash-report=incident-1",
+            "--install-root",
+            str(install_root),
+        ]
+    )
+
+    assert args.crash_report_incident_id == "incident-1"
+    assert args.install_root == install_root
+
+
+def test_crash_report_mode_requires_explicit_install_root() -> None:
+    """Reporter recovery must never infer a diagnostics namespace."""
+
+    with pytest.raises(SystemExit):
+        parse_launcher_args(["--show-crash-report=incident-1"])
+
+
+def test_launcher_args_parse_supervised_restart_mode(tmp_path: Path) -> None:
+    """Accept an app-authorized restart only with an explicit installation."""
+
+    install_root = tmp_path / "SugarSubstitute"
+
+    args = parse_launcher_args(
+        ["--restart-application", "--install-root", str(install_root)]
+    )
+
+    assert args.restart_application is True
+    assert args.install_root == install_root
+
+
+def test_supervised_restart_requires_explicit_install_root() -> None:
+    """Restart supervision must never infer the handoff installation."""
+
+    with pytest.raises(SystemExit):
+        parse_launcher_args(["--restart-application"])
+
+
+def test_launcher_args_parse_supervised_ui_child_modes(tmp_path: Path) -> None:
+    """Accept hidden UI child modes only with an explicit diagnostics root."""
+
+    install_root = tmp_path / "SugarSubstitute"
+
+    window_args = parse_launcher_args(
+        ["--launcher-ui-child", "--repair", "--install-root", str(install_root)]
+    )
+    negotiation_args = parse_launcher_args(
+        ["--negotiate-active-application", "--install-root", str(install_root)]
+    )
+
+    assert window_args.launcher_ui_child is True
+    assert window_args.repair is True
+    assert negotiation_args.negotiate_active_application is True
+
+
+def test_active_application_child_requires_explicit_install_root() -> None:
+    """Duplicate-instance UI must use the parent's exact crash namespace."""
+
+    with pytest.raises(SystemExit):
+        parse_launcher_args(["--negotiate-active-application"])
 
 
 def test_launcher_args_parse_headless_release_probe_flags(tmp_path: Path) -> None:

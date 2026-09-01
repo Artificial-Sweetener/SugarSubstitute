@@ -49,6 +49,31 @@ jobs:
         shell: pwsh
         run: node scripts\update-release-versions.mjs ${{ inputs.version }} ${{ inputs.channel }}
 
+      - name: Build pinned Windows Crashpad runtime
+        shell: pwsh
+        run: >-
+          .\.venv\Scripts\python.exe tools\build_crashpad_runtime.py
+          --workspace build\crashpad-native
+          --output-root third_party\bin\crashpad
+          --with-probe
+
+      - name: Qualify Windows Crashpad capture and idle footprint
+        shell: pwsh
+        run: >-
+          .\.venv\Scripts\python.exe tools\qualify_crashpad_runtime.py
+          --runtime-dir third_party\bin\crashpad\windows-x64
+          --probe build\crashpad-native\checkout\crashpad\out\SugarSubstitute\sugarsubstitute_crashpad_probe.exe
+          --artifact-dir build\qualification\crashpad
+
+      - name: Upload Windows Crashpad qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: crashpad-qualification-windows${{ inputs.artifact_suffix }}
+          path: build/qualification/crashpad
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Build Windows launcher artifacts
         shell: pwsh
         run: |
@@ -105,6 +130,29 @@ jobs:
       - name: Apply release version
         run: node scripts/update-release-versions.mjs ${{ inputs.version }} ${{ inputs.channel }}
 
+      - name: Build pinned Apple Silicon Crashpad runtime
+        run: >-
+          .venv/bin/python tools/build_crashpad_runtime.py
+          --workspace build/crashpad-native
+          --output-root third_party/bin/crashpad
+          --with-probe
+
+      - name: Qualify Apple Silicon Crashpad capture and idle footprint
+        run: >-
+          .venv/bin/python tools/qualify_crashpad_runtime.py
+          --runtime-dir third_party/bin/crashpad/macos-arm64
+          --probe build/crashpad-native/checkout/crashpad/out/SugarSubstitute/sugarsubstitute_crashpad_probe
+          --artifact-dir build/qualification/crashpad
+
+      - name: Upload Apple Silicon Crashpad qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: crashpad-qualification-macos${{ inputs.artifact_suffix }}
+          path: build/qualification/crashpad
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Build Apple Silicon launcher artifacts
         run: |
           test "$(uname -m)" = "arm64"
@@ -153,6 +201,32 @@ jobs:
 
       - name: Apply release version
         run: node scripts/update-release-versions.mjs ${{ inputs.version }} ${{ inputs.channel }}
+
+      - name: Install Crashpad native build dependencies
+        uses: ./.github/actions/setup-crashpad-linux
+
+      - name: Build pinned Linux Crashpad runtime
+        run: >-
+          .venv/bin/python tools/build_crashpad_runtime.py
+          --workspace build/crashpad-native
+          --output-root third_party/bin/crashpad
+          --with-probe
+
+      - name: Qualify Linux Crashpad capture and idle footprint
+        run: >-
+          .venv/bin/python tools/qualify_crashpad_runtime.py
+          --runtime-dir third_party/bin/crashpad/linux-x64
+          --probe build/crashpad-native/checkout/crashpad/out/SugarSubstitute/sugarsubstitute_crashpad_probe
+          --artifact-dir build/qualification/crashpad
+
+      - name: Upload Linux Crashpad qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: crashpad-qualification-linux${{ inputs.artifact_suffix }}
+          path: build/qualification/crashpad
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Build Linux launcher bundles
         run: |

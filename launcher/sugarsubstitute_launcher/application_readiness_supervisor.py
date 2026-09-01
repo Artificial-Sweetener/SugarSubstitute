@@ -46,6 +46,17 @@ _TERMINATION_TIMEOUT_SECONDS = 5.0
 class ApplicationReadinessError(RuntimeError):
     """Report a candidate that exits or stalls before its shell is ready."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        terminated_process: CandidateProcess | None = None,
+    ) -> None:
+        """Retain a naturally terminated candidate for crash classification."""
+
+        super().__init__(message)
+        self.terminated_process = terminated_process
+
 
 @dataclass(frozen=True, slots=True)
 class _ReadinessContract:
@@ -129,7 +140,8 @@ class ApplicationReadinessSupervisor:
                 if return_code is not None:
                     raise ApplicationReadinessError(
                         "SugarSubstitute exited before its main window became ready. "
-                        f"Exit code: {return_code}. Startup log: {startup_log_path}."
+                        f"Exit code: {return_code}. Startup log: {startup_log_path}.",
+                        terminated_process=process,
                     )
                 if receipt_path.exists():
                     self._validate_receipt(

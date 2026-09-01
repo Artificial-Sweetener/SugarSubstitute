@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 
 from substitute.domain.workspace_snapshot.codecs import (
     workspace_snapshot_from_json,
@@ -29,7 +30,9 @@ from substitute.domain.workspace_snapshot import (
     ShellLayoutSnapshot,
     WindowGeometrySnapshot,
     WorkspaceSnapshot,
+    WorkflowSnapshot,
 )
+from substitute.domain.workflow import WorkflowState
 
 
 def test_workspace_snapshot_codec_round_trips_floating_canvas_layout() -> None:
@@ -149,3 +152,61 @@ def test_workspace_snapshot_codec_tolerates_floating_canvas_display_state() -> N
     floating_window = restored.shell_layout.canvas_layout.floating_windows[0]
     assert floating_window.window_display_state == "normal"
     assert floating_window.geometry is None
+
+
+def test_workspace_snapshot_round_trips_authoritative_document_state() -> None:
+    """Recovery must retain dirty status and the last explicit save destination."""
+
+    source_path = Path("projects") / "portrait.sugar"
+    snapshot = WorkspaceSnapshot(
+        schema_version="1",
+        workflows=(
+            WorkflowSnapshot(
+                workflow_id="workflow-1",
+                tab_label="Portrait",
+                workflow=WorkflowState(),
+                document_dirty=True,
+                document_source_path=source_path,
+            ),
+        ),
+        tab_order=("workflow-1",),
+        active_route="workflow-1",
+    )
+
+    payload = workspace_snapshot_to_json(snapshot)
+    restored = workspace_snapshot_from_json(payload)
+
+    workflow_payload = payload["workflows"]
+    assert isinstance(workflow_payload, list)
+    assert workflow_payload[0]["document_dirty"] is True
+    assert workflow_payload[0]["document_source_path"] == str(source_path)
+    assert restored.workflows[0].document_dirty is True
+    assert restored.workflows[0].document_source_path == source_path
+
+
+def test_workspace_snapshot_defaults_legacy_document_state_to_clean() -> None:
+    """Snapshots written before dirty-state ownership should remain restorable."""
+
+    payload = workspace_snapshot_to_json(
+        WorkspaceSnapshot(
+            schema_version="1",
+            workflows=(
+                WorkflowSnapshot(
+                    workflow_id="workflow-1",
+                    tab_label="Legacy",
+                    workflow=WorkflowState(),
+                ),
+            ),
+            tab_order=("workflow-1",),
+            active_route="workflow-1",
+        )
+    )
+    workflows = payload["workflows"]
+    assert isinstance(workflows, list)
+    del workflows[0]["document_dirty"]
+    del workflows[0]["document_source_path"]
+
+    restored = workspace_snapshot_from_json(payload)
+
+    assert restored.workflows[0].document_dirty is False
+    assert restored.workflows[0].document_source_path is None

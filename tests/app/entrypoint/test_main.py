@@ -33,6 +33,7 @@ import sugarsubstitute_shared.localization as shared_localization
 from sugarsubstitute_shared.application_launch_guard import (
     APPLICATION_LAUNCH_TOKEN_ENV,
 )
+from sugarsubstitute_shared.crash_reporting.protocol import CleanExitOutcome
 
 
 def test_main_starts_early_splash_and_passes_it_to_bootstrap(
@@ -189,6 +190,51 @@ def test_main_refuses_to_start_splash_when_launch_guard_is_held(
         lambda **_kwargs: False,
     )
     app_entrypoint.main()
+
+
+def test_main_declares_clean_exit_after_all_application_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A supervised duplicate launch should still produce an authenticated receipt."""
+
+    outcomes: list[CleanExitOutcome] = []
+    runtime = SimpleNamespace(
+        clean_exit_outcome=None,
+        request_clean_exit=outcomes.append,
+    )
+    monkeypatch.setattr(
+        app_entrypoint,
+        "_install_crash_runtime",
+        lambda **_kwargs: runtime,
+    )
+    monkeypatch.setattr(
+        app_entrypoint,
+        "_enter_application_launch_guard",
+        lambda **_kwargs: False,
+    )
+
+    app_entrypoint.main()
+
+    assert outcomes == [CleanExitOutcome.CLOSED]
+
+
+def test_entrypoint_delegates_unsupervised_source_execution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Direct execution should become a supervisor before app bootstrap."""
+
+    from launcher.sugarsubstitute_launcher import source_crash_supervision
+
+    monkeypatch.setattr(
+        source_crash_supervision,
+        "supervise_source_application",
+        lambda **_kwargs: 19,
+    )
+
+    with pytest.raises(SystemExit) as raised:
+        app_entrypoint._run_entrypoint()
+
+    assert raised.value.code == 19
 
 
 def test_entrypoint_consumes_launch_authority_before_bootstrap(

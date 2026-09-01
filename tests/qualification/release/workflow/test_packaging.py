@@ -201,6 +201,47 @@ def test_pyinstaller_specs_share_launcher_runtime_data_ownership() -> None:
         assert "shutil.which" not in spec_text
 
 
+def test_every_release_platform_builds_and_qualifies_crashpad_before_packaging() -> (
+    None
+):
+    """Block native packaging until the matching Crashpad runtime is proven."""
+
+    workflow = yaml.safe_load(
+        workflow_path("release-build.yml").read_text(encoding="utf-8")
+    )
+    expected_runtime_paths = {
+        "build-windows": "third_party\\bin\\crashpad\\windows-x64",
+        "build-macos": "third_party/bin/crashpad/macos-arm64",
+        "build-linux": "third_party/bin/crashpad/linux-x64",
+    }
+    for job_name, runtime_path in expected_runtime_paths.items():
+        job = workflow["jobs"][job_name]
+        script = workflow_job_script(job)
+        build_position = script.index("build_crashpad_runtime.py")
+        qualify_position = script.index("qualify_crashpad_runtime.py")
+        packaging_position = script.index("PyInstaller")
+        assert build_position < qualify_position < packaging_position
+        assert "--with-probe" in script
+        assert f"--runtime-dir {runtime_path}" in script
+        evidence_step = next(
+            step
+            for step in job["steps"]
+            if "Crashpad qualification evidence" in step.get("name", "")
+        )
+        assert evidence_step["if"] == "always()"
+        assert evidence_step["with"]["if-no-files-found"] == "error"
+        assert evidence_step["with"]["retention-days"] == 1
+
+    linux_script = action_path("setup-crashpad-linux").read_text(encoding="utf-8")
+    assert "./.github/actions/setup-crashpad-linux" in workflow_text(
+        "release-build.yml"
+    )
+    assert "libcurl4-openssl-dev" in linux_script
+    assert "zlib1g-dev" in linux_script
+    assert "dpkg-query" in linux_script
+    assert "missing_packages" in linux_script
+
+
 def test_windows_release_build_qualifies_packaged_single_instance_behavior() -> None:
     """Block release bytes unless the real launcher passes offscreen process proof."""
 

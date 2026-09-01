@@ -39,6 +39,10 @@ class LauncherArguments:
     handoff_geometry: str | None
     manifest_url: str | None
     locale_override: str | None
+    crash_report_incident_id: str | None
+    restart_application: bool
+    launcher_ui_child: bool
+    negotiate_active_application: bool
 
 
 def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
@@ -49,6 +53,18 @@ def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
     execution_mode.add_argument("--continue-install", action="store_true")
     execution_mode.add_argument("--headless-install", action="store_true")
     execution_mode.add_argument("--verify-release-connectivity", action="store_true")
+    execution_mode.add_argument("--show-crash-report", type=str, default=None)
+    execution_mode.add_argument("--restart-application", action="store_true")
+    execution_mode.add_argument(
+        "--negotiate-active-application",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--launcher-ui-child",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("--repair", action="store_true")
     parser.add_argument("--no-update-check", action="store_true")
     parser.add_argument("--install-root", type=Path, default=None)
@@ -58,6 +74,12 @@ def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
     namespace = parser.parse_args(argv)
     if namespace.headless_install and namespace.install_root is None:
         parser.error("--headless-install requires --install-root")
+    if namespace.show_crash_report and namespace.install_root is None:
+        parser.error("--show-crash-report requires --install-root")
+    if namespace.restart_application and namespace.install_root is None:
+        parser.error("--restart-application requires --install-root")
+    if namespace.negotiate_active_application and namespace.install_root is None:
+        parser.error("--negotiate-active-application requires --install-root")
     return LauncherArguments(
         continue_install=namespace.continue_install,
         headless_install=namespace.headless_install,
@@ -68,4 +90,8 @@ def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
         handoff_geometry=namespace.handoff_geometry,
         manifest_url=namespace.manifest_url,
         locale_override=namespace.locale,
+        crash_report_incident_id=namespace.show_crash_report,
+        restart_application=namespace.restart_application,
+        launcher_ui_child=namespace.launcher_ui_child,
+        negotiate_active_application=namespace.negotiate_active_application,
     )

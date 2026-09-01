@@ -23,7 +23,7 @@ from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
-from launcher.sugarsubstitute_launcher.payload import PayloadInstallError
+from launcher.sugarsubstitute_launcher.payload_models import PayloadInstallError
 from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import (

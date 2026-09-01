@@ -175,11 +175,9 @@ _LAZY_EXPORTS = {
     "GenerationJobLifecycleAction": (
         "substitute.application.generation.job_queue_service"
     ),
-    "GenerationJobLifecycleEvent": (
-        "substitute.application.generation.job_queue_service"
-    ),
+    "GenerationJobLifecycleEvent": ("substitute.application.generation.queue_models"),
     "GenerationJobLifecycleObserver": (
-        "substitute.application.generation.job_queue_service"
+        "substitute.application.generation.queue_models"
     ),
     "GenerationJobQueueService": (
         "substitute.application.generation.job_queue_service"
@@ -206,14 +204,10 @@ _LAZY_EXPORTS = {
     "GenerationProgressRetirementReason": (
         "substitute.application.generation.workflow_progress_service"
     ),
-    "GenerationQueueBatchEntry": (
-        "substitute.application.generation.job_queue_service"
-    ),
-    "GenerationQueueChangeKind": "substitute.application.generation.job_queue_service",
+    "GenerationQueueBatchEntry": "substitute.application.generation.queue_models",
+    "GenerationQueueChangeKind": "substitute.application.generation.queue_models",
     "GenerationQueueJob": "substitute.domain.generation",
-    "GenerationQueueStateChange": (
-        "substitute.application.generation.job_queue_service"
-    ),
+    "GenerationQueueStateChange": ("substitute.application.generation.queue_models"),
     "GenerationRequest": "substitute.application.generation.generation_service",
     "GenerationResultSnapshotBuildResult": (
         "substitute.application.generation.generation_result_snapshot_service"
@@ -294,8 +288,8 @@ _LAZY_EXPORTS = {
     "PromptScenePreparationWorkflow": (
         "substitute.application.generation.prompt_scene_preparation_plan"
     ),
-    "QueueBatchContext": "substitute.application.generation.job_queue_service",
-    "QueueProjectionCacheKey": "substitute.application.generation.job_queue_service",
+    "QueueBatchContext": "substitute.application.generation.queue_models",
+    "QueueProjectionCacheKey": "substitute.application.generation.queue_models",
     "RecipeOutputSibling": (
         "substitute.application.generation.recipe_output_sibling_discovery_service"
     ),

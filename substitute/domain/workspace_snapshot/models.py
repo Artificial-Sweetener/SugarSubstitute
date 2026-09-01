@@ -155,6 +155,8 @@ class WorkflowSnapshot:
     input_masks: tuple[InputMaskReference, ...] = ()
     output_images: tuple[OutputImageReference, ...] = ()
     editor_viewport: EditorViewportSnapshot | None = None
+    document_dirty: bool = False
+    document_source_path: Path | None = None
 
 
 @dataclass(frozen=True, slots=True)

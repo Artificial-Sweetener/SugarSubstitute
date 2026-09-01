@@ -32,10 +32,8 @@ from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
-from launcher.sugarsubstitute_launcher.payload import (
-    AppPayloadInstallResult,
-    AppPayloadInstaller,
-)
+from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
+from launcher.sugarsubstitute_launcher.payload_models import AppPayloadInstallResult
 from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
 from launcher.sugarsubstitute_launcher.runtime_reconciliation import (
     RuntimeReconciler,
