@@ -16,12 +16,61 @@
 
 """Verify Linux session-bus election fallback behavior."""
 
+from dataclasses import dataclass
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
 from sugarsubstitute_shared import application_instance_linux
-from sugarsubstitute_shared.application_instance_linux import LinuxSessionBusElection
+from sugarsubstitute_shared.application_instance_linux import (
+    LinuxSessionBusClaim,
+    LinuxSessionBusElection,
+    _DbusConnection,
+    _DbusReply,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _ElectionReply:
+    """Return one deterministic D-Bus reply body."""
+
+    body: tuple[object, ...]
+
+
+class _ElectionConnection:
+    """Record synchronous D-Bus ownership requests and disconnects."""
+
+    def __init__(self) -> None:
+        """Prepare one open fake connection."""
+
+        self.requests: list[object] = []
+        self.closed = False
+
+    def send_and_get_reply(self, message: object) -> _DbusReply:
+        """Record one request and return a successful reply."""
+
+        self.requests.append(message)
+        return cast(_DbusReply, _ElectionReply(body=(1,)))
+
+    def close(self) -> None:
+        """Record the connection close."""
+
+        self.closed = True
+
+
+class _ElectionMessageBus:
+    """Build inspectable fake D-Bus ownership messages."""
+
+    def RequestName(self, name: str, flags: int = 0) -> object:
+        """Build one request-name marker."""
+
+        return ("request", name, flags)
+
+    def ReleaseName(self, name: str) -> object:
+        """Build one release-name marker."""
+
+        return ("release", name)
 
 
 def test_missing_session_bus_environment_selects_socket_fallback(
@@ -46,3 +95,23 @@ def test_missing_session_bus_environment_selects_socket_fallback(
 
     assert result.election is LinuxSessionBusElection.UNAVAILABLE
     assert result.claim is None
+
+
+def test_session_bus_claim_releases_name_before_disconnect() -> None:
+    """Wait for D-Bus name release so immediate re-election cannot lose a race."""
+
+    connection = _ElectionConnection()
+    message_bus = _ElectionMessageBus()
+    claim = LinuxSessionBusClaim(
+        cast(_DbusConnection, connection),
+        message_bus,
+        "ai.artificialsweetener.Substitute.Instance.example",
+    )
+
+    claim.close()
+    claim.close()
+
+    assert connection.requests == [
+        ("release", "ai.artificialsweetener.Substitute.Instance.example")
+    ]
+    assert connection.closed
