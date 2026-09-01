@@ -27,14 +27,14 @@ from PySide6.QtCore import QEvent, QLocale, QObject, Qt, QThread, Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
-from sugarsubstitute_shared.localization import (
+from sugarsubstitute_shared.localization.manifest import load_language_manifest
+from sugarsubstitute_shared.localization.models import (
     LanguageDefinition,
     LanguageManifest,
     LanguagePreference,
     ResolvedLocale,
-    load_language_manifest,
-    resolve_locale,
 )
+from sugarsubstitute_shared.localization.resolution import resolve_locale
 from sugarsubstitute_shared.presentation.localization.composite_translator import (
     CompositeTranslator,
 )

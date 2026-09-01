@@ -385,7 +385,8 @@ class OutputCanvas(QWidget):
 
         previous_source_key = self.active_source_key
         previous_set_index = self.active_set_index
-        self._preview_registry.rebind_workflow_session(session)
+        retired_preview_ids = self._preview_registry.rebind_workflow_session(session)
+        self._preview_presenter.close_final_output_preview_lane(retired_preview_ids)
         self._output_session = session
         projection = session.projection
         self._output_projection = projection

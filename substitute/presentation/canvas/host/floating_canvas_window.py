@@ -34,9 +34,11 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
     release_fluent_tooltips,
 )
 from substitute.presentation.shell.chrome_style import connect_theme_refresh
-from substitute.presentation.shell.window_frame import (
+from substitute.presentation.shell.window_effects import (
     ShellBackdropMode,
     apply_acrylic_effect,
+)
+from substitute.presentation.shell.window_frame import (
     apply_shell_titlebar_button_theme,
 )
 

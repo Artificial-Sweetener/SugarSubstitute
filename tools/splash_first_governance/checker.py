@@ -55,6 +55,16 @@ class SplashFirstDiagnostic:
     message: str
 
 
+@dataclass(frozen=True, slots=True)
+class SplashDependencyContract:
+    """Protect one module in the transitive pre-paint dependency closure."""
+
+    relative_path: Path
+    forbidden_import_prefixes: frozenset[str]
+    function_name: str | None = None
+    boundary_call: str | None = None
+
+
 def repository_contracts() -> tuple[SplashFirstContract, ...]:
     """Return the authoritative executable startup contracts."""
 
@@ -127,7 +137,6 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
                     "frozen_support_path",
                     "native_frozen_executable_path",
                     "parse_launcher_args",
-                    "recover_pending_crash_reports",
                     "resolve_launcher_locale",
                     "resolve_startup_candidate",
                     "route_explicit_crash_operation",
@@ -138,6 +147,48 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
             ),
         ),
     )
+
+
+def repository_dependency_contracts() -> tuple[SplashDependencyContract, ...]:
+    """Return the reviewed modules that form the splash pre-paint closure."""
+
+    forbidden = frozenset(
+        {
+            "cutecanvas",
+            "numpy",
+            "qpane",
+            "qfluentwidgets",
+            "scipy",
+            "torch",
+            "substitute.app.bootstrap.splash_process",
+            "substitute.presentation.shell.window_frame",
+        }
+    )
+    contracts = [
+        SplashDependencyContract(Path(path), forbidden)
+        for path in (
+            "launcher/sugarsubstitute_launcher/runtime_policy.py",
+            "launcher/sugarsubstitute_launcher/splash_session.py",
+            "substitute/app/bootstrap/application_catalogs.py",
+            "substitute/app/bootstrap/splash_arguments.py",
+            "substitute/app/bootstrap/splash_localization.py",
+            "substitute/presentation/shell/splash_window.py",
+            "substitute/presentation/shell/window_effects.py",
+        )
+    ]
+    contracts.append(
+        SplashDependencyContract(
+            Path("substitute/app/bootstrap/shared_splash_host.py"),
+            forbidden
+            | {
+                "sugarsubstitute_shared.launch_splash.server",
+                "sugarsubstitute_shared.launch_splash.session",
+            },
+            function_name="main",
+            boundary_call="splash.show",
+        )
+    )
+    return tuple(contracts)
 
 
 def validate_repository(repository_root: Path) -> tuple[SplashFirstDiagnostic, ...]:
@@ -161,7 +212,88 @@ def validate_repository(repository_root: Path) -> tuple[SplashFirstDiagnostic, .
         diagnostics.extend(
             validate_contract_source(source, contract=contract, path=path)
         )
-    return tuple(diagnostics)
+    for dependency_contract in repository_dependency_contracts():
+        path = repository_root / dependency_contract.relative_path
+        try:
+            source = path.read_text(encoding="utf-8")
+        except OSError as error:
+            diagnostics.append(
+                SplashFirstDiagnostic(
+                    path,
+                    1,
+                    "SPLASH001",
+                    f"cannot read protected splash dependency: {error}",
+                )
+            )
+            continue
+        diagnostics.extend(
+            validate_dependency_source(
+                source,
+                contract=dependency_contract,
+                path=path,
+            )
+        )
+    return tuple(sorted(diagnostics, key=lambda item: (item.line, item.message)))
+
+
+def validate_dependency_source(
+    source: str,
+    *,
+    contract: SplashDependencyContract,
+    path: Path,
+) -> tuple[SplashFirstDiagnostic, ...]:
+    """Reject heavyweight or full-shell imports from the pre-paint closure."""
+
+    module = ast.parse(source, filename=str(path))
+    diagnostics: list[SplashFirstDiagnostic] = []
+    inspected_nodes: list[ast.AST] = [
+        statement for statement in module.body if not _is_type_checking_block(statement)
+    ]
+    if contract.function_name is not None and contract.boundary_call is not None:
+        function = find_function(module, contract.function_name)
+        boundary_calls = (
+            ()
+            if function is None
+            else tuple(
+                call
+                for call in calls_without_nested_functions(function)
+                if call_name(call) == contract.boundary_call
+            )
+        )
+        if function is None or len(boundary_calls) != 1:
+            diagnostics.append(
+                SplashFirstDiagnostic(
+                    path,
+                    1 if function is None else function.lineno,
+                    "SPLASH001",
+                    (
+                        "protected dependency function must contain exactly one "
+                        f"{contract.boundary_call}() paint boundary"
+                    ),
+                )
+            )
+            return tuple(diagnostics)
+        inspected_nodes.extend(nodes_on_boundary_path(function, boundary_calls[0]))
+
+    seen_import_nodes: set[int] = set()
+    for imported_name, node in imports(inspected_nodes):
+        if id(node) in seen_import_nodes:
+            continue
+        seen_import_nodes.add(id(node))
+        if not any(
+            imported_name == prefix or imported_name.startswith(f"{prefix}.")
+            for prefix in contract.forbidden_import_prefixes
+        ):
+            continue
+        diagnostics.append(
+            SplashFirstDiagnostic(
+                path,
+                node.lineno,
+                "SPLASH006",
+                f"forbidden pre-paint dependency {imported_name!r}",
+            )
+        )
+    return tuple(sorted(diagnostics, key=lambda item: (item.line, item.message)))
 
 
 def validate_contract_source(
@@ -360,7 +492,10 @@ def _matches_import(imported_name: str, allowed_names: frozenset[str]) -> bool:
 __all__ = [
     "SplashFirstContract",
     "SplashFirstDiagnostic",
+    "SplashDependencyContract",
+    "repository_dependency_contracts",
     "repository_contracts",
     "validate_contract_source",
+    "validate_dependency_source",
     "validate_repository",
 ]

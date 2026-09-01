@@ -31,6 +31,7 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 
 SPLASH_SURFACE_EVIDENCE_ENV = "SUGAR_SUBSTITUTE_SPLASH_SURFACE_EVIDENCE"
 _TIMEOUT_SECONDS = 30.0
+_MAX_LAUNCH_TO_FIRST_PAINT_MS = 1_500.0
 
 
 def capture_cold_start_snapshot(layout: InstallLayout) -> dict[str, object]:
@@ -88,6 +89,9 @@ def assert_cold_start_snapshot(
         raise AssertionError(f"Malformed splash evidence: {snapshot}")
     if (
         surface.get("splash_is_visible") is not True
+        or surface.get("first_paint_confirmed") is not True
+        or not isinstance(surface.get("launch_to_first_paint_ms"), (int, float))
+        or float(surface["launch_to_first_paint_ms"]) > _MAX_LAUNCH_TO_FIRST_PAINT_MS
         or surface.get("top_level_surface_count") != 1
         or surface.get("visible_top_level_surface_count") != 1
         or surface.get("platform_name") != "offscreen"

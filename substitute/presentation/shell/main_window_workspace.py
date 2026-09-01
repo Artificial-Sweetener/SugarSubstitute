@@ -97,7 +97,7 @@ from substitute.presentation.shell.generation_progress_strip import (
     GenerationProgressStrip,
 )
 from substitute.presentation.shell.editor_busy_overlay import EditorBusyOverlay
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 from substitute.presentation.shell.window_frame import (
     titlebar_menu_content_insert_index,
 )

@@ -46,6 +46,7 @@ def test_surface_evidence_records_the_visible_top_level_splash(
         shared_splash_host._write_surface_evidence(
             app=application,
             splash=splash,
+            first_paint_monotonic_ns=123_000_000,
         )
 
     evidence_path = (
@@ -53,6 +54,7 @@ def test_surface_evidence_records_the_visible_top_level_splash(
     )
     payload = json.loads(evidence_path.read_text(encoding="utf-8"))
     assert payload["host_pid"] == os.getpid()
+    assert payload["first_paint_confirmed"] is True
     assert payload["splash_is_visible"] is True
     assert payload["top_level_surface_count"] >= 1
     assert payload["visible_top_level_surface_count"] >= 1

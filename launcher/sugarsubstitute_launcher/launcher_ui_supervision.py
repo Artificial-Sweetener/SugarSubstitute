@@ -100,7 +100,10 @@ def _current_launcher_command(arguments: Sequence[str]) -> tuple[str, ...]:
 
     executable = subprocess_path(Path(sys.executable))
     if bool(getattr(sys, "frozen", False)):
-        return (executable, *arguments)
+        ui_executable = subprocess_path(
+            Path(sys.executable).with_name("LauncherUi.exe")
+        )
+        return (ui_executable, *arguments)
     return (
         executable,
         "-m",
