@@ -23,23 +23,26 @@ import logging
 import subprocess
 import sys
 import threading
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import IO, Any
+from typing import TYPE_CHECKING, IO, Any
 
-from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.runtime_policy import runtime_environment
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
     subprocess_working_directory,
 )
-from sugarsubstitute_shared.launch_splash import (
-    SocketSplashSessionClient,
+from sugarsubstitute_shared.launch_splash.client import SocketSplashSessionClient
+from sugarsubstitute_shared.launch_splash.session import (
     SplashSessionSpec,
     splash_session_args,
 )
 from sugarsubstitute_shared.launch_splash.session import validate_splash_session_spec
-from sugarsubstitute_shared.localization import format_locale_argument
+from sugarsubstitute_shared.localization.cli import format_locale_argument
+
+if TYPE_CHECKING:
+    from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -146,7 +149,12 @@ def _start_splash_host_process(
 def _splash_host_environment(layout: InstallLayout) -> dict[str, str]:
     """Build a runtime environment without application handoff authority."""
 
-    return runtime_environment(layout=layout)
+    environment = runtime_environment(layout=layout)
+    environment.setdefault(
+        "SUGAR_SUBSTITUTE_SPLASH_REQUESTED_MONOTONIC_NS",
+        str(time.monotonic_ns()),
+    )
+    return environment
 
 
 def _read_ready_spec(

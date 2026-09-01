@@ -24,7 +24,9 @@ from pathlib import Path
 from PySide6.QtCore import QLocale, QTranslator
 from PySide6.QtWidgets import QApplication
 
-from sugarsubstitute_shared.presentation.localization import QtCatalogBundleLoader
+from sugarsubstitute_shared.presentation.localization.catalog_bundle_loader import (
+    QtCatalogBundleLoader,
+)
 
 
 def build_application_catalog_loader(

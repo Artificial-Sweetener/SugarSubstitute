@@ -14,31 +14,35 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Translate splash command-line values into presentation identities."""
+
 from __future__ import annotations
-
-from collections.abc import Callable
-from typing import Any
-
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QWidget
 
 from substitute.domain.appearance import AppearanceThemeMode
 from substitute.presentation.shell.window_effects import ShellBackdropMode
-from sugarsubstitute_shared.launch_splash.activity import SplashActivity
 
-class SplashWindow(QWidget):
-    def __init__(
-        self,
-        icon: QIcon | None = ...,
-        parent: QWidget | None = ...,
-        *,
-        backdrop_mode: ShellBackdropMode | None = ...,
-        theme_mode: AppearanceThemeMode = ...,
-        accent_color: str = ...,
-        activity_clock: Callable[[], float] = ...,
-    ) -> None: ...
-    def __getattr__(self, name: str) -> Any: ...
-    def center_on_screen(self) -> None: ...
-    def append_log(self, line: str) -> None: ...
-    def start_activity(self, activity: SplashActivity) -> None: ...
-    def clear_activity(self) -> None: ...
+
+def theme_mode_from_argument(raw_value: str | None) -> AppearanceThemeMode:
+    """Return the safe theme mode represented by one splash argument."""
+
+    if raw_value is None:
+        return AppearanceThemeMode.DARK
+    try:
+        return AppearanceThemeMode(raw_value)
+    except ValueError:
+        return AppearanceThemeMode.DARK
+
+
+def backdrop_mode_from_argument(raw_value: str | None) -> ShellBackdropMode | None:
+    """Return the safe backdrop mode represented by one splash argument."""
+
+    if raw_value is None:
+        return ShellBackdropMode.MICA
+    if raw_value == "none":
+        return None
+    if raw_value == ShellBackdropMode.ACRYLIC.value:
+        return ShellBackdropMode.ACRYLIC
+    return ShellBackdropMode.MICA
+
+
+__all__ = ["backdrop_mode_from_argument", "theme_mode_from_argument"]

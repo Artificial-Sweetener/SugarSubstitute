@@ -196,6 +196,9 @@ def _launch(
     environment = os.environ.copy()
     environment["QT_QPA_PLATFORM"] = "offscreen"
     environment[SPLASH_SURFACE_EVIDENCE_ENV] = "1"
+    environment["SUGAR_SUBSTITUTE_SPLASH_REQUESTED_MONOTONIC_NS"] = str(
+        time.monotonic_ns()
+    )
     if registration_delay_seconds is not None:
         environment[APPLICATION_REGISTRATION_DELAY_ENV] = str(
             registration_delay_seconds

@@ -41,6 +41,13 @@ launcher_datas = build_launcher_data_files(
     app_icon_path=app_icon_path,
 )
 
+supervisor_excludes = [
+    "PySide6",
+    "qfluentwidgets",
+    "qframelesswindow",
+    "shiboken6",
+]
+
 a = Analysis(
     [str(launcher_root / "sugarsubstitute_launcher" / "__main__.py")],
     pathex=[str(repo_root)],
@@ -60,12 +67,29 @@ a = Analysis(
         "torch",
         "torchaudio",
         "torchvision",
+        *supervisor_excludes,
     ],
     noarchive=False,
     optimize=2,
 )
 a.binaries = exclude_foreign_windows_icu_binaries(a.binaries)
 pyz = PYZ(a.pure)
+
+ui_a = Analysis(
+    [str(launcher_root / "sugarsubstitute_launcher" / "__main__.py")],
+    pathex=[str(repo_root)],
+    binaries=[],
+    datas=launcher_datas,
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[item for item in a.excludes if item not in supervisor_excludes],
+    noarchive=False,
+    optimize=2,
+)
+ui_a.binaries = exclude_foreign_windows_icu_binaries(ui_a.binaries)
+ui_pyz = PYZ(ui_a.pure)
 
 repair_a = Analysis(
     [str(launcher_root / "sugarsubstitute_launcher" / "repair_entrypoint.py")],
@@ -125,11 +149,34 @@ repair_exe = EXE(
     icon=str(app_icon_path),
     contents_directory="launcher-bin",
 )
+ui_exe = EXE(
+    ui_pyz,
+    ui_a.scripts,
+    [],
+    name="LauncherUi",
+    debug=False,
+    bootloader_ignore_signals=False,
+    exclude_binaries=True,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=str(app_icon_path),
+    contents_directory="launcher-bin",
+)
 coll = COLLECT(
     exe,
+    ui_exe,
     repair_exe,
     a.binaries,
+    ui_a.binaries,
     a.datas,
+    ui_a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],

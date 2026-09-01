@@ -33,7 +33,11 @@ def configure_theme(
 ) -> None:
     """Apply Substitute's requested QFluent theme mode and accent color."""
 
-    from qfluentwidgets import Theme, setTheme, setThemeColor  # type: ignore[import-untyped]
+    from qfluentwidgets.common.config import Theme  # type: ignore[import-untyped]
+    from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
+        setTheme,
+        setThemeColor,
+    )
 
     setTheme(_qfluent_theme_value(theme_mode=theme_mode, theme_namespace=Theme))
     setThemeColor(QColor(accent_color))
@@ -42,7 +46,9 @@ def configure_theme(
 def configure_accent_color(*, accent_color: str) -> None:
     """Apply only Substitute's requested QFluent accent color."""
 
-    from qfluentwidgets import setThemeColor
+    from qfluentwidgets.common.style_sheet import (
+        setThemeColor,
+    )
 
     setThemeColor(QColor(accent_color))
 

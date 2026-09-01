@@ -46,6 +46,9 @@ PLATFORM_TEST_MODULES: Final[dict[str, frozenset[CiPlatform]]] = {
 
 ISOLATED_TEST_MODULES = frozenset(
     {
+        # This Windows native splash timing qualification requires a fresh
+        # process so unrelated xdist pressure cannot distort its latency budget.
+        "tests/qualification/startup_splash/test_source_first_paint.py",
         # This real-shell restore qualification can abort after prior native Qt
         # work in one xdist process, while fresh concurrent processes are stable.
         "tests/qualification/prompt_editor/abuse/test_restored_mounts.py",
