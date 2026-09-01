@@ -26,10 +26,9 @@ from PySide6.QtWidgets import QApplication
 from substitute.app.bootstrap.application_catalogs import (
     build_application_catalog_loader,
 )
-from sugarsubstitute_shared.localization import LanguagePreference
-from sugarsubstitute_shared.presentation.localization import (
+from sugarsubstitute_shared.localization.models import LanguagePreference
+from sugarsubstitute_shared.presentation.localization.translation_manager import (
     LanguageSnapshot,
-    QFluentFontFamilyAdapter,
     TranslationManager,
 )
 
@@ -54,7 +53,7 @@ def build_splash_localization_runtime(
         preference_store=_ProcessPreferenceStore(),
         bundle_loader=build_application_catalog_loader(application),
         ui_languages_provider=lambda: tuple(QLocale.system().uiLanguages()),
-        font_adapter=QFluentFontFamilyAdapter(application),
+        font_adapter=None,
     )
     initial_snapshot = manager.initialize(process_override=locale_override)
     return SplashLocalizationRuntime(

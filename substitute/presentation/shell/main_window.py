@@ -79,7 +79,7 @@ from substitute.presentation.shell.shell_resize_handler import (
 from substitute.presentation.shell.titlebar_buttons import (
     GenerationTitleBarRunControl,
 )
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 from substitute.presentation.workflows.cube_stack_view import (
     CubeStack,
 )

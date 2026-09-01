@@ -210,7 +210,7 @@ if TYPE_CHECKING:
         ModelCatalogEventListener,
     )
     from substitute.presentation.onboarding import OnboardingWindow
-    from substitute.presentation.shell.window_frame import ShellBackdropMode
+    from substitute.presentation.shell.window_effects import ShellBackdropMode
 
 
 class _ShellMainWindowProtocol(Protocol):
@@ -3151,7 +3151,7 @@ def _resolved_shell_backdrop_mode(
     """Resolve the current persisted appearance backdrop into shell-frame terms."""
 
     from substitute.domain.appearance import AppearanceBackdropMode
-    from substitute.presentation.shell.window_frame import ShellBackdropMode
+    from substitute.presentation.shell.window_effects import ShellBackdropMode
 
     resolved = appearance_runtime.resolve_preferences()
     if resolved.effective_backdrop_mode is AppearanceBackdropMode.ACRYLIC:

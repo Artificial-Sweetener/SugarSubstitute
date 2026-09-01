@@ -18,26 +18,9 @@
 
 from __future__ import annotations
 
-from PySide6.QtGui import QFont, QFontDatabase
+from dataclasses import dataclass
 
-try:
-    from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
-        isDarkTheme,
-        themeColor,
-    )
-except ImportError:  # pragma: no cover - lightweight test stubs
-
-    def isDarkTheme() -> bool:
-        """Return the default theme state for lightweight test stubs."""
-
-        return True
-
-    def themeColor() -> object:
-        """Return a stable accent color for lightweight test stubs."""
-
-        from PySide6.QtGui import QColor
-
-        return QColor("#009faa")
+from PySide6.QtGui import QColor, QFont, QFontDatabase
 
 
 _TERMINAL_FONT_FALLBACKS = (
@@ -57,6 +40,35 @@ _TERMINAL_FONT_FALLBACKS = (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class TerminalOutputAppearance:
+    """Describe theme inputs needed to paint a terminal output surface."""
+
+    dark_theme: bool
+    accent_red: int
+    accent_green: int
+    accent_blue: int
+
+    @classmethod
+    def from_color(
+        cls,
+        *,
+        dark_theme: bool,
+        accent_color: str,
+    ) -> TerminalOutputAppearance:
+        """Build a validated terminal appearance from an RGB color string."""
+
+        color = QColor(accent_color)
+        if not color.isValid():
+            raise ValueError("Terminal accent color must be a valid Qt color.")
+        return cls(
+            dark_theme=dark_theme,
+            accent_red=color.red(),
+            accent_green=color.green(),
+            accent_blue=color.blue(),
+        )
+
+
 def create_terminal_output_font(*, point_size: int = 9) -> QFont:
     """Return the shared monospace font used by terminal-style views."""
 
@@ -72,10 +84,13 @@ def create_terminal_output_font(*, point_size: int = 9) -> QFont:
     return font
 
 
-def build_terminal_output_stylesheet() -> str:
+def build_terminal_output_stylesheet(
+    appearance: TerminalOutputAppearance | None = None,
+) -> str:
     """Return the shared terminal surface stylesheet used across the app."""
 
-    if isDarkTheme():
+    resolved = appearance or _qfluent_output_appearance()
+    if resolved.dark_theme:
         return """
         QFrame#TerminalOutputView {
             background-color: rgba(8, 10, 12, 0.97);
@@ -94,17 +109,19 @@ def build_terminal_output_stylesheet() -> str:
     """
 
 
-def build_terminal_output_log_stylesheet() -> str:
+def build_terminal_output_log_stylesheet(
+    appearance: TerminalOutputAppearance | None = None,
+) -> str:
     """Return the direct stylesheet used by the visible terminal text widget."""
 
-    accent = themeColor()
-    accent_rgb = f"{accent.red()}, {accent.green()}, {accent.blue()}"
+    resolved = appearance or _qfluent_output_appearance()
+    accent_rgb = (
+        f"{resolved.accent_red}, {resolved.accent_green}, {resolved.accent_blue}"
+    )
     text_color = (
-        "rgba(230, 236, 241, 0.92)" if isDarkTheme() else "rgba(30, 35, 40, 0.95)"
+        "rgba(230, 236, 241, 0.92)" if resolved.dark_theme else "rgba(30, 35, 40, 0.95)"
     )
-    selection_color = (
-        "rgba(255, 255, 255, 0.98)" if isDarkTheme() else "rgba(255, 255, 255, 0.98)"
-    )
+    selection_color = "rgba(255, 255, 255, 0.98)"
     return f"""
         PlainTextEdit#TerminalOutputLog,
         QPlainTextEdit#TerminalOutputLog {{
@@ -121,8 +138,31 @@ def build_terminal_output_log_stylesheet() -> str:
     """
 
 
+def _qfluent_output_appearance() -> TerminalOutputAppearance:
+    """Resolve live QFluent colors only for normal application terminal views."""
+
+    try:
+        from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
+            isDarkTheme,
+            themeColor,
+        )
+    except ImportError:  # pragma: no cover - lightweight test stubs
+        return TerminalOutputAppearance.from_color(
+            dark_theme=True,
+            accent_color="#009FAA",
+        )
+    accent = themeColor()
+    return TerminalOutputAppearance(
+        dark_theme=bool(isDarkTheme()),
+        accent_red=int(accent.red()),
+        accent_green=int(accent.green()),
+        accent_blue=int(accent.blue()),
+    )
+
+
 __all__ = [
     "build_terminal_output_log_stylesheet",
     "build_terminal_output_stylesheet",
     "create_terminal_output_font",
+    "TerminalOutputAppearance",
 ]

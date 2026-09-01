@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol, TypeAlias
 
 from substitute.presentation.editor.panel.cube_section_title import cube_section_title
+from substitute.application.cubes import cube_target_model
 from substitute.presentation.qt_label_text import literal_label_text
 
 WidgetMapKey: TypeAlias = object
@@ -226,6 +227,9 @@ class EditorCubeRegistry:
         set_text = getattr(label, "setText", None)
         set_title_text = getattr(label, "setTitleText", None)
         title = cube_section_title(alias, cube_state)
+        set_target_model = getattr(label, "setTargetModel", None)
+        if callable(set_target_model):
+            set_target_model(cube_target_model(cube_state))
         if callable(set_title_text):
             set_title_text(title)
             return

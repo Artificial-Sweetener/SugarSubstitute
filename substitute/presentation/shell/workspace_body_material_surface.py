@@ -30,7 +30,7 @@ from substitute.presentation.shell.chrome_style import (
     body_material_wash_color,
     connect_theme_refresh,
 )
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 
 _is_valid_qt_object: Callable[[object], bool]
 try:

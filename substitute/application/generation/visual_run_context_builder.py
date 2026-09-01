@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Mapping
 
 from substitute.application.cubes import cube_alias_body
@@ -108,10 +109,10 @@ def _source_label_for_prompt_node(node_id: str, node_data: dict[str, object]) ->
 def _node_to_cube_output_source(
     prompt_nodes: Mapping[str, object],
 ) -> dict[str, dict[str, str]]:
-    """Map upstream executable nodes to their unambiguous cube-output source."""
+    """Map executable nodes to their nearest unambiguous cube-output source."""
 
     output_sources: dict[str, dict[str, str]] = {}
-    candidate_sources_by_node: dict[str, list[dict[str, str]]] = {}
+    candidates_by_node: dict[str, list[tuple[int, dict[str, str]]]] = {}
     for node_id, node_data in prompt_nodes.items():
         if not isinstance(node_data, dict):
             continue
@@ -127,30 +128,40 @@ def _node_to_cube_output_source(
             "cubeAlias": label,
         }
         output_sources[node_id] = source
-        for upstream_node_id in _upstream_node_ids(prompt_nodes, node_id):
-            candidate_sources_by_node.setdefault(upstream_node_id, []).append(source)
+        for upstream_node_id, distance in _upstream_node_distances(
+            prompt_nodes,
+            node_id,
+        ).items():
+            candidates_by_node.setdefault(upstream_node_id, []).append(
+                (distance, source)
+            )
     for node_id, source in output_sources.items():
-        candidate_sources_by_node[node_id] = [source]
-    return {
-        node_id: sources[0]
-        for node_id, sources in candidate_sources_by_node.items()
-        if len({source["sourceKey"] for source in sources}) == 1
-    }
+        candidates_by_node[node_id] = [(0, source)]
+    resolved_sources: dict[str, dict[str, str]] = {}
+    for node_id, candidates in candidates_by_node.items():
+        nearest_distance = min(distance for distance, _source in candidates)
+        nearest_sources = [
+            source for distance, source in candidates if distance == nearest_distance
+        ]
+        if len({source["sourceKey"] for source in nearest_sources}) == 1:
+            resolved_sources[node_id] = nearest_sources[0]
+    return resolved_sources
 
 
-def _upstream_node_ids(
+def _upstream_node_distances(
     prompt_nodes: Mapping[str, object],
     start_node_id: str,
-) -> set[str]:
-    """Return executable node ids that feed one output node."""
+) -> dict[str, int]:
+    """Return the shortest upstream distance from one output to each feeder."""
 
-    visited: set[str] = set()
-    pending = [start_node_id]
+    distances: dict[str, int] = {}
+    pending = deque(((start_node_id, 0),))
     while pending:
-        node_id = pending.pop()
-        if node_id in visited:
+        node_id, distance = pending.popleft()
+        previous_distance = distances.get(node_id)
+        if previous_distance is not None and previous_distance <= distance:
             continue
-        visited.add(node_id)
+        distances[node_id] = distance
         node_data = prompt_nodes.get(node_id)
         if not isinstance(node_data, dict):
             continue
@@ -158,9 +169,8 @@ def _upstream_node_ids(
         if not isinstance(inputs, Mapping):
             continue
         for upstream_node_id in _linked_node_ids(tuple(inputs.values())):
-            if upstream_node_id not in visited:
-                pending.append(upstream_node_id)
-    return visited
+            pending.append((upstream_node_id, distance + 1))
+    return distances
 
 
 def _linked_node_ids(values: object) -> tuple[str, ...]:

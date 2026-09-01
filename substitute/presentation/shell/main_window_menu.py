@@ -56,7 +56,7 @@ from substitute.presentation.shell.chrome_style import (
     connect_theme_refresh,
     workflow_chrome_wash_rgba,
 )
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 
 
 @dataclass(frozen=True)

@@ -22,7 +22,8 @@ from typing import Any
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.domain.appearance import AppearanceThemeMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 from sugarsubstitute_shared.launch_splash.activity import SplashActivity
 
 class SplashWindow(QWidget):
@@ -32,6 +33,8 @@ class SplashWindow(QWidget):
         parent: QWidget | None = ...,
         *,
         backdrop_mode: ShellBackdropMode | None = ...,
+        theme_mode: AppearanceThemeMode = ...,
+        accent_color: str = ...,
         activity_clock: Callable[[], float] = ...,
     ) -> None: ...
     def __getattr__(self, name: str) -> Any: ...

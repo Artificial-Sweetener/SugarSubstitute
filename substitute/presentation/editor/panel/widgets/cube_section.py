@@ -58,13 +58,12 @@ from qfluentwidgets import FluentIcon as FIF
 
 from shiboken6 import isValid
 
-from substitute.presentation.editor.panel.cube_section_title import cube_section_title
 from substitute.presentation.editor.panel.widgets.masonry_grid_layout import (
     EDITOR_SECTION_GAP,
     MasonryGridLayout,
 )
-from substitute.presentation.editor.panel.widgets.cube_title_label import (
-    CubeTitleLabel,
+from substitute.presentation.editor.panel.cube_identity_header import (
+    build_cube_identity_header,
 )
 from substitute.presentation.editor.panel.widgets.field_row import (
     EDITOR_ROW_BODY_SPACING,
@@ -881,8 +880,7 @@ class CubeSectionBuilder:
         """Build and register the qfluent title label for one cube section."""
 
         cube_state = self._cube_states().get(route_key)
-        display_name = cube_section_title(route_key, cube_state)
-        header_label = CubeTitleLabel(display_name)
+        header_label = build_cube_identity_header(route_key, cube_state)
         self._cube_headers[route_key] = header_label
         return header_label
 

@@ -199,6 +199,8 @@ class ApplicationInstanceBroker:
             self._listener.close()
         except OSError:
             pass
+        if threading.current_thread() is not self._accept_thread:
+            self._accept_thread.join()
         with self._state_lock:
             child_socket = self._child_socket
             self._child_socket = None

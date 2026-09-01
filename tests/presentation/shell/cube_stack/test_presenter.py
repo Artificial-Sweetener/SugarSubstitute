@@ -23,11 +23,11 @@ from typing import cast
 
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.presentation.resources.app_icon import AppIcon
+from substitute.presentation.resources.cube_icon_resolver import CubeIconResolver
 from substitute.presentation.shell.cube_stack_presenter import (
     CubeStackProtocol,
     CubeTabItemProtocol,
     CubeStackPresenter,
-    CubeTabIconResolver,
 )
 
 
@@ -38,6 +38,7 @@ class _TabItem:
         """Store the initial route key."""
 
         self._route_key = route_key
+        self.target_model = ""
 
     def routeKey(self) -> str:
         """Return the current route key."""
@@ -48,6 +49,11 @@ class _TabItem:
         """Replace the current route key."""
 
         self._route_key = key
+
+    def setTargetModel(self, target_model: str) -> None:
+        """Record the canonical model presented independently from the alias."""
+
+        self.target_model = target_model
 
 
 class _CubeStack:
@@ -147,7 +153,7 @@ def test_rebuild_stack_applies_complete_tab_presentation() -> None:
         return "resolved-icon"
 
     presenter = CubeStackPresenter(
-        icon_resolver=CubeTabIconResolver(
+        icon_resolver=CubeIconResolver(
             cube_icon_factory=SimpleNamespace(icon_for_cube=_resolve_icon)
         )
     )
@@ -163,6 +169,7 @@ def test_rebuild_stack_applies_complete_tab_presentation() -> None:
             "cube_icon": "icon-descriptor",
             "catalog_revision": "rev-1",
             "content_hash": "hash-1",
+            "canonical_cube": {"metadata": {"target_model": "SDXL"}},
         },
         bypassed=True,
     )
@@ -180,6 +187,7 @@ def test_rebuild_stack_applies_complete_tab_presentation() -> None:
         {"routeKey": "Alias", "text": "Alias", "icon": "resolved-icon"}
     ]
     assert stack.presentations[0]["secondary_text"] == "v1.0.0 · base-cubes"
+    assert stack.tabItem(0).target_model == "SDXL"
     assert stack.bypassed[0] is True
     assert "Base Display" in stack.presentations[0]["tooltip_text"]
     assert stack.itemMap["Alias"].routeKey() == "Alias"
@@ -199,7 +207,7 @@ def test_append_cube_adds_complete_selected_card_at_end() -> None:
     """Appending should reuse complete presentation and select the final card."""
 
     presenter = CubeStackPresenter(
-        icon_resolver=CubeTabIconResolver(cube_icon_factory=None)
+        icon_resolver=CubeIconResolver(cube_icon_factory=None)
     )
     stack = _CubeStack()
     stack.insertTab(0, routeKey="Existing", text="Existing")
@@ -235,7 +243,7 @@ def test_rebuild_stack_applies_fallback_icon_when_resolution_fails() -> None:
         raise RuntimeError("missing icon asset")
 
     presenter = CubeStackPresenter(
-        icon_resolver=CubeTabIconResolver(
+        icon_resolver=CubeIconResolver(
             cube_icon_factory=SimpleNamespace(icon_for_cube=_raise_icon_error)
         )
     )
@@ -266,7 +274,7 @@ def test_promote_placeholder_updates_route_key_and_complete_presentation() -> No
     """Placeholder promotion should replace loading route state with cube state."""
 
     presenter = CubeStackPresenter(
-        icon_resolver=CubeTabIconResolver(cube_icon_factory=None)
+        icon_resolver=CubeIconResolver(cube_icon_factory=None)
     )
     stack = _CubeStack()
     stack.insertTab(0, routeKey="loading:Alias", text="Loading...")
