@@ -284,15 +284,20 @@ class OutputPreviewRegistry:
         )
         return self._remove_keys(keys)
 
-    def rebind_workflow_session(self, session: OutputCanvasSession) -> None:
-        """Carry active workflow lanes across navigation-only session revisions."""
+    def rebind_workflow_session(self, session: OutputCanvasSession) -> tuple[UUID, ...]:
+        """Carry current-run lanes and retire lanes superseded by another run."""
 
+        retired_keys: list[OutputPreviewLaneKey] = []
         for key, lane in tuple(self._lanes.items()):
             if key.workflow_id != session.workflow_id.value:
+                continue
+            if not _lane_can_follow_session(lane, session):
+                retired_keys.append(key)
                 continue
             if lane.session_revision == session.revision:
                 continue
             self._lanes[key] = replace(lane, session_revision=session.revision)
+        return self._remove_keys(tuple(retired_keys))
 
     def lanes_for_session(
         self,
@@ -616,6 +621,23 @@ def _final_matches_lane(
     if key.scene_key != (identity.scene_key or None):
         return False
     return key.source_key == identity.source_key
+
+
+def _lane_can_follow_session(
+    lane: OutputPreviewLane,
+    session: OutputCanvasSession,
+) -> bool:
+    """Return whether a preview belongs to the run represented by a new session."""
+
+    generation = session.generation_identity
+    if generation is None:
+        return True
+    key = lane.key
+    return (
+        key.generation_run_id == generation.generation_run_id
+        and key.prompt_id == generation.prompt_id
+        and lane.client_id == generation.client_id
+    )
 
 
 def _is_null_image(image: object) -> bool:

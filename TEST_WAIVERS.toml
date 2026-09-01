@@ -1257,3 +1257,16 @@ fingerprint = "sha256:9b3a4aebeeef64d54ee296c864536f3ca6c30479c53af6b2f8422c2902
 rationale = "This native Qt module mounts the real shell, workflow workspace, output canvas, output projection, and hierarchy navigation surfaces. Its missing-batch source-switch contract aborted in CuteCanvas construction only after prior native Qt work in an ordinary xdist worker, while the complete six-test module passed in one fresh process and in twenty concurrent fresh-process launches across five four-worker rounds. It owns no shared file, port, environment, subprocess, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
 issue = "chore:SS-TEST-WAIVER-C0276"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0277"
+owner = "Source splash first-paint qualification"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/startup_splash/test_source_first_paint.py|isolated-module"]
+paths = ["tests/qualification/startup_splash/test_source_first_paint.py"]
+fingerprint = "sha256:d1de72d9f4de487c84056c8c3a38b3e8fc59d9d6a1682dcea7b66752944edf9e"
+rationale = "This Windows qualification starts the real native splash in a dedicated headless Qt process and measures external process-request-to-first-paint latency. It directly protects the source and packaged Windows startup contract; macOS and Linux use platform-native qframeless implementations that cannot construct a representative window under a headless Qt backend. Concurrent ordinary-suite load can consume the latency budget independently of splash startup behavior. The test owns a tmp_path evidence directory and an ephemeral authenticated loopback endpoint, so bounded fresh-process isolation preserves the speed, one-surface, and clean-exit assertions without requiring global serialization."
+issue = "chore:SS-TEST-WAIVER-C0277"
+review_by = 2026-12-15

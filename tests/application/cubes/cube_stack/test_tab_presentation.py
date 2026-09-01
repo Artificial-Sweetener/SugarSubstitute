@@ -36,16 +36,32 @@ def test_cube_tab_presentation_formats_version_and_pack() -> None:
 
 
 def test_cube_tab_presentation_uses_pack_for_target_model_paths() -> None:
-    """Target-model folders should not replace the source pack label."""
+    """Target-model routes should become a separate pill and cube name."""
 
     presentation = build_cube_tab_presentation(
         alias="SDXL/Image to Image",
         cube_id="Artificial-Sweetener/Base-Cubes/SDXL/Image to Image.cube",
         version="1.0.0",
+        target_model="SDXL",
     )
 
-    assert presentation.primary_text == "SDXL/Image to Image"
+    assert presentation.primary_text == "Image to Image"
     assert presentation.secondary_text == "v1.0.0 · base-cubes"
+    assert presentation.target_model == "SDXL"
+
+
+def test_cube_tab_presentation_keeps_custom_alias_and_target_model_separate() -> None:
+    """Renaming a cube should not rename or hide its target-model pill."""
+
+    presentation = build_cube_tab_presentation(
+        alias="Hero Background",
+        cube_id="Artificial-Sweetener/Base-Cubes/SDXL/Image to Image.cube",
+        version="1.0.0",
+        target_model="SDXL",
+    )
+
+    assert presentation.primary_text == "Hero Background"
+    assert presentation.target_model == "SDXL"
 
 
 def test_cube_tab_presentation_uses_local_namespace_for_target_model_paths() -> None:

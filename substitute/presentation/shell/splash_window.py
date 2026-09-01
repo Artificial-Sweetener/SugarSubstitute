@@ -25,6 +25,7 @@ from typing import Protocol, cast
 from PySide6.QtCore import QEvent, QRect, Qt, Signal, Slot
 from PySide6.QtGui import (
     QCloseEvent,
+    QColor,
     QCursor,
     QFontMetrics,
     QGuiApplication,
@@ -33,9 +34,12 @@ from PySide6.QtGui import (
     QPixmap,
 )
 from PySide6.QtWidgets import QAbstractButton, QLabel, QSizePolicy, QVBoxLayout, QWidget
-from qfluentwidgets import FluentStyleSheet
 from qframelesswindow import AcrylicWindow
 
+from substitute.domain.appearance import (
+    DEFAULT_CUSTOM_ACCENT_COLOR,
+    AppearanceThemeMode,
+)
 from substitute.presentation.resources.app_icon import application_icon
 from substitute.presentation.splash_animation import (
     SplashFlipSettings,
@@ -46,7 +50,7 @@ from substitute.presentation.splash_animation import (
 from substitute.presentation.splash_animation.pose_selector import (
     RecencyWeightedPoseSelector,
 )
-from substitute.presentation.shell.window_frame import (
+from substitute.presentation.shell.window_effects import (
     ShellBackdropMode,
     apply_acrylic_effect,
 )
@@ -54,16 +58,19 @@ from substitute.presentation.shell.splash_activity_presenter import (
     SplashActivityPresenter,
 )
 from sugarsubstitute_shared.launch_splash.activity import SplashActivity
-from sugarsubstitute_shared.localization import app_text
-from sugarsubstitute_shared.presentation.localization import (
-    LocalizationBindings,
+from sugarsubstitute_shared.localization.application_message import app_text
+from sugarsubstitute_shared.presentation.localization.application_message import (
     render_application_text,
+)
+from sugarsubstitute_shared.presentation.localization.bindings import (
+    LocalizationBindings,
 )
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
 from sugarsubstitute_shared.presentation.terminal.output_style import (
     create_terminal_output_font,
+    TerminalOutputAppearance,
 )
 from sugarsubstitute_shared.presentation.terminal.output_view import TerminalOutputView
 from substitute.shared.logging.logger import get_logger, log_warning
@@ -88,6 +95,28 @@ class _SplashTitleBar(Protocol):
         """Raise the titlebar above sibling widgets."""
 
 
+class _SplashTitleBarButton(Protocol):
+    """Describe qframeless button color setters used by splash theming."""
+
+    def setNormalColor(self, color: QColor) -> None:
+        """Set the normal icon color."""
+
+    def setHoverColor(self, color: QColor) -> None:
+        """Set the hovered icon color."""
+
+    def setPressedColor(self, color: QColor) -> None:
+        """Set the pressed icon color."""
+
+    def setNormalBackgroundColor(self, color: QColor) -> None:
+        """Set the normal background color."""
+
+    def setHoverBackgroundColor(self, color: QColor) -> None:
+        """Set the hovered background color."""
+
+    def setPressedBackgroundColor(self, color: QColor) -> None:
+        """Set the pressed background color."""
+
+
 def build_splash_terminal_section_height() -> int:
     """Return the compact splash-owned height for the shared terminal surface."""
 
@@ -108,6 +137,7 @@ class SplashWindow(AcrylicWindow):
     activityRequested = Signal(object)
     activityClearRequested = Signal()
     cancelRequested = Signal()
+    firstFramePainted = Signal()
 
     def __init__(
         self,
@@ -115,6 +145,8 @@ class SplashWindow(AcrylicWindow):
         parent: QWidget | None = None,
         *,
         backdrop_mode: ShellBackdropMode | None = ShellBackdropMode.MICA,
+        theme_mode: AppearanceThemeMode = AppearanceThemeMode.DARK,
+        accent_color: str = DEFAULT_CUSTOM_ACCENT_COLOR,
         activity_clock: Callable[[], float] = time.monotonic,
     ):
         """Build the splash window with one shared terminal output surface."""
@@ -124,6 +156,8 @@ class SplashWindow(AcrylicWindow):
         window_icon = icon or application_icon()
         self.setWindowIcon(window_icon)
         self._backdrop_mode = backdrop_mode
+        self._dark_theme_enabled = theme_mode is not AppearanceThemeMode.LIGHT
+        self._first_frame_painted = False
         self._configure_titlebar_buttons()
 
         try:
@@ -132,7 +166,7 @@ class SplashWindow(AcrylicWindow):
             elif self._backdrop_mode is not None:
                 self.windowEffect.setMicaEffect(
                     self.winId(),
-                    isDarkMode=_is_dark_theme_enabled(),
+                    isDarkMode=self._dark_theme_enabled,
                     isAlt=self._backdrop_mode is ShellBackdropMode.MICA_ALT,
                 )
         except (AttributeError, RuntimeError) as error:
@@ -164,7 +198,15 @@ class SplashWindow(AcrylicWindow):
         section_layout.setContentsMargins(0, 0, 0, 0)
         section_layout.setSpacing(0)
 
-        self._terminal_view = TerminalOutputView(self._terminal_section)
+        self._terminal_view = TerminalOutputView(
+            self._terminal_section,
+            appearance=TerminalOutputAppearance.from_color(
+                dark_theme=self._dark_theme_enabled,
+                accent_color=accent_color,
+            ),
+            use_qfluent_chrome=False,
+            observe_qfluent_theme=False,
+        )
         self._terminal_view.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
@@ -240,6 +282,15 @@ class SplashWindow(AcrylicWindow):
         self._activity_presenter.shutdown()
         super().closeEvent(event)
 
+    def paintEvent(self, event: object) -> None:
+        """Publish the first completed splash frame exactly once."""
+
+        super().paintEvent(event)  # type: ignore[arg-type]
+        if self._first_frame_painted:
+            return
+        self._first_frame_painted = True
+        self.firstFramePainted.emit()
+
     def resizeEvent(self, event: object) -> None:
         """Keep the splash content pinned close to the window edges."""
 
@@ -273,8 +324,8 @@ class SplashWindow(AcrylicWindow):
             titlebar.minBtn.hide()
             titlebar.maxBtn.hide()
             titlebar.closeBtn.show()
-            self._localization.bind_tooltip(
-                titlebar.closeBtn,
+            self._localization.bind_setter(
+                titlebar.closeBtn.setToolTip,
                 lambda: render_application_text(app_text("Cancel loading")),
             )
             titlebar.setDoubleClickEnabled(False)
@@ -291,16 +342,40 @@ class SplashWindow(AcrylicWindow):
                 error=repr(error),
             )
 
-    def _apply_titlebar_theme(self, titlebar: QWidget) -> None:
-        """Apply qfluent's current theme stylesheet to qframeless titlebar controls."""
+    def _apply_titlebar_theme(self, titlebar: _SplashTitleBar) -> None:
+        """Apply the resolved splash theme directly to titlebar controls."""
 
-        FluentStyleSheet.FLUENT_WINDOW.apply(titlebar)
+        foreground = QColor("#FFFFFF" if self._dark_theme_enabled else "#000000")
+        hover_background = QColor(
+            255 if self._dark_theme_enabled else 0,
+            255 if self._dark_theme_enabled else 0,
+            255 if self._dark_theme_enabled else 0,
+            26,
+        )
+        pressed_background = QColor(
+            255 if self._dark_theme_enabled else 0,
+            255 if self._dark_theme_enabled else 0,
+            255 if self._dark_theme_enabled else 0,
+            51,
+        )
         for button in (
             titlebar.minBtn,
             titlebar.maxBtn,
             titlebar.closeBtn,
         ):
-            FluentStyleSheet.FLUENT_WINDOW.apply(button)
+            typed_button = cast(_SplashTitleBarButton, button)
+            typed_button.setNormalColor(foreground)
+            typed_button.setHoverColor(foreground)
+            typed_button.setPressedColor(foreground)
+            typed_button.setNormalBackgroundColor(QColor(0, 0, 0, 0))
+            typed_button.setHoverBackgroundColor(hover_background)
+            typed_button.setPressedBackgroundColor(pressed_background)
+        close_button = cast(_SplashTitleBarButton, titlebar.closeBtn)
+        close_button.setHoverColor(QColor("#FFFFFF"))
+        close_button.setPressedColor(QColor("#FFFFFF"))
+        close_button.setHoverBackgroundColor(QColor(232, 17, 35))
+        close_button.setPressedBackgroundColor(QColor(241, 112, 122))
+        titlebar.closeBtn.setStyleSheet("CloseButton { background: transparent; }")
 
     @Slot()
     def _request_cancel(self) -> None:
@@ -367,17 +442,6 @@ class SplashWindow(AcrylicWindow):
                         )
                         return False
         return super().eventFilter(obj, event)
-
-
-def _is_dark_theme_enabled() -> bool:
-    """Return whether splash-owned native effects should use dark treatment."""
-
-    try:
-        from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
-
-        return bool(isDarkTheme())
-    except ImportError:  # pragma: no cover - lightweight test stubs
-        return True
 
 
 def _cursor_screen_geometry() -> QRect | None:

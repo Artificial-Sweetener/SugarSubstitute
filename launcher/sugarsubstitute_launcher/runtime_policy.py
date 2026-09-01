@@ -21,14 +21,14 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.platforms import (
-    LauncherOperatingSystem,
-    LauncherTarget,
-)
-from launcher.sugarsubstitute_launcher.runtime_models import RuntimeCommandRunner
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
+
+if TYPE_CHECKING:
+    from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+    from launcher.sugarsubstitute_launcher.platforms import LauncherTarget
+    from launcher.sugarsubstitute_launcher.runtime_models import RuntimeCommandRunner
 
 
 DEFAULT_PYTHON_VERSION = "3.13.12"
@@ -121,6 +121,8 @@ def verify_runtime_imports(
 
 def _torch_backend_arguments(target: LauncherTarget) -> list[str]:
     """Select a portable PyTorch distribution for the app support runtime."""
+
+    from launcher.sugarsubstitute_launcher.platforms import LauncherOperatingSystem
 
     if target.operating_system is LauncherOperatingSystem.LINUX:
         return ["--torch-backend", "cpu"]

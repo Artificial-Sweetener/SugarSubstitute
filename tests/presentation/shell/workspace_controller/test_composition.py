@@ -123,7 +123,7 @@ def test_compose_workspace_controller_collaborators_builds_bundle(
     monkeypatch.setattr(mod, "ActiveWorkflowSurfaceRefresher", _FakeAction)
     monkeypatch.setattr(mod, "CubeDuplicationService", _FakeAction)
     monkeypatch.setattr(mod, "CubeStackPresenter", _FakeAction)
-    monkeypatch.setattr(mod, "CubeTabIconResolver", _FakeAction)
+    monkeypatch.setattr(mod, "CubeIconResolver", _FakeAction)
     monkeypatch.setattr(mod, "CubeSurfaceProjectionCoordinator", _FakeAction)
     monkeypatch.setattr(mod, "WorkspaceFileActions", _FakeAction)
     monkeypatch.setattr(mod, "WorkspaceSearchActions", _FakeAction)

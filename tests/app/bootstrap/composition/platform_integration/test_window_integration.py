@@ -24,7 +24,7 @@ import pytest
 from PySide6.QtWidgets import QApplication, QWidget
 
 from substitute.app.bootstrap import composition
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 from tests.support.qt.lifecycle import destroy_widget_roots
 
 

@@ -43,12 +43,13 @@ from substitute.app.bootstrap.launch_splash import (
 )
 from substitute.app.bootstrap import splash_process
 from substitute.app.bootstrap import shared_splash_host
+from substitute.app.bootstrap.splash_arguments import backdrop_mode_from_argument
+from substitute.app.bootstrap.splash_cancel import encode_splash_helper_event
 from substitute.app.bootstrap.splash_process import (
     decode_splash_message,
-    encode_splash_helper_event,
     parent_process_is_alive,
 )
-from substitute.presentation.shell.window_frame import ShellBackdropMode
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 
 
 class _FakeProcess:
@@ -315,12 +316,14 @@ def test_launch_splash_cancel_relay_forwards_attached_cancel() -> None:
     assert callbacks == ["cancel"]
 
 
-def test_splash_process_configures_theme_before_constructing_splash() -> None:
-    """Helper process must apply QFluent theme before creating SplashWindow."""
+def test_splash_process_passes_resolved_theme_without_qfluent_bootstrap() -> None:
+    """Helper construction should receive theme values without loading QFluent."""
 
     source = inspect.getsource(splash_process.main)
 
-    assert source.index("configure_theme(") < source.index("SplashWindow")
+    assert "configure_theme(" not in source
+    assert "theme_mode=theme_mode_from_argument(args.theme_mode)" in source
+    assert "accent_color=args.accent_color" in source
 
 
 def test_splash_process_sets_app_icon_before_constructing_splash() -> None:
@@ -346,8 +349,6 @@ def test_splash_hosts_center_before_revealing_the_window(splash_host: object) ->
 def test_splash_process_maps_mica_alt_backdrop_arg_to_plain_mica() -> None:
     """Splash helper should downgrade Mica Alt requests to plain Mica."""
 
-    assert splash_process._backdrop_mode_from_arg("mica_alt") is ShellBackdropMode.MICA
-    assert splash_process._backdrop_mode_from_arg("mica") is ShellBackdropMode.MICA
-    assert splash_process._backdrop_mode_from_arg("acrylic") is (
-        ShellBackdropMode.ACRYLIC
-    )
+    assert backdrop_mode_from_argument("mica_alt") is ShellBackdropMode.MICA
+    assert backdrop_mode_from_argument("mica") is ShellBackdropMode.MICA
+    assert backdrop_mode_from_argument("acrylic") is (ShellBackdropMode.ACRYLIC)

@@ -594,7 +594,7 @@ kind = "remediation"
 justification = "The assessed file mixes cube-section sizing and child relayout, field width-group synchronization, issue and update overlays, section and header construction, runtime issue card composition and painting. Extract runtime-issue cards and update/issue overlays from the passive cube-section container and builder."
 issue = "chore:SS-ARCH-052"
 review_by = 2026-12-15
-max_lines = 1065
+max_lines = 1063
 next_limit = 852
 debt = "SS-ARCH-052"
 
@@ -932,7 +932,7 @@ kind = "remediation"
 justification = "The assessed file mixes definition-load background task, runtime-build background task, active workflow and alias validation, placeholder tab and progress presentation, loaded runtime mutation and rollback, icon, editor reveal, and shell handoff. Extract definition/runtime execution and UI transaction state from shell handoff and reveal presentation."
 issue = "chore:SS-ARCH-078"
 review_by = 2026-12-15
-max_lines = 1353
+max_lines = 1342
 next_limit = 1075
 debt = "SS-ARCH-078"
 
@@ -1010,7 +1010,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow activation and surface projection, tab-switch performance diagnostics, workflow add, close, reopen, duplicate, and rename, closed-workflow snapshot buffering, image and widget resource cleanup, tabbar and surface invalidation coordination. Extract closed-workflow persistence/resource cleanup and tab diagnostics from active workflow projection and lifecycle commands."
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
-max_lines = 1624
+max_lines = 1623
 next_limit = 1284
 debt = "SS-ARCH-084"
 
@@ -1219,10 +1219,10 @@ owner = "output preview registry"
 rule = "STRUCT003"
 path = "substitute/application/workflows/output_preview_registry.py"
 kind = "structural"
-justification = "OutputPreviewRegistry is one in-memory aggregate for preview-lane admission, identity, lookup, and retirement. Its acceptance predicates and mutations enforce the same lane-consistency invariant, and separating admission from storage would create two owners for registry consistency."
+justification = "OutputPreviewRegistry is one in-memory aggregate for preview-lane admission, identity, lookup, generation-session rebinding, and retirement. Its acceptance predicates and mutations enforce the same lane-consistency invariant: a lane belongs to one workflow run and one current canvas-session revision. Separating session transition from lane storage would create two owners for registry consistency."
 issue = "chore:SS-WAIVER-S012"
 review_by = 2026-12-15
-max_lines = 534
+max_lines = 553
 
 [[waivers]]
 id = "SS-WAIVER-S013"
@@ -1773,17 +1773,6 @@ justification = "SettingsCard and InteractiveSettingsCard are one reusable contr
 issue = "chore:SS-WAIVER-S063"
 review_by = 2026-12-15
 max_lines = 558
-
-[[waivers]]
-id = "SS-WAIVER-S065"
-owner = "cube stack tab projection"
-rule = "STRUCT003"
-path = "substitute/presentation/shell/cube_stack_presenter.py"
-kind = "structural"
-justification = "CubeStackPresenter owns one complete projection from ordered workflow cube state to tab order, selection, labels, icons, issues, bypass state, and route keys. CubeTabIconResolver supplies the icon branch of that same tab presentation result."
-issue = "chore:SS-WAIVER-S065"
-review_by = 2026-12-15
-max_lines = 555
 
 [[waivers]]
 id = "SS-WAIVER-S066"

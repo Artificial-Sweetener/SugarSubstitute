@@ -35,6 +35,7 @@ from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import
 from substitute.presentation.cubes.cube_alias_text_layout import (
     layout_cube_alias_text,
 )
+from substitute.presentation.cubes.cube_model_pill import CubeModelPillPainter
 from substitute.presentation.cubes.cube_stack_metrics import (
     CUBE_ITEM_CLOSE_TEXT_RESERVE,
     CUBE_ITEM_ICON_INSET_EXPANDED,
@@ -75,6 +76,7 @@ class CubeCardVisualState:
     enabled: bool
     close_visible: bool
     compact_progress: float
+    target_model: str = ""
     text_color: QColor | None = None
     selected_fill_color: tuple[int, int, int, int] | None = None
     inactive_text_alpha: int | None = None
@@ -201,6 +203,7 @@ class CubeCardVisual:
             state=state,
             icon_paint_callback=icon_paint_callback,
         )
+        cls._draw_target_model(painter, rect=rect, state=state)
         text_opacity = cls.text_opacity(state.compact_progress)
         if text_opacity > 0.0:
             cls._draw_text(painter, rect=rect, font=font, state=state)
@@ -392,6 +395,31 @@ class CubeCardVisual:
             painter.setBrush(QColor(130, 130, 130, 100 if isDarkTheme() else 120))
             painter.drawRoundedRect(icon_rect, 4.0, 4.0)
         painter.restore()
+
+    @classmethod
+    def _draw_target_model(
+        cls,
+        painter: QPainter,
+        *,
+        rect: QRect,
+        state: CubeCardVisualState,
+    ) -> None:
+        """Draw the canonical model pill after the icon so text clears through it."""
+
+        if not state.target_model or not cls.has_icon(state.icon):
+            return
+        icon_size = CUBE_ITEM_ICON_SIZE_COMPACT
+        icon_rect = QRectF(
+            cls.icon_x(),
+            int((rect.height() - icon_size) / 2),
+            icon_size,
+            icon_size,
+        )
+        CubeModelPillPainter.draw(
+            painter,
+            icon_rect=icon_rect,
+            text=state.target_model,
+        )
 
     @classmethod
     def _draw_text(
