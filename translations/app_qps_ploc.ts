@@ -1346,8 +1346,8 @@ Prömpt prëvïëw:
       <translation>⟦CömfyÜÏ ïs stïll stàrtïng. ···⟧</translation>
     </message>
     <message>
-      <source>ComfyUI is taking longer than usual…</source>
-      <translation>⟦CömfyÜÏ ïs tàkïng löngër thàn üsüàl… ···⟧</translation>
+      <source>ComfyUI is taking longer than usual%1</source>
+      <translation>⟦CömfyÜÏ ïs tàkïng löngër thàn üsüàl%1 ···⟧</translation>
     </message>
     <message>
       <source>ComfyUI is unavailable.</source>
@@ -4774,8 +4774,20 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Stëp %1 öf %2 ···⟧</translation>
     </message>
     <message>
-      <source>Still waiting—custom nodes, slow storage, or a startup issue may be delaying ComfyUI.</source>
-      <translation>⟦Stïll wàïtïng—cüstöm nödës, slöw störàgë, ör à stàrtüp ïssüë mày bë dëlàyïng CömfyÜÏ. ···⟧</translation>
+      <source>Still updating Substitute BackEnd—network, slow storage, or package installation may be causing the delay</source>
+      <translation>⟦Stïll üpdàtïng Sübstïtütë BàckËnd—nëtwörk, slöw störàgë, ör pàckàgë ïnstàllàtïön mày bë càüsïng thë dëlày ···⟧</translation>
+    </message>
+    <message>
+      <source>Still updating Substitute Comfy nodepacks—network, slow storage, or package installation may be causing the delay</source>
+      <translation>⟦Stïll üpdàtïng Sübstïtütë Cömfy nödëpàcks—nëtwörk, slöw störàgë, ör pàckàgë ïnstàllàtïön mày bë càüsïng thë dëlày ···⟧</translation>
+    </message>
+    <message>
+      <source>Still updating SugarCubes—network, slow storage, or package installation may be causing the delay</source>
+      <translation>⟦Stïll üpdàtïng SügàrCübës—nëtwörk, slöw störàgë, ör pàckàgë ïnstàllàtïön mày bë càüsïng thë dëlày ···⟧</translation>
+    </message>
+    <message>
+      <source>Still waiting—custom nodes, slow storage, or a startup issue may be delaying ComfyUI%1</source>
+      <translation>⟦Stïll wàïtïng—cüstöm nödës, slöw störàgë, ör à stàrtüp ïssüë mày bë dëlàyïng CömfyÜÏ%1 ···⟧</translation>
     </message>
     <message>
       <source>Stop continuous after current job</source>
@@ -5912,16 +5924,28 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Üpdàtïng ···⟧</translation>
     </message>
     <message>
-      <source>Updating Substitute BackEnd before opening.</source>
-      <translation>⟦Üpdàtïng Sübstïtütë BàckËnd bëförë öpënïng. ···⟧</translation>
+      <source>Updating Substitute BackEnd</source>
+      <translation>⟦Üpdàtïng Sübstïtütë BàckËnd ···⟧</translation>
     </message>
     <message>
-      <source>Updating Substitute Comfy nodepacks before opening.</source>
-      <translation>⟦Üpdàtïng Sübstïtütë Cömfy nödëpàcks bëförë öpënïng. ···⟧</translation>
+      <source>Updating Substitute BackEnd is taking longer than usual</source>
+      <translation>⟦Üpdàtïng Sübstïtütë BàckËnd ïs tàkïng löngër thàn üsüàl ···⟧</translation>
     </message>
     <message>
-      <source>Updating SugarCubes before opening.</source>
-      <translation>⟦Üpdàtïng SügàrCübës bëförë öpënïng. ···⟧</translation>
+      <source>Updating Substitute Comfy nodepacks</source>
+      <translation>⟦Üpdàtïng Sübstïtütë Cömfy nödëpàcks ···⟧</translation>
+    </message>
+    <message>
+      <source>Updating Substitute Comfy nodepacks is taking longer than usual</source>
+      <translation>⟦Üpdàtïng Sübstïtütë Cömfy nödëpàcks ïs tàkïng löngër thàn üsüàl ···⟧</translation>
+    </message>
+    <message>
+      <source>Updating SugarCubes</source>
+      <translation>⟦Üpdàtïng SügàrCübës ···⟧</translation>
+    </message>
+    <message>
+      <source>Updating SugarCubes is taking longer than usual</source>
+      <translation>⟦Üpdàtïng SügàrCübës ïs tàkïng löngër thàn üsüàl ···⟧</translation>
     </message>
     <message>
       <source>Updating planned change order.</source>

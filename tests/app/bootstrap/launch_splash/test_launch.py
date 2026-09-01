@@ -26,6 +26,7 @@ from threading import Event
 from typing import Any, cast
 
 import pytest
+from sugarsubstitute_shared.launch_splash import SplashActivity
 
 from substitute.application.execution import (
     CancellationSource,
@@ -160,8 +161,8 @@ def test_decode_splash_helper_event_accepts_cancel_only() -> None:
     assert decode_splash_helper_event('{"type":"log","line":"ignored"}') is None
 
 
-def test_launch_splash_process_client_sends_log_and_close_messages() -> None:
-    """Process client should write log and close messages to helper stdin."""
+def test_launch_splash_process_client_sends_activity_lifecycle_messages() -> None:
+    """Process client should carry activity, log, cleanup, and close to its helper."""
 
     fake_process = _FakeProcess()
     fake_process.stdin = _NonClosingStringIO()
@@ -171,11 +172,23 @@ def test_launch_splash_process_client_sends_log_and_close_messages() -> None:
         process_pump_task_factory=_process_pump_task_factory,
     )
 
+    client.start_activity(
+        SplashActivity(
+            initial_text="Updating SugarCubes",
+            long_wait_text="Updating SugarCubes is taking longer than usual",
+            extended_wait_text="Still updating SugarCubes—network may be slow",
+        )
+    )
     client.append_log("Preparing interface.")
+    client.clear_activity()
     client.close()
 
     assert fake_process.stdin.getvalue().splitlines() == [
+        '{"type":"activity","initial":"Updating SugarCubes",'
+        '"long_wait":"Updating SugarCubes is taking longer than usual",'
+        '"extended_wait":"Still updating SugarCubes\\u2014network may be slow"}',
         '{"type":"log","line":"Preparing interface."}',
+        '{"type":"clear_activity"}',
         '{"type":"close"}',
     ]
     assert fake_process.wait_calls == [2.0]

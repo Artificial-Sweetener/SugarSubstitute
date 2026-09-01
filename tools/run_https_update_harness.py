@@ -45,6 +45,7 @@ from launcher.sugarsubstitute_launcher.runtime_models import (  # noqa: E402
 from launcher.sugarsubstitute_launcher.runtime_reconciliation import (  # noqa: E402
     RuntimeReconciliationProgress,
 )
+from sugarsubstitute_shared.launch_splash import SplashActivity  # noqa: E402
 
 DEFAULT_HARNESS_ROOT = REPO_ROOT.parent / "SugarSubstitute-update-harness"
 OPENSSL_CONFIG_NAME = "localhost-openssl.cnf"
@@ -101,11 +102,23 @@ class RecordingProgress:
         """Create an empty progress log."""
 
         self.lines: list[str] = []
+        self.activities: list[SplashActivity] = []
+        self.clear_activity_calls = 0
 
     def append_log(self, line: str) -> None:
         """Record one progress line."""
 
         self.lines.append(line)
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Record one launcher update activity."""
+
+        self.activities.append(activity)
+
+    def clear_activity(self) -> None:
+        """Record one launcher update activity cleanup."""
+
+        self.clear_activity_calls += 1
 
 
 class RecordingHttpsServer:
@@ -452,12 +465,41 @@ def _assert_prepared_update(
         raise HttpsUpdateHarnessError("Previous payload was not preserved.")
     expected_progress = [
         "Checking for SugarSubstitute updates.",
-        f"Installing SugarSubstitute {NEW_VERSION}.",
-        "Preparing SugarSubstitute runtime.",
         f"Installed SugarSubstitute {NEW_VERSION}.",
     ]
     if progress.lines != expected_progress:
         raise HttpsUpdateHarnessError(f"Unexpected progress lines: {progress.lines}")
+    expected_activity_copy = [
+        (
+            f"Installing SugarSubstitute {NEW_VERSION}",
+            f"Installing SugarSubstitute {NEW_VERSION} is taking longer than usual",
+            "Still installing SugarSubstitute "
+            f"{NEW_VERSION}—network, slow storage, or package installation may be "
+            "causing the delay",
+        ),
+        (
+            "Installing SugarSubstitute dependencies",
+            "Installing SugarSubstitute dependencies is taking longer than usual",
+            "Still installing SugarSubstitute dependencies—network, slow storage, or "
+            "package installation may be causing the delay",
+        ),
+    ]
+    activity_copy = [
+        (
+            activity.initial_text,
+            activity.long_wait_text,
+            activity.extended_wait_text,
+        )
+        for activity in progress.activities
+    ]
+    if activity_copy != expected_activity_copy:
+        raise HttpsUpdateHarnessError(
+            f"Unexpected update activity copy: {activity_copy}"
+        )
+    if progress.clear_activity_calls != 1:
+        raise HttpsUpdateHarnessError(
+            "Update activity was not cleared after runtime preparation."
+        )
 
 
 def _assert_committed_update(layout: InstallLayout) -> None:

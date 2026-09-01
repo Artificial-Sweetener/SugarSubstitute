@@ -58,6 +58,15 @@ from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from launcher.sugarsubstitute_launcher.update_rollback_reporting import (
     record_update_rollback,
 )
+from launcher.sugarsubstitute_launcher.update_activity import (
+    application_dependencies_activity,
+    application_install_activity,
+    launcher_update_activity,
+)
+from sugarsubstitute_shared.launch_splash import (
+    SplashActivity,
+    SplashSessionMessageError,
+)
 from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import (
@@ -80,6 +89,12 @@ class LauncherUpdateProgress(Protocol):
 
     def append_log(self, line: str) -> None:
         """Append one update progress line."""
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Start or replace one independently animated update activity."""
+
+    def clear_activity(self) -> None:
+        """Stop the current update activity."""
 
 
 class AppPayloadInstallerProtocol(Protocol):
@@ -142,6 +157,14 @@ class NullLauncherUpdateProgress:
         """Discard one progress line."""
 
         _ = line
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Discard one update activity."""
+
+        _ = activity
+
+    def clear_activity(self) -> None:
+        """Complete a no-op update activity clear."""
 
 
 class LauncherUpdateOrchestrator:
@@ -270,9 +293,6 @@ class LauncherUpdateOrchestrator:
             manifest_version=manifest.version,
         )
         if update_policy.decision is AppPayloadUpdateDecision.INSTALL:
-            progress.append_log(
-                launcher_text("Installing SugarSubstitute %1.", manifest.version)
-            )
             successful_state = state.with_successful_update(
                 version=manifest.version,
                 channel=manifest.channel,
@@ -282,15 +302,23 @@ class LauncherUpdateOrchestrator:
                 layout=layout,
                 successful_state=successful_state,
             )
+            _start_update_activity(
+                progress,
+                application_install_activity(manifest.version),
+            )
             try:
                 install_result = self._payload_installer.install(
                     layout=layout,
                     manifest=manifest,
                 )
-                progress.append_log(launcher_text("Preparing SugarSubstitute runtime."))
+                _start_update_activity(
+                    progress,
+                    application_dependencies_activity(),
+                )
                 activation.prepare_runtime()
                 self._runtime_reconciler.reconcile(layout=layout, progress=progress)
             except BaseException as error:
+                _clear_update_activity(progress)
                 activation.rollback()
                 self._rollback_reporter(
                     install_root=layout.root,
@@ -299,6 +327,7 @@ class LauncherUpdateOrchestrator:
                     error=error,
                 )
                 raise
+            _clear_update_activity(progress)
             progress.append_log(
                 launcher_text(
                     "Installed SugarSubstitute %1.",
@@ -361,7 +390,10 @@ class LauncherUpdateOrchestrator:
             if minimum_comparison < 0:
                 raise LauncherMinimumVersionError(error_message)
             raise RuntimeError(error_message)
-        progress.append_log(launcher_text("Preparing launcher %1.", manifest.version))
+        _start_update_activity(
+            progress,
+            launcher_update_activity(manifest.version),
+        )
         try:
             request_path = self._launcher_bundle_stager.stage(
                 install_root=layout.root,
@@ -375,17 +407,47 @@ class LauncherUpdateOrchestrator:
                 ),
             )
         except (ConnectionError, TimeoutError, URLError):
+            _clear_update_activity(progress)
             raise
         except Exception as error:
+            _clear_update_activity(progress)
             if minimum_comparison < 0:
                 raise LauncherMinimumVersionError(
                     "The required launcher update could not be staged."
                 ) from error
             raise
+        _clear_update_activity(progress)
         progress.append_log(
             launcher_text("The launcher will restart to finish updating.")
         )
         return request_path
+
+
+def _start_update_activity(
+    progress: LauncherUpdateProgress,
+    activity: SplashActivity,
+) -> None:
+    """Start optional splash activity without changing update authority."""
+
+    try:
+        progress.start_activity(activity)
+    except (OSError, RuntimeError, SplashSessionMessageError) as error:
+        _LOGGER.warning(
+            "Could not start optional launcher update activity: %s",
+            type(error).__name__,
+        )
+
+
+def _clear_update_activity(progress: LauncherUpdateProgress) -> None:
+    """Clear optional splash activity without masking update outcomes."""
+
+    try:
+        progress.clear_activity()
+    except (OSError, RuntimeError, SplashSessionMessageError) as error:
+        _LOGGER.warning(
+            "Could not clear optional launcher update activity: %s",
+            type(error).__name__,
+        )
 
 
 def _utc_now() -> datetime:

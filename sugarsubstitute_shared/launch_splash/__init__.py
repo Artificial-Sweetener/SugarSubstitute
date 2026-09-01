@@ -16,6 +16,15 @@
 
 """Expose shared launch-splash session primitives for launcher and app startup."""
 
+from sugarsubstitute_shared.launch_splash.activity import (
+    EXTENDED_ACTIVITY_SECONDS,
+    LONG_ACTIVITY_SECONDS,
+    SplashActivity,
+    SplashActivityStage,
+    render_splash_activity,
+    splash_activity_dots,
+    splash_activity_stage,
+)
 from sugarsubstitute_shared.launch_splash.client import SocketSplashSessionClient
 from sugarsubstitute_shared.launch_splash.protocol import (
     SplashSessionMessage,
@@ -36,7 +45,11 @@ from sugarsubstitute_shared.launch_splash.session import (
 )
 
 __all__ = [
+    "EXTENDED_ACTIVITY_SECONDS",
+    "LONG_ACTIVITY_SECONDS",
     "SocketSplashSessionClient",
+    "SplashActivity",
+    "SplashActivityStage",
     "SplashSessionMessage",
     "SplashSessionMessageError",
     "SplashSessionMessageHandler",
@@ -45,6 +58,9 @@ __all__ = [
     "create_splash_session_spec",
     "decode_splash_session_message",
     "encode_splash_session_message",
+    "render_splash_activity",
+    "splash_activity_dots",
+    "splash_activity_stage",
     "splash_cancel_signal_path",
     "splash_session_args",
     "splash_session_from_args",

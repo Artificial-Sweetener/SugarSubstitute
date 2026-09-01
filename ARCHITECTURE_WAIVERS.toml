@@ -32,10 +32,10 @@ owner = "managed compatibility recovery"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/managed_compatibility_recovery.py"
 kind = "remediation"
-justification = "The assessed file mixes recovery eligibility and user-message policy, recovery controller state transitions, background cleanup and reconciliation execution, task outcome adaptation and stop coordination. Extract pure recovery policy and background task execution from controller wiring."
+justification = "The assessed file mixes recovery eligibility and targeted nodepack selection, recovery controller state transitions, background cleanup and reconciliation execution, task outcome adaptation and stop coordination. Extract recovery eligibility and background task execution from controller wiring."
 issue = "chore:SS-ARCH-004"
 review_by = 2026-12-15
-max_lines = 590
+max_lines = 586
 next_limit = 500
 debt = "SS-ARCH-004"
 

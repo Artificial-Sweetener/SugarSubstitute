@@ -64,7 +64,7 @@
       <translation>Cancelar</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="198"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="221"></location>
       <source>Checking for SugarSubstitute updates.</source>
       <translation>Buscando actualizaciones de SugarSubstitute.</translation>
     </message>
@@ -244,7 +244,7 @@
       <translation>Instalar el entorno de ejecución</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="303"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="332"></location>
       <source>Installed SugarSubstitute %1.</source>
       <translation>Se instaló SugarSubstitute %1.</translation>
     </message>
@@ -269,9 +269,24 @@
       <translation>Instalando el entorno de ejecución de Python y las dependencias de la aplicación.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="274"></location>
-      <source>Installing SugarSubstitute %1.</source>
-      <translation>Instalando SugarSubstitute %1.</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="29"></location>
+      <source>Installing SugarSubstitute %1</source>
+      <translation>Instalando SugarSubstitute %1</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="30"></location>
+      <source>Installing SugarSubstitute %1 is taking longer than usual</source>
+      <translation>La instalación de SugarSubstitute %1 está tardando más de lo habitual</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="46"></location>
+      <source>Installing SugarSubstitute dependencies</source>
+      <translation>Instalando las dependencias de SugarSubstitute</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="47"></location>
+      <source>Installing SugarSubstitute dependencies is taking longer than usual</source>
+      <translation>La instalación de las dependencias de SugarSubstitute está tardando más de lo habitual</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="534"></location>
@@ -362,16 +377,6 @@
       <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="290"></location>
       <source>Preparing SugarSubstitute install.</source>
       <translation>Preparando la instalación de SugarSubstitute.</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="290"></location>
-      <source>Preparing SugarSubstitute runtime.</source>
-      <translation>Preparando el entorno de ejecución de SugarSubstitute.</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="364"></location>
-      <source>Preparing launcher %1.</source>
-      <translation>Preparando el iniciador %1.</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="153"></location>
@@ -509,6 +514,21 @@
       <translation>Paso 1 de 4</translation>
     </message>
     <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="34"></location>
+      <source>Still installing SugarSubstitute %1—network, slow storage, or package installation may be causing the delay</source>
+      <translation>SugarSubstitute %1 sigue instalándose—la red, el almacenamiento lento o la instalación de paquetes pueden estar causando el retraso</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="50"></location>
+      <source>Still installing SugarSubstitute dependencies—network, slow storage, or package installation may be causing the delay</source>
+      <translation>Las dependencias de SugarSubstitute siguen instalándose—la red, el almacenamiento lento o la instalación de paquetes pueden estar causando el retraso</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="68"></location>
+      <source>Still updating the SugarSubstitute launcher to %1—network or slow storage may be causing the delay</source>
+      <translation>El lanzador de SugarSubstitute sigue actualizándose a %1—la red o el almacenamiento lento pueden estar causando el retraso</translation>
+    </message>
+    <message>
       <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="103"></location>
       <source>Substitute could not close the running instance</source>
       <translation>Substitute no pudo cerrar la instancia en ejecución</translation>
@@ -534,7 +554,7 @@
       <translation>Instalación de SugarSubstitute</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="386"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="421"></location>
       <source>The launcher will restart to finish updating.</source>
       <translation>El iniciador se reiniciará para completar la actualización.</translation>
     </message>
@@ -557,6 +577,16 @@
       <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="167"></location>
       <source>Update check disabled for this launch.</source>
       <translation>La búsqueda de actualizaciones está desactivada para este inicio.</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="61"></location>
+      <source>Updating the SugarSubstitute launcher to %1</source>
+      <translation>Actualizando el lanzador de SugarSubstitute a %1</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="64"></location>
+      <source>Updating the SugarSubstitute launcher to %1 is taking longer than usual</source>
+      <translation>La actualización del lanzador de SugarSubstitute a %1 está tardando más de lo habitual</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="519"></location>

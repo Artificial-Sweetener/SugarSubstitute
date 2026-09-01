@@ -34,16 +34,16 @@ next_extraction = "Extract lane configuration and scoped submission adapters fro
 id = "SS-ARCH-004"
 owner = "managed compatibility recovery"
 paths = ["substitute/app/bootstrap/managed_compatibility_recovery.py"]
-fingerprint = "sha256:c2ce947d3f6c53a04b7bbbaf2be63e2c8d5c15c0436ef2d570fa063859114136"
+fingerprint = "sha256:cbb9bb49ef05c38c5386b8e16e59adddb17bd637717ed14016d87bda25048a4b"
 issue = "chore:SS-ARCH-004"
 review_by = 2026-12-15
 responsibilities = [
-  "recovery eligibility and user-message policy",
+  "recovery eligibility and targeted nodepack selection",
   "recovery controller state transitions",
   "background cleanup and reconciliation execution",
   "task outcome adaptation and stop coordination",
 ]
-next_extraction = "Extract pure recovery policy and background task execution from controller wiring."
+next_extraction = "Extract recovery eligibility and background task execution from controller wiring."
 
 [[debts]]
 id = "SS-ARCH-005"

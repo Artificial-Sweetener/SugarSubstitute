@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from sugarsubstitute_shared.launch_splash import SplashActivity
 
 from substitute.app.bootstrap import startup_managed_ready_runtime
 from substitute.app.bootstrap.startup_readiness_resources import (
@@ -341,6 +342,12 @@ class _Splash:
         """Record one launch-splash line."""
 
         self.lines.append(line)
+
+    def start_activity(self, _activity: SplashActivity) -> None:
+        """Accept activity calls from recovery adapters."""
+
+    def clear_activity(self) -> None:
+        """Accept activity cleanup from recovery adapters."""
 
     def close(self) -> None:
         """Close the fake splash."""

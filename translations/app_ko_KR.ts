@@ -805,7 +805,7 @@ Prompt preview:
       <translation>작업 취소</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="236"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="278"></location>
       <source>Cancel loading</source>
       <translation>불러오기 취소</translation>
     </message>
@@ -1680,9 +1680,9 @@ Prompt preview:
       <translation>ComfyUI가 아직 시작 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/managed_startup_progress.py" line="41"></location>
-      <source>ComfyUI is taking longer than usual…</source>
-      <translation>ComfyUI 시작이 평소보다 오래 걸리고 있습니다�</translation>
+      <location filename="../substitute/application/managed_startup_progress.py" line="50"></location>
+      <source>ComfyUI is taking longer than usual%1</source>
+      <translation>ComfyUI가 평소보다 오래 걸리고 있습니다%1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="295"></location>
@@ -5270,12 +5270,12 @@ No known extension claimant.</source>
       <translation>오른쪽으로 회전</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="239"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="271"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Sugar Substitute 실행 시작 화면을 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="229"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="236"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute 시작 화면 호스트를 실행합니다.</translation>
     </message>
@@ -5965,9 +5965,24 @@ No known extension claimant.</source>
       <translation>%2단계 중 %1단계</translation>
     </message>
     <message>
-      <location filename="../substitute/application/managed_startup_progress.py" line="36"></location>
-      <source>Still waiting—custom nodes, slow storage, or a startup issue may be delaying ComfyUI.</source>
-      <translation>아직 기다리는 중�사용자 지정 노드가 많거나 저장 장치가 느리거나 시작 문제가 있어 ComfyUI가 지연될 수 있습니다.</translation>
+      <location filename="../substitute/application/launch_activity.py" line="48"></location>
+      <source>Still updating Substitute BackEnd—network, slow storage, or package installation may be causing the delay</source>
+      <translation>Substitute BackEnd를 계속 업데이트하고 있습니다—네트워크, 느린 저장 장치 또는 패키지 설치로 인해 지연되고 있을 수 있습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="67"></location>
+      <source>Still updating Substitute Comfy nodepacks—network, slow storage, or package installation may be causing the delay</source>
+      <translation>Substitute Comfy 노드팩을 계속 업데이트하고 있습니다—네트워크, 느린 저장 장치 또는 패키지 설치로 인해 지연되고 있을 수 있습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="57"></location>
+      <source>Still updating SugarCubes—network, slow storage, or package installation may be causing the delay</source>
+      <translation>SugarCubes를 계속 업데이트하고 있습니다—네트워크, 느린 저장 장치 또는 패키지 설치로 인해 지연되고 있을 수 있습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/managed_startup_progress.py" line="44"></location>
+      <source>Still waiting—custom nodes, slow storage, or a startup issue may be delaying ComfyUI%1</source>
+      <translation>아직 기다리는 중입니다—커스텀 노드, 느린 저장 장치 또는 시작 문제로 인해 ComfyUI가 지연되고 있을 수 있습니다%1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/generation_action_projection.py" line="31"></location>
@@ -7386,19 +7401,34 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>업데이트 중</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/managed_compatibility_recovery.py" line="198"></location>
-      <source>Updating Substitute BackEnd before opening.</source>
-      <translation>열기 전에 Substitute BackEnd를 업데이트하는 중입니다.</translation>
+      <location filename="../substitute/application/launch_activity.py" line="44"></location>
+      <source>Updating Substitute BackEnd</source>
+      <translation>Substitute BackEnd 업데이트 중</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/managed_compatibility_recovery.py" line="201"></location>
-      <source>Updating Substitute Comfy nodepacks before opening.</source>
-      <translation>열기 전에 Substitute Comfy 노드 팩을 업데이트하는 중입니다.</translation>
+      <location filename="../substitute/application/launch_activity.py" line="45"></location>
+      <source>Updating Substitute BackEnd is taking longer than usual</source>
+      <translation>Substitute BackEnd 업데이트가 평소보다 오래 걸리고 있습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/managed_compatibility_recovery.py" line="200"></location>
-      <source>Updating SugarCubes before opening.</source>
-      <translation>열기 전에 SugarCubes를 업데이트하는 중입니다.</translation>
+      <location filename="../substitute/application/launch_activity.py" line="63"></location>
+      <source>Updating Substitute Comfy nodepacks</source>
+      <translation>Substitute Comfy 노드팩 업데이트 중</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="64"></location>
+      <source>Updating Substitute Comfy nodepacks is taking longer than usual</source>
+      <translation>Substitute Comfy 노드팩 업데이트가 평소보다 오래 걸리고 있습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="55"></location>
+      <source>Updating SugarCubes</source>
+      <translation>SugarCubes 업데이트 중</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="56"></location>
+      <source>Updating SugarCubes is taking longer than usual</source>
+      <translation>SugarCubes 업데이트가 평소보다 오래 걸리고 있습니다</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1301"></location>
@@ -7611,7 +7641,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>Comfy가 다시 돌아오기를 기다리는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/managed_startup_progress.py" line="43"></location>
+      <location filename="../substitute/application/managed_startup_progress.py" line="51"></location>
       <source>Waiting for ComfyUI to become ready%1</source>
       <translation>ComfyUI가 준비되기를 기다리는 중%1</translation>
     </message>

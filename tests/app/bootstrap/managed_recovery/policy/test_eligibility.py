@@ -20,13 +20,14 @@ from __future__ import annotations
 
 
 from pathlib import Path
+from sugarsubstitute_shared.localization import render_source_application_text
 
 
 from substitute.app.bootstrap.managed_compatibility_recovery import (
     core_nodepacks_for_compatibility_recovery,
-    owned_nodepack_recovery_message,
     should_attempt_owned_nodepack_recovery,
 )
+from substitute.application.launch_activity import owned_nodepack_update_activity
 
 
 from substitute.application.backend_compatibility import (
@@ -183,14 +184,31 @@ def test_compatible_runtime_recovery_targets_no_nodepacks() -> None:
     )
 
 
-def test_managed_recovery_message_describes_targeted_nodepack() -> None:
-    """Startup splash text should describe the exact targeted recovery."""
+def test_managed_recovery_activity_describes_targeted_nodepack() -> None:
+    """Splash activity should describe the exact targeted update at every stage."""
 
-    assert (
-        owned_nodepack_recovery_message(frozenset({CoreNodepackId.SUBSTITUTE_BACKEND}))
-        == "Updating Substitute BackEnd before opening."
+    backend_activity = owned_nodepack_update_activity(
+        frozenset({CoreNodepackId.SUBSTITUTE_BACKEND})
     )
-    assert (
-        owned_nodepack_recovery_message(frozenset({CoreNodepackId.SUGARCUBES}))
-        == "Updating SugarCubes before opening."
+    sugarcubes_activity = owned_nodepack_update_activity(
+        frozenset({CoreNodepackId.SUGARCUBES})
+    )
+
+    assert render_source_application_text(backend_activity.initial_text) == (
+        "Updating Substitute BackEnd"
+    )
+    assert "Substitute BackEnd" in render_source_application_text(
+        backend_activity.long_wait_text
+    )
+    assert "Substitute BackEnd" in render_source_application_text(
+        backend_activity.extended_wait_text
+    )
+    assert render_source_application_text(sugarcubes_activity.initial_text) == (
+        "Updating SugarCubes"
+    )
+    assert "SugarCubes" in render_source_application_text(
+        sugarcubes_activity.long_wait_text
+    )
+    assert "SugarCubes" in render_source_application_text(
+        sugarcubes_activity.extended_wait_text
     )

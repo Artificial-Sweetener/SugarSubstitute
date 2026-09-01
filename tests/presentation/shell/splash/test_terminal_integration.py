@@ -18,14 +18,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from typing import Protocol
 
 import pytest
 
 from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QTextCursor
-from PySide6.QtWidgets import QLabel, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QWidget
+from sugarsubstitute_shared.launch_splash import SplashActivity
 
 import substitute.presentation.shell.splash_window as splash_window
 from substitute.presentation.splash_animation import (
@@ -52,6 +53,7 @@ class SplashWindowFactory(Protocol):
         self,
         *,
         backdrop_mode: ShellBackdropMode | None = ShellBackdropMode.MICA,
+        activity_clock: Callable[[], float] | None = None,
     ) -> SplashWindow:
         """Return one tracked production splash window."""
 
@@ -65,8 +67,16 @@ def splash_window_factory() -> Iterator[SplashWindowFactory]:
     def create(
         *,
         backdrop_mode: ShellBackdropMode | None = ShellBackdropMode.MICA,
+        activity_clock: Callable[[], float] | None = None,
     ) -> SplashWindow:
-        window = SplashWindow(backdrop_mode=backdrop_mode)
+        window = (
+            SplashWindow(backdrop_mode=backdrop_mode)
+            if activity_clock is None
+            else SplashWindow(
+                backdrop_mode=backdrop_mode,
+                activity_clock=activity_clock,
+            )
+        )
         windows.append(window)
         return window
 
@@ -172,6 +182,36 @@ def test_splash_window_routes_append_log_through_shared_terminal_view(
     assert splash.log_view.minimumHeight() == 0
     assert splash.log_view.maximumHeight() == 16777215
     assert splash.log_view.toPlainText() == "Starting"
+
+
+def test_splash_window_keeps_activity_visible_around_durable_logs(
+    monkeypatch: pytest.MonkeyPatch,
+    splash_window_factory: SplashWindowFactory,
+) -> None:
+    """The production splash should retain one animated tail around durable output."""
+
+    monkeypatch.setattr(SplashWindow, "center_on_screen", lambda self: None)
+    splash = splash_window_factory(activity_clock=lambda: 0.0)
+    activity = SplashActivity(
+        initial_text="Updating SugarCubes",
+        long_wait_text="Updating SugarCubes is taking longer than usual",
+        extended_wait_text="Still updating SugarCubes—network may be slow",
+    )
+
+    splash.start_activity(activity)
+    QApplication.processEvents()
+    assert splash.log_view.toPlainText() == "Updating SugarCubes."
+
+    splash.append_log("Downloaded package metadata.\n")
+    QApplication.processEvents()
+    assert splash.log_view.toPlainText().splitlines() == [
+        "Downloaded package metadata.",
+        "Updating SugarCubes.",
+    ]
+
+    splash.clear_activity()
+    QApplication.processEvents()
+    assert splash.log_view.toPlainText() == "Downloaded package metadata."
 
 
 def test_splash_window_acrylic_uses_caption_fix_helper(

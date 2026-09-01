@@ -16,12 +16,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QWidget
 
 from substitute.presentation.shell.window_frame import ShellBackdropMode
+from sugarsubstitute_shared.launch_splash.activity import SplashActivity
 
 class SplashWindow(QWidget):
     def __init__(
@@ -30,7 +32,10 @@ class SplashWindow(QWidget):
         parent: QWidget | None = ...,
         *,
         backdrop_mode: ShellBackdropMode | None = ...,
+        activity_clock: Callable[[], float] = ...,
     ) -> None: ...
     def __getattr__(self, name: str) -> Any: ...
     def center_on_screen(self) -> None: ...
     def append_log(self, line: str) -> None: ...
+    def start_activity(self, activity: SplashActivity) -> None: ...
+    def clear_activity(self) -> None: ...
