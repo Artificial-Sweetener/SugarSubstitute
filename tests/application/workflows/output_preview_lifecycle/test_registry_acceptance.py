@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from uuid import UUID
 
 from substitute.application.ports import PreviewImageUpdate
@@ -28,6 +29,7 @@ from substitute.application.workflows import (
     OutputPreviewRejectionReason,
 )
 from substitute.domain.workflow import (
+    CanvasGenerationIdentity,
     CanvasSessionBoundary,
 )
 
@@ -251,6 +253,42 @@ def test_registry_retires_old_session_previews_without_accepting_route_mutation(
     assert second.retired_preview_ids == (UUID(int=1),)
     assert second.lanes[0].preview_id == UUID(int=2)
     assert tuple(registry.images_by_id()) == (UUID(int=2),)
+
+
+def test_registry_rebind_retires_preview_from_superseded_generation() -> None:
+    """Do not carry a previous run's preview into a newer final-output session."""
+
+    registry = OutputPreviewRegistry(_uuid_factory=uuid_sequence())
+    boundary = CanvasSessionBoundary()
+    first_session = build_registry_session(source_keys=(), boundary=boundary)
+    acceptance = registry.accept_preview(
+        build_preview_event(source_key="cube:Text to Image"),
+        session=first_session,
+        active_workflow_id="wf",
+        authorize_preview=lambda _identity: True,
+        is_valid_source_placeholder=lambda _identity: True,
+    )
+    next_session = build_registry_session(
+        source_keys=("cube:Text to Image",),
+        boundary=boundary,
+    )
+    next_session = replace(
+        next_session,
+        session=replace(
+            next_session.session,
+            generation_identity=CanvasGenerationIdentity(
+                generation_run_id="new-run",
+                prompt_id="new-prompt",
+                client_id="new-client",
+            ),
+        ),
+    )
+
+    retired_ids = registry.rebind_workflow_session(next_session)
+
+    assert acceptance.accepted
+    assert retired_ids == (UUID(int=1),)
+    assert registry.images_by_id() == {}
 
 
 def test_registry_accepts_in_progress_scene_placeholder_for_same_workflow_run() -> None:

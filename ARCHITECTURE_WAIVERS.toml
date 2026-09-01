@@ -1219,10 +1219,10 @@ owner = "output preview registry"
 rule = "STRUCT003"
 path = "substitute/application/workflows/output_preview_registry.py"
 kind = "structural"
-justification = "OutputPreviewRegistry is one in-memory aggregate for preview-lane admission, identity, lookup, and retirement. Its acceptance predicates and mutations enforce the same lane-consistency invariant, and separating admission from storage would create two owners for registry consistency."
+justification = "OutputPreviewRegistry is one in-memory aggregate for preview-lane admission, identity, lookup, generation-session rebinding, and retirement. Its acceptance predicates and mutations enforce the same lane-consistency invariant: a lane belongs to one workflow run and one current canvas-session revision. Separating session transition from lane storage would create two owners for registry consistency."
 issue = "chore:SS-WAIVER-S012"
 review_by = 2026-12-15
-max_lines = 534
+max_lines = 553
 
 [[waivers]]
 id = "SS-WAIVER-S013"
