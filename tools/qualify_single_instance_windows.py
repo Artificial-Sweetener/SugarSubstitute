@@ -47,9 +47,11 @@ from tools.single_instance_cold_start_evidence import (
 from tools.single_instance_qualification_installation import (
     prepare_qualification_installation,
 )
+from tools.single_instance_qualification_app import APPLICATION_CLAIM_DELAY_ENV
 
 
 _TIMEOUT_SECONDS = 30.0
+_RACE_APPLICATION_CLAIM_DELAY_SECONDS = 5.0
 _T = TypeVar("_T")
 
 
@@ -92,7 +94,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             clear_splash_qualification_records(layout)
 
             race_started_at = time.perf_counter_ns()
-            race_winner = _launch(layout)
+            race_winner = _launch(
+                layout,
+                application_claim_delay_seconds=(_RACE_APPLICATION_CLAIM_DELAY_SECONDS),
+            )
             _wait_for_launcher_before_application(layout)
             race_duplicate = _launch(layout)
             race_launchers = [race_winner, race_duplicate]
@@ -205,12 +210,18 @@ def _parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _launch(layout: InstallLayout) -> subprocess.Popen[bytes]:
+def _launch(
+    layout: InstallLayout,
+    *,
+    application_claim_delay_seconds: float | None = None,
+) -> subprocess.Popen[bytes]:
     """Start one real packaged launcher invocation without desktop surfaces."""
 
     environment = os.environ.copy()
     environment["QT_QPA_PLATFORM"] = "offscreen"
     environment[SPLASH_SURFACE_EVIDENCE_ENV] = "1"
+    if application_claim_delay_seconds is not None:
+        environment[APPLICATION_CLAIM_DELAY_ENV] = str(application_claim_delay_seconds)
 
     return subprocess.Popen(  # noqa: S603
         [str(layout.executable_path), "--no-update-check", "--locale=en"],
