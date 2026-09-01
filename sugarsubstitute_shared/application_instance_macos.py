@@ -222,13 +222,15 @@ def acquire_macos_message_port(identity: str) -> MacOSMessagePortResult:
     )
     callback = MessagePortCallback(_dispatch_message)
     try:
-        port = core_foundation.create_local_port(name, callback, context)
+        creation = core_foundation.create_local_port(name, callback, context)
     finally:
         core_foundation.release(name)
-    if not port:
+    if not creation.created:
+        if creation.port:
+            core_foundation.release(creation.port)
         return MacOSMessagePortResult(MacOSMessagePortElection.SECONDARY)
     claim = MacOSMessagePortClaim(
-        port=port,
+        port=creation.port,
         core_foundation=core_foundation,
         callback=callback,
     )
