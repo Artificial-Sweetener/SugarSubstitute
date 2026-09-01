@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from importlib import import_module
 import logging
@@ -44,11 +44,26 @@ class LinuxSessionBusClaim:
     """Retain the D-Bus connection that owns one well-known session name."""
 
     connection: _DbusConnection
+    message_bus: _MessageBus
+    name: str
+    _closed: bool = field(default=False, init=False)
 
     def close(self) -> None:
-        """Disconnect and atomically release the well-known name."""
+        """Synchronously release the well-known name, then disconnect."""
 
-        self.connection.close()
+        if self._closed:
+            return
+        self._closed = True
+        try:
+            self.connection.send_and_get_reply(self.message_bus.ReleaseName(self.name))
+        except Exception:
+            _LOGGER.debug(
+                "Linux session D-Bus disconnected during name release",
+                extra={"instance_bus_name": self.name},
+                exc_info=True,
+            )
+        finally:
+            self.connection.close()
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,23 +96,27 @@ class _MessageBus(Protocol):
     def RequestName(self, name: str, flags: int = 0) -> object:
         """Build one well-known-name request."""
 
+    def ReleaseName(self, name: str) -> object:
+        """Build one well-known-name release request."""
+
 
 def acquire_linux_session_bus(identity: str) -> LinuxSessionBusResult:
     """Atomically request one private well-known name or select socket fallback."""
 
+    connection: _DbusConnection | None = None
     try:
         blocking = import_module("jeepney.io.blocking")
         jeepney = import_module("jeepney")
         open_connection = getattr(blocking, "open_dbus_connection")
         connection = cast(_DbusConnection, open_connection(bus="SESSION"))
         message_bus = cast(_MessageBus, getattr(jeepney, "message_bus"))
+        name = f"ai.artificialsweetener.Substitute.Instance.i{identity}"
         reply = connection.send_and_get_reply(
-            message_bus.RequestName(
-                f"ai.artificialsweetener.Substitute.Instance.i{identity}",
-                _DO_NOT_QUEUE,
-            )
+            message_bus.RequestName(name, _DO_NOT_QUEUE)
         )
-    except (ImportError, KeyError, OSError, RuntimeError, ValueError):
+    except Exception:
+        if connection is not None:
+            connection.close()
         _LOGGER.info(
             "Linux session D-Bus is unavailable; using abstract socket election",
             exc_info=True,
@@ -107,7 +126,7 @@ def acquire_linux_session_bus(identity: str) -> LinuxSessionBusResult:
     if result in {_PRIMARY_OWNER, _ALREADY_OWNER}:
         return LinuxSessionBusResult(
             LinuxSessionBusElection.PRIMARY,
-            LinuxSessionBusClaim(connection),
+            LinuxSessionBusClaim(connection, message_bus, name),
         )
     connection.close()
     return LinuxSessionBusResult(LinuxSessionBusElection.SECONDARY)

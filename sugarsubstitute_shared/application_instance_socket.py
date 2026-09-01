@@ -51,8 +51,12 @@ class SocketInstanceConnection:
         return self._receive_exact(size)
 
     def close(self) -> None:
-        """Close the underlying socket."""
+        """Wake blocked peer operations and close the underlying socket."""
 
+        try:
+            self._connection.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
         self._connection.close()
 
     def peer_is_current_user(self) -> bool:
@@ -101,8 +105,12 @@ class SocketInstanceListener:
         return wrapped
 
     def close(self) -> None:
-        """Close the listening socket."""
+        """Wake a blocked accept and release endpoint ownership."""
 
+        try:
+            self._listener.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
         self._listener.close()
 
 
