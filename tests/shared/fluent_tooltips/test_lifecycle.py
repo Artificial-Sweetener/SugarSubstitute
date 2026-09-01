@@ -19,9 +19,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import cast
 
 import pytest
+from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import QApplication, QWidget
+from shiboken6 import delete, isValid
 
 from sugarsubstitute_shared.presentation.fluent_tooltips import (
     FluentToolTipFilter,
@@ -71,3 +74,26 @@ def test_release_fluent_tooltips_invalidates_surviving_filter_window(
 
     assert tooltip.hidden
     assert getattr(tooltip_filter, "_tooltip", None) is None
+
+
+def test_final_owner_event_tolerates_platform_deleted_tooltip(
+    tooltip_control: QWidget,
+) -> None:
+    """Owner teardown must remain safe when Qt deletes its tooltip window first."""
+
+    set_fluent_tooltip_text(tooltip_control, "Tooltip")
+    tooltip_filter = tooltip_control.findChild(FluentToolTipFilter)
+    assert tooltip_filter is not None
+    tooltip_filter.isEnter = True
+    tooltip_filter.show_tooltip()
+    tooltip = cast(QWidget, tooltip_filter._tooltip)
+    delete(tooltip)
+    assert not isValid(tooltip)
+
+    tooltip_filter.eventFilter(
+        tooltip_control,
+        QEvent(QEvent.Type.Hide),
+    )
+
+    assert tooltip_filter._tooltip is None
+    assert tooltip_filter.isEnter is False

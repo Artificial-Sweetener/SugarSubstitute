@@ -26,6 +26,7 @@ from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, QTimer
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import ToolTipFilter, ToolTipPosition  # type: ignore[import-untyped]
+from shiboken6 import isValid
 
 from sugarsubstitute_shared.presentation._fluent_tooltip_geometry import (
     DEFAULT_CURSOR_OFFSET,
@@ -149,7 +150,7 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
         if not self.isEnter or not self._canShowToolTip():
             return
         focused_widget = QApplication.focusWidget()
-        if self._tooltip is None and self._canShowToolTip():
+        if self._live_tooltip() is None and self._canShowToolTip():
             self._tooltip = self._createToolTip()
         super().showToolTip()
         if focused_widget is not None:
@@ -160,7 +161,7 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
                     _restore_focus_after_tooltip_show(focused_ref)
                 ),
             )
-        tooltip = self._tooltip
+        tooltip = self._live_tooltip()
         if tooltip is None:
             return
         self._hover_guard_timer.start()
@@ -236,11 +237,14 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
 
         if not self._canShowToolTip():
             return
-        if self._tooltip is None:
+        if self._live_tooltip() is None:
             self._tooltip = self._createToolTip()
         owner = cast(QWidget, self.parent())
+        tooltip = self._live_tooltip()
+        if tooltip is None:
+            return
         configured_duration = owner.toolTipDuration()
-        self._tooltip.setDuration(
+        tooltip.setDuration(
             configured_duration
             if configured_duration > 0
             else _DEFAULT_VISIBLE_DURATION_MS
@@ -259,13 +263,23 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
         """Stop every presentation timer and hide the shared tooltip window."""
 
         self._hover_guard_timer.stop()
+        self._live_tooltip()
         super().hideToolTip()
         self.isEnter = bool(self._hovered_widget_ids)
+
+    def _live_tooltip(self) -> _FluentToolTip | None:
+        """Return the tooltip only while its platform-owned Qt object survives."""
+
+        tooltip = self._tooltip
+        if tooltip is None or isValid(tooltip):
+            return tooltip
+        self._tooltip = None
+        return None
 
     def _tooltip_text_changed(self, text: str, *, changed: bool) -> None:
         """Synchronize visible and pending presentation with owner text changes."""
 
-        tooltip = self._tooltip
+        tooltip = self._live_tooltip()
         if not text:
             self._dismiss_tooltip()
             return
