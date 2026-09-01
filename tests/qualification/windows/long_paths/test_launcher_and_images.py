@@ -27,7 +27,9 @@ from PIL import Image
 
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.payload import extract_app_payload_archive
+from launcher.sugarsubstitute_launcher.payload_staging import (
+    extract_app_payload_archive,
+)
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
 )

@@ -138,6 +138,7 @@ class EditorPanel(QWidget):
         model_choice_resolver: RichChoiceResolver | None = ...,
         thumbnail_asset_repository: ThumbnailAssetRepository | None = ...,
         model_metadata_action_handler: ModelMetadataContextActionHandler | None = ...,
+        empty_model_picker_action: Callable[[str], None] | None = ...,
         user_preset_service: UserPresetService | None = ...,
         error_presenter: ErrorReportPresenterProtocol | None = ...,
         workflow_issue_state: WorkflowIssueState | None = ...,

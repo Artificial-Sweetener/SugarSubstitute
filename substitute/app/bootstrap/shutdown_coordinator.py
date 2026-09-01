@@ -155,6 +155,7 @@ class ShutdownCoordinator(QObject):
         cleanup_submitter: TaskSubmitter,
         cleanup_lane: str = "shutdown",
         before_cleanup: Callable[[QWidget | None], None] | None = None,
+        authorize_shutdown: Callable[[QWidget | None], bool] | None = None,
         skip_cleanup_on_force_close: CleanupBypassFn | None = None,
         progress_dialog_factory: ShutdownProgressDialogFactory | None = None,
         recovery_dialog_factory: ShutdownRecoveryDialogFactory | None = None,
@@ -171,6 +172,7 @@ class ShutdownCoordinator(QObject):
             scope_id=f"managed_comfy_shutdown_cleanup_{id(self):x}",
         )
         self._before_cleanup = before_cleanup
+        self._authorize_shutdown = authorize_shutdown
         self._skip_cleanup_on_force_close = skip_cleanup_on_force_close
         self._progress_dialog_factory = progress_dialog_factory or (
             lambda parent: ShutdownProgressDialog(parent)
@@ -217,6 +219,22 @@ class ShutdownCoordinator(QObject):
                 return
             self._focus_visible_surface()
             return
+        if self._authorize_shutdown is not None:
+            try:
+                if not self._authorize_shutdown(parent_window):
+                    log_info(
+                        _LOGGER,
+                        "Shutdown cancelled at unsaved-work boundary",
+                        shutdown_ui_state=self._ui_state.value,
+                    )
+                    return
+            except Exception as error:
+                log_exception(
+                    _LOGGER,
+                    "Shutdown authorization failed closed",
+                    error=error,
+                )
+                return
         self._active_parent_window = parent_window
         self._transition_to(ShutdownUiState.RUNNING_HIDDEN)
         log_info(

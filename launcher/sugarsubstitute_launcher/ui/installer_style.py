@@ -21,6 +21,8 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtGui import QColor
+from PySide6.QtGui import QPalette
+from PySide6.QtWidgets import QApplication
 from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
     isDarkTheme,
     themeColor,
@@ -47,9 +49,21 @@ def apply_installer_style(window: Any) -> None:
         button.setPressedColor(icon_color)
         button.setHoverBackgroundColor(hover_bg)
         button.setPressedBackgroundColor(pressed_bg)
+    offscreen_background = ""
+    if QApplication.platformName() == "offscreen":
+        palette = window.palette()
+        palette.setColor(QPalette.ColorRole.Window, QColor("#181818"))
+        window.setPalette(palette)
+        window.setAutoFillBackground(True)
+        offscreen_background = """
+        QWidget#LauncherWindow {
+            background-color: rgb(24, 24, 24);
+        }
+        """
     window.titleBar.setStyleSheet("background-color: transparent; border: none;")
     window.setStyleSheet(
-        """
+        offscreen_background
+        + """
         QWidget#OnboardingRoot,
         QWidget#OnboardingSurface,
         QFrame#OnboardingContentPanel {
@@ -97,6 +111,64 @@ def apply_installer_style(window: Any) -> None:
             background-color: rgba(__WASH_RGB__, 0.035);
             border: 1px solid rgba(__WASH_RGB__, 0.065);
             border-radius: 18px;
+        }
+        QFrame#ExperiencePage,
+        QWidget#ModelGallery,
+        QScrollArea#ModelGalleryScroll,
+        QFrame#ExperienceOptionGrid {
+            background-color: transparent;
+            border: none;
+        }
+QFrame#PreservationPanel {
+            background-color: rgba(__ACCENT_RGB__, 0.075);
+            border: 1px solid rgba(__ACCENT_RGB__, 0.18);
+            border-radius: 16px;
+}
+QFrame#RepairScopeOption {
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 10px;
+}
+QLabel#RepairScopeBadge {
+    color: #ff4d8d;
+}
+        QRadioButton#RepairScopeChoice {
+            background-color: rgba(__WASH_RGB__, 0.035);
+            border: 1px solid rgba(__WASH_RGB__, 0.085);
+            border-radius: 16px;
+            padding: 12px 16px;
+            spacing: 12px;
+        }
+        QRadioButton#RepairScopeChoice:checked {
+            background-color: rgba(__ACCENT_RGB__, 0.09);
+            border: 1px solid rgba(__ACCENT_RGB__, 0.42);
+        }
+        QCheckBox#ModelCategoryChoice {
+            background-color: rgba(__WASH_RGB__, 0.035);
+            border: 1px solid rgba(__WASH_RGB__, 0.085);
+            border-radius: 14px;
+            padding: 14px;
+            min-height: 30px;
+        }
+        QFrame#ModelDiscoveryCard {
+            background-color: rgba(__WASH_RGB__, 0.04);
+            border: 1px solid rgba(__WASH_RGB__, 0.09);
+            border-radius: 18px;
+            min-width: 210px;
+            max-width: 280px;
+        }
+        QLabel#ModelCardThumbnail {
+            background-color: rgba(__ACCENT_RGB__, 0.12);
+            border: 1px solid rgba(__ACCENT_RGB__, 0.18);
+            border-radius: 12px;
+            color: rgba(__ACCENT_RGB__, 0.95);
+            font-size: 15px;
+            font-weight: 650;
+        }
+        CaptionLabel#ModelCardDestination,
+        CaptionLabel#ExperiencePageDescription,
+        CaptionLabel#RepairStatus {
+            color: rgba(__TEXT_RGB__, 0.72);
         }
         BodyLabel#OnboardingRailTitle {
             font-size: 24px;

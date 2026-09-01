@@ -63,15 +63,13 @@ class LauncherBundleStager:
 
         resolved_root = operational_path(install_root).resolve()
         update_root = resolved_root / "launcher" / "updates"
-        version_root = update_root / "staging" / safe_launcher_version(version)
-        archive_path = update_root / "downloads" / asset.filename
-        self._downloader.download(asset=asset, destination=archive_path)
-        _verify_sha256(archive_path, expected=asset.sha256)
-        if version_root.exists():
-            shutil.rmtree(version_root)
-        safe_extract_zip(zip_path=archive_path, destination_dir=version_root)
-        normalize_staged_bundle_permissions(bundle_dir=version_root, target=target)
-        validate_staged_bundle(bundle_dir=version_root, target=target)
+        version_root = self.stage_bundle(
+            install_root=resolved_root,
+            version=version,
+            target=target,
+            asset=asset,
+            destination_dir=(update_root / "staging" / safe_launcher_version(version)),
+        )
         request_path = update_root / "pending.json"
         LauncherUpdateRequest(
             install_root=resolved_root,
@@ -81,6 +79,36 @@ class LauncherBundleStager:
             relaunch=False,
         ).save(request_path)
         return request_path
+
+    def stage_bundle(
+        self,
+        *,
+        install_root: Path,
+        version: str,
+        target: LauncherBundleTarget,
+        asset: LauncherBundleAsset,
+        destination_dir: Path,
+    ) -> Path:
+        """Download and validate a bundle without creating a promotion request."""
+
+        resolved_root = operational_path(install_root).resolve()
+        destination = operational_path(destination_dir).resolve()
+        if destination == resolved_root or not destination.is_relative_to(
+            resolved_root
+        ):
+            raise LauncherBundleValidationError(
+                f"Launcher staging path escapes its installation: {destination}"
+            )
+        update_root = resolved_root / "launcher" / "updates"
+        archive_path = update_root / "downloads" / asset.filename
+        self._downloader.download(asset=asset, destination=archive_path)
+        _verify_sha256(archive_path, expected=asset.sha256)
+        if destination.exists():
+            shutil.rmtree(destination)
+        safe_extract_zip(zip_path=archive_path, destination_dir=destination)
+        normalize_staged_bundle_permissions(bundle_dir=destination, target=target)
+        validate_staged_bundle(bundle_dir=destination, target=target)
+        return destination
 
 
 def validate_staged_bundle(
@@ -97,6 +125,15 @@ def validate_staged_bundle(
     if not (bundle_dir / target.support_relative_path).is_dir():
         raise LauncherBundleValidationError(
             "Launcher bundle is missing its runtime support directory."
+        )
+    missing_roots = [
+        str(path)
+        for path in target.replacement_roots
+        if not (bundle_dir / path).exists()
+    ]
+    if missing_roots:
+        raise LauncherBundleValidationError(
+            "Launcher bundle is missing replacement roots: " + ", ".join(missing_roots)
         )
     allowed_roots = {path.parts[0] for path in target.replacement_roots}
     unexpected = sorted(

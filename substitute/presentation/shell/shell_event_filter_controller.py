@@ -56,6 +56,7 @@ class ShellEventFilterController:
             QEvent.Type.ApplicationActivate,
         }:
             self._shell.cube_library_update_controller.present_pending_updates()
+            self._shell.model_update_notification_controller.check_on_focus()
             return False
 
         if getattr(self._shell, "controls_keyboard_capture_active", False):

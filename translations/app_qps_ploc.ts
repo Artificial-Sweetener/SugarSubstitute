@@ -110,6 +110,14 @@ Prömpt prëvïëw:
       <translation>⟦%1 mëtàdàtà ëntrïës, %2 ïmàgë prëvïëws, %3 ···⟧</translation>
     </message>
     <message>
+      <source>%1 model file(s) downloaded and verified. Reopen the picker to use them.</source>
+      <translation>⟦%1 mödël fïlë(s) döwnlöàdëd ànd vërïfïëd. Rëöpën thë pïckër tö üsë thëm. ···⟧</translation>
+    </message>
+    <message>
+      <source>%1 model update(s) downloaded beside your current files.</source>
+      <translation>⟦%1 mödël üpdàtë(s) döwnlöàdëd bësïdë yöür cürrënt fïlës. ···⟧</translation>
+    </message>
+    <message>
       <source>%1 of %2</source>
       <translation>⟦%1 öf %2 ···⟧</translation>
     </message>
@@ -188,6 +196,10 @@ Prömpt prëvïëw:
     <message>
       <source>%1 • %2</source>
       <translation>⟦%1 • %2 ···⟧</translation>
+    </message>
+    <message>
+      <source>%1 → %2 · %3 · %4</source>
+      <translation>⟦%1 → %2 · %3 · %4 ···⟧</translation>
     </message>
     <message>
       <source>%1% complete</source>
@@ -276,6 +288,10 @@ Prömpt prëvïëw:
     <message>
       <source>A native dependency failed to load.</source>
       <translation>⟦Å nàtïvë dëpëndëncy fàïlëd tö löàd. ···⟧</translation>
+    </message>
+    <message>
+      <source>A recovery copy is kept, but explicit saves are the durable project file.</source>
+      <translation>⟦Å rëcövëry cöpy ïs këpt, büt ëxplïcït sàvës àrë thë düràblë pröjëct fïlë. ···⟧</translation>
     </message>
     <message>
       <source>A required live Comfy field definition is unavailable.</source>
@@ -522,6 +538,10 @@ Prömpt prëvïëw:
       <translation>⟦Bàsë Cübë Pàcks àrë rëqüïrëd by Sübstïtütë ànd cànnöt bë rëmövëd. ···⟧</translation>
     </message>
     <message>
+      <source>Base model not listed</source>
+      <translation>⟦Bàsë mödël nöt lïstëd ···⟧</translation>
+    </message>
+    <message>
       <source>Base model: %1</source>
       <translation>⟦Bàsë mödël: %1 ···⟧</translation>
     </message>
@@ -664,6 +684,10 @@ Prömpt prëvïëw:
     <message>
       <source>Changes this ComfyUI installation's model folder, including when ComfyUI starts on its own.</source>
       <translation>⟦Chàngës thïs CömfyÜÏ ïnstàllàtïön's mödël földër, ïnclüdïng whën CömfyÜÏ stàrts ön ïts öwn. ···⟧</translation>
+    </message>
+    <message>
+      <source>Check CivitAI for compatible updates only after a model is used for Generate.</source>
+      <translation>⟦Chëck CïvïtÅÏ för cömpàtïblë üpdàtës önly àftër à mödël ïs üsëd för Gënëràtë. ···⟧</translation>
     </message>
     <message>
       <source>Check ComfyUI</source>
@@ -812,6 +836,10 @@ Prömpt prëvïëw:
     <message>
       <source>Choose fixed quality or an approximate target file size.</source>
       <translation>⟦Chöösë fïxëd qüàlïty ör àn àppröxïmàtë tàrgët fïlë sïzë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose from popular compatible files from the last month, or explore CivitAI. Nothing is selected automatically.</source>
+      <translation>⟦Chöösë fröm pöpülàr cömpàtïblë fïlës fröm thë làst mönth, ör ëxplörë CïvïtÅÏ. Nöthïng ïs sëlëctëd àütömàtïcàlly. ···⟧</translation>
     </message>
     <message>
       <source>Choose helpful extras</source>
@@ -1870,6 +1898,10 @@ Install these nodes now?</source>
       <translation>⟦Dïscàrd chàngës ···⟧</translation>
     </message>
     <message>
+      <source>Don't Save</source>
+      <translation>⟦Dön't Sàvë ···⟧</translation>
+    </message>
+    <message>
       <source>Don't save outputs</source>
       <translation>⟦Dön't sàvë öütpüts ···⟧</translation>
     </message>
@@ -1896,6 +1928,14 @@ Install these nodes now?</source>
     <message>
       <source>Download provider images for model picker thumbnails.</source>
       <translation>⟦Döwnlöàd prövïdër ïmàgës för mödël pïckër thümbnàïls. ···⟧</translation>
+    </message>
+    <message>
+      <source>Download selected</source>
+      <translation>⟦Döwnlöàd sëlëctëd ···⟧</translation>
+    </message>
+    <message>
+      <source>Download this model</source>
+      <translation>⟦Döwnlöàd thïs mödël ···⟧</translation>
     </message>
     <message>
       <source>Downloading %1</source>
@@ -2058,6 +2098,10 @@ Install these nodes now?</source>
       <translation>⟦Ëxpànd wïldcàrd prömpt tëxt bëförë sëndïng qüëüëd wörkflöws tö Cömfy. ···⟧</translation>
     </message>
     <message>
+      <source>Explore more on CivitAI</source>
+      <translation>⟦Ëxplörë mörë ön CïvïtÅÏ ···⟧</translation>
+    </message>
+    <message>
       <source>Export to Comfy Workflow...</source>
       <translation>⟦Ëxpört tö Cömfy Wörkflöw... ···⟧</translation>
     </message>
@@ -2168,6 +2212,10 @@ Install these nodes now?</source>
     <message>
       <source>Find ComfyUI's environment</source>
       <translation>⟦Fïnd CömfyÜÏ's ënvïrönmënt ···⟧</translation>
+    </message>
+    <message>
+      <source>Find models</source>
+      <translation>⟦Fïnd mödëls ···⟧</translation>
     </message>
     <message>
       <source>Finding Python…</source>
@@ -2938,12 +2986,28 @@ Install these nodes now?</source>
       <translation>⟦Mödël Söürcës ···⟧</translation>
     </message>
     <message>
+      <source>Model discovery failed: %1</source>
+      <translation>⟦Mödël dïscövëry fàïlëd: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Model discovery returned invalid results.</source>
+      <translation>⟦Mödël dïscövëry rëtürnëd ïnvàlïd rësülts. ···⟧</translation>
+    </message>
+    <message>
       <source>Model download failed</source>
       <translation>⟦Mödël döwnlöàd fàïlëd ···⟧</translation>
     </message>
     <message>
       <source>Model download unavailable</source>
       <translation>⟦Mödël döwnlöàd ünàvàïlàblë ···⟧</translation>
+    </message>
+    <message>
+      <source>Model downloads are unavailable for this ComfyUI target. You can still add files to its model folders manually.</source>
+      <translation>⟦Mödël döwnlöàds àrë ünàvàïlàblë för thïs CömfyÜÏ tàrgët. Yöü càn stïll àdd fïlës tö ïts mödël földërs mànüàlly. ···⟧</translation>
+    </message>
+    <message>
+      <source>Model downloads returned invalid results.</source>
+      <translation>⟦Mödël döwnlöàds rëtürnëd ïnvàlïd rësülts. ···⟧</translation>
     </message>
     <message>
       <source>Model file</source>
@@ -2956,6 +3020,22 @@ Install these nodes now?</source>
     <message>
       <source>Model folder pattern</source>
       <translation>⟦Mödël földër pàttërn ···⟧</translation>
+    </message>
+    <message>
+      <source>Model update operation failed: %1</source>
+      <translation>⟦Mödël üpdàtë öpëràtïön fàïlëd: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Model update results were invalid.</source>
+      <translation>⟦Mödël üpdàtë rësülts wërë ïnvàlïd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Model updates</source>
+      <translation>⟦Mödël üpdàtës ···⟧</translation>
+    </message>
+    <message>
+      <source>Model updates are available, but this ComfyUI target has no local download destination.</source>
+      <translation>⟦Mödël üpdàtës àrë àvàïlàblë, büt thïs CömfyÜÏ tàrgët hàs nö löcàl döwnlöàd dëstïnàtïön. ···⟧</translation>
     </message>
     <message>
       <source>Model: %1</source>
@@ -3036,6 +3116,10 @@ Install these nodes now?</source>
     <message>
       <source>New custom list</source>
       <translation>⟦Nëw cüstöm lïst ···⟧</translation>
+    </message>
+    <message>
+      <source>New file destination: %1</source>
+      <translation>⟦Nëw fïlë dëstïnàtïön: %1 ···⟧</translation>
     </message>
     <message>
       <source>New size</source>
@@ -3126,6 +3210,10 @@ Install these nodes now?</source>
       <translation>⟦Nö mïcröphönë ···⟧</translation>
     </message>
     <message>
+      <source>No models are available for this picker</source>
+      <translation>⟦Nö mödëls àrë àvàïlàblë för thïs pïckër ···⟧</translation>
+    </message>
+    <message>
       <source>No node-specific validation errors were reported.</source>
       <translation>⟦Nö nödë-spëcïfïc vàlïdàtïön ërrörs wërë rëpörtëd. ···⟧</translation>
     </message>
@@ -3144,6 +3232,10 @@ Install these nodes now?</source>
     <message>
       <source>No repository has been validated.</source>
       <translation>⟦Nö rëpösïtöry hàs bëën vàlïdàtëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>No safe popular models are available for this picker right now.</source>
+      <translation>⟦Nö sàfë pöpülàr mödëls àrë àvàïlàblë för thïs pïckër rïght nöw. ···⟧</translation>
     </message>
     <message>
       <source>No selection</source>
@@ -3210,12 +3302,20 @@ Install these nodes now?</source>
       <translation>⟦Nöt löàdëd ···⟧</translation>
     </message>
     <message>
+      <source>Not now</source>
+      <translation>⟦Nöt nöw ···⟧</translation>
+    </message>
+    <message>
       <source>Not set</source>
       <translation>⟦Nöt sët ···⟧</translation>
     </message>
     <message>
       <source>Nothing to transform!</source>
       <translation>⟦Nöthïng tö trànsförm! ···⟧</translation>
+    </message>
+    <message>
+      <source>Notify me about updates to models I use</source>
+      <translation>⟦Nötïfy më àböüt üpdàtës tö mödëls Ï üsë ···⟧</translation>
     </message>
     <message>
       <source>Number of queued generations to create</source>
@@ -4202,6 +4302,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sàvë chàngës ···⟧</translation>
     </message>
     <message>
+      <source>Save changes to “%1” before continuing?</source>
+      <translation>⟦Sàvë chàngës tö “%1” bëförë cöntïnüïng? ···⟧</translation>
+    </message>
+    <message>
       <source>Save current %1 as preset...</source>
       <translation>⟦Sàvë cürrënt %1 às prësët... ···⟧</translation>
     </message>
@@ -4248,6 +4352,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Saved. Restart Substitute to use the new ComfyUI connection.</source>
       <translation>⟦Sàvëd. Rëstàrt Sübstïtütë tö üsë thë nëw CömfyÜÏ cönnëctïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>Saves to %1</source>
+      <translation>⟦Sàvës tö %1 ···⟧</translation>
     </message>
     <message>
       <source>Saving generation preview settings.</source>
@@ -5372,6 +5480,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thë mödël döwnlöàd fàïlëd. ···⟧</translation>
     </message>
     <message>
+      <source>The model download service is unavailable for this target.</source>
+      <translation>⟦Thë mödël döwnlöàd sërvïcë ïs ünàvàïlàblë för thïs tàrgët. ···⟧</translation>
+    </message>
+    <message>
       <source>The model has finished downloading.</source>
       <translation>⟦Thë mödël hàs fïnïshëd döwnlöàdïng. ···⟧</translation>
     </message>
@@ -5490,6 +5602,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>The workflow dimensions could not be updated, so the canvas change was undone.</source>
       <translation>⟦Thë wörkflöw dïmënsïöns cöüld nöt bë üpdàtëd, sö thë cànvàs chàngë wàs ündönë. ···⟧</translation>
+    </message>
+    <message>
+      <source>The workspace is still loading and cannot be saved yet.</source>
+      <translation>⟦Thë wörkspàcë ïs stïll löàdïng ànd cànnöt bë sàvëd yët. ···⟧</translation>
     </message>
     <message>
       <source>Theme mode</source>
@@ -5708,8 +5824,20 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Ünknöwn ···⟧</translation>
     </message>
     <message>
+      <source>Unknown base model</source>
+      <translation>⟦Ünknöwn bàsë mödël ···⟧</translation>
+    </message>
+    <message>
       <source>Unknown source</source>
       <translation>⟦Ünknöwn söürcë ···⟧</translation>
+    </message>
+    <message>
+      <source>Unknown version</source>
+      <translation>⟦Ünknöwn vërsïön ···⟧</translation>
+    </message>
+    <message>
+      <source>Unsaved work</source>
+      <translation>⟦Ünsàvëd wörk ···⟧</translation>
     </message>
     <message>
       <source>Unspecified model</source>
@@ -5770,6 +5898,14 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Updated versions are available for loaded cubes.</source>
       <translation>⟦Üpdàtëd vërsïöns àrë àvàïlàblë för löàdëd cübës. ···⟧</translation>
+    </message>
+    <message>
+      <source>Updates are available for models you use</source>
+      <translation>⟦Üpdàtës àrë àvàïlàblë för mödëls yöü üsë ···⟧</translation>
+    </message>
+    <message>
+      <source>Updates are optional. Downloaded versions are added beside your current files, and existing workflows keep using their current model.</source>
+      <translation>⟦Üpdàtës àrë öptïönàl. Döwnlöàdëd vërsïöns àrë àddëd bësïdë yöür cürrënt fïlës, ànd ëxïstïng wörkflöws këëp üsïng thëïr cürrënt mödël. ···⟧</translation>
     </message>
     <message>
       <source>Updating</source>
@@ -5934,6 +6070,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>View ComfyUI startup diagnostics</source>
       <translation>⟦Vïëw CömfyÜÏ stàrtüp dïàgnöstïcs ···⟧</translation>
+    </message>
+    <message>
+      <source>View on CivitAI</source>
+      <translation>⟦Vïëw ön CïvïtÅÏ ···⟧</translation>
     </message>
     <message>
       <source>Visual customization.</source>
@@ -6134,6 +6274,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>You're almost done.</source>
       <translation>⟦Yöü'rë àlmöst dönë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Your recovery save could not be completed, so generation was not started.</source>
+      <translation>⟦Yöür rëcövëry sàvë cöüld nöt bë cömplëtëd, sö gënëràtïön wàs nöt stàrtëd. ···⟧</translation>
     </message>
     <message>
       <source>Your setup has been saved. Review the summary below, then open Substitute or close this window if a restart is needed.</source>

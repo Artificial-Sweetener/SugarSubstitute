@@ -38,14 +38,18 @@ def install_qt_message_trace_handler() -> None:
         "on",
     }
 
-    from PySide6.QtCore import QtMsgType, qInstallMessageHandler
+    from PySide6.QtCore import QMessageLogContext, QtMsgType, qInstallMessageHandler
     from sugarsubstitute_shared.crash_reporting.runtime import (
         active_process_crash_runtime,
     )
 
     previous_handler = qInstallMessageHandler(None)
 
-    def traced_handler(message_type: object, context: object, message: str) -> None:
+    def traced_handler(
+        message_type: QtMsgType,
+        context: QMessageLogContext,
+        message: str,
+    ) -> None:
         """Log selected Qt warnings with a local Python call stack for diagnosis."""
 
         if message_type == QtMsgType.QtFatalMsg:

@@ -91,7 +91,7 @@ DOCUMENTED_NON_EXECUTION_FILES = {
         {"threading.RLock"}
     ),
     "substitute/application/workspace_state/session_autosave_service.py": frozenset(
-        {"threading.Lock"}
+        {"threading.Condition", "threading.Lock"}
     ),
     "substitute/devtools/prompt_editor_performance/instrumentation.py": frozenset(
         {"threading.Lock"}
