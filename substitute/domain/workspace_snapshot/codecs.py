@@ -285,6 +285,12 @@ def _workflow_snapshot_to_json(snapshot: WorkflowSnapshot) -> JsonObject:
             for image in snapshot.output_images
         ],
         "editor_viewport": _editor_viewport_to_json(snapshot.editor_viewport),
+        "document_dirty": snapshot.document_dirty,
+        "document_source_path": (
+            str(snapshot.document_source_path)
+            if snapshot.document_source_path is not None
+            else None
+        ),
     }
 
 
@@ -310,6 +316,13 @@ def _workflow_snapshot_from_json(value: object) -> WorkflowSnapshot:
             for item in _optional_sequence(payload.get("output_images"))
         ),
         editor_viewport=_editor_viewport_from_json(payload.get("editor_viewport")),
+        document_dirty=payload.get("document_dirty") is True,
+        document_source_path=(
+            Path(source_path)
+            if (source_path := _optional_str(payload.get("document_source_path")))
+            is not None
+            else None
+        ),
     )
 
 

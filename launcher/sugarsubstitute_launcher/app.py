@@ -30,7 +30,6 @@ if TYPE_CHECKING:
         InstalledApplicationLaunchSession,
     )
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-    from launcher.sugarsubstitute_launcher.release_sources import ReleaseSource
     from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupPlan
     from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
 
@@ -45,21 +44,55 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parse_launcher_args(sys.argv[1:] if argv is None else argv)
     if args.verify_release_connectivity:
-        return _verify_release_connectivity(args)
+        from launcher.sugarsubstitute_launcher.headless_operations import (
+            verify_release_connectivity,
+        )
+
+        return verify_release_connectivity(args)
     if args.headless_install:
-        return _run_headless_install(args)
+        from launcher.sugarsubstitute_launcher.headless_operations import (
+            run_headless_install,
+        )
+
+        return run_headless_install(args)
+    from launcher.sugarsubstitute_launcher.crash_routing import (
+        route_explicit_crash_operation,
+    )
+
+    crash_operation_result = route_explicit_crash_operation(args)
+    if crash_operation_result is not None:
+        return crash_operation_result
+    if args.negotiate_active_application:
+        from launcher.sugarsubstitute_launcher.active_instance_dialog import (
+            negotiate_active_application,
+        )
+        from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+
+        if args.install_root is None:
+            raise RuntimeError("Active-instance child requires an install root.")
+        return int(
+            not negotiate_active_application(
+                layout=InstallLayout.from_root(args.install_root),
+                locale_override=args.locale_override,
+            )
+        )
 
     from launcher.sugarsubstitute_launcher.startup_plan import (
         resolve_startup_candidate,
         should_attempt_installed_app_launch,
     )
+    from launcher.sugarsubstitute_launcher.runtime_paths import (
+        frozen_invocation_path,
+        frozen_support_path,
+        native_frozen_executable_path,
+    )
 
     startup_candidate = resolve_startup_candidate(
         explicit_install_root=args.install_root,
         executable_path=Path(sys.executable),
-        frozen_support_path=_frozen_support_path(),
-        invocation_path=_frozen_invocation_path(),
-        native_executable_path=_native_frozen_executable_path(),
+        frozen_support_path=frozen_support_path(),
+        invocation_path=frozen_invocation_path(),
+        native_executable_path=native_frozen_executable_path(),
         working_directory_path=Path.cwd(),
     )
     layout = startup_candidate.layout
@@ -74,11 +107,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         resolved_locale.effective_language.identifier
     )
 
+    from launcher.sugarsubstitute_launcher.crash_routing import (
+        recover_pending_crash_reports,
+    )
+
+    recover_pending_crash_reports(
+        layout=layout,
+        locale_override=args.locale_override,
+    )
+
     app_launch_error: Exception | None = None
     launch_guard: ApplicationLaunchGuard | None = None
     launch_session: InstalledApplicationLaunchSession | None = None
     startup_plan: LauncherStartupPlan | None = None
-    if should_attempt_installed_app_launch(args=args, candidate=startup_candidate):
+    if not args.launcher_ui_child and should_attempt_installed_app_launch(
+        args=args,
+        candidate=startup_candidate,
+    ):
         from launcher.sugarsubstitute_launcher.application_launch import (
             begin_installed_application_launch,
         )
@@ -88,11 +133,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         launch_guard = launch_session.claim_application()
         if launch_guard is None:
-            from launcher.sugarsubstitute_launcher.active_instance_dialog import (
-                negotiate_active_application,
+            from launcher.sugarsubstitute_launcher.launcher_ui_supervision import (
+                supervise_active_application_dialog,
             )
 
-            if not negotiate_active_application(
+            if not supervise_active_application_dialog(
                 layout=layout,
                 locale_override=args.locale_override,
             ):
@@ -133,6 +178,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 no_update_check=args.no_update_check,
                 splash_session=splash_session,
                 launch_session=launch_session,
+                handoff_geometry=args.handoff_geometry,
             )
             launch_session.release()
             return 0
@@ -167,6 +213,26 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         startup_plan = assess_startup_candidate(startup_candidate)
 
+    from launcher.sugarsubstitute_launcher.startup_plan import should_show_repair
+
+    repair = should_show_repair(
+        args=args,
+        startup_plan=startup_plan,
+        app_launch_error=app_launch_error,
+    )
+    if not args.launcher_ui_child:
+        from launcher.sugarsubstitute_launcher.launcher_ui_supervision import (
+            supervise_launcher_window,
+        )
+
+        try:
+            return supervise_launcher_window(
+                layout=layout,
+                arguments=args,
+                repair=repair,
+            )
+        finally:
+            _release_launch_ownership(launch_guard, launch_session)
     return _run_launcher_window(
         args=args,
         startup_plan=startup_plan,
@@ -174,54 +240,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         launch_guard=launch_guard,
         launch_session=launch_session,
     )
-
-
-def _verify_release_connectivity(args: LauncherArguments) -> int:
-    """Run the explicit headless release-connectivity operation."""
-
-    from launcher.sugarsubstitute_launcher.connectivity import (
-        ReleaseConnectivityVerifier,
-    )
-
-    ReleaseConnectivityVerifier().verify(
-        release_source=_explicit_release_source(args.manifest_url)
-    )
-    return 0
-
-
-def _run_headless_install(args: LauncherArguments) -> int:
-    """Install launcher and app payload without constructing GUI state."""
-
-    if args.install_root is None:
-        raise ValueError("Headless installation requires an explicit install root.")
-    from launcher.sugarsubstitute_launcher.application.installation.composition import (
-        build_installation_workflow,
-    )
-    from launcher.sugarsubstitute_launcher.headless_install import (
-        HeadlessInstallService,
-    )
-    from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-    from launcher.sugarsubstitute_launcher.localization import (
-        seed_headless_locale_preference,
-    )
-    from launcher.sugarsubstitute_launcher.logging_setup import (
-        configure_launcher_logging,
-    )
-
-    layout = InstallLayout.from_root(args.install_root)
-    configure_launcher_logging(layout=layout)
-    logger = logging.getLogger(__name__)
-    HeadlessInstallService(
-        workflow=build_installation_workflow(output_callback=logger.info)
-    ).install(
-        install_root=layout.root,
-        release_source=_initial_install_release_source(args.manifest_url),
-    )
-    seed_headless_locale_preference(
-        layout,
-        locale_override=args.locale_override,
-    )
-    return 0
 
 
 def _configure_normal_logging(startup_plan: LauncherStartupPlan) -> None:
@@ -267,11 +285,18 @@ def _run_launcher_window(
     from launcher.sugarsubstitute_launcher.application.installation.composition import (
         build_installation_workflow,
     )
+    from launcher.sugarsubstitute_launcher.application.model_onboarding import (
+        build_installer_model_onboarding,
+    )
     from launcher.sugarsubstitute_launcher.localization import (
         build_launcher_localization_runtime,
     )
-    from launcher.sugarsubstitute_launcher.process import start_detached_handoff
-    from launcher.sugarsubstitute_launcher.startup_plan import should_show_repair
+    from launcher.sugarsubstitute_launcher.process import (
+        start_installed_launcher_handoff,
+    )
+    from launcher.sugarsubstitute_launcher.release_source_routing import (
+        initial_install_release_source,
+    )
 
     application = QApplication.instance()
     owns_application = application is None
@@ -288,16 +313,15 @@ def _run_launcher_window(
         window = _launcher_main_window_class()(
             initial_layout=startup_plan.layout,
             continue_install=args.continue_install,
-            repair=should_show_repair(
-                args=args,
-                startup_plan=startup_plan,
-                app_launch_error=app_launch_error,
-            ),
+            repair=args.repair,
             update_check_enabled=not args.no_update_check,
-            initial_release_source=_initial_install_release_source(args.manifest_url),
+            initial_release_source=initial_install_release_source(args.manifest_url),
             workflow_factory=lambda output_callback: build_installation_workflow(
                 output_callback=output_callback,
-                process_starter=start_detached_handoff,
+                process_starter=start_installed_launcher_handoff,
+            ),
+            model_onboarding_service_factory=lambda model_root: (
+                build_installer_model_onboarding(model_root=model_root)
             ),
             handoff_geometry=args.handoff_geometry,
         )
@@ -313,38 +337,7 @@ def _run_launcher_window(
             return int(application.exec())
         return 0
     finally:
-        if launch_guard is not None:
-            launch_guard.release()
-        if launch_session is not None:
-            launch_session.release()
-
-
-def _explicit_release_source(manifest_url: str | None) -> ReleaseSource:
-    """Return the requested HTTPS source or the production release channel."""
-
-    from launcher.sugarsubstitute_launcher.release_sources import (
-        GitHubReleaseSource,
-        default_production_release_source,
-    )
-
-    if manifest_url is None:
-        return default_production_release_source()
-    return GitHubReleaseSource(manifest_url)
-
-
-def _initial_install_release_source(manifest_url: str | None) -> ReleaseSource:
-    """Return an explicit test source or the installer-bound release source."""
-
-    from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
-        resolve_initial_install_release_source,
-    )
-    from launcher.sugarsubstitute_launcher.release_sources import GitHubReleaseSource
-
-    if manifest_url is not None:
-        return GitHubReleaseSource(manifest_url)
-    return resolve_initial_install_release_source(
-        frozen_setup=bool(getattr(sys, "frozen", False))
-    )
+        _release_launch_ownership(launch_guard, launch_session)
 
 
 def _launcher_main_window_class() -> Callable[..., Any]:
@@ -360,32 +353,16 @@ def _launcher_main_window_class() -> Callable[..., Any]:
     return LauncherMainWindow
 
 
-def _frozen_support_path() -> Path | None:
-    """Return PyInstaller's authoritative bundle support directory when frozen."""
+def _release_launch_ownership(
+    launch_guard: ApplicationLaunchGuard | None,
+    launch_session: InstalledApplicationLaunchSession | None,
+) -> None:
+    """Release parent launcher ownership after child UI reaches terminal state."""
 
-    raw_path = getattr(sys, "_MEIPASS", None)
-    if not bool(getattr(sys, "frozen", False)) or not isinstance(raw_path, str):
-        return None
-    return Path(raw_path)
-
-
-def _frozen_invocation_path() -> Path | None:
-    """Return the packaged launcher path exactly as the operating system invoked it."""
-
-    if not bool(getattr(sys, "frozen", False)) or not sys.argv or not sys.argv[0]:
-        return None
-    return Path(sys.argv[0])
-
-
-def _native_frozen_executable_path() -> Path | None:
-    """Return Linux's kernel-owned path to the current packaged executable."""
-
-    if not bool(getattr(sys, "frozen", False)) or not sys.platform.startswith("linux"):
-        return None
-    try:
-        return Path("/proc/self/exe").resolve(strict=True)
-    except OSError:
-        return None
+    if launch_guard is not None:
+        launch_guard.release()
+    if launch_session is not None:
+        launch_session.release()
 
 
 def _record_qualification_startup_route(
@@ -393,6 +370,11 @@ def _record_qualification_startup_route(
 ) -> None:
     """Record packaged route evidence only for an authenticated CI chain."""
 
+    from launcher.sugarsubstitute_launcher.runtime_paths import (
+        frozen_invocation_path,
+        frozen_support_path,
+        native_frozen_executable_path,
+    )
     from sugarsubstitute_shared.installer_qualification import (
         InstallerQualificationPlan,
     )
@@ -412,10 +394,10 @@ def _record_qualification_startup_route(
             installed_config_found=startup_plan.installed_config_found,
             installed_config_valid=startup_plan.installed_config_valid,
             resolved_root=str(startup_plan.layout.root),
-            invocation_path=str(_frozen_invocation_path()),
-            native_executable_path=str(_native_frozen_executable_path()),
+            invocation_path=str(frozen_invocation_path()),
+            native_executable_path=str(native_frozen_executable_path()),
             python_executable=sys.executable,
-            support_path=str(_frozen_support_path()),
+            support_path=str(frozen_support_path()),
             working_directory=str(Path.cwd()),
         )
     except OSError as error:

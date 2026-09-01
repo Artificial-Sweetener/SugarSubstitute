@@ -112,6 +112,10 @@ class DirectWorkflowFileActions:
             load_direct_workflow(document)
             self._rename_target_tab(path.stem, target_workflow_id)
             self._mark_surfaces_dirty(target_workflow_id)
+            unsaved_work_service = getattr(self._view, "unsaved_work_service", None)
+            mark_saved = getattr(unsaved_work_service, "mark_saved", None)
+            if callable(mark_saved):
+                mark_saved(target_workflow_id, path)
             self._refresh_active_workflow()
             if self._materialize_loaded_section is not None:
                 self._materialize_loaded_section(

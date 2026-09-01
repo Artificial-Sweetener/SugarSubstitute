@@ -23,6 +23,13 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from tools.localization_source_surfaces import (
+    application_catalog_source_roots,
+    application_source_roots,
+    shared_application_catalog_source_roots,
+    visible_source_roots,
+)
+
 _VISIBLE_METHODS = frozenset(
     {
         "addAction",
@@ -266,7 +273,24 @@ def extract_application_messages(project_root: Path) -> tuple[ExtractedMessage, 
 
     return _extract_messages(
         project_root,
-        source_roots=_application_catalog_source_roots(project_root),
+        source_roots=(
+            *application_catalog_source_roots(project_root),
+            *shared_application_catalog_source_roots(project_root),
+        ),
+        message_functions=(
+            _APPLICATION_MESSAGE_FUNCTIONS | _PROPERTY_MESSAGE_FUNCTIONS
+        ),
+    )
+
+
+def extract_shared_application_messages(
+    project_root: Path,
+) -> tuple[ExtractedMessage, ...]:
+    """Return AppText sources rendered by both the app and launcher."""
+
+    return _extract_messages(
+        project_root,
+        source_roots=shared_application_catalog_source_roots(project_root),
         message_functions=(
             _APPLICATION_MESSAGE_FUNCTIONS | _PROPERTY_MESSAGE_FUNCTIONS
         ),
@@ -335,7 +359,7 @@ def find_unbound_dynamic_messages(
     """Return dynamic visible strings that bypass the localized-message API."""
 
     violations: list[ExtractedMessage] = []
-    source_roots = _visible_source_roots(project_root)
+    source_roots = visible_source_roots(project_root)
     for source_root in source_roots:
         for path in sorted(source_root.rglob("*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -368,7 +392,7 @@ def find_unmarked_application_messages(
     """Return static visible English copy that lacks an explicit app marker."""
 
     violations: list[ExtractedMessage] = []
-    source_roots = _visible_source_roots(project_root)
+    source_roots = visible_source_roots(project_root)
     allowed_functions = (
         _MESSAGE_FUNCTIONS
         | _PROPERTY_MESSAGE_FUNCTIONS
@@ -408,7 +432,7 @@ def find_unclassified_presentation_assignments(
     """Return indirect visible literals stored without an application marker."""
 
     violations: list[ExtractedMessage] = []
-    for source_root in _application_source_roots(project_root):
+    for source_root in application_source_roots(project_root):
         for path in sorted(source_root.rglob("*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             enum_member_lines = _enum_member_assignment_lines(tree)
@@ -447,7 +471,7 @@ def find_unclassified_presentation_returns(
     """Return app-owned copy returned by presentation helpers without a marker."""
 
     violations: list[ExtractedMessage] = []
-    for source_root in _application_source_roots(project_root):
+    for source_root in application_source_roots(project_root):
         for path in sorted(source_root.rglob("*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for function in (
@@ -550,36 +574,6 @@ def _visible_literals(call: ast.Call) -> tuple[str, ...]:
     for candidate in _visible_candidates(call):
         messages.extend(_message_sources(candidate))
     return tuple(messages)
-
-
-def _application_source_roots(project_root: Path) -> tuple[Path, ...]:
-    """Return source roots that can own application-visible messages."""
-
-    return (
-        project_root / "substitute" / "presentation",
-        project_root / "substitute" / "application",
-        project_root / "substitute" / "domain",
-        project_root / "substitute" / "app" / "bootstrap",
-    )
-
-
-def _application_catalog_source_roots(project_root: Path) -> tuple[Path, ...]:
-    """Return roots whose explicit markers feed the AppText catalog."""
-
-    return (
-        *_application_source_roots(project_root),
-        project_root / "substitute" / "infrastructure",
-    )
-
-
-def _visible_source_roots(project_root: Path) -> tuple[Path, ...]:
-    """Return roots whose explicit presentation calls can expose app copy."""
-
-    return (
-        *_application_catalog_source_roots(project_root),
-        project_root / "launcher" / "sugarsubstitute_launcher",
-        project_root / "sugarsubstitute_shared" / "presentation",
-    )
 
 
 def _named_assignment(node: ast.AST) -> tuple[str, ast.expr] | None:
@@ -907,6 +901,7 @@ __all__ = [
     "extract_application_messages",
     "extract_language_selector_messages",
     "extract_launcher_messages",
+    "extract_shared_application_messages",
     "find_unbound_dynamic_messages",
     "find_unclassified_presentation_assignments",
     "find_unclassified_presentation_returns",

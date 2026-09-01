@@ -55,6 +55,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
         {"threading.Event", "threading.Lock"}
     ),
     "substitute/app/bootstrap/lifecycle.py": frozenset({"threading.Lock"}),
+    "substitute/app/bootstrap/managed_comfy_runtime_owner.py": frozenset(
+        {"threading.Lock"}
+    ),
     "substitute/app/bootstrap/startup_shutdown.py": frozenset({"threading.Lock"}),
     "substitute/app/bootstrap/workspace_restore_asset_preload.py": frozenset(
         {"threading.RLock"}
@@ -88,7 +91,7 @@ DOCUMENTED_NON_EXECUTION_FILES = {
         {"threading.RLock"}
     ),
     "substitute/application/workspace_state/session_autosave_service.py": frozenset(
-        {"threading.Lock"}
+        {"threading.Condition", "threading.Lock"}
     ),
     "substitute/devtools/prompt_editor_performance/instrumentation.py": frozenset(
         {"threading.Lock"}

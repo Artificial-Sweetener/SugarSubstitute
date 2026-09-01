@@ -24,6 +24,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_launch_guard import (
+    application_launch_install_root,
+)
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
 from sugarsubstitute_shared.subprocess_environment import (
     clean_frozen_parent_environment,
@@ -164,6 +167,31 @@ def start_detached_handoff(command: Sequence[str]) -> None:
     """Start a handoff child process without keeping the current window around."""
 
     start_detached(command, startup_timeout_seconds=HANDOFF_STARTUP_TIMEOUT_SECONDS)
+
+
+def build_installed_launcher_handoff_command(
+    app_command: Sequence[str],
+) -> list[str]:
+    """Route a prepared app handoff back through its stable supervisor."""
+
+    install_root = application_launch_install_root(app_command, app_root=Path.cwd())
+    layout = InstallLayout.from_root(install_root)
+    forwarded_arguments = [
+        argument
+        for argument in app_command
+        if argument.startswith(("--handoff-geometry=", "--locale="))
+    ]
+    return [
+        subprocess_path(layout.executable_path),
+        f"--install-root={subprocess_path(layout.root)}",
+        *forwarded_arguments,
+    ]
+
+
+def start_installed_launcher_handoff(app_command: Sequence[str]) -> None:
+    """Start the installed launcher that will supervise the prepared app."""
+
+    start_detached_handoff(build_installed_launcher_handoff_command(app_command))
 
 
 def _command_working_directory(command: Sequence[str]) -> Path | None:

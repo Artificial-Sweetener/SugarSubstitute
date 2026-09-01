@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from PySide6.QtCore import QObject, QTimer
+from sugarsubstitute_shared.presentation.localization import app_text
 
 from substitute.application.workspace_state.session_persistence import (
     SessionPersistenceParticipant,
@@ -221,6 +222,33 @@ class SessionAutosaveController:
         self._log_editor_width_trace("session autosave enqueued")
         trace_mark("main_window.session_autosave.enqueued")
 
+    def save_session_before_generation(self) -> None:
+        """Persist recovery state completely before generation leaves the process."""
+
+        from substitute.presentation.shell.workspace_generation_controller import (
+            GenerationPreflightError,
+        )
+
+        if not getattr(self._shell, "_initial_workspace_hydrated", False):
+            raise GenerationPreflightError(
+                workflow_id="session",
+                message=app_text(
+                    "The workspace is still loading and cannot be saved yet."
+                ),
+            )
+        succeeded = self._shell.session_autosave_service.save_durably(
+            snapshot_capture_adapter_for(self._shell),
+            participants=self._session_persistence_participants(),
+            reason="before_generation",
+        )
+        if not succeeded:
+            raise GenerationPreflightError(
+                workflow_id="session",
+                message=app_text(
+                    "Your recovery save could not be completed, so generation was not started."
+                ),
+            )
+
     def ensure_coordinator(self) -> SessionAutosaveCoordinator:
         """Create and expose the coordinator that owns debounce timers."""
 
@@ -253,6 +281,19 @@ class SessionAutosaveController:
     ) -> None:
         """Request autosave through the coordinator when it is available."""
 
+        if (
+            category is SessionAutosaveRequestCategory.WORKFLOW_MUTATION
+            and not self.session_autosave_muted()
+        ):
+            service = getattr(self._shell, "unsaved_work_service", None)
+            mark_dirty = getattr(service, "mark_dirty", None)
+            workflow_id = getattr(
+                getattr(self._shell, "workflow_session_service", None),
+                "active_workflow_id",
+                "",
+            )
+            if callable(mark_dirty) and workflow_id:
+                mark_dirty(str(workflow_id))
         coordinator = getattr(self._shell, "_session_autosave_coordinator", None)
         if coordinator is None:
             self.request_session_autosave()

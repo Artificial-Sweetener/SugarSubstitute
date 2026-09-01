@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import fields
+from typing import cast
 
 import pytest
 
@@ -27,6 +28,12 @@ from substitute.presentation.shell import main_window_composition
 from substitute.presentation.shell.main_window_dependencies import (
     MainWindowDependencies,
 )
+from substitute.domain.comfy_connection import (
+    ComfyConnectionPhase,
+    ComfyConnectionState,
+    ComfyConnectionStateChange,
+)
+from substitute.domain.onboarding import ComfyTargetMode
 
 
 class _Submitter:
@@ -74,11 +81,20 @@ class _QueueService:
         """Initialize no observer."""
 
         self.observers: list[object] = []
+        self.connection_lost_handler: object | None = None
 
     def add_observer(self, observer: object) -> None:
         """Record one queue observer."""
 
         self.observers.append(observer)
+
+    def set_dispatch_available(self, _available: bool) -> None:
+        """Accept connection-owned queue availability changes."""
+
+    def set_connection_lost_handler(self, handler: object) -> None:
+        """Capture the listener-disconnect race prevention callback."""
+
+        self.connection_lost_handler = handler
 
 
 class _GenerationActions:
@@ -88,6 +104,9 @@ class _GenerationActions:
         """Create a stable queue observer token."""
 
         self.handle_generation_queue_state_changed = object()
+
+    def set_backend_state(self, _state: str) -> None:
+        """Accept connection-owned backend state changes."""
 
 
 class _ComfyRuntimeActions:
@@ -139,6 +158,30 @@ class _UpdateController:
         """Provide model-catalog cleanup."""
 
 
+class _ModelUpdateNotificationController:
+    """Capture model update notification composition and cleanup."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store construction inputs."""
+
+        self.kwargs = kwargs
+
+    def close(self) -> None:
+        """Provide model-update worker cleanup."""
+
+
+class _EmptyModelPickerDiscoveryController:
+    """Capture empty-picker discovery composition and cleanup."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store construction inputs."""
+
+        self.kwargs = kwargs
+
+    def close(self) -> None:
+        """Provide discovery worker cleanup."""
+
+
 class _SettingsRouteController:
     """Capture settings route construction and workspace initialization."""
 
@@ -150,6 +193,7 @@ class _SettingsRouteController:
         self.created_settings_workspace = False
         self.error_presenter_during_creation: object | None = None
         self.shell_error_presenter_during_creation: object | None = None
+        self.runtime_refreshes = 0
 
     def create_settings_workspace(self) -> None:
         """Record creation with the error presenter visible to the shell."""
@@ -161,6 +205,72 @@ class _SettingsRouteController:
             None,
         )
         self.created_settings_workspace = True
+
+    def project_comfyui_settings(self) -> None:
+        """Provide the ComfyUI settings action used by connection feedback."""
+
+    def refresh_runtime_contracts_after_cube_dependency_restart(self) -> None:
+        """Record refresh after monitor-confirmed managed restart readiness."""
+
+        self.runtime_refreshes += 1
+
+
+class _ConnectionRecoveryService:
+    """Capture connection recovery composition without running policy logic."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store recovery construction ports."""
+
+        self.kwargs = kwargs
+        self.observers: list[object] = []
+
+    def add_observer(self, observer: object) -> None:
+        """Record one connection state observer."""
+
+        self.observers.append(observer)
+
+    def report_connected(self) -> None:
+        """Provide the monitor connection callback."""
+
+    def report_disconnected(self) -> None:
+        """Provide the monitor disconnection callback."""
+
+    def request_restart(self) -> bool:
+        """Provide the presenter restart callback."""
+
+        return True
+
+
+class _ConnectionPresenter:
+    """Capture connection feedback composition and cleanup."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store presenter construction ports."""
+
+        self.kwargs = kwargs
+
+    def present(self, _change: object) -> None:
+        """Accept one connection transition."""
+
+    def close(self) -> None:
+        """Provide shell feedback cleanup."""
+
+
+class _ConnectionMonitor:
+    """Record persistent monitor lifecycle requests."""
+
+    def __init__(self) -> None:
+        """Initialize stopped monitor state."""
+
+        self.started = False
+
+    def start(self) -> None:
+        """Record monitor startup."""
+
+        self.started = True
+
+    def stop(self) -> None:
+        """Provide monitor cleanup."""
 
 
 class _Dependencies:
@@ -182,6 +292,11 @@ class _Dependencies:
             "comfy_output_stream",
             self.comfy_output_stream,
         )
+        object.__setattr__(
+            dependencies,
+            "create_comfy_connection_monitor",
+            lambda _connected, _disconnected: _ConnectionMonitor(),
+        )
         return dependencies
 
 
@@ -201,10 +316,13 @@ class _Shell:
             self.node_submitter,
         )
         self.shell_resource_lifecycle = _ResourceLifecycle()
+        self.workspace_body_material_surface = object()
         self._error_presenter: object | None = None
         self.generation_interrupt_failure_presenter: object | None = None
         self.cube_library_update_controller: object | None = None
         self.model_catalog_update_controller: object | None = None
+        self.model_update_notification_controller: object | None = None
+        self.empty_model_picker_discovery_controller: object | None = None
         self.settings_route_controller: object | None = None
         self._current_generate_mode = ""
         self._backend_state = ""
@@ -237,8 +355,26 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
     )
     monkeypatch.setattr(
         main_window_composition,
+        "ModelUpdateNotificationController",
+        _ModelUpdateNotificationController,
+    )
+    monkeypatch.setattr(
+        main_window_composition,
+        "EmptyModelPickerDiscoveryController",
+        _EmptyModelPickerDiscoveryController,
+    )
+    monkeypatch.setattr(
+        main_window_composition,
         "SettingsRouteController",
         _SettingsRouteController,
+    )
+    monkeypatch.setattr(
+        "substitute.presentation.shell.comfy_connection_composition.ComfyConnectionRecoveryService",
+        _ConnectionRecoveryService,
+    )
+    monkeypatch.setattr(
+        "substitute.presentation.shell.comfy_connection_composition.ComfyConnectionPresenter",
+        _ConnectionPresenter,
     )
     dispatcher = object()
     monkeypatch.setattr(
@@ -307,15 +443,70 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
         shell.execution_runtime.requests[1][1] == f"model_catalog_change_{id(shell):x}"
     )
     assert shell._initial_workspace_hydrated is False
+    model_update_controller = shell.model_update_notification_controller
+    assert isinstance(model_update_controller, _ModelUpdateNotificationController)
+    assert model_update_controller.kwargs["parent_widget"] is shell
+    assert model_update_controller.kwargs["preferences"] is (
+        dependency_bundle.civitai_preference_service
+    )
+    assert model_update_controller.kwargs["updates"] is (
+        dependency_bundle.model_update_service
+    )
+    empty_picker_controller = shell.empty_model_picker_discovery_controller
+    assert isinstance(
+        empty_picker_controller,
+        _EmptyModelPickerDiscoveryController,
+    )
+    assert empty_picker_controller.kwargs["parent_widget"] is shell
+    assert empty_picker_controller.kwargs["service"] is (
+        dependency_bundle.empty_model_picker_onboarding_service
+    )
+    assert empty_picker_controller.kwargs["catalog"] is (
+        dependency_bundle.model_catalog_service
+    )
     settings_controller = shell.settings_route_controller
     assert isinstance(settings_controller, _SettingsRouteController)
     assert settings_controller.shell is shell
     assert settings_controller.created_settings_workspace is True
+    connection_presenter = cast(
+        _ConnectionPresenter,
+        composition.comfy_connection.presenter,
+    )
+    assert connection_presenter.kwargs["notification_surface"] is (
+        shell.workspace_body_material_surface
+    )
     assert [
         name for name, _cleanup in shell.shell_resource_lifecycle.registrations
     ] == [
         "cube_library_updates",
         "model_catalog_updates",
+        "model_update_notifications",
+        "empty_model_picker_discovery",
+        "comfy_connection_monitor",
+        "comfy_connection_feedback",
     ]
     assert settings_controller.error_presenter_during_creation is error_presenter
     assert settings_controller.shell_error_presenter_during_creation is error_presenter
+    recovery_service = cast(
+        _ConnectionRecoveryService,
+        composition.comfy_connection.recovery_service,
+    )
+    restart_ready_observer = recovery_service.observers[1]
+    assert callable(restart_ready_observer)
+    restart_ready_observer(
+        ComfyConnectionStateChange(
+            previous=ComfyConnectionState(
+                phase=ComfyConnectionPhase.RESTARTING,
+                target_mode=ComfyTargetMode.MANAGED_LOCAL,
+                can_restart=True,
+                revision=2,
+            ),
+            current=ComfyConnectionState(
+                phase=ComfyConnectionPhase.READY,
+                target_mode=ComfyTargetMode.MANAGED_LOCAL,
+                can_restart=True,
+                revision=3,
+            ),
+        )
+    )
+    assert settings_controller.runtime_refreshes == 1

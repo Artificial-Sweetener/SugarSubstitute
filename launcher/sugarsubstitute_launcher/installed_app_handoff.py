@@ -29,11 +29,11 @@ from launcher.sugarsubstitute_launcher.candidate_update_launch import (
     launch_prepared_update,
 )
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
-from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.process import (
-    build_app_launch_command,
-    start_detached,
+from launcher.sugarsubstitute_launcher.crash_supervisor import (
+    ApplicationCrashSupervisor,
 )
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.process import build_app_launch_command
 from launcher.sugarsubstitute_launcher.release_sources import (
     ReleaseSource,
     release_source_from_config,
@@ -60,6 +60,7 @@ def complete_installed_app_handoff(
     no_update_check: bool,
     splash_session: LauncherSplashSession | None,
     launch_session: InstalledApplicationLaunchSession,
+    handoff_geometry: str | None,
 ) -> None:
     """Run update policy and start the installed app behind its visible splash."""
 
@@ -83,10 +84,13 @@ def complete_installed_app_handoff(
         )
         return
 
+    extra_arguments = [locale_argument]
+    if handoff_geometry:
+        extra_arguments.append(f"--handoff-geometry={handoff_geometry}")
     app_command = append_splash_session_args(
         build_app_launch_command(
             layout=layout,
-            extra_args=(locale_argument,),
+            extra_args=extra_arguments,
         ),
         splash_session,
     )
@@ -103,12 +107,14 @@ def complete_installed_app_handoff(
             fallback_guard_factory=lambda _layout: launch_session.claim_application(),
         )
         return
-    start_detached(
-        app_command,
+    ApplicationCrashSupervisor().supervise(
+        layout=layout,
+        command=app_command,
         environment=installed_application_environment(
             launch_guard,
             remote_failure_reason=update_result.failure_reason,
         ),
+        on_started=lambda _process: launch_session.release(),
     )
 
 

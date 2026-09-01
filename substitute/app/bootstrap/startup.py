@@ -144,6 +144,9 @@ def run_application(
     )
     initial_restore_plan = restore_plan_preparation.restore_plan
     startup_support_graph = create_startup_support_graph(initial_splash=initial_splash)
+    startup_support_graph.ready_shell_state.runtime_state.bind_managed_comfy_runtime_owner(
+        runtime_services.managed_comfy_runtime_owner
+    )
     ready_app_launch = prepare_ready_app_launch(install_root=install_root)
     restart_launch_command = ready_app_launch.restart_launch_command
     shell_runtime_graph = create_startup_shell_runtime_graph(

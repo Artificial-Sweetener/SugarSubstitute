@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Open the requested issue tracker from an update rollback error modal."""
+"""Open the trusted issue tracker carried by a structured error report."""
 
 from __future__ import annotations
 
@@ -28,28 +28,20 @@ from substitute.application.errors import ErrorReport
 
 
 _LOG = logging.getLogger(__name__)
-_UPDATE_OPERATION = "application_update"
 
 
 @dataclass(frozen=True, slots=True, weakref_slot=True)
-class UpdateRollbackIssueAction:
-    """Open the trusted issue URL carried by one update rollback report."""
+class ErrorReportIssueAction:
+    """Open one explicitly supplied trusted issue-tracker URL."""
 
     issues_url: str
 
-    @staticmethod
-    def applies_to(report: ErrorReport) -> bool:
-        """Return whether the report describes an application update rollback."""
-
-        context = report.operation_context
-        return context is not None and context.operation == _UPDATE_OPERATION
-
     @classmethod
-    def from_report(cls, report: ErrorReport) -> UpdateRollbackIssueAction | None:
-        """Resolve the action from explicit update operation context."""
+    def from_report(cls, report: ErrorReport) -> ErrorReportIssueAction | None:
+        """Resolve an issue action from explicit operation context."""
 
         context = report.operation_context
-        if context is None or not cls.applies_to(report):
+        if context is None:
             return None
         issues_url = context.values.get("issues_url")
         if not isinstance(issues_url, str) or not issues_url:
@@ -61,7 +53,7 @@ class UpdateRollbackIssueAction:
 
         if not _open_external_url(self.issues_url):
             _LOG.warning(
-                "Failed to open update rollback issue tracker.",
+                "Failed to open error report issue tracker.",
                 extra={"url": self.issues_url},
             )
 
@@ -72,4 +64,4 @@ def _open_external_url(url: str) -> bool:
     return bool(QDesktopServices.openUrl(QUrl(url)))
 
 
-__all__ = ["UpdateRollbackIssueAction"]
+__all__ = ["ErrorReportIssueAction"]

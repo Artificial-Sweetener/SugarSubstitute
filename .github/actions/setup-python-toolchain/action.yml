@@ -62,7 +62,7 @@ runs:
         $imageVersion = if ($env:ImageVersion) { $env:ImageVersion } else { "unreported-image" }
         $runnerImage = "$imageOs-$imageVersion" -replace '[^A-Za-z0-9._-]', '-'
         $cacheScope = $env:CACHE_SCOPE -replace '[^A-Za-z0-9._-]', '-'
-        $prefix = "python-$cacheScope-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$runnerImage-py$env:PYTHON_VERSION-uv0.12.3-$bootstrapLockHash"
+        $prefix = "python-$cacheScope-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$runnerImage-py$env:PYTHON_VERSION-uv0.12.7-$bootstrapLockHash"
         "primary-key=$prefix-$lockHash" >> $env:GITHUB_OUTPUT
         "restore-key=$prefix-" >> $env:GITHUB_OUTPUT
         "lock-hash=$lockHash" >> $env:GITHUB_OUTPUT
@@ -80,7 +80,7 @@ runs:
         $cacheScope = $env:CACHE_SCOPE -replace '[^A-Za-z0-9._-]', '-'
         $cachePath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope"
         $markerPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-$cacheScope-restored-v3"
-        $toolPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-tool-$cacheScope-v0.12.3"
+        $toolPath = Join-Path $env:RUNNER_TEMP "sugarsubstitute-uv-tool-$cacheScope-v0.12.7"
         "cache-path=$cachePath" >> $env:GITHUB_OUTPUT
         "marker-path=$markerPath" >> $env:GITHUB_OUTPUT
         "tool-path=$toolPath" >> $env:GITHUB_OUTPUT
@@ -140,7 +140,7 @@ runs:
       env:
         UV_BOOTSTRAP_LOCK: requirements-ci-bootstrap.lock
         UV_TOOL_PATH: ${{ steps.cache-storage.outputs.tool-path }}
-        UV_VERSION: "0.12.3"
+        UV_VERSION: "0.12.7"
       run: |
         $ErrorActionPreference = "Stop"
         $runnerRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP)

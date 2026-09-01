@@ -31,6 +31,7 @@ from tools.localization_catalog import (
     extract_application_messages,
     extract_language_selector_messages,
     extract_launcher_messages,
+    extract_shared_application_messages,
     placeholders,
 )
 from tools.translation_catalog_registry import (
@@ -63,7 +64,7 @@ _IDENTITY_ALLOWED = frozenset(
 _LATIN_LETTER = re.compile(r"[A-Za-z]")
 _STRICT_SOURCE_CONTEXTS = {
     TranslationDomain.APPLICATION: frozenset({_APP_CONTEXT}),
-    TranslationDomain.LAUNCHER: frozenset({_LAUNCHER_CONTEXT}),
+    TranslationDomain.LAUNCHER: frozenset({_APP_CONTEXT, _LAUNCHER_CONTEXT}),
 }
 
 
@@ -158,8 +159,14 @@ def _expected_owned_messages(
         ),
     }
     launcher = {
-        (_LAUNCHER_CONTEXT, message.source)
-        for message in extract_launcher_messages(project_root)
+        *(
+            (_LAUNCHER_CONTEXT, message.source)
+            for message in extract_launcher_messages(project_root)
+        ),
+        *(
+            (_APP_CONTEXT, message.source)
+            for message in extract_shared_application_messages(project_root)
+        ),
     }
     return {
         TranslationDomain.APPLICATION: frozenset(application),

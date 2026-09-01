@@ -39,7 +39,7 @@ from substitute.presentation.motion import (
     ACCORDION_COLLAPSE_DURATION_MS,
     ACCORDION_EXPAND_DURATION_MS,
 )
-from substitute.presentation.motion import fluent_motion
+from sugarsubstitute_shared.presentation import fluent_motion
 from tests.support.qt.lifecycle import destroy_qt_object, ensure_qt_application
 from tests.support.qt.semantic_wait import wait_for_qt_condition
 

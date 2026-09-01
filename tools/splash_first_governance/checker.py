@@ -42,6 +42,7 @@ class SplashFirstContract:
     allowed_module_import_roots: frozenset[str]
     allowed_pre_boundary_imports: frozenset[str]
     allowed_pre_boundary_calls: frozenset[str]
+    allowed_module_dispatch_calls: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +87,7 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
                     "Path",
                     "Path.resolve",
                     "_enter_application_launch_guard",
+                    "_install_crash_runtime",
                     "resolve",
                     "resolve_early_startup_locale",
                     "start_early_launch_splash",
@@ -93,6 +95,7 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
                     "time.perf_counter",
                 }
             ),
+            allowed_module_dispatch_calls=frozenset({"_run_entrypoint"}),
         ),
         SplashFirstContract(
             relative_path=Path("launcher/sugarsubstitute_launcher/app.py"),
@@ -104,7 +107,10 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
                     "launcher.sugarsubstitute_launcher.active_instance_dialog",
                     "launcher.sugarsubstitute_launcher.application_launch",
                     "launcher.sugarsubstitute_launcher.cli",
+                    "launcher.sugarsubstitute_launcher.crash_routing",
+                    "launcher.sugarsubstitute_launcher.launcher_ui_supervision",
                     "launcher.sugarsubstitute_launcher.localization",
+                    "launcher.sugarsubstitute_launcher.runtime_paths",
                     "launcher.sugarsubstitute_launcher.splash_session",
                     "launcher.sugarsubstitute_launcher.startup_plan",
                     "sugarsubstitute_shared.localization",
@@ -119,12 +125,18 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
                     "_native_frozen_executable_path",
                     "begin_installed_application_launch",
                     "format_locale_argument",
+                    "frozen_invocation_path",
+                    "frozen_support_path",
                     "launch_session.claim_application",
                     "launch_session.release",
                     "negotiate_active_application",
+                    "native_frozen_executable_path",
                     "parse_launcher_args",
+                    "recover_pending_crash_reports",
                     "resolve_launcher_locale",
                     "resolve_startup_candidate",
+                    "route_explicit_crash_operation",
+                    "supervise_active_application_dialog",
                     "should_attempt_installed_app_launch",
                     "start_launcher_splash_session",
                 }
@@ -302,7 +314,9 @@ def _module_execution_diagnostics(
             continue
         if _is_type_checking_block(statement) or _is_main_dispatch(
             statement,
-            function_name=contract.function_name,
+            allowed_calls=(
+                contract.allowed_module_dispatch_calls | {contract.function_name}
+            ),
         ):
             continue
         for call in calls((statement,)):
@@ -330,13 +344,13 @@ def _is_type_checking_block(statement: ast.stmt) -> bool:
     )
 
 
-def _is_main_dispatch(statement: ast.stmt, *, function_name: str) -> bool:
+def _is_main_dispatch(statement: ast.stmt, *, allowed_calls: frozenset[str]) -> bool:
     """Return whether one statement only dispatches the protected entrypoint."""
 
     if not isinstance(statement, ast.If) or statement.orelse:
         return False
     statement_calls = tuple(calls(statement.body))
-    return len(statement_calls) == 1 and call_name(statement_calls[0]) == function_name
+    return len(statement_calls) == 1 and call_name(statement_calls[0]) in allowed_calls
 
 
 def _matches_import(imported_name: str, allowed_names: frozenset[str]) -> bool:

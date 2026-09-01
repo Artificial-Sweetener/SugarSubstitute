@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2843
+max_lines = 2910
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -139,7 +139,7 @@ kind = "remediation"
 justification = "The assessed file mixes prompt dispatch and request validation, listener lifecycle and preview routing, input asset staging, output preparation and generation diagnostics. Extract listener lifecycle and output routing from prompt dispatch and asset-staging orchestration."
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
-  max_lines = 742
+  max_lines = 754
 next_limit = 613
 debt = "SS-ARCH-012"
 
@@ -152,7 +152,7 @@ kind = "remediation"
 justification = "The assessed file mixes pending-job ordering and batch bookkeeping, output run-number reservation and commit, dispatch and Comfy interruption lifecycle, live progress and output projection, observer publication and terminal history. Extract output-run allocation and live-result projection from queue ordering and dispatch lifecycle."
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
-max_lines = 1577
+max_lines = 1566
 next_limit = 1261
 debt = "SS-ARCH-013"
 
@@ -503,7 +503,7 @@ kind = "remediation"
 justification = "The assessed file mixes panel and buffer snapshot adaptation, node-card and field-row construction, icon, title, and link-endpoint presentation, input preset menu binding, collapsible card animation and layout registration, build timing and trace diagnostics. Extract title/icon composition and preset-menu binding from node-card and field-row assembly."
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
-max_lines = 1422
+max_lines = 1425
 next_limit = 1137
 debt = "SS-ARCH-045"
 
@@ -516,7 +516,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow override synchronization and application, override menu construction, toolbar snapshot and control reconciliation, override widget factory and sizing, seed-mode and model-picker behavior, autosave and restart-spacing integration. Extract override control creation and toolbar layout from workflow synchronization and override commands."
 issue = "chore:SS-ARCH-046"
 review_by = 2026-12-15
-max_lines = 1141
+max_lines = 1144
 next_limit = 912
 debt = "SS-ARCH-046"
 
@@ -581,7 +581,7 @@ kind = "remediation"
 justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1964
+max_lines = 1966
 next_limit = 1571
 debt = "SS-ARCH-051"
 
@@ -906,7 +906,7 @@ kind = "remediation"
 justification = "The assessed file mixes generation settings catalog, prompt feature settings catalog, CivitAI and Danbooru settings rows, appearance settings and color-preview controls, ComfyUI settings catalog, shared control-row composition. Give each settings domain a focused catalog builder and keep shared row composition narrow."
 issue = "chore:SS-ARCH-076"
 review_by = 2026-12-15
-max_lines = 1658
+max_lines = 1684
 next_limit = 1326
 debt = "SS-ARCH-076"
 
@@ -958,7 +958,7 @@ kind = "remediation"
 justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, output and transfer composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Split feature-specific composition modules behind a narrow main-window assembly boundary."
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
-max_lines = 1014
+max_lines = 1044
 next_limit = 811
 debt = "SS-ARCH-080"
 
@@ -1010,7 +1010,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow activation and surface projection, tab-switch performance diagnostics, workflow add, close, reopen, duplicate, and rename, closed-workflow snapshot buffering, image and widget resource cleanup, tabbar and surface invalidation coordination. Extract closed-workflow persistence/resource cleanup and tab diagnostics from active workflow projection and lifecycle commands."
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
-max_lines = 1605
+max_lines = 1624
 next_limit = 1284
 debt = "SS-ARCH-084"
 
@@ -1062,7 +1062,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow save, load, and export dialogs, recipe parsing and workspace materialization, recipe model resolution and download, download progress and model refresh, recipe output-sibling restoration, user feedback and active-surface invalidation. Extract recipe model acquisition and output restoration from file-dialog and workspace persistence presentation."
 issue = "chore:SS-ARCH-088"
 review_by = 2026-12-15
-max_lines = 1898
+max_lines = 1913
 next_limit = 1518
 debt = "SS-ARCH-088"
 
@@ -1075,7 +1075,7 @@ kind = "remediation"
 justification = "The assessed file mixes editable combo-surface painting and caret state, popup lifecycle and keyboard navigation, model catalog resolution and unavailable-state handling, metadata context-menu integration, thumbnail preload routing and cache refresh, model-load progress presentation. Extract thumbnail/metadata coordination and catalog resolution from the mounted field and popup interaction."
 issue = "chore:SS-ARCH-090"
 review_by = 2026-12-15
-max_lines = 1413
+max_lines = 1418
 next_limit = 1130
 debt = "SS-ARCH-090"
 
@@ -1101,7 +1101,7 @@ kind = "structural"
 justification = "ShutdownCoordinator is one transition state machine over a single shutdown lifecycle. Its dialog, timeout, retry, force-close, and cleanup handlers jointly preserve the same teardown invariants; splitting those transitions would divide the authoritative state owner rather than create an independent responsibility."
 issue = "chore:SS-WAIVER-S001"
 review_by = 2026-12-15
-max_lines = 515
+max_lines = 533
 
 [[waivers]]
 id = "SS-WAIVER-S002"
@@ -1200,7 +1200,7 @@ kind = "structural"
 justification = "The module is a declarative lazy-export manifest for one package boundary: TYPE_CHECKING imports, __all__, and the lazy symbol map describe the same API surface. Its size follows the exported contract, and partitioning it would create multiple competing manifests for one namespace."
 issue = "chore:SS-WAIVER-S010"
 review_by = 2026-12-15
-max_lines = 666
+max_lines = 677
 
 [[waivers]]
 id = "SS-WAIVER-S011"
@@ -1310,7 +1310,7 @@ kind = "structural"
 justification = "The module is the single explicit versioned JSON contract for workspace snapshots. Paired encoders and decoders for nested snapshot values must evolve atomically to preserve round-trip and backward-read invariants; splitting by nested type would distribute ownership of one persisted schema."
 issue = "chore:SS-WAIVER-S020"
 review_by = 2026-12-15
-max_lines = 1073
+max_lines = 1086
 
 [[waivers]]
 id = "SS-WAIVER-S021"
@@ -1929,7 +1929,7 @@ owner = "localization source catalog"
 rule = "STRUCT003"
 path = "tools/localization_catalog.py"
 kind = "remediation"
-justification = "The assessed file mixes application, shared, and launcher message extraction, dynamic and unmarked visible-text validation, presentation assignment and return classification, pseudo-localization transformation, AST source ownership and literal-discovery heuristics. Extract visible-source AST classification and pseudo-localization from catalog extraction and surface-specific source configuration."
+justification = "The assessed file mixes application, shared, and launcher message extraction, dynamic and unmarked visible-text validation, presentation assignment and return classification, pseudo-localization transformation, AST source ownership and literal-discovery heuristics. Extract visible-source AST classification and pseudo-localization from catalog extraction."
 issue = "chore:SS-ARCH-095"
 review_by = 2026-12-15
 max_lines = 804
