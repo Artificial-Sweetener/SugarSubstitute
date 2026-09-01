@@ -83,12 +83,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 expected_app_pid=first_pid,
             )
             evidence["single_cold_start"] = single_snapshot
-            _wait_for_exit(first_launcher)
             _wait_for_splash_hosts_exit(layout)
             _assert_app_owners(layout, expected=(first_pid,))
 
             _request_shutdown_and_wait(layout)
             _wait_for_process_exit(first_pid)
+            _wait_for_exit(first_launcher)
             clear_splash_qualification_records(layout)
 
             race_started_at = time.perf_counter_ns()
@@ -99,11 +99,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             active_launchers.extend(race_launchers)
             _wait_for_exit(race_duplicate)
             race_pid = _wait_for_new_app_pid(layout, previous_pid=first_pid)
-            _wait_for_exit(race_winner)
             race_snapshot = capture_cold_start_snapshot(layout)
             assert_cold_start_snapshot(
                 race_snapshot,
-                expected_launcher_pids=(),
+                expected_launcher_pids=(race_winner.pid,),
                 expected_app_pid=race_pid,
             )
             race_snapshot["invocation_start_elapsed_ms"] = (
@@ -136,41 +135,44 @@ def main(argv: Sequence[str] | None = None) -> int:
             evidence["negotiation_launcher_pid"] = negotiation_launcher.pid
             evidence["suppressed_duplicate_count"] = len(duplicate_launchers) - 1
             _terminate_launchers(duplicate_launchers)
-            _terminate_packaged_launcher_processes(layout)
 
             _request_shutdown_and_wait(layout)
+            _wait_for_process_exit(race_pid)
+            _wait_for_exit(race_winner)
             replacement_launcher = _launch(layout)
             active_launchers.append(replacement_launcher)
             replacement_pid = _wait_for_new_app_pid(layout, previous_pid=race_pid)
-            _wait_for_exit(replacement_launcher)
             _wait_for_splash_hosts_exit(layout)
             _assert_app_owners(layout, expected=(replacement_pid,))
             evidence["graceful_replacement_pid"] = replacement_pid
 
             _request_shutdown_and_wait(layout)
+            _wait_for_process_exit(replacement_pid)
+            _wait_for_exit(replacement_launcher)
             lock_path = application_launch_lock_path(layout.root)
             lock_path.parent.mkdir(parents=True, exist_ok=True)
             lock_path.write_text("truncated-not-json", encoding="utf-8")
             malformed_recovery_launcher = _launch(layout)
             active_launchers.append(malformed_recovery_launcher)
             malformed_recovery_pid = _wait_for_new_app_pid(layout)
-            _wait_for_exit(malformed_recovery_launcher)
             _wait_for_splash_hosts_exit(layout)
             evidence["malformed_record_recovery_pid"] = malformed_recovery_pid
 
             psutil.Process(malformed_recovery_pid).kill()
             _wait_for_process_exit(malformed_recovery_pid)
+            _wait_for_exit(malformed_recovery_launcher)
             crash_recovery_launcher = _launch(layout)
             active_launchers.append(crash_recovery_launcher)
             crash_recovery_pid = _wait_for_new_app_pid(
                 layout,
                 previous_pid=malformed_recovery_pid,
             )
-            _wait_for_exit(crash_recovery_launcher)
             _wait_for_splash_hosts_exit(layout)
             _assert_app_owners(layout, expected=(crash_recovery_pid,))
             evidence["crash_recovery_pid"] = crash_recovery_pid
             _request_shutdown_and_wait(layout)
+            _wait_for_process_exit(crash_recovery_pid)
+            _wait_for_exit(crash_recovery_launcher)
         finally:
             _terminate_launchers(active_launchers)
             _terminate_qualification_apps(layout)
@@ -322,7 +324,7 @@ def _request_shutdown_and_wait(layout: InstallLayout) -> None:
 
 
 def _wait_for_exit(process: subprocess.Popen[bytes]) -> None:
-    """Wait for one packaged launcher to finish its handoff."""
+    """Wait for one packaged supervisor after its application reaches terminal state."""
 
     process.wait(timeout=_TIMEOUT_SECONDS)
     if process.returncode != 0:
@@ -378,20 +380,6 @@ def _terminate_qualification_apps(layout: InstallLayout) -> None:
             process.kill()
             process.wait(timeout=5.0)
         except (psutil.NoSuchProcess, psutil.TimeoutExpired):
-            continue
-
-
-def _terminate_packaged_launcher_processes(layout: InstallLayout) -> None:
-    """Stop packaged launchers left inside headless duplicate negotiation."""
-
-    expected_executable = layout.executable_path.resolve()
-    for process in psutil.process_iter(["exe"]):
-        try:
-            executable = Path(process.exe()).resolve()
-            if executable == expected_executable:
-                process.terminate()
-                process.wait(timeout=5.0)
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
             continue
 
 
