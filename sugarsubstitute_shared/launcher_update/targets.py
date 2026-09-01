@@ -43,6 +43,7 @@ WINDOWS_X64_BUNDLE = LauncherBundleTarget(
     support_relative_path=Path("launcher-bin"),
     replacement_roots=(
         Path("SugarSubstitute.exe"),
+        Path("LauncherUi.exe"),
         Path("Repair.exe"),
         Path("launcher-bin"),
     ),

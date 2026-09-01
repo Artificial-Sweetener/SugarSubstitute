@@ -51,6 +51,7 @@ def test_transaction_replaces_only_launcher_and_preserves_install_data(
     LauncherUpdateTransaction(wait_timeout_seconds=0).apply(request_path=request_path)
 
     assert (install_root / "SugarSubstitute.exe").read_text() == "new launcher"
+    assert (install_root / "LauncherUi.exe").read_text() == "new launcher UI"
     assert (install_root / "launcher-bin" / "runtime.txt").read_text() == "new"
     for relative_path in (
         "app/preserve.txt",
@@ -70,7 +71,7 @@ def test_transaction_rolls_back_both_bundle_roots_on_copy_failure(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """A partial two-root Windows promotion must restore the old bundle."""
+    """A partial Windows promotion must restore the old bundle."""
 
     install_root = _write_installed_layout(tmp_path / "SugarSubstitute")
     request_path = LauncherBundleStager().stage(
@@ -99,6 +100,7 @@ def test_transaction_rolls_back_both_bundle_roots_on_copy_failure(
         )
 
     assert (install_root / "SugarSubstitute.exe").read_text() == "old launcher"
+    assert (install_root / "LauncherUi.exe").read_text() == "old launcher UI"
     assert (install_root / "launcher-bin" / "runtime.txt").read_text() == "old"
 
 
@@ -119,9 +121,13 @@ def test_transaction_recovers_interrupted_backup_before_retry(
     backup_root = update_root / "backup"
     backup_root.mkdir(parents=True)
     (install_root / "SugarSubstitute.exe").replace(backup_root / "SugarSubstitute.exe")
+    (install_root / "LauncherUi.exe").replace(backup_root / "LauncherUi.exe")
     (install_root / "launcher-bin").replace(backup_root / "launcher-bin")
     (install_root / "SugarSubstitute.exe").write_text(
         "interrupted partial", encoding="utf-8"
+    )
+    (install_root / "LauncherUi.exe").write_text(
+        "interrupted partial UI", encoding="utf-8"
     )
     (install_root / "launcher-bin").mkdir()
     (install_root / "launcher-bin" / "runtime.txt").write_text(
@@ -147,6 +153,7 @@ def test_transaction_recovers_interrupted_backup_before_retry(
         )
 
     assert (install_root / "SugarSubstitute.exe").read_text() == "old launcher"
+    assert (install_root / "LauncherUi.exe").read_text() == "old launcher UI"
     assert (install_root / "launcher-bin" / "runtime.txt").read_text() == "old"
 
 
