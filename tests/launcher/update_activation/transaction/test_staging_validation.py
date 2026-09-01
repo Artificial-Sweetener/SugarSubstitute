@@ -61,6 +61,7 @@ def test_stager_verifies_and_persists_complete_bundle(tmp_path: Path) -> None:
     assert request.install_root == install_root.resolve()
     assert request.version == "0.11.0"
     assert (request.staged_bundle_dir / "SugarSubstitute.exe").read_text() == "new"
+    assert (request.staged_bundle_dir / "LauncherUi.exe").read_text() == "new UI"
     assert (request.staged_bundle_dir / "launcher-bin" / "runtime.txt").is_file()
 
 
