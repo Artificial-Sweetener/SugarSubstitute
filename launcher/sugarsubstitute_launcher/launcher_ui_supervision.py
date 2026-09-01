@@ -76,29 +76,6 @@ def supervise_launcher_window(
     )
 
 
-def supervise_active_application_dialog(
-    *,
-    layout: InstallLayout,
-    locale_override: str | None,
-    supervisor: LauncherUiCrashSupervisor | None = None,
-) -> bool:
-    """Run duplicate-instance negotiation as a supervised QFluent child."""
-
-    child_arguments = [
-        "--negotiate-active-application",
-        f"--install-root={subprocess_path(layout.root)}",
-    ]
-    _append_value(child_arguments, "--locale", locale_override)
-    return (
-        _supervise(
-            layout=layout,
-            child_arguments=child_arguments,
-            supervisor=supervisor,
-        )
-        == 0
-    )
-
-
 def _supervise(
     *,
     layout: InstallLayout,
@@ -173,6 +150,5 @@ def _append_value(arguments: list[str], option: str, value: str | None) -> None:
 
 __all__ = [
     "LauncherUiCrashSupervisor",
-    "supervise_active_application_dialog",
     "supervise_launcher_window",
 ]

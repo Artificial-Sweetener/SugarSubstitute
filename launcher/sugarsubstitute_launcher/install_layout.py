@@ -156,12 +156,6 @@ class InstallLayout:
         return self.launcher_dir / "downloads"
 
     @property
-    def locks_dir(self) -> Path:
-        """Return the launcher lock directory."""
-
-        return self.launcher_dir / "locks"
-
-    @property
     def runtime_dir(self) -> Path:
         """Return the launcher-managed runtime directory."""
 
@@ -218,7 +212,6 @@ class InstallLayout:
             self.logs_dir,
             self.cache_dir,
             self.downloads_dir,
-            self.locks_dir,
             self.runtime_dir,
             self.user_dir,
             self.appdata_dir,

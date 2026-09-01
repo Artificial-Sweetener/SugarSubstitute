@@ -179,6 +179,12 @@ class NodeCardBuildTransaction:
         column_count = self._remove_node_field_keys(
             getattr(self._panel, "col_widgets", None)
         )
+        self._remove_node_field_identities(
+            getattr(self._panel, "advanced_field_keys", None)
+        )
+        shown_nodes = getattr(self._panel, "shown_advanced_input_nodes", None)
+        if isinstance(shown_nodes, set):
+            shown_nodes.discard((self._cube_alias, self._node_name))
         field_registry = getattr(self._panel, "_field_registry", None)
         if isinstance(field_registry, EditorFieldRegistry):
             input_count = field_registry.remove_node(
@@ -193,6 +199,15 @@ class NodeCardBuildTransaction:
             row_count=row_count,
             column_count=column_count,
             input_count=input_count,
+        )
+
+    def _remove_node_field_identities(self, registry: object) -> None:
+        """Remove owned identities from one set-like presentation registry."""
+
+        if not isinstance(registry, set):
+            return
+        registry.difference_update(
+            identity for identity in registry if self._is_owned_field_identity(identity)
         )
 
     def _remove_node_field_keys(self, registry: object) -> int:

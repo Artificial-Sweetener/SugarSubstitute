@@ -33,10 +33,24 @@ from substitute.application.managed_startup_progress import (
         (0.0, 0, "Waiting for ComfyUI to become ready."),
         (1.0, 1, "Waiting for ComfyUI to become ready.."),
         (2.0, 2, "Waiting for ComfyUI to become ready..."),
-        (120.0, 3, "ComfyUI is taking longer than usual…"),
+        (120.0, 3, "ComfyUI is taking longer than usual."),
+        (121.0, 4, "ComfyUI is taking longer than usual.."),
+        (122.0, 5, "ComfyUI is taking longer than usual..."),
         (
             300.0,
             4,
+            "Still waiting—custom nodes, slow storage, or a startup issue may be "
+            "delaying ComfyUI..",
+        ),
+        (
+            301.0,
+            5,
+            "Still waiting—custom nodes, slow storage, or a startup issue may be "
+            "delaying ComfyUI...",
+        ),
+        (
+            302.0,
+            6,
             "Still waiting—custom nodes, slow storage, or a startup issue may be "
             "delaying ComfyUI.",
         ),

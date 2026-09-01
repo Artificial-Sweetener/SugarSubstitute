@@ -22,9 +22,13 @@ from dataclasses import dataclass
 import json
 from typing import Final
 
+from sugarsubstitute_shared.launch_splash.activity import SplashActivity
+
 
 MAX_SPLASH_MESSAGE_BYTES: Final = 16 * 1024
-SUPPORTED_SPLASH_MESSAGE_TYPES: Final = frozenset({"log", "status", "fatal", "close"})
+SUPPORTED_SPLASH_MESSAGE_TYPES: Final = frozenset(
+    {"log", "status", "fatal", "activity", "clear_activity", "close"}
+)
 
 
 class SplashSessionMessageError(ValueError):
@@ -38,18 +42,25 @@ class SplashSessionMessage:
     message_type: str
     token: str
     line: str | None = None
+    activity: SplashActivity | None = None
 
 
 def encode_splash_session_message(message: SplashSessionMessage) -> bytes:
     """Serialize one splash session message as newline-delimited JSON bytes."""
 
     _validate_message(message)
-    payload: dict[str, str] = {
+    payload: dict[str, object] = {
         "type": message.message_type,
         "token": message.token,
     }
     if message.line is not None:
         payload["line"] = message.line
+    if message.activity is not None:
+        payload["activity"] = {
+            "initial": message.activity.initial_text,
+            "long_wait": message.activity.long_wait_text,
+            "extended_wait": message.activity.extended_wait_text,
+        }
     encoded = json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode(
         "utf-8"
     )
@@ -78,6 +89,7 @@ def decode_splash_session_message(
     message_type = payload.get("type")
     token = payload.get("token")
     line = payload.get("line")
+    activity_payload = payload.get("activity")
     if not isinstance(message_type, str):
         raise SplashSessionMessageError("Splash session message type is missing.")
     if not isinstance(token, str):
@@ -86,10 +98,12 @@ def decode_splash_session_message(
         raise SplashSessionMessageError("Splash session token is invalid.")
     if line is not None and not isinstance(line, str):
         raise SplashSessionMessageError("Splash session line must be text.")
+    activity = _decode_activity(activity_payload)
     message = SplashSessionMessage(
         message_type=message_type,
         token=token,
         line=line,
+        activity=activity,
     )
     _validate_message(message)
     return message
@@ -104,11 +118,51 @@ def _validate_message(message: SplashSessionMessage) -> None:
         )
     if not message.token:
         raise SplashSessionMessageError("Splash session token must not be empty.")
-    if message.message_type != "close" and not message.line:
+    if message.message_type in {"log", "status", "fatal"} and not message.line:
         raise SplashSessionMessageError(
             "Splash session log, status, and fatal messages require text."
         )
-    if message.message_type == "close" and message.line is not None:
+    if message.message_type == "activity" and message.activity is None:
         raise SplashSessionMessageError(
-            "Splash session close messages cannot include text."
+            "Splash session activity messages require activity copy."
         )
+    if message.message_type != "activity" and message.activity is not None:
+        raise SplashSessionMessageError(
+            "Only splash session activity messages can include activity copy."
+        )
+    if message.message_type in {"activity", "clear_activity", "close"} and (
+        message.line is not None
+    ):
+        raise SplashSessionMessageError(
+            "Splash session activity-control and close messages cannot include text."
+        )
+
+
+def _decode_activity(payload: object) -> SplashActivity | None:
+    """Decode optional activity copy from one untrusted message payload."""
+
+    if payload is None:
+        return None
+    if not isinstance(payload, dict):
+        raise SplashSessionMessageError("Splash session activity must be an object.")
+    initial = payload.get("initial")
+    long_wait = payload.get("long_wait")
+    extended_wait = payload.get("extended_wait")
+    if (
+        not isinstance(initial, str)
+        or not isinstance(long_wait, str)
+        or not isinstance(extended_wait, str)
+    ):
+        raise SplashSessionMessageError(
+            "Splash session activity copy must contain text for every stage."
+        )
+    try:
+        return SplashActivity(
+            initial_text=initial,
+            long_wait_text=long_wait,
+            extended_wait_text=extended_wait,
+        )
+    except ValueError as error:
+        raise SplashSessionMessageError(
+            "Splash session activity copy is invalid."
+        ) from error

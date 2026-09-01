@@ -211,9 +211,12 @@ class ModelAcquisitionService:
                 "Model destination must not be a symbolic link."
             )
         resolved = destination_dir.resolve()
+        destination_identity = _path_identity(resolved)
         if not any(
-            resolved == root or resolved.is_relative_to(root)
+            destination_identity == root_identity
+            or destination_identity.is_relative_to(root_identity)
             for root in self._allowed_roots
+            for root_identity in (_path_identity(root.resolve()),)
         ):
             raise ModelAcquisitionError(
                 "Model destination is outside configured roots."
@@ -386,6 +389,21 @@ def _safe_file_name(value: str) -> str:
     ):
         raise ModelAcquisitionError("Model file name is unsafe.")
     return name
+
+
+def _path_identity(path: Path) -> Path:
+    """Normalize equivalent Windows device paths for containment comparison."""
+
+    if os.name != "nt":
+        return path
+    value = str(path)
+    extended_unc_prefix = "\\\\?\\UNC\\"
+    extended_prefix = "\\\\?\\"
+    if value.casefold().startswith(extended_unc_prefix.casefold()):
+        return Path(f"\\\\{value[len(extended_unc_prefix) :]}")
+    if value.startswith(extended_prefix):
+        return Path(value[len(extended_prefix) :])
+    return path
 
 
 def _reserve_destination(

@@ -38,6 +38,7 @@ from sugarsubstitute_shared.update_rollback_report import (
     UpdateRollbackReportStore,
     UpdateRollbackStage,
 )
+from sugarsubstitute_shared.launch_splash import SplashActivity
 from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
 from sugarsubstitute_shared.launcher_update.targets import LauncherBundleTarget
 
@@ -95,10 +96,17 @@ def test_pre_launch_update_commits_new_version_only_after_launch_readiness(
     assert LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
     assert progress.lines == [
         "Checking for SugarSubstitute updates.",
-        "Installing SugarSubstitute 0.4.0.",
-        "Preparing SugarSubstitute runtime.",
         "Installed SugarSubstitute 0.4.0.",
     ]
+    assert [activity.initial_text for activity in progress.activities] == [
+        "Installing SugarSubstitute 0.4.0",
+        "Installing SugarSubstitute dependencies",
+    ]
+    assert all(
+        "longer than usual" in activity.long_wait_text
+        for activity in progress.activities
+    )
+    assert progress.clear_activity_calls == 1
 
 
 def test_pre_launch_update_skips_current_manifest_and_records_check(
@@ -215,6 +223,7 @@ def test_pre_launch_update_runtime_failure_does_not_record_new_version(
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     config = LauncherConfig.from_layout(layout=layout)
+    progress = _Progress()
 
     result = LauncherUpdateOrchestrator(
         payload_installer=_PayloadInstaller(version="0.4.0"),
@@ -225,6 +234,7 @@ def test_pre_launch_update_runtime_failure_does_not_record_new_version(
         config=config,
         release_source=_ReleaseSource(_manifest(version="0.4.0")),
         no_update_check=False,
+        progress=progress,
     )
 
     assert result.checked_manifest is True
@@ -236,6 +246,11 @@ def test_pre_launch_update_runtime_failure_does_not_record_new_version(
     assert rollback_report.attempted_version == "0.4.0"
     assert rollback_report.stage is UpdateRollbackStage.PREPARATION
     assert rollback_report.exception_type == "RuntimeError"
+    assert [activity.initial_text for activity in progress.activities] == [
+        "Installing SugarSubstitute 0.4.0",
+        "Installing SugarSubstitute dependencies",
+    ]
+    assert progress.clear_activity_calls == 1
 
 
 def test_pre_launch_update_stages_newer_launcher_after_runtime_is_ready(
@@ -485,11 +500,23 @@ class _Progress:
         """Create an empty progress log."""
 
         self.lines: list[str] = []
+        self.activities: list[SplashActivity] = []
+        self.clear_activity_calls = 0
 
     def append_log(self, line: str) -> None:
         """Record one progress line."""
 
         self.lines.append(line)
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Record one active update operation."""
+
+        self.activities.append(activity)
+
+    def clear_activity(self) -> None:
+        """Record one active update cleanup."""
+
+        self.clear_activity_calls += 1
 
 
 class _LauncherStager:

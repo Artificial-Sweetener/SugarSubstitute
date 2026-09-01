@@ -37,17 +37,7 @@ def route_explicit_crash_operation(args: LauncherArguments) -> int | None:
             incident_id=args.crash_report_incident_id,
             locale_override=args.locale_override,
         )
-    if not args.restart_application:
-        return None
-    if args.install_root is None:
-        raise ValueError("Application restart requires an explicit install root.")
-    from launcher.sugarsubstitute_launcher.restart_supervision import (
-        supervise_restarted_application,
-    )
-
-    return supervise_restarted_application(
-        layout=InstallLayout.from_root(args.install_root)
-    )
+    return None
 
 
 def recover_pending_crash_reports(

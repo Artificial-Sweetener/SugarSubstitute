@@ -34,16 +34,16 @@ next_extraction = "Extract lane configuration and scoped submission adapters fro
 id = "SS-ARCH-004"
 owner = "managed compatibility recovery"
 paths = ["substitute/app/bootstrap/managed_compatibility_recovery.py"]
-fingerprint = "sha256:c2ce947d3f6c53a04b7bbbaf2be63e2c8d5c15c0436ef2d570fa063859114136"
+fingerprint = "sha256:cbb9bb49ef05c38c5386b8e16e59adddb17bd637717ed14016d87bda25048a4b"
 issue = "chore:SS-ARCH-004"
 review_by = 2026-12-15
 responsibilities = [
-  "recovery eligibility and user-message policy",
+  "recovery eligibility and targeted nodepack selection",
   "recovery controller state transitions",
   "background cleanup and reconciliation execution",
   "task outcome adaptation and stop coordination",
 ]
-next_extraction = "Extract pure recovery policy and background task execution from controller wiring."
+next_extraction = "Extract recovery eligibility and background task execution from controller wiring."
 
 [[debts]]
 id = "SS-ARCH-005"
@@ -596,18 +596,17 @@ next_extraction = "Extract pure dimension transforms and saved-dimension command
 id = "SS-ARCH-045"
 owner = "editor node-card construction"
 paths = ["substitute/presentation/editor/panel/node_card_builder.py"]
-fingerprint = "sha256:e56339cc03d3d10c863e3482cd62c3648ed1e832b2d157334bba2d98c6ac649d"
+fingerprint = "sha256:ae517b2ae6820a10a17a36b669906db5bed1b75ce84de613546844ce71d3bf95"
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
 responsibilities = [
-  "panel and buffer snapshot adaptation",
   "node-card and field-row construction",
   "icon, title, and link-endpoint presentation",
-  "input preset menu binding",
+  "prompt and standard input-field routing",
   "collapsible card animation and layout registration",
   "build timing and trace diagnostics",
 ]
-next_extraction = "Extract title/icon composition and preset-menu binding from node-card and field-row assembly."
+next_extraction = "Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
 
 [[debts]]
 id = "SS-ARCH-046"
@@ -1424,7 +1423,7 @@ next_extraction = "Extract visible-source AST classification and pseudo-localiza
 id = "SS-ARCH-096"
 owner = "Windows installer automation"
 paths = ["tools/ci/drive_windows_installer.py"]
-fingerprint = "sha256:ca0b426ab46ab9e344c8edac4ba612a830a18c99e32e97b4846d40c34529ce56"
+fingerprint = "sha256:d2ca4990eb4a60e64a5664a98cd53f7adb2c2c5e0068fac2aad07712d4eddfe2"
 issue = "chore:SS-ARCH-096"
 review_by = 2026-12-15
 responsibilities = [

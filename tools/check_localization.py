@@ -40,12 +40,7 @@ class SourcePolicyViolation:
     reason: str
 
 
-_TOOLTIP_ADAPTERS = frozenset(
-    {
-        Path("sugarsubstitute_shared/presentation/fluent_tooltips.py"),
-        Path("sugarsubstitute_shared/presentation/localization/application_text.py"),
-    }
-)
+_TOOLTIP_OWNER = Path("sugarsubstitute_shared/presentation/fluent_tooltips.py")
 
 
 def find_ascii_input_restrictions(
@@ -88,7 +83,7 @@ def find_non_fluent_tooltip_usage(
     for root in roots:
         for path in sorted(root.rglob("*.py")):
             relative_path = path.relative_to(project_root)
-            if relative_path in _TOOLTIP_ADAPTERS:
+            if relative_path == _TOOLTIP_OWNER:
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in ast.walk(tree):
@@ -230,7 +225,12 @@ def _tooltip_policy_reason(node: ast.AST) -> str | None:
         return "tooltip property writes must use the shared QFluent owner"
     if callable_name == "setToolTip":
         return "setToolTip() must be routed through set_fluent_tooltip_text()"
-    if callable_name in {"QToolTip", "ToolTip", "ToolTipFilter"}:
+    if callable_name in {
+        "FluentToolTipFilter",
+        "QToolTip",
+        "ToolTip",
+        "ToolTipFilter",
+    }:
         return "tooltip widgets and filters may only be created by the shared owner"
     if callable_name in {"CursorToolTipFilter", "install_cursor_tooltip_filter"}:
         return "the retired cursor tooltip path must not be used"

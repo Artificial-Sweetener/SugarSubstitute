@@ -249,7 +249,9 @@ class NodeCardModeController:
         )
         self._sync_surface_attachment(
             binding,
-            attached=not state.collapsed and binding.has_rows,
+            attached=(
+                not state.collapsed and binding.has_rows and state.expanded_height > 0
+            ),
         )
 
     def _sync_surface_attachment(

@@ -31,6 +31,8 @@ from typing import Any, TextIO, cast
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtWidgets import QApplication
 
+from sugarsubstitute_shared.launch_splash.activity import SplashActivity
+
 from substitute.app.bootstrap.theme import configure_theme
 from substitute.domain.appearance import AppearanceThemeMode
 from substitute.application.execution import (
@@ -148,6 +150,10 @@ def decode_splash_message(line: str) -> dict[str, str] | None:
     line_value = payload.get("line")
     if isinstance(line_value, str):
         message["line"] = line_value
+    for key in ("initial", "long_wait", "extended_wait"):
+        value = payload.get(key)
+        if isinstance(value, str):
+            message[key] = value
     return message
 
 
@@ -201,10 +207,36 @@ def _handle_message(
         splash.close()
         app.quit()
         return
+    if message_type == "activity":
+        activity = _activity_from_message(message)
+        if activity is not None:
+            splash.start_activity(activity)
+        return
+    if message_type == "clear_activity":
+        splash.clear_activity()
+        return
     if message_type in {"log", "status", "fatal"}:
         line = message.get("line", "")
         if line:
             splash.append_log(line)
+
+
+def _activity_from_message(message: dict[str, str]) -> SplashActivity | None:
+    """Build activity copy from one decoded helper message."""
+
+    initial = message.get("initial")
+    long_wait = message.get("long_wait")
+    extended_wait = message.get("extended_wait")
+    if not initial or not long_wait or not extended_wait:
+        return None
+    try:
+        return SplashActivity(
+            initial_text=initial,
+            long_wait_text=long_wait,
+            extended_wait_text=extended_wait,
+        )
+    except ValueError:
+        return None
 
 
 def _handle_cancel_requested(*, app: QApplication, stream: TextIO) -> None:

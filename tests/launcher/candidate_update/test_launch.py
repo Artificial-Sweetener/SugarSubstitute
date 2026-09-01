@@ -20,8 +20,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-import pytest
-
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
     CandidateProcess,
@@ -40,31 +38,6 @@ from sugarsubstitute_shared.update_rollback_report import (
     UpdateRollbackReportStore,
     UpdateRollbackStage,
 )
-
-
-class _Guard:
-    """Expose the launch-guard behavior used by candidate orchestration."""
-
-    def __init__(self, name: str) -> None:
-        """Store the environment marker and release state."""
-
-        self.name = name
-        self.released = False
-
-    def initial_handoff_environment(
-        self,
-        environment: Mapping[str, str] | None = None,
-    ) -> dict[str, str]:
-        """Return a recognizable child environment."""
-
-        child_environment = dict(environment or {})
-        child_environment["GUARD"] = self.name
-        return child_environment
-
-    def release(self) -> None:
-        """Record guard release."""
-
-        self.released = True
 
 
 class _Activation:
@@ -195,7 +168,6 @@ def test_ready_candidate_commits_without_fallback(tmp_path: Path) -> None:
     """A visible candidate should become the installed update."""
 
     layout = InstallLayout.from_root(tmp_path / "install")
-    guard = _Guard("candidate")
     activation = _Activation()
     supervisor = _Supervisor(fail=False)
     crash_supervisor = _CrashSupervisor(tmp_path / "diagnostics")
@@ -204,23 +176,21 @@ def test_ready_candidate_commits_without_fallback(tmp_path: Path) -> None:
         layout=layout,
         command=["python", "main.py"],
         attempted_version="0.21.3",
-        initial_guard=guard,
+        environment={"BROKER": "connected"},
         activation=activation,
         supervisor=supervisor,
         crash_supervisor=crash_supervisor,
-        fallback_guard_factory=lambda _layout: pytest.fail("unexpected fallback"),
     )
 
     assert activation.transitions == ["commit"]
     assert supervisor.environments == [
         {
-            "GUARD": "candidate",
+            "BROKER": "connected",
             APPLICATION_RUNTIME_MODE_ENV: PACKAGED_APPLICATION_RUNTIME_MODE,
             "CRASH_CONTRACT": "active",
         }
     ]
     assert crash_supervisor.adopted == [supervisor.process]
-    assert guard.released is False
     assert UpdateRollbackReportStore(layout.root).load() is None
 
 
@@ -230,8 +200,6 @@ def test_failed_candidate_rolls_back_and_launches_previous_app(
     """A failed candidate should restore and start the prior known-good app."""
 
     layout = InstallLayout.from_root(tmp_path / "install")
-    candidate_guard = _Guard("candidate")
-    fallback_guard = _Guard("fallback")
     activation = _Activation()
     crash_supervisor = _CrashSupervisor(tmp_path / "diagnostics")
 
@@ -239,21 +207,18 @@ def test_failed_candidate_rolls_back_and_launches_previous_app(
         layout=layout,
         command=["python", "main.py"],
         attempted_version="0.21.3",
-        initial_guard=candidate_guard,
+        environment={"BROKER": "connected"},
         activation=activation,
         supervisor=_Supervisor(fail=True),
         crash_supervisor=crash_supervisor,
-        fallback_guard_factory=lambda _layout: fallback_guard,
     )
 
     assert activation.transitions == ["rollback"]
-    assert candidate_guard.released is True
-    assert fallback_guard.released is False
     assert crash_supervisor.fallbacks == [
         (
             ["python", "main.py"],
             {
-                "GUARD": "fallback",
+                "BROKER": "connected",
                 APPLICATION_RUNTIME_MODE_ENV: PACKAGED_APPLICATION_RUNTIME_MODE,
             },
         ),

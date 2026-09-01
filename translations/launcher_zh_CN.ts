@@ -59,12 +59,12 @@
       <translation>浏览...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="93"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="129"></location>
       <source>Cancel</source>
       <translation>取消</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="198"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="217"></location>
       <source>Checking for SugarSubstitute updates.</source>
       <translation>正在检查 SugarSubstitute 更新。</translation>
     </message>
@@ -112,16 +112,6 @@
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="469"></location>
       <source>Choose where Substitute should keep its setup</source>
       <translation>选择 Substitute 保存设置文件的位置</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="92"></location>
-      <source>Close Substitute and start</source>
-      <translation>关闭 Substitute 并启动</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="104"></location>
-      <source>Close the running Substitute window yourself, then start Substitute again.</source>
-      <translation>请自行关闭正在运行的 Substitute 窗口，然后重新启动 Substitute。</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="405"></location>
@@ -244,7 +234,7 @@
       <translation>安装运行环境</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="303"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="320"></location>
       <source>Installed SugarSubstitute %1.</source>
       <translation>SugarSubstitute %1 已安装。</translation>
     </message>
@@ -269,9 +259,24 @@
       <translation>正在安装 Python 运行环境和应用依赖项。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="274"></location>
-      <source>Installing SugarSubstitute %1.</source>
-      <translation>正在安装 SugarSubstitute %1。</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="29"></location>
+      <source>Installing SugarSubstitute %1</source>
+      <translation>正在安装 SugarSubstitute %1</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="30"></location>
+      <source>Installing SugarSubstitute %1 is taking longer than usual</source>
+      <translation>安装 SugarSubstitute %1 所需时间比平时更长</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="46"></location>
+      <source>Installing SugarSubstitute dependencies</source>
+      <translation>正在安装 SugarSubstitute 依赖项</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="47"></location>
+      <source>Installing SugarSubstitute dependencies is taking longer than usual</source>
+      <translation>安装 SugarSubstitute 依赖项所需时间比平时更长</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="534"></location>
@@ -314,16 +319,6 @@
       <translation>确认前不会下载任何内容。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="112"></location>
-      <source>OK</source>
-      <translation>确定</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="84"></location>
-      <source>Only one instance of Substitute is supported at a time. Would you like to close the running instance and start this one?</source>
-      <translation>Substitute 一次只支持一个实例。是否关闭正在运行的实例并启动此实例？</translation>
-    </message>
-    <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="55"></location>
       <source>Open setup</source>
       <translation>打开设置</translation>
@@ -362,16 +357,6 @@
       <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="290"></location>
       <source>Preparing SugarSubstitute install.</source>
       <translation>正在准备安装 SugarSubstitute。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="290"></location>
-      <source>Preparing SugarSubstitute runtime.</source>
-      <translation>正在准备 SugarSubstitute 运行环境。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="364"></location>
-      <source>Preparing launcher %1.</source>
-      <translation>正在准备启动器 %1。</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="153"></location>
@@ -509,19 +494,24 @@
       <translation>第 1 步，共 4 步</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="103"></location>
-      <source>Substitute could not close the running instance</source>
-      <translation>Substitute 无法关闭正在运行的实例</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="34"></location>
+      <source>Still installing SugarSubstitute %1—network, slow storage, or package installation may be causing the delay</source>
+      <translation>仍在安装 SugarSubstitute %1—网络、存储速度较慢或软件包安装可能导致延迟</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="50"></location>
+      <source>Still installing SugarSubstitute dependencies—network, slow storage, or package installation may be causing the delay</source>
+      <translation>仍在安装 SugarSubstitute 依赖项—网络、存储速度较慢或软件包安装可能导致延迟</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="68"></location>
+      <source>Still updating the SugarSubstitute launcher to %1—network or slow storage may be causing the delay</source>
+      <translation>仍在将 SugarSubstitute 启动器更新到 %1—网络或存储速度较慢可能导致延迟</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="177"></location>
       <source>Substitute found cubes that can use these model types, but no compatible models are installed. Choose interests to see three popular picks from the last month. Nothing is selected or downloaded automatically.</source>
       <translation>Substitute 找到了可使用这些模型类型的 Cube，但尚未安装兼容模型。选择兴趣即可查看上个月的三个热门选项。不会自动选择或下载任何内容。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/active_instance_dialog.py" line="83"></location>
-      <source>Substitute is already running</source>
-      <translation>Substitute 已在运行</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="511"></location>
@@ -534,7 +524,7 @@
       <translation>SugarSubstitute 安装程序</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="386"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="409"></location>
       <source>The launcher will restart to finish updating.</source>
       <translation>启动器将重启以完成更新。</translation>
     </message>
@@ -557,6 +547,16 @@
       <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="167"></location>
       <source>Update check disabled for this launch.</source>
       <translation>本次启动已禁用更新检查。</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="61"></location>
+      <source>Updating the SugarSubstitute launcher to %1</source>
+      <translation>正在将 SugarSubstitute 启动器更新到 %1</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="64"></location>
+      <source>Updating the SugarSubstitute launcher to %1 is taking longer than usual</source>
+      <translation>将 SugarSubstitute 启动器更新到 %1 所需时间比平时更长</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="519"></location>

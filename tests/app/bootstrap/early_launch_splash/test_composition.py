@@ -25,6 +25,7 @@ from typing import Any
 
 from substitute.app.bootstrap import early_launch_splash
 from sugarsubstitute_shared.launch_splash import (
+    SplashActivity,
     create_splash_session_spec,
     splash_cancel_signal_path,
     splash_session_args,
@@ -68,6 +69,12 @@ class _Splash:
         """Record one splash log line."""
 
         self.lines.append(line)
+
+    def start_activity(self, _activity: SplashActivity) -> None:
+        """Accept activity calls from protocol consumers."""
+
+    def clear_activity(self) -> None:
+        """Accept activity cleanup from protocol consumers."""
 
     def close(self) -> None:
         """Accept close calls from protocol consumers."""

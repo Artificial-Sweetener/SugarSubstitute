@@ -25,11 +25,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from substitute.app.bootstrap.startup_timing import StartupTimingRecord
-    from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
     from sugarsubstitute_shared.crash_reporting.runtime import ProcessCrashRuntime
-
-
-_PROCESS_LAUNCH_GUARD: ApplicationLaunchGuard | None = None
 
 
 def _record_elapsed(
@@ -57,9 +53,6 @@ def main() -> None:
     phase_started_at = time.perf_counter()
     app_root = Path(__file__).resolve().parent
     crash_runtime = _install_crash_runtime(argv=sys.argv, app_root=app_root)
-    if not _enter_application_launch_guard(argv=sys.argv, app_root=app_root):
-        _request_clean_exit(crash_runtime)
-        return
     from sugarsubstitute_shared.localization import (
         resolve_early_startup_locale,
         system_ui_languages,
@@ -116,7 +109,6 @@ def main() -> None:
     finally:
         if early_splash is not None:
             early_splash.close()
-        _release_application_launch_guard()
     _request_clean_exit(crash_runtime)
     sys.exit(exit_code)
 
@@ -128,7 +120,7 @@ def _install_crash_runtime(
 ) -> ProcessCrashRuntime | None:
     """Install process crash hooks before importing application bootstrap code."""
 
-    from sugarsubstitute_shared.application_launch_guard import (
+    from sugarsubstitute_shared.application_launch_context import (
         application_launch_install_root,
     )
     from sugarsubstitute_shared.crash_reporting.protocol import CrashRunContext
@@ -159,41 +151,6 @@ def _request_clean_exit(runtime: ProcessCrashRuntime | None) -> None:
     from sugarsubstitute_shared.crash_reporting.protocol import CleanExitOutcome
 
     runtime.request_clean_exit(CleanExitOutcome.CLOSED)
-
-
-def _enter_application_launch_guard(*, argv: list[str], app_root: Path) -> bool:
-    """Claim this application process before any splash can be created."""
-
-    from sugarsubstitute_shared.application_launch_guard import (
-        ApplicationLaunchGuard,
-        application_launch_install_root,
-        clear_inherited_application_launch_token,
-        inherited_application_launch_token,
-    )
-
-    global _PROCESS_LAUNCH_GUARD
-    install_root = application_launch_install_root(argv, app_root=app_root)
-    try:
-        guard = ApplicationLaunchGuard.enter(
-            install_root,
-            inherited_token=inherited_application_launch_token(),
-        )
-    finally:
-        clear_inherited_application_launch_token()
-    if guard is None:
-        return False
-    _PROCESS_LAUNCH_GUARD = guard
-    return True
-
-
-def _release_application_launch_guard() -> None:
-    """Release this process's application ownership after every exit path."""
-
-    global _PROCESS_LAUNCH_GUARD
-    guard = _PROCESS_LAUNCH_GUARD
-    _PROCESS_LAUNCH_GUARD = None
-    if guard is not None:
-        guard.release()
 
 
 def _run_entrypoint() -> None:

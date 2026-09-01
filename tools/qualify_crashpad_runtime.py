@@ -147,7 +147,11 @@ def _qualify_idle_footprint(
     probe_process = psutil.Process(process.pid)
     handler_process: psutil.Process | None = None
     try:
-        handler_process = _wait_for_handler(probe_process)
+        handler_process = _wait_for_handler(
+            probe_process,
+            handler=handler,
+            database=database,
+        )
         time.sleep(_IDLE_SETTLE_SECONDS)
         before = handler_process.cpu_times()
         time.sleep(_IDLE_SAMPLE_SECONDS)
@@ -180,21 +184,52 @@ def _wait_for_dump(database: Path) -> Path:
     raise RuntimeError("Crashpad did not emit a minidump before the deadline.")
 
 
-def _wait_for_handler(probe: psutil.Process) -> psutil.Process:
-    """Return the Crashpad child process before the bounded deadline."""
+def _wait_for_handler(
+    probe: psutil.Process,
+    *,
+    handler: Path,
+    database: Path,
+) -> psutil.Process:
+    """Return the handler bound to this qualification database."""
 
     deadline = time.monotonic() + _HANDLER_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
-        for child in probe.children(recursive=True):
+        for candidate in psutil.process_iter(["exe", "cmdline"]):
             try:
-                if child.name().casefold().startswith("crashpad_handler"):
-                    return child
+                if _is_handler_process(
+                    candidate,
+                    handler=handler,
+                    database=database,
+                ):
+                    return candidate
             except psutil.Error:
                 continue
         if not probe.is_running():
             raise RuntimeError("Idle qualification probe exited during startup.")
         time.sleep(0.05)
     raise RuntimeError("Crashpad handler did not start before the deadline.")
+
+
+def _is_handler_process(
+    process: psutil.Process,
+    *,
+    handler: Path,
+    database: Path,
+) -> bool:
+    """Return whether one process is the handler for this exact probe."""
+
+    executable = process.exe()
+    if not executable or Path(executable).resolve() != handler.resolve():
+        return False
+    for argument in process.cmdline():
+        option, separator, value = argument.partition("=")
+        if (
+            separator
+            and option == "--database"
+            and Path(value).resolve() == database.resolve()
+        ):
+            return True
+    return False
 
 
 def _terminate_process(process: subprocess.Popen[bytes]) -> None:

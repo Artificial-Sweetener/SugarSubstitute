@@ -80,6 +80,50 @@ def test_tooltip_policy_rejects_indirect_native_property_writes(
     )
 
 
+def test_tooltip_policy_exempts_only_the_authoritative_owner(tmp_path: Path) -> None:
+    """Localization adapters must delegate instead of becoming a second owner."""
+
+    owner_root = tmp_path / "sugarsubstitute_shared" / "presentation"
+    localization_root = owner_root / "localization"
+    localization_root.mkdir(parents=True)
+    (owner_root / "fluent_tooltips.py").write_text(
+        "target.setToolTip('owner-managed')\n",
+        encoding="utf-8",
+    )
+    (localization_root / "application_text.py").write_text(
+        "target.setToolTip('bypass')\n",
+        encoding="utf-8",
+    )
+
+    violations = find_non_fluent_tooltip_usage(tmp_path)
+
+    assert tuple((item.filename, item.reason) for item in violations) == (
+        (
+            "sugarsubstitute_shared/presentation/localization/application_text.py",
+            "setToolTip() must be routed through set_fluent_tooltip_text()",
+        ),
+    )
+
+
+def test_tooltip_policy_requires_the_authoritative_filter_installer(
+    tmp_path: Path,
+) -> None:
+    """Production code must not construct even the shared filter directly."""
+
+    source_root = tmp_path / "substitute" / "presentation"
+    source_root.mkdir(parents=True)
+    (source_root / "direct_filter.py").write_text(
+        "FluentToolTipFilter(widget)\n",
+        encoding="utf-8",
+    )
+
+    violations = find_non_fluent_tooltip_usage(tmp_path)
+
+    assert tuple(item.reason for item in violations) == (
+        "tooltip widgets and filters may only be created by the shared owner",
+    )
+
+
 def test_visible_application_copy_has_an_explicit_locale_owner() -> None:
     """Static app copy must be marked instead of inferred from widget state."""
 
