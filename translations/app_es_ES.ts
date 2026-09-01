@@ -635,7 +635,7 @@ Vista previa del prompt:
       <translation>No se pudieron aplicar los cambios previstos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="65"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="62"></location>
       <source>Apply preset</source>
       <translation>Aplicar preajuste</translation>
     </message>
@@ -860,7 +860,7 @@ Vista previa del prompt:
       <translation>Cancelar tarea</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="236"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="278"></location>
       <source>Cancel loading</source>
       <translation>Cancelar la carga</translation>
     </message>
@@ -1735,9 +1735,9 @@ Vista previa del prompt:
       <translation>ComfyUI aún se está iniciando.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/managed_startup_progress.py" line="41"></location>
-      <source>ComfyUI is taking longer than usual…</source>
-      <translation>ComfyUI está tardando más de lo habitual…</translation>
+      <location filename="../substitute/application/managed_startup_progress.py" line="50"></location>
+      <source>ComfyUI is taking longer than usual%1</source>
+      <translation>ComfyUI está tardando más de lo habitual%1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/generation_action_controller.py" line="295"></location>
@@ -3111,6 +3111,11 @@ Install these nodes now?</source>
       <translation>Ocultar el panel completo de la cola</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="53"></location>
+      <source>Hide advanced inputs</source>
+      <translation>Ocultar entradas avanzadas</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
       <source>Hide full queue panel</source>
       <translation>Ocultar el panel completo de la cola</translation>
@@ -4139,6 +4144,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/errors.py" line="533"></location>
       <source>Node ID: %1</source>
       <translation>ID del nodo: %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="70"></location>
+      <source>Node actions</source>
+      <translation>Acciones del nodo</translation>
     </message>
     <message>
       <location filename="../substitute/application/errors.py" line="528"></location>
@@ -5325,12 +5335,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Girar a la derecha</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="239"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="271"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Ejecutar la pantalla de inicio de Sugar Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="229"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="236"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>Ejecutar el host de la pantalla de inicio de SugarSubstitute.</translation>
     </message>
@@ -5405,7 +5415,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="267"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="224"></location>
       <source>Save %1 preset</source>
       <translation>Guardar preajuste de %1</translation>
     </message>
@@ -5435,7 +5445,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>¿Guardar los cambios de «%1» antes de continuar?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="258"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="215"></location>
       <source>Save current %1 as preset...</source>
       <translation>Guardar el valor actual de %1 como preajuste...</translation>
     </message>
@@ -5790,6 +5800,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar el panel completo de la cola</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="52"></location>
+      <source>Show advanced inputs</source>
+      <translation>Mostrar entradas avanzadas</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/settings_expander_surfaces.py" line="339"></location>
       <source>Show all settings</source>
       <translation>Mostrar toda la configuración</translation>
@@ -6020,9 +6035,24 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Paso %1 de %2</translation>
     </message>
     <message>
-      <location filename="../substitute/application/managed_startup_progress.py" line="36"></location>
-      <source>Still waiting—custom nodes, slow storage, or a startup issue may be delaying ComfyUI.</source>
-      <translation>La espera continúa: los nodos personalizados, un almacenamiento lento o un problema de inicio podrían estar retrasando ComfyUI.</translation>
+      <location filename="../substitute/application/launch_activity.py" line="48"></location>
+      <source>Still updating Substitute BackEnd—network, slow storage, or package installation may be causing the delay</source>
+      <translation>Substitute BackEnd sigue actualizándose—la red, el almacenamiento lento o la instalación de paquetes pueden estar causando el retraso</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="67"></location>
+      <source>Still updating Substitute Comfy nodepacks—network, slow storage, or package installation may be causing the delay</source>
+      <translation>Los paquetes de nodos Comfy de Substitute siguen actualizándose—la red, el almacenamiento lento o la instalación de paquetes pueden estar causando el retraso</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="57"></location>
+      <source>Still updating SugarCubes—network, slow storage, or package installation may be causing the delay</source>
+      <translation>SugarCubes sigue actualizándose—la red, el almacenamiento lento o la instalación de paquetes pueden estar causando el retraso</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/managed_startup_progress.py" line="44"></location>
+      <source>Still waiting—custom nodes, slow storage, or a startup issue may be delaying ComfyUI%1</source>
+      <translation>Aún esperando—los nodos personalizados, el almacenamiento lento o un problema de inicio pueden estar retrasando ComfyUI%1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/generation_action_projection.py" line="31"></location>
@@ -7441,19 +7471,34 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Actualizando</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/managed_compatibility_recovery.py" line="198"></location>
-      <source>Updating Substitute BackEnd before opening.</source>
-      <translation>Actualizando Substitute BackEnd antes de abrir.</translation>
+      <location filename="../substitute/application/launch_activity.py" line="44"></location>
+      <source>Updating Substitute BackEnd</source>
+      <translation>Actualizando Substitute BackEnd</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/managed_compatibility_recovery.py" line="201"></location>
-      <source>Updating Substitute Comfy nodepacks before opening.</source>
-      <translation>Actualizando los paquetes de nodos de Comfy para Substitute antes de abrir.</translation>
+      <location filename="../substitute/application/launch_activity.py" line="45"></location>
+      <source>Updating Substitute BackEnd is taking longer than usual</source>
+      <translation>La actualización de Substitute BackEnd está tardando más de lo habitual</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/managed_compatibility_recovery.py" line="200"></location>
-      <source>Updating SugarCubes before opening.</source>
-      <translation>Actualizando SugarCubes antes de abrir.</translation>
+      <location filename="../substitute/application/launch_activity.py" line="63"></location>
+      <source>Updating Substitute Comfy nodepacks</source>
+      <translation>Actualizando los paquetes de nodos Comfy de Substitute</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="64"></location>
+      <source>Updating Substitute Comfy nodepacks is taking longer than usual</source>
+      <translation>La actualización de los paquetes de nodos Comfy de Substitute está tardando más de lo habitual</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="55"></location>
+      <source>Updating SugarCubes</source>
+      <translation>Actualizando SugarCubes</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/launch_activity.py" line="56"></location>
+      <source>Updating SugarCubes is taking longer than usual</source>
+      <translation>La actualización de SugarCubes está tardando más de lo habitual</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1301"></location>
@@ -7666,7 +7711,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Esperando a que Comfy vuelva a estar disponible.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/managed_startup_progress.py" line="43"></location>
+      <location filename="../substitute/application/managed_startup_progress.py" line="51"></location>
       <source>Waiting for ComfyUI to become ready%1</source>
       <translation>Esperando a que ComfyUI esté listo%1</translation>
     </message>

@@ -24,7 +24,6 @@ CrashBoundaryInventoryRow = tuple[str, str, str, str, int, str]
 # Keep one stable row per reviewed site so additions remain obvious in review.
 # fmt: off
 REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
-    ("application", "launcher/sugarsubstitute_launcher/active_instance_dialog.py", "negotiate_active_application", "PySide6.QtWidgets.QApplication", 1, "supervised_launcher_ui"),
     ("application", "launcher/sugarsubstitute_launcher/app.py", "_run_launcher_window", "PySide6.QtWidgets.QApplication", 1, "supervised_launcher_ui"),
     ("application", "launcher/sugarsubstitute_launcher/crash_reporter.py", "_present_crash_incident", "PySide6.QtWidgets.QApplication", 1, "recovery_bound_crash_reporter"),
     ("application", "substitute/app/bootstrap/shared_splash_host.py", "main", "PySide6.QtWidgets.QApplication", 1, "isolated_support_ui"),
@@ -39,7 +38,6 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("process", "launcher/sugarsubstitute_launcher/runtime_command.py", "SubprocessRuntimeCommandRunner.run", "subprocess.Popen", 1, "external_install_command"),
     ("process", "launcher/sugarsubstitute_launcher/source_crash_supervision.py", "_start_source_crash_reporter", "subprocess.Popen", 1, "independent_crash_reporter"),
     ("process", "substitute/app/bootstrap/early_launch_splash.py", "start_shared_launch_splash", "subprocess.Popen", 1, "isolated_support_process"),
-    ("process", "substitute/app/bootstrap/startup_process_launch.py", "start_ready_app_process", "subprocess.Popen", 1, "supervised_restart_launcher"),
     ("process", "substitute/infrastructure/comfy/managed_install_commands.py", "stream_command", "subprocess.Popen", 1, "external_comfy_command"),
     ("process", "substitute/infrastructure/comfy/posix_guardian_containment.py", "launch_with_guardian", "subprocess.Popen", 1, "external_comfy_guardian"),
     ("process", "substitute/infrastructure/comfy/posix_guardian_entry.py", "main", "subprocess.Popen", 1, "external_comfy_process"),
@@ -88,7 +86,6 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("hard_exit", "launcher/sugarsubstitute_launcher/__main__.py", "<module>", "builtins.SystemExit", 1, "controlled_launcher_entrypoint_exit"),
     ("hard_exit", "launcher/sugarsubstitute_launcher/dev_install.py", "<module>", "builtins.SystemExit", 1, "controlled_developer_entrypoint_exit"),
     ("hard_exit", "launcher/sugarsubstitute_launcher/repair_entrypoint.py", "<module>", "builtins.SystemExit", 1, "controlled_launcher_entrypoint_exit"),
-    ("hard_exit", "launcher/sugarsubstitute_launcher/update_lock.py", "_process_is_alive", "os.kill", 1, "process_liveness_probe"),
     ("hard_exit", "main.py", "_run_entrypoint", "builtins.SystemExit", 1, "source_supervisor_outcome"),
     ("hard_exit", "main.py", "main", "sys.exit", 1, "supervised_clean_exit"),
     ("hard_exit", "substitute/app/bootstrap/lifecycle.py", "register_signal_handlers", "sys.exit", 1, "graceful_shutdown_exit"),
@@ -101,7 +98,6 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("hard_exit", "substitute/infrastructure/comfy/posix_guardian_containment.py", "request_guardian_stop_by_pid", "os.kill", 1, "external_guardian_control"),
     ("hard_exit", "substitute/infrastructure/comfy/posix_guardian_entry.py", "<module>", "builtins.SystemExit", 1, "external_guardian_entrypoint"),
     ("hard_exit", "substitute/infrastructure/version_control/clone_entry.py", "<module>", "builtins.SystemExit", 1, "isolated_clone_entrypoint"),
-    ("hard_exit", "sugarsubstitute_shared/application_launch_guard.py", "_process_is_alive", "os.kill", 1, "process_liveness_probe"),
     ("hard_exit", "sugarsubstitute_shared/launcher_update/helper.py", "<module>", "builtins.SystemExit", 1, "transactional_update_entrypoint"),
     ("hard_exit", "sugarsubstitute_shared/launcher_update/helper.py", "main", "builtins.SystemExit", 1, "transactional_update_handoff"),
     ("hard_exit", "sugarsubstitute_shared/launcher_update/transaction.py", "_process_exists", "os.kill", 1, "process_liveness_probe"),
@@ -113,6 +109,10 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("qt_thread", "substitute/presentation/shell/model_update_notification_controller.py", "ModelUpdateNotificationController._start", "PySide6.QtCore.QThread", 1, "managed_task_outcomes"),
     ("thread", "launcher/sugarsubstitute_launcher/splash_session.py", "_readline_with_timeout", "threading.Thread", 1, "bounded_transport_thread"),
     ("thread", "launcher/sugarsubstitute_launcher/splash_session.py", "_start_background_pipe_reader", "threading.Thread", 1, "bounded_transport_thread"),
+    ("thread", "sugarsubstitute_shared/application_instance_broker.py", "ApplicationInstanceBroker.__init__", "threading.Thread", 1, "bounded_transport_thread"),
+    ("thread", "sugarsubstitute_shared/application_instance_broker.py", "ApplicationInstanceBroker._accept_connections", "threading.Thread", 1, "bounded_transport_thread"),
+    ("thread", "sugarsubstitute_shared/application_instance_macos.py", "MacOSMessagePortClaim.__init__", "threading.Thread", 1, "bounded_transport_thread"),
+    ("thread", "sugarsubstitute_shared/application_supervisor_client.py", "ApplicationSupervisorClient.__init__", "threading.Thread", 1, "bounded_transport_thread"),
     ("thread", "substitute/infrastructure/comfy/posix_guardian_entry.py", "_start_control_monitor", "threading.Thread", 1, "external_guardian_thread"),
     ("thread", "substitute/infrastructure/comfy/posix_guardian_entry.py", "_start_output_forwarder", "threading.Thread", 1, "external_guardian_thread"),
     ("thread", "substitute/infrastructure/execution/host_execution_diagnostics.py", "HostExecutionDiagnostics.subscribe", "threading.Thread", 1, "managed_host_diagnostics"),

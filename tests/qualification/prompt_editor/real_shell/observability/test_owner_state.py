@@ -19,9 +19,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-import warnings
 
-from PySide6.QtCore import QCoreApplication, QEvent
+from PySide6.QtCore import QCoreApplication, QEvent, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import ToolTipFilter  # type: ignore[import-untyped]
@@ -77,14 +76,10 @@ def test_real_shell_moves_ambient_hover_to_neutral_target(
     tooltip_filter.showToolTip()
     tooltip = getattr(tooltip_filter, "_tooltip", None)
     assert isinstance(tooltip, QWidget)
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message=r"Function: 'QApplication\.setActiveWindow.*",
-            category=DeprecationWarning,
-        )
-        QApplication.setActiveWindow(tooltip)
-    assert QApplication.activeWindow() is tooltip
+    assert tooltip.focusPolicy() == Qt.FocusPolicy.NoFocus
+    assert tooltip.testAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+    assert tooltip.windowFlags() & Qt.WindowType.WindowDoesNotAcceptFocus
+    assert QApplication.activeWindow() is not tooltip
 
     all_tooltip_filters = real_shell_scenario.shell.findChildren(ToolTipFilter)
     for pending_filter in all_tooltip_filters:

@@ -173,6 +173,18 @@ _CLASS_DEFAULTS: Final[dict[str, NodeBehaviorPatch]] = {
             enabled_switch_source=ActivationSwitchSource.HOST,
         )
     ),
+    "SimpleSyrup.VAEDecodeOptions": NodeBehaviorPatch(
+        field_groups=(
+            ("tile_size", "overlap"),
+            ("temporal_size", "temporal_overlap"),
+        ),
+    ),
+    "SimpleSyrup.VAEEncodeOptions": NodeBehaviorPatch(
+        field_groups=(
+            ("tile_size", "overlap"),
+            ("temporal_size", "temporal_overlap"),
+        ),
+    ),
     "CheckpointLoaderSimple": NodeBehaviorPatch(
         card=CardBehaviorPatch(
             icon_name="model",

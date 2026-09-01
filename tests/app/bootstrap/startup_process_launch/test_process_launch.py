@@ -14,15 +14,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify ready-app process handoff launch behavior."""
+"""Verify application restarts remain inside the current supervisor."""
 
-from __future__ import annotations
-
-import ast
-import logging
-from collections.abc import Sequence
 from pathlib import Path
-import subprocess
 import sys
 from types import SimpleNamespace
 
@@ -33,234 +27,52 @@ from substitute.app.bootstrap.startup_process_launch import (
     start_ready_app_process,
 )
 from sugarsubstitute_shared.crash_reporting.protocol import CleanExitOutcome
-from sugarsubstitute_shared.windows_long_paths import (
-    subprocess_path,
-    subprocess_working_directory,
-)
-
-
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-STARTUP_SOURCE = PROJECT_ROOT / "substitute" / "app" / "bootstrap" / "startup.py"
-PROCESS_LAUNCH_SOURCE = (
-    PROJECT_ROOT / "substitute" / "app" / "bootstrap" / "startup_process_launch.py"
-)
-FORBIDDEN_PROCESS_LAUNCH_IMPORT_PREFIXES = (
-    "PySide6",
-    "qfluentwidgets",
-    "qframelesswindow",
-    "substitute.presentation",
-    "substitute.infrastructure.comfy.process_manager",
-)
-
-
-def _imported_module_names(source_path: Path) -> set[str]:
-    """Return module names imported by one Python source file."""
-
-    tree = ast.parse(source_path.read_text(encoding="utf-8"))
-    modules: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            modules.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module is not None:
-            modules.add(node.module)
-    return modules
 
 
 def test_launch_command_working_directory_uses_entrypoint_parent(
     tmp_path: Path,
 ) -> None:
-    """Launch handoff should run from the app entrypoint directory when present."""
+    """Resolve the app entrypoint directory without starting a replacement."""
 
     entrypoint = tmp_path / "app" / "main.py"
     entrypoint.parent.mkdir()
-    entrypoint.write_text("print('ready')", encoding="utf-8")
+    entrypoint.write_text("", encoding="utf-8")
 
     assert launch_command_working_directory([sys.executable, str(entrypoint)]) == (
         entrypoint.parent
     )
     assert launch_command_working_directory([sys.executable]) is None
-    assert (
-        launch_command_working_directory([sys.executable, str(tmp_path / "missing.py")])
-        is None
-    )
 
 
-def test_start_ready_app_process_launches_with_hidden_stdio(
+def test_start_ready_app_process_requests_existing_supervisor(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Ready-app handoff should detach stdio and use the entrypoint working directory."""
+    """Authorize restart through IPC and mark the current crash run clean."""
 
-    entrypoint = tmp_path / "app" / "main.py"
-    entrypoint.parent.mkdir()
-    entrypoint.write_text("print('ready')", encoding="utf-8")
-    observed: dict[str, object] = {}
     outcomes: list[CleanExitOutcome] = []
-
-    def _fake_popen(command: Sequence[str], **kwargs: object) -> object:
-        """Record one launch command without starting a process."""
-
-        observed["command"] = list(command)
-        observed["kwargs"] = kwargs
-        return object()
-
     monkeypatch.setattr(
-        "substitute.app.bootstrap.startup_process_launch.restart_application_launch_environment",
-        lambda _command: {"SUGAR_SUBSTITUTE_LAUNCH_GUARD_TOKEN": "restart-token"},
-    )
-    monkeypatch.setattr(
-        "substitute.app.bootstrap.startup_process_launch.subprocess.Popen",
-        _fake_popen,
+        "substitute.app.bootstrap.application_instance_control.request_supervised_application_restart",
+        lambda: True,
     )
     monkeypatch.setattr(
         "substitute.app.bootstrap.startup_process_launch.active_process_crash_runtime",
         lambda: SimpleNamespace(request_clean_exit=outcomes.append),
     )
 
-    command = [
-        sys.executable,
-        str(entrypoint),
-        f"--install-root={tmp_path}",
-        "--ready",
-    ]
-
-    assert start_ready_app_process(command) is True
-
-    assert observed["command"] == [
-        subprocess_path(Path(sys.executable)),
-        "-m",
-        "launcher.sugarsubstitute_launcher",
-        "--restart-application",
-        f"--install-root={subprocess_path(tmp_path.resolve())}",
-    ]
-    kwargs = observed["kwargs"]
-    assert isinstance(kwargs, dict)
-    assert kwargs["cwd"] == subprocess_working_directory(entrypoint.parent)
-    assert kwargs["stdin"] is subprocess.DEVNULL
-    assert kwargs["stdout"] is subprocess.DEVNULL
-    assert kwargs["stderr"] is subprocess.DEVNULL
-    assert kwargs["close_fds"] is True
+    assert start_ready_app_process([sys.executable, str(tmp_path / "main.py")])
     assert outcomes == [CleanExitOutcome.RESTART]
-    if sys.platform == "win32":
-        assert kwargs["creationflags"] == subprocess.CREATE_NO_WINDOW
-        assert kwargs["startupinfo"] is not None
 
 
-def test_start_ready_app_process_handles_empty_and_failed_commands(
+def test_start_ready_app_process_fails_closed_without_supervisor(
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-    tmp_path: Path,
 ) -> None:
-    """Failed launches should return false without logging full local command paths."""
-
-    canceled_handoffs: list[tuple[Sequence[str], dict[str, str]]] = []
-
-    def _raise_os_error(_command: Sequence[str], **_kwargs: object) -> object:
-        """Raise the broad process-launch failure handled by the launcher."""
-
-        raise OSError("launch failed")
+    """Reject restart when no authenticated long-lived launcher owns it."""
 
     monkeypatch.setattr(
-        "substitute.app.bootstrap.startup_process_launch.restart_application_launch_environment",
-        lambda _command: {"SUGAR_SUBSTITUTE_LAUNCH_GUARD_TOKEN": "restart-token"},
-    )
-    monkeypatch.setattr(
-        "substitute.app.bootstrap.startup_process_launch.cancel_restart_application_launch_environment",
-        lambda command, environment: canceled_handoffs.append((command, environment)),
-    )
-    monkeypatch.setattr(
-        "substitute.app.bootstrap.startup_process_launch.subprocess.Popen",
-        _raise_os_error,
+        "substitute.app.bootstrap.application_instance_control.request_supervised_application_restart",
+        lambda: False,
     )
 
-    assert start_ready_app_process([]) is False
-    with caplog.at_level(logging.ERROR):
-        assert (
-            start_ready_app_process(
-                [sys.executable, str(tmp_path / "app" / "main.py"), "--ready"]
-            )
-            is False
-        )
-
-    assert "Failed to start fresh app process" in caplog.text
-    assert str(tmp_path) not in caplog.text
-    assert len(canceled_handoffs) == 1
-
-
-def test_start_ready_app_process_rejects_an_unauthorized_handoff(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """A fresh app child must not start without one-use restart authority."""
-
-    entrypoint = tmp_path / "app" / "main.py"
-    entrypoint.parent.mkdir()
-    entrypoint.write_text("print('ready')", encoding="utf-8")
-    monkeypatch.setattr(
-        "substitute.app.bootstrap.startup_process_launch.restart_application_launch_environment",
-        lambda _command: None,
-    )
-    monkeypatch.setattr(
-        "substitute.app.bootstrap.startup_process_launch.subprocess.Popen",
-        lambda *_args, **_kwargs: pytest.fail(
-            "Unauthorized handoffs must stop before process creation."
-        ),
-    )
-
-    assert start_ready_app_process([sys.executable, str(entrypoint)]) is False
-
-
-def test_start_ready_app_process_uses_a_controlled_restart_environment(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    """A legitimate in-app restart should receive its dedicated handoff token."""
-
-    entrypoint = tmp_path / "app" / "main.py"
-    entrypoint.parent.mkdir()
-    entrypoint.write_text("print('ready')", encoding="utf-8")
-    observed: dict[str, object] = {}
-
-    def _fake_popen(_command: Sequence[str], **kwargs: object) -> object:
-        """Record the private replacement environment without starting a process."""
-
-        observed["kwargs"] = kwargs
-        return object()
-
-    monkeypatch.setattr(
-        "substitute.app.bootstrap.startup_process_launch.restart_application_launch_environment",
-        lambda _command: {"SUGAR_SUBSTITUTE_LAUNCH_GUARD_TOKEN": "restart-token"},
-    )
-    monkeypatch.setattr(
-        "substitute.app.bootstrap.startup_process_launch.subprocess.Popen",
-        _fake_popen,
-    )
-
-    assert start_ready_app_process([sys.executable, str(entrypoint), "--ready"]) is True
-
-    kwargs = observed["kwargs"]
-    assert isinstance(kwargs, dict)
-    assert kwargs["env"] == {"SUGAR_SUBSTITUTE_LAUNCH_GUARD_TOKEN": "restart-token"}
-
-
-def test_process_launch_imports_only_runtime_launch_boundaries() -> None:
-    """Process launch may own subprocess but must stay out of Qt and presentation."""
-
-    imported_modules = _imported_module_names(PROCESS_LAUNCH_SOURCE)
-    forbidden_imports = tuple(
-        imported_module
-        for imported_module in sorted(imported_modules)
-        if any(
-            imported_module == prefix or imported_module.startswith(f"{prefix}.")
-            for prefix in FORBIDDEN_PROCESS_LAUNCH_IMPORT_PREFIXES
-        )
-    )
-
-    assert forbidden_imports == ()
-    assert "subprocess" in imported_modules
-
-
-def test_startup_facade_no_longer_imports_subprocess() -> None:
-    """The startup facade should delegate ready-app handoff process launches."""
-
-    assert "subprocess" not in _imported_module_names(STARTUP_SOURCE)
+    assert not start_ready_app_process([])
+    assert not start_ready_app_process([sys.executable, "main.py"])

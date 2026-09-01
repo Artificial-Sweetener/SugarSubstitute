@@ -23,6 +23,7 @@ from collections.abc import Callable
 
 
 from pathlib import Path
+from sugarsubstitute_shared.localization import render_source_application_text
 
 
 from substitute.app.bootstrap.managed_compatibility_recovery import (
@@ -44,6 +45,7 @@ from substitute.application.backend_compatibility import (
     BackendCompatibilityResult,
     RuntimeCompatibilityStatus,
 )
+from substitute.application.launch_activity import LocalizedSplashActivity
 
 
 from substitute.domain.onboarding import (
@@ -80,7 +82,8 @@ def test_managed_recovery_controller_starts_targeted_recovery(
     queued_submitter = _QueuedSubmitter()
     registered_submitters: list[TaskSubmitter] = []
     backend_states: list[str] = []
-    splash_messages: list[str] = []
+    splash_activities: list[LocalizedSplashActivity] = []
+    clear_activity_calls = 0
     recovery_logs: list[str] = []
     setup_calls: list[tuple[ComfyTargetConfiguration, frozenset[CoreNodepackId]]] = []
     published: list[ManagedCompatibilityRecoveryOutcome] = []
@@ -102,6 +105,12 @@ def test_managed_recovery_controller_starts_targeted_recovery(
         setup_calls.append((target, nodepacks))
         emit_log("setup complete")
 
+    def clear_recovery_activity() -> None:
+        """Record one activity clear request."""
+
+        nonlocal clear_activity_calls
+        clear_activity_calls += 1
+
     target = _target(tmp_path, launch_owned=True)
     controller = ManagedCompatibilityRecoveryController(
         state=controller_state,
@@ -113,7 +122,8 @@ def test_managed_recovery_controller_starts_targeted_recovery(
         current_comfy_state=lambda: comfy_state,
         set_comfy_state=set_comfy_state,
         set_backend_state=backend_states.append,
-        append_recovery_message=splash_messages.append,
+        start_recovery_activity=splash_activities.append,
+        clear_recovery_activity=clear_recovery_activity,
         emit_recovery_log=recovery_logs.append,
         cleanup_state=lambda _state: _CleanupResult(
             managed_resource_present=False,
@@ -139,7 +149,11 @@ def test_managed_recovery_controller_starts_targeted_recovery(
     assert backend_states == ["starting"]
     assert comfy_state is None
     assert registered_submitters == [queued_submitter]
-    assert splash_messages == ["Updating SugarCubes before opening."]
+    assert len(splash_activities) == 1
+    assert render_source_application_text(splash_activities[0].initial_text) == (
+        "Updating SugarCubes"
+    )
+    assert clear_activity_calls == 0
     assert setup_calls == [(target, frozenset({CoreNodepackId.SUGARCUBES}))]
     assert recovery_logs == ["No cleanup.", "setup complete"]
     assert published == [ManagedCompatibilityRecoveryOutcome(compatibility)]
@@ -160,7 +174,8 @@ def test_create_managed_compatibility_recovery_controller_returns_controller(
         current_comfy_state=lambda: None,
         set_comfy_state=lambda _state: None,
         set_backend_state=lambda _state: None,
-        append_recovery_message=lambda _message: None,
+        start_recovery_activity=lambda _activity: None,
+        clear_recovery_activity=lambda: None,
         emit_recovery_log=lambda _line: None,
         cleanup_state=lambda _state: _CleanupResult(
             managed_resource_present=False,
@@ -224,6 +239,7 @@ def test_managed_recovery_controller_finish_relaunches_after_success(
     relaunch_state = object()
     readiness_state = _ReadinessState(readiness_attempts=7)
     restart_calls = 0
+    clear_activity_calls = 0
 
     def restart_readiness_timer() -> None:
         """Record readiness timer restarts."""
@@ -231,11 +247,18 @@ def test_managed_recovery_controller_finish_relaunches_after_success(
         nonlocal restart_calls
         restart_calls += 1
 
+    def clear_recovery_activity() -> None:
+        """Record successful recovery activity cleanup."""
+
+        nonlocal clear_activity_calls
+        clear_activity_calls += 1
+
     controller = _recovery_controller_for_finish(
         tmp_path=tmp_path,
         state=controller_state,
         readiness_state=readiness_state,
         set_comfy_state=comfy_states.append,
+        clear_recovery_activity=clear_recovery_activity,
         relaunch_managed_comfy=lambda: relaunch_state,
         restart_readiness_timer=restart_readiness_timer,
         relaunch_phase=lambda: phase,
@@ -249,6 +272,7 @@ def test_managed_recovery_controller_finish_relaunches_after_success(
     assert phase.exited == 1
     assert comfy_states == [relaunch_state]
     assert restart_calls == 1
+    assert clear_activity_calls == 1
 
 
 def test_managed_recovery_controller_finish_reports_failure(
@@ -264,6 +288,7 @@ def test_managed_recovery_controller_finish_reports_failure(
     )
     failures: list[tuple[BackendCompatibilityResult, Exception]] = []
     restart_calls = 0
+    clear_activity_calls = 0
 
     def restart_readiness_timer() -> None:
         """Record unexpected readiness timer restarts."""
@@ -271,12 +296,19 @@ def test_managed_recovery_controller_finish_reports_failure(
         nonlocal restart_calls
         restart_calls += 1
 
+    def clear_recovery_activity() -> None:
+        """Record failed recovery activity cleanup."""
+
+        nonlocal clear_activity_calls
+        clear_activity_calls += 1
+
     controller = _recovery_controller_for_finish(
         tmp_path=tmp_path,
         state=controller_state,
         handle_recovery_failure=lambda failure_compatibility, failure_error: (
             failures.append((failure_compatibility, failure_error))
         ),
+        clear_recovery_activity=clear_recovery_activity,
         restart_readiness_timer=restart_readiness_timer,
     )
 
@@ -285,6 +317,7 @@ def test_managed_recovery_controller_finish_reports_failure(
     assert controller_state.recovery_running is False
     assert failures == [(compatibility, error)]
     assert restart_calls == 0
+    assert clear_activity_calls == 1
 
 
 def test_managed_recovery_stop_requests_state_stop() -> None:

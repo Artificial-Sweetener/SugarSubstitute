@@ -90,7 +90,10 @@ def _source_cube(alias: str = "Portrait") -> CubeState:
         undo_stack=[{"nodes": {"Prompt": {"inputs": {"text": "old"}}}}],
         redo_stack=[{"nodes": {"Prompt": {"inputs": {"text": "new"}}}}],
         dirty=True,
-        ui={"prompt_editor_rich_rendering": {"Prompt.text": True}},
+        ui={
+            "prompt_editor_rich_rendering": {"Prompt.text": True},
+            "advanced_input_visibility": {"Prompt": True},
+        },
         field_control_states={"Prompt": {"seed": SeedControlState(SeedMode.FIXED)}},
         update_policy=CubeUpdatePolicy.FOLLOW_LATEST,
         bypassed=True,
@@ -141,8 +144,14 @@ def test_duplicate_cube_appends_unique_complete_independent_copy() -> None:
 
     duplicate.buffer["nodes"]["Prompt"]["inputs"]["text"] = "duplicate edit"  # type: ignore[index]
     duplicate.undo_stack.append({"extra": True})
+    duplicate_ui = duplicate.ui
+    assert duplicate_ui is not None
+    duplicate_ui["advanced_input_visibility"]["Prompt"] = False  # type: ignore[index]
     assert source.buffer["nodes"]["Prompt"]["inputs"]["text"] == "current prompt"  # type: ignore[index]
     assert len(source.undo_stack) == 1
+    source_ui = source.ui
+    assert source_ui is not None
+    assert source_ui["advanced_input_visibility"] == {"Prompt": True}
 
 
 def test_duplicate_cube_copies_alias_keyed_asset_metadata() -> None:

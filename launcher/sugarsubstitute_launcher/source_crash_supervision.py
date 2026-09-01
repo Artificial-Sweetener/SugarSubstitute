@@ -28,6 +28,8 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
+from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
@@ -35,19 +37,31 @@ def supervise_source_application(*, argv: Sequence[str], app_root: Path) -> int:
     """Run one source app child beneath the production crash contract."""
 
     layout = InstallLayout.from_root(app_root)
-    supervisor = ApplicationCrashSupervisor(
-        reporter_starter=_start_source_crash_reporter,
-        native_runtime_resolver=lambda _layout: _source_native_runtime(layout),
+    broker = ApplicationInstanceBroker.elect(
+        install_root=layout.root,
+        invocation=ApplicationInvocation.capture(argv),
     )
-    return supervisor.supervise(
-        layout=layout,
-        command=[
+    if broker is None:
+        return 0
+    with broker:
+        supervisor = ApplicationCrashSupervisor(
+            reporter_starter=_start_source_crash_reporter,
+            native_runtime_resolver=lambda _layout: _source_native_runtime(layout),
+        )
+        command = [
             subprocess_path(Path(sys.executable)),
             subprocess_path(app_root / "main.py"),
             *argv[1:],
-        ],
-        environment=os.environ,
-    )
+        ]
+        child_environment = broker.child_environment(os.environ)
+        while True:
+            return_code = supervisor.supervise(
+                layout=layout,
+                command=command,
+                environment=child_environment,
+            )
+            if not broker.consume_restart_request():
+                return return_code
 
 
 def _source_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:

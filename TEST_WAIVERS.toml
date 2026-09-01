@@ -1220,19 +1220,6 @@ issue = "chore:SS-TEST-WAIVER-C0272"
 review_by = 2026-12-15
 
 [[waivers]]
-id = "SS-TEST-WAIVER-C0273"
-owner = "Application launch handoff process contention"
-kind = "classification"
-disposition = "platform_native"
-rule = "PROCESS001"
-candidates = ["PROCESS001|tests/shared/application_launch_guard/test_guard.py|<module>:unscoped-child-process:1"]
-paths = ["tests/shared/application_launch_guard/test_guard.py"]
-fingerprint = "sha256:0b0166b5082caf71ee685abf4c4cb611266b2854de725901cdc77b659d6b1da3"
-rationale = "This cross-process contention contract launches four simultaneous children that must overlap while claiming one application handoff token. The enclosing try/finally owns the entire child set, bounds every communicate call, kills every survivor, and performs a bounded final wait. Independent Popen context managers would not model simultaneous ownership."
-issue = "chore:SS-TEST-WAIVER-C0273"
-review_by = 2026-12-15
-
-[[waivers]]
 id = "SS-TEST-WAIVER-C0274"
 owner = "Native model-picker focus interaction"
 kind = "classification"

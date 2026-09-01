@@ -119,7 +119,7 @@ def run_application(
         stop_application_instance_control,
     )
 
-    start_application_instance_control(install_root)
+    start_application_instance_control()
     from substitute.app.bootstrap.default_comfy_preflight import (
         negotiate_default_comfy_listener,
     )

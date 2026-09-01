@@ -141,9 +141,10 @@ def set_localized_tooltip(
 
     from sugarsubstitute_shared.presentation.fluent_tooltips import (
         set_fluent_tooltip_text,
+        supports_fluent_tooltip,
     )
 
-    if not callable(getattr(target, "setToolTip", None)):
+    if not supports_fluent_tooltip(target):
         raise TypeError("Localized tooltip targets must expose setToolTip().")
     if not isinstance(target, QObject):
         set_fluent_tooltip_text(

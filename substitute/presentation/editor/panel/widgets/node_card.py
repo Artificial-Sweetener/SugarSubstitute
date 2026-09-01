@@ -551,6 +551,7 @@ def _reconcile_layout_separators(content_layout: QVBoxLayout) -> None:
 
     previous_visible_row = False
     pending_separator: QWidget | None = None
+    title_body_divider: QWidget | None = None
     for index in range(content_layout.count()):
         item = content_layout.itemAt(index)
         widget = item.widget() if item is not None else None
@@ -560,6 +561,7 @@ def _reconcile_layout_separators(content_layout: QVBoxLayout) -> None:
             # The title/body divider is the authoritative seam above the first visible
             # row. Treating it like a body separator makes hidden leading rows expose
             # the next field divider at the title seam and darkens the boundary.
+            title_body_divider = widget
             continue
         if _is_body_separator(widget):
             if pending_separator is not None:
@@ -576,6 +578,8 @@ def _reconcile_layout_separators(content_layout: QVBoxLayout) -> None:
 
     if pending_separator is not None:
         pending_separator.setVisible(False)
+    if title_body_divider is not None:
+        title_body_divider.setVisible(previous_visible_row)
 
 
 def _is_body_separator(widget: QWidget) -> bool:

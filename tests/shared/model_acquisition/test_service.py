@@ -333,3 +333,37 @@ def test_concurrent_acquisitions_commit_distinct_side_by_side_files(
     assert len({result.path for result in results}) == 2
     assert all(result.path.read_bytes() == content for result in results)
     assert not tuple(destination.glob("*.part"))
+
+
+@pytest.mark.platforms("windows")
+def test_acquisition_accepts_equivalent_extended_length_destination(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Treat Windows device and DOS forms of one destination as identical."""
+
+    content = b"extended-path-content"
+    root = tmp_path / "models"
+    destination = root / "checkpoints"
+    original_resolve = Path.resolve
+    service = ModelAcquisitionService(
+        allowed_roots=(root,),
+        stream_opener=lambda _url, _headers, _timeout: _Stream(content),
+    )
+
+    def resolve_with_extended_destination(
+        path: Path,
+        strict: bool = False,
+    ) -> Path:
+        """Expose the equivalent device form observed during Windows races."""
+
+        resolved = original_resolve(path, strict=strict)
+        if path == destination:
+            return Path(f"\\\\?\\{resolved}")
+        return resolved
+
+    monkeypatch.setattr(Path, "resolve", resolve_with_extended_destination)
+
+    result = service.acquire(_model(content), destination_dir=destination)
+
+    assert result.path.read_bytes() == content

@@ -24,7 +24,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from sugarsubstitute_shared.application_launch_guard import (
+from sugarsubstitute_shared.application_launch_context import (
     application_launch_install_root,
 )
 from sugarsubstitute_shared.external_path_failure import external_long_path_error

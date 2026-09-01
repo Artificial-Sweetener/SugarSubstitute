@@ -28,6 +28,8 @@ import sys
 from threading import Event, Lock
 from typing import IO, Any, Protocol
 
+from sugarsubstitute_shared.launch_splash.activity import SplashActivity
+
 from substitute.application.execution import (
     CancellationSource,
     ExecutionContext,
@@ -119,6 +121,12 @@ class LaunchSplashClient(Protocol):
     def append_log(self, line: str) -> None:
         """Append one status or log line to the launch splash."""
 
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Start or replace one independently animated splash activity."""
+
+    def clear_activity(self) -> None:
+        """Stop the active splash activity and remove its transient row."""
+
     def close(self) -> None:
         """Close the launch splash if it is still available."""
 
@@ -130,6 +138,14 @@ class NullLaunchSplashClient:
         """Discard one splash line."""
 
         _ = line
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Discard one splash activity."""
+
+        _ = activity
+
+    def clear_activity(self) -> None:
+        """Complete a no-op activity clear."""
 
     def close(self) -> None:
         """Complete a no-op close."""
@@ -147,6 +163,16 @@ class InProcessLaunchSplashClient:
         """Append one line to the in-process splash widget."""
 
         self._splash_window.append_log(line)
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Start an activity on the in-process splash widget."""
+
+        self._splash_window.start_activity(activity)
+
+    def clear_activity(self) -> None:
+        """Clear the in-process splash activity."""
+
+        self._splash_window.clear_activity()
 
     def close(self) -> None:
         """Close the in-process splash widget."""
@@ -294,6 +320,23 @@ class LaunchSplashProcessClient:
         """Send one log line to the helper process."""
 
         self._send({"type": "log", "line": line})
+
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Send all localized activity stages to the helper process."""
+
+        self._send(
+            {
+                "type": "activity",
+                "initial": activity.initial_text,
+                "long_wait": activity.long_wait_text,
+                "extended_wait": activity.extended_wait_text,
+            }
+        )
+
+    def clear_activity(self) -> None:
+        """Stop the helper process activity."""
+
+        self._send({"type": "clear_activity"})
 
     def close(self) -> None:
         """Ask the helper to close, then clean up if it does not exit promptly."""

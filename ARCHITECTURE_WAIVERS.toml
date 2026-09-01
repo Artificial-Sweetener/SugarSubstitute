@@ -32,10 +32,10 @@ owner = "managed compatibility recovery"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/managed_compatibility_recovery.py"
 kind = "remediation"
-justification = "The assessed file mixes recovery eligibility and user-message policy, recovery controller state transitions, background cleanup and reconciliation execution, task outcome adaptation and stop coordination. Extract pure recovery policy and background task execution from controller wiring."
+justification = "The assessed file mixes recovery eligibility and targeted nodepack selection, recovery controller state transitions, background cleanup and reconciliation execution, task outcome adaptation and stop coordination. Extract recovery eligibility and background task execution from controller wiring."
 issue = "chore:SS-ARCH-004"
 review_by = 2026-12-15
-max_lines = 590
+max_lines = 586
 next_limit = 500
 debt = "SS-ARCH-004"
 
@@ -500,10 +500,10 @@ owner = "editor node-card construction"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/node_card_builder.py"
 kind = "remediation"
-justification = "The assessed file mixes panel and buffer snapshot adaptation, node-card and field-row construction, icon, title, and link-endpoint presentation, input preset menu binding, collapsible card animation and layout registration, build timing and trace diagnostics. Extract title/icon composition and preset-menu binding from node-card and field-row assembly."
+justification = "The assessed file mixes node-card and field-row construction, icon, title, and link-endpoint presentation, prompt and standard input-field routing, collapsible card animation and layout registration, and build timing diagnostics. Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
-max_lines = 1425
+max_lines = 1394
 next_limit = 1137
 debt = "SS-ARCH-045"
 
@@ -1945,7 +1945,7 @@ kind = "remediation"
 justification = "The assessed file mixes native Windows process and structure bindings, installer and onboarding UI automation, historical shell and diagnostic evidence collection, isolated desktop launch and process termination, command-line orchestration. Extract native process/desktop control and historical evidence projection from installer UI workflow automation."
 issue = "chore:SS-ARCH-096"
 review_by = 2026-12-15
-max_lines = 706
+max_lines = 703
 next_limit = 564
 debt = "SS-ARCH-096"
 

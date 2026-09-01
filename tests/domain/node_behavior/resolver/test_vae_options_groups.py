@@ -14,4 +14,27 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Test crash-safe application instance ownership."""
+"""Verify built-in VAE option row grouping."""
+
+from __future__ import annotations
+
+import pytest
+
+from substitute.domain.node_behavior.defaults import host_node_behavior_patch
+
+
+@pytest.mark.parametrize(
+    "class_type",
+    ["SimpleSyrup.VAEDecodeOptions", "SimpleSyrup.VAEEncodeOptions"],
+)
+def test_vae_option_defaults_group_spatial_and_temporal_controls(
+    class_type: str,
+) -> None:
+    """VAE option cards should keep paired advanced dimensions compact."""
+
+    patch = host_node_behavior_patch("vae_options", class_type)
+
+    assert patch.field_groups == (
+        ("tile_size", "overlap"),
+        ("temporal_size", "temporal_overlap"),
+    )

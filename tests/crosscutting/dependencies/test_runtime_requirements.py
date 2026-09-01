@@ -30,6 +30,7 @@ _EXPECTED_RUNTIME_DEPENDENCIES = frozenset(
         "cutecanvas",
         "ferrastra",
         "ijson",
+        "jeepney",
         "keyring",
         "pillow",
         "photoshop",
