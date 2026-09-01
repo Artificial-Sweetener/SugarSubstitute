@@ -615,7 +615,7 @@ Vista previa del prompt:
       <translation>No se pudieron aplicar los cambios previstos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="65"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="62"></location>
       <source>Apply preset</source>
       <translation>Aplicar preajuste</translation>
     </message>
@@ -1420,7 +1420,7 @@ Vista previa del prompt:
       <translation>Cierra ComfyUI antes de continuar con la instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="96"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="109"></location>
       <source>Close ComfyUI before starting Substitute</source>
       <translation>Cierra ComfyUI antes de iniciar Substitute</translation>
     </message>
@@ -1640,12 +1640,12 @@ Vista previa del prompt:
       <translation>Carpeta de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="72"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="85"></location>
       <source>ComfyUI is already running</source>
       <translation>ComfyUI ya está en ejecución</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="74"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="87"></location>
       <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
       <translation>ComfyUI ya se está ejecutando en el puerto predeterminado 8188. Substitute necesita iniciar y controlar ComfyUI para funcionar correctamente.</translation>
     </message>
@@ -1675,7 +1675,7 @@ Vista previa del prompt:
       <translation>ComfyUI está listo.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="98"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="111"></location>
       <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
       <translation>ComfyUI responde en el puerto predeterminado 8188, pero Substitute no pudo verificar su proceso de forma segura. Cierra ComfyUI manualmente y vuelve a iniciar Substitute.</translation>
     </message>
@@ -3033,6 +3033,11 @@ Install these nodes now?</source>
       <translation>Ocultar el panel completo de la cola</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="45"></location>
+      <source>Hide advanced inputs</source>
+      <translation>Ocultar entradas avanzadas</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
       <source>Hide full queue panel</source>
       <translation>Ocultar el panel completo de la cola</translation>
@@ -4006,6 +4011,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/errors.py" line="533"></location>
       <source>Node ID: %1</source>
       <translation>ID del nodo: %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="62"></location>
+      <source>Node actions</source>
+      <translation>Acciones del nodo</translation>
     </message>
     <message>
       <location filename="../substitute/application/errors.py" line="528"></location>
@@ -5177,7 +5187,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Ejecutar la pantalla de inicio de Sugar Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="195"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="229"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>Ejecutar el host de la pantalla de inicio de SugarSubstitute.</translation>
     </message>
@@ -5247,7 +5257,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="267"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="224"></location>
       <source>Save %1 preset</source>
       <translation>Guardar preajuste de %1</translation>
     </message>
@@ -5272,7 +5282,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar cambios</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="258"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="215"></location>
       <source>Save current %1 as preset...</source>
       <translation>Guardar el valor actual de %1 como preajuste...</translation>
     </message>
@@ -5620,6 +5630,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/presentation/shell/generation_queue_controller.py" line="95"></location>
       <source>Show Full Queue Panel</source>
       <translation>Mostrar el panel completo de la cola</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="44"></location>
+      <source>Show advanced inputs</source>
+      <translation>Mostrar entradas avanzadas</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_expander_surfaces.py" line="339"></location>
@@ -7592,7 +7607,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Trabajando...</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="80"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="93"></location>
       <source>Would you like Substitute to close ComfyUI and continue?</source>
       <translation>¿Quieres que Substitute cierre ComfyUI y continúe?</translation>
     </message>

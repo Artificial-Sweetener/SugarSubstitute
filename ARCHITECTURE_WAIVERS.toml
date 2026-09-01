@@ -513,10 +513,10 @@ owner = "editor node-card construction"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/node_card_builder.py"
 kind = "remediation"
-justification = "The assessed file mixes panel and buffer snapshot adaptation, node-card and field-row construction, icon, title, and link-endpoint presentation, input preset menu binding, collapsible card animation and layout registration, build timing and trace diagnostics. Extract title/icon composition and preset-menu binding from node-card and field-row assembly."
+justification = "The assessed file mixes node-card and field-row construction, icon, title, and link-endpoint presentation, prompt and standard input-field routing, collapsible card animation and layout registration, and build timing diagnostics. Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
-max_lines = 1422
+max_lines = 1391
 next_limit = 1137
 debt = "SS-ARCH-045"
 

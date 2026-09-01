@@ -615,7 +615,7 @@ Prompt preview:
       <translation>无法应用计划更改</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="65"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="62"></location>
       <source>Apply preset</source>
       <translation>应用预设</translation>
     </message>
@@ -1420,7 +1420,7 @@ Prompt preview:
       <translation>继续设置前请关闭 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="96"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="109"></location>
       <source>Close ComfyUI before starting Substitute</source>
       <translation>请先关闭 ComfyUI，再启动 Substitute</translation>
     </message>
@@ -1640,12 +1640,12 @@ Prompt preview:
       <translation>ComfyUI 文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="72"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="85"></location>
       <source>ComfyUI is already running</source>
       <translation>ComfyUI 已在运行</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="74"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="87"></location>
       <source>ComfyUI is already running on the default port 8188. Substitute needs to start and control ComfyUI itself to work correctly.</source>
       <translation>ComfyUI 已在默认端口 8188 上运行。为了正常工作，Substitute 需要自行启动并控制 ComfyUI。</translation>
     </message>
@@ -1675,7 +1675,7 @@ Prompt preview:
       <translation>ComfyUI 已就绪。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="98"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="111"></location>
       <source>ComfyUI is responding on the default port 8188, but Substitute could not verify its process safely. Close ComfyUI yourself, then start Substitute again.</source>
       <translation>ComfyUI 正在默认端口 8188 上响应，但 Substitute 无法安全验证其进程。请自行关闭 ComfyUI，然后重新启动 Substitute。</translation>
     </message>
@@ -3033,6 +3033,11 @@ Install these nodes now?</source>
       <translation>隐藏完整队列面板</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="45"></location>
+      <source>Hide advanced inputs</source>
+      <translation>隐藏高级输入</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
       <source>Hide full queue panel</source>
       <translation>隐藏完整队列面板</translation>
@@ -4006,6 +4011,11 @@ Install these nodes now?</source>
       <location filename="../substitute/application/errors.py" line="533"></location>
       <source>Node ID: %1</source>
       <translation>节点 ID：%1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="62"></location>
+      <source>Node actions</source>
+      <translation>节点操作</translation>
     </message>
     <message>
       <location filename="../substitute/application/errors.py" line="528"></location>
@@ -5177,7 +5187,7 @@ No known extension claimant.</source>
       <translation>运行 Sugar Substitute 启动画面。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="195"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="229"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>运行 SugarSubstitute 启动画面宿主。</translation>
     </message>
@@ -5247,7 +5257,7 @@ No known extension claimant.</source>
       <translation>保存</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="267"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="224"></location>
       <source>Save %1 preset</source>
       <translation>保存 %1 预设</translation>
     </message>
@@ -5272,7 +5282,7 @@ No known extension claimant.</source>
       <translation>保存更改</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="258"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="215"></location>
       <source>Save current %1 as preset...</source>
       <translation>将当前 %1 保存为预设...</translation>
     </message>
@@ -5620,6 +5630,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/shell/generation_queue_controller.py" line="95"></location>
       <source>Show Full Queue Panel</source>
       <translation>显示完整队列面板</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="44"></location>
+      <source>Show advanced inputs</source>
+      <translation>显示高级输入</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_expander_surfaces.py" line="339"></location>
@@ -7592,7 +7607,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>正在处理...</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="80"></location>
+      <location filename="../substitute/app/bootstrap/default_comfy_preflight.py" line="93"></location>
       <source>Would you like Substitute to close ComfyUI and continue?</source>
       <translation>是否让 Substitute 关闭 ComfyUI 并继续？</translation>
     </message>

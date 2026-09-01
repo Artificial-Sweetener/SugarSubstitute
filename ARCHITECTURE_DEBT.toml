@@ -612,18 +612,17 @@ next_extraction = "Extract pure dimension transforms and saved-dimension command
 id = "SS-ARCH-045"
 owner = "editor node-card construction"
 paths = ["substitute/presentation/editor/panel/node_card_builder.py"]
-fingerprint = "sha256:5a4a7e14da66219cde8ffb589863bb315e7023732653c8dd4ef17186e3e9595d"
+fingerprint = "sha256:06fb5413c5cd0dad59773bfc572ab7bd7234a79e4494e921b9a5b57df8c9ee45"
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
 responsibilities = [
-  "panel and buffer snapshot adaptation",
   "node-card and field-row construction",
   "icon, title, and link-endpoint presentation",
-  "input preset menu binding",
+  "prompt and standard input-field routing",
   "collapsible card animation and layout registration",
   "build timing and trace diagnostics",
 ]
-next_extraction = "Extract title/icon composition and preset-menu binding from node-card and field-row assembly."
+next_extraction = "Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
 
 [[debts]]
 id = "SS-ARCH-046"

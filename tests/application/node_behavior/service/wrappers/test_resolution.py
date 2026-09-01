@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from typing import cast
 
 from substitute.application.node_behavior.behavior_service import NodeBehaviorService
 from substitute.application.node_behavior import (
@@ -68,6 +69,34 @@ def test_behavior_snapshot_uses_subgraph_wrapper_virtual_definition() -> None:
     assert detailer_specs["steps"].meta_info["subgraph_wrapper"] is True
     assert detailer_specs["steps"].meta_info["subgraph_id"] == UUID_WRAPPER
     assert detailer_specs["steps"].label_source is FieldLabelSource.WRAPPER_AUTHORED
+
+
+def test_subgraph_wrapper_preserves_authoritative_advanced_input_metadata() -> None:
+    """Project an internal Comfy advanced marker onto its public wrapper field."""
+
+    live_definitions = _wrapper_live_definitions()
+    detailer_definition = cast(
+        dict[str, object],
+        live_definitions["DetailerForEach"],
+    )
+    input_definition = cast(dict[str, object], detailer_definition["input"])
+    required = cast(dict[str, object], input_definition["required"])
+    steps = cast(list[object], required["steps"])
+    steps_metadata = cast(dict[str, object], steps[1])
+    steps_metadata["advanced"] = True
+    cube = cube_state(
+        nodes=_wrapper_nodes(),
+        definitions=_wrapper_definitions(),
+        subgraphs=_wrapper_subgraphs(),
+    )
+
+    snapshot = build_behavior_snapshot(
+        cube_states={"A": cube},
+        stack_order=["A"],
+        definitions_by_class=live_definitions,
+    )
+
+    assert snapshot.field_specs_by_alias["A"]["detailer"]["steps"].is_advanced
 
 
 def test_behavior_snapshot_does_not_project_subgraph_body_nodes() -> None:
