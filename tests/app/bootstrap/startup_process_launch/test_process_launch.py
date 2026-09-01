@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -31,7 +32,11 @@ from substitute.app.bootstrap.startup_process_launch import (
     launch_command_working_directory,
     start_ready_app_process,
 )
-from sugarsubstitute_shared.windows_long_paths import subprocess_working_directory
+from sugarsubstitute_shared.crash_reporting.protocol import CleanExitOutcome
+from sugarsubstitute_shared.windows_long_paths import (
+    subprocess_path,
+    subprocess_working_directory,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -90,6 +95,7 @@ def test_start_ready_app_process_launches_with_hidden_stdio(
     entrypoint.parent.mkdir()
     entrypoint.write_text("print('ready')", encoding="utf-8")
     observed: dict[str, object] = {}
+    outcomes: list[CleanExitOutcome] = []
 
     def _fake_popen(command: Sequence[str], **kwargs: object) -> object:
         """Record one launch command without starting a process."""
@@ -106,10 +112,27 @@ def test_start_ready_app_process_launches_with_hidden_stdio(
         "substitute.app.bootstrap.startup_process_launch.subprocess.Popen",
         _fake_popen,
     )
+    monkeypatch.setattr(
+        "substitute.app.bootstrap.startup_process_launch.active_process_crash_runtime",
+        lambda: SimpleNamespace(request_clean_exit=outcomes.append),
+    )
 
-    assert start_ready_app_process([sys.executable, str(entrypoint), "--ready"]) is True
+    command = [
+        sys.executable,
+        str(entrypoint),
+        f"--install-root={tmp_path}",
+        "--ready",
+    ]
 
-    assert observed["command"] == [sys.executable, str(entrypoint), "--ready"]
+    assert start_ready_app_process(command) is True
+
+    assert observed["command"] == [
+        subprocess_path(Path(sys.executable)),
+        "-m",
+        "launcher.sugarsubstitute_launcher",
+        "--restart-application",
+        f"--install-root={subprocess_path(tmp_path.resolve())}",
+    ]
     kwargs = observed["kwargs"]
     assert isinstance(kwargs, dict)
     assert kwargs["cwd"] == subprocess_working_directory(entrypoint.parent)
@@ -117,6 +140,7 @@ def test_start_ready_app_process_launches_with_hidden_stdio(
     assert kwargs["stdout"] is subprocess.DEVNULL
     assert kwargs["stderr"] is subprocess.DEVNULL
     assert kwargs["close_fds"] is True
+    assert outcomes == [CleanExitOutcome.RESTART]
     if sys.platform == "win32":
         assert kwargs["creationflags"] == subprocess.CREATE_NO_WINDOW
         assert kwargs["startupinfo"] is not None

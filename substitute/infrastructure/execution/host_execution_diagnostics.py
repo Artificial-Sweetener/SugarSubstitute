@@ -22,6 +22,9 @@ import logging
 from collections.abc import Callable
 from threading import Condition, Lock, Thread
 
+from sugarsubstitute_shared.crash_reporting.runtime import (
+    report_active_execution_exception,
+)
 from substitute.infrastructure.execution.host_execution_model import (
     HostExecutionSnapshot,
 )
@@ -127,10 +130,12 @@ class HostExecutionDiagnostics:
             for observer in observers:
                 try:
                     observer(snapshot)
-                except Exception:
+                except Exception as error:
                     self._logger.exception(
                         "Host execution diagnostics observer failed."
                     )
+                    if report_active_execution_exception(error):
+                        return
 
     def _unsubscribe(self, observer_id: int) -> None:
         """Remove one observer without affecting other subscriptions."""

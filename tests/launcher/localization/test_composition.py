@@ -79,6 +79,10 @@ def test_launcher_runtime_installs_japanese_before_window_construction(
         QCoreApplication.translate("LauncherMainWindow", "SugarSubstitute Setup")
         == "SugarSubstitute セットアップ"
     )
+    assert (
+        QCoreApplication.translate("AppText", "Restart SugarSubstitute")
+        == "SugarSubstitute を再起動"
+    )
     assert QCoreApplication.translate("SwitchButton", "On") == "オン"
     runtime.manager.close()
 

@@ -950,8 +950,13 @@ class _SettingsModelMetadataProgressSink:
 
 def create_application(argv: Sequence[str]) -> QApplication:
     """Create and configure the QApplication instance."""
+
+    from substitute.app.bootstrap.crash_aware_application import (
+        CrashAwareApplication,
+    )
+
     configure_windows_app_user_model_id()
-    app = QApplication(list(argv))
+    app = CrashAwareApplication(list(argv))
     app.setWindowIcon(application_icon())
     try:
         app.setQuitOnLastWindowClosed(True)

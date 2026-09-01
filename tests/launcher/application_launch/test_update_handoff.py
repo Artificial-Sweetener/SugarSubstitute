@@ -93,6 +93,22 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
         calls.extend(["launch", *command])
         child_environments.append(dict(environment))
 
+    class _RecordingCrashSupervisor:
+        """Record a full-lifetime supervised launch without starting a process."""
+
+        def supervise(self, **kwargs: object) -> int:
+            """Record the command and release launcher serialization after spawn."""
+
+            command = kwargs["command"]
+            environment = kwargs["environment"]
+            assert isinstance(command, Sequence)
+            assert isinstance(environment, Mapping)
+            record_app_start(command, environment=environment)
+            on_started = kwargs.get("on_started")
+            if callable(on_started):
+                on_started(SimpleNamespace(pid=42))
+            return 0
+
     class _FakeUpdateOrchestrator:
         """Record pre-launch update orchestration."""
 
@@ -142,8 +158,8 @@ def test_launcher_main_runs_pre_launch_update_before_app_handoff(
     )
     monkeypatch.setattr(
         installed_app_handoff,
-        "start_detached",
-        record_app_start,
+        "ApplicationCrashSupervisor",
+        _RecordingCrashSupervisor,
     )
     monkeypatch.setattr(
         InstalledApplicationLaunchSession,
@@ -318,8 +334,8 @@ def test_launcher_main_hands_off_pending_launcher_update_instead_of_app(
     )
     monkeypatch.setattr(
         installed_app_handoff,
-        "start_detached",
-        lambda _command: pytest.fail("The old launcher must not start the app."),
+        "ApplicationCrashSupervisor",
+        lambda: pytest.fail("The old launcher must not supervise the app."),
     )
 
     assert launcher_app.main([]) == 0

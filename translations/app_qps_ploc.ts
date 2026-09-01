@@ -4002,6 +4002,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rëstàrt CömfyÜÏ mànüàlly ···⟧</translation>
     </message>
     <message>
+      <source>Restart SugarSubstitute</source>
+      <translation>⟦Rëstàrt SügàrSübstïtütë ···⟧</translation>
+    </message>
+    <message>
       <source>Restart is available for this Comfy server.</source>
       <translation>⟦Rëstàrt ïs àvàïlàblë för thïs Cömfy sërvër. ···⟧</translation>
     </message>
@@ -4152,6 +4156,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Runtime and system information</source>
       <translation>⟦Rüntïmë ànd systëm ïnförmàtïön ···⟧</translation>
+    </message>
+    <message>
+      <source>Runtime context</source>
+      <translation>⟦Rüntïmë cöntëxt ···⟧</translation>
     </message>
     <message>
       <source>Runtime root: %1</source>
@@ -4572,6 +4580,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Some saved runtime paths no longer line up with this installation.</source>
       <translation>⟦Sömë sàvëd rüntïmë pàths nö löngër lïnë üp wïth thïs ïnstàllàtïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>Something unexpected stopped SugarSubstitute. You can copy this report and share it with the maintainers.</source>
+      <translation>⟦Sömëthïng ünëxpëctëd stöppëd SügàrSübstïtütë. Yöü càn cöpy thïs rëpört ànd shàrë ït wïth thë màïntàïnërs. ···⟧</translation>
     </message>
     <message>
       <source>Source: %1</source>
@@ -5086,6 +5098,14 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦SügàrSübstïtütë ···⟧</translation>
     </message>
     <message>
+      <source>SugarSubstitute crashed</source>
+      <translation>⟦SügàrSübstïtütë cràshëd ···⟧</translation>
+    </message>
+    <message>
+      <source>SugarSubstitute did not close normally</source>
+      <translation>⟦SügàrSübstïtütë dïd nöt clösë nörmàlly ···⟧</translation>
+    </message>
+    <message>
       <source>SugarSubstitute is free software, shared in the spirit of collaboration, curiosity, and user freedom.
 
 The GNU General Public License version 3 protects your right to use the program for any purpose, study how it works, change it, and share copies with others. It also protects those same freedoms for the people who receive modified versions, so improvements can keep flowing back into the community instead of being locked away.
@@ -5362,6 +5382,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>The operating-system credential store rejected the key.</source>
       <translation>⟦Thë öpëràtïng-systëm crëdëntïàl störë rëjëctëd thë këy. ···⟧</translation>
+    </message>
+    <message>
+      <source>The previous SugarSubstitute session ended without completing shutdown. The report below may help determine why.</source>
+      <translation>⟦Thë prëvïöüs SügàrSübstïtütë sëssïön ëndëd wïthöüt cömplëtïng shütdöwn. Thë rëpört bëlöw mày hëlp dëtërmïnë why. ···⟧</translation>
     </message>
     <message>
       <source>The previous setup attempt failed before it could be committed.</source>

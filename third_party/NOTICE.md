@@ -38,3 +38,10 @@ Native 7-Zip command-line binaries are distributed through the `7zip-bin`
 package and bundled for responsive standalone-environment extraction. 7-Zip is
 Copyright (C) Igor Pavlov and is distributed under its LGPL, BSD, and unRAR
 terms. The `7zip-bin` package wrapper is distributed under the MIT License.
+
+## Crashpad
+
+Crashpad is bundled as SugarSubstitute's native out-of-process crash capture
+runtime. Crashpad is Copyright The Crashpad Authors and distributed under the
+Apache License 2.0. Its linked mini_chromium, zlib, and getopt components retain
+their accompanying BSD, zlib, and public-domain notices.

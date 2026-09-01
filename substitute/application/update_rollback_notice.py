@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.issue_tracker import SUGARSUBSTITUTE_ISSUES_URL
 from sugarsubstitute_shared.update_rollback_report import UpdateRollbackReport
 
 from substitute._version import __version__
@@ -30,11 +31,6 @@ from substitute.application.errors import (
     ErrorReportKind,
     RuntimeReportContext,
     SubstituteOperationContext,
-)
-
-
-SUGARSUBSTITUTE_ISSUES_URL = (
-    "https://github.com/Artificial-Sweetener/SugarSubstitute/issues"
 )
 
 
