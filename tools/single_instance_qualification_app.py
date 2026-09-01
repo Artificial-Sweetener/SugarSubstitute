@@ -46,6 +46,7 @@ from sugarsubstitute_shared.launch_splash import (
 APPLICATION_CLAIM_DELAY_ENV = (
     "SUGAR_SUBSTITUTE_QUALIFICATION_APPLICATION_CLAIM_DELAY_SECONDS"
 )
+APPLICATION_PRECLAIM_MARKER_NAME = "qualification-application-preclaim.json"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -53,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
 
     arguments = sys.argv if argv is None else argv
     install_root = application_launch_install_root(arguments, app_root=Path.cwd())
-    _delay_application_claim()
+    _delay_application_claim(install_root)
     inherited_token = inherited_application_launch_token()
     guard = ApplicationLaunchGuard.enter(
         install_root,
@@ -131,12 +132,28 @@ def main(argv: list[str] | None = None) -> int:
         guard.release()
 
 
-def _delay_application_claim() -> None:
+def _delay_application_claim(install_root: Path) -> None:
     """Apply the explicit qualification-only launch-race delay."""
 
     delay = float(os.environ.pop(APPLICATION_CLAIM_DELAY_ENV, "0"))
-    if delay > 0:
+    if delay <= 0:
+        return
+    marker_path = application_preclaim_marker_path(install_root)
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
+    marker_path.write_text(
+        json.dumps({"pid": os.getpid()}, sort_keys=True),
+        encoding="utf-8",
+    )
+    try:
         time.sleep(delay)
+    finally:
+        marker_path.unlink(missing_ok=True)
+
+
+def application_preclaim_marker_path(install_root: Path) -> Path:
+    """Return the disposable marker for the delayed pre-claim phase."""
+
+    return install_root / "user" / APPLICATION_PRECLAIM_MARKER_NAME
 
 
 if __name__ == "__main__":
