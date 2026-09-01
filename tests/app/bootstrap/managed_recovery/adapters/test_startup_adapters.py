@@ -29,6 +29,8 @@ from substitute.application.backend_compatibility import (
 from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
 )
+from substitute.application.launch_activity import owned_nodepack_update_activity
+from substitute.domain.comfy_nodepacks import CoreNodepackId
 
 from .support import (
     _DisposedSplash,
@@ -59,12 +61,22 @@ def test_startup_recovery_adapters_use_live_splash_and_output_stream(
         process_pump_task_factory=cast(Any, _task_factory),
     )
 
-    adapters.append_recovery_message("Updating Substitute BackEnd before opening.")
+    adapters.start_recovery_activity(
+        owned_nodepack_update_activity(frozenset({CoreNodepackId.SUBSTITUTE_BACKEND}))
+    )
     splash_state[0] = second_splash
     adapters.emit_recovery_log("setup complete")
+    adapters.clear_recovery_activity()
 
-    assert first_splash.lines == ["Updating Substitute BackEnd before opening."]
+    assert first_splash.activities[0].initial_text == "Updating Substitute BackEnd"
+    assert first_splash.activities[0].long_wait_text == (
+        "Updating Substitute BackEnd is taking longer than usual"
+    )
+    assert first_splash.activities[0].extended_wait_text.startswith(
+        "Still updating Substitute BackEnd—"
+    )
     assert second_splash.lines == ["setup complete"]
+    assert second_splash.clear_activity_calls == 1
     assert output_stream.lines == ["setup complete"]
 
 
@@ -88,8 +100,10 @@ def test_create_managed_recovery_startup_adapters_returns_adapter(
     assert isinstance(
         adapters, managed_recovery_adapters.ManagedRecoveryStartupAdapters
     )
-    adapters.append_recovery_message("Recovering managed runtime.")
-    assert splash.lines == ["Recovering managed runtime."]
+    adapters.start_recovery_activity(
+        owned_nodepack_update_activity(frozenset({CoreNodepackId.SUGARCUBES}))
+    )
+    assert splash.activities[0].initial_text == "Updating SugarCubes"
 
 
 def test_startup_recovery_log_survives_disposed_splash(tmp_path: Path) -> None:

@@ -26,3 +26,9 @@ def test_splash_host_locale_argument_uses_shared_validation() -> None:
 
     assert _parse_args(["--locale=zh_CN"]).locale == "zh-Hans"
     assert _parse_args(["--locale=ja-JP"]).locale == "ja"
+
+
+def test_splash_host_has_no_slow_operation_lifetime_timeout_by_default() -> None:
+    """Production splash ownership should continue until completion or failure."""
+
+    assert _parse_args([]).maximum_lifetime_seconds == 0.0

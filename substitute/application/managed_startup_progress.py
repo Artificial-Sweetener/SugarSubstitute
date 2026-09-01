@@ -19,9 +19,15 @@
 from __future__ import annotations
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.launch_splash.activity import (
+    EXTENDED_ACTIVITY_SECONDS,
+    LONG_ACTIVITY_SECONDS,
+    SplashActivityStage,
+    splash_activity_stage,
+)
 
-LONG_STARTUP_SECONDS = 120.0
-POSSIBLE_STARTUP_ISSUE_SECONDS = 300.0
+LONG_STARTUP_SECONDS = LONG_ACTIVITY_SECONDS
+POSSIBLE_STARTUP_ISSUE_SECONDS = EXTENDED_ACTIVITY_SECONDS
 _ANIMATED_ELLIPSIS_FRAMES = (".", "..", "...")
 
 
@@ -32,14 +38,16 @@ def managed_startup_progress_text(
 ) -> ApplicationText:
     """Return concise localized progress copy for one startup age and frame."""
 
-    if elapsed_seconds >= POSSIBLE_STARTUP_ISSUE_SECONDS:
+    dots = _ANIMATED_ELLIPSIS_FRAMES[animation_frame % len(_ANIMATED_ELLIPSIS_FRAMES)]
+    stage = splash_activity_stage(elapsed_seconds)
+    if stage is SplashActivityStage.EXTENDED_WAIT:
         return app_text(
             "Still waiting—custom nodes, slow storage, or a startup issue may be "
-            "delaying ComfyUI."
+            "delaying ComfyUI%1",
+            dots,
         )
-    if elapsed_seconds >= LONG_STARTUP_SECONDS:
-        return app_text("ComfyUI is taking longer than usual…")
-    dots = _ANIMATED_ELLIPSIS_FRAMES[animation_frame % len(_ANIMATED_ELLIPSIS_FRAMES)]
+    if stage is SplashActivityStage.LONG_WAIT:
+        return app_text("ComfyUI is taking longer than usual%1", dots)
     return app_text("Waiting for ComfyUI to become ready%1", dots)
 
 

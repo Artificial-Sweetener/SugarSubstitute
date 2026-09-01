@@ -14,4 +14,28 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify launcher update-lock lifecycle."""
+"""Resolve immutable application launch context shared across process owners."""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from pathlib import Path
+
+
+def application_launch_install_root(
+    argv: Sequence[str],
+    *,
+    app_root: Path,
+) -> Path:
+    """Resolve the installation root before application bootstrap starts."""
+
+    prefix = "--install-root="
+    for raw_argument in argv:
+        if raw_argument.startswith(prefix):
+            raw_path = raw_argument[len(prefix) :].strip()
+            if raw_path:
+                return Path(raw_path).expanduser().resolve()
+    return app_root.resolve()
+
+
+__all__ = ["application_launch_install_root"]

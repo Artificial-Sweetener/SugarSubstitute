@@ -14,105 +14,52 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own installed-application launch authority for shortcut invocations."""
+"""Own installed-application election and supervised child authorization."""
 
 from __future__ import annotations
 
-from typing import Self
+from collections.abc import Mapping, Sequence
+import os
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from sugarsubstitute_shared.application_instance_lease import ApplicationInstanceLease
-from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
-from sugarsubstitute_shared.application_launch_guard import (
-    recover_unleased_application_launch,
-)
+from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
+from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
 from sugarsubstitute_shared.application_runtime_mode import (
     packaged_application_environment,
 )
-from sugarsubstitute_shared.launcher_invocation_lease import LauncherInvocationLease
 from sugarsubstitute_shared.startup_remote_access import StartupRemoteAccess
 
 
-class InstalledApplicationLaunchSession:
-    """Serialize one launcher transaction and classify application ownership."""
-
-    def __init__(
-        self,
-        layout: InstallLayout,
-        invocation_lease: LauncherInvocationLease,
-    ) -> None:
-        """Retain exclusive launcher ownership until handoff work finishes."""
-
-        self._layout = layout
-        self._invocation_lease: LauncherInvocationLease | None = invocation_lease
-
-    @classmethod
-    def begin(cls, layout: InstallLayout) -> Self | None:
-        """Return one launcher session or reject a concurrent launcher silently."""
-
-        invocation_lease = LauncherInvocationLease.acquire(layout.root)
-        if invocation_lease is None:
-            return None
-        return cls(layout, invocation_lease)
-
-    def claim_application(self) -> ApplicationLaunchGuard | None:
-        """Claim app handoff or report that a real application owns its lease."""
-
-        guard = _claim_installed_application_launch(self._layout)
-        if guard is not None or ApplicationInstanceLease.owner_exists(
-            self._layout.root
-        ):
-            return guard
-        recover_unleased_application_launch(self._layout.root)
-        return _claim_installed_application_launch(self._layout)
-
-    def release(self) -> None:
-        """Release launcher serialization without changing application ownership."""
-
-        invocation_lease = self._invocation_lease
-        if invocation_lease is None:
-            return
-        self._invocation_lease = None
-        invocation_lease.release()
-
-
-def begin_installed_application_launch(
+def elect_installed_application(
     layout: InstallLayout,
-) -> InstalledApplicationLaunchSession | None:
-    """Begin one launcher transaction before any splash or dialog construction."""
+    arguments: Sequence[str],
+) -> ApplicationInstanceBroker | None:
+    """Become the installation supervisor or forward this launch and exit."""
 
-    return InstalledApplicationLaunchSession.begin(layout)
-
-
-def _claim_installed_application_launch(
-    layout: InstallLayout,
-) -> ApplicationLaunchGuard | None:
-    """Claim one application handoff within an exclusive launcher transaction."""
-
-    return ApplicationLaunchGuard.enter(
-        layout.root,
-        allow_initial_handoff=True,
-        acquire_instance_lease=False,
+    return ApplicationInstanceBroker.elect(
+        install_root=layout.root,
+        invocation=ApplicationInvocation.capture(arguments),
     )
 
 
 def installed_application_environment(
-    launch_guard: ApplicationLaunchGuard,
+    broker: ApplicationInstanceBroker,
     *,
     remote_failure_reason: str | None,
+    environment: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
-    """Build one app-child environment with the launcher's remote outcome."""
+    """Build one authenticated app-child environment owned by the supervisor."""
 
     remote_access = StartupRemoteAccess()
     if remote_failure_reason is not None:
         remote_access.degrade(reason=remote_failure_reason)
-    return packaged_application_environment(
-        remote_access.child_environment(launch_guard.initial_handoff_environment())
+    remote_environment = remote_access.child_environment(environment or os.environ)
+    return broker.child_environment(
+        packaged_application_environment(remote_environment)
     )
 
 
 __all__ = [
-    "InstalledApplicationLaunchSession",
-    "begin_installed_application_launch",
+    "elect_installed_application",
     "installed_application_environment",
 ]

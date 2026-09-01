@@ -22,6 +22,7 @@ from .behavior_service import (
     NodeBehaviorRuntimeState,
     NodeBehaviorService,
 )
+from .advanced_input_state import AdvancedInputStateService
 from .field_classification import NodeFieldKind, classify_node_field
 from .list_value_resolver import (
     ChoiceAvailability,
@@ -112,6 +113,7 @@ __all__ = [
     "ActivationDefault",
     "ActivationSwitchRole",
     "ActivationSwitchSource",
+    "AdvancedInputStateService",
     "CardBehavior",
     "CardBehaviorPatch",
     "CardDecision",

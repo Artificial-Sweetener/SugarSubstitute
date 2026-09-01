@@ -26,12 +26,11 @@ from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from launcher.sugarsubstitute_launcher.cli import LauncherArguments
-    from launcher.sugarsubstitute_launcher.application_launch import (
-        InstalledApplicationLaunchSession,
-    )
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
     from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupPlan
-    from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
+    from sugarsubstitute_shared.application_instance_broker import (
+        ApplicationInstanceBroker,
+    )
 
 
 LauncherMainWindow: Callable[..., Any] | None = None
@@ -42,7 +41,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     from launcher.sugarsubstitute_launcher.cli import parse_launcher_args
 
-    args = parse_launcher_args(sys.argv[1:] if argv is None else argv)
+    process_arguments = tuple(sys.argv if argv is None else [sys.argv[0], *argv])
+    args = parse_launcher_args(process_arguments[1:])
     if args.verify_release_connectivity:
         from launcher.sugarsubstitute_launcher.headless_operations import (
             verify_release_connectivity,
@@ -62,21 +62,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     crash_operation_result = route_explicit_crash_operation(args)
     if crash_operation_result is not None:
         return crash_operation_result
-    if args.negotiate_active_application:
-        from launcher.sugarsubstitute_launcher.active_instance_dialog import (
-            negotiate_active_application,
-        )
-        from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-
-        if args.install_root is None:
-            raise RuntimeError("Active-instance child requires an install root.")
-        return int(
-            not negotiate_active_application(
-                layout=InstallLayout.from_root(args.install_root),
-                locale_override=args.locale_override,
-            )
-        )
-
     from launcher.sugarsubstitute_launcher.startup_plan import (
         resolve_startup_candidate,
         should_attempt_installed_app_launch,
@@ -117,36 +102,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     app_launch_error: Exception | None = None
-    launch_guard: ApplicationLaunchGuard | None = None
-    launch_session: InstalledApplicationLaunchSession | None = None
+    broker: ApplicationInstanceBroker | None = None
     startup_plan: LauncherStartupPlan | None = None
     if not args.launcher_ui_child and should_attempt_installed_app_launch(
         args=args,
         candidate=startup_candidate,
     ):
         from launcher.sugarsubstitute_launcher.application_launch import (
-            begin_installed_application_launch,
+            elect_installed_application,
         )
 
-        launch_session = begin_installed_application_launch(layout)
-        if launch_session is None:
+        broker = elect_installed_application(layout, process_arguments)
+        if broker is None:
             return 0
-        launch_guard = launch_session.claim_application()
-        if launch_guard is None:
-            from launcher.sugarsubstitute_launcher.launcher_ui_supervision import (
-                supervise_active_application_dialog,
-            )
-
-            if not supervise_active_application_dialog(
-                layout=layout,
-                locale_override=args.locale_override,
-            ):
-                launch_session.release()
-                return 0
-            launch_guard = launch_session.claim_application()
-            if launch_guard is None:
-                launch_session.release()
-                return 0
         from launcher.sugarsubstitute_launcher.splash_session import (
             start_launcher_splash_session,
         )
@@ -173,14 +141,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             complete_installed_app_handoff(
                 layout=layout,
-                launch_guard=launch_guard,
+                broker=broker,
                 locale_argument=locale_argument,
                 no_update_check=args.no_update_check,
                 splash_session=splash_session,
-                launch_session=launch_session,
                 handoff_geometry=args.handoff_geometry,
             )
-            launch_session.release()
+            broker.close()
+            broker = None
             return 0
         except Exception as error:
             app_launch_error = error
@@ -232,13 +200,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 repair=repair,
             )
         finally:
-            _release_launch_ownership(launch_guard, launch_session)
+            _release_launch_ownership(broker)
     return _run_launcher_window(
         args=args,
         startup_plan=startup_plan,
         app_launch_error=app_launch_error,
-        launch_guard=launch_guard,
-        launch_session=launch_session,
+        broker=broker,
     )
 
 
@@ -275,8 +242,7 @@ def _run_launcher_window(
     args: LauncherArguments,
     startup_plan: LauncherStartupPlan,
     app_launch_error: Exception | None,
-    launch_guard: ApplicationLaunchGuard | None,
-    launch_session: InstalledApplicationLaunchSession | None,
+    broker: ApplicationInstanceBroker | None,
 ) -> int:
     """Show setup or repair UI after installed launch routing is complete."""
 
@@ -337,7 +303,7 @@ def _run_launcher_window(
             return int(application.exec())
         return 0
     finally:
-        _release_launch_ownership(launch_guard, launch_session)
+        _release_launch_ownership(broker)
 
 
 def _launcher_main_window_class() -> Callable[..., Any]:
@@ -354,15 +320,12 @@ def _launcher_main_window_class() -> Callable[..., Any]:
 
 
 def _release_launch_ownership(
-    launch_guard: ApplicationLaunchGuard | None,
-    launch_session: InstalledApplicationLaunchSession | None,
+    broker: ApplicationInstanceBroker | None,
 ) -> None:
     """Release parent launcher ownership after child UI reaches terminal state."""
 
-    if launch_guard is not None:
-        launch_guard.release()
-    if launch_session is not None:
-        launch_session.release()
+    if broker is not None:
+        broker.close()
 
 
 def _record_qualification_startup_route(

@@ -27,7 +27,6 @@ import pytest
 from launcher.sugarsubstitute_launcher.cli import parse_launcher_args
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.launcher_ui_supervision import (
-    supervise_active_application_dialog,
     supervise_launcher_window,
 )
 
@@ -93,28 +92,3 @@ def test_setup_window_relaunches_as_supervised_source_child(
     assert "--handoff-geometry=10,20,1200,800" in command
     assert "--manifest-url=https://example.invalid/manifest.json" in command
     assert "--locale=ja" in command
-
-
-@pytest.mark.parametrize(("result", "accepted"), [(0, True), (1, False)])
-def test_active_instance_dialog_result_returns_through_supervisor(
-    tmp_path: Path,
-    result: int,
-    accepted: bool,
-) -> None:
-    """Duplicate-instance decisions must retain their clean child exit meaning."""
-
-    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
-    supervisor = RecordingSupervisor(result=result)
-
-    assert (
-        supervise_active_application_dialog(
-            layout=layout,
-            locale_override="es",
-            supervisor=supervisor,
-        )
-        is accepted
-    )
-    _layout, command, _environment = supervisor.calls[0]
-    assert "--negotiate-active-application" in command
-    assert f"--install-root={layout.root}" in command
-    assert "--locale=es" in command

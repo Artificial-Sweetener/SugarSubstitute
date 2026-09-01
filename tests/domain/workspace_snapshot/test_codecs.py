@@ -64,6 +64,30 @@ def test_workflow_state_codec_round_trips_cube_version_identity() -> None:
     assert restored.cubes["Demo"].bypassed is True
 
 
+def test_workflow_state_codec_round_trips_advanced_input_disclosure() -> None:
+    """Workspace restoration should retain per-node advanced disclosure state."""
+
+    state = WorkflowState(
+        cubes={
+            "Demo": CubeState(
+                cube_id="owner/repo/demo.cube",
+                version="1.7.0",
+                alias="Demo",
+                original_cube={"nodes": {}},
+                buffer={"nodes": {}},
+                ui={"advanced_input_visibility": {"sampler": True}},
+            )
+        },
+        stack_order=["Demo"],
+    )
+
+    restored = workflow_state_from_json(workflow_state_to_json(state))
+
+    restored_ui = restored.cubes["Demo"].ui
+    assert restored_ui is not None
+    assert restored_ui["advanced_input_visibility"] == {"sampler": True}
+
+
 def test_workflow_state_codec_defaults_missing_bypassed_to_false() -> None:
     """Older workflow snapshots should restore cubes as active by default."""
 

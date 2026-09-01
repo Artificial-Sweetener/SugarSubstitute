@@ -22,7 +22,6 @@ import os
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.application_launch import (
-    InstalledApplicationLaunchSession,
     installed_application_environment,
 )
 from launcher.sugarsubstitute_launcher.candidate_update_launch import (
@@ -45,7 +44,9 @@ from launcher.sugarsubstitute_launcher.splash_session import (
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
-from sugarsubstitute_shared.application_launch_guard import ApplicationLaunchGuard
+from sugarsubstitute_shared.application_instance_broker import (
+    ApplicationInstanceBroker,
+)
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
 
 
@@ -55,11 +56,10 @@ _PRE_LAUNCH_MANIFEST_TIMEOUT_SECONDS = 3.0
 def complete_installed_app_handoff(
     *,
     layout: InstallLayout,
-    launch_guard: ApplicationLaunchGuard,
+    broker: ApplicationInstanceBroker,
     locale_argument: str,
     no_update_check: bool,
     splash_session: LauncherSplashSession | None,
-    launch_session: InstalledApplicationLaunchSession,
     handoff_geometry: str | None,
 ) -> None:
     """Run update policy and start the installed app behind its visible splash."""
@@ -102,19 +102,67 @@ def complete_installed_app_handoff(
             layout=layout,
             command=app_command,
             attempted_version=attempted_version,
-            initial_guard=launch_guard,
+            environment=installed_application_environment(
+                broker,
+                remote_failure_reason=update_result.failure_reason,
+            ),
             activation=update_result.pending_activation,
-            fallback_guard_factory=lambda _layout: launch_session.claim_application(),
+        )
+        _supervise_requested_restarts(
+            broker=broker,
+            layout=layout,
+            command=app_command,
+            remote_failure_reason=update_result.failure_reason,
         )
         return
-    ApplicationCrashSupervisor().supervise(
+    _supervise_application(
+        broker=broker,
         layout=layout,
         command=app_command,
-        environment=installed_application_environment(
-            launch_guard,
-            remote_failure_reason=update_result.failure_reason,
-        ),
-        on_started=lambda _process: launch_session.release(),
+        remote_failure_reason=update_result.failure_reason,
+    )
+
+
+def _supervise_application(
+    *,
+    broker: ApplicationInstanceBroker,
+    layout: InstallLayout,
+    command: list[str],
+    remote_failure_reason: str | None,
+) -> None:
+    """Supervise the initial child and every broker-authorized restart."""
+
+    supervisor = ApplicationCrashSupervisor()
+    environment = installed_application_environment(
+        broker,
+        remote_failure_reason=remote_failure_reason,
+    )
+    while True:
+        supervisor.supervise(
+            layout=layout,
+            command=command,
+            environment=environment,
+        )
+        if not broker.consume_restart_request():
+            return
+
+
+def _supervise_requested_restarts(
+    *,
+    broker: ApplicationInstanceBroker,
+    layout: InstallLayout,
+    command: list[str],
+    remote_failure_reason: str | None,
+) -> None:
+    """Continue supervision when an update candidate requested a restart."""
+
+    if not broker.consume_restart_request():
+        return
+    _supervise_application(
+        broker=broker,
+        layout=layout,
+        command=command,
+        remote_failure_reason=remote_failure_reason,
     )
 
 

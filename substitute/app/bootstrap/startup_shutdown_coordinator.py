@@ -100,11 +100,6 @@ def create_startup_shutdown_request_ports(
         **cast(Any, coordinator_kwargs),
     )
     request_shell_shutdown = shell_shutdown_request(coordinator)
-    from substitute.app.bootstrap.application_instance_control import (
-        bind_application_instance_shutdown_request,
-    )
-
-    bind_application_instance_shutdown_request(request_shell_shutdown)
     return StartupShutdownRequestPorts(request_shell_shutdown=request_shell_shutdown)
 
 

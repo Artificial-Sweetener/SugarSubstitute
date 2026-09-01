@@ -18,10 +18,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+import time
 from typing import Protocol, cast
 
 from PySide6.QtCore import QEvent, QRect, Qt, Signal, Slot
 from PySide6.QtGui import (
+    QCloseEvent,
     QCursor,
     QFontMetrics,
     QGuiApplication,
@@ -47,6 +50,10 @@ from substitute.presentation.shell.window_frame import (
     ShellBackdropMode,
     apply_acrylic_effect,
 )
+from substitute.presentation.shell.splash_activity_presenter import (
+    SplashActivityPresenter,
+)
+from sugarsubstitute_shared.launch_splash.activity import SplashActivity
 from sugarsubstitute_shared.localization import app_text
 from sugarsubstitute_shared.presentation.localization import (
     LocalizationBindings,
@@ -98,6 +105,8 @@ class SplashWindow(AcrylicWindow):
     """
 
     logRequested = Signal(str)
+    activityRequested = Signal(object)
+    activityClearRequested = Signal()
     cancelRequested = Signal()
 
     def __init__(
@@ -106,6 +115,7 @@ class SplashWindow(AcrylicWindow):
         parent: QWidget | None = None,
         *,
         backdrop_mode: ShellBackdropMode | None = ShellBackdropMode.MICA,
+        activity_clock: Callable[[], float] = time.monotonic,
     ):
         """Build the splash window with one shared terminal output surface."""
 
@@ -137,6 +147,11 @@ class SplashWindow(AcrylicWindow):
         container.setObjectName("SplashFixedLayoutContainer")
 
         self._log_stream = TerminalOutputStream(max_lines=2000)
+        self._activity_presenter = SplashActivityPresenter(
+            stream=self._log_stream,
+            parent=self,
+            clock=activity_clock,
+        )
         visual = self._build_splash_visual(icon, container)
         self._visual = visual
         self._terminal_section = QWidget(container)
@@ -167,6 +182,8 @@ class SplashWindow(AcrylicWindow):
         )
 
         self.logRequested.connect(self._do_append_log)
+        self.activityRequested.connect(self._do_start_activity)
+        self.activityClearRequested.connect(self._activity_presenter.clear)
 
         container.installEventFilter(self)
         visual.installEventFilter(self)
@@ -190,6 +207,16 @@ class SplashWindow(AcrylicWindow):
             return
         self.logRequested.emit(line)
 
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Start one independently animated operation in the terminal tail."""
+
+        self.activityRequested.emit(activity)
+
+    def clear_activity(self) -> None:
+        """Stop the current activity and remove its transient terminal row."""
+
+        self.activityClearRequested.emit()
+
     @Slot(str)
     def _do_append_log(self, line: str) -> None:
         """Append one terminal record to the splash output stream."""
@@ -197,6 +224,21 @@ class SplashWindow(AcrylicWindow):
         if not line:
             return
         self._log_stream.append_line(line)
+        self._activity_presenter.restore_after_log(line)
+
+    @Slot(object)
+    def _do_start_activity(self, activity: object) -> None:
+        """Start a validated activity on the splash GUI thread."""
+
+        if not isinstance(activity, SplashActivity):
+            raise TypeError("SplashWindow expected a SplashActivity.")
+        self._activity_presenter.start(activity)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Stop activity scheduling before closing the splash window."""
+
+        self._activity_presenter.shutdown()
+        super().closeEvent(event)
 
     def resizeEvent(self, event: object) -> None:
         """Keep the splash content pinned close to the window edges."""

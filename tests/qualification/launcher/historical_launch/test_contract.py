@@ -96,7 +96,7 @@ def test_historical_shell_requires_ordered_trace_and_live_handoff_process(
         ),
         encoding="utf-8",
     )
-    lock_path = layout.locks_dir / "application-launch.lock"
+    lock_path = layout.launcher_dir / "locks" / "application-launch.lock"
     lock_path.parent.mkdir(parents=True)
     lock_path.write_text(
         json.dumps(
@@ -144,7 +144,7 @@ def test_historical_shell_rejects_trace_without_live_app_owner(
         ),
         encoding="utf-8",
     )
-    lock_path = layout.locks_dir / "application-launch.lock"
+    lock_path = layout.launcher_dir / "locks" / "application-launch.lock"
     lock_path.parent.mkdir(parents=True)
     lock_path.write_text(json.dumps({"pid": 456}), encoding="utf-8")
     monkeypatch.setattr(

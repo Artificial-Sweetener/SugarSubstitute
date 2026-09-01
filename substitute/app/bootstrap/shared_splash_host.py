@@ -155,6 +155,13 @@ def _handle_session_message(
         splash.close()
         app.quit()
         return
+    if message.message_type == "activity":
+        if message.activity is not None:
+            splash.start_activity(message.activity)
+        return
+    if message.message_type == "clear_activity":
+        splash.clear_activity()
+        return
     if message.line:
         splash.append_log(message.line)
 
@@ -231,7 +238,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--theme-mode", type=str, required=False)
     parser.add_argument("--accent-color", type=str, required=False)
     parser.add_argument("--backdrop-mode", type=str, required=False)
-    parser.add_argument("--maximum-lifetime-seconds", type=float, default=1800.0)
+    parser.add_argument("--maximum-lifetime-seconds", type=float, default=0.0)
     parser.add_argument("--locale", type=parse_locale_override, default="en")
     return parser.parse_args(argv)
 

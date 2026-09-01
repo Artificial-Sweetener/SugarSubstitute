@@ -14,121 +14,169 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Serve graceful shutdown requests from duplicate application invocations."""
+"""Receive supervisor-owned activation and restart control in the Qt process."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
-from typing import cast
+import sys
+from typing import Protocol
 
-from PySide6.QtCore import QObject
-from PySide6.QtNetwork import QLocalServer, QLocalSocket
+from PySide6.QtCore import QCoreApplication, QObject, Qt, Signal
+from PySide6.QtWidgets import QApplication, QWidget
 
-from sugarsubstitute_shared.application_instance_control import (
-    application_instance_control_name,
+from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
+from sugarsubstitute_shared.application_supervisor_client import (
+    ApplicationSupervisorClient,
 )
 
 
-ShutdownRequest = Callable[[object | None], None]
-_ACTIVE_SERVER: ApplicationInstanceControlServer | None = None
+_ACTIVE_CLIENT: ApplicationInstanceControlClient | None = None
 
 
-class ApplicationInstanceControlServer(QObject):
-    """Own the per-instance local server and forward authenticated local actions."""
+class ApplicationSupervisorControl(Protocol):
+    """Expose the supervisor operations consumed by the Qt application bridge."""
 
-    def __init__(self, install_root: Path) -> None:
-        """Start a user-only server for one installation identity."""
+    def bind_invocation_handler(
+        self,
+        handler: Callable[[ApplicationInvocation], None],
+    ) -> None:
+        """Bind the application invocation receiver."""
 
-        super().__init__()
-        self._shutdown_request: ShutdownRequest | None = None
-        self._shutdown_pending = False
-        self._server = QLocalServer(self)
-        self._server.setSocketOptions(QLocalServer.SocketOption.UserAccessOption)
-        self._server.newConnection.connect(self._accept_connections)
-        server_name = application_instance_control_name(install_root)
-        if not self._server.listen(server_name):
-            QLocalServer.removeServer(server_name)
-            if not self._server.listen(server_name):
-                raise RuntimeError(
-                    f"Application instance control server could not listen: {server_name}"
-                )
+    def bind_disconnect_handler(self, handler: Callable[[], None]) -> None:
+        """Bind the supervisor-loss receiver."""
 
-    def bind_shutdown_request(self, request: ShutdownRequest) -> None:
-        """Bind coordinated shutdown and replay one request received during startup."""
-
-        self._shutdown_request = request
-        if self._shutdown_pending:
-            self._shutdown_pending = False
-            request(None)
+    def request_restart(self) -> bool:
+        """Request one supervisor-owned child restart."""
 
     def close(self) -> None:
-        """Stop accepting application-instance control requests."""
+        """Release the child control channel."""
 
-        self._server.close()
 
-    def _accept_connections(self) -> None:
-        """Attach request parsing to every pending local connection."""
+class ApplicationInstanceControlClient(QObject):
+    """Bridge the private supervisor channel into the Qt application thread."""
 
-        while self._server.hasPendingConnections():
-            socket = self._server.nextPendingConnection()
-            if socket is None:
-                continue
-            socket.readyRead.connect(lambda active=socket: self._handle_request(active))
-            if socket.bytesAvailable():
-                self._handle_request(socket)
+    invocation_received = Signal(object)
+    supervisor_disconnected = Signal()
 
-    def _handle_request(self, socket: QLocalSocket) -> None:
-        """Acknowledge one valid request before scheduling coordinated shutdown."""
+    def __init__(
+        self,
+        client: ApplicationSupervisorControl,
+        *,
+        invocation_observer: Callable[[ApplicationInvocation], None] | None = None,
+    ) -> None:
+        """Bind one authenticated client before application startup continues."""
 
-        if not socket.canReadLine():
+        super().__init__()
+        self._client = client
+        self.invocation_received.connect(
+            self._activate_for_invocation,
+            Qt.ConnectionType.QueuedConnection,
+        )
+        if invocation_observer is not None:
+            self.invocation_received.connect(
+                invocation_observer,
+                Qt.ConnectionType.QueuedConnection,
+            )
+        self.supervisor_disconnected.connect(
+            self._quit_after_supervisor_disconnect,
+            Qt.ConnectionType.QueuedConnection,
+        )
+        client.bind_invocation_handler(self.invocation_received.emit)
+        client.bind_disconnect_handler(self.supervisor_disconnected.emit)
+
+    def request_restart(self) -> bool:
+        """Ask the existing launcher supervisor to own the next application run."""
+
+        return self._client.request_restart()
+
+    def close(self) -> None:
+        """Disconnect the private child channel."""
+
+        self._client.close()
+
+    def _activate_for_invocation(self, invocation: object) -> None:
+        """Bring the current shell forward for one validated launch request."""
+
+        if not isinstance(invocation, ApplicationInvocation):
             return
-        request = cast(bytes, socket.readLine().data()).strip()
-        if request != b"shutdown":
-            socket.write(b"rejected\n")
-            socket.flush()
+        window = _activation_window()
+        if window is None:
             return
-        socket.write(b"accepted\n")
-        socket.flush()
-        socket.waitForBytesWritten(1000)
-        if self._shutdown_request is None:
-            self._shutdown_pending = True
-            return
-        self._shutdown_request(None)
+        if window.isMinimized():
+            window.showNormal()
+        elif not window.isVisible():
+            window.show()
+        window.raise_()
+        window.activateWindow()
+        if sys.platform == "darwin":
+            from sugarsubstitute_shared.application_instance_macos import (
+                activate_current_macos_application,
+            )
+
+            activate_current_macos_application()
+        if not window.isActiveWindow():
+            QApplication.alert(window, 0)
+
+    def _quit_after_supervisor_disconnect(self) -> None:
+        """Exit before another supervisor can launch a competing child."""
+
+        application = QCoreApplication.instance()
+        if application is not None:
+            application.quit()
 
 
 def start_application_instance_control(
-    install_root: Path,
-) -> ApplicationInstanceControlServer:
-    """Start and retain the active application's local control server."""
+    *,
+    invocation_observer: Callable[[ApplicationInvocation], None] | None = None,
+) -> ApplicationInstanceControlClient | None:
+    """Connect this supervised child to its launcher-owned instance broker."""
 
-    global _ACTIVE_SERVER
+    global _ACTIVE_CLIENT
     stop_application_instance_control()
-    server = ApplicationInstanceControlServer(install_root)
-    _ACTIVE_SERVER = server
-    return server
+    client = ApplicationSupervisorClient.connect_from_environment()
+    if client is None:
+        return None
+    control = ApplicationInstanceControlClient(
+        client,
+        invocation_observer=invocation_observer,
+    )
+    _ACTIVE_CLIENT = control
+    return control
 
 
-def bind_application_instance_shutdown_request(request: ShutdownRequest) -> None:
-    """Bind the active control server to the composed shutdown coordinator."""
+def request_supervised_application_restart() -> bool:
+    """Request restart from the long-lived supervisor when one is connected."""
 
-    if _ACTIVE_SERVER is not None:
-        _ACTIVE_SERVER.bind_shutdown_request(request)
+    client = _ACTIVE_CLIENT
+    return client is not None and client.request_restart()
 
 
 def stop_application_instance_control() -> None:
-    """Stop and release the active local control server idempotently."""
+    """Stop and release the supervised child channel idempotently."""
 
-    global _ACTIVE_SERVER
-    server = _ACTIVE_SERVER
-    _ACTIVE_SERVER = None
-    if server is not None:
-        server.close()
+    global _ACTIVE_CLIENT
+    client = _ACTIVE_CLIENT
+    _ACTIVE_CLIENT = None
+    if client is not None:
+        client.close()
+
+
+def _activation_window() -> QWidget | None:
+    """Return the best visible top-level application window."""
+
+    active = QApplication.activeWindow()
+    if active is not None:
+        return active
+    visible = [
+        window for window in QApplication.topLevelWidgets() if window.isVisible()
+    ]
+    return visible[-1] if visible else None
 
 
 __all__ = [
-    "ApplicationInstanceControlServer",
-    "bind_application_instance_shutdown_request",
+    "ApplicationInstanceControlClient",
+    "request_supervised_application_restart",
     "start_application_instance_control",
     "stop_application_instance_control",
 ]

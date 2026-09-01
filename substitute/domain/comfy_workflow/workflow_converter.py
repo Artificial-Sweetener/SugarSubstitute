@@ -296,6 +296,8 @@ class _ComfyWorkflowConversionSession:
             "outputs": _output_metadata(node.get("outputs")),
             "execution_role": WorkflowNodeExecutionRole.EXECUTABLE.value,
         }
+        if type(node.get("showAdvanced")) is bool:
+            workflow_metadata["show_advanced_inputs"] = node["showAdvanced"]
         editor_definition = editor_definition_from_comfy_definition(
             node_definition,
             widget_values,

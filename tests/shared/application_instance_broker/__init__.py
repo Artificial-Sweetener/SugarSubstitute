@@ -14,4 +14,4 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Qualify durable application-launch metadata persistence."""
+"""Verify fileless supervisor election and invocation routing."""

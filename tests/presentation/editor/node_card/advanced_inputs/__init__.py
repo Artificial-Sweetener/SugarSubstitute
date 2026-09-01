@@ -14,4 +14,4 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Test capability package for shared application launch ownership."""
+"""Cover node-card advanced-input disclosure behavior."""

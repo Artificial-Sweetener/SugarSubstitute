@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Bind node input preset actions to node-card title rows."""
+"""Build node input preset actions for node-card menus."""
 
 from __future__ import annotations
 
@@ -26,7 +26,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QWidget
 
 from substitute.application.display_labels import beautify_label
@@ -51,11 +50,9 @@ from substitute.presentation.widgets.menu_model import (
     LazyMenuSubmenu,
     MenuEntry,
     MenuItem,
-    MenuModel,
     MenuSection,
     MenuSeparator,
 )
-from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
 from substitute.shared.logging.logger import get_logger, log_warning
 from sugarsubstitute_shared.presentation.localization import (
     app_text,
@@ -80,48 +77,18 @@ class NodeInputPresetContext:
     input_widgets_by_field_key: Mapping[tuple[str, str, str], object]
 
 
-def bind_node_title_preset_actions(
+def node_input_preset_menu_entries(
     *,
-    title_row: QWidget,
+    menu_parent: QWidget,
     context: NodeInputPresetContext,
     preset_source: NodeInputPresetSource | None,
     dialog_parent: Callable[[], QWidget],
-    is_connection: Callable[[object], bool],
-    position_mapper: Callable[[QPoint], QPoint] | None = None,
-) -> None:
-    """Attach node preset context-menu actions to one title row."""
+    is_connection: Callable[[object], bool] | None,
+) -> tuple[MenuEntry, ...]:
+    """Return current preset actions for one node-card action menu."""
 
-    if preset_source is None:
-        return
-
-    def show_menu(position: QPoint) -> None:
-        """Show the node preset menu for this title row."""
-
-        _show_node_title_preset_menu(
-            title_row=title_row,
-            position=position,
-            context=context,
-            preset_source=preset_source,
-            dialog_parent=dialog_parent,
-            is_connection=is_connection,
-            position_mapper=position_mapper,
-        )
-
-    title_row.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-    title_row.customContextMenuRequested.connect(show_menu)
-
-
-def _show_node_title_preset_menu(
-    *,
-    title_row: QWidget,
-    position: QPoint,
-    context: NodeInputPresetContext,
-    preset_source: NodeInputPresetSource,
-    dialog_parent: Callable[[], QWidget],
-    is_connection: Callable[[object], bool],
-    position_mapper: Callable[[QPoint], QPoint] | None,
-) -> None:
-    """Build and show the node title preset context menu."""
+    if preset_source is None or is_connection is None:
+        return ()
 
     menu_model = preset_source.current_node_input_preset_menu_model(
         node_type=context.node_type
@@ -135,7 +102,7 @@ def _show_node_title_preset_menu(
     has_apply_actions = menu_model is not None and bool(menu_model.sections)
     has_save_action = bool(save_scopes and savable_inputs)
     if not has_apply_actions and not has_save_action:
-        return
+        return ()
 
     entries: list[MenuEntry] = []
     if has_apply_actions and menu_model is not None:
@@ -157,7 +124,7 @@ def _show_node_title_preset_menu(
             """Open the save dialog for current node inputs."""
 
             _save_current_node_inputs(
-                title_row=title_row,
+                title_row=menu_parent,
                 context=context,
                 preset_source=preset_source,
                 scopes=save_scopes,
@@ -172,17 +139,7 @@ def _show_node_title_preset_menu(
                 callback=save_current_inputs,
             )
         )
-    if not entries:
-        return
-    global_position = (
-        position_mapper(position)
-        if position_mapper is not None
-        else title_row.mapToGlobal(position)
-    )
-    menu = QFluentMenuRenderer(parent=title_row).render(
-        MenuModel(entries=tuple(entries))
-    )
-    menu.exec(global_position)
+    return tuple(entries)
 
 
 def _apply_preset_entries(
@@ -315,5 +272,5 @@ def _save_current_node_inputs(
 __all__ = [
     "APPLY_NODE_PRESET_MENU_TEXT",
     "NodeInputPresetContext",
-    "bind_node_title_preset_actions",
+    "node_input_preset_menu_entries",
 ]

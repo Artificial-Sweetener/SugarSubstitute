@@ -19,19 +19,25 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Protocol, cast
+from typing import Protocol, TypeGuard, cast
 from weakref import ReferenceType, ref
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer
-from PySide6.QtGui import QCursor, QGuiApplication
+from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, QTimer
+from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import ToolTipFilter, ToolTipPosition  # type: ignore[import-untyped]
+from shiboken6 import isValid
+
+from sugarsubstitute_shared.presentation._fluent_tooltip_geometry import (
+    DEFAULT_CURSOR_OFFSET,
+    configure_tooltip_bounds,
+    cursor_tooltip_position,
+    event_global_position,
+)
 
 _FILTER_ATTRIBUTE = "_sugarsubstitute_fluent_tooltip_filter"
-_DEFAULT_CURSOR_OFFSET = QPoint(14, 18)
-_SCREEN_MARGIN = 4
-_MAXIMUM_WIDTH = 420
-_MINIMUM_CONTENT_WIDTH = 120
+_DEFAULT_VISIBLE_DURATION_MS = 10_000
+_HOVER_GUARD_INTERVAL_MS = 100
 
 
 class ToolTipTarget(Protocol):
@@ -56,6 +62,12 @@ class _FluentToolTip(Protocol):
     def move(self, position: QPoint) -> None:
         """Move the tooltip to a global position."""
 
+    def setDuration(self, duration: int) -> None:  # noqa: N802
+        """Set the maximum visible lifetime in milliseconds."""
+
+    def setText(self, text: str) -> None:  # noqa: N802
+        """Replace the displayed tooltip content."""
+
 
 class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
     """Extend QFluent's filter with app-required cursor and dynamic behavior."""
@@ -76,12 +88,19 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
         super().__init__(owner, show_delay_ms, position)
         self._show_delay_ms = show_delay_ms
         self._cursor_anchor = cursor_anchor
-        self._cursor_offset = cursor_offset or _DEFAULT_CURSOR_OFFSET
+        self._cursor_offset = cursor_offset or DEFAULT_CURSOR_OFFSET
         self._show_when_disabled = show_when_disabled
         self._tooltip_provider = tooltip_provider
         self._cursor_global_position = QCursor.pos()
         self._tooltip: _FluentToolTip | None = None
         self._watched_widget_ids: set[int] = set()
+        self._watched_widget_refs: dict[int, ReferenceType[QWidget]] = {
+            id(owner): ref(owner)
+        }
+        self._hovered_widget_ids: set[int] = set()
+        self._hover_guard_timer = QTimer(self)
+        self._hover_guard_timer.setInterval(_HOVER_GUARD_INTERVAL_MS)
+        self._hover_guard_timer.timeout.connect(self._dismiss_if_pointer_outside)
 
     @property
     def show_delay_ms(self) -> int:
@@ -96,7 +115,7 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
         super().setToolTipDelay(delay)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
-        """Update dynamic content and delegate display ownership to QFluent."""
+        """Own hover state without relying on QFluent's shared boolean flag."""
 
         event_type = event.type()
         if event_type in {
@@ -104,19 +123,34 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
             QEvent.Type.MouseMove,
             QEvent.Type.ToolTip,
         }:
-            self._cursor_global_position = _event_global_position(watched, event)
+            self._cursor_global_position = event_global_position(watched, event)
             self._refresh_dynamic_tooltip(watched, event)
-        if event_type == QEvent.Type.Wheel:
+        if event_type == QEvent.Type.ToolTip:
+            return True
+        if event_type == QEvent.Type.Enter:
+            self._enter_watched_widget(watched)
+        elif event_type in {
+            QEvent.Type.Close,
+            QEvent.Type.Destroy,
+            QEvent.Type.Hide,
+            QEvent.Type.Leave,
+        }:
+            self._leave_watched_widget(watched)
+        elif event_type in {
+            QEvent.Type.MouseButtonPress,
+            QEvent.Type.Wheel,
+            QEvent.Type.WindowDeactivate,
+        }:
             self.hideToolTip()
-        return bool(super().eventFilter(watched, event))
+        return bool(QObject.eventFilter(self, watched, event))
 
     def showToolTip(self) -> None:  # noqa: N802
         """Show QFluent's tooltip and optionally move it beside the cursor."""
 
-        if not self._canShowToolTip():
+        if not self.isEnter or not self._canShowToolTip():
             return
         focused_widget = QApplication.focusWidget()
-        if self._tooltip is None and self._canShowToolTip():
+        if self._live_tooltip() is None and self._canShowToolTip():
             self._tooltip = self._createToolTip()
         super().showToolTip()
         if focused_widget is not None:
@@ -127,10 +161,11 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
                     _restore_focus_after_tooltip_show(focused_ref)
                 ),
             )
-        tooltip = self._tooltip
+        tooltip = self._live_tooltip()
         if tooltip is None:
             return
-        _configure_tooltip_bounds(tooltip)
+        self._hover_guard_timer.start()
+        configure_tooltip_bounds(tooltip)
         tooltip.adjustSize()
         if self._cursor_anchor:
             tooltip.move(
@@ -140,6 +175,12 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
                     offset=self._cursor_offset,
                 )
             )
+
+    def hideToolTip(self) -> None:  # noqa: N802
+        """Dismiss visible and pending presentation and reset hover ownership."""
+
+        self._hovered_widget_ids.clear()
+        self._dismiss_tooltip()
 
     def hide_tooltip(self) -> None:
         """Expose the app's snake-case lifecycle API over QFluent."""
@@ -162,7 +203,7 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
             Qt.WindowType.WindowDoesNotAcceptFocus,
             True,
         )
-        _configure_tooltip_bounds(tooltip)
+        configure_tooltip_bounds(tooltip)
         return tooltip
 
     def _canShowToolTip(self) -> bool:  # noqa: N802
@@ -183,23 +224,141 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
         owner = cast(QWidget, self.parent())
         set_fluent_tooltip_text(owner, self._tooltip_provider(watched, event) or "")
 
+    def _enter_watched_widget(self, watched: QObject) -> None:
+        """Start or retain presentation when one installed target is entered."""
+
+        watched_id = id(watched)
+        self._hovered_widget_ids.add(watched_id)
+        self.isEnter = True
+        self._schedule_tooltip_show()
+
+    def _schedule_tooltip_show(self) -> None:
+        """Create and schedule tooltip presentation for the current content."""
+
+        if not self._canShowToolTip():
+            return
+        if self._live_tooltip() is None:
+            self._tooltip = self._createToolTip()
+        owner = cast(QWidget, self.parent())
+        tooltip = self._live_tooltip()
+        if tooltip is None:
+            return
+        configured_duration = owner.toolTipDuration()
+        tooltip.setDuration(
+            configured_duration
+            if configured_duration > 0
+            else _DEFAULT_VISIBLE_DURATION_MS
+        )
+        self.timer.start(self._show_delay_ms)
+
+    def _leave_watched_widget(self, watched: QObject) -> None:
+        """Dismiss only after the pointer has left every installed target."""
+
+        self._hovered_widget_ids.discard(id(watched))
+        self.isEnter = bool(self._hovered_widget_ids)
+        if not self.isEnter:
+            self._dismiss_tooltip()
+
+    def _dismiss_tooltip(self) -> None:
+        """Stop every presentation timer and hide the shared tooltip window."""
+
+        self._hover_guard_timer.stop()
+        self._live_tooltip()
+        super().hideToolTip()
+        self.isEnter = bool(self._hovered_widget_ids)
+
+    def _live_tooltip(self) -> _FluentToolTip | None:
+        """Return the tooltip only while its platform-owned Qt object survives."""
+
+        tooltip = self._tooltip
+        if tooltip is None or isValid(tooltip):
+            return tooltip
+        self._tooltip = None
+        return None
+
+    def _tooltip_text_changed(self, text: str, *, changed: bool) -> None:
+        """Synchronize visible and pending presentation with owner text changes."""
+
+        tooltip = self._live_tooltip()
+        if not text:
+            self._dismiss_tooltip()
+            return
+        if tooltip is not None:
+            tooltip.setText(text)
+            configure_tooltip_bounds(tooltip)
+            tooltip.adjustSize()
+        if changed and self._hovered_widget_ids:
+            self._schedule_tooltip_show()
+
+    def _dismiss_if_pointer_outside(self) -> None:
+        """Recover when a platform transition omits the expected leave event."""
+
+        cursor_position = QCursor.pos()
+        if any(
+            self._widget_contains_global_position(watched_id, cursor_position)
+            for watched_id in tuple(self._hovered_widget_ids)
+        ):
+            return
+        self.hideToolTip()
+
+    def _widget_contains_global_position(
+        self,
+        watched_id: int,
+        global_position: QPoint,
+    ) -> bool:
+        """Return whether one live, visible target contains a global position."""
+
+        watched_ref = self._watched_widget_refs.get(watched_id)
+        watched = watched_ref() if watched_ref is not None else None
+        if watched is None:
+            return False
+        try:
+            return watched.isVisible() and watched.rect().contains(
+                watched.mapFromGlobal(global_position)
+            )
+        except RuntimeError:
+            self._forget_watched_widget(watched_id)
+            return False
+
+    def _remember_watched_widget(self, watched: QWidget) -> None:
+        """Retain a weak target reference for hover validity checks."""
+
+        self._watched_widget_refs[id(watched)] = ref(watched)
+
     def _forget_watched_widget(self, watched_id: int) -> None:
         """Release one destroyed widget identity from idempotent installation state."""
 
         self._watched_widget_ids.discard(watched_id)
+        self._watched_widget_refs.pop(watched_id, None)
+        self._hovered_widget_ids.discard(watched_id)
+        self.isEnter = bool(self._hovered_widget_ids)
+        if not self.isEnter:
+            self._dismiss_tooltip()
 
 
 def set_fluent_tooltip_text(target: ToolTipTarget, text: str) -> None:
     """Set tooltip text and ensure QWidget targets use QFluent presentation."""
 
     if isinstance(target, QWidget):
-        QWidget.setToolTip(target, str(text))
-        if not isinstance(
-            getattr(target, _FILTER_ATTRIBUTE, None), FluentToolTipFilter
-        ):
+        rendered_text = str(text)
+        text_changed = target.toolTip() != rendered_text
+        QWidget.setToolTip(target, rendered_text)
+        existing_filter = getattr(target, _FILTER_ATTRIBUTE, None)
+        if isinstance(existing_filter, FluentToolTipFilter):
+            existing_filter._tooltip_text_changed(
+                rendered_text,
+                changed=text_changed,
+            )
+        elif rendered_text:
             ensure_fluent_tooltip_filter(target)
         return
     target.setToolTip(str(text))
+
+
+def supports_fluent_tooltip(target: object) -> TypeGuard[ToolTipTarget]:
+    """Return whether an object can receive text through the tooltip owner."""
+
+    return callable(getattr(target, "setToolTip", None))
 
 
 def ensure_fluent_tooltip_filter(
@@ -220,7 +379,7 @@ def ensure_fluent_tooltip_filter(
         tooltip_filter.setToolTipDelay(show_delay_ms)
         tooltip_filter.position = position
         tooltip_filter._cursor_anchor = cursor_anchor
-        tooltip_filter._cursor_offset = cursor_offset or _DEFAULT_CURSOR_OFFSET
+        tooltip_filter._cursor_offset = cursor_offset or DEFAULT_CURSOR_OFFSET
         tooltip_filter._show_when_disabled = show_when_disabled
         tooltip_filter._tooltip_provider = tooltip_provider
     else:
@@ -237,6 +396,7 @@ def ensure_fluent_tooltip_filter(
     for watched in watched_widgets or (owner,):
         watched.setMouseTracking(cursor_anchor or tooltip_provider is not None)
         watched_id = id(watched)
+        tooltip_filter._remember_watched_widget(watched)
         if watched_id not in tooltip_filter._watched_widget_ids:
             watched.installEventFilter(tooltip_filter)
             tooltip_filter._watched_widget_ids.add(watched_id)
@@ -263,80 +423,6 @@ def release_fluent_tooltips(root: QWidget) -> None:
         tooltip_filter._tooltip = None
 
 
-def cursor_tooltip_position(
-    *,
-    cursor_global_pos: QPoint,
-    tooltip_size: QSize,
-    offset: QPoint | None = None,
-    screen_geometry: QRect | None = None,
-) -> QPoint:
-    """Return a cursor-relative tooltip position clamped to the active screen."""
-
-    geometry = screen_geometry or _screen_geometry(cursor_global_pos)
-    desired = cursor_global_pos + (offset or _DEFAULT_CURSOR_OFFSET)
-    maximum_x = max(
-        geometry.left(),
-        geometry.right() - tooltip_size.width() - _SCREEN_MARGIN,
-    )
-    maximum_y = max(
-        geometry.top(),
-        geometry.bottom() - tooltip_size.height() - _SCREEN_MARGIN,
-    )
-    return QPoint(
-        min(max(desired.x(), geometry.left()), maximum_x),
-        min(max(desired.y(), geometry.top()), maximum_y),
-    )
-
-
-def _event_global_position(watched: QObject, event: QEvent) -> QPoint:
-    """Resolve the latest global cursor position from Qt event APIs."""
-
-    global_position = getattr(event, "globalPosition", None)
-    if callable(global_position):
-        return cast(QPoint, global_position().toPoint())
-    global_pos = getattr(event, "globalPos", None)
-    if callable(global_pos):
-        return cast(QPoint, global_pos())
-    local_position = getattr(event, "position", None)
-    map_to_global = getattr(watched, "mapToGlobal", None)
-    if callable(local_position) and callable(map_to_global):
-        return cast(QPoint, map_to_global(local_position().toPoint()))
-    return QCursor.pos()
-
-
-def _screen_geometry(cursor_position: QPoint) -> QRect:
-    """Return available geometry for the screen containing the cursor."""
-
-    screen = (
-        QGuiApplication.screenAt(cursor_position) or QGuiApplication.primaryScreen()
-    )
-    return screen.availableGeometry() if screen is not None else QRect(0, 0, 1920, 1080)
-
-
-def _configure_tooltip_bounds(tooltip: object) -> None:
-    """Apply bounded wrapping to one QFluent tooltip widget."""
-
-    _set_maximum_width(tooltip, _MAXIMUM_WIDTH)
-    container = getattr(tooltip, "container", None)
-    container_width = _inner_width(
-        _MAXIMUM_WIDTH,
-        _horizontal_margins(_layout(tooltip)),
-    )
-    if container is not None:
-        _set_maximum_width(container, container_width)
-    label = getattr(tooltip, "label", None)
-    if label is None:
-        return
-    label.setWordWrap(True)
-    _set_maximum_width(
-        label,
-        _inner_width(
-            container_width,
-            _horizontal_margins(getattr(tooltip, "containerLayout", None)),
-        ),
-    )
-
-
 def _restore_focus_after_tooltip_show(
     focused_ref: ReferenceType[QWidget],
 ) -> None:
@@ -353,39 +439,6 @@ def _restore_focus_after_tooltip_show(
         return
 
 
-def _layout(widget: object) -> object | None:
-    """Return a widget layout when exposed."""
-
-    getter = getattr(widget, "layout", None)
-    return getter() if callable(getter) else None
-
-
-def _horizontal_margins(layout: object | None) -> int:
-    """Return left and right layout margins."""
-
-    if layout is None:
-        return 0
-    getter = getattr(layout, "contentsMargins", None)
-    if not callable(getter):
-        return 0
-    margins = getter()
-    return int(margins.left()) + int(margins.right())
-
-
-def _inner_width(width: int, margins: int) -> int:
-    """Return bounded content width after layout margins."""
-
-    return max(_MINIMUM_CONTENT_WIDTH, width - margins)
-
-
-def _set_maximum_width(widget: object, width: int) -> None:
-    """Set a maximum width on a QFluent tooltip component."""
-
-    setter = getattr(widget, "setMaximumWidth", None)
-    if callable(setter):
-        setter(width)
-
-
 __all__ = [
     "FluentToolTipFilter",
     "ToolTipPosition",
@@ -394,4 +447,5 @@ __all__ = [
     "cursor_tooltip_position",
     "ensure_fluent_tooltip_filter",
     "set_fluent_tooltip_text",
+    "supports_fluent_tooltip",
 ]

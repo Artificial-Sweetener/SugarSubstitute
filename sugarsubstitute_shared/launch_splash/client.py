@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import socket
 
+from sugarsubstitute_shared.launch_splash.activity import SplashActivity
 from sugarsubstitute_shared.launch_splash.protocol import (
     SplashSessionMessage,
     encode_splash_session_message,
@@ -61,6 +62,16 @@ class SocketSplashSessionClient:
 
         self._send("status", line=line)
 
+    def start_activity(self, activity: SplashActivity) -> None:
+        """Start or replace one independently animated splash activity."""
+
+        self._send("activity", line=None, activity=activity)
+
+    def clear_activity(self) -> None:
+        """Stop the active splash activity and remove its transient row."""
+
+        self._send("clear_activity", line=None)
+
     def fatal(self, line: str) -> None:
         """Send one fatal startup line to the shared splash."""
 
@@ -86,6 +97,7 @@ class SocketSplashSessionClient:
         message_type: str,
         *,
         line: str | None,
+        activity: SplashActivity | None = None,
         timeout_seconds: float | None = None,
     ) -> None:
         """Send one message and wait until the local host consumes it."""
@@ -94,6 +106,7 @@ class SocketSplashSessionClient:
             message_type=message_type,
             token=self._spec.token,
             line=line,
+            activity=activity,
         )
         with socket.create_connection(
             (self._spec.host, self._spec.port),

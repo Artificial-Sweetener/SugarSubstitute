@@ -19,39 +19,19 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Protocol
 
 import shiboken6
 
+from substitute.presentation.editor.panel.field_sync_contracts import (
+    EditorPanelFieldSyncHost,
+    FieldSyncSnapshotProtocol,
+)
+from substitute.presentation.editor.panel.field_visibility_policy import (
+    FieldVisibilityPolicy,
+)
 from substitute.presentation.editor.panel.widgets.node_card import (
     reconcile_node_card_body_separators,
 )
-
-
-class FieldSyncSnapshotProtocol(Protocol):
-    """Describe the behavior snapshot payload consumed by field sync."""
-
-    hidden_field_keys_by_alias: Mapping[str, set[object]]
-
-
-class EditorPanelFieldSyncHost(Protocol):
-    """Describe panel state required for field synchronization."""
-
-    cube_widgets: Mapping[str, object]
-    row_widgets: Mapping[object, tuple[object | None, object | None]]
-    col_widgets: Mapping[object, tuple[object | None, object | None, object | None]]
-    card_wrappers: Mapping[tuple[str, str], object]
-    _hidden_field_keys: set[object]
-    _field_search_active: bool
-    _search_field_match_keys: set[object] | None
-
-    def _build_behavior_snapshot(
-        self,
-        *,
-        search_hidden_keys: set[object] | None = None,
-        node_search_text: str | None = None,
-    ) -> FieldSyncSnapshotProtocol | None:
-        """Build the latest hidden-field snapshot for the active panel state."""
 
 
 class EditorPanelFieldSyncController:
@@ -106,36 +86,30 @@ class EditorPanelFieldSyncController:
         """Apply one hidden-key set to tracked rows, columns, and cards."""
 
         self._host._hidden_field_keys = set(hidden_keys)
-        self._apply_row_visibility(hidden_keys)
-        self._apply_column_visibility(hidden_keys)
+        policy = self._visibility_policy(hidden_keys)
+        self._apply_row_visibility(policy)
+        self._apply_column_visibility(policy)
         self._reconcile_node_card_body_separators()
-        self._apply_empty_card_visibility(hidden_keys)
+        self._reconcile_advanced_input_controls()
+        self._apply_empty_card_visibility(policy)
 
-    @staticmethod
-    def _is_hidden(field_key: object, hidden_keys: set[object]) -> bool:
-        """Return whether one field key should currently be hidden."""
+    def _visibility_policy(self, hidden_keys: set[object]) -> FieldVisibilityPolicy:
+        """Capture one immutable visibility policy from the panel state."""
 
-        return bool(
-            field_key in hidden_keys
-            or (isinstance(field_key, tuple) and field_key[-1] in hidden_keys)
-            or (isinstance(field_key, str) and field_key in hidden_keys)
+        search_match_keys = getattr(self._host, "_search_field_match_keys", None)
+        return FieldVisibilityPolicy(
+            hidden_keys=frozenset(hidden_keys),
+            search_active=bool(getattr(self._host, "_field_search_active", False)),
+            search_match_keys=(
+                None if search_match_keys is None else frozenset(search_match_keys)
+            ),
+            advanced_field_keys=frozenset(
+                getattr(self._host, "advanced_field_keys", set())
+            ),
+            shown_advanced_input_nodes=frozenset(
+                getattr(self._host, "shown_advanced_input_nodes", set())
+            ),
         )
-
-    @staticmethod
-    def _matches_field_search(
-        host: EditorPanelFieldSyncHost,
-        field_key: object,
-    ) -> bool:
-        """Return whether one field should stay visible for active field search."""
-
-        if not getattr(host, "_field_search_active", False):
-            return True
-        match_keys = getattr(host, "_search_field_match_keys", None)
-        if match_keys is None:
-            return False
-        if field_key in match_keys:
-            return True
-        return bool(isinstance(field_key, tuple) and field_key[-1] in match_keys)
 
     @staticmethod
     def _is_live_widget(widget: object | None) -> bool:
@@ -156,17 +130,15 @@ class EditorPanelFieldSyncController:
             return tuple(value)
         return value
 
-    def _apply_row_visibility(self, hidden_keys: set[object]) -> None:
+    def _apply_row_visibility(self, policy: FieldVisibilityPolicy) -> None:
         """Update single-row widgets and dividers for the current hidden keys."""
 
         for field_key, (divider, row_widget) in self._host.row_widgets.items():
-            hide = self._is_hidden(
-                field_key, hidden_keys
-            ) or not self._matches_field_search(self._host, field_key)
+            hide = policy.hides(field_key)
             self._set_widget_visible(divider, not hide)
             self._set_widget_visible(row_widget, not hide)
 
-    def _apply_column_visibility(self, hidden_keys: set[object]) -> None:
+    def _apply_column_visibility(self, policy: FieldVisibilityPolicy) -> None:
         """Update grouped-column rows, vertical dividers, and row containers."""
 
         row_container_to_columns: dict[object, list[tuple[object | None, bool]]] = {}
@@ -175,9 +147,7 @@ class EditorPanelFieldSyncController:
             col_widget,
             _input_widget,
         ) in self._host.col_widgets.items():
-            hide = self._is_hidden(
-                field_key, hidden_keys
-            ) or not self._matches_field_search(self._host, field_key)
+            hide = policy.hides(field_key)
             self._set_widget_visible(col_widget, not hide)
             row_container_to_columns.setdefault(row_container, []).append(
                 (
@@ -273,7 +243,19 @@ class EditorPanelFieldSyncController:
         if isinstance(row_widgets, Mapping):
             reconcile_node_card_body_separators(row_widgets)
 
-    def _apply_empty_card_visibility(self, hidden_keys: set[object]) -> None:
+    def _reconcile_advanced_input_controls(self) -> None:
+        """Refresh advanced footer adjacency and body geometry after row changes."""
+
+        card_wrappers = getattr(self._host, "card_wrappers", {})
+        if not isinstance(card_wrappers, Mapping):
+            return
+        for wrapper in card_wrappers.values():
+            binding = getattr(wrapper, "_advanced_input_binding", None)
+            reconcile = getattr(binding, "reconcile_visibility", None)
+            if callable(reconcile):
+                reconcile()
+
+    def _apply_empty_card_visibility(self, policy: FieldVisibilityPolicy) -> None:
         """Hide policy-visible cards when no local rows remain visible."""
 
         card_wrappers = getattr(self._host, "card_wrappers", {})
@@ -292,10 +274,11 @@ class EditorPanelFieldSyncController:
             alias, node_name = card_key
             final_visible = self._wrapper_base_visible(wrapper) and (
                 self._wrapper_has_title_controls(wrapper)
+                or self._wrapper_has_advanced_input_action(wrapper)
                 or self._card_has_visible_fields(
                     alias=alias,
                     node_name=node_name,
-                    hidden_keys=hidden_keys,
+                    policy=policy,
                 )
             )
             self._set_card_visible(wrapper, final_visible)
@@ -305,14 +288,12 @@ class EditorPanelFieldSyncController:
         *,
         alias: str,
         node_name: str,
-        hidden_keys: set[object],
+        policy: FieldVisibilityPolicy,
     ) -> bool:
         """Return whether one card has at least one tuple-scoped visible field."""
 
         for field_key in self._card_field_keys(alias=alias, node_name=node_name):
-            if not self._is_hidden(
-                field_key, hidden_keys
-            ) and self._matches_field_search(self._host, field_key):
+            if not policy.hides(field_key):
                 return True
         return False
 
@@ -379,6 +360,11 @@ class EditorPanelFieldSyncController:
         """Return whether a card wrapper contains title-level controls."""
 
         return self._widget_property(wrapper, "has_title_controls") is True
+
+    def _wrapper_has_advanced_input_action(self, wrapper: object) -> bool:
+        """Return whether a card exposes advanced visibility from its menu."""
+
+        return self._widget_property(wrapper, "has_advanced_input_action") is True
 
     def _wrapper_base_visible(self, wrapper: object) -> bool:
         """Return the node policy/search visibility stored on one wrapper."""

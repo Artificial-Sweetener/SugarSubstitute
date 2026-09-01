@@ -14,75 +14,95 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify local duplicate-launch shutdown requests."""
+"""Verify the supervised application's Qt-facing control bridge."""
 
-from __future__ import annotations
+from collections.abc import Callable
 
 from pathlib import Path
-import sys
-from typing import cast
 
-from PySide6.QtCore import QEventLoop, QProcess, QTimer
+from PySide6.QtCore import QCoreApplication
+from PySide6.QtWidgets import QWidget
 
 from substitute.app.bootstrap.application_instance_control import (
-    bind_application_instance_shutdown_request,
-    start_application_instance_control,
-    stop_application_instance_control,
+    ApplicationInstanceControlClient,
 )
-from sugarsubstitute_shared.application_instance_control import (
-    ApplicationShutdownRequestResult,
-    request_active_application_shutdown,
-)
+from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
 from tests.support.qt.lifecycle import ensure_qt_application
 
 
-def test_control_server_routes_shutdown_to_composed_coordinator(tmp_path: Path) -> None:
-    """A duplicate invocation should reach the normal shutdown request port."""
+class _RecordingSupervisorClient:
+    """Expose the child-client contract without opening another endpoint."""
+
+    def __init__(self) -> None:
+        """Start without a bound invocation handler."""
+
+        self.handler: Callable[[ApplicationInvocation], None] | None = None
+        self.restart_requests = 0
+        self.closed = False
+
+    def bind_invocation_handler(
+        self,
+        handler: Callable[[ApplicationInvocation], None],
+    ) -> None:
+        """Capture the Qt bridge callback."""
+
+        self.handler = handler
+
+    def request_restart(self) -> bool:
+        """Record one supervisor-owned restart request."""
+
+        self.restart_requests += 1
+        return True
+
+    def bind_disconnect_handler(self, handler: Callable[[], None]) -> None:
+        """Accept the bridge's supervisor-loss callback."""
+
+        _ = handler
+
+    def close(self) -> None:
+        """Record child-channel shutdown."""
+
+        self.closed = True
+
+
+def test_control_bridge_activates_the_existing_window(tmp_path: Path) -> None:
+    """A forwarded invocation should reveal and activate the current Qt shell."""
+
+    application = ensure_qt_application()
+    window = QWidget()
+    window.showMinimized()
+    client = _RecordingSupervisorClient()
+    observed: list[ApplicationInvocation] = []
+    control = ApplicationInstanceControlClient(
+        client,
+        invocation_observer=observed.append,
+    )
+    assert callable(client.handler)
+
+    client.handler(
+        ApplicationInvocation.capture(
+            ["Substitute", "example.sugar"],
+            working_directory=tmp_path,
+        )
+    )
+    QCoreApplication.processEvents()
+
+    assert window.isVisible()
+    assert not window.isMinimized()
+    assert len(observed) == 1
+    control.close()
+    assert client.closed
+    window.close()
+    application.processEvents()
+
+
+def test_control_bridge_routes_restart_to_the_existing_supervisor() -> None:
+    """Application restart must not create another launcher process."""
 
     _ = ensure_qt_application()
-    requests: list[object | None] = []
-    start_application_instance_control(tmp_path)
-    bind_application_instance_shutdown_request(requests.append)
-    script = (
-        "import sys;from pathlib import Path;"
-        "from sugarsubstitute_shared.application_instance_control import "
-        "request_active_application_shutdown;"
-        "print(request_active_application_shutdown(Path(sys.argv[1])).value,flush=True)"
-    )
-    process = QProcess()
-    process.setProgram(sys.executable)
-    process.setArguments(["-c", script, str(tmp_path)])
-    completion_loop = QEventLoop()
-    process.finished.connect(completion_loop.quit)
-    try:
-        process.start()
-        assert process.waitForStarted(5_000)
-        timeout = QTimer()
-        timeout.setSingleShot(True)
-        timeout.timeout.connect(completion_loop.quit)
-        timeout.start(10_000)
-        if process.state() is not QProcess.ProcessState.NotRunning:
-            completion_loop.exec()
-        stdout = cast(bytes, process.readAllStandardOutput().data()).decode()
-        stderr = cast(bytes, process.readAllStandardError().data()).decode()
-    finally:
-        if process.state() is not QProcess.ProcessState.NotRunning:
-            process.kill()
-            assert process.waitForFinished(5_000)
-        stop_application_instance_control()
+    client = _RecordingSupervisorClient()
+    control = ApplicationInstanceControlClient(client)
 
-    assert requests == [None]
-    assert stderr == ""
-    assert stdout.strip() == ApplicationShutdownRequestResult.ACCEPTED.value
-
-
-def test_control_request_reports_unavailable_without_server(tmp_path: Path) -> None:
-    """A stale record must not be mistaken for a reachable application."""
-
-    _ = ensure_qt_application()
-    stop_application_instance_control()
-
-    assert (
-        request_active_application_shutdown(tmp_path, timeout_ms=25)
-        is ApplicationShutdownRequestResult.UNAVAILABLE
-    )
+    assert control.request_restart()
+    assert client.restart_requests == 1
+    control.close()

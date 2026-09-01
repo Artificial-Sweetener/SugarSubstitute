@@ -201,6 +201,24 @@ def test_pyinstaller_specs_share_launcher_runtime_data_ownership() -> None:
         assert "shutil.which" not in spec_text
 
 
+def test_posix_launcher_specs_bundle_native_singleton_dependencies() -> None:
+    """Frozen launchers should retain dynamically selected native IPC adapters."""
+
+    launcher_root = PROJECT_ROOT / "launcher"
+    for name in (
+        "SugarSubstitute-Linux-x64.spec",
+        "SugarSubstitute-Setup-Linux-x64.spec",
+    ):
+        spec_text = (launcher_root / name).read_text(encoding="utf-8")
+        assert 'hiddenimports=["jeepney", "jeepney.io.blocking"]' in spec_text
+    for name in (
+        "SugarSubstitute-macOS-arm64.spec",
+        "SugarSubstitute-Setup-macOS-arm64.spec",
+    ):
+        spec_text = (launcher_root / name).read_text(encoding="utf-8")
+        assert 'hiddenimports=["AppKit"]' in spec_text
+
+
 def test_every_release_platform_builds_and_qualifies_crashpad_before_packaging() -> (
     None
 ):

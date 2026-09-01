@@ -25,6 +25,7 @@ import pytest
 
 from sugarsubstitute_shared.launch_splash import (
     SocketSplashSessionClient,
+    SplashActivity,
     SplashSessionMessage,
     SplashSessionMessageError,
     SplashSessionServer,
@@ -125,6 +126,13 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
         client = SocketSplashSessionClient(server.spec)
         client.append_log("Checking for updates.")
         client.set_status("Installing update.")
+        activity = SplashActivity(
+            initial_text="Updating SugarCubes",
+            long_wait_text="Updating SugarCubes is taking longer than usual",
+            extended_wait_text="Still updating SugarCubes—network may be slow",
+        )
+        client.start_activity(activity)
+        client.clear_activity()
         client.close()
         assert delivered.wait(timeout=2.0)
     finally:
@@ -141,6 +149,12 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
             token="x" * 32,
             line="Installing update.",
         ),
+        SplashSessionMessage(
+            message_type="activity",
+            token="x" * 32,
+            activity=activity,
+        ),
+        SplashSessionMessage(message_type="clear_activity", token="x" * 32),
         SplashSessionMessage(message_type="close", token="x" * 32),
     ]
 

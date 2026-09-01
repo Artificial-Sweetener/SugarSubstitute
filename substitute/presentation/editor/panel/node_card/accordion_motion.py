@@ -419,7 +419,11 @@ class AccordionMotionController(QObject):
     def _sync_surface_attachment(self, *, attached: bool | None = None) -> None:
         """Update optional header/content corner states for the current transition."""
 
-        is_attached = not self._state.collapsed if attached is None else attached
+        is_attached = (
+            not self._state.collapsed and self._state.expanded_height > 0
+            if attached is None
+            else attached
+        )
         set_accordion_surface_attachment(
             card_title=self._card_title,
             content_body=self._content_body,

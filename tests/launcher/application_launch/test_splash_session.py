@@ -30,9 +30,6 @@ from launcher.sugarsubstitute_launcher.splash_session import (
     append_splash_session_args,
     start_launcher_splash_session,
 )
-from sugarsubstitute_shared.application_launch_guard import (
-    APPLICATION_LAUNCH_TOKEN_ENV,
-)
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
     subprocess_working_directory,
@@ -53,7 +50,6 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
         "token": "x" * 32,
         "host_pid": 1234,
     }
-    monkeypatch.setenv(APPLICATION_LAUNCH_TOKEN_ENV, "app-only-token")
 
     def _fake_popen(command: list[str], **kwargs: Any) -> _FakeProcess:
         """Record host process creation and return a ready fake process."""
@@ -82,7 +78,6 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
     ]
     assert calls[0]["cwd"] == subprocess_working_directory(layout.root)
     assert calls[0]["env"]["PYTHONPATH"] == subprocess_path(layout.app_dir)
-    assert APPLICATION_LAUNCH_TOKEN_ENV not in calls[0]["env"]
 
 
 def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
