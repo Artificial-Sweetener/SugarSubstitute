@@ -66,6 +66,7 @@ from substitute.application.ports.startup_diagnostics_ignore_repository import (
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyEndpoint,
+    ComfyTargetMode,
     InstallationContext,
     ReadinessAssessment,
 )
@@ -1176,6 +1177,23 @@ def _build_main_window_dependencies(
     record_dependency_phase("imports.application.generation.result_snapshot")
 
     from substitute.application.generation.generation_service import GenerationService
+    from substitute.application.model_updates import GenerationModelUsageRecorder
+    from substitute.application.model_discovery import BackendModelInventory
+    from substitute.infrastructure.model_updates.file_repository import (
+        FileModelUsageRepository,
+    )
+    from sugarsubstitute_shared.model_discovery.civitai_client import (
+        CivitaiDiscoveryClient,
+    )
+    from sugarsubstitute_shared.model_discovery import (
+        CategoryModelDestinationPolicy,
+        ModelDiscoveryPlanner,
+        ModelOnboardingService,
+    )
+    from sugarsubstitute_shared.model_updates import (
+        CivitaiCompatibleUpdateGateway,
+        ModelUpdateService,
+    )
     from substitute.application.direct_workflows import (
         DirectWorkflowGenerationPlanService,
     )
@@ -1890,6 +1908,55 @@ def _build_main_window_dependencies(
         metadata_catalog=model_metadata_store,
         snapshot_store=model_caches.snapshots,
     )
+    model_update_service = ModelUpdateService(
+        usage=FileModelUsageRepository(context.user_settings_dir),
+        updates=CivitaiCompatibleUpdateGateway(
+            CivitaiDiscoveryClient(
+                api_key_provider=civitai_credential_service.load_api_key,
+            )
+        ),
+    )
+    from sugarsubstitute_shared.model_acquisition import ModelAcquisitionService
+    from sugarsubstitute_shared.model_updates import ModelUpdateAcquisitionService
+
+    model_update_model_root = (
+        context.comfy_target.workspace_path / "models"
+        if context.comfy_target.mode is ComfyTargetMode.MANAGED_LOCAL
+        and context.comfy_target.workspace_path is not None
+        else None
+    )
+    model_update_acquisition_service = (
+        ModelUpdateAcquisitionService(
+            model_root=model_update_model_root,
+            acquisition=ModelAcquisitionService(
+                allowed_roots=(model_update_model_root,),
+                api_key_provider=civitai_credential_service.load_api_key,
+            ),
+        )
+        if model_update_model_root is not None
+        else None
+    )
+    empty_model_picker_onboarding_service = (
+        ModelOnboardingService(
+            planner=ModelDiscoveryPlanner(
+                inventory=BackendModelInventory(model_metadata_backend),
+                discovery=CivitaiDiscoveryClient(
+                    api_key_provider=civitai_credential_service.load_api_key,
+                ),
+                destinations=CategoryModelDestinationPolicy(model_update_model_root),
+            ),
+            acquisition=ModelAcquisitionService(
+                allowed_roots=(model_update_model_root,),
+                api_key_provider=civitai_credential_service.load_api_key,
+            ),
+        )
+        if model_update_model_root is not None
+        else None
+    )
+    generation_model_usage_recorder = GenerationModelUsageRecorder(
+        catalog=model_catalog_service,
+        usage=model_update_service,
+    )
     prompt_lora_catalog_service = PromptLoraCatalogService(
         model_catalog=model_catalog_service,
     )
@@ -2034,6 +2101,7 @@ def _build_main_window_dependencies(
         prompt_wildcard_preprocessing_service=(prompt_wildcard_preprocessing_service),
         preview_method_resolver=generation_preview_preference_service,
         output_preference_service=output_preference_service,
+        model_usage_recorder=generation_model_usage_recorder,
         direct_workflow_graph_service=DirectWorkflowGenerationPlanService(
             node_definition_hydrator=node_definition_gateway,
             node_definition_gateway=node_definition_gateway,
@@ -2516,6 +2584,10 @@ def _build_main_window_dependencies(
         prompt_feature_profile_service=prompt_feature_profile_service,
         user_preset_service=user_preset_service,
         model_catalog_service=model_catalog_service,
+        model_update_service=model_update_service,
+        model_update_model_root=model_update_model_root,
+        model_update_acquisition_service=model_update_acquisition_service,
+        empty_model_picker_onboarding_service=(empty_model_picker_onboarding_service),
         model_choice_resolver=model_choice_resolver,
         thumbnail_asset_repository=model_metadata_store,
         model_metadata_context_action_handler=model_metadata_context_action_handler,

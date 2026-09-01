@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from sugarsubstitute_shared.presentation.localization import set_localized_tooltip
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from functools import partial
 from inspect import signature
 from typing import Any, cast
@@ -152,6 +152,7 @@ class GlobalOverridesManager:
         | None = None,
         thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
         model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        empty_model_picker_action: Callable[[str], None] | None = None,
     ) -> None:
         """Initialize the toolbar renderer with explicit application dependencies."""
 
@@ -168,6 +169,7 @@ class GlobalOverridesManager:
         self._model_choice_snapshot_controller = model_choice_snapshot_controller
         self._thumbnail_asset_repository = thumbnail_asset_repository
         self._model_metadata_action_handler = model_metadata_action_handler
+        self._empty_model_picker_action = empty_model_picker_action
         self._global_overrides: OverrideMap = {}
         self._global_override_selections: OverrideSelectionMap = {}
         self._global_override_controls: dict[str, tuple[Any, Any]] = {}
@@ -971,6 +973,7 @@ class GlobalOverridesManager:
                     ),
                     thumbnail_asset_repository=self._thumbnail_asset_repository,
                     model_metadata_action_handler=self._model_metadata_action_handler,
+                    empty_model_picker_action=self._empty_model_picker_action,
                     node_definition_gateway=self._node_definition_gateway,
                 ),
             )

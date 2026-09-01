@@ -624,6 +624,7 @@ class EditorPanel(QWidget):
         model_choice_resolver: RichChoiceResolver | None = None,
         thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
         model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        empty_model_picker_action: Callable[[str], None] | None = None,
         user_preset_service: UserPresetService | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
         workflow_issue_state: WorkflowIssueState | None = None,
@@ -683,6 +684,7 @@ class EditorPanel(QWidget):
                 choice_resolver=model_choice_resolver,
                 thumbnail_asset_repository=thumbnail_asset_repository,
                 model_metadata_action_handler=model_metadata_action_handler,
+                empty_model_picker_action=empty_model_picker_action,
             ),
             presets=EditorPanelPresetServiceBundle(
                 user_preset_service=user_preset_service,

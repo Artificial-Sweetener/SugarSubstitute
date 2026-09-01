@@ -158,6 +158,30 @@ class _UpdateController:
         """Provide model-catalog cleanup."""
 
 
+class _ModelUpdateNotificationController:
+    """Capture model update notification composition and cleanup."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store construction inputs."""
+
+        self.kwargs = kwargs
+
+    def close(self) -> None:
+        """Provide model-update worker cleanup."""
+
+
+class _EmptyModelPickerDiscoveryController:
+    """Capture empty-picker discovery composition and cleanup."""
+
+    def __init__(self, **kwargs: object) -> None:
+        """Store construction inputs."""
+
+        self.kwargs = kwargs
+
+    def close(self) -> None:
+        """Provide discovery worker cleanup."""
+
+
 class _SettingsRouteController:
     """Capture settings route construction and workspace initialization."""
 
@@ -297,6 +321,8 @@ class _Shell:
         self.generation_interrupt_failure_presenter: object | None = None
         self.cube_library_update_controller: object | None = None
         self.model_catalog_update_controller: object | None = None
+        self.model_update_notification_controller: object | None = None
+        self.empty_model_picker_discovery_controller: object | None = None
         self.settings_route_controller: object | None = None
         self._current_generate_mode = ""
         self._backend_state = ""
@@ -326,6 +352,16 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
         main_window_composition,
         "ModelCatalogUpdateController",
         _UpdateController,
+    )
+    monkeypatch.setattr(
+        main_window_composition,
+        "ModelUpdateNotificationController",
+        _ModelUpdateNotificationController,
+    )
+    monkeypatch.setattr(
+        main_window_composition,
+        "EmptyModelPickerDiscoveryController",
+        _EmptyModelPickerDiscoveryController,
     )
     monkeypatch.setattr(
         main_window_composition,
@@ -407,6 +443,27 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
         shell.execution_runtime.requests[1][1] == f"model_catalog_change_{id(shell):x}"
     )
     assert shell._initial_workspace_hydrated is False
+    model_update_controller = shell.model_update_notification_controller
+    assert isinstance(model_update_controller, _ModelUpdateNotificationController)
+    assert model_update_controller.kwargs["parent_widget"] is shell
+    assert model_update_controller.kwargs["preferences"] is (
+        dependency_bundle.civitai_preference_service
+    )
+    assert model_update_controller.kwargs["updates"] is (
+        dependency_bundle.model_update_service
+    )
+    empty_picker_controller = shell.empty_model_picker_discovery_controller
+    assert isinstance(
+        empty_picker_controller,
+        _EmptyModelPickerDiscoveryController,
+    )
+    assert empty_picker_controller.kwargs["parent_widget"] is shell
+    assert empty_picker_controller.kwargs["service"] is (
+        dependency_bundle.empty_model_picker_onboarding_service
+    )
+    assert empty_picker_controller.kwargs["catalog"] is (
+        dependency_bundle.model_catalog_service
+    )
     settings_controller = shell.settings_route_controller
     assert isinstance(settings_controller, _SettingsRouteController)
     assert settings_controller.shell is shell
@@ -423,6 +480,8 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
     ] == [
         "cube_library_updates",
         "model_catalog_updates",
+        "model_update_notifications",
+        "empty_model_picker_discovery",
         "comfy_connection_monitor",
         "comfy_connection_feedback",
     ]

@@ -25,12 +25,14 @@ import pytest
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
-from launcher.sugarsubstitute_launcher.payload import (
-    AppPayloadInstaller,
-    PayloadInstallError,
+from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
+from launcher.sugarsubstitute_launcher.payload_models import PayloadInstallError
+from launcher.sugarsubstitute_launcher.payload_staging import (
+    AppPayloadStager,
     extract_app_payload_archive,
 )
 from tests.launcher.installation_workflow.first_run.support import (
+    sha256,
     write_valid_payload_zip,
 )
 
@@ -58,6 +60,73 @@ def test_app_payload_installer_rejects_checksum_mismatch(tmp_path: Path) -> None
     with pytest.raises(PayloadInstallError, match="SHA256 mismatch"):
         AppPayloadInstaller().install(
             layout=InstallLayout.from_root(tmp_path / "install"), manifest=manifest
+        )
+
+
+def test_payload_staging_validates_candidate_without_mutating_active_app(
+    tmp_path: Path,
+) -> None:
+    """Repair preparation must leave the installed payload byte-identical."""
+
+    release_root = tmp_path / ".local-release-channel"
+    app_zip = write_valid_payload_zip(release_root / "SugarSubstitute-app-v0.4.0.zip")
+    manifest = ReleaseManifest(
+        schema_version=1,
+        channel="stable",
+        version="0.4.0",
+        minimum_launcher_version="0.1.0",
+        app=ReleaseAsset(
+            filename=app_zip.name,
+            url=app_zip.as_uri(),
+            sha256=sha256(app_zip),
+            size_bytes=app_zip.stat().st_size,
+        ),
+        launchers={},
+        installers={},
+    )
+    layout = InstallLayout.from_root(tmp_path / "install")
+    layout.app_dir.mkdir(parents=True)
+    active_sentinel = layout.app_dir / "sentinel.bin"
+    active_sentinel.write_bytes(b"active-version")
+
+    staged = AppPayloadStager().stage(
+        layout=layout,
+        manifest=manifest,
+        destination_dir=layout.root / ".repair" / "staging" / "0.4.0" / "app",
+    )
+
+    assert active_sentinel.read_bytes() == b"active-version"
+    assert (staged.staging_dir / "main.py").is_file()
+    assert staged.version == "0.4.0"
+
+
+def test_payload_staging_rejects_destination_outside_installation(
+    tmp_path: Path,
+) -> None:
+    """A hostile repair request must not choose an external cleanup target."""
+
+    release_root = tmp_path / ".local-release-channel"
+    app_zip = write_valid_payload_zip(release_root / "SugarSubstitute-app-v0.4.0.zip")
+    manifest = ReleaseManifest(
+        schema_version=1,
+        channel="stable",
+        version="0.4.0",
+        minimum_launcher_version="0.1.0",
+        app=ReleaseAsset(
+            filename=app_zip.name,
+            url=app_zip.as_uri(),
+            sha256=sha256(app_zip),
+            size_bytes=app_zip.stat().st_size,
+        ),
+        launchers={},
+        installers={},
+    )
+
+    with pytest.raises(PayloadInstallError, match="escapes"):
+        AppPayloadStager().stage(
+            layout=InstallLayout.from_root(tmp_path / "install"),
+            manifest=manifest,
+            destination_dir=tmp_path / "outside",
         )
 
 

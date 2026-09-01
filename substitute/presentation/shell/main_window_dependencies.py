@@ -80,6 +80,11 @@ if TYPE_CHECKING:
         ScopedMetadataRefreshService,
         ThumbnailAssetRepository,
     )
+    from sugarsubstitute_shared.model_updates import (
+        ModelUpdateAcquisitionService,
+        ModelUpdateService,
+    )
+    from sugarsubstitute_shared.model_discovery import ModelOnboardingService
     from substitute.application.localization import NodePresentationService
     from substitute.application.node_behavior import NodeBehaviorService
     from substitute.application.onboarding import ComfyConnectionSettingsService
@@ -280,6 +285,7 @@ class MainWindowDependencies:
     prompt_feature_profile_service: PromptFeatureProfileService
     user_preset_service: UserPresetService
     model_catalog_service: ModelCatalogService
+    model_update_service: ModelUpdateService
     model_choice_resolver: RichChoiceResolver
     thumbnail_asset_repository: ThumbnailAssetRepository | None
     node_behavior_service: NodeBehaviorService
@@ -327,6 +333,9 @@ class MainWindowDependencies:
         | None
     ) = None
     control_binding_service: ControlBindingService | None = None
+    model_update_model_root: Path | None = None
+    model_update_acquisition_service: ModelUpdateAcquisitionService | None = None
+    empty_model_picker_onboarding_service: ModelOnboardingService | None = None
 
 
 __all__ = ["InstallationPathBundle", "MainWindowDependencies"]

@@ -839,6 +839,7 @@ class ModelPickerField(QWidget):
         search_placeholder: ApplicationText = app_text("Search models"),
         open_url: UrlOpener | None = None,
         metadata_action_handler: ModelMetadataContextActionHandler | None = None,
+        empty_model_action: Callable[[], None] | None = None,
         thumbnail_preload_route_factory: (
             Callable[[QWidget], ModelPickerThumbnailPreloadRoute] | None
         ) = None,
@@ -864,6 +865,7 @@ class ModelPickerField(QWidget):
             action_handler=metadata_action_handler,
         )
         self._metadata_action_handler = metadata_action_handler
+        self._empty_model_action = empty_model_action
         self._thumbnail_cache = MediaWallThumbnailCache(
             asset_repository=thumbnail_asset_repository
         )
@@ -1026,6 +1028,9 @@ class ModelPickerField(QWidget):
             return
         self._load_choices(refresh=True)
         picker_items = self._ensure_picker_items_loaded()
+        if not picker_items and self._empty_model_action is not None:
+            self._empty_model_action()
+            return
         if self._popup is not None:
             self._popup.hide()
             self._popup.deleteLater()

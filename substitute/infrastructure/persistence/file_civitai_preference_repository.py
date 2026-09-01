@@ -91,6 +91,9 @@ class FileCivitaiPreferenceRepository(CivitaiPreferenceRepository):
                     DEFAULT_CIVITAI_DOWNLOAD_PATH_PATTERN,
                 )
             ),
+            model_update_notifications_enabled=bool(
+                payload.get("model_update_notifications_enabled", False)
+            ),
         )
 
     def save(self, preferences: CivitaiPreferences) -> None:
@@ -106,6 +109,9 @@ class FileCivitaiPreferenceRepository(CivitaiPreferenceRepository):
             "thumbnail_safety_policy": preferences.thumbnail_safety_policy.value,
             "downloads_enabled": preferences.downloads_enabled,
             "download_path_pattern": preferences.download_path_pattern,
+            "model_update_notifications_enabled": (
+                preferences.model_update_notifications_enabled
+            ),
         }
         path.write_text(f"{json.dumps(payload, indent=2)}\n", encoding="utf-8")
 

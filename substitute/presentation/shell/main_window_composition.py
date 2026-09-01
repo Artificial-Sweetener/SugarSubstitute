@@ -45,6 +45,7 @@ from substitute.application.workflows.output_scene_run_service import (
 from substitute.application.workflows.workflow_activity_service import (
     WorkflowActivityService,
 )
+from substitute.application.workflows.unsaved_work_service import UnsavedWorkService
 from substitute.application.cubes import CubeStackService
 from substitute.presentation.editor.panel.lora_metadata_refresh_controller import (
     PanelLoraMetadataRefreshController,
@@ -88,6 +89,10 @@ from .generation_progress_strip_registry import GenerationProgressStripRegistry
 from .main_window_dependencies import MainWindowDependencies
 from .main_window_startup_trace import startup_phase
 from .model_catalog_update_controller import ModelCatalogUpdateController
+from .empty_model_picker_discovery_controller import (
+    EmptyModelPickerDiscoveryController,
+)
+from .model_update_notification_controller import ModelUpdateNotificationController
 from .model_metadata_surface_refresh_controller import (
     ModelMetadataSurfaceRefreshController,
 )
@@ -135,6 +140,7 @@ from .workspace_restore_controller import WorkspaceRestoreController
 from .workspace_restore_image_adapter import WorkspaceRestoreImageAdapter
 from .workspace_splitter_controller import WorkspaceSplitterController
 from .workspace_layout_controller import WorkspaceLayoutController
+from .unsaved_work_controller import UnsavedWorkController
 from substitute.presentation.canvas.output.output_transfer_composition import (
     OutputTransferLifecycle,
     compose_output_transfer_lifecycle,
@@ -192,6 +198,7 @@ class MainWindowControllerComposition:
     workspace_layout_controller: WorkspaceLayoutController
     session_snapshot_capture_adapter: Any
     session_autosave_controller: Any
+    unsaved_work_controller: UnsavedWorkController
     workspace_restore_controller: Any
     restored_workflow_materializer: Any
     workspace_restore_image_adapter: Any
@@ -254,6 +261,8 @@ class MainWindowRuntimeControllerComposition:
     error_presenter: Any
     cube_library_update_controller: Any
     model_catalog_update_controller: Any
+    model_update_notification_controller: Any
+    empty_model_picker_discovery_controller: Any
     settings_route_controller: Any
     restart_requirement_ui_controller: Any
     comfy_connection: ComfyConnectionRuntimeComposition
@@ -376,6 +385,7 @@ def capture_dependencies(
     shell._comfy_settings_webview_dialog = None
     shell.comfy_environment_service = dependencies.comfy_environment_service
     shell.cube_library_management_service = dependencies.cube_library_management_service
+    shell.model_update_service = dependencies.model_update_service
     shell.generation_preview_preference_service = (
         dependencies.generation_preview_preference_service
     )
@@ -406,6 +416,7 @@ def capture_dependencies(
     workflow_progress_service = WorkflowProgressService()
     output_scene_run_service = OutputSceneRunService()
     output_preview_registry = OutputPreviewRegistry()
+    shell.unsaved_work_service = UnsavedWorkService()
     workspace_controller = WorkspaceController(shell)
     generation_feedback_sink = ShellGenerationFeedbackSink(shell)
     generation_feedback_dispatcher = GenerationFeedbackDispatcher(
@@ -798,6 +809,7 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
         workspace_layout_controller=workspace_layout_controller,
         session_snapshot_capture_adapter=SessionSnapshotCaptureAdapter(shell),
         session_autosave_controller=SessionAutosaveController(shell),
+        unsaved_work_controller=UnsavedWorkController(shell),
         workspace_restore_controller=WorkspaceRestoreController(shell),
         restored_workflow_materializer=RestoredWorkflowMaterializer(shell),
         workspace_restore_image_adapter=WorkspaceRestoreImageAdapter(shell),
@@ -839,6 +851,7 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
         composition.session_snapshot_capture_adapter
     )
     shell.session_autosave_controller = composition.session_autosave_controller
+    shell.unsaved_work_controller = composition.unsaved_work_controller
     shell.workspace_restore_controller = composition.workspace_restore_controller
     shell.restored_workflow_materializer = composition.restored_workflow_materializer
     shell.workspace_restore_image_adapter = composition.workspace_restore_image_adapter
@@ -956,6 +969,26 @@ def compose_runtime_controllers(
         "model_catalog_updates",
         model_catalog_update_controller.stop,
     )
+    model_update_notification_controller = ModelUpdateNotificationController(
+        parent_widget=shell,
+        preferences=dependencies.civitai_preference_service,
+        updates=dependencies.model_update_service,
+        model_root=dependencies.model_update_model_root,
+        acquisition=dependencies.model_update_acquisition_service,
+    )
+    shell.shell_resource_lifecycle.register(
+        "model_update_notifications",
+        model_update_notification_controller.close,
+    )
+    empty_model_picker_discovery_controller = EmptyModelPickerDiscoveryController(
+        parent_widget=shell,
+        service=dependencies.empty_model_picker_onboarding_service,
+        catalog=dependencies.model_catalog_service,
+    )
+    shell.shell_resource_lifecycle.register(
+        "empty_model_picker_discovery",
+        empty_model_picker_discovery_controller.close,
+    )
     shell._initial_workspace_hydrated = False
     settings_route_controller = SettingsRouteController(
         shell,
@@ -973,6 +1006,10 @@ def compose_runtime_controllers(
         error_presenter=error_presenter,
         cube_library_update_controller=cube_library_update_controller,
         model_catalog_update_controller=model_catalog_update_controller,
+        model_update_notification_controller=model_update_notification_controller,
+        empty_model_picker_discovery_controller=(
+            empty_model_picker_discovery_controller
+        ),
         settings_route_controller=settings_route_controller,
         restart_requirement_ui_controller=restart_requirement_ui_controller,
         comfy_connection=comfy_connection,
@@ -983,6 +1020,12 @@ def compose_runtime_controllers(
     )
     shell.cube_library_update_controller = composition.cube_library_update_controller
     shell.model_catalog_update_controller = composition.model_catalog_update_controller
+    shell.model_update_notification_controller = (
+        composition.model_update_notification_controller
+    )
+    shell.empty_model_picker_discovery_controller = (
+        composition.empty_model_picker_discovery_controller
+    )
     shell.settings_route_controller = composition.settings_route_controller
     shell.restart_requirement_ui_controller = (
         composition.restart_requirement_ui_controller

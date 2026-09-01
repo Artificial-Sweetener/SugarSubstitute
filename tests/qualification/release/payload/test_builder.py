@@ -496,6 +496,7 @@ def _write_fixture_launcher_bundle(root: Path) -> Path:
     """Write a minimal PyInstaller onedir launcher bundle fixture."""
 
     _write_file(root / "SugarSubstitute.exe", "launcher")
+    _write_file(root / "Repair.exe", "repair launcher")
     _write_file(root / "launcher-bin" / "python312.dll", "dll")
     return root
 

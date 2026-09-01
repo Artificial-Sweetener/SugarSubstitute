@@ -88,6 +88,9 @@ class WorkflowUiFactory:
                 model_metadata_action_handler=(
                     self._shell.model_metadata_context_action_handler
                 ),
+                empty_model_picker_action=(
+                    self._shell.empty_model_picker_discovery_controller.request_for_empty_picker
+                ),
                 node_behavior_service=self._shell.node_behavior_service,
                 node_presentation_service=self._shell.node_presentation_service,
                 user_preset_service=self._shell.user_preset_service,
@@ -193,6 +196,9 @@ class WorkflowUiFactory:
                 thumbnail_asset_repository=self._shell.thumbnail_asset_repository,
                 model_metadata_action_handler=(
                     self._shell.model_metadata_context_action_handler
+                ),
+                empty_model_picker_action=(
+                    self._shell.empty_model_picker_discovery_controller.request_for_empty_picker
                 ),
             )
         manager.override_dropdown_btn = self._shell.override_dropdown_btn
