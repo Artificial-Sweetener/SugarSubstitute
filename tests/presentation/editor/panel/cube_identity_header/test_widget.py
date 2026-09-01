@@ -14,25 +14,28 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Format editor cube-section titles from workflow cube state."""
+"""Tests for editor cube identity headers."""
 
 from __future__ import annotations
 
-from substitute.application.cubes import cube_name_from_alias, cube_target_model
-from substitute.application.display_labels import beautify_label
-from substitute.domain.workflow import is_cube_bypassed
-from sugarsubstitute_shared.presentation.localization import (
-    translate_application_message,
+from PySide6.QtWidgets import QApplication
+
+from substitute.presentation.editor.panel.widgets.cube_title_label import (
+    CubeTitleLabel,
 )
 
 
-def cube_section_title(alias: str, cube_state: object | None) -> str:
-    """Return the visible editor title for one cube section."""
+def test_custom_alias_retains_target_model_without_adding_an_icon(
+    qt_application_owner: QApplication,
+) -> None:
+    """Changing title text should preserve the model pill without an editor icon."""
 
-    title = beautify_label(cube_name_from_alias(alias, cube_target_model(cube_state)))
-    if cube_state is not None and is_cube_bypassed(cube_state):
-        return translate_application_message("%1 (bypassed)", title)
-    return title
+    label = CubeTitleLabel("Text to Image")
+    _ = qt_application_owner
+    label.setTargetModel("SDXL")
 
+    label.setTitleText("Hero Background")
 
-__all__ = ["cube_section_title"]
+    assert label.text() == "Hero Background"
+    assert label.targetModel() == "SDXL"
+    label.deleteLater()

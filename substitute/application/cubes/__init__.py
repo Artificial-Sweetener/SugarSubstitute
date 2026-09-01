@@ -87,6 +87,10 @@ from substitute.application.cubes.cube_tab_presentation import (
     CubeTabPresentation,
     build_cube_tab_presentation,
 )
+from substitute.application.cubes.cube_target_model import (
+    cube_name_from_alias,
+    cube_target_model,
+)
 from substitute.application.cubes.cube_workflow_add_service import (
     CubeAddResult,
     CubeWorkflowAddService,
@@ -140,6 +144,8 @@ __all__ = [
     "cube_stack_draft_result",
     "cube_stack_tooltip_metadata_from_state",
     "cube_alias_body",
+    "cube_name_from_alias",
+    "cube_target_model",
     "plan_cube_stack_aliases",
     "overlay_persisted_node_inputs",
     "split_cube_alias_prefix",

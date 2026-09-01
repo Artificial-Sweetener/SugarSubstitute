@@ -24,10 +24,12 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
 
 from typing import cast
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QPainter, QPen
+from PySide6.QtCore import QRectF, QSize, Qt
+from PySide6.QtGui import QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 from qfluentwidgets import SubtitleLabel  # type: ignore[import-untyped]
+
+from substitute.presentation.cubes.cube_model_pill import CubeModelPillPainter
 
 _BYPASSED_SUFFIX = " (bypassed)"
 
@@ -40,6 +42,7 @@ class CubeTitleLabel(SubtitleLabel):  # type: ignore[misc]
 
         super().__init__(parent)
         self._full_text = ""
+        self._target_model = ""
         self.setMinimumWidth(0)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.setTitleText(text)
@@ -58,11 +61,36 @@ class CubeTitleLabel(SubtitleLabel):  # type: ignore[misc]
         self.updateGeometry()
         self.update()
 
+    def setTargetModel(self, target_model: str) -> None:
+        """Refresh the canonical model independently from the editable title."""
+
+        self._target_model = target_model.strip()
+        self.updateGeometry()
+        self.update()
+
+    def targetModel(self) -> str:
+        """Return the canonical model painted by this cube identity header."""
+
+        return self._target_model
+
     def sizeHint(self) -> QSize:
         """Return a shrinkable preferred size for header layout negotiation."""
 
         hint = super().sizeHint()
-        return QSize(min(hint.width(), 360), hint.height())
+        pill_metrics = CubeModelPillPainter.title_metrics(self.font())
+        pill_font_metrics = QFontMetrics(pill_metrics.font)
+        identity_width = (
+            pill_font_metrics.horizontalAdvance(self._target_model)
+            + (pill_metrics.horizontal_padding * 2)
+            + pill_metrics.gap
+            if self._target_model
+            else 0
+        )
+        pill_height = pill_metrics.height if self._target_model else 0
+        return QSize(
+            min(hint.width() + identity_width, 420),
+            max(hint.height(), pill_height),
+        )
 
     def minimumSizeHint(self) -> QSize:
         """Return the smallest useful title size while keeping layout stable."""
@@ -76,10 +104,20 @@ class CubeTitleLabel(SubtitleLabel):  # type: ignore[misc]
         _ = event
         painter = QPainter(self)
         painter.setFont(self.font())
+        text_rect = QRectF(self.rect())
+        if self._target_model:
+            pill_rect = CubeModelPillPainter.draw_standalone(
+                painter,
+                bounds=text_rect,
+                text=self._target_model,
+            )
+            if pill_rect is not None:
+                gap = CubeModelPillPainter.title_metrics(self.font()).gap
+                text_rect.setLeft(pill_rect.right() + gap)
         color = self.palette().color(self.foregroundRole())
         painter.setPen(QPen(color))
-        text = self._elided_text_for_width(self.width())
-        painter.drawText(self.rect(), int(Qt.AlignmentFlag.AlignVCenter), text)
+        text = self._elided_text_for_width(int(text_rect.width()))
+        painter.drawText(text_rect, int(Qt.AlignmentFlag.AlignVCenter), text)
 
     def _elided_text_for_width(self, width: int) -> str:
         """Return title text elided while preserving the bypass suffix."""

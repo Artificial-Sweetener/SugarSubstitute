@@ -14,25 +14,24 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Format editor cube-section titles from workflow cube state."""
+"""Build editor cube identity headers from canonical cube metadata."""
 
 from __future__ import annotations
 
-from substitute.application.cubes import cube_name_from_alias, cube_target_model
-from substitute.application.display_labels import beautify_label
-from substitute.domain.workflow import is_cube_bypassed
-from sugarsubstitute_shared.presentation.localization import (
-    translate_application_message,
-)
+from substitute.application.cubes import cube_target_model
+from substitute.presentation.editor.panel.cube_section_title import cube_section_title
+from substitute.presentation.editor.panel.widgets.cube_title_label import CubeTitleLabel
 
 
-def cube_section_title(alias: str, cube_state: object | None) -> str:
-    """Return the visible editor title for one cube section."""
+def build_cube_identity_header(
+    route_key: str,
+    cube_state: object | None,
+) -> CubeTitleLabel:
+    """Return an editor title whose model pill survives alias changes."""
 
-    title = beautify_label(cube_name_from_alias(alias, cube_target_model(cube_state)))
-    if cube_state is not None and is_cube_bypassed(cube_state):
-        return translate_application_message("%1 (bypassed)", title)
-    return title
+    header = CubeTitleLabel(cube_section_title(route_key, cube_state))
+    header.setTargetModel(cube_target_model(cube_state))
+    return header
 
 
-__all__ = ["cube_section_title"]
+__all__ = ["build_cube_identity_header"]

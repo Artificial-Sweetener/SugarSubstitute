@@ -31,6 +31,7 @@ class CubeTabPresentation:
     primary_text: str
     secondary_text: str
     tooltip_text: str
+    target_model: str = ""
 
 
 def build_cube_tab_presentation(
@@ -38,10 +39,13 @@ def build_cube_tab_presentation(
     alias: str,
     cube_id: str,
     version: str,
+    target_model: str = "",
 ) -> CubeTabPresentation:
     """Return stack-tab display text for one cube alias."""
 
-    primary_text = alias.strip()
+    from substitute.application.cubes.cube_target_model import cube_name_from_alias
+
+    primary_text = cube_name_from_alias(alias, target_model)
     version_text = _format_version(version)
     pack_text = _pack_name_from_cube_id(cube_id)
     secondary_parts = [part for part in (version_text, pack_text) if part]
@@ -49,6 +53,7 @@ def build_cube_tab_presentation(
         primary_text=primary_text,
         secondary_text=_SEPARATOR.join(secondary_parts),
         tooltip_text=primary_text,
+        target_model=target_model.strip(),
     )
 
 
