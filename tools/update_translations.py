@@ -30,6 +30,7 @@ from tools.localization_catalog import (
     extract_application_messages,
     extract_language_selector_messages,
     extract_launcher_messages,
+    extract_shared_application_messages,
     pseudo_localize,
 )
 from tools.translation_catalog_registry import (
@@ -53,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     app_messages = extract_application_messages(project_root)
     language_selector_messages = extract_language_selector_messages(project_root)
     launcher_messages = extract_launcher_messages(project_root)
+    shared_application_messages = extract_shared_application_messages(project_root)
     artifacts = release_translation_catalogs(project_root)
     translations_root = project_root / "translations"
     for artifact in artifacts:
@@ -74,6 +76,27 @@ def main(argv: list[str] | None = None) -> int:
                 launcher_messages,
                 context_name=_LAUNCHER_CONTEXT,
             )
+            _synchronize_catalog(
+                artifact.source_path,
+                shared_application_messages,
+                context_name=_APP_CONTEXT,
+            )
+    for launcher_artifact in (
+        artifact
+        for artifact in artifacts
+        if artifact.domain is TranslationDomain.LAUNCHER
+    ):
+        application_artifact = next(
+            artifact
+            for artifact in artifacts
+            if artifact.domain is TranslationDomain.APPLICATION
+            and artifact.language.identifier == launcher_artifact.language.identifier
+        )
+        _copy_context_translations(
+            source_path=application_artifact.source_path,
+            destination_path=launcher_artifact.source_path,
+            context_name=_APP_CONTEXT,
+        )
     pseudo_path = translations_root / "app_qps_ploc.ts"
     _write_pseudo_catalog(pseudo_path, app_messages)
     if args.compile:
@@ -136,6 +159,35 @@ def _write_pseudo_catalog(
         ET.SubElement(message, "source").text = extracted.source
         ET.SubElement(message, "translation").text = pseudo_localize(extracted.source)
     _write_ts(path, root)
+
+
+def _copy_context_translations(
+    *,
+    source_path: Path,
+    destination_path: Path,
+    context_name: str,
+) -> None:
+    """Copy one shared context so common copy has one translation owner."""
+
+    source_root = ET.parse(source_path).getroot()
+    destination_tree = ET.parse(destination_path)
+    destination_root = destination_tree.getroot()
+    source_context = _find_or_create_context(source_root, context_name)
+    destination_context = _find_or_create_context(destination_root, context_name)
+    source_translations = {
+        message.findtext("source") or "": message.find("translation")
+        for message in source_context.findall("message")
+    }
+    for message in destination_context.findall("message"):
+        source_text = message.findtext("source") or ""
+        source_translation = source_translations.get(source_text)
+        destination_translation = message.find("translation")
+        if source_translation is None or destination_translation is None:
+            continue
+        destination_translation.clear()
+        destination_translation.text = source_translation.text
+        destination_translation.attrib.update(source_translation.attrib)
+    _write_ts(destination_path, destination_root)
 
 
 def _find_or_create_context(root: ET.Element, name: str) -> ET.Element:

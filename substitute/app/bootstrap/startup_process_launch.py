@@ -27,11 +27,20 @@ from typing import Any
 from substitute.shared.logging.logger import get_logger, log_error, log_exception
 from substitute.shared.startup_trace import trace_mark
 from sugarsubstitute_shared.application_launch_guard import (
+    application_launch_install_root,
     cancel_restart_application_launch_environment,
     restart_application_launch_environment,
 )
+from sugarsubstitute_shared.launcher_update.targets import (
+    detect_launcher_bundle_target,
+)
+from sugarsubstitute_shared.crash_reporting.protocol import CleanExitOutcome
+from sugarsubstitute_shared.crash_reporting.runtime import (
+    active_process_crash_runtime,
+)
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
+    subprocess_path,
     subprocess_working_directory,
 )
 
@@ -62,14 +71,13 @@ def start_ready_app_process(command: Sequence[str]) -> bool:
             working_directory_present=working_directory is not None,
         )
         return False
+    supervisor_command, supervisor_working_directory = restart_supervisor_command(
+        command
+    )
     try:
         subprocess.Popen(  # noqa: S603
-            list(command),
-            cwd=(
-                subprocess_working_directory(working_directory)
-                if working_directory is not None
-                else None
-            ),
+            supervisor_command,
+            cwd=subprocess_working_directory(supervisor_working_directory),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -88,6 +96,9 @@ def start_ready_app_process(command: Sequence[str]) -> bool:
             working_directory_present=working_directory is not None,
         )
         return False
+    crash_runtime = active_process_crash_runtime()
+    if crash_runtime is not None:
+        crash_runtime.request_clean_exit(CleanExitOutcome.RESTART)
     trace_mark(
         "ready_app_process.started",
         executable_name=_command_executable_name(command),
@@ -95,6 +106,30 @@ def start_ready_app_process(command: Sequence[str]) -> bool:
         working_directory_present=working_directory is not None,
     )
     return True
+
+
+def restart_supervisor_command(command: Sequence[str]) -> tuple[list[str], Path]:
+    """Build the stable launcher command that supervises one app restart."""
+
+    install_root = application_launch_install_root(command, app_root=Path.cwd())
+    target = detect_launcher_bundle_target()
+    launcher_executable = install_root / target.executable_relative_path
+    arguments = (
+        "--restart-application",
+        f"--install-root={subprocess_path(install_root)}",
+    )
+    if launcher_executable.is_file():
+        return [
+            subprocess_path(launcher_executable),
+            *arguments,
+        ], launcher_executable.parent
+    working_directory = launch_command_working_directory(command) or Path.cwd()
+    return [
+        subprocess_path(Path(sys.executable)),
+        "-m",
+        "launcher.sugarsubstitute_launcher",
+        *arguments,
+    ], working_directory
 
 
 def launch_command_working_directory(command: Sequence[str]) -> Path | None:
@@ -116,4 +151,8 @@ def _command_executable_name(command: Sequence[str]) -> str:
     return Path(command[0]).name
 
 
-__all__ = ["launch_command_working_directory", "start_ready_app_process"]
+__all__ = [
+    "launch_command_working_directory",
+    "restart_supervisor_command",
+    "start_ready_app_process",
+]

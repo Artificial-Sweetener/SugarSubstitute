@@ -24,6 +24,11 @@ from pathlib import Path
 import shutil
 import sys
 
+from sugarsubstitute_shared.launcher_update.targets import (
+    LauncherBundleTarget,
+    detect_launcher_bundle_target,
+)
+
 
 PyInstallerDataFile = tuple[str, str]
 PyInstallerBinary = tuple[str, str, str]
@@ -34,11 +39,13 @@ def build_launcher_data_files(
     repo_root: Path,
     app_icon_path: Path,
     uv_executable: str | None = None,
+    target: LauncherBundleTarget | None = None,
 ) -> tuple[PyInstallerDataFile, ...]:
     """Return the complete runtime data contract for every launcher bundle."""
 
     resolved_root = repo_root.resolve()
     resolved_uv = uv_executable or resolve_uv_executable()
+    crashpad_target = (target or detect_launcher_bundle_target()).key.replace("_", "-")
     return (
         (str(app_icon_path.resolve()), "launcher_assets"),
         (resolved_uv, "launcher_assets"),
@@ -51,6 +58,10 @@ def build_launcher_data_files(
                 resolved_root / "sugarsubstitute_shared" / "localization" / "resources"
             ),
             "sugarsubstitute_shared/localization/resources",
+        ),
+        (
+            str(resolved_root / "third_party" / "bin" / "crashpad" / crashpad_target),
+            "crashpad",
         ),
     )
 

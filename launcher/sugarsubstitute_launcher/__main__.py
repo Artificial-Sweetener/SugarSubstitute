@@ -23,22 +23,63 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sys
 import traceback
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sugarsubstitute_shared.crash_reporting.runtime import ProcessCrashRuntime
 
 
 def run_launcher(launcher_main: Callable[[], int] | None = None) -> int:
     """Run the launcher and preserve unexpected packaged-bootstrap failures."""
 
+    crash_runtime = _install_supervised_crash_runtime()
     try:
         if launcher_main is None:
             from launcher.sugarsubstitute_launcher.app import main
 
             launcher_main = main
-        return launcher_main()
+        result = launcher_main()
+    except SystemExit:
+        _request_clean_exit(crash_runtime)
+        raise
     except Exception:
         failure = traceback.format_exc()
         _record_bootstrap_failure(failure)
         _emit_bootstrap_failure(failure)
         raise
+    _request_clean_exit(crash_runtime)
+    return result
+
+
+def _install_supervised_crash_runtime() -> ProcessCrashRuntime | None:
+    """Install Crashpad and Python hooks in a supervised launcher UI child."""
+
+    from sugarsubstitute_shared.crash_reporting.protocol import CrashRunContext
+
+    context = CrashRunContext.from_environment()
+    if context is None:
+        return None
+    from launcher.sugarsubstitute_launcher import __version__
+    from sugarsubstitute_shared.crash_reporting.runtime import (
+        install_process_crash_runtime,
+    )
+
+    return install_process_crash_runtime(
+        context=context,
+        application_version=__version__,
+        launch_arguments=sys.argv,
+        install_root=context.incident_root.parents[2],
+    )
+
+
+def _request_clean_exit(runtime: ProcessCrashRuntime | None) -> None:
+    """Authenticate launcher UI completion only after normal cleanup."""
+
+    if runtime is None or runtime.clean_exit_outcome is not None:
+        return
+    from sugarsubstitute_shared.crash_reporting.protocol import CleanExitOutcome
+
+    runtime.request_clean_exit(CleanExitOutcome.CLOSED)
 
 
 def _record_bootstrap_failure(failure: str) -> None:

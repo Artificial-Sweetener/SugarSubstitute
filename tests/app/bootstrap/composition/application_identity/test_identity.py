@@ -25,6 +25,7 @@ from typing import Any, cast
 import pytest
 
 from substitute.app.bootstrap import composition
+from substitute.app.bootstrap import crash_aware_application
 
 
 def test_create_application_sets_shared_app_icon(
@@ -60,7 +61,11 @@ def test_create_application_sets_shared_app_icon(
         "configure_windows_app_user_model_id",
         lambda: construction_order.append("app_user_model_id"),
     )
-    monkeypatch.setattr(composition, "QApplication", _FakeApplication)
+    monkeypatch.setattr(
+        crash_aware_application,
+        "CrashAwareApplication",
+        _FakeApplication,
+    )
 
     app = cast(Any, composition.create_application(("main.py",)))
 

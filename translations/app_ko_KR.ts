@@ -465,7 +465,7 @@ Prompt preview:
       <translation>고급 옵션</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="360"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="99"></location>
       <source>Affected cubes</source>
       <translation>영향받는 큐브</translation>
     </message>
@@ -1410,7 +1410,7 @@ Prompt preview:
       <translation>Comfy 콘솔</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="83"></location>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="92"></location>
       <source>Comfy disconnected</source>
       <translation>Comfy 연결이 끊어졌습니다</translation>
     </message>
@@ -1465,7 +1465,7 @@ Prompt preview:
       <translation>Comfy 다시 시작 상태를 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="152"></location>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="154"></location>
       <source>Comfy restarted</source>
       <translation>Comfy가 다시 시작되었습니다</translation>
     </message>
@@ -1915,7 +1915,7 @@ Prompt preview:
       <translation>모든 출력 복사</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="285"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="404"></location>
       <source>Copy report</source>
       <translation>보고서 복사</translation>
     </message>
@@ -1945,7 +1945,7 @@ Prompt preview:
       <translation>필요한 큐브 라이브러리 노드를 설치하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1048"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="961"></location>
       <source>Could not load image: %1</source>
       <translation>이미지를 불러오지 못했습니다: %1</translation>
     </message>
@@ -2523,7 +2523,7 @@ Install these nodes now?</source>
       <translation>오류</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="349"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="92"></location>
       <source>Exception</source>
       <translation>예외</translation>
     </message>
@@ -2613,7 +2613,7 @@ Install these nodes now?</source>
       <translation>생성에 사용할 입력 캔버스 내용을 캡처하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="502"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="504"></location>
       <source>Failed to connect generation listener session</source>
       <translation>생성 리스너 세션에 연결하지 못했습니다</translation>
     </message>
@@ -2673,12 +2673,12 @@ Install these nodes now?</source>
       <translation>큐브를 증분 삽입한 후 편집기 표시 상태를 새로 고치지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="429"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>워크플로 자산 %1.%2 준비 실패: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="631"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="632"></location>
       <source>Failed to start generation listener</source>
       <translation>생성 리스너를 시작하지 못했습니다</translation>
     </message>
@@ -2818,7 +2818,7 @@ Install these nodes now?</source>
       <translation>장면 생성에서 실행 가능한 장면을 찾지 못했습니다: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1060"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="973"></location>
       <source>Generated image load failed</source>
       <translation>생성된 이미지 불러오기 실패</translation>
     </message>
@@ -3003,7 +3003,7 @@ Install these nodes now?</source>
       <translation>생성 컨트롤 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="451"></location>
       <source>Hide report</source>
       <translation>보고서 숨기기</translation>
     </message>
@@ -3403,7 +3403,7 @@ Install these nodes now?</source>
       <translation>LoRA 트리거 단어</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1052"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="965"></location>
       <source>Load Error</source>
       <translation>불러오기 오류</translation>
     </message>
@@ -3948,7 +3948,7 @@ Install these nodes now?</source>
       <translation>썸네일 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="347"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="90"></location>
       <source>Node</source>
       <translation>노드</translation>
     </message>
@@ -3973,7 +3973,7 @@ Install these nodes now?</source>
       <translation>노드 컨텍스트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="97"></location>
       <source>Node errors</source>
       <translation>노드 오류</translation>
     </message>
@@ -4023,7 +4023,7 @@ Install these nodes now?</source>
       <translation>대기열에 추가할 생성 횟수</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="46"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="74"></location>
       <source>OK</source>
       <translation>확인</translation>
     </message>
@@ -4468,7 +4468,7 @@ Install these nodes now?</source>
       <translation>프로젝트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="88"></location>
       <source>Prompt</source>
       <translation>프롬프트</translation>
     </message>
@@ -4868,7 +4868,7 @@ Install these nodes now?</source>
       <translation>복구하면 감지된 가속기에 맞는 백엔드로 ComfyUI를 다시 설치합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="295"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="869"></location>
       <source>Report issue</source>
       <translation>문제 신고</translation>
     </message>
@@ -4997,6 +4997,11 @@ No known extension claimant.</source>
       <translation>ComfyUI 수동으로 다시 시작</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="339"></location>
+      <source>Restart SugarSubstitute</source>
+      <translation>SugarSubstitute 다시 시작</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="937"></location>
       <source>Restart is available for this Comfy server.</source>
       <translation>이 Comfy 서버는 다시 시작할 수 있습니다.</translation>
@@ -5027,7 +5032,7 @@ No known extension claimant.</source>
       <translation>GUI 다시 시작</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="110"></location>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="117"></location>
       <source>Restarting Comfy</source>
       <translation>Comfy를 다시 시작하는 중</translation>
     </message>
@@ -5185,6 +5190,11 @@ No known extension claimant.</source>
       <location filename="../substitute/application/errors.py" line="622"></location>
       <source>Runtime and system information</source>
       <translation>런타임 및 시스템 정보</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="117"></location>
+      <source>Runtime context</source>
+      <translation>런타임 컨텍스트</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="611"></location>
@@ -5607,7 +5617,7 @@ No known extension claimant.</source>
       <translation>위키 뷰어에 이미지 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="451"></location>
       <source>Show report</source>
       <translation>보고서 표시</translation>
     </message>
@@ -5712,6 +5722,11 @@ No known extension claimant.</source>
       <translation>저장된 런타임 경로 일부가 이 설치와 더 이상 일치하지 않습니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/application/crash_reports.py" line="44"></location>
+      <source>Something unexpected stopped SugarSubstitute. You can copy this report and share it with the maintainers.</source>
+      <translation>예기치 않은 문제로 SugarSubstitute가 중지되었습니다. 이 보고서를 복사하여 관리자와 공유할 수 있습니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="73"></location>
       <source>Source: %1</source>
       <translation>소스: %1</translation>
@@ -5732,7 +5747,7 @@ No known extension claimant.</source>
       <translation>맞춤법 검사</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="334"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="79"></location>
       <source>Stage</source>
       <translation>단계</translation>
     </message>
@@ -6247,7 +6262,7 @@ No known extension claimant.</source>
       <translation>Substitute에 저장된 폴더 설정을 수정해야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2721"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2726"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6350,6 +6365,16 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/settings/about_page.py" line="387"></location>
       <source>SugarSubstitute</source>
       <translation>SugarSubstitute</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="39"></location>
+      <source>SugarSubstitute crashed</source>
+      <translation>SugarSubstitute가 충돌했습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="41"></location>
+      <source>SugarSubstitute did not close normally</source>
+      <translation>SugarSubstitute가 정상적으로 종료되지 않았습니다</translation>
     </message>
     <message>
       <location filename="../substitute/application/about/license_text.py" line="23"></location>
@@ -6695,6 +6720,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/infrastructure/security/keyring_civitai_credential_store.py" line="135"></location>
       <source>The operating-system credential store rejected the key.</source>
       <translation>운영 체제 자격 증명 저장소에서 키를 거부했습니다.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="49"></location>
+      <source>The previous SugarSubstitute session ended without completing shutdown. The report below may help determine why.</source>
+      <translation>이전 SugarSubstitute 세션이 종료 절차를 완료하지 못한 채 끝났습니다. 아래 보고서가 원인을 파악하는 데 도움이 될 수 있습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/readiness_service.py" line="263"></location>
@@ -7142,7 +7172,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>업데이트 가능</translation>
     </message>
     <message>
-      <location filename="../substitute/application/update_rollback_notice.py" line="92"></location>
+      <location filename="../substitute/application/update_rollback_notice.py" line="88"></location>
       <source>Update failed</source>
       <translation>업데이트 실패</translation>
     </message>
@@ -7437,7 +7467,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>ComfyUI의 Python 환경을 찾지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/update_rollback_notice.py" line="93"></location>
+      <location filename="../substitute/application/update_rollback_notice.py" line="89"></location>
       <source>We tried to update Substitute, but it failed. Substitute is ready to use. Please send an error report to the maintainer.</source>
       <translation>Substitute 업데이트를 시도했지만 실패했습니다. Substitute는 사용할 준비가 되었습니다. 관리자에게 오류 보고서를 보내 주세요.</translation>
     </message>
@@ -7517,7 +7547,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>Windows에서는 개별 파일 또는 폴더 이름을 255자로 제한합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="339"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="83"></location>
       <source>Workflow</source>
       <translation>워크플로</translation>
     </message>
@@ -7727,7 +7757,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>없음</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="548"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="550"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>queue_prompt에서 prompt_id를 반환하지 않음</translation>
     </message>
@@ -7742,7 +7772,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>소스 체크아웃</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="84"></location>
       <source>unknown</source>
       <translation>알 수 없음</translation>
     </message>
