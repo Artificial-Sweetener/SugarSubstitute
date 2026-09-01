@@ -51,6 +51,7 @@ def test_transaction_promotes_launcher_inside_long_install_root(
             "old launcher",
             encoding="utf-8",
         )
+        (install_root / "Repair.exe").write_text("old repair", encoding="utf-8")
         (install_root / "launcher-bin").mkdir()
         (install_root / "launcher-bin" / "runtime.txt").write_text(
             "old runtime",
@@ -61,6 +62,7 @@ def test_transaction_promotes_launcher_inside_long_install_root(
             "new launcher",
             encoding="utf-8",
         )
+        (staged_root / "Repair.exe").write_text("new repair", encoding="utf-8")
         (staged_root / "launcher-bin").mkdir()
         (staged_root / "launcher-bin" / "runtime.txt").write_text(
             "new runtime",

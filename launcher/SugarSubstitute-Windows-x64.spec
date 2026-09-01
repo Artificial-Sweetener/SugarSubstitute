@@ -67,6 +67,22 @@ a = Analysis(
 a.binaries = exclude_foreign_windows_icu_binaries(a.binaries)
 pyz = PYZ(a.pure)
 
+repair_a = Analysis(
+    [str(launcher_root / "sugarsubstitute_launcher" / "repair_entrypoint.py")],
+    pathex=[str(repo_root)],
+    binaries=[],
+    datas=launcher_datas,
+    hiddenimports=[],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=a.excludes,
+    noarchive=False,
+    optimize=2,
+)
+repair_a.binaries = exclude_foreign_windows_icu_binaries(repair_a.binaries)
+repair_pyz = PYZ(repair_a.pure)
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -87,8 +103,31 @@ exe = EXE(
     icon=str(app_icon_path),
     contents_directory="launcher-bin",
 )
+repair_exe = EXE(
+    repair_pyz,
+    repair_a.scripts,
+    repair_a.binaries,
+    repair_a.datas,
+    [],
+    name="Repair",
+    debug=False,
+    bootloader_ignore_signals=False,
+    exclude_binaries=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=str(app_icon_path),
+    contents_directory="launcher-bin",
+)
 coll = COLLECT(
     exe,
+    repair_exe,
     a.binaries,
     a.datas,
     strip=False,

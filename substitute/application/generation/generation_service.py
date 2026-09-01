@@ -70,9 +70,12 @@ from substitute.application.generation.asset_staging_service import (
 from substitute.application.generation.generation_models import (
     GenerationCallbacks,
     GenerationFailure,
-    GenerationRunStarted,
     GenerationStartResult,
     PreparedGenerationRequest,
+    generation_failure_from_listener,
+)
+from substitute.application.generation.generation_run_started_notifier import (
+    notify_generation_run_started,
 )
 from substitute.application.generation.preview_preference_service import (
     GenerationPreviewMethodResolver,
@@ -147,6 +150,13 @@ class AssetStagingService(Protocol):
         """Return an execution-ready workflow payload."""
 
 
+class ModelUsageRecorder(Protocol):
+    """Record model identities after a generation is accepted by ComfyUI."""
+
+    def record_queued_payload(self, workflow_payload: Mapping[str, object]) -> int:
+        """Record exact referenced models and return their count."""
+
+
 class GenerationService:
     """Own generation orchestration independent from presentation widgets."""
 
@@ -167,6 +177,7 @@ class GenerationService:
         direct_workflow_execution_projector: DirectWorkflowExecutionProjector
         | None = None,
         visual_run_context_builder: VisualRunContextBuilder | None = None,
+        model_usage_recorder: ModelUsageRecorder | None = None,
         output_dir: Path = DEFAULT_PROJECTS_DIR,
         client_id: str = "substitute",
     ) -> None:
@@ -191,6 +202,7 @@ class GenerationService:
         self._visual_run_context_builder = (
             visual_run_context_builder or VisualRunContextBuilder()
         )
+        self._model_usage_recorder = model_usage_recorder
         self._output_dir = output_dir
         self._client_id = client_id
         self._active_listener_handles: list[ListenerHandle] = []
@@ -548,6 +560,17 @@ class GenerationService:
                     error_report=queue_result.error_report,
                 ),
             )
+        if self._model_usage_recorder is not None:
+            try:
+                self._model_usage_recorder.record_queued_payload(workflow_payload)
+            except (OSError, RuntimeError, TypeError, ValueError) as error:
+                log_exception(
+                    _LOGGER,
+                    "Failed to record queued generation model usage",
+                    workflow_id=request.workflow_id,
+                    prompt_id=prompt_id,
+                    error=error,
+                )
         log_generation_payload_assets(
             workflow_payload,
             workflow_id=request.workflow_id,
@@ -559,15 +582,9 @@ class GenerationService:
 
         def on_listener_failed(event: ListenerFailure) -> None:
             callbacks.on_failure(
-                GenerationFailure(
-                    stage="listen",
-                    workflow_id=event.workflow_id,
-                    generation_run_id=event.generation_run_id,
-                    prompt_id=event.prompt_id,
+                generation_failure_from_listener(
+                    event,
                     client_id=run_client_id,
-                    message=event.error,
-                    detail=event.detail,
-                    error_report=event.error_report,
                 )
             )
 
@@ -590,16 +607,15 @@ class GenerationService:
             on_timing=callbacks.on_timing,
             on_completed=on_listener_completed,
         )
-        if callbacks.on_run_started is not None:
-            callbacks.on_run_started(
-                GenerationRunStarted(
-                    workflow_id=request.workflow_id,
-                    generation_run_id=generation_run_id,
-                    output_session_id=request.scene_run_id or generation_run_id,
-                    prompt_id=prompt_id,
-                    client_id=run_client_id,
-                )
-            )
+        notify_generation_run_started(
+            callbacks.on_run_started,
+            workflow_id=request.workflow_id,
+            generation_run_id=generation_run_id,
+            output_session_id=request.scene_run_id or generation_run_id,
+            prompt_id=prompt_id,
+            client_id=run_client_id,
+            visual_context=visual_context,
+        )
         listener_result = self._comfy_gateway.start_listener(
             request=ListenerStartRequest(
                 prompt_id=prompt_id,
@@ -817,7 +833,6 @@ __all__ = [
     "GenerationCallbacks",
     "GenerationFailure",
     "GenerationRequest",
-    "GenerationRunStarted",
     "GenerationService",
     "GenerationStartResult",
     "PreparedGenerationRequest",

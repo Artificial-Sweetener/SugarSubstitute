@@ -240,3 +240,29 @@ vendored_files = [
   "third_party/bin/7zip/linux-x64/7za",
   "third_party/bin/7zip/macos-arm64/7za",
 ]
+
+[[component]]
+name = "Crashpad native crash reporting runtime"
+license = "Apache-2.0 with bundled BSD-3-Clause, zlib, and public-domain components"
+license_file = "third_party/licenses/crashpad.LICENSE.txt"
+additional_license_files = [
+  "third_party/licenses/mini-chromium.LICENSE.txt",
+  "third_party/licenses/crashpad-zlib.LICENSE.txt",
+  "third_party/licenses/crashpad-getopt.LICENSE.txt",
+]
+source = "https://chromium.googlesource.com/crashpad/crashpad"
+revision = "60dd943f48d77dc8d05dabc04badbd8561d0b8c4"
+source_paths = [
+  "client/",
+  "handler/",
+  "minidump/",
+  "snapshot/",
+  "util/",
+  "third_party/mini_chromium/",
+  "third_party/zlib/",
+  "third_party/getopt/",
+]
+vendored_files = [
+  "third_party/bin/crashpad/windows-x64/crashpad_handler.exe",
+  "third_party/bin/crashpad/windows-x64/sugarsubstitute_crashpad_client.dll",
+]

@@ -49,6 +49,9 @@ def test_activation_event_presents_pending_cube_library_updates() -> None:
         cube_library_update_controller=SimpleNamespace(
             present_pending_updates=lambda: calls.append("present")
         ),
+        model_update_notification_controller=SimpleNamespace(
+            check_on_focus=lambda: calls.append("check-models")
+        ),
         search_overlay_controller=SimpleNamespace(
             handle_event_filter_event=lambda _event: (_ for _ in ()).throw(
                 AssertionError("activation should not reach search overlay")
@@ -60,7 +63,7 @@ def test_activation_event_presents_pending_cube_library_updates() -> None:
     result = controller.handle_event_filter_event(_Event(QEvent.Type.WindowActivate))
 
     assert result is False
-    assert calls == ["present"]
+    assert calls == ["present", "check-models"]
 
 
 def test_search_overlay_result_is_returned() -> None:

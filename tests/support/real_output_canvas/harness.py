@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from pathlib import Path
+from unittest.mock import patch
 from uuid import UUID
 
 from PySide6.QtWidgets import QWidget
@@ -67,7 +68,19 @@ class RealShellOutputCanvasHarness:
         self.app = _ensure_qapp()
         self.output_root = output_root
         self.canvas_io_service = _CanvasIoService()
-        self.shell = _HarnessShell(self.canvas_io_service)
+        with patch.dict(
+            "os.environ",
+            {
+                "SUGAR_SUBSTITUTE_STARTUP_HARNESS": "1",
+                "SUGAR_SUBSTITUTE_STARTUP_HARNESS_DEFER_INPUT_SAM": "1",
+            },
+        ):
+            self.shell = _HarnessShell(self.canvas_io_service)
+        input_canvas = self.shell.canvas_host.canvas_for("Input").canvas
+        if input_canvas.installedFeatures != ("mask",):
+            raise AssertionError(
+                "Output canvas harness must not install network-backed Input features"
+            )
         self._input = MountedWidgetInput(self.app)
         self.workflows: dict[str, WorkflowHandle] = {}
         available = self.app.primaryScreen().availableGeometry()

@@ -4,7 +4,7 @@ schema_version = 1
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]
-  fingerprint = "sha256:c340ee6a0b72eb24f3ff72acf87e7e0d1d782a10a245e931732202e8caed5658"
+  fingerprint = "sha256:59c885cd10694a26cac7bd8f9d7cfe67aa9decefd193ef7c07fb5c9548af7cd8"
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
 responsibilities = [
@@ -155,7 +155,7 @@ next_extraction = "Extract error payload interpretation and report rendering fro
 id = "SS-ARCH-012"
 owner = "generation execution"
 paths = ["substitute/application/generation/generation_service.py"]
-  fingerprint = "sha256:84ed569380e0cdb7b9beba0edb3522327f069446c3f8b97a9cc29a2380807955"
+fingerprint = "sha256:a49151f59ec5bfdbef1e461fb5ba35bcea71d5c5401ded6401682d5bff3deb9f"
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
 responsibilities = [
@@ -170,11 +170,11 @@ next_extraction = "Extract listener lifecycle and output routing from prompt dis
 id = "SS-ARCH-013"
 owner = "generation job queue"
 paths = ["substitute/application/generation/job_queue_service.py"]
-fingerprint = "sha256:00c16e6b8f3a2d5aeb965337a08c12c4ced1f35af09f4259de9079bc4f4dc97c"
+fingerprint = "sha256:f931369229205752e5f64f812d0361853f7156cea4299b5aaf743f9f1f04c5fc"
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
 responsibilities = [
-  "pending-job ordering and batch bookkeeping",
+  "pending-job ordering and batch insertion orchestration",
   "output run-number reservation and commit",
   "dispatch and Comfy interruption lifecycle",
   "live progress and output projection",
@@ -497,22 +497,6 @@ responsibilities = [
 next_extraction = "Extract layout measurement and selector synchronization from navigation intents and selection policy."
 
 [[debts]]
-id = "SS-ARCH-038"
-owner = "output canvas presentation"
-paths = ["substitute/presentation/canvas/output/output_canvas_view.py"]
-fingerprint = "sha256:f054d242a372a10908278655d85513d93e7598976d83ea7191096795773b1ebc"
-issue = "chore:SS-ARCH-038"
-review_by = 2026-12-15
-responsibilities = [
-  "CuteCanvas workspace and document hosting",
-  "output navigation chrome and compare state",
-  "preview registry and lane presentation",
-  "transfer and external-editor integration",
-  "projection-session and interaction event routing",
-]
-next_extraction = "Extract preview-lane and transfer integration from the mounted CuteCanvas workspace view."
-
-[[debts]]
 id = "SS-ARCH-039"
 owner = "cube stack cart"
 paths = ["substitute/presentation/cube_picker/cube_stack_cart_modal.py"]
@@ -612,7 +596,7 @@ next_extraction = "Extract pure dimension transforms and saved-dimension command
 id = "SS-ARCH-045"
 owner = "editor node-card construction"
 paths = ["substitute/presentation/editor/panel/node_card_builder.py"]
-fingerprint = "sha256:06fb5413c5cd0dad59773bfc572ab7bd7234a79e4494e921b9a5b57df8c9ee45"
+fingerprint = "sha256:ae517b2ae6820a10a17a36b669906db5bed1b75ce84de613546844ce71d3bf95"
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
 responsibilities = [
@@ -628,7 +612,7 @@ next_extraction = "Extract title, icon, and link-endpoint composition from node-
 id = "SS-ARCH-046"
 owner = "toolbar global overrides"
 paths = ["substitute/presentation/editor/panel/overrides_controller.py"]
-fingerprint = "sha256:d1c6b10efcd6e5dc58e8694de2fd768e2c9a3b4d3fd2f041219126f6a3b0a824"
+fingerprint = "sha256:c2baeb6999d62f4b0806ecf7a2411a1bcfc853fdbbd78004c7901237173585f8"
 issue = "chore:SS-ARCH-046"
 review_by = 2026-12-15
 responsibilities = [
@@ -709,7 +693,7 @@ next_extraction = "Extract corpus/match projection and refresh scheduling from r
 id = "SS-ARCH-051"
 owner = "editor panel presentation"
 paths = ["substitute/presentation/editor/panel/view.py"]
-fingerprint = "sha256:3ac68dbe39215fce69f8c5eebd0e8915cf106b6d8ecf28415f782d5a1ab9cff9"
+fingerprint = "sha256:9fb09e641b86d55765dd88c0acdb1809feaa1720a0f5c27c6b21cd9ac589a1c9"
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
 responsibilities = [
@@ -1123,7 +1107,7 @@ next_extraction = "Separate preview preferences from output organization and pat
 id = "SS-ARCH-076"
 owner = "settings catalog presentation"
 paths = ["substitute/presentation/settings/settings_catalog_builders.py"]
-fingerprint = "sha256:c6ad8dab704c63bd59ae03bba6991d88782b7b4219c58b8858ecc3020c95b7ad"
+fingerprint = "sha256:ac7e01d90ae365dcf95c908b83f7cfb744688ee7980aba9918d3ee221c8c3c6f"
 issue = "chore:SS-ARCH-076"
 review_by = 2026-12-15
 responsibilities = [
@@ -1190,7 +1174,7 @@ next_extraction = "Extract override/dependent-control refresh and callback adapt
 id = "SS-ARCH-080"
 owner = "main window composition"
 paths = ["substitute/presentation/shell/main_window_composition.py"]
-fingerprint = "sha256:02f855fbe3ac9feaa238e08d0fbaebceed6a3da30e9ba31ae054a47f2299c5c6"
+fingerprint = "sha256:1e91a98234400c3069e7f6a9b27a00544c9b6b897053e52de155d38281911bc4"
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
 responsibilities = [
@@ -1201,7 +1185,7 @@ responsibilities = [
   "shell and runtime controller composition",
   "signal connection and reload integration",
 ]
-next_extraction = "Split feature-specific composition modules behind a narrow main-window assembly boundary."
+next_extraction = "Continue splitting feature-specific composition modules behind the narrowed main-window assembly boundary."
 
 [[debts]]
 id = "SS-ARCH-081"
@@ -1257,7 +1241,7 @@ next_extraction = "Separate active feature refresh and legacy adaptation from di
 id = "SS-ARCH-084"
 owner = "workflow workspace lifecycle"
 paths = ["substitute/presentation/shell/workflow_workspace_coordinator.py"]
-fingerprint = "sha256:67305040bed2feab021f2f16b8305471d02a7c6e9a7ecbbe2a7dd17179283c58"
+fingerprint = "sha256:7d0a982a1d323f7bbc2443d793ca13047fb5d3e8e0e748fba2eee071bca6b1f6"
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
 responsibilities = [
@@ -1274,18 +1258,17 @@ next_extraction = "Extract closed-workflow persistence/resource cleanup and tab 
 id = "SS-ARCH-085"
 owner = "workspace canvas actions"
 paths = ["substitute/presentation/shell/workspace_canvas_actions.py"]
-fingerprint = "sha256:1f87e14f0f3f8c437da1060fdf12fe36ce97da7cdce697adb8609e0b77d9719e"
+fingerprint = "sha256:4e0877498c0e25a34b560e2b9a77faf498432689388a994cb36c406a87e2e7ee"
 issue = "chore:SS-ARCH-085"
 review_by = 2026-12-15
 responsibilities = [
   "output focus and navigation mutation",
-  "preview presentation and lifecycle",
   "external editor and asset reveal actions",
   "generated and loaded output ingestion",
   "output preparation and authorization",
   "canvas host visibility and error presentation",
 ]
-next_extraction = "Split preview lifecycle, external actions, and output ingestion from output-navigation commands."
+next_extraction = "Split external actions and output ingestion from output-navigation commands."
 
 [[debts]]
 id = "SS-ARCH-086"
@@ -1324,7 +1307,7 @@ next_extraction = "Extract catalog refresh and cube loading from picker draft an
 id = "SS-ARCH-088"
 owner = "workspace file workflows"
 paths = ["substitute/presentation/shell/workspace_file_actions.py"]
-fingerprint = "sha256:8a69068b807701b0b0551b660b25a0f4eec2c534abf50ca34c7f59c0ccccb006"
+fingerprint = "sha256:36712c025d484a314dde9b3ea7079dc6e0477658a9f763a5bee217a6de6d74cd"
 issue = "chore:SS-ARCH-088"
 review_by = 2026-12-15
 responsibilities = [
@@ -1341,7 +1324,7 @@ next_extraction = "Extract recipe model acquisition and output restoration from 
 id = "SS-ARCH-090"
 owner = "model picker field"
 paths = ["substitute/presentation/widgets/model_picker/model_picker_field.py"]
-fingerprint = "sha256:3e07defa83aaabcb4f5c0b34890a8777253e3371214123d3ad008114e99354fc"
+fingerprint = "sha256:f66b598b9259d810cee8a1d23247902dbc832d39749dad7e43df2a5838f65268"
 issue = "chore:SS-ARCH-090"
 review_by = 2026-12-15
 responsibilities = [
@@ -1424,7 +1407,7 @@ next_extraction = "Extract keyboard/text/drain dispatch and diagnostic/picker/co
 id = "SS-ARCH-095"
 owner = "localization source catalog"
 paths = ["tools/localization_catalog.py"]
-fingerprint = "sha256:71f64bd45530acc438a4fa14d1f04cbe86dbc394bd3e1420661b3b1ad210d401"
+fingerprint = "sha256:cfdaf3b46c7a14a12b45d15170b3460ba5c0df987694f9e5fe2c3d9b10a6272c"
 issue = "chore:SS-ARCH-095"
 review_by = 2026-12-15
 responsibilities = [
@@ -1434,7 +1417,7 @@ responsibilities = [
   "pseudo-localization transformation",
   "AST source ownership and literal-discovery heuristics",
 ]
-next_extraction = "Extract visible-source AST classification and pseudo-localization from catalog extraction and surface-specific source configuration."
+next_extraction = "Extract visible-source AST classification and pseudo-localization from catalog extraction."
 
 [[debts]]
 id = "SS-ARCH-096"

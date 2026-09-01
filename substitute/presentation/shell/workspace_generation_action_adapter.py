@@ -34,6 +34,9 @@ from substitute.presentation.shell.generation_feedback_presenter import (
 )
 from substitute.presentation.shell.workspace_generation_controller import (
     GenerationUiBindings,
+    GenerationPreflightError,
+    QueuedGenerationPreparationJob,
+    generation_preflight_failure,
 )
 from substitute.presentation.shell.workspace_generation_request_builder import (
     active_behavior_snapshot,
@@ -145,7 +148,7 @@ def build_generation_action_bindings(
     build_generation_request: Callable[[], GenerationRequest],
     randomize_generation_request_seeds: GenerationRequestSeedRandomizer,
     build_queued_generation_snapshots: Callable[[], tuple[GenerationJobSnapshot, ...]],
-    capture_queued_generation_preparation: Callable[[], object],
+    capture_queued_generation_preparation: Callable[[], QueuedGenerationPreparationJob],
 ) -> GenerationUiBindings:
     """Build shell callbacks required by generation-service orchestration."""
 
@@ -181,6 +184,14 @@ def build_generation_action_bindings(
     )
 
 
+def _pre_generation_persistence(view: object) -> Callable[[], None] | None:
+    """Return the shell's durable generation checkpoint when composed."""
+
+    controller = getattr(view, "session_autosave_controller", None)
+    callback = getattr(controller, "save_session_before_generation", None)
+    return cast(Callable[[], None], callback) if callable(callback) else None
+
+
 def active_workflow_id_for_generation_action(view: object) -> str | None:
     """Return the active workflow id for prompt-safe action diagnostics."""
 
@@ -199,6 +210,18 @@ def handle_generate_clicked(
     """Route Generate/Continuous clicks to the generation controller."""
 
     bindings = build_generation_bindings()
+    persist_before_generation = _pre_generation_persistence(view)
+    if persist_before_generation is not None:
+        try:
+            persist_before_generation()
+        except GenerationPreflightError as error:
+            bindings.on_failure(
+                generation_preflight_failure(
+                    error,
+                    operation="persist_before_generation",
+                )
+            )
+            return
     workflow_id = active_workflow_id_for_generation_action(view)
     log_debug(
         _LOGGER,

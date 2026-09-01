@@ -357,6 +357,73 @@ def test_error_report_dialog_copies_complete_report_to_clipboard() -> None:
         app.processEvents()
 
 
+def test_crash_report_actions_copy_open_github_and_restart(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The independent crash surface should expose every recovery action."""
+
+    app = _app()
+    opened_urls: list[str] = []
+    restart_calls: list[None] = []
+
+    def open_url(url: str) -> bool:
+        """Capture the trusted issue URL and report shell acceptance."""
+
+        opened_urls.append(url)
+        return True
+
+    monkeypatch.setattr(
+        "substitute.presentation.dialogs.error_report_issue_action._open_external_url",
+        open_url,
+    )
+    report_text = "SugarSubstitute crash report\nRuntimeError: qualified"
+    dialog = ErrorReportDialog(
+        report=ErrorReport(
+            kind=ErrorReportKind.SUBSTITUTE_INTERNAL,
+            title="SugarSubstitute crashed",
+            message="Copy this report and share it with the maintainers.",
+            stage="process_main",
+            operation_context=SubstituteOperationContext(
+                operation="application_crash",
+                values={"issues_url": SUGARSUBSTITUTE_ISSUES_URL},
+            ),
+        ),
+        report_text=report_text,
+        restart=lambda: restart_calls.append(None),
+    )
+
+    try:
+        assert dialog._report_issue_button is not None
+        assert dialog._restart_button is not None
+        assert dialog._details_button.text() == "Show report"
+        footer_actions = [
+            widget.text()
+            for index in range(dialog.buttonLayout.count())
+            if (widget := dialog.buttonLayout.itemAt(index).widget()) is not None
+            and isinstance(widget, QAbstractButton)
+        ]
+        assert footer_actions == [
+            "Copy report",
+            "Report issue",
+            "Close",
+            "Restart SugarSubstitute",
+        ]
+
+        dialog._toggle_details()
+        dialog._copy_button.click()
+        dialog._report_issue_button.click()
+        dialog._restart_button.click()
+
+        assert dialog._details_button.text() == "Hide report"
+        assert QApplication.clipboard().text() == report_text
+        assert opened_urls == [SUGARSUBSTITUTE_ISSUES_URL]
+        assert restart_calls == [None]
+    finally:
+        dialog.close()
+        delete(dialog)
+        app.processEvents()
+
+
 def test_update_rollback_dialog_uses_standard_layout_and_links_reporter(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -372,7 +439,7 @@ def test_update_rollback_dialog_uses_standard_layout_and_links_reporter(
         return True
 
     monkeypatch.setattr(
-        "substitute.presentation.dialogs.error_report_update_rollback_action._open_external_url",
+        "substitute.presentation.dialogs.error_report_issue_action._open_external_url",
         open_url,
     )
     dialog = ErrorReportDialog(

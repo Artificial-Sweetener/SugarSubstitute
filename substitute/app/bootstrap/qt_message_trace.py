@@ -29,24 +29,35 @@ FONT_WARNING_SNIPPET = "QFont::setPointSize"
 
 
 def install_qt_message_trace_handler() -> None:
-    """Install an env-gated Qt message handler for targeted local diagnostics."""
+    """Install fatal crash capture plus optional targeted Qt diagnostics."""
 
-    if os.environ.get(QT_MESSAGE_TRACE_ENV, "").strip().lower() not in {
+    trace_messages = os.environ.get(QT_MESSAGE_TRACE_ENV, "").strip().lower() in {
         "1",
         "true",
         "yes",
         "on",
-    }:
-        return
+    }
 
-    from PySide6.QtCore import qInstallMessageHandler
+    from PySide6.QtCore import QMessageLogContext, QtMsgType, qInstallMessageHandler
+    from sugarsubstitute_shared.crash_reporting.runtime import (
+        active_process_crash_runtime,
+    )
 
     previous_handler = qInstallMessageHandler(None)
 
-    def traced_handler(message_type: object, context: object, message: str) -> None:
+    def traced_handler(
+        message_type: QtMsgType,
+        context: QMessageLogContext,
+        message: str,
+    ) -> None:
         """Log selected Qt warnings with a local Python call stack for diagnosis."""
 
-        if FONT_WARNING_SNIPPET in message:
+        if message_type == QtMsgType.QtFatalMsg:
+            runtime = active_process_crash_runtime()
+            if runtime is not None:
+                runtime.record_qt_fatal_message(message)
+
+        if trace_messages and FONT_WARNING_SNIPPET in message:
             location = None
             if context is not None:
                 file_name = getattr(context, "file", None)

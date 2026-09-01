@@ -1064,6 +1064,9 @@ class NodeCardBuilder:
                     self._services.model.model_metadata_action_handler
                     or prompt_runtime.model_metadata_action_handler
                 ),
+                empty_model_picker_action=(
+                    self._services.model.empty_model_picker_action
+                ),
                 node_definition_gateway=self._services.node_definition_gateway,
                 prompt_task_executor_factory=prompt_runtime.prompt_task_executor_factory,
                 danbooru_lookup_dispatcher_factory=(

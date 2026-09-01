@@ -43,6 +43,10 @@ from substitute.application.appearance.appearance_preference_service import (
     AppearancePreferenceService,
 )
 from substitute.app.bootstrap.appearance_runtime import AppearanceRuntimeController
+from substitute.app.bootstrap.backend_event_listener_composition import (
+    build_comfy_connection_monitor_factory,
+    start_backend_event_listener_task,
+)
 from substitute.app.bootstrap.localization_composition import (
     build_application_localization_runtime,
     build_node_presentation_service,
@@ -62,6 +66,7 @@ from substitute.application.ports.startup_diagnostics_ignore_repository import (
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyEndpoint,
+    ComfyTargetMode,
     InstallationContext,
     ReadinessAssessment,
 )
@@ -915,28 +920,6 @@ def _create_generation_listener_task(
     )
 
 
-def _create_backend_event_listener_task(
-    *,
-    runtime_services: ApplicationRuntimeServices,
-    registry_key: str,
-    identity: TaskIdentity,
-    context: ExecutionContext,
-    work: LongLivedWork[None],
-    thread_name: str,
-) -> LongLivedTaskHandle[None]:
-    """Create and register one long-lived backend event listener task."""
-
-    return runtime_services.execution_runtime.start_long_lived(
-        "backend_event_listener",
-        registry_key,
-        identity=identity,
-        context=context,
-        work=work,
-        dispatcher=DirectExecutionDispatcher(),
-        thread_name=thread_name,
-    )
-
-
 class _SettingsModelMetadataProgressSink:
     """Log Settings-triggered metadata refresh progress without touching widgets."""
 
@@ -968,8 +951,13 @@ class _SettingsModelMetadataProgressSink:
 
 def create_application(argv: Sequence[str]) -> QApplication:
     """Create and configure the QApplication instance."""
+
+    from substitute.app.bootstrap.crash_aware_application import (
+        CrashAwareApplication,
+    )
+
     configure_windows_app_user_model_id()
-    app = QApplication(list(argv))
+    app = CrashAwareApplication(list(argv))
     app.setWindowIcon(application_icon())
     try:
         app.setQuitOnLastWindowClosed(True)
@@ -1189,6 +1177,23 @@ def _build_main_window_dependencies(
     record_dependency_phase("imports.application.generation.result_snapshot")
 
     from substitute.application.generation.generation_service import GenerationService
+    from substitute.application.model_updates import GenerationModelUsageRecorder
+    from substitute.application.model_discovery import BackendModelInventory
+    from substitute.infrastructure.model_updates.file_repository import (
+        FileModelUsageRepository,
+    )
+    from sugarsubstitute_shared.model_discovery.civitai_client import (
+        CivitaiDiscoveryClient,
+    )
+    from sugarsubstitute_shared.model_discovery import (
+        CategoryModelDestinationPolicy,
+        ModelDiscoveryPlanner,
+        ModelOnboardingService,
+    )
+    from sugarsubstitute_shared.model_updates import (
+        CivitaiCompatibleUpdateGateway,
+        ModelUpdateService,
+    )
     from substitute.application.direct_workflows import (
         DirectWorkflowGenerationPlanService,
     )
@@ -1903,6 +1908,55 @@ def _build_main_window_dependencies(
         metadata_catalog=model_metadata_store,
         snapshot_store=model_caches.snapshots,
     )
+    model_update_service = ModelUpdateService(
+        usage=FileModelUsageRepository(context.user_settings_dir),
+        updates=CivitaiCompatibleUpdateGateway(
+            CivitaiDiscoveryClient(
+                api_key_provider=civitai_credential_service.load_api_key,
+            )
+        ),
+    )
+    from sugarsubstitute_shared.model_acquisition import ModelAcquisitionService
+    from sugarsubstitute_shared.model_updates import ModelUpdateAcquisitionService
+
+    model_update_model_root = (
+        context.comfy_target.workspace_path / "models"
+        if context.comfy_target.mode is ComfyTargetMode.MANAGED_LOCAL
+        and context.comfy_target.workspace_path is not None
+        else None
+    )
+    model_update_acquisition_service = (
+        ModelUpdateAcquisitionService(
+            model_root=model_update_model_root,
+            acquisition=ModelAcquisitionService(
+                allowed_roots=(model_update_model_root,),
+                api_key_provider=civitai_credential_service.load_api_key,
+            ),
+        )
+        if model_update_model_root is not None
+        else None
+    )
+    empty_model_picker_onboarding_service = (
+        ModelOnboardingService(
+            planner=ModelDiscoveryPlanner(
+                inventory=BackendModelInventory(model_metadata_backend),
+                discovery=CivitaiDiscoveryClient(
+                    api_key_provider=civitai_credential_service.load_api_key,
+                ),
+                destinations=CategoryModelDestinationPolicy(model_update_model_root),
+            ),
+            acquisition=ModelAcquisitionService(
+                allowed_roots=(model_update_model_root,),
+                api_key_provider=civitai_credential_service.load_api_key,
+            ),
+        )
+        if model_update_model_root is not None
+        else None
+    )
+    generation_model_usage_recorder = GenerationModelUsageRecorder(
+        catalog=model_catalog_service,
+        usage=model_update_service,
+    )
     prompt_lora_catalog_service = PromptLoraCatalogService(
         model_catalog=model_catalog_service,
     )
@@ -2047,6 +2101,7 @@ def _build_main_window_dependencies(
         prompt_wildcard_preprocessing_service=(prompt_wildcard_preprocessing_service),
         preview_method_resolver=generation_preview_preference_service,
         output_preference_service=output_preference_service,
+        model_usage_recorder=generation_model_usage_recorder,
         direct_workflow_graph_service=DirectWorkflowGenerationPlanService(
             node_definition_hydrator=node_definition_gateway,
             node_definition_gateway=node_definition_gateway,
@@ -2374,8 +2429,8 @@ def _build_main_window_dependencies(
                 reason="cube_library_event_received",
             ),
             task_factory=lambda identity, task_context, work, thread_name: (
-                _create_backend_event_listener_task(
-                    runtime_services=runtime_services,
+                start_backend_event_listener_task(
+                    execution_runtime=runtime_services.execution_runtime,
                     registry_key="cube_library",
                     identity=identity,
                     context=task_context,
@@ -2403,8 +2458,8 @@ def _build_main_window_dependencies(
             ),
             latest_change_provider=model_metadata_backend.get_latest_model_catalog_change,
             task_factory=lambda identity, task_context, work, thread_name: (
-                _create_backend_event_listener_task(
-                    runtime_services=runtime_services,
+                start_backend_event_listener_task(
+                    execution_runtime=runtime_services.execution_runtime,
                     registry_key="model_catalog",
                     identity=identity,
                     context=task_context,
@@ -2414,6 +2469,12 @@ def _build_main_window_dependencies(
             ),
         )
 
+    create_comfy_connection_monitor = build_comfy_connection_monitor_factory(
+        endpoint=context.comfy_target.endpoint,
+        execution_runtime=runtime_services.execution_runtime,
+        qt_owner=generation_queue_transition_relay,
+    )
+
     record_dependency_phase("listener_factories")
 
     dependencies = MainWindowDependencies(
@@ -2421,6 +2482,9 @@ def _build_main_window_dependencies(
         cube_library_client=cube_library_backend,
         create_cube_library_event_listener=create_cube_library_event_listener,
         create_model_catalog_event_listener=create_model_catalog_event_listener,
+        create_comfy_connection_monitor=create_comfy_connection_monitor,
+        comfy_target=context.comfy_target,
+        managed_comfy_restart_requester=(runtime_services.managed_comfy_runtime_owner),
         create_scoped_metadata_refresh_service=create_scoped_metadata_refresh_service,
         cube_icon_factory=cube_icon_factory,
         invalidate_cube_catalog_cache=cube_repository.invalidate_cache,
@@ -2520,6 +2584,10 @@ def _build_main_window_dependencies(
         prompt_feature_profile_service=prompt_feature_profile_service,
         user_preset_service=user_preset_service,
         model_catalog_service=model_catalog_service,
+        model_update_service=model_update_service,
+        model_update_model_root=model_update_model_root,
+        model_update_acquisition_service=model_update_acquisition_service,
+        empty_model_picker_onboarding_service=(empty_model_picker_onboarding_service),
         model_choice_resolver=model_choice_resolver,
         thumbnail_asset_repository=model_metadata_store,
         model_metadata_context_action_handler=model_metadata_context_action_handler,

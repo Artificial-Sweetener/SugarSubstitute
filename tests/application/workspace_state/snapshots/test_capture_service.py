@@ -71,6 +71,18 @@ class _CapturePort:
 
         return {"wf-1": "One", "wf-2": "Two"}[workflow_id]
 
+    def workflow_document_dirty(self, workflow_id: str) -> bool:
+        """Return deterministic clean document state."""
+
+        _ = workflow_id
+        return False
+
+    def workflow_document_source_path(self, workflow_id: str) -> Path | None:
+        """Return no durable source path for synthetic workflows."""
+
+        _ = workflow_id
+        return None
+
     def active_cube_alias(self, workflow_id: str) -> str | None:
         """Return active cube aliases."""
 

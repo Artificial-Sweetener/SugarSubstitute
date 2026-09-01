@@ -21,12 +21,14 @@ from __future__ import annotations
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from launcher.sugarsubstitute_launcher import active_instance_dialog
 from launcher.sugarsubstitute_launcher import app as launcher_app
 from launcher.sugarsubstitute_launcher import installed_app_handoff
+from launcher.sugarsubstitute_launcher import launcher_ui_supervision
 from launcher.sugarsubstitute_launcher import splash_session as splash_session_module
 from launcher.sugarsubstitute_launcher.application_launch import (
     InstalledApplicationLaunchSession,
@@ -73,7 +75,12 @@ def test_launcher_main_repairs_moved_installed_exe_config(
 
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setattr(launcher_app, "LauncherMainWindow", _FakeWindow)
-    assert launcher_app.main(["--manifest-url", manifest_url]) == 0
+    assert (
+        launcher_app.main(
+            ["--launcher-ui-child", "--repair", "--manifest-url", manifest_url]
+        )
+        == 0
+    )
     assert windows
     assert windows[0]["initial_layout"] == layout
     assert windows[0]["repair"] is True
@@ -114,6 +121,22 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
         started_commands.append(list(command))
         started_environments.append(dict(environment))
 
+    class _RecordingCrashSupervisor:
+        """Record a supervised installed application without spawning it."""
+
+        def supervise(self, **kwargs: object) -> int:
+            """Capture launch inputs and signal successful process creation."""
+
+            command = kwargs["command"]
+            environment = kwargs["environment"]
+            assert isinstance(command, Sequence)
+            assert isinstance(environment, Mapping)
+            record_app_start(command, environment=environment)
+            on_started = kwargs.get("on_started")
+            if callable(on_started):
+                on_started(SimpleNamespace(pid=42))
+            return 0
+
     monkeypatch.setattr(sys, "executable", str(resolved_executable))
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(
@@ -130,8 +153,8 @@ def test_launcher_main_starts_app_from_installed_exe_parent(
     )
     monkeypatch.setattr(
         installed_app_handoff,
-        "start_detached",
-        record_app_start,
+        "ApplicationCrashSupervisor",
+        _RecordingCrashSupervisor,
     )
     monkeypatch.setattr(
         InstalledApplicationLaunchSession,
@@ -233,8 +256,8 @@ def test_launcher_main_negotiates_only_when_an_application_owns_the_lease(
 
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setattr(
-        active_instance_dialog,
-        "negotiate_active_application",
+        launcher_ui_supervision,
+        "supervise_active_application_dialog",
         reject_close,
     )
     monkeypatch.setattr(
@@ -273,6 +296,20 @@ def test_frozen_launcher_main_uses_invoked_installed_bundle_path(
     resolved_executable.write_text("", encoding="utf-8")
     started_commands: list[list[str]] = []
 
+    class _RecordingCrashSupervisor:
+        """Record the resolved packaged command without spawning a process."""
+
+        def supervise(self, **kwargs: object) -> int:
+            """Capture the command and signal successful process creation."""
+
+            command = kwargs["command"]
+            assert isinstance(command, Sequence)
+            started_commands.append(list(command))
+            on_started = kwargs.get("on_started")
+            if callable(on_started):
+                on_started(SimpleNamespace(pid=42))
+            return 0
+
     monkeypatch.setattr(sys, "argv", [str(layout.executable_path)])
     monkeypatch.setattr(sys, "executable", str(resolved_executable))
     monkeypatch.setattr(sys, "frozen", True, raising=False)
@@ -284,8 +321,8 @@ def test_frozen_launcher_main_uses_invoked_installed_bundle_path(
     )
     monkeypatch.setattr(
         installed_app_handoff,
-        "start_detached",
-        lambda command, *, environment: started_commands.append(list(command)),
+        "ApplicationCrashSupervisor",
+        _RecordingCrashSupervisor,
     )
     monkeypatch.setattr(
         InstalledApplicationLaunchSession,

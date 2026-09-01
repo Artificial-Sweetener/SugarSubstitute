@@ -185,12 +185,22 @@ Vista previa del prompt:
       <translation>%1 no está disponible en la biblioteca de cubos activa.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1284"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1313"></location>
       <source>%1 metadata entries, %2 image previews, %3</source>
       <translation>%1 entradas de metadatos, %2 vistas previas de imágenes, %3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2144"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="206"></location>
+      <source>%1 model file(s) downloaded and verified. Reopen the picker to use them.</source>
+      <translation>Se descargaron y verificaron %1 archivo(s) de modelo. Vuelve a abrir el selector para usarlos.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="224"></location>
+      <source>%1 model update(s) downloaded beside your current files.</source>
+      <translation>Se descargaron %1 actualización(es) de modelo junto a tus archivos actuales.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2161"></location>
       <source>%1 of %2</source>
       <translation>%1 de %2</translation>
     </message>
@@ -265,7 +275,7 @@ Vista previa del prompt:
       <translation>%1 | Actual: v%2 | Disponible: v%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/cube_library/settings_projection.py" line="233"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="160"></location>
       <source>%1 · %2</source>
       <translation>%1 · %2</translation>
     </message>
@@ -288,6 +298,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="812"></location>
       <source>%1 • %2</source>
       <translation>%1 • %2</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="174"></location>
+      <source>%1 → %2 · %3 · %4</source>
+      <translation>%1 → %2 · %3 · %4</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="350"></location>
@@ -400,6 +415,11 @@ Vista previa del prompt:
       <translation>No se pudo cargar una dependencia nativa.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="64"></location>
+      <source>A recovery copy is kept, but explicit saves are the durable project file.</source>
+      <translation>Se conserva una copia de recuperación, pero los guardados explícitos son el archivo de proyecto duradero.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="279"></location>
       <source>A required live Comfy field definition is unavailable.</source>
       <translation>No está disponible una definición de campo de Comfy necesaria y actualizada.</translation>
@@ -440,7 +460,7 @@ Vista previa del prompt:
       <translation>Acelerador: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1516"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1545"></location>
       <source>Accent color</source>
       <translation>Color de énfasis</translation>
     </message>
@@ -485,7 +505,7 @@ Vista previa del prompt:
       <translation>Añadir cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="911"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="940"></location>
       <source>Add custom tags and hide unwanted tag suggestions.</source>
       <translation>Añade etiquetas personalizadas y oculta las sugerencias de etiquetas que no quieras ver.</translation>
     </message>
@@ -520,7 +540,7 @@ Vista previa del prompt:
       <translation>Opciones avanzadas</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="360"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="99"></location>
       <source>Affected cubes</source>
       <translation>Cubos afectados</translation>
     </message>
@@ -560,7 +580,7 @@ Vista previa del prompt:
       <translation>Permitir contenido sugerente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1236"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1265"></location>
       <source>Allowed image ratings</source>
       <translation>Clasificaciones de imagen permitidas</translation>
     </message>
@@ -590,7 +610,7 @@ Vista previa del prompt:
       <translation>Otro proceso ya está usando la dirección guardada de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="578"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="589"></location>
       <source>Appearance</source>
       <translation>Apariencia</translation>
     </message>
@@ -703,6 +723,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="997"></location>
       <source>Base Cube Packs are required by Substitute and cannot be removed.</source>
       <translation>Substitute necesita los paquetes de cubos base y no permite eliminarlos.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="162"></location>
+      <source>Base model not listed</source>
+      <translation>Modelo base no indicado</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/menus/preset_model_scope_policy.py" line="86"></location>
@@ -850,12 +875,12 @@ Vista previa del prompt:
       <translation>Cancelado: no se guardó ninguna salida</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2139"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2156"></location>
       <source>Cancelling download...</source>
       <translation>Cancelando la descarga...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2097"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2114"></location>
       <source>Cancelling the model download.</source>
       <translation>Cancelando la descarga del modelo.</translation>
     </message>
@@ -865,12 +890,12 @@ Vista previa del prompt:
       <translation>Cambiar la resolución del lienzo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1356"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1385"></location>
       <source>Change the colors that appear in Substitute.</source>
       <translation>Cambia los colores que aparecen en Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1817"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1846"></location>
       <source>Change the main window backdrop material.</source>
       <translation>Cambia el material de fondo de la ventana principal.</translation>
     </message>
@@ -883,6 +908,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="461"></location>
       <source>Changes this ComfyUI installation's model folder, including when ComfyUI starts on its own.</source>
       <translation>Cambia la carpeta de modelos de esta instalación de ComfyUI, incluso cuando ComfyUI se inicia por separado.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="793"></location>
+      <source>Check CivitAI for compatible updates only after a model is used for Generate.</source>
+      <translation>Buscar actualizaciones compatibles en CivitAI solo después de usar un modelo para generar.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="162"></location>
@@ -970,7 +1000,7 @@ Vista previa del prompt:
       <translation>Punto de control</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1446"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1475"></location>
       <source>Choose</source>
       <translation>Elegir</translation>
     </message>
@@ -1070,6 +1100,11 @@ Vista previa del prompt:
       <translation>Elige una calidad fija o un tamaño de archivo objetivo aproximado.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="105"></location>
+      <source>Choose from popular compatible files from the last month, or explore CivitAI. Nothing is selected automatically.</source>
+      <translation>Elige entre archivos compatibles populares del último mes o explora CivitAI. Nada se selecciona automáticamente.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1099"></location>
       <source>Choose helpful extras</source>
       <translation>Elige complementos útiles</translation>
@@ -1145,7 +1180,7 @@ Vista previa del prompt:
       <translation>Elige la instalación de Python que utiliza realmente tu configuración</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1517"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1546"></location>
       <source>Choose the color used for highlights and selected controls.</source>
       <translation>Elige el color que se usa para resaltar elementos y controles seleccionados.</translation>
     </message>
@@ -1240,7 +1275,7 @@ Vista previa del prompt:
       <translation>Elige tu carpeta de ComfyUI existente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1355"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1384"></location>
       <source>Choose your mode</source>
       <translation>Elige el modo</translation>
     </message>
@@ -1280,12 +1315,12 @@ Vista previa del prompt:
       <translation>La clave de API de CivitAI funciona.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1193"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1222"></location>
       <source>CivitAI cache maintenance</source>
       <translation>Mantenimiento de la caché de CivitAI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1162"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1191"></location>
       <source>CivitAI cache usage</source>
       <translation>Uso de la caché de CivitAI</translation>
     </message>
@@ -1295,7 +1330,7 @@ Vista previa del prompt:
       <translation>CivitAI no encontró ninguna coincidencia; se conservaron los metadatos existentes.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/civitai/preference_service.py" line="175"></location>
+      <location filename="../substitute/application/civitai/preference_service.py" line="185"></location>
       <source>CivitAI download organization settings saved.</source>
       <translation>Se guardó la configuración de organización de descargas de CivitAI.</translation>
     </message>
@@ -1350,17 +1385,17 @@ Vista previa del prompt:
       <translation>Borrar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1315"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1344"></location>
       <source>Clear all</source>
       <translation>Borrar todo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1329"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1358"></location>
       <source>Clear cached Danbooru entries if you want a fresh local state.</source>
       <translation>Borra las entradas de Danbooru almacenadas en caché si quieres empezar con un estado local nuevo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1314"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1343"></location>
       <source>Clear image cache</source>
       <translation>Borrar la caché de imágenes</translation>
     </message>
@@ -1385,7 +1420,7 @@ Vista previa del prompt:
       <translation>No se pudieron borrar los cambios previstos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1313"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1342"></location>
       <source>Clear text cache</source>
       <translation>Borrar la caché de texto</translation>
     </message>
@@ -1465,6 +1500,11 @@ Vista previa del prompt:
       <translation>Consola de Comfy</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="92"></location>
+      <source>Comfy disconnected</source>
+      <translation>Comfy se desconectó</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="915"></location>
       <source>Comfy environment management is available.</source>
       <translation>La administración del entorno de Comfy está disponible.</translation>
@@ -1483,6 +1523,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/shell/workspace_generation_controller.py" line="841"></location>
       <source>Comfy is unavailable</source>
       <translation>Comfy no está disponible</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="165"></location>
+      <source>Comfy reconnected</source>
+      <translation>Comfy se volvió a conectar</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="999"></location>
@@ -1510,6 +1555,11 @@ Vista previa del prompt:
       <translation>El estado del reinicio de Comfy no está disponible.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="154"></location>
+      <source>Comfy restarted</source>
+      <translation>Comfy se reinició</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="924"></location>
       <source>Comfy root: %1 | process %2</source>
       <translation>Raíz de Comfy: %1 | proceso %2</translation>
@@ -1530,7 +1580,7 @@ Vista previa del prompt:
       <translation>Registros de inicio de Comfy</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="642"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="653"></location>
       <source>ComfyUI</source>
       <translation>ComfyUI</translation>
     </message>
@@ -1580,7 +1630,7 @@ Vista previa del prompt:
       <translation>Conexión con ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="643"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="654"></location>
       <source>ComfyUI connection, installation, and Python environment.</source>
       <translation>Conexión con ComfyUI, instalación y entorno de Python.</translation>
     </message>
@@ -1700,7 +1750,7 @@ Vista previa del prompt:
       <translation>ComfyUI busca aquí los checkpoints, LoRA, VAE y demás archivos de modelos. Puedes mantener la opción predeterminada o elegir una carpeta que ya uses.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="171"></location>
+      <location filename="../substitute/presentation/shell/settings_route_controller.py" line="172"></location>
       <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
       <translation>ComfyUI debe reiniciarse para poder usar las dependencias de cubos reparadas.</translation>
     </message>
@@ -1935,7 +1985,7 @@ Vista previa del prompt:
       <translation>Controla qué imágenes de CivitAI se pueden usar como miniaturas.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1237"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1266"></location>
       <source>Control which Danbooru ratings may render as image previews.</source>
       <translation>Controla qué clasificaciones de Danbooru pueden mostrarse como vistas previas de imágenes.</translation>
     </message>
@@ -1955,7 +2005,7 @@ Vista previa del prompt:
       <translation>Copiar toda la salida</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="285"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="404"></location>
       <source>Copy report</source>
       <translation>Copiar informe</translation>
     </message>
@@ -1985,7 +2035,7 @@ Vista previa del prompt:
       <translation>No se pudieron instalar los nodos necesarios de la biblioteca de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1048"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="961"></location>
       <source>Could not load image: %1</source>
       <translation>No se pudo cargar la imagen: %1</translation>
     </message>
@@ -2208,12 +2258,12 @@ Install these nodes now?</source>
       <translation>Importación mediante URL de Danbooru</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1328"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1357"></location>
       <source>Danbooru cache maintenance</source>
       <translation>Mantenimiento de la caché de Danbooru</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1293"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1322"></location>
       <source>Danbooru cache usage</source>
       <translation>Uso de la caché de Danbooru</translation>
     </message>
@@ -2373,6 +2423,11 @@ Install these nodes now?</source>
       <translation>Descartar cambios</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="73"></location>
+      <source>Don't Save</source>
+      <translation>No guardar</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/workflows/cube_item.py" line="271"></location>
       <source>Don't save outputs</source>
       <translation>No guardar las salidas</translation>
@@ -2388,7 +2443,7 @@ Install these nodes now?</source>
       <translation>Descargar y abrir la receta</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2141"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2158"></location>
       <source>Download failed.</source>
       <translation>La descarga ha fallado.</translation>
     </message>
@@ -2408,7 +2463,17 @@ Install these nodes now?</source>
       <translation>Descarga imágenes del proveedor para usarlas como miniaturas en el selector de modelos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1423"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="134"></location>
+      <source>Download selected</source>
+      <translation>Descargar seleccionados</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="179"></location>
+      <source>Download this model</source>
+      <translation>Descargar este modelo</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1440"></location>
       <source>Downloading %1</source>
       <translation>Descargando %1</translation>
     </message>
@@ -2423,7 +2488,7 @@ Install these nodes now?</source>
       <translation>Descargando el modelo que necesita esta receta.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2143"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2160"></location>
       <source>Downloading...</source>
       <translation>Descargando...</translation>
     </message>
@@ -2508,7 +2573,7 @@ Install these nodes now?</source>
       <translation>Vacía la carpeta en %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="421"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="425"></location>
       <source>Enable</source>
       <translation>Activar</translation>
     </message>
@@ -2548,7 +2613,7 @@ Install these nodes now?</source>
       <translation>Se produjo un error</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1562"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1591"></location>
       <source>Error color</source>
       <translation>Color de error</translation>
     </message>
@@ -2563,7 +2628,7 @@ Install these nodes now?</source>
       <translation>Errores</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="349"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="92"></location>
       <source>Exception</source>
       <translation>Excepción</translation>
     </message>
@@ -2608,12 +2673,17 @@ Install these nodes now?</source>
       <translation>Expande los comodines del prompt antes de enviar a Comfy los flujos de trabajo en cola.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="127"></location>
+      <source>Explore more on CivitAI</source>
+      <translation>Explorar más en CivitAI</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/app_orb_menu.py" line="50"></location>
       <source>Export to Comfy Workflow...</source>
       <translation>Exportar como flujo de trabajo de Comfy...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="828"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="844"></location>
       <source>Export workflow failed</source>
       <translation>No se pudo exportar el flujo de trabajo</translation>
     </message>
@@ -2633,7 +2703,7 @@ Install these nodes now?</source>
       <translation>Versión de la extensión: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="466"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="477"></location>
       <source>External providers, credentials, safety, and caches.</source>
       <translation>Proveedores externos, credenciales, seguridad y cachés.</translation>
     </message>
@@ -2643,7 +2713,7 @@ Install these nodes now?</source>
       <translation>Ha fallado: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="905"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="874"></location>
       <source>Failed to allocate output run number.</source>
       <translation>No se pudo asignar el número de ejecución de salida.</translation>
     </message>
@@ -2653,12 +2723,13 @@ Install these nodes now?</source>
       <translation>No se pudo capturar el contenido del lienzo de entrada para la generación.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="501"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="513"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="510"></location>
       <source>Failed to connect generation listener session</source>
       <translation>No se pudo conectar la sesión de escucha de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="829"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="845"></location>
       <source>Failed to export workflow: %1</source>
       <translation>No se pudo exportar el flujo de trabajo: %1</translation>
     </message>
@@ -2678,7 +2749,7 @@ Install these nodes now?</source>
       <translation>No se pudo cargar la imagen generada.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1395"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1412"></location>
       <source>Failed to load recipe: %1</source>
       <translation>No se pudo cargar la receta: %1</translation>
     </message>
@@ -2713,12 +2784,14 @@ Install these nodes now?</source>
       <translation>No se pudo actualizar la visibilidad del editor tras insertar el cubo de forma incremental</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="426"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="438"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>No se pudo preparar el recurso del flujo de trabajo %1.%2: %3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="636"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="652"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="656"></location>
       <source>Failed to start generation listener</source>
       <translation>No se pudo iniciar la escucha de generación</translation>
     </message>
@@ -2746,6 +2819,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="186"></location>
       <source>Find ComfyUI's environment</source>
       <translation>Buscar el entorno de ComfyUI</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="71"></location>
+      <source>Find models</source>
+      <translation>Buscar modelos</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="975"></location>
@@ -2858,7 +2936,7 @@ Install these nodes now?</source>
       <translation>La generación de escena no encontró ninguna escena ejecutable: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1060"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="973"></location>
       <source>Generated image load failed</source>
       <translation>No se pudo cargar la imagen generada</translation>
     </message>
@@ -2883,7 +2961,7 @@ Install these nodes now?</source>
       <translation>No se puede generar porque todos los cubos tienen un error de ejecución.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/job_queue_service.py" line="1096"></location>
+      <location filename="../substitute/application/generation/job_queue_service.py" line="1067"></location>
       <source>Generation dispatch failed.</source>
       <translation>No se pudo enviar la generación.</translation>
     </message>
@@ -3033,7 +3111,7 @@ Install these nodes now?</source>
       <translation>Ocultar el panel completo de la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="45"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="53"></location>
       <source>Hide advanced inputs</source>
       <translation>Ocultar entradas avanzadas</translation>
     </message>
@@ -3048,7 +3126,7 @@ Install these nodes now?</source>
       <translation>Ocultar los controles de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="451"></location>
       <source>Hide report</source>
       <translation>Ocultar informe</translation>
     </message>
@@ -3203,7 +3281,7 @@ Install these nodes now?</source>
       <translation>Destino de instalación: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="684"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="695"></location>
       <source>Installed Python packages</source>
       <translation>Paquetes de Python instalados</translation>
     </message>
@@ -3448,12 +3526,12 @@ Install these nodes now?</source>
       <translation>Palabras de activación de LoRA</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="1052"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="965"></location>
       <source>Load Error</source>
       <translation>Error de carga</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1394"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1411"></location>
       <source>Load recipe failed</source>
       <translation>No se pudo cargar la receta</translation>
     </message>
@@ -3598,7 +3676,7 @@ Install these nodes now?</source>
       <translation>Administra los paquetes de cubos registrados en el destino de Comfy activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="910"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="939"></location>
       <source>Manage autocomplete lists</source>
       <translation>Administrar las listas de autocompletado</translation>
     </message>
@@ -3708,12 +3786,22 @@ Install these nodes now?</source>
       <translation>Falta el comodín: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="465"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="476"></location>
       <source>Model Sources</source>
       <translation>Fuentes de modelos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1688"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="232"></location>
+      <source>Model discovery failed: %1</source>
+      <translation>Error al buscar modelos: %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="157"></location>
+      <source>Model discovery returned invalid results.</source>
+      <translation>La búsqueda de modelos devolvió resultados no válidos.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1705"></location>
       <source>Model download failed</source>
       <translation>No se pudo descargar el modelo</translation>
     </message>
@@ -3721,6 +3809,16 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/shell/recipe_model_resolution_flow.py" line="80"></location>
       <source>Model download unavailable</source>
       <translation>La descarga del modelo no está disponible</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="128"></location>
+      <source>Model downloads are unavailable for this ComfyUI target. You can still add files to its model folders manually.</source>
+      <translation>Las descargas de modelos no están disponibles para este destino de ComfyUI. Aún puedes añadir archivos manualmente a sus carpetas de modelos.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="197"></location>
+      <source>Model downloads returned invalid results.</source>
+      <translation>Las descargas de modelos devolvieron resultados no válidos.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="391"></location>
@@ -3736,6 +3834,26 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="382"></location>
       <source>Model folder pattern</source>
       <translation>Patrón de carpeta de modelos</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="250"></location>
+      <source>Model update operation failed: %1</source>
+      <translation>Error en la actualización del modelo: %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="161"></location>
+      <source>Model update results were invalid.</source>
+      <translation>Los resultados de actualización del modelo no eran válidos.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="74"></location>
+      <source>Model updates</source>
+      <translation>Actualizaciones de modelos</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="177"></location>
+      <source>Model updates are available, but this ComfyUI target has no local download destination.</source>
+      <translation>Hay actualizaciones de modelos, pero este destino de ComfyUI no tiene una ubicación local de descarga.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/prompt_editor/projection/lora_surface_features.py" line="328"></location>
@@ -3836,6 +3954,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/managed_text_assets/autocomplete_list_management_modal.py" line="67"></location>
       <source>New custom list</source>
       <translation>Nueva lista personalizada</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="191"></location>
+      <source>New file destination: %1</source>
+      <translation>Destino del archivo nuevo: %1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/synthetic_canvas_resolution_form.py" line="197"></location>
@@ -3948,6 +4071,11 @@ Install these nodes now?</source>
       <translation>Sin micrófono</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="100"></location>
+      <source>No models are available for this picker</source>
+      <translation>No hay modelos disponibles para este selector</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/errors.py" line="577"></location>
       <source>No node-specific validation errors were reported.</source>
       <translation>No se notificaron errores de validación específicos de nodos.</translation>
@@ -3973,6 +4101,11 @@ Install these nodes now?</source>
       <translation>No se ha validado ningún repositorio.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="164"></location>
+      <source>No safe popular models are available for this picker right now.</source>
+      <translation>Ahora mismo no hay modelos populares seguros para este selector.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="485"></location>
       <source>No selection</source>
       <translation>Sin selección</translation>
@@ -3993,7 +4126,7 @@ Install these nodes now?</source>
       <translation>Sin miniatura</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="347"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="90"></location>
       <source>Node</source>
       <translation>Nodo</translation>
     </message>
@@ -4013,7 +4146,7 @@ Install these nodes now?</source>
       <translation>ID del nodo: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="62"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="70"></location>
       <source>Node actions</source>
       <translation>Acciones del nodo</translation>
     </message>
@@ -4023,7 +4156,7 @@ Install these nodes now?</source>
       <translation>Contexto del nodo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="356"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="97"></location>
       <source>Node errors</source>
       <translation>Errores del nodo</translation>
     </message>
@@ -4058,6 +4191,11 @@ Install these nodes now?</source>
       <translation>No cargado</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="131"></location>
+      <source>Not now</source>
+      <translation>Ahora no</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/controls/keyboard_bindings.py" line="113"></location>
       <source>Not set</source>
       <translation>Sin asignar</translation>
@@ -4068,12 +4206,17 @@ Install these nodes now?</source>
       <translation>¡No hay nada que transformar!</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="792"></location>
+      <source>Notify me about updates to models I use</source>
+      <translation>Avisarme de actualizaciones de los modelos que uso</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="759"></location>
       <source>Number of queued generations to create</source>
       <translation>Número de generaciones que se añadirán a la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/full_window_modal.py" line="46"></location>
+      <location filename="../substitute/presentation/dialogs/localized_fluent_dialogs.py" line="74"></location>
       <source>OK</source>
       <translation>Aceptar</translation>
     </message>
@@ -4453,7 +4596,7 @@ Install these nodes now?</source>
       <translation>Preparando la interfaz de la aplicación.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2091"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2108"></location>
       <source>Preparing the download.</source>
       <translation>Preparando la descarga.</translation>
     </message>
@@ -4518,12 +4661,12 @@ Install these nodes now?</source>
       <translation>Proyecto</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="345"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="88"></location>
       <source>Prompt</source>
       <translation>ID del prompt</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="311"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="322"></location>
       <source>Prompt Editing</source>
       <translation>Edición de prompts</translation>
     </message>
@@ -4533,7 +4676,7 @@ Install these nodes now?</source>
       <translation>ID del prompt: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="312"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="323"></location>
       <source>Prompt editor behavior and authoring support.</source>
       <translation>Comportamiento del editor de prompts y ayuda para la redacción.</translation>
     </message>
@@ -4758,7 +4901,7 @@ Install these nodes now?</source>
       <translation>Actualizar los metadatos de CivitAI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1267"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1296"></location>
       <source>Refresh cached content in background</source>
       <translation>Actualizar en segundo plano el contenido almacenado en caché</translation>
     </message>
@@ -4768,7 +4911,7 @@ Install these nodes now?</source>
       <translation>Actualizar catálogo</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1268"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1297"></location>
       <source>Refresh stale cached wiki pages and preview images lazily while browsing.</source>
       <translation>Actualiza cuando sea necesario las páginas de la wiki y las imágenes de vista previa obsoletas que estén almacenadas en caché.</translation>
     </message>
@@ -4878,7 +5021,7 @@ Install these nodes now?</source>
       <translation>Cambiar nombre</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1218"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1247"></location>
       <source>Render cached Danbooru preview images inside the native wiki viewer.</source>
       <translation>Muestra las imágenes de vista previa de Danbooru almacenadas en caché dentro del visor nativo de la wiki.</translation>
     </message>
@@ -4918,7 +5061,7 @@ Install these nodes now?</source>
       <translation>La reparación volverá a instalar ComfyUI con un backend que coincida con el acelerador detectado.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="295"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="869"></location>
       <source>Report issue</source>
       <translation>Notificar problema</translation>
     </message>
@@ -5047,6 +5190,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reiniciar ComfyUI manualmente</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="339"></location>
+      <source>Restart SugarSubstitute</source>
+      <translation>Reiniciar SugarSubstitute</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="937"></location>
       <source>Restart is available for this Comfy server.</source>
       <translation>El reinicio está disponible en este servidor de Comfy.</translation>
@@ -5077,7 +5225,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reiniciar la interfaz</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="72"></location>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="117"></location>
+      <source>Restarting Comfy</source>
+      <translation>Reiniciando Comfy</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/comfy_connection_presenter.py" line="134"></location>
       <source>Retry</source>
       <translation>Reintentar</translation>
     </message>
@@ -5232,6 +5385,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Información del entorno de ejecución y del sistema</translation>
     </message>
     <message>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="117"></location>
+      <source>Runtime context</source>
+      <translation>Contexto de ejecución</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="611"></location>
       <source>Runtime root: %1</source>
       <translation>Raíz del entorno de ejecución: %1</translation>
@@ -5252,7 +5410,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Solo contenido seguro</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/save_preset_dialog.py" line="82"></location>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="69"></location>
       <source>Save</source>
       <translation>Guardar</translation>
     </message>
@@ -5280,6 +5438,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="300"></location>
       <source>Save changes</source>
       <translation>Guardar cambios</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="58"></location>
+      <source>Save changes to “%1” before continuing?</source>
+      <translation>¿Guardar los cambios de «%1» antes de continuar?</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="215"></location>
@@ -5340,6 +5503,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <location filename="../substitute/application/onboarding/comfy_connection_settings_service.py" line="267"></location>
       <source>Saved. Restart Substitute to use the new ComfyUI connection.</source>
       <translation>Guardado. Reinicia Substitute para usar la nueva conexión con ComfyUI.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="171"></location>
+      <source>Saves to %1</source>
+      <translation>Se guarda en %1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/generation_preview_settings.py" line="195"></location>
@@ -5492,7 +5660,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Punto de conexión del servidor</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="311"></location>
+      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="313"></location>
       <source>Set Global Override</source>
       <translation>Establecer reemplazo global</translation>
     </message>
@@ -5632,7 +5800,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar el panel completo de la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="44"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="52"></location>
       <source>Show advanced inputs</source>
       <translation>Mostrar entradas avanzadas</translation>
     </message>
@@ -5652,12 +5820,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar los controles de generación</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1217"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1246"></location>
       <source>Show images in wiki viewer</source>
       <translation>Mostrar imágenes en el visor de la wiki</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="370"></location>
+      <location filename="../substitute/presentation/dialogs/startup_diagnostics_dialog.py" line="451"></location>
       <source>Show report</source>
       <translation>Mostrar informe</translation>
     </message>
@@ -5702,12 +5870,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>El cierre se completó correctamente.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="316"></location>
+      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="334"></location>
       <source>Shutdown returned an invalid cleanup result.</source>
       <translation>El cierre devolvió un resultado de limpieza no válido.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="454"></location>
+      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="472"></location>
       <source>Shutdown timed out before cleanup could finish.</source>
       <translation>Se agotó el tiempo de espera del cierre antes de que terminara la limpieza.</translation>
     </message>
@@ -5762,6 +5930,11 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Algunas rutas guardadas del entorno de ejecución ya no coinciden con esta instalación.</translation>
     </message>
     <message>
+      <location filename="../substitute/application/crash_reports.py" line="44"></location>
+      <source>Something unexpected stopped SugarSubstitute. You can copy this report and share it with the maintainers.</source>
+      <translation>Algo inesperado detuvo SugarSubstitute. Puedes copiar este informe y compartirlo con los responsables del mantenimiento.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="73"></location>
       <source>Source: %1</source>
       <translation>Origen: %1</translation>
@@ -5782,7 +5955,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Corrección ortográfica</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="334"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="79"></location>
       <source>Stage</source>
       <translation>Etapa</translation>
     </message>
@@ -5847,7 +6020,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Iniciando la instalación…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2093"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2110"></location>
       <source>Starting the model download.</source>
       <translation>Iniciando la descarga del modelo.</translation>
     </message>
@@ -6017,7 +6190,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute no pudo preparar esta instalación local de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="196"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="200"></location>
       <source>Substitute could not read this ComfyUI workflow document.</source>
       <translation>Substitute no pudo leer este documento de flujo de trabajo de ComfyUI.</translation>
     </message>
@@ -6297,7 +6470,8 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración de carpetas guardada de Substitute necesita corrección</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2730"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2798"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
     </message>
@@ -6402,6 +6576,16 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>SugarSubstitute</translation>
     </message>
     <message>
+      <location filename="../substitute/application/crash_reports.py" line="39"></location>
+      <source>SugarSubstitute crashed</source>
+      <translation>SugarSubstitute se bloqueó</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="41"></location>
+      <source>SugarSubstitute did not close normally</source>
+      <translation>SugarSubstitute no se cerró correctamente</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/about/license_text.py" line="23"></location>
       <source>SugarSubstitute is free software, shared in the spirit of collaboration, curiosity, and user freedom.
 
@@ -6455,7 +6639,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Resume los metadatos y las miniaturas del proveedor CivitAI almacenados en caché.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1294"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1323"></location>
       <source>Summarizes locally cached Danbooru metadata and preview assets.</source>
       <translation>Resume los metadatos y los recursos de vista previa de Danbooru almacenados en la caché local.</translation>
     </message>
@@ -6727,12 +6911,17 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>La instalación administrada de ComfyUI aún no está lista. Continúa con la reparación para instalarla.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2099"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2116"></location>
       <source>The model download failed.</source>
       <translation>No se pudo descargar el modelo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2095"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="191"></location>
+      <source>The model download service is unavailable for this target.</source>
+      <translation>El servicio de descarga de modelos no está disponible para este destino.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2112"></location>
       <source>The model has finished downloading.</source>
       <translation>El modelo terminó de descargarse.</translation>
     </message>
@@ -6745,6 +6934,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/infrastructure/security/keyring_civitai_credential_store.py" line="135"></location>
       <source>The operating-system credential store rejected the key.</source>
       <translation>El almacén de credenciales del sistema operativo rechazó la clave.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/crash_reports.py" line="49"></location>
+      <source>The previous SugarSubstitute session ended without completing shutdown. The report below may help determine why.</source>
+      <translation>La sesión anterior de SugarSubstitute terminó sin completar el cierre. El informe siguiente puede ayudar a determinar el motivo.</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/readiness_service.py" line="263"></location>
@@ -6875,6 +7069,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/presentation/shell/synthetic_canvas_resolution_controller.py" line="412"></location>
       <source>The workflow dimensions could not be updated, so the canvas change was undone.</source>
       <translation>No se pudieron actualizar las dimensiones del flujo de trabajo, por lo que se deshizo el cambio del lienzo.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/session_autosave_controller.py" line="235"></location>
+      <source>The workspace is still loading and cannot be saved yet.</source>
+      <translation>El espacio de trabajo aún se está cargando y todavía no se puede guardar.</translation>
     </message>
     <message>
       <location filename="../substitute/application/appearance/appearance_restart_coordinator.py" line="86"></location>
@@ -7147,9 +7346,24 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Desconocido</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="181"></location>
+      <source>Unknown base model</source>
+      <translation>Modelo base desconocido</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/cubes/cube_picker_models.py" line="543"></location>
       <source>Unknown source</source>
       <translation>Origen desconocido</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="178"></location>
+      <source>Unknown version</source>
+      <translation>Versión desconocida</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/shell/unsaved_work_controller.py" line="56"></location>
+      <source>Unsaved work</source>
+      <translation>Trabajo sin guardar</translation>
     </message>
     <message>
       <location filename="../substitute/application/cubes/cube_picker_models.py" line="63"></location>
@@ -7192,7 +7406,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Actualización disponible</translation>
     </message>
     <message>
-      <location filename="../substitute/application/update_rollback_notice.py" line="92"></location>
+      <location filename="../substitute/application/update_rollback_notice.py" line="88"></location>
       <source>Update failed</source>
       <translation>La actualización falló</translation>
     </message>
@@ -7227,6 +7441,16 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Hay versiones actualizadas disponibles para los cubos cargados.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="103"></location>
+      <source>Updates are available for models you use</source>
+      <translation>Hay actualizaciones para modelos que usas</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="108"></location>
+      <source>Updates are optional. Downloaded versions are added beside your current files, and existing workflows keep using their current model.</source>
+      <translation>Las actualizaciones son opcionales. Las versiones descargadas se añaden junto a tus archivos actuales y los flujos existentes siguen usando su modelo actual.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="265"></location>
       <source>Updating</source>
       <translation>Actualizando</translation>
@@ -7252,7 +7476,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Actualizando el orden de los cambios previstos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2137"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2154"></location>
       <source>Updating the recipe...</source>
       <translation>Actualizando la receta...</translation>
     </message>
@@ -7342,7 +7566,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Usar un ComfyUI remoto</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="686"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="697"></location>
       <source>Use the ComfyUI page package filter to inspect installed packages and maintenance actions.</source>
       <translation>Usa el filtro de paquetes de la página de ComfyUI para consultar los paquetes instalados y las acciones de mantenimiento.</translation>
     </message>
@@ -7367,12 +7591,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Se usa para realizar búsquedas y descargas autenticadas en CivitAI.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1550"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1579"></location>
       <source>Used for caution states and warning highlights.</source>
       <translation>Se usa para los estados de precaución y los elementos resaltados de advertencia.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1563"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1592"></location>
       <source>Used for validation failures and error highlights.</source>
       <translation>Se usa para los errores de validación y los elementos resaltados de error.</translation>
     </message>
@@ -7432,7 +7656,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Ver el diagnóstico de inicio de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="579"></location>
+      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="166"></location>
+      <source>View on CivitAI</source>
+      <translation>Ver en CivitAI</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="590"></location>
       <source>Visual customization.</source>
       <translation>Personalización visual.</translation>
     </message>
@@ -7462,7 +7691,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Esperando a que ComfyUI esté listo…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2135"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2152"></location>
       <source>Waiting for the download to start...</source>
       <translation>Esperando a que comience la descarga...</translation>
     </message>
@@ -7472,7 +7701,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Advertencia</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1549"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1578"></location>
       <source>Warning color</source>
       <translation>Color de advertencia</translation>
     </message>
@@ -7487,7 +7716,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No pudimos encontrar el entorno de Python de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/application/update_rollback_notice.py" line="93"></location>
+      <location filename="../substitute/application/update_rollback_notice.py" line="89"></location>
       <source>We tried to update Substitute, but it failed. Substitute is ready to use. Please send an error report to the maintainer.</source>
       <translation>Intentamos actualizar Substitute, pero falló. Substitute está listo para usarse. Envía un informe de error al responsable del mantenimiento.</translation>
     </message>
@@ -7552,7 +7781,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Comodines</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1816"></location>
+      <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1845"></location>
       <source>Window material</source>
       <translation>Material de la ventana</translation>
     </message>
@@ -7567,7 +7796,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Windows limita a 255 caracteres cada nombre de archivo o carpeta.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="339"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="83"></location>
       <source>Workflow</source>
       <translation>Flujo de trabajo</translation>
     </message>
@@ -7592,7 +7821,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Contexto del flujo de trabajo y del prompt</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="195"></location>
+      <location filename="../substitute/presentation/shell/direct_workflow_file_actions.py" line="199"></location>
       <source>Workflow could not be loaded</source>
       <translation>No se pudo cargar el flujo de trabajo</translation>
     </message>
@@ -7682,6 +7911,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Ya casi has terminado.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/session_autosave_controller.py" line="247"></location>
+      <source>Your recovery save could not be completed, so generation was not started.</source>
+      <translation>No se pudo completar el guardado de recuperación, por lo que no se inició la generación.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_pages.py" line="1468"></location>
       <source>Your setup has been saved. Review the summary below, then open Substitute or close this window if a restart is needed.</source>
       <translation>Tu instalación se ha guardado. Revisa el resumen siguiente y abre Substitute, o cierra esta ventana si es necesario reiniciar.</translation>
@@ -7757,7 +7991,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>ComfyUI administrado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2128"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2145"></location>
       <source>model</source>
       <translation>modelo</translation>
     </message>
@@ -7777,7 +8011,8 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>ninguno</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="547"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="559"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="556"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>queue_prompt no devolvió prompt_id</translation>
     </message>
@@ -7792,7 +8027,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>copia del código fuente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="341"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="84"></location>
       <source>unknown</source>
       <translation>desconocido</translation>
     </message>

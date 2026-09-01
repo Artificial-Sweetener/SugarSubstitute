@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from threading import Lock
+from threading import Condition, Lock
 
 from substitute.application.workspace_state.session_persistence import (
     SessionPersistenceParticipant,
@@ -58,9 +58,47 @@ class SessionAutosaveService:
             lambda callback: callback()
         )
         self._state_lock = Lock()
+        self._save_condition = Condition(self._state_lock)
         self._save_pending = False
         self._save_running = False
         self._request_generation = 0
+
+    def save_durably(
+        self,
+        port: SnapshotCapturePort,
+        *,
+        participants: tuple[SessionPersistenceParticipant, ...] = (),
+        reason: str,
+        timeout_seconds: float = 30.0,
+    ) -> bool:
+        """Capture and persist synchronously before a destructive or remote action."""
+
+        with self._save_condition:
+            available = self._save_condition.wait_for(
+                lambda: not self._save_running,
+                timeout=timeout_seconds,
+            )
+            if not available or not self._save_service.accepts_autosave:
+                return False
+            self._save_running = True
+        try:
+            prepared = self._save_service.prepare(
+                port,
+                participants=participants,
+                reason=reason,
+            )
+            self._save_service.persist(prepared)
+        except Exception as error:
+            log_exception(
+                _LOGGER,
+                "Failed to persist required session snapshot",
+                reason=reason,
+                error=error,
+            )
+            return False
+        finally:
+            self._finish_save()
+        return True
 
     def request_save(
         self,
@@ -267,8 +305,9 @@ class SessionAutosaveService:
 
     def _finish_save(self) -> None:
         """Release the cross-thread persistence guard atomically."""
-        with self._state_lock:
+        with self._save_condition:
             self._save_running = False
+            self._save_condition.notify_all()
 
 
 __all__ = ["SessionAutosaveService"]

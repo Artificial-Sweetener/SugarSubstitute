@@ -1,0 +1,23 @@
+# Copyright (C) 2026 Artificial Sweetener and contributors
+
+import("//build/crashpad_buildconfig.gni")
+
+loadable_module("sugarsubstitute_crashpad_client") {
+  sources = [ "crashpad_client_bridge.cc" ]
+  deps = [ "//client" ]
+  defines = [ "SUGARSUBSTITUTE_CRASHPAD_CLIENT_EXPORTS" ]
+  if (!crashpad_is_win) {
+    output_prefix_override = true
+  }
+  if (crashpad_is_mac) {
+    output_extension = "dylib"
+  }
+}
+
+executable("sugarsubstitute_crashpad_probe") {
+  testonly = true
+  sources = [ "crashpad_native_probe.cc" ]
+  if (crashpad_is_linux) {
+    libs = [ "dl" ]
+  }
+}
