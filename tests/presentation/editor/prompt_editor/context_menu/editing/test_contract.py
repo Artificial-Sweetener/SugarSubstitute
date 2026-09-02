@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QTextCursor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
@@ -31,6 +31,7 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
 )
 
 from substitute.presentation.editor.prompt_editor import PromptEditor
+from substitute.presentation.editor.field_actions import FieldActionContext
 from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
     _PromptEditorTextEditMenu,
 )
@@ -40,6 +41,7 @@ from tests.presentation.editor.prompt_editor.context_menu.mounting import (
     process_events,
 )
 from tests.support.prompt_editor.projection_engine_support import surface_for
+from substitute.presentation.widgets.menu_model import MenuItem
 
 pytestmark = pytest.mark.usefixtures("qt_clipboard_owner")
 
@@ -71,6 +73,47 @@ class _RecordingClipboardActions:
         """Record a select-all request."""
 
         self.calls.append("select_all")
+
+
+def test_prompt_field_actions_exclude_generic_editing_commands(
+    prompt_widgets: list[QWidget],
+) -> None:
+    """The node-menu contribution should contain prompt-domain actions only."""
+
+    editor = create_prompt_editor(prompt_widgets)
+    editor.setPlainText("alpha beta")
+    cursor = editor.textCursor()
+    cursor.setPosition(5)
+    editor.setTextCursor(cursor)
+
+    assert editor.field_actions_available() is True
+    entries = editor.field_action_entries(FieldActionContext(QPoint(20, 30)))
+    action_ids = {entry.action_id for entry in entries if isinstance(entry, MenuItem)}
+
+    assert "prompt.rich_rendering.toggle" in action_ids
+    assert action_ids.isdisjoint(
+        {
+            "prompt.undo",
+            "prompt.redo",
+            "prompt.cut",
+            "prompt.copy",
+            "prompt.paste",
+            "prompt.select_all",
+        }
+    )
+    insert_state = cast(Any, editor)._shell_context_menu.consume_context_insert_state()
+    assert insert_state.insert_position == 5
+    assert insert_state.should_replace_selection is False
+
+    cursor.setPosition(0)
+    cursor.setPosition(5, QTextCursor.MoveMode.KeepAnchor)
+    editor.setTextCursor(cursor)
+    editor.field_action_entries(FieldActionContext(QPoint(20, 30)))
+    selection_state = cast(
+        Any, editor
+    )._shell_context_menu.consume_context_insert_state()
+    assert selection_state.insert_position is None
+    assert selection_state.should_replace_selection is True
 
 
 def test_prompt_editor_context_menu_select_all_selects_full_source(

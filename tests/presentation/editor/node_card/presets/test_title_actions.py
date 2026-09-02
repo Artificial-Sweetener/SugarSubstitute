@@ -30,6 +30,10 @@ from substitute.application.node_behavior import ResolvedFieldSpec
 from substitute.domain.node_behavior import FieldBehavior
 from substitute.domain.user_presets import GLOBAL_PRESET_ASSOCIATION
 from substitute.domain.workflow import CubeState
+from substitute.presentation.editor.field_actions import (
+    FieldActionContribution,
+    FieldActionContext,
+)
 import substitute.presentation.editor.panel.menus.node_title_preset_actions as node_title_preset_actions
 import substitute.presentation.editor.panel.node_card.action_menu as node_card_action_menu
 from substitute.presentation.editor.panel.menus.node_input_preset_menu_source import (
@@ -42,11 +46,18 @@ from substitute.presentation.editor.panel.menus.node_title_preset_actions import
 )
 from substitute.presentation.editor.panel.node_card.action_menu import (
     NodeCardActionMenuBinding,
+    NodeCardActionMenuButton,
 )
 from substitute.presentation.editor.panel.node_card.advanced_input_binding import (
     AdvancedInputCardBinding,
 )
 from substitute.presentation.widgets.save_preset_dialog import PresetSaveScope
+from substitute.presentation.widgets.menu_model import (
+    MenuEntry,
+    MenuItem,
+    MenuSeparator,
+    MenuSubmenu,
+)
 
 
 def _capture_rendered_menus(
@@ -289,12 +300,24 @@ def test_node_title_menu_omits_save_when_no_savable_inputs(
     rendered_menus = _capture_rendered_menus(monkeypatch)
     title = QWidget()
     cube_state = _cube_state({"steps": ["other", 0]})
-    source = _FakeNodePresetSource(NodeInputPresetMenuModel())
+    source = _FakeNodePresetSource(
+        NodeInputPresetMenuModel(
+            sections=(NodeInputPresetMenuSection(title="Global", presets=()),),
+            save_scopes=(
+                PresetSaveScope(
+                    title="Global",
+                    full_label="Global",
+                    association=GLOBAL_PRESET_ASSOCIATION,
+                ),
+            ),
+        )
+    )
     try:
         binding = _create_binding(title, cube_state, source)
 
         assert binding is None
         assert rendered_menus == []
+        assert title.findChildren(NodeCardActionMenuButton) == []
         assert title.contextMenuPolicy() == Qt.ContextMenuPolicy.DefaultContextMenu
     finally:
         title.close()
@@ -376,6 +399,83 @@ def test_node_title_menu_appends_advanced_visibility_after_preset_actions(
         title.close()
 
 
+def test_node_action_menu_flattens_live_semantic_field_actions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The cog should expose field actions directly without wrapper submenus."""
+
+    _ensure_app()
+    rendered_menus = _capture_rendered_menus(monkeypatch)
+    title = QWidget()
+    cube_state = _cube_state({"steps": 20})
+    source = _FakeNodePresetSource(NodeInputPresetMenuModel())
+    contexts: list[FieldActionContext] = []
+
+    def dimension_entries(context: FieldActionContext) -> tuple[MenuItem, ...]:
+        """Return one live dimension action and record the popup anchor."""
+
+        contexts.append(context)
+        return (MenuItem("dimension.swap", "Swap width & height"),)
+
+    def prompt_entries(context: FieldActionContext) -> tuple[MenuEntry, ...]:
+        """Return prompt actions and record the same popup anchor."""
+
+        contexts.append(context)
+        return (
+            MenuSubmenu(
+                "Insert trigger words",
+                entries=(MenuItem("prompt.trigger", "Friendly Midna"),),
+            ),
+            MenuItem("prompt.schedule", "Schedule LoRA"),
+            MenuSeparator(),
+            MenuItem("prompt.rendering", "Rich prompt rendering"),
+        )
+
+    try:
+        binding = _create_binding(
+            title,
+            cube_state,
+            source,
+            field_action_contributions=(
+                FieldActionContribution(
+                    contribution_id="field.width.height",
+                    availability_factory=lambda: True,
+                    entries_factory=dimension_entries,
+                ),
+                FieldActionContribution(
+                    contribution_id="field.unavailable",
+                    availability_factory=lambda: False,
+                    entries_factory=lambda _context: (),
+                ),
+                FieldActionContribution(
+                    contribution_id="field.prompt",
+                    availability_factory=lambda: True,
+                    entries_factory=prompt_entries,
+                ),
+            ),
+        )
+        assert binding is not None
+
+        binding.button.click()
+
+        assert len(contexts) == 2
+        assert contexts[0].anchor_global_position == contexts[1].anchor_global_position
+        root_menu = rendered_menus[-1]
+        assert _round_menu_entries(root_menu) == [
+            ("action", "Swap width & height"),
+            ("separator", ""),
+            ("menu", "Insert trigger words"),
+            ("action", "Schedule LoRA"),
+            ("separator", ""),
+            ("action", "Rich prompt rendering"),
+        ]
+        assert [submenu.title() for submenu in cast(Any, root_menu)._subMenus] == [
+            "Insert trigger words"
+        ]
+    finally:
+        title.close()
+
+
 def _ensure_app() -> QApplication:
     """Return an existing QApplication or create one for widget tests."""
 
@@ -391,6 +491,7 @@ def _create_binding(
     source: _FakeNodePresetSource,
     *,
     advanced: AdvancedInputCardBinding | None = None,
+    field_action_contributions: tuple[FieldActionContribution, ...] = (),
 ) -> NodeCardActionMenuBinding | None:
     """Create the production gear binding for one preset test node."""
 
@@ -403,6 +504,7 @@ def _create_binding(
         dialog_parent=lambda: title,
         is_connection=_is_connection,
         advanced_inputs=advanced,
+        field_action_contributions=field_action_contributions,
     )
 
 

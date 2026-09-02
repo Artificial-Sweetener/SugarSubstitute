@@ -487,10 +487,10 @@ owner = "dimension row actions"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/menus/dimension_row_actions.py"
 kind = "remediation"
-justification = "The assessed file mixes dimension-row widget discovery and binding, saved-dimension persistence actions, aspect-ratio and orientation calculation, context-menu tree construction, submenu event-filter behavior. Extract pure dimension transforms and saved-dimension commands from Qt menu construction and binding."
+justification = "The assessed file mixes dimension-row widget discovery and binding, saved-dimension persistence actions, aspect-ratio and orientation calculation, and semantic dimension-action tree projection. Extract pure dimension transforms and saved-dimension commands from Qt menu construction and binding."
 issue = "chore:SS-ARCH-044"
 review_by = 2026-12-15
-max_lines = 667
+max_lines = 648
 next_limit = 533
 debt = "SS-ARCH-044"
 
@@ -500,10 +500,10 @@ owner = "editor node-card construction"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/node_card_builder.py"
 kind = "remediation"
-justification = "The assessed file mixes node-card and field-row construction, icon, title, and link-endpoint presentation, prompt and standard input-field routing, collapsible card animation and layout registration, and build timing diagnostics. Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
+justification = "The assessed file mixes node-card and field-row construction, icon, title, and link-endpoint presentation, prompt and standard input-field routing, field-action contribution collection and title-menu routing, collapsible card animation and layout registration, and build timing diagnostics. Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
-max_lines = 1394
+max_lines = 1405
 next_limit = 1137
 debt = "SS-ARCH-045"
 
@@ -604,11 +604,11 @@ owner = "editor field rows"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/widgets/field_row.py"
 kind = "remediation"
-justification = "The assessed file mixes scalar and grouped row construction, field label/control sizing policy, field visibility application, divider styling, dynamic relayout event filtering and parent invalidation. Extract relayout observation and sizing policy from field-row construction."
+justification = "The assessed file mixes scalar and grouped row construction, field label/control sizing policy, field visibility application, divider styling, and semantic field-action source discovery. Extract field sizing policy and visibility registration from row construction."
 issue = "chore:SS-ARCH-053"
 review_by = 2026-12-15
-max_lines = 726
-next_limit = 580
+max_lines = 545
+next_limit = 435
 debt = "SS-ARCH-053"
 
 [[waivers]]
@@ -734,11 +734,11 @@ owner = "prompt context menus"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py"
 kind = "remediation"
-justification = "The assessed file mixes context-event routing and insert state, native text edit actions, diagnostic menu projection, prompt mutation and scene actions, prompt segment and utility menu construction, inline LoRA menu routing. Extract menu catalog construction from context-event and insertion-state coordination."
+justification = "The assessed file mixes context-event routing and insert state, native text edit actions, prompt semantic-menu request preparation, node-menu target preparation, and inline LoRA menu routing. Extract inline LoRA routing from context-event and insertion-state coordination."
 issue = "chore:SS-ARCH-063"
 review_by = 2026-12-15
-max_lines = 673
-next_limit = 538
+max_lines = 529
+next_limit = 423
 debt = "SS-ARCH-063"
 
 [[waivers]]
@@ -747,10 +747,10 @@ owner = "prompt editor shell"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/widget.py"
 kind = "remediation"
-justification = "The assessed file mixes QFluent text-edit host compatibility, projection surface composition and lifecycle, keyboard, clipboard, drag/drop, context-menu, and focus routing, autocomplete, diagnostics, reorder, and weight feature coordination, prompt state and metadata publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and host event routing from the QFluent shell and projection composition boundary."
+justification = "The assessed file mixes QFluent text-edit host compatibility, projection surface composition and lifecycle, keyboard, clipboard, drag/drop, context-menu, and focus routing, autocomplete, diagnostics, reorder, and weight feature coordination, prompt state, metadata, and semantic-action publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and host event routing from the QFluent shell and projection composition boundary."
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
-max_lines = 1754
+max_lines = 1766
 next_limit = 1403
 debt = "SS-ARCH-064"
 

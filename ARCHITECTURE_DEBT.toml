@@ -580,15 +580,14 @@ next_extraction = "Extract prompt-editor persistence and widget-family binding a
 id = "SS-ARCH-044"
 owner = "dimension row actions"
 paths = ["substitute/presentation/editor/panel/menus/dimension_row_actions.py"]
-fingerprint = "sha256:62d668f9bc847b13cb2f5789efc24ad9477484249c67635d8f827f23fb778f9d"
+fingerprint = "sha256:996fc65587e1f0ba0a735afe28b2586756a60db440d7d46f57e666b7905cc0a2"
 issue = "chore:SS-ARCH-044"
 review_by = 2026-12-15
 responsibilities = [
   "dimension-row widget discovery and binding",
   "saved-dimension persistence actions",
   "aspect-ratio and orientation calculation",
-  "context-menu tree construction",
-  "submenu event-filter behavior",
+  "semantic dimension-action tree projection",
 ]
 next_extraction = "Extract pure dimension transforms and saved-dimension commands from Qt menu construction and binding."
 
@@ -596,13 +595,14 @@ next_extraction = "Extract pure dimension transforms and saved-dimension command
 id = "SS-ARCH-045"
 owner = "editor node-card construction"
 paths = ["substitute/presentation/editor/panel/node_card_builder.py"]
-fingerprint = "sha256:ae517b2ae6820a10a17a36b669906db5bed1b75ce84de613546844ce71d3bf95"
+fingerprint = "sha256:d8bd89250a70ce55be7e2435db1ddc7f2b014bc729a029a7bc27621529179625"
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
 responsibilities = [
   "node-card and field-row construction",
   "icon, title, and link-endpoint presentation",
   "prompt and standard input-field routing",
+  "field-action contribution collection and title-menu routing",
   "collapsible card animation and layout registration",
   "build timing and trace diagnostics",
 ]
@@ -726,7 +726,7 @@ next_extraction = "Extract runtime-issue cards and update/issue overlays from th
 id = "SS-ARCH-053"
 owner = "editor field rows"
 paths = ["substitute/presentation/editor/panel/widgets/field_row.py"]
-fingerprint = "sha256:d931dfbaf3fd25cabe9ccb963851b888b7b0df07148385f2dd59b4c0a620f4e4"
+fingerprint = "sha256:00be9b760126437698b9fda61244498380bdad3eb51ad5510c9f5778f977d37e"
 issue = "chore:SS-ARCH-053"
 review_by = 2026-12-15
 responsibilities = [
@@ -734,9 +734,9 @@ responsibilities = [
   "field label/control sizing policy",
   "field visibility application",
   "divider styling",
-  "dynamic relayout event filtering and parent invalidation",
+  "semantic field-action source discovery",
 ]
-next_extraction = "Extract relayout observation and sizing policy from field-row construction."
+next_extraction = "Extract field sizing policy and visibility registration from row construction."
 
 [[debts]]
 id = "SS-ARCH-054"
@@ -892,24 +892,23 @@ next_extraction = "Split emphasis, wildcard, and LoRA renderers into focused mod
 id = "SS-ARCH-063"
 owner = "prompt context menus"
 paths = ["substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py"]
-fingerprint = "sha256:ad5476180175006d502747fde49bb40fa56812b7a068aec2c4944298a8d4610a"
+fingerprint = "sha256:75afce1f0da27bf429d3f2de7f29aed92a8ef1adf710bc44d7d0e4a7b338c31d"
 issue = "chore:SS-ARCH-063"
 review_by = 2026-12-15
 responsibilities = [
   "context-event routing and insert state",
   "native text edit actions",
-  "diagnostic menu projection",
-  "prompt mutation and scene actions",
-  "prompt segment and utility menu construction",
+  "prompt semantic-menu request preparation",
+  "node-menu target preparation",
   "inline LoRA menu routing",
 ]
-next_extraction = "Extract menu catalog construction from context-event and insertion-state coordination."
+next_extraction = "Extract inline LoRA routing from context-event and insertion-state coordination."
 
 [[debts]]
 id = "SS-ARCH-064"
 owner = "prompt editor shell"
 paths = ["substitute/presentation/editor/prompt_editor/widget.py"]
-fingerprint = "sha256:44ce5c47dacc631702079048b12b06ee37ab67041e55f76b3c3cfcf1b41fcc06"
+fingerprint = "sha256:077a6576ee0bbf3a6fde4cadabe91e2ffe05143b0d949abed8c1b169b5fd2b47"
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
 responsibilities = [
@@ -917,7 +916,7 @@ responsibilities = [
   "projection surface composition and lifecycle",
   "keyboard, clipboard, drag/drop, context-menu, and focus routing",
   "autocomplete, diagnostics, reorder, and weight feature coordination",
-  "prompt state and metadata publication",
+  "prompt state, metadata, and semantic-action publication",
   "chrome, scrolling, sizing, and editor-panel integration",
 ]
 next_extraction = "Extract feature coordination and host event routing from the QFluent shell and projection composition boundary."

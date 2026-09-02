@@ -23,7 +23,9 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from substitute.domain.node_behavior import FieldBehavior
+from substitute.presentation.editor.field_actions import FieldActionContext
 from substitute.presentation.editor.panel.widgets.field_row import FieldRowBuilder
+from substitute.presentation.widgets.menu_model import MenuItem, MenuSubmenu
 from tests.presentation.editor.panel.dimensions.context_menu.support import (
     DimensionPanel as _Panel,
     add_dimension_row as _add_dimension_row,
@@ -182,5 +184,50 @@ def test_dimension_group_context_menu_contains_aspect_ratio_submenus(
             "1:2",
             "9:21",
         ]
+    finally:
+        _cleanup_widgets(app, content, panel)
+
+
+def test_dimension_row_contributes_side_complete_node_actions() -> None:
+    """A dimension row should expose both ratio anchors to a node-level menu."""
+
+    app = _ensure_app()
+    panel = _Panel()
+    content = QWidget(panel)
+    try:
+        width = _spinbox(panel, value=1600, key="source_width")
+        height = _spinbox(panel, value=900, key="source_height")
+        built_row = FieldRowBuilder(
+            panel=panel,
+            icon_builder=lambda _icon: QWidget(panel),
+            icon_resolver=lambda _node, _label, column_index=None: None,
+        ).build_n_column_row(
+            fields=[("source_width", width), ("source_height", height)],
+            field_behaviors={
+                "source_width": FieldBehavior(field_key="source_width"),
+                "source_height": FieldBehavior(field_key="source_height"),
+            },
+            field_labels={
+                "source_width": "Source width",
+                "source_height": "Source height",
+            },
+            node_name="resize",
+        )
+
+        assert len(built_row.action_contributions) == 1
+        contribution = built_row.action_contributions[0]
+        assert contribution.is_available() is True
+        entries = contribution.entries(FieldActionContext(QPoint()))
+        assert isinstance(entries[0], MenuItem)
+        assert entries[0].label == "Swap width & height"
+        assert [entry.label for entry in entries if isinstance(entry, MenuSubmenu)] == [
+            "Set ratio by Width",
+            "Set ratio by Height",
+        ]
+
+        assert entries[0].callback is not None
+        entries[0].callback()
+        assert width.value() == 900
+        assert height.value() == 1600
     finally:
         _cleanup_widgets(app, content, panel)

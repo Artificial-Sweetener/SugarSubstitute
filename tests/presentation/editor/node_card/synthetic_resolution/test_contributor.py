@@ -22,6 +22,7 @@ import gc
 from typing import Any, cast
 
 
+from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QWidget
 
 from sugarsubstitute_shared.presentation.localization import (
@@ -34,6 +35,7 @@ from substitute.application.workflows.synthetic_canvas_resolution_role_service i
 )
 from substitute.domain.node_behavior import FieldBehavior
 from substitute.domain.workflow import CanvasDimensionAuthority, CanvasDimensions
+from substitute.presentation.editor.field_actions import FieldActionContext
 from substitute.presentation.editor.panel.node_card.body_contribution import (
     NodeCardBodyContributionContext,
 )
@@ -226,6 +228,9 @@ def test_synthetic_resolution_decorator_restricts_dimension_menu_to_saving(
 
     assert built_row.dimension_actions is not None
     assert calls == [built_row.dimension_actions]
+    assert len(built_row.action_contributions) == 1
+    assert built_row.action_contributions[0].is_available() is False
+    assert built_row.action_contributions[0].entries(FieldActionContext(QPoint())) == ()
 
 
 def _dimension_spin(parent: QWidget, *, value: int, key: str) -> SpinBox:

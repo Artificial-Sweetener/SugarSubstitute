@@ -25,7 +25,7 @@ from typing import Any, Callable, Mapping, TypeGuard, cast
 from sugarsubstitute_shared.localization import ApplicationMessage
 from sugarsubstitute_shared.presentation.localization import app_text
 
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import RoundMenu  # type: ignore[import-untyped]
 
@@ -33,6 +33,7 @@ from substitute.application.node_behavior import (
     DimensionFieldPair,
     infer_dimension_field_pairs,
 )
+from substitute.presentation.editor.field_actions import FieldActionContext
 from substitute.presentation.editor.panel.dimension_presets import (
     DimensionPresetCatalog,
     DimensionPresetCatalogSource,
@@ -48,6 +49,9 @@ from substitute.presentation.widgets.menu_model import (
     MenuSubmenu,
 )
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
+from substitute.presentation.widgets.qfluent_submenu_interaction import (
+    install_submenu_click_openers,
+)
 
 SWAP_DIMENSION_ACTION_TEXT: ApplicationMessage = app_text("Swap width & height")
 SET_DIMENSIONS_MENU_TEXT: ApplicationMessage = app_text("Set dimensions")
@@ -204,6 +208,32 @@ class DimensionRowActions:
         widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         widget.customContextMenuRequested.connect(show_menu)
 
+    def field_action_entries(
+        self,
+        context: FieldActionContext,
+    ) -> tuple[MenuEntry, ...]:
+        """Return node-menu actions without assuming a clicked dimension side."""
+
+        del context
+        return dimension_menu_entries(
+            binding=self._binding,
+            anchor_side=None,
+            dimension_preset_source=self._dimension_preset_source,
+            content=self._content,
+        )
+
+    def field_actions_available(self) -> bool:
+        """Return whether the current dimension policy exposes any valid action."""
+
+        return bool(
+            dimension_menu_entries(
+                binding=self._binding,
+                anchor_side=None,
+                dimension_preset_source=self._dimension_preset_source,
+                content=self._content,
+            )
+        )
+
     def _show(
         self,
         *,
@@ -284,6 +314,28 @@ def build_dimension_context_menu(
 ) -> RoundMenu:
     """Build reusable dimension actions for the requested presentation surface."""
 
+    entries = dimension_menu_entries(
+        binding=binding,
+        anchor_side=anchor_side,
+        dimension_preset_source=dimension_preset_source,
+        include_swap=include_swap,
+        content=content,
+    )
+    menu = QFluentMenuRenderer(parent=source_widget).render(MenuModel(entries=entries))
+    install_submenu_click_openers(menu)
+    return menu
+
+
+def dimension_menu_entries(
+    *,
+    binding: DimensionRowBinding,
+    anchor_side: DimensionSide | None,
+    dimension_preset_source: DimensionPresetCatalogSource | None,
+    include_swap: bool = True,
+    content: DimensionContextMenuContent = DimensionContextMenuContent.FULL,
+) -> tuple[MenuEntry, ...]:
+    """Return current dimension actions for any presentation surface."""
+
     entries: list[MenuEntry] = []
     if content is DimensionContextMenuContent.FULL and include_swap:
         entries.append(
@@ -323,11 +375,7 @@ def build_dimension_context_menu(
         if entries:
             entries.append(MenuSeparator())
         entries.append(save_entry)
-    menu = QFluentMenuRenderer(parent=source_widget).render(
-        MenuModel(entries=tuple(entries))
-    )
-    _install_submenu_click_openers_for_tree(menu)
-    return menu
+    return tuple(entries)
 
 
 def _saved_dimensions_entry(
@@ -479,82 +527,6 @@ def _save_current_dimensions_entry(
             )
         )
     return MenuSubmenu(SAVE_CURRENT_DIMENSIONS_MENU_TEXT, entries=tuple(entries))
-
-
-def _install_submenu_click_openers_for_tree(menu: RoundMenu) -> None:
-    """Install click-to-open behavior for every rendered submenu row."""
-
-    for submenu in getattr(menu, "_subMenus", ()):
-        if isinstance(submenu, RoundMenu):
-            _install_submenu_click_opener(menu, submenu)
-            _install_submenu_click_openers_for_tree(submenu)
-
-
-def _install_submenu_click_opener(parent_menu: RoundMenu, submenu: RoundMenu) -> None:
-    """Install click-to-open behavior for a QFluent submenu row widget."""
-
-    item = getattr(submenu, "menuItem", None)
-    view = getattr(parent_menu, "view", None)
-    if item is None or view is None:
-        return
-    item_widget = getattr(view, "itemWidget", None)
-    if not callable(item_widget):
-        return
-    widget = item_widget(item)
-    if not isinstance(widget, QWidget):
-        return
-
-    opener = _SubmenuClickOpener(parent_menu, submenu, parent_menu)
-    widget.installEventFilter(opener)
-    openers = getattr(parent_menu, "_substitute_submenu_click_openers", None)
-    if not isinstance(openers, list):
-        openers = []
-        setattr(parent_menu, "_substitute_submenu_click_openers", openers)
-    openers.append(opener)
-
-
-class _SubmenuClickOpener(QObject):
-    """Open a QFluent submenu row on click without closing the parent menu."""
-
-    def __init__(
-        self,
-        parent_menu: RoundMenu,
-        submenu: RoundMenu,
-        parent: QObject,
-    ) -> None:
-        """Store the parent/submenu pair controlled by this event filter."""
-
-        super().__init__(parent)
-        self._parent_menu = parent_menu
-        self._submenu = submenu
-
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        """Consume submenu row clicks and open the child menu."""
-
-        _ = watched
-        if event.type() == QEvent.Type.MouseButtonPress:
-            QTimer.singleShot(0, self._open_submenu)
-            return True
-        if event.type() == QEvent.Type.MouseButtonRelease:
-            return True
-        return super().eventFilter(watched, event)
-
-    def _open_submenu(self) -> None:
-        """Open the submenu immediately using QFluent's submenu placement logic."""
-
-        item = getattr(self._submenu, "menuItem", None)
-        if item is None:
-            return
-        setattr(self._parent_menu, "lastHoverItem", item)
-        setattr(self._parent_menu, "lastHoverSubMenuItem", item)
-        timer = getattr(self._parent_menu, "timer", None)
-        if timer is not None:
-            stop = getattr(timer, "stop", None)
-            if callable(stop):
-                stop()
-        open_timeout = getattr(self._parent_menu, "_onShowMenuTimeOut", None)
-        if callable(open_timeout):
-            open_timeout()
 
 
 def _oriented_dimensions(
@@ -812,4 +784,5 @@ __all__ = [
     "apply_aspect_ratio",
     "bind_dimension_row_actions",
     "build_dimension_context_menu",
+    "dimension_menu_entries",
 ]
