@@ -38,6 +38,10 @@ def test_surface_evidence_records_the_visible_top_level_splash(
     application = ensure_qt_application()
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("SUGAR_SUBSTITUTE_SPLASH_SURFACE_EVIDENCE", "1")
+    monkeypatch.setenv(
+        "SUGAR_SUBSTITUTE_SPLASH_REQUESTED_MONOTONIC_NS",
+        "120000000",
+    )
     with widget_root_scope() as owner:
         splash = owner.own(QWidget())
         splash.show()
@@ -55,6 +59,7 @@ def test_surface_evidence_records_the_visible_top_level_splash(
     payload = json.loads(evidence_path.read_text(encoding="utf-8"))
     assert payload["host_pid"] == os.getpid()
     assert payload["first_paint_confirmed"] is True
+    assert payload["launch_to_first_paint_ms"] == 3.0
     assert payload["splash_is_visible"] is True
     assert payload["top_level_surface_count"] >= 1
     assert payload["visible_top_level_surface_count"] >= 1
