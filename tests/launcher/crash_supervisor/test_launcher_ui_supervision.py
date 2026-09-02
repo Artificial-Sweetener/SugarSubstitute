@@ -134,7 +134,7 @@ def test_frozen_installed_launcher_uses_its_ui_executable(
         target=WINDOWS_X64,
     )
     installed_launcher = layout.executable_path
-    ui_executable = installed_launcher.with_name("LauncherUi.exe")
+    ui_executable = layout.launcher_support_path / "LauncherUi.exe"
     layout.launcher_support_path.mkdir(parents=True)
     ui_executable.write_bytes(b"launcher UI")
     supervisor = RecordingSupervisor()

@@ -303,6 +303,12 @@ ISOLATED_TEST_MODULES = frozenset(
         "tests/presentation/editor/prompt_editor/projection/paint_cache/test_cache.py",
         "tests/shared/presentation/localization/test_qfluent_font_adapter.py",
         "tests/presentation/widgets/qfluent_menu_renderer/test_renderer.py",
+        # This real prompt-card layout owner is stable in a fresh native Qt
+        # process but can abort after unrelated Qt work in one reused worker.
+        "tests/presentation/editor/node_card/prompt_mode/test_card_contract.py",
+        # This launcher setup owner is stable in a fresh native Qt process but
+        # can abort after unrelated Qt work in one reused worker.
+        "tests/launcher/installation_workflow/test_successful_setup.py",
         # This real mouse-interaction owner is stable in a fresh native Qt
         # process but can lose delivery after unrelated Qt work in one worker.
         "tests/presentation/cube_picker/test_staging_removal.py",

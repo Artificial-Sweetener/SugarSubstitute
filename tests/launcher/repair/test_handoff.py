@@ -40,8 +40,8 @@ def test_handoff_copies_verified_repair_exe_and_binds_live_caller(
     app = staging / "app"
     launcher = staging / "launcher"
     app.mkdir(parents=True)
-    launcher.mkdir()
-    (launcher / "Repair.exe").write_bytes(b"one-file-helper")
+    (launcher / "launcher-bin").mkdir(parents=True)
+    (launcher / "launcher-bin" / "Repair.exe").write_bytes(b"one-file-helper")
     request = PreparedRepairRequest(
         install_root=root,
         scope=RepairScope.APPLICATION,

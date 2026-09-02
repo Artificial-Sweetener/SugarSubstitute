@@ -72,7 +72,10 @@ def test_floating_and_docked_hosts_choose_same_physical_grid_topology(
         window.resize(1000, 500)
         window.show()
         canvas.workspace.resize(1000, 500)
-        harness.wait_until(lambda: _matches_grid(harness.fingerprint(), docked))
+        harness.wait_until(
+            lambda: _matches_grid(harness.fingerprint(), docked),
+            timeout_ms=5000,
+        )
         floating = harness.fingerprint()
 
         assert _topology(floating) == _topology(docked)

@@ -126,7 +126,7 @@ def _installed_windows_ui_executable(layout: InstallLayout) -> Path | None:
         return None
     if support_path.resolve() != layout.launcher_support_path.resolve():
         return None
-    return Path(sys.executable).with_name("LauncherUi.exe")
+    return layout.launcher_support_path / "LauncherUi.exe"
 
 
 def _current_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:

@@ -167,7 +167,7 @@ ui_exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=str(app_icon_path),
-    contents_directory="launcher-bin",
+    contents_directory=".",
 )
 coll = COLLECT(
     exe,
