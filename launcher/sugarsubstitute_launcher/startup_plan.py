@@ -114,7 +114,10 @@ def resolve_startup_candidate(
         layout = InstallLayout.from_root(explicit_install_root)
         return LauncherStartupCandidate(
             layout=layout,
-            installed_config_found=False,
+            installed_config_found=(
+                _matches_installed_executable(executable_path, layout.target)
+                and layout.config_path.is_file()
+            ),
         )
 
     target = detect_launcher_target()

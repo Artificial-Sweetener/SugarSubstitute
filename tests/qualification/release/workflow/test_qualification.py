@@ -301,6 +301,7 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     assert "github.event_name != 'workflow_dispatch'" in prepare_call
     assert "github.event.inputs.dry_run != 'true'" in prepare_call
     assert "github.event.inputs.qualification_scope == 'full'" in prepare_call
+    assert "github.ref_name == 'canary' && 'canary-fast'" not in prepare_call
     assert "if: inputs.run_tests" in prepublication_text
     assert (
         "candidate_run_id: ${{ needs.stage-candidate.outputs.candidate_run_id }}"

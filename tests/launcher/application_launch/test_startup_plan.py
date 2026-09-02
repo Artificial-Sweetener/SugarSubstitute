@@ -88,6 +88,41 @@ def test_launcher_resolves_installed_exe_parent_as_install_root(
     assert resolved_root == layout.root
 
 
+def test_explicit_root_recognizes_its_installed_launcher(tmp_path: Path) -> None:
+    """An installer handoff should route the stable executable into the app."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    write_launcher_executable(layout)
+
+    candidate = resolve_startup_candidate(
+        explicit_install_root=layout.root,
+        executable_path=layout.executable_path,
+    )
+
+    assert candidate.layout == layout
+    assert candidate.installed_config_found is True
+
+
+def test_explicit_root_keeps_downloaded_setup_in_installer_mode(
+    tmp_path: Path,
+) -> None:
+    """A downloaded setup must not become an app launch because a config exists."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    setup_executable = tmp_path / "SugarSubstitute-Setup-Windows-x64.exe"
+    setup_executable.write_bytes(b"setup")
+
+    candidate = resolve_startup_candidate(
+        explicit_install_root=layout.root,
+        executable_path=setup_executable,
+    )
+
+    assert candidate.layout == layout
+    assert candidate.installed_config_found is False
+
+
 def test_launcher_resolves_install_root_from_frozen_support_bundle(
     tmp_path: Path,
 ) -> None:

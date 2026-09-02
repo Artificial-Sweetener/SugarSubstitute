@@ -91,7 +91,7 @@ jobs:
       qualification_candidate_run_id: ${{ inputs.qualification_candidate_run_id }}
       qualification_candidate_version: ${{ inputs.qualification_candidate_version }}
       candidate_artifact_name: ${{ inputs.candidate_artifact_name || 'non-release-candidate-channel' }}
-      qualification_scope: ${{ github.ref_name == 'canary' && 'canary-fast' || inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope }}
+      qualification_scope: ${{ inputs.qualification_scope == '' && 'all' || inputs.qualification_scope == 'full' && 'all' || inputs.qualification_scope }}
       upgrade_selection: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.upgrade_selection || 'complete' }}
       qualification_timeout_seconds: ${{ inputs.dry_run == 'true' && inputs.qualification_scope != 'full' && inputs.qualification_timeout_seconds || '3600' }}
 

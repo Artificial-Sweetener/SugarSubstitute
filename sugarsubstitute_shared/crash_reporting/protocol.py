@@ -41,6 +41,16 @@ CRASH_EXIT_RECEIPT_PATH_ENV = "SUGAR_SUBSTITUTE_CRASH_EXIT_RECEIPT_PATH"
 CRASHPAD_DATABASE_ENV = "SUGAR_SUBSTITUTE_CRASHPAD_DATABASE"
 CRASHPAD_HANDLER_ENV = "SUGAR_SUBSTITUTE_CRASHPAD_HANDLER"
 CRASHPAD_CLIENT_LIBRARY_ENV = "SUGAR_SUBSTITUTE_CRASHPAD_CLIENT_LIBRARY"
+_CRASH_SUPERVISION_ENVIRONMENT_NAMES = (
+    CRASH_RUN_ID_ENV,
+    CRASH_RUN_TOKEN_ENV,
+    CRASH_INCIDENT_ROOT_ENV,
+    CRASH_EXIT_INTENT_PATH_ENV,
+    CRASH_EXIT_RECEIPT_PATH_ENV,
+    CRASHPAD_DATABASE_ENV,
+    CRASHPAD_HANDLER_ENV,
+    CRASHPAD_CLIENT_LIBRARY_ENV,
+)
 
 
 class CleanExitOutcome(Enum):
@@ -207,6 +217,17 @@ class CrashRunContext:
         return intent is not None and receipt == intent
 
 
+def without_crash_supervision_environment(
+    environment: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    """Return an environment detached from the current crash-supervised run."""
+
+    detached = dict(os.environ if environment is None else environment)
+    for name in _CRASH_SUPERVISION_ENVIRONMENT_NAMES:
+        detached.pop(name, None)
+    return detached
+
+
 def _present(values: Mapping[str, str | None], key: str) -> str:
     """Return a field already proven present while satisfying static typing."""
 
@@ -318,4 +339,5 @@ __all__ = [
     "CRASH_RUN_TOKEN_ENV",
     "CleanExitOutcome",
     "CrashRunContext",
+    "without_crash_supervision_environment",
 ]
