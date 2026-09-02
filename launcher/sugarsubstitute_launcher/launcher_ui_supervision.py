@@ -21,7 +21,6 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 import os
 from pathlib import Path
-import sys
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments
@@ -29,8 +28,10 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.platforms import LauncherOperatingSystem
-from launcher.sugarsubstitute_launcher.process import spawn_detached_process
+from launcher.sugarsubstitute_launcher.launcher_ui_process import (
+    build_launcher_ui_command,
+    start_crash_reporter,
+)
 from launcher.sugarsubstitute_launcher.runtime_paths import frozen_support_path
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
@@ -86,47 +87,14 @@ def _supervise(
     """Run one current-launcher child through the shared crash protocol."""
 
     crash_owner = supervisor or ApplicationCrashSupervisor(
-        reporter_starter=_start_current_crash_reporter,
+        reporter_starter=start_crash_reporter,
         native_runtime_resolver=_current_native_runtime,
     )
     return crash_owner.supervise(
         layout=layout,
-        command=_current_launcher_command(layout, child_arguments),
+        command=build_launcher_ui_command(layout, child_arguments),
         environment=os.environ,
     )
-
-
-def _current_launcher_command(
-    layout: InstallLayout,
-    arguments: Sequence[str],
-) -> tuple[str, ...]:
-    """Return the packaged UI child or source module invocation."""
-
-    executable = subprocess_path(Path(sys.executable))
-    if bool(getattr(sys, "frozen", False)):
-        installed_ui_executable = _installed_windows_ui_executable(layout)
-        if installed_ui_executable is not None:
-            executable = subprocess_path(installed_ui_executable)
-        return (executable, *arguments)
-    return (
-        executable,
-        "-m",
-        "launcher.sugarsubstitute_launcher",
-        *arguments,
-    )
-
-
-def _installed_windows_ui_executable(layout: InstallLayout) -> Path | None:
-    """Resolve the UI child only from an authoritative installed Windows bundle."""
-
-    if layout.target.operating_system is not LauncherOperatingSystem.WINDOWS:
-        return None
-    support_path = frozen_support_path()
-    if support_path is None:
-        return None
-    if support_path.resolve() != layout.launcher_support_path.resolve():
-        return None
-    return layout.launcher_support_path / "LauncherUi.exe"
 
 
 def _current_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:
@@ -144,21 +112,6 @@ def _current_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:
     return (
         runtime / layout.crashpad_handler_path.name,
         runtime / layout.crashpad_client_library_path.name,
-    )
-
-
-def _start_current_crash_reporter(layout: InstallLayout, incident_id: str) -> None:
-    """Start the same stable launcher in non-recursive reporter mode."""
-
-    spawn_detached_process(
-        _current_launcher_command(
-            layout,
-            (
-                f"--install-root={subprocess_path(layout.root)}",
-                f"--show-crash-report={incident_id}",
-            ),
-        ),
-        environment=os.environ,
     )
 
 

@@ -21,13 +21,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 import os
 from pathlib import Path
-import subprocess
 import sys
 
 from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.launcher_ui_process import start_crash_reporter
 from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
 from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
@@ -45,7 +45,7 @@ def supervise_source_application(*, argv: Sequence[str], app_root: Path) -> int:
         return 0
     with broker:
         supervisor = ApplicationCrashSupervisor(
-            reporter_starter=_start_source_crash_reporter,
+            reporter_starter=start_crash_reporter,
             native_runtime_resolver=lambda _layout: _source_native_runtime(layout),
         )
         command = [
@@ -77,26 +77,6 @@ def _source_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:
     return (
         target_directory / layout.crashpad_handler_path.name,
         target_directory / layout.crashpad_client_library_path.name,
-    )
-
-
-def _start_source_crash_reporter(layout: InstallLayout, incident_id: str) -> None:
-    """Start the independent reporter through the source launcher module."""
-
-    subprocess.Popen(  # noqa: S603
-        [
-            subprocess_path(Path(sys.executable)),
-            "-m",
-            "launcher.sugarsubstitute_launcher",
-            f"--install-root={subprocess_path(layout.root)}",
-            f"--show-crash-report={incident_id}",
-        ],
-        cwd=layout.root,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        close_fds=True,
-        shell=False,
     )
 
 

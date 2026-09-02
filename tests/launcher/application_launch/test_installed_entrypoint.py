@@ -26,7 +26,9 @@ import pytest
 
 from launcher.sugarsubstitute_launcher import app as launcher_app
 from launcher.sugarsubstitute_launcher import application_launch
+from launcher.sugarsubstitute_launcher import crash_routing
 from launcher.sugarsubstitute_launcher import installed_app_handoff
+from launcher.sugarsubstitute_launcher import launcher_ui_supervision
 from launcher.sugarsubstitute_launcher import splash_session
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -159,6 +161,47 @@ def test_duplicate_launcher_forwards_before_creating_a_splash(
 
     assert launcher_app.main(["--locale=en"]) == 0
     assert observed_arguments == [(sys.argv[0], "--locale=en")]
+
+
+def test_pending_report_recovery_failure_does_not_open_repair(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Reporter defects must not reclassify a launchable installation as damaged."""
+
+    layout = _installed_layout(tmp_path)
+    broker = _Broker()
+    handoffs: list[InstallLayout] = []
+    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setattr(
+        application_launch,
+        "elect_installed_application",
+        lambda _layout, _arguments: broker,
+    )
+    monkeypatch.setattr(
+        splash_session,
+        "start_launcher_splash_session",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        crash_routing,
+        "recover_pending_crash_reports",
+        lambda **_kwargs: (_ for _ in ()).throw(ImportError("QtWidgets unavailable")),
+    )
+    monkeypatch.setattr(
+        installed_app_handoff,
+        "complete_installed_app_handoff",
+        lambda **kwargs: handoffs.append(kwargs["layout"]),
+    )
+    monkeypatch.setattr(
+        launcher_ui_supervision,
+        "supervise_launcher_window",
+        lambda **_kwargs: pytest.fail("Reporter failure must not open repair."),
+    )
+
+    assert launcher_app.main([]) == 0
+    assert handoffs == [layout]
+    assert broker.closed
 
 
 def test_installed_election_uses_the_resolved_installation_identity(
