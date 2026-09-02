@@ -200,6 +200,34 @@ def test_missing_manager_cli_is_an_availability_failure(
     assert result.outcome is RegistryInstallOutcome.REGISTRY_UNREACHABLE
 
 
+def test_unknown_registry_failure_is_written_to_durable_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Retain bounded Manager output when an unknown failure needs fallback."""
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
+        lambda self, module_name: True,
+    )
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
+        lambda *args, **kwargs: (1, ("first detail", "final manager failure")),
+    )
+
+    result = ComfyNodepackRegistryInstaller().install_exact(
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
+        nodepack=CORE_COMFY_NODEPACKS[0],
+        on_log=None,
+        env={},
+    )
+
+    assert result.outcome is RegistryInstallOutcome.FAILED
+    assert "exit_code=1" in caplog.text
+    assert "output_tail=first detail | final manager failure" in caplog.text
+
+
 def _runtime(workspace: Path, python: Path) -> ComfyManagerRuntime:
     """Build one validated integrated Manager runtime fixture."""
 
