@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+from math import ceil
+
 from PySide6.QtCore import QRectF
-from PySide6.QtGui import QColor, QImage, QPainter
+from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter
 
 from substitute.presentation.cubes.cube_model_pill import CubeModelPillPainter
 
@@ -33,10 +35,10 @@ def test_model_pill_clears_label_through_fill_and_underlying_icon() -> None:
     painter = QPainter(overlay)
     icon_rect = QRectF(8, 6, 36, 36)
     painter.fillRect(icon_rect, QColor(220, 70, 90))
-    pill_rect = CubeModelPillPainter.draw(
+    pill_rect = CubeModelPillPainter.draw_icon_overlay(
         painter,
         icon_rect=icon_rect,
-        text="SDXL",
+        text="Anima",
         accent_color=QColor(0, 120, 215),
         punchout_color=wash,
     )
@@ -62,23 +64,71 @@ def test_model_pill_clears_label_through_fill_and_underlying_icon() -> None:
     assert accent_pixels >= 40
 
 
-def test_icon_pill_is_compact_and_overhangs_the_lower_right_corner() -> None:
-    """Icon pills should preserve icon area while remaining visibly attached."""
+def test_icon_pill_is_compact_and_preserves_the_complete_anima_label() -> None:
+    """Icon pills should retain Anima without obscuring the whole icon base."""
 
     image = QImage(64, 48, QImage.Format.Format_ARGB32_Premultiplied)
     image.fill(QColor(238, 238, 238))
     painter = QPainter(image)
     icon_rect = QRectF(8, 6, 36, 36)
-    pill_rect = CubeModelPillPainter.pill_rect(
+    pill_rect = CubeModelPillPainter.icon_overlay_rect(
         painter,
         icon_rect=icon_rect,
-        text="SDXL",
+        text="Anima",
+    )
+    metrics = CubeModelPillPainter.icon_overlay_metrics(painter.font())
+    required_width = ceil(
+        QFontMetricsF(metrics.font).horizontalAdvance("Anima")
+        + (metrics.horizontal_padding * 2)
     )
     painter.end()
 
-    assert pill_rect.height() == 14
-    assert pill_rect.right() == icon_rect.right() + 5
-    assert pill_rect.bottom() == icon_rect.bottom() + 3
+    assert pill_rect.height() == 10
+    assert pill_rect.width() == max(pill_rect.height(), required_width)
+    assert pill_rect.right() == icon_rect.right() + 3
+    assert pill_rect.bottom() == icon_rect.bottom() + 2
+    overlap = icon_rect.intersected(pill_rect)
+    assert (overlap.width() * overlap.height()) <= (
+        icon_rect.width() * icon_rect.height() * 0.23
+    )
+
+
+def test_shared_pill_painter_antialiases_capsule_edges() -> None:
+    """Every pill surface should receive blended edge pixels from its owner."""
+
+    background = QColor(238, 238, 238)
+    accent = QColor(0, 120, 215)
+    image = QImage(180, 48, QImage.Format.Format_ARGB32_Premultiplied)
+    image.fill(background)
+    painter = QPainter(image)
+    font = QFont(painter.font())
+    font.setPixelSize(18)
+    painter.setFont(font)
+    metrics = CubeModelPillPainter.title_metrics(font)
+    pill_rect = CubeModelPillPainter.draw_title(
+        painter,
+        bounds=QRectF(8, 4, 150, 36),
+        text="Anima",
+        accent_color=accent,
+        punchout_color=background,
+    )
+    painter.end()
+
+    assert pill_rect is not None
+    cap_region = QRectF(
+        pill_rect.left(),
+        pill_rect.top(),
+        metrics.horizontal_padding,
+        pill_rect.height(),
+    ).toAlignedRect()
+    cap_colors = {
+        image.pixelColor(x, y).rgba()
+        for y in range(cap_region.top(), cap_region.bottom() + 1)
+        for x in range(cap_region.left(), cap_region.right() + 1)
+    }
+    assert background.rgba() in cap_colors
+    assert accent.rgba() in cap_colors
+    assert cap_colors - {background.rgba(), accent.rgba()}
 
 
 def test_identical_title_models_use_identical_pixel_snapped_capsules() -> None:
@@ -87,13 +137,13 @@ def test_identical_title_models_use_identical_pixel_snapped_capsules() -> None:
     image = QImage(240, 120, QImage.Format.Format_ARGB32_Premultiplied)
     image.fill(QColor(238, 238, 238))
     painter = QPainter(image)
-    first = CubeModelPillPainter.draw_standalone(
+    first = CubeModelPillPainter.draw_title(
         painter,
         bounds=QRectF(12, 5, 200, 43),
         text="SDXL",
         accent_color=QColor(0, 120, 215),
     )
-    second = CubeModelPillPainter.draw_standalone(
+    second = CubeModelPillPainter.draw_title(
         painter,
         bounds=QRectF(12, 58, 200, 44),
         text="SDXL",
