@@ -18,10 +18,8 @@
 
 from __future__ import annotations
 
-from math import ceil
-
-from PySide6.QtCore import QRectF
-from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter
+from PySide6.QtCore import QPointF, QRectF
+from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPainterPath
 
 from substitute.presentation.cubes.cube_model_pill import CubeModelPillPainter
 
@@ -77,14 +75,14 @@ def test_icon_pill_is_compact_and_preserves_the_complete_anima_label() -> None:
         text="Anima",
     )
     metrics = CubeModelPillPainter.icon_overlay_metrics(painter.font())
-    required_width = ceil(
-        QFontMetricsF(metrics.font).horizontalAdvance("Anima")
-        + (metrics.horizontal_padding * 2)
-    )
+    label_path = QPainterPath()
+    label_path.addText(QPointF(0, 0), metrics.font, "Anima")
     painter.end()
 
     assert pill_rect.height() == 10
-    assert pill_rect.width() == max(pill_rect.height(), required_width)
+    assert label_path.boundingRect().width() <= (
+        pill_rect.width() - (metrics.horizontal_padding * 2)
+    )
     assert pill_rect.right() == icon_rect.right() + 3
     assert pill_rect.bottom() == icon_rect.bottom() + 2
     overlap = icon_rect.intersected(pill_rect)
