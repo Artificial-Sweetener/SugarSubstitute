@@ -51,7 +51,7 @@ def test_canary_isolated_release_train_contract() -> None:
     assert 'channel === "canary" ? "canary-latest"' in prepare_assets_text
     assert '"canary-v$version"' not in publication_text
     assert "release-qualification.yml" in release_text
-    assert "'canary-fast'" in release_text
+    assert "          - canary-fast" in release_text
     assert "Upload private non-release candidate channel" in candidate_text
     assert "validate-candidate-artifact:" in (
         PROJECT_ROOT / ".github" / "workflows" / "release-qualification.yml"

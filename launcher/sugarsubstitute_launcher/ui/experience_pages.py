@@ -196,13 +196,13 @@ class ModelInterestPage(QFrame):
         layout.addStretch(1)
         footer = QHBoxLayout()
         footer.addStretch(1)
-        skip = PushButton(launcher_text("Skip model setup"), self)
-        skip.clicked.connect(self.skip_requested)
+        self.skip_button = PushButton(launcher_text("Skip model setup"), self)
+        self.skip_button.clicked.connect(self.skip_requested)
         self.primary_button = PrimaryPushButton(
             launcher_text("Find popular models"), self
         )
         self.primary_button.clicked.connect(self.continue_requested)
-        footer.addWidget(skip)
+        footer.addWidget(self.skip_button)
         footer.addWidget(self.primary_button)
         layout.addLayout(footer)
 

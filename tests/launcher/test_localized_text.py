@@ -14,25 +14,24 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Render fixed installer copy through one stable Qt translation context."""
+"""Verify launcher copy remains available across UI and supervisor processes."""
 
 from __future__ import annotations
 
-_CONTEXT = "LauncherMainWindow"
+import sys
+
+import pytest
+
+from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 
 
-def launcher_text(source_text: str, *arguments: object) -> str:
-    """Translate fixed copy and substitute ordered `%1`-style arguments."""
+def test_launcher_text_falls_back_without_qt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The UI-free stable supervisor should retain English copy and arguments."""
 
-    try:
-        from PySide6.QtCore import QCoreApplication
-    except ImportError:
-        translated = source_text
-    else:
-        translated = QCoreApplication.translate(_CONTEXT, source_text)
-    for index, argument in enumerate(arguments, start=1):
-        translated = translated.replace(f"%{index}", str(argument))
-    return translated
+    monkeypatch.setitem(sys.modules, "PySide6.QtCore", None)
 
-
-__all__ = ["launcher_text"]
+    assert launcher_text("Installed version: %1", "1.2.3") == (
+        "Installed version: 1.2.3"
+    )

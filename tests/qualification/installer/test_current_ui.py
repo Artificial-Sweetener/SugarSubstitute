@@ -30,6 +30,7 @@ import pytest
 from launcher.sugarsubstitute_launcher.ui.installer_qualification import (
     InstallerQualificationDriver,
 )
+from launcher.sugarsubstitute_launcher.ui.experience_pages import ModelInterestPage
 from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationPlan,
 )
@@ -43,6 +44,7 @@ from tools.ci.installer_ui_qualification import (
     run_current_installer_ui,
 )
 from tools.ci.verify_installer_lifecycle import verify_clean_install
+from tests.launcher.support import launcher_test_application
 
 
 def test_qualification_event_sequence_requires_real_ui_actions(tmp_path: Path) -> None:
@@ -133,6 +135,46 @@ def test_installer_qualification_fails_fast_when_runtime_setup_fails(
         )
         == "drive_onboarding"
     )
+
+
+def test_installer_qualification_skips_visible_optional_model_setup(
+    tmp_path: Path,
+) -> None:
+    """Qualification should click the production Skip action before runtime setup."""
+
+    application = launcher_test_application()
+    page = ModelInterestPage()
+    skipped: list[bool] = []
+    page.skip_requested.connect(lambda: skipped.append(True))
+    page.show()
+    application.processEvents()
+    plan = InstallerQualificationPlan(
+        token="qualification-token",
+        install_root=(tmp_path / "install").resolve(),
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        event_log_path=(tmp_path / "events.jsonl").resolve(),
+        timeout_seconds=45.0,
+    )
+    driver = cast(
+        InstallerQualificationDriver,
+        SimpleNamespace(
+            _window=SimpleNamespace(
+                view=SimpleNamespace(model_interest_page=page),
+            ),
+            _plan=plan,
+        ),
+    )
+
+    InstallerQualificationDriver._skip_optional_model_setup(driver)
+    application.processEvents()
+
+    assert skipped == [True]
+    event = json.loads(plan.event_log_path.read_text(encoding="utf-8"))
+    assert event["event"] == "installer.model_setup.skipped"
+    page.close()
+    page.deleteLater()
+    application.processEvents()
 
 
 def test_qualification_event_sequence_rejects_missing_install_click(
