@@ -102,6 +102,8 @@ from substitute.application.prompt_editor.reorder.commit import (
 )
 from substitute.application.prompt_editor.reorder.views import PromptReorderLayoutView
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.presentation.editor.field_actions import FieldActionContext
+from substitute.presentation.widgets.menu_model import MenuEntry
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
@@ -728,6 +730,7 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
                 self._prompt_menu_presenter.restore_prompt_selection_snapshot
             ),
             source_position_for_global_pos=self._source_position_for_global_pos,
+            current_source_position=lambda: int(self.textCursor().position()),
             prompt_menu_requires_custom_actions=(
                 self._prompt_menu_requires_custom_actions
             ),
@@ -1289,6 +1292,19 @@ class PromptEditor(QFluentTextEdit):  # type: ignore[misc]
         """Return whether rich projected prompt rendering is enabled."""
 
         return self.displayMode() is PromptProjectionDisplayMode.PROJECTED
+
+    def field_action_entries(
+        self,
+        context: FieldActionContext,
+    ) -> tuple[MenuEntry, ...]:
+        """Return prompt-domain actions for the aggregate node menu."""
+
+        return self._shell_context_menu.field_action_entries(context)
+
+    def field_actions_available(self) -> bool:
+        """Return whether this prompt field contributes node-menu actions."""
+
+        return True
 
     def setRichPromptRenderingEnabled(self, enabled: bool) -> None:  # noqa: N802
         """Toggle rich prompt rendering and exact source editing."""

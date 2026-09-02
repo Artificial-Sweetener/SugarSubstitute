@@ -31,6 +31,10 @@ from substitute.presentation.editor.panel.menus.node_title_preset_actions import
     NodeInputPresetContext,
     node_input_preset_menu_entries,
 )
+from substitute.presentation.editor.field_actions import (
+    FieldActionContribution,
+    FieldActionContext,
+)
 from substitute.presentation.editor.panel.node_card.advanced_input_binding import (
     AdvancedInputCardBinding,
 )
@@ -42,6 +46,9 @@ from substitute.presentation.widgets.menu_model import (
     MenuSeparator,
 )
 from substitute.presentation.widgets.qfluent_menu_renderer import QFluentMenuRenderer
+from substitute.presentation.widgets.qfluent_submenu_interaction import (
+    install_submenu_click_openers,
+)
 from sugarsubstitute_shared.localization import app_text
 from sugarsubstitute_shared.presentation.localization import (
     set_localized_accessible_name,
@@ -72,7 +79,7 @@ class NodeCardActionMenuButton(TransparentToolButton):  # type: ignore[misc]
 
 
 class NodeCardActionMenuBinding(QObject):
-    """Compose presets and advanced visibility into one title-bar menu."""
+    """Compose node and field actions directly into one title-bar menu."""
 
     @classmethod
     def create(
@@ -85,6 +92,7 @@ class NodeCardActionMenuBinding(QObject):
         dialog_parent: Callable[[], QWidget],
         is_connection: Callable[[object], bool] | None,
         advanced_inputs: AdvancedInputCardBinding | None,
+        field_action_contributions: tuple[FieldActionContribution, ...] = (),
     ) -> NodeCardActionMenuBinding | None:
         """Create a gear only when the node currently exposes a menu action."""
 
@@ -98,6 +106,19 @@ class NodeCardActionMenuBinding(QObject):
                 node_type=preset_context.node_type,
                 reason="node_card_built",
             )
+        node_preset_entries = node_input_preset_menu_entries(
+            menu_parent=title_row,
+            context=preset_context,
+            preset_source=preset_source,
+            dialog_parent=dialog_parent,
+            is_connection=is_connection,
+        )
+        if not _has_available_actions(
+            node_preset_entries=node_preset_entries,
+            advanced_inputs=advanced_inputs,
+            field_action_contributions=field_action_contributions,
+        ):
+            return None
         binding = cls(
             title_row=title_row,
             preset_context=preset_context,
@@ -105,10 +126,8 @@ class NodeCardActionMenuBinding(QObject):
             dialog_parent=dialog_parent,
             is_connection=is_connection,
             advanced_inputs=advanced_inputs,
+            field_action_contributions=field_action_contributions,
         )
-        if binding.current_menu_model() is None:
-            binding.deleteLater()
-            return None
         title_layout.addWidget(binding.button)
         setattr(title_row, "_node_card_action_menu_binding", binding)
         return binding
@@ -122,6 +141,7 @@ class NodeCardActionMenuBinding(QObject):
         dialog_parent: Callable[[], QWidget],
         is_connection: Callable[[object], bool] | None,
         advanced_inputs: AdvancedInputCardBinding | None,
+        field_action_contributions: tuple[FieldActionContribution, ...] = (),
     ) -> None:
         """Retain action sources and create the menu's sole entry button."""
 
@@ -132,6 +152,7 @@ class NodeCardActionMenuBinding(QObject):
         self._dialog_parent = dialog_parent
         self._is_connection = is_connection
         self._advanced_inputs = advanced_inputs
+        self._field_action_contributions = field_action_contributions
         self._active_menu: object | None = None
         self.button = NodeCardActionMenuButton(title_row)
         self.button.clicked.connect(self.show_menu)
@@ -139,33 +160,48 @@ class NodeCardActionMenuBinding(QObject):
     def show_menu(self) -> None:
         """Build current actions and open their Fluent menu below the gear."""
 
-        model = self.current_menu_model()
+        anchor_global_position = self.button.mapToGlobal(
+            QPoint(0, self.button.height())
+        )
+        model = self.current_menu_model(
+            FieldActionContext(anchor_global_position=anchor_global_position)
+        )
         if model is None:
             return
         menu = QFluentMenuRenderer(parent=self.button).render(model)
+        install_submenu_click_openers(menu)
         self._active_menu = menu
-        menu.exec(self.button.mapToGlobal(QPoint(0, self.button.height())))
+        menu.exec(anchor_global_position)
 
-    def current_menu_model(self) -> MenuModel | None:
+    def current_menu_model(
+        self,
+        context: FieldActionContext | None = None,
+    ) -> MenuModel | None:
         """Return the current unified menu model, or no model when empty."""
 
-        entries = self._entries()
+        entries = self._entries(
+            context
+            or FieldActionContext(
+                anchor_global_position=self.button.mapToGlobal(
+                    QPoint(0, self.button.height())
+                )
+            )
+        )
         if not entries:
             return None
         return MenuModel(entries=entries, object_name="NodeCardActionMenu")
 
-    def _entries(self) -> tuple[MenuEntry, ...]:
-        """Return current preset entries followed by advanced visibility."""
+    def _entries(self, context: FieldActionContext) -> tuple[MenuEntry, ...]:
+        """Return current node, field, and advanced actions in stable order."""
 
-        entries = list(
-            node_input_preset_menu_entries(
-                menu_parent=self._title_row,
-                context=self._preset_context,
-                preset_source=self._preset_source,
-                dialog_parent=self._dialog_parent,
-                is_connection=self._is_connection,
-            )
-        )
+        entries = list(self._node_preset_entries())
+        for contribution in self._field_action_contributions:
+            field_entries = contribution.entries(context)
+            if not field_entries:
+                continue
+            if entries:
+                entries.append(MenuSeparator())
+            entries.extend(field_entries)
         if self._advanced_inputs is None:
             return tuple(entries)
         if entries:
@@ -182,6 +218,32 @@ class NodeCardActionMenuBinding(QObject):
             )
         )
         return tuple(entries)
+
+    def _node_preset_entries(self) -> tuple[MenuEntry, ...]:
+        """Return node-owned preset actions available to the cog."""
+
+        return node_input_preset_menu_entries(
+            menu_parent=self._title_row,
+            context=self._preset_context,
+            preset_source=self._preset_source,
+            dialog_parent=self._dialog_parent,
+            is_connection=self._is_connection,
+        )
+
+
+def _has_available_actions(
+    *,
+    node_preset_entries: tuple[MenuEntry, ...],
+    advanced_inputs: AdvancedInputCardBinding | None,
+    field_action_contributions: tuple[FieldActionContribution, ...],
+) -> bool:
+    """Return whether constructing a node-card action button is warranted."""
+
+    if node_preset_entries or advanced_inputs is not None:
+        return True
+    return any(
+        contribution.is_available() for contribution in field_action_contributions
+    )
 
 
 __all__ = ["NodeCardActionMenuBinding", "NodeCardActionMenuButton"]

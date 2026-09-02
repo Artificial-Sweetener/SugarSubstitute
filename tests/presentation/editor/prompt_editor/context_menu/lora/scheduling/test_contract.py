@@ -122,10 +122,7 @@ def test_prompt_editor_context_menu_uses_cached_scheduled_loras(
     ) -> None:
         """Capture trigger rows from the lazily rendered submenu model."""
 
-        trigger_full_labels.extend(
-            item.properties.get("promptFullTriggerWordsLabel")
-            for item in self._trigger_word_entries()
-        )
+        trigger_full_labels.extend(_trigger_full_labels(self))
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
@@ -271,10 +268,7 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
     ) -> None:
         """Capture trigger rows from the lazily rendered submenu model."""
 
-        trigger_full_labels.extend(
-            item.properties.get("promptFullTriggerWordsLabel")
-            for item in self._trigger_word_entries()
-        )
+        trigger_full_labels.extend(_trigger_full_labels(self))
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
@@ -283,6 +277,21 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
     assert "Trigger words: Global LoRA" in trigger_full_labels
     assert "Trigger words: Portrait LoRA" not in trigger_full_labels
     assert resolver_calls == []
+
+
+def _trigger_full_labels(menu: RoundMenu) -> tuple[object, ...]:
+    """Return trigger labels through the rendered lazy submenu boundary."""
+
+    submenu = next(
+        candidate
+        for candidate in cast(Any, menu)._subMenus
+        if candidate.title() == "Insert trigger words"
+    )
+    getattr(submenu, "populate_if_needed")()
+    return tuple(
+        action.property("promptFullTriggerWordsLabel")
+        for action in submenu.menuActions()
+    )
 
 
 def test_prompt_editor_lora_context_menu_hides_schedule_action_when_disabled(

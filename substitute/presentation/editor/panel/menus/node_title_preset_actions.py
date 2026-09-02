@@ -94,24 +94,29 @@ def node_input_preset_menu_entries(
         node_type=context.node_type
     )
     save_scopes = menu_model.save_scopes if menu_model is not None else ()
+    populated_sections = (
+        tuple(section for section in menu_model.sections if section.presets)
+        if menu_model is not None
+        else ()
+    )
     savable_inputs = capture_savable_node_inputs(
         node_inputs=context.inputs,
         field_specs=context.field_specs,
         is_connection=is_connection,
     )
-    has_apply_actions = menu_model is not None and bool(menu_model.sections)
+    has_apply_actions = bool(populated_sections)
     has_save_action = bool(save_scopes and savable_inputs)
     if not has_apply_actions and not has_save_action:
         return ()
 
     entries: list[MenuEntry] = []
-    if has_apply_actions and menu_model is not None:
+    if has_apply_actions:
         entries.append(
             LazyMenuSubmenu(
                 APPLY_NODE_PRESET_MENU_TEXT,
                 entries_factory=lambda: _apply_preset_entries(
                     context,
-                    menu_model.sections,
+                    populated_sections,
                     is_connection,
                 ),
             )

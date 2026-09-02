@@ -30,7 +30,7 @@ from tests.support.qt.semantic_wait import (
     wait_for_qt_signal,
     wait_for_queued_qt_turn,
 )
-from substitute.presentation.editor.panel.widgets.field_row import (
+from substitute.presentation.editor.panel.widgets.field_relayout import (
     bind_field_widget_card_relayout,
 )
 from substitute.presentation.editor.panel.node_card.body_layout import (
