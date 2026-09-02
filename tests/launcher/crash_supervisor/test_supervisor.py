@@ -81,6 +81,53 @@ def test_supervisor_accepts_only_authenticated_clean_completion(tmp_path: Path) 
     )
 
 
+def test_supervisor_accepts_clean_completion_with_zero_exit_wrapper_dump(
+    tmp_path: Path,
+) -> None:
+    """A signed zero exit should reject a macOS PyInstaller shutdown dump."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    reports: list[str] = []
+    script = (
+        "import os; "
+        "from sugarsubstitute_shared.crash_reporting.protocol import "
+        "CrashRunContext, CleanExitOutcome; "
+        "c=CrashRunContext.from_environment(); "
+        "assert c is not None; "
+        "c.write_exit_intent(CleanExitOutcome.CLOSED, process_id=os.getpid()); "
+        "c.write_exit_receipt(CleanExitOutcome.CLOSED, process_id=os.getpid())"
+    )
+
+    def start_with_wrapper_dump(
+        command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> tuple[subprocess.Popen[bytes], Path]:
+        """Model the dump emitted while a macOS PyInstaller wrapper exits cleanly."""
+
+        dump = Path(environment[CRASHPAD_DATABASE_ENV]) / "pending" / "wrapper.dmp"
+        dump.parent.mkdir(parents=True)
+        dump.write_bytes(b"macOS PyInstaller wrapper shutdown")
+        return _start_process(command, environment)
+
+    return_code = ApplicationCrashSupervisor(
+        process_starter=start_with_wrapper_dump,
+        reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
+        time_ns=lambda: 0,
+    ).supervise(
+        layout=layout,
+        command=(sys.executable, "-c", script),
+        environment=os.environ,
+    )
+
+    assert return_code == 0
+    assert reports == []
+    assert tuple((layout.appdata_dir / "diagnostics" / "crashpad").rglob("*.dmp")) == ()
+    assert (
+        CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes").pending()
+        == ()
+    )
+
+
 def test_supervisor_reports_hard_exit_even_when_exit_code_is_zero(
     tmp_path: Path,
 ) -> None:
