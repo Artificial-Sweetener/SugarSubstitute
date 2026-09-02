@@ -22,7 +22,7 @@ const DEFAULT_REPOSITORY = "Artificial-Sweetener/SugarSubstitute";
  * Build the installer guidance prepended to every GitHub Release description.
  *
  * @param {string} repository GitHub repository in owner/name form.
- * @param {string} version Semantic release version without a tag prefix.
+ * @param {string} version Release version without a tag prefix.
  * @param {string} channel Published release channel.
  * @returns {string} Markdown release guidance.
  */
@@ -97,13 +97,13 @@ function validateRepository(repository) {
 /**
  * Reject version values that cannot safely form the release tag and asset URLs.
  *
- * @param {string} version Candidate semantic version.
+ * @param {string} version Candidate release version.
  * @returns {string} Validated version without a tag prefix.
  */
 function validateVersion(version) {
   const normalized = String(version).trim().replace(/^v/, "");
-  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(normalized)) {
-    throw new Error(`Expected a semantic release version: ${version}`);
+  if (!/^\d+\.\d+\.\d+(?:\.\d+)*(?:-[0-9A-Za-z.-]+)?$/.test(normalized)) {
+    throw new Error(`Expected a release version: ${version}`);
   }
   return normalized;
 }
