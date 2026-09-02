@@ -65,10 +65,7 @@ def test_canary_isolated_release_train_contract() -> None:
     assert "git/refs/tags/canary-latest" in publication_text
     assert 'git/refs/tags/canary"' not in publication_text
     assert "--clobber" in publication_text
-    assert 'canary_release_title="Canary ${CANDIDATE_VERSION/-canary./.}"' in (
-        publication_text
-    )
-    assert "${CANDIDATE_VERSION/-canary-/.}" not in publication_text
+    assert 'canary_release_title="Canary $CANDIDATE_VERSION"' in publication_text
     assert "github.ref_name == 'main'" in publication_text
     assert "HEAD_BRANCH: ${{ github.head_ref }}" in policy_text
     assert '[ "$HEAD_BRANCH" != "canary" ]' in policy_text
@@ -114,7 +111,7 @@ def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
     javascript = (
         f"import {{ updateReleaseVersions }} from {json.dumps(script_url)}; "
         f"updateReleaseVersions(new URL({json.dumps(root_url)}), "
-        '"0.21.0-canary.42", "canary");'
+        '"0.21.0.42", "canary");'
     )
 
     run_node(
@@ -129,12 +126,12 @@ def test_release_version_script_embeds_canary_channel(tmp_path: Path) -> None:
     ).read_text(encoding="utf-8") == 'RELEASE_CHANNEL = "canary"\n'
     assert (
         json.loads((tmp_path / "package.json").read_text(encoding="utf-8"))["version"]
-        == "0.21.0-canary.42"
+        == "0.21.0.42"
     )
 
 
-def test_canary_version_derives_from_next_stable_release() -> None:
-    """Canary versions should identify their future Stable base and CI build."""
+def test_canary_version_remains_compatible_with_historical_launchers() -> None:
+    """Canary versions identify their Stable base using dotted numeric parts."""
 
     script = """
 const versions = require('./scripts/canary-release-version.cjs');
@@ -154,7 +151,7 @@ process.stdout.write(JSON.stringify({
 
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == {
-        "canary": "0.21.0-canary.142",
+        "canary": "0.21.0.142",
         "latest": "v0.20.1",
         "patch": "0.20.2",
         "minor": "0.21.0",
@@ -200,7 +197,7 @@ def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> N
             "--repository",
             "Artificial-Sweetener/Substitute-Test",
             "--version",
-            "0.21.0-canary.42",
+            "0.21.0.42",
             "--channel",
             "canary",
             "--output",
@@ -220,4 +217,4 @@ def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> N
     assert f"[Download the latest Stable release instead]({stable_url})" in notes
     assert "DO NOT download this Canary build for normal use" in notes
     assert "Canary builds are intended only for testers" in notes
-    assert "releases/download/canary-latest/SugarSubstitute-0.21.0-canary.42" in notes
+    assert "releases/download/canary-latest/SugarSubstitute-0.21.0.42" in notes

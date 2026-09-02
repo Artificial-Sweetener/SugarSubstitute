@@ -60,19 +60,19 @@ def test_release_builder_rejects_launcher_unsafe_version(tmp_path: Path) -> None
         )
 
 
-def test_release_builder_accepts_semantic_prerelease_version(tmp_path: Path) -> None:
-    """Canary semantic versions must remain safe for release payload paths."""
+def test_release_builder_accepts_dotted_numeric_canary_version(tmp_path: Path) -> None:
+    """Canary versions remain safe for legacy launcher and payload paths."""
 
     repo_root = _write_fixture_repo(tmp_path)
 
     result = build_local_release_channel(
         repo_root=repo_root,
         output_dir=repo_root / ".local-release-channel",
-        version="0.21.0-canary.42",
+        version="0.21.0.42",
     )
 
     manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
-    assert manifest["version"] == "0.21.0-canary.42"
+    assert manifest["version"] == "0.21.0.42"
 
 
 def test_release_payload_cli_runs_by_file_path(tmp_path: Path) -> None:

@@ -129,6 +129,23 @@ def test_start_detached_reports_immediate_app_startup_exit(tmp_path: Path) -> No
     assert "RuntimeError: boom" in startup_log.read_text(encoding="utf-8")
 
 
+def test_start_detached_uses_install_logs_for_setup_child(tmp_path: Path) -> None:
+    """A setup child writes diagnostics outside its read-only launch location."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    setup_child = tmp_path / "mounted-image" / "setup_child.py"
+    write_file(setup_child, "raise RuntimeError('setup boom')\n")
+
+    with pytest.raises(ProcessStartupError, match="exited before the setup window"):
+        start_detached(
+            [sys.executable, str(setup_child), f"--install-root={layout.root}"]
+        )
+
+    startup_log = layout.logs_dir / "app-startup.log"
+    assert startup_log.is_file()
+    assert "RuntimeError: setup boom" in startup_log.read_text(encoding="utf-8")
+
+
 def test_child_process_environment_removes_pyinstaller_runtime_state(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

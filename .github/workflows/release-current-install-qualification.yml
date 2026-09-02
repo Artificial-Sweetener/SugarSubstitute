@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       candidate_version:
-        description: "Exact semantic version contained in candidate assets"
+        description: "Exact release version contained in candidate assets"
         required: true
         type: string
       candidate_tag:
