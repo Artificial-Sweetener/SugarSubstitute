@@ -239,8 +239,13 @@ def test_local_release_channel_writes_optional_launcher_bundle_asset(
     )
     with zipfile.ZipFile(launcher_zip) as archive:
         assert "SugarSubstitute.exe" in archive.namelist()
-        assert "LauncherUi.exe" in archive.namelist()
+        assert "launcher-bin/LauncherUi.exe" in archive.namelist()
+        assert "launcher-bin/Repair.exe" in archive.namelist()
         assert "launcher-bin/python312.dll" in archive.namelist()
+        assert {name.split("/", maxsplit=1)[0] for name in archive.namelist()} == {
+            "SugarSubstitute.exe",
+            "launcher-bin",
+        }
     assert result.installer_assets["windows_x64_exe"].filename == installer_exe.name
     assert installer_exe.read_text(encoding="utf-8") == "setup"
     assert macos_launcher["filename"] == (

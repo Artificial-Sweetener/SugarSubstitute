@@ -1270,3 +1270,29 @@ fingerprint = "sha256:d1de72d9f4de487c84056c8c3a38b3e8fc59d9d6a1682dcea7b6675294
 rationale = "This Windows qualification starts the real native splash in a dedicated headless Qt process and measures external process-request-to-first-paint latency. It directly protects the source and packaged Windows startup contract; macOS and Linux use platform-native qframeless implementations that cannot construct a representative window under a headless Qt backend. Concurrent ordinary-suite load can consume the latency budget independently of splash startup behavior. The test owns a tmp_path evidence directory and an ephemeral authenticated loopback endpoint, so bounded fresh-process isolation preserves the speed, one-surface, and clean-exit assertions without requiring global serialization."
 issue = "chore:SS-TEST-WAIVER-C0277"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0278"
+owner = "Prompt-card native layout contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/editor/node_card/prompt_mode/test_card_contract.py|isolated-module"]
+paths = ["tests/presentation/editor/node_card/prompt_mode/test_card_contract.py"]
+fingerprint = "sha256:d89d1855f36f1a66cf5fe8907a5c1efd37a03ae75f1b24a16ada9aead5b27628"
+rationale = "This native Qt module constructs production prompt cards and exercises their live prompt-editor layout and resize contracts. Its narrow-resize contract aborted with a Windows access violation only after prior native Qt work in an ordinary xdist worker, while the complete module passed in five independent fresh processes. It owns no shared file, port, environment, subprocess, or cross-process resource; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0278"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0279"
+owner = "Launcher successful-setup Qt contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/launcher/installation_workflow/test_successful_setup.py|isolated-module"]
+paths = ["tests/launcher/installation_workflow/test_successful_setup.py"]
+fingerprint = "sha256:9ef61b73a29be9205121aa128de08dc7436410488ea6d724f74ca1988e75fc6a"
+rationale = "This native Qt module drives the production launcher installation workflow through automatic runtime setup and app handoff. Its continuation contract aborted with a Linux bus error only after prior native Qt work in an ordinary xdist worker, while the same commit passed the complete Linux fresh job and the module passed in five independent Windows fresh processes. It owns only tmp_path installation state and fake process boundaries; process isolation is sufficient and global serialization would be inappropriate."
+issue = "chore:SS-TEST-WAIVER-C0279"
+review_by = 2026-12-15
