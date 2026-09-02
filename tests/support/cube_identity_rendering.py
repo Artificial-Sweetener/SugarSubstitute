@@ -89,7 +89,7 @@ def _build_stack_gallery() -> QWidget:
         secondary_text="v1.1.1 · base-cubes",
         tooltip_text="Text to Image",
     )
-    stack.tabItem(0).setTargetModel("SDXL")
+    stack.tabItem(0).setTargetModel("Anima")
     stack.insertTab(1, routeKey="Hero Background", text="Hero Background", icon=icon)
     stack.setTabPresentation(
         1,
@@ -97,7 +97,7 @@ def _build_stack_gallery() -> QWidget:
         secondary_text="v1.1.1 · base-cubes",
         tooltip_text="Hero Background",
     )
-    stack.tabItem(1).setTargetModel("SDXL")
+    stack.tabItem(1).setTargetModel("Anima")
     stack.setCurrentIndex(1)
     row = QHBoxLayout()
     row.addWidget(cast(QWidget, stack), 0, Qt.AlignmentFlag.AlignLeft)
@@ -131,7 +131,7 @@ def _editor_section(title: str, note: str) -> QWidget:
     row.setContentsMargins(14, 8, 14, 8)
     row.setSpacing(12)
     title_label = CubeTitleLabel(title, section)
-    title_label.setTargetModel("SDXL")
+    title_label.setTargetModel("Anima")
     row.addWidget(title_label, 1)
     note_label = QLabel(note, section)
     note_label.setStyleSheet("color: rgb(105, 105, 105); border: none;")
