@@ -28,6 +28,9 @@ from sugarsubstitute_shared.application_launch_context import (
     application_launch_install_root,
 )
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
+from sugarsubstitute_shared.crash_reporting.protocol import (
+    without_crash_supervision_environment,
+)
 from sugarsubstitute_shared.subprocess_environment import (
     clean_frozen_parent_environment,
     standard_child_process_dll_search_path,
@@ -166,7 +169,11 @@ def spawn_detached_process(
 def start_detached_handoff(command: Sequence[str]) -> None:
     """Start a handoff child process without keeping the current window around."""
 
-    start_detached(command, startup_timeout_seconds=HANDOFF_STARTUP_TIMEOUT_SECONDS)
+    start_detached(
+        command,
+        startup_timeout_seconds=HANDOFF_STARTUP_TIMEOUT_SECONDS,
+        environment=without_crash_supervision_environment(),
+    )
 
 
 def build_installed_launcher_handoff_command(

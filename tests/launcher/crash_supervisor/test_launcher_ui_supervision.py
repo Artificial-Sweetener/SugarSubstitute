@@ -29,6 +29,7 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.launcher_ui_supervision import (
     supervise_launcher_window,
 )
+from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
 
 
 class RecordingSupervisor:
@@ -92,3 +93,67 @@ def test_setup_window_relaunches_as_supervised_source_child(
     assert "--handoff-geometry=10,20,1200,800" in command
     assert "--manifest-url=https://example.invalid/manifest.json" in command
     assert "--locale=ja" in command
+
+
+def test_frozen_standalone_setup_relaunches_its_single_executable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A downloaded one-file setup must not require an adjacent UI executable."""
+
+    setup_executable = tmp_path / "downloads" / "renamed-installer.exe"
+    layout = InstallLayout.from_root(
+        tmp_path / "SugarSubstitute",
+        target=WINDOWS_X64,
+    )
+    supervisor = RecordingSupervisor()
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(setup_executable))
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path / "_MEI1234"), raising=False)
+
+    supervise_launcher_window(
+        layout=layout,
+        arguments=parse_launcher_args([]),
+        repair=False,
+        supervisor=supervisor,
+    )
+
+    _call_layout, command, _environment = supervisor.calls[0]
+    assert command[0] == str(setup_executable)
+    assert "--launcher-ui-child" in command
+
+
+def test_frozen_installed_launcher_uses_its_ui_executable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The installed supervisor must delegate Qt ownership to its UI executable."""
+
+    layout = InstallLayout.from_root(
+        tmp_path / "SugarSubstitute",
+        target=WINDOWS_X64,
+    )
+    installed_launcher = layout.executable_path
+    ui_executable = installed_launcher.with_name("LauncherUi.exe")
+    layout.launcher_support_path.mkdir(parents=True)
+    ui_executable.write_bytes(b"launcher UI")
+    supervisor = RecordingSupervisor()
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(installed_launcher))
+    monkeypatch.setattr(
+        sys,
+        "_MEIPASS",
+        str(layout.launcher_support_path),
+        raising=False,
+    )
+
+    supervise_launcher_window(
+        layout=layout,
+        arguments=parse_launcher_args([]),
+        repair=False,
+        supervisor=supervisor,
+    )
+
+    _call_layout, command, _environment = supervisor.calls[0]
+    assert command[0] == str(ui_executable)
+    assert "--launcher-ui-child" in command
