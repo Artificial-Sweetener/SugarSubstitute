@@ -18,22 +18,43 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+import logging
+
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.launcher_ui_process import run_crash_reporter
+from sugarsubstitute_shared.crash_reporting import CrashIncidentStore
 
 
-def route_explicit_crash_operation(args: LauncherArguments) -> int | None:
-    """Run one explicit crash reporter or supervised restart invocation."""
+CrashReportRunner = Callable[[InstallLayout, str, str | None], int]
+_LOGGER = logging.getLogger(__name__)
+
+
+def route_explicit_crash_operation(
+    args: LauncherArguments,
+    *,
+    reporter_runner: CrashReportRunner | None = None,
+) -> int | None:
+    """Delegate crash reporting unless this is the Qt-capable child."""
 
     if args.crash_report_incident_id is not None:
         if args.install_root is None:
             raise ValueError("Crash reporting requires an explicit install root.")
+        layout = InstallLayout.from_root(args.install_root)
+        if not args.launcher_ui_child:
+            runner = reporter_runner or run_crash_reporter
+            return runner(
+                layout,
+                args.crash_report_incident_id,
+                args.locale_override,
+            )
         from launcher.sugarsubstitute_launcher.crash_reporter import (
             show_crash_report,
         )
 
         return show_crash_report(
-            layout=InstallLayout.from_root(args.install_root),
+            layout=layout,
             incident_id=args.crash_report_incident_id,
             locale_override=args.locale_override,
         )
@@ -44,18 +65,36 @@ def recover_pending_crash_reports(
     *,
     layout: InstallLayout,
     locale_override: str | None,
+    reporter_runner: CrashReportRunner | None = None,
 ) -> int:
-    """Present durable missed reports before continuing a requested launch."""
+    """Delegate missed reports without treating presentation as app readiness."""
 
-    from launcher.sugarsubstitute_launcher.crash_reporter import (
-        show_pending_crash_reports,
-    )
-
-    return show_pending_crash_reports(
-        layout=layout,
-        locale_override=locale_override,
-        restart=lambda: None,
-    )
+    store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
+    pending = sorted(store.pending(), key=lambda incident: incident.occurred_at_utc)
+    runner = reporter_runner or run_crash_reporter
+    recovered = 0
+    for incident in pending:
+        try:
+            return_code = runner(layout, incident.incident_id, locale_override)
+        except Exception:
+            _LOGGER.exception(
+                "Pending crash report could not be presented; continuing launch. "
+                "| incident_id=%s install_root=%s",
+                incident.incident_id,
+                layout.root,
+            )
+            continue
+        if return_code == 0:
+            recovered += 1
+        else:
+            _LOGGER.warning(
+                "Pending crash reporter exited unsuccessfully; continuing launch. "
+                "| incident_id=%s install_root=%s return_code=%d",
+                incident.incident_id,
+                layout.root,
+                return_code,
+            )
+    return recovered
 
 
 __all__ = ["recover_pending_crash_reports", "route_explicit_crash_operation"]

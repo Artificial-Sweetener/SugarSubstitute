@@ -415,7 +415,7 @@ class CubeCardVisual:
             icon_size,
             icon_size,
         )
-        CubeModelPillPainter.draw(
+        CubeModelPillPainter.draw_icon_overlay(
             painter,
             icon_rect=icon_rect,
             text=state.target_model,

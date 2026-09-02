@@ -35,8 +35,8 @@ from substitute.presentation.shell.chrome_style import body_material_wash_color
 
 
 @dataclass(frozen=True)
-class CubeModelTitlePillMetrics:
-    """Describe SugarCubes title-pill geometry derived from a title font."""
+class CubeModelPillMetrics:
+    """Describe shared model-pill type and capsule geometry."""
 
     font: QFont
     height: float
@@ -46,41 +46,57 @@ class CubeModelTitlePillMetrics:
 
 
 class CubeModelPillPainter:
-    """Draw a target-model badge anchored over a cube icon's lower right."""
+    """Render model pills while leaving each surface in charge of placement."""
 
-    _HEIGHT = 14.0
-    _HORIZONTAL_PADDING = 4.0
-    _RIGHT_OVERHANG = 5.0
-    _BOTTOM_OVERHANG = 3.0
+    _ICON_FONT_SIZE = 8
+    _ICON_HEIGHT = 10.0
+    _ICON_HORIZONTAL_PADDING = 2.0
+    _ICON_RIGHT_OVERHANG = 3.0
+    _ICON_BOTTOM_OVERHANG = 2.0
 
     @classmethod
-    def pill_rect(
+    def icon_overlay_metrics(cls, base_font: QFont) -> CubeModelPillMetrics:
+        """Return compact metrics that keep an overlaid cube icon legible."""
+
+        font = QFont(base_font)
+        font.setPixelSize(cls._ICON_FONT_SIZE)
+        font.setWeight(QFont.Weight.DemiBold)
+        return CubeModelPillMetrics(
+            font=font,
+            height=cls._ICON_HEIGHT,
+            horizontal_padding=cls._ICON_HORIZONTAL_PADDING,
+            gap=0.0,
+            corner_radius=cls._ICON_HEIGHT / 2,
+        )
+
+    @classmethod
+    def icon_overlay_rect(
         cls,
         painter: QPainter,
         *,
         icon_rect: QRectF,
         text: str,
     ) -> QRectF:
-        """Return badge geometry whose lower-right edge tracks the cube icon."""
+        """Return a natural-width pill anchored over the icon's lower right."""
 
-        font = cls._font(painter.font())
+        metrics = cls.icon_overlay_metrics(painter.font())
         painter.save()
-        painter.setFont(font)
+        painter.setFont(metrics.font)
         measured_width = painter.fontMetrics().horizontalAdvance(text)
         painter.restore()
-        width = min(
-            max(cls._HEIGHT, measured_width + (cls._HORIZONTAL_PADDING * 2)),
-            icon_rect.width() + cls._RIGHT_OVERHANG,
+        width = max(
+            metrics.height,
+            ceil(measured_width + (metrics.horizontal_padding * 2)),
         )
         return QRectF(
-            icon_rect.right() + cls._RIGHT_OVERHANG - width,
-            icon_rect.bottom() + cls._BOTTOM_OVERHANG - cls._HEIGHT,
+            icon_rect.right() + cls._ICON_RIGHT_OVERHANG - width,
+            icon_rect.bottom() + cls._ICON_BOTTOM_OVERHANG - metrics.height,
             width,
-            cls._HEIGHT,
+            metrics.height,
         )
 
     @classmethod
-    def draw(
+    def draw_icon_overlay(
         cls,
         painter: QPainter,
         *,
@@ -89,26 +105,26 @@ class CubeModelPillPainter:
         accent_color: QColor | None = None,
         punchout_color: QColor | None = None,
     ) -> QRectF | None:
-        """Draw one accent pill and clear its label through the paint device."""
+        """Draw a complete compact label over a cube icon's lower-right edge."""
 
         label = text.strip()
         if not label:
             return None
-        rect = cls.pill_rect(painter, icon_rect=icon_rect, text=label)
+        metrics = cls.icon_overlay_metrics(painter.font())
+        rect = cls.icon_overlay_rect(painter, icon_rect=icon_rect, text=label)
         cls._draw_rect(
             painter,
             rect=rect,
             label=label,
-            font=cls._font(painter.font()),
-            horizontal_padding=cls._HORIZONTAL_PADDING,
-            corner_radius=rect.height() / 2,
+            metrics=metrics,
+            elide_label=False,
             accent_color=accent_color,
             punchout_color=punchout_color,
         )
         return rect
 
     @classmethod
-    def draw_standalone(
+    def draw_title(
         cls,
         painter: QPainter,
         *,
@@ -145,24 +161,29 @@ class CubeModelPillPainter:
             painter,
             rect=rect,
             label=label,
-            font=metrics.font,
-            horizontal_padding=metrics.horizontal_padding,
-            corner_radius=pill_height / 2,
+            metrics=metrics,
+            elide_label=True,
             accent_color=accent_color,
             punchout_color=punchout_color,
         )
         return rect
 
     @staticmethod
-    def title_metrics(base_font: QFont) -> CubeModelTitlePillMetrics:
+    def title_metrics(base_font: QFont) -> CubeModelPillMetrics:
         """Return the exact proportional geometry used by SugarCubes titles."""
 
-        base_pixel_size = max(1, QFontInfo(base_font).pixelSize())
+        configured_pixel_size = base_font.pixelSize()
+        base_pixel_size = max(
+            1,
+            configured_pixel_size
+            if configured_pixel_size > 0
+            else QFontInfo(base_font).pixelSize(),
+        )
         pill_font = QFont(base_font)
         pill_font.setPixelSize(max(1, round(base_pixel_size * 0.78)))
         pill_font.setWeight(QFont.Weight.Bold)
         pill_height = base_pixel_size * 0.94
-        return CubeModelTitlePillMetrics(
+        return CubeModelPillMetrics(
             font=pill_font,
             height=pill_height,
             horizontal_padding=base_pixel_size * 0.30,
@@ -177,27 +198,33 @@ class CubeModelPillPainter:
         *,
         rect: QRectF,
         label: str,
-        font: QFont,
-        horizontal_padding: float,
-        corner_radius: float,
+        metrics: CubeModelPillMetrics,
+        elide_label: bool,
         accent_color: QColor | None,
         punchout_color: QColor | None,
     ) -> None:
         """Paint one measured pill and its window-wash letterforms."""
 
         painter.save()
-        painter.setFont(font)
-        elided = painter.fontMetrics().elidedText(
-            label,
-            Qt.TextElideMode.ElideRight,
-            max(0, int(rect.width() - (horizontal_padding * 2))),
+        painter.setRenderHints(
+            QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing,
+        )
+        painter.setFont(metrics.font)
+        visible_label = (
+            painter.fontMetrics().elidedText(
+                label,
+                Qt.TextElideMode.ElideRight,
+                max(0, int(rect.width() - (metrics.horizontal_padding * 2))),
+            )
+            if elide_label
+            else label
         )
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(themeColor()) if accent_color is None else accent_color)
-        painter.drawRoundedRect(rect, corner_radius, corner_radius)
+        painter.drawRoundedRect(rect, metrics.corner_radius, metrics.corner_radius)
 
         text_path = QPainterPath()
-        text_path.addText(QPointF(0, 0), font, elided)
+        text_path.addText(QPointF(0, 0), metrics.font, visible_label)
         glyph_bounds = text_path.boundingRect()
         text_path.translate(
             rect.center().x() - glyph_bounds.center().x(),
@@ -211,15 +238,6 @@ class CubeModelPillPainter:
         painter.fillPath(text_path, wash)
         painter.restore()
 
-    @staticmethod
-    def _font(base_font: QFont) -> QFont:
-        """Return the compact bold font shared by every model pill."""
-
-        font = QFont(base_font)
-        font.setPixelSize(9)
-        font.setWeight(QFont.Weight.DemiBold)
-        return font
-
 
 def _opaque_body_wash() -> QColor:
     """Return the window body wash as an opaque punched-letter surface."""
@@ -228,4 +246,4 @@ def _opaque_body_wash() -> QColor:
     return QColor(red, green, blue)
 
 
-__all__ = ["CubeModelPillPainter", "CubeModelTitlePillMetrics"]
+__all__ = ["CubeModelPillMetrics", "CubeModelPillPainter"]

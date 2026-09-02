@@ -1267,7 +1267,7 @@ rule = "ISOLATED001"
 candidates = ["ISOLATED001|tests/qualification/startup_splash/test_source_first_paint.py|isolated-module"]
 paths = ["tests/qualification/startup_splash/test_source_first_paint.py"]
 fingerprint = "sha256:d1de72d9f4de487c84056c8c3a38b3e8fc59d9d6a1682dcea7b66752944edf9e"
-rationale = "This Windows qualification starts the real native splash in a dedicated headless Qt process and measures external process-request-to-first-paint latency. It directly protects the source and packaged Windows startup contract; macOS and Linux use platform-native qframeless implementations that cannot construct a representative window under a headless Qt backend. Concurrent ordinary-suite load can consume the latency budget independently of splash startup behavior. The test owns a tmp_path evidence directory and an ephemeral authenticated loopback endpoint, so bounded fresh-process isolation preserves the speed, one-surface, and clean-exit assertions without requiring global serialization."
+rationale = "This Windows qualification starts the real native splash in a dedicated headless Qt process and verifies first-paint liveness, one visible surface, and clean exit. macOS and Linux use platform-native qframeless implementations that cannot construct a representative window under a headless Qt backend. The test owns a tmp_path evidence directory and an ephemeral authenticated loopback endpoint, so fresh-process isolation prevents native Qt lifecycle contamination without requiring global serialization. Latency calculation is unit-tested with controlled timestamps, while the splash-first static architecture gate rejects unreviewed work before the paint boundary."
 issue = "chore:SS-TEST-WAIVER-C0277"
 review_by = 2026-12-15
 

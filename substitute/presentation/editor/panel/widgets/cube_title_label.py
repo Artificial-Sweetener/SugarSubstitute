@@ -106,7 +106,7 @@ class CubeTitleLabel(SubtitleLabel):  # type: ignore[misc]
         painter.setFont(self.font())
         text_rect = QRectF(self.rect())
         if self._target_model:
-            pill_rect = CubeModelPillPainter.draw_standalone(
+            pill_rect = CubeModelPillPainter.draw_title(
                 painter,
                 bounds=text_rect,
                 text=self._target_model,

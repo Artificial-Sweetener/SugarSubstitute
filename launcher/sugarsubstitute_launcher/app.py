@@ -120,10 +120,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 recover_pending_crash_reports,
             )
 
-            recover_pending_crash_reports(
-                layout=layout,
-                locale_override=args.locale_override,
-            )
+            try:
+                recover_pending_crash_reports(
+                    layout=layout,
+                    locale_override=args.locale_override,
+                )
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "Pending crash-report recovery failed; continuing installed "
+                    "application launch. | install_root=%s",
+                    layout.root,
+                )
             from launcher.sugarsubstitute_launcher.startup_plan import (
                 assess_startup_candidate,
             )
