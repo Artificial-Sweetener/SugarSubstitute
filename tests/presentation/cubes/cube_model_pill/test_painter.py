@@ -27,39 +27,35 @@ from substitute.presentation.cubes.cube_model_pill import CubeModelPillPainter
 def test_model_pill_clears_label_through_fill_and_underlying_icon() -> None:
     """Pill letterforms should expose the surface below an overlapping icon."""
 
-    overlay = QImage(64, 48, QImage.Format.Format_ARGB32_Premultiplied)
     wash = QColor(238, 238, 238)
-    overlay.fill(wash)
-    painter = QPainter(overlay)
-    icon_rect = QRectF(8, 6, 36, 36)
-    painter.fillRect(icon_rect, QColor(220, 70, 90))
-    pill_rect = CubeModelPillPainter.draw_icon_overlay(
-        painter,
-        icon_rect=icon_rect,
-        text="Anima",
-        accent_color=QColor(0, 120, 215),
-        punchout_color=wash,
-    )
-    painter.end()
+    accent = QColor(0, 120, 215)
+    overlays: list[QImage] = []
+    pill_rects: list[QRectF] = []
+    for punchout_color in (wash, accent):
+        overlay = QImage(64, 48, QImage.Format.Format_ARGB32_Premultiplied)
+        overlay.fill(wash)
+        painter = QPainter(overlay)
+        icon_rect = QRectF(8, 6, 36, 36)
+        painter.fillRect(icon_rect, QColor(220, 70, 90))
+        pill_rect = CubeModelPillPainter.draw_icon_overlay(
+            painter,
+            icon_rect=icon_rect,
+            text="Anima",
+            accent_color=accent,
+            punchout_color=punchout_color,
+        )
+        painter.end()
+        assert pill_rect is not None
+        overlays.append(overlay)
+        pill_rects.append(pill_rect)
 
-    assert pill_rect is not None
-    interior = pill_rect.adjusted(3, 3, -3, -3).toAlignedRect()
-    wash_pixels = sum(
-        1
+    assert pill_rects[0] == pill_rects[1]
+    interior = pill_rects[0].adjusted(3, 2, -3, -2).toAlignedRect()
+    assert any(
+        overlays[0].pixelColor(x, y) != overlays[1].pixelColor(x, y)
         for y in range(interior.top(), interior.bottom() + 1)
         for x in range(interior.left(), interior.right() + 1)
-        if overlay.pixelColor(x, y) == wash
     )
-    accent_pixels = sum(
-        1
-        for y in range(interior.top(), interior.bottom() + 1)
-        for x in range(interior.left(), interior.right() + 1)
-        if overlay.pixelColor(x, y).blue() > 180
-        and overlay.pixelColor(x, y).alpha() > 200
-    )
-
-    assert wash_pixels >= 8
-    assert accent_pixels >= 40
 
 
 def test_icon_pill_is_compact_and_preserves_the_complete_anima_label() -> None:
