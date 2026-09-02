@@ -98,6 +98,7 @@ def plan_after_registry_attempt(
     if outcome in {
         RegistryInstallOutcome.VERSION_UNAVAILABLE,
         RegistryInstallOutcome.REGISTRY_UNREACHABLE,
+        RegistryInstallOutcome.FAILED,
     }:
         return CoreNodepackAction.INSTALL_FALLBACK
     return CoreNodepackAction.FAIL

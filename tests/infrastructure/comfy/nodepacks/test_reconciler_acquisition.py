@@ -208,6 +208,32 @@ def test_fallback_install_is_later_adopted_by_exact_registry_update(
     assert available_registry.calls == [(tmp_path, next_release)]
 
 
+def test_trusted_fallback_repairs_owned_install_after_registry_cli_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Converge an owned stale install when Manager returns an unknown failure."""
+
+    nodepack = CORE_COMFY_NODEPACKS[0]
+    _select_nodepacks(monkeypatch, nodepack)
+    root = tmp_path / nodepack.expected_folder
+    _materialize_nodepack(root, nodepack, version="1.9.0", tracking=True)
+    registry = _RegistryInstaller(RegistryInstallOutcome.FAILED)
+    fallback = _FallbackInstaller()
+    _patch_dependencies(monkeypatch, [], satisfied=True)
+
+    _reconciler(registry=registry, fallback=fallback).ensure(
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
+        refresh_nodepacks=(nodepack.nodepack_id,),
+        on_log=None,
+        env=None,
+    )
+
+    assert registry.calls == [(tmp_path, nodepack)]
+    assert fallback.calls == [(root, nodepack)]
+    assert _project_version(root) == nodepack.required_version
+
+
 def test_queued_registry_update_must_reach_exact_disk_state(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
