@@ -23,7 +23,12 @@ import subprocess
 import sys
 from typing import Any
 
+from substitute.application.execution import ExecutionContext, TaskIdentity
 from substitute.app.bootstrap import early_launch_splash
+from substitute.app.bootstrap.launch_splash import (
+    ProcessPumpTaskHandle,
+    ProcessPumpWork,
+)
 from sugarsubstitute_shared.launch_splash import (
     SplashActivity,
     create_splash_session_spec,
@@ -78,6 +83,47 @@ class _Splash:
 
     def close(self) -> None:
         """Accept close calls from protocol consumers."""
+
+
+class _CompletedProcessPumpTaskHandle:
+    """Represent a process-pump task completed without starting a test thread."""
+
+    @property
+    def is_finished(self) -> bool:
+        """Return that the inert test task is complete."""
+
+        return True
+
+    def stop(self, *, reason: str) -> None:
+        """Accept lifecycle cleanup for the inert task."""
+
+        _ = reason
+
+
+def _replace_process_pump_with_inert_factory(
+    monkeypatch: Any,
+) -> list[tuple[TaskIdentity, ExecutionContext, str]]:
+    """Replace early process-pump threads with recorded completed tasks."""
+
+    started_tasks: list[tuple[TaskIdentity, ExecutionContext, str]] = []
+
+    def _start_inert_task(
+        identity: TaskIdentity,
+        context: ExecutionContext,
+        _work: ProcessPumpWork,
+        thread_name: str,
+    ) -> ProcessPumpTaskHandle:
+        """Record one task request without leaving a background thread alive."""
+
+        started_tasks.append((identity, context, thread_name))
+        return _CompletedProcessPumpTaskHandle()
+
+    monkeypatch.setattr(
+        early_launch_splash,
+        "_create_early_process_pump_task",
+        _start_inert_task,
+    )
+    return started_tasks
 
 
 def test_early_launch_splash_supplies_process_pump_task_factory(
@@ -151,6 +197,7 @@ def test_early_launch_splash_adopts_launcher_session(
     spec = create_splash_session_spec(port=49152, token="x" * 32, host_pid=1234)
     splash = _Splash()
     adopted_specs: list[object] = []
+    started_tasks = _replace_process_pump_with_inert_factory(monkeypatch)
 
     def _connect_splash_session(passed_spec: object) -> _Splash:
         """Record the adopted spec and return the fake splash."""
@@ -180,6 +227,9 @@ def test_early_launch_splash_adopts_launcher_session(
     assert started_splash is splash
     assert cancel_relay is not None
     assert adopted_specs == [spec]
+    assert [task[0].domain for task in started_tasks] == [
+        "shared_launch_splash_cancel_watcher"
+    ]
     assert splash.lines == ["Starting SugarSubstitute."]
 
 
@@ -192,6 +242,7 @@ def test_early_launch_splash_falls_back_when_adopted_session_write_fails(
     spec = create_splash_session_spec(port=49152, token="x" * 32, host_pid=1234)
     adopted_splash = _FailingSplash()
     fallback_splash = _Splash()
+    started_tasks = _replace_process_pump_with_inert_factory(monkeypatch)
 
     monkeypatch.setattr(
         early_launch_splash,
@@ -212,6 +263,9 @@ def test_early_launch_splash_falls_back_when_adopted_session_write_fails(
 
     assert started_splash is fallback_splash
     assert cancel_relay is not None
+    assert [task[0].domain for task in started_tasks] == [
+        "shared_launch_splash_cancel_watcher"
+    ]
     assert fallback_splash.lines == ["Starting SugarSubstitute."]
 
 
@@ -225,6 +279,20 @@ def test_early_launch_splash_cancel_signal_reaches_relay(
     cancel_path = splash_cancel_signal_path(spec)
     cancel_path.unlink(missing_ok=True)
     splash = _Splash()
+    started_handles: list[ProcessPumpTaskHandle] = []
+    start_process_pump_task = early_launch_splash._create_early_process_pump_task
+
+    def _start_tracked_task(
+        identity: TaskIdentity,
+        context: ExecutionContext,
+        work: ProcessPumpWork,
+        thread_name: str,
+    ) -> ProcessPumpTaskHandle:
+        """Track the real watcher handle so the test owns its cleanup."""
+
+        handle = start_process_pump_task(identity, context, work, thread_name)
+        started_handles.append(handle)
+        return handle
 
     monkeypatch.setattr(
         early_launch_splash,
@@ -232,17 +300,29 @@ def test_early_launch_splash_cancel_signal_reaches_relay(
         lambda _spec: splash,
     )
     monkeypatch.setattr(early_launch_splash, "_CANCEL_SIGNAL_POLL_SECONDS", 0.01)
-
-    _started_splash, cancel_relay = early_launch_splash.start_early_launch_splash(
-        ["main.py", *splash_session_args(spec)],
-        tmp_path,
-        "en",
+    monkeypatch.setattr(
+        early_launch_splash,
+        "_create_early_process_pump_task",
+        _start_tracked_task,
     )
-    assert cancel_relay is not None
-    cancel_path.write_text("cancel\n", encoding="utf-8")
 
-    assert cancel_relay.wait_for_cancel(timeout=1.0) is True
-    cancel_path.unlink(missing_ok=True)
+    try:
+        _started_splash, cancel_relay = early_launch_splash.start_early_launch_splash(
+            ["main.py", *splash_session_args(spec)],
+            tmp_path,
+            "en",
+        )
+        assert cancel_relay is not None
+        cancel_path.write_text("cancel\n", encoding="utf-8")
+
+        assert cancel_relay.wait_for_cancel(timeout=1.0) is True
+    finally:
+        for handle in started_handles:
+            handle.stop(reason="test_complete")
+        cancel_path.unlink(missing_ok=True)
+
+    assert started_handles
+    assert all(handle.is_finished for handle in started_handles)
 
 
 class _FailingSplash:
