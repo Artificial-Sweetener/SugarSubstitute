@@ -29,6 +29,7 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.platforms import LauncherOperatingSystem
 from launcher.sugarsubstitute_launcher.process import spawn_detached_process
 from launcher.sugarsubstitute_launcher.runtime_paths import frozen_support_path
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
@@ -90,26 +91,42 @@ def _supervise(
     )
     return crash_owner.supervise(
         layout=layout,
-        command=_current_launcher_command(child_arguments),
+        command=_current_launcher_command(layout, child_arguments),
         environment=os.environ,
     )
 
 
-def _current_launcher_command(arguments: Sequence[str]) -> tuple[str, ...]:
-    """Return the current frozen executable or source module invocation."""
+def _current_launcher_command(
+    layout: InstallLayout,
+    arguments: Sequence[str],
+) -> tuple[str, ...]:
+    """Return the packaged UI child or source module invocation."""
 
     executable = subprocess_path(Path(sys.executable))
     if bool(getattr(sys, "frozen", False)):
-        ui_executable = subprocess_path(
-            Path(sys.executable).with_name("LauncherUi.exe")
-        )
-        return (ui_executable, *arguments)
+        installed_ui_executable = _installed_windows_ui_executable(layout)
+        if installed_ui_executable is not None:
+            executable = subprocess_path(installed_ui_executable)
+        return (executable, *arguments)
     return (
         executable,
         "-m",
         "launcher.sugarsubstitute_launcher",
         *arguments,
     )
+
+
+def _installed_windows_ui_executable(layout: InstallLayout) -> Path | None:
+    """Resolve the UI child only from an authoritative installed Windows bundle."""
+
+    if layout.target.operating_system is not LauncherOperatingSystem.WINDOWS:
+        return None
+    support_path = frozen_support_path()
+    if support_path is None:
+        return None
+    if support_path.resolve() != layout.launcher_support_path.resolve():
+        return None
+    return Path(sys.executable).with_name("LauncherUi.exe")
 
 
 def _current_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:
@@ -135,10 +152,11 @@ def _start_current_crash_reporter(layout: InstallLayout, incident_id: str) -> No
 
     spawn_detached_process(
         _current_launcher_command(
+            layout,
             (
                 f"--install-root={subprocess_path(layout.root)}",
                 f"--show-crash-report={incident_id}",
-            )
+            ),
         ),
         environment=os.environ,
     )

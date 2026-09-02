@@ -25,6 +25,16 @@ import pytest
 from launcher.sugarsubstitute_launcher import process
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
+from sugarsubstitute_shared.crash_reporting.protocol import (
+    CRASHPAD_CLIENT_LIBRARY_ENV,
+    CRASHPAD_DATABASE_ENV,
+    CRASHPAD_HANDLER_ENV,
+    CRASH_EXIT_INTENT_PATH_ENV,
+    CRASH_EXIT_RECEIPT_PATH_ENV,
+    CRASH_INCIDENT_ROOT_ENV,
+    CRASH_RUN_ID_ENV,
+    CRASH_RUN_TOKEN_ENV,
+)
 
 
 def test_installer_handoff_builds_stable_launcher_command(tmp_path: Path) -> None:
@@ -75,3 +85,42 @@ def test_installer_handoff_starts_only_stable_launcher(
             f"--install-root={subprocess_path(layout.root)}",
         ]
     ]
+
+
+def test_detached_handoff_drops_completed_crash_supervision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A new stable launcher must not inherit a partial prior-run contract."""
+
+    crash_names = (
+        CRASH_RUN_ID_ENV,
+        CRASH_RUN_TOKEN_ENV,
+        CRASH_INCIDENT_ROOT_ENV,
+        CRASH_EXIT_INTENT_PATH_ENV,
+        CRASH_EXIT_RECEIPT_PATH_ENV,
+        CRASHPAD_DATABASE_ENV,
+        CRASHPAD_HANDLER_ENV,
+        CRASHPAD_CLIENT_LIBRARY_ENV,
+    )
+    for name in crash_names:
+        monkeypatch.setenv(name, f"inherited-{name}")
+    monkeypatch.setenv("SUGAR_SUBSTITUTE_UNRELATED", "preserved")
+    captured: dict[str, object] = {}
+
+    def _start_detached(command: object, **options: object) -> None:
+        """Capture the independent handoff environment."""
+
+        captured["command"] = command
+        captured.update(options)
+
+    monkeypatch.setattr(process, "start_detached", _start_detached)
+
+    process.start_detached_handoff(["SugarSubstitute.exe"])
+
+    environment = captured["environment"]
+    assert isinstance(environment, dict)
+    assert environment["SUGAR_SUBSTITUTE_UNRELATED"] == "preserved"
+    assert set(crash_names).isdisjoint(environment)
+    assert (
+        captured["startup_timeout_seconds"] == process.HANDOFF_STARTUP_TIMEOUT_SECONDS
+    )
