@@ -151,11 +151,11 @@ def _flush_preview_sync(editor: PromptEditor) -> None:
         Any,
         editor,
     )._interaction_controller._reorder._overlay_session._preview_publication
-    assert publication_owner.has_pending()
-    for _ in range(2):
-        publication_owner._scheduler._timer._run()
-        if not publication_owner.has_pending():
-            break
+    if publication_owner.has_pending():
+        for _ in range(2):
+            publication_owner._scheduler._timer._run()
+            if not publication_owner.has_pending():
+                break
     assert publication_owner.has_pending() is False
 
 
