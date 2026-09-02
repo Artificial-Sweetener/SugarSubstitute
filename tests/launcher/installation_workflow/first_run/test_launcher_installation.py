@@ -71,7 +71,9 @@ def test_first_run_installs_launcher_bundle_and_builds_continue_command(
     )
 
     assert result.layout.executable_path.read_bytes() == b"launcher"
-    assert (result.layout.root / "Repair.exe").read_bytes() == b"repair launcher"
+    assert (
+        result.layout.launcher_support_path / "Repair.exe"
+    ).read_bytes() == b"repair launcher"
     assert (
         result.layout.root / "launcher-bin" / "python312.dll"
     ).read_bytes() == b"dll"

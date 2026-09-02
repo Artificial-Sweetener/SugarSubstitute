@@ -53,9 +53,11 @@ def launch_prepared_repair_helper(
     request = PreparedRepairRequest.load(request_path)
     target = launcher_bundle_target_for_key(request.target_key)
     source = request.staged_launcher_dir / target.executable_relative_path
-    adjacent_repair = request.staged_launcher_dir / "Repair.exe"
-    if adjacent_repair.is_file():
-        source = adjacent_repair
+    support_repair = (
+        request.staged_launcher_dir / target.support_relative_path / "Repair.exe"
+    )
+    if support_repair.is_file():
+        source = support_repair
     if not source.is_file():
         raise RepairHandoffError(f"Prepared repair helper is missing: {source}")
     helper_dir = request.install_root / ".repair" / "helper" / request.version
