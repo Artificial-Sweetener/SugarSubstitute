@@ -131,7 +131,7 @@ jobs:
             ${{ runner.temp }}/.candidate-certificate/requests.jsonl
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
-            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/**
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7
@@ -202,7 +202,7 @@ jobs:
             ${{ runner.temp }}/.candidate-certificate/requests.jsonl
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/logs/**
             ${{ runner.temp }}/SugarSubstitute-clean/launcher/readiness/**
-            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/logs/**
+            ${{ runner.temp }}/SugarSubstitute-clean/appdata/diagnostics/**
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 7

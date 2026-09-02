@@ -23,6 +23,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
+import pytest
+
 
 from sugarsubstitute_shared.installer_qualification import (
     INSTALLER_QUALIFICATION_PLAN_ENV,
@@ -123,3 +125,38 @@ def test_managed_qualification_applies_explicit_cpu_choice(tmp_path: Path) -> No
         "port": 48188,
         "workspace": str((tmp_path / "comfyui").resolve()),
     }
+
+
+def test_terminal_onboarding_click_does_not_enter_nested_event_wait(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Open action should return directly to the outer application event loop."""
+
+    clicks: list[tuple[object, object, object]] = []
+    center = object()
+    control = SimpleNamespace(rect=lambda: SimpleNamespace(center=lambda: center))
+    driver = cast(
+        OnboardingQualificationDriver,
+        SimpleNamespace(_clickable_control=lambda _name: control),
+    )
+    monkeypatch.setattr(
+        "substitute.presentation.onboarding.installer_qualification.QTest.mouseClick",
+        lambda clicked, button, *, pos: clicks.append((clicked, button, pos)),
+    )
+    monkeypatch.setattr(
+        OnboardingQualificationDriver,
+        "_process_events",
+        lambda *_args, **_kwargs: pytest.fail(
+            "terminal handoff must not start a nested Qt event wait"
+        ),
+    )
+
+    OnboardingQualificationDriver._click_terminal_action(
+        driver,
+        "OnboardingPrimaryButton",
+    )
+
+    assert len(clicks) == 1
+    clicked_control, _button, click_position = clicks[0]
+    assert clicked_control is control
+    assert click_position is center
