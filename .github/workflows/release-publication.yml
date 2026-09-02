@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       candidate_version:
-        description: "Exact qualified semantic version"
+        description: "Exact qualified release version"
         required: true
         type: string
       candidate_channel:
@@ -66,14 +66,14 @@ jobs:
           node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('.local-release-channel/manifest.json','utf8')); if(payload.channel!=='stable'||payload.version!==process.env.CANDIDATE_VERSION) process.exit(1)"
           (cd .local-release-channel && sha256sum --check checksums.txt)
 
-      - name: Re-resolve semantic release version after qualification
+      - name: Re-resolve release version after qualification
         if: github.ref_name == 'main'
         id: final-release-version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/resolve-next-release-version.mjs
 
-      - name: Require semantic release version stability
+      - name: Require release version stability
         if: github.ref_name == 'main'
         env:
           CANDIDATE_VERSION: ${{ inputs.candidate_version }}
@@ -135,7 +135,7 @@ jobs:
           set -euo pipefail
           channel_dir="build/canary-channel"
           readback_dir="build/canary-readback"
-          canary_release_title="Canary ${CANDIDATE_VERSION/-canary./.}"
+          canary_release_title="Canary $CANDIDATE_VERSION"
           mkdir -p "$readback_dir"
           node -e "const fs=require('node:fs'); const payload=JSON.parse(fs.readFileSync('$channel_dir/manifest.json','utf8')); if(payload.channel!=='canary'||payload.version!==process.env.CANDIDATE_VERSION) process.exit(1)"
           (cd "$channel_dir" && sha256sum --check checksums.txt)

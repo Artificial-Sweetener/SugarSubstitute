@@ -22,12 +22,10 @@ from collections.abc import Sequence
 from pathlib import Path
 
 
-def application_launch_install_root(
+def explicit_application_launch_install_root(
     argv: Sequence[str],
-    *,
-    app_root: Path,
-) -> Path:
-    """Resolve the installation root before application bootstrap starts."""
+) -> Path | None:
+    """Resolve the explicit installation root carried by launch arguments."""
 
     prefix = "--install-root="
     for raw_argument in argv:
@@ -35,7 +33,20 @@ def application_launch_install_root(
             raw_path = raw_argument[len(prefix) :].strip()
             if raw_path:
                 return Path(raw_path).expanduser().resolve()
-    return app_root.resolve()
+    return None
 
 
-__all__ = ["application_launch_install_root"]
+def application_launch_install_root(
+    argv: Sequence[str],
+    *,
+    app_root: Path,
+) -> Path:
+    """Resolve the installation root before application bootstrap starts."""
+
+    return explicit_application_launch_install_root(argv) or app_root.resolve()
+
+
+__all__ = [
+    "application_launch_install_root",
+    "explicit_application_launch_install_root",
+]

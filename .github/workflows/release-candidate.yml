@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       version:
-        description: "Exact semantic version embedded into the staged channel"
+        description: "Exact release version embedded into the staged channel"
         required: true
         type: string
       channel:

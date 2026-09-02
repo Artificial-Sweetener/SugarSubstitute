@@ -82,7 +82,7 @@ def test_release_notes_generator_rejects_unsafe_versions(tmp_path: Path) -> None
     )
 
     assert result.returncode != 0
-    assert "Expected a semantic release version" in result.stderr
+    assert "Expected a release version" in result.stderr
     assert not output_path.exists()
 
 

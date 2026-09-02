@@ -26,6 +26,7 @@ from pathlib import Path
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_launch_context import (
     application_launch_install_root,
+    explicit_application_launch_install_root,
 )
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
 from sugarsubstitute_shared.crash_reporting.protocol import (
@@ -215,6 +216,12 @@ def _command_working_directory(command: Sequence[str]) -> Path | None:
 def _app_startup_log_path(command: Sequence[str]) -> Path:
     """Resolve the startup log path from an installed app launch command."""
 
+    explicit_install_root = explicit_application_launch_install_root(command)
+    if explicit_install_root is not None:
+        return (
+            InstallLayout.from_root(explicit_install_root).logs_dir
+            / APP_STARTUP_LOG_NAME
+        )
     if len(command) >= 2:
         entrypoint = operational_path(command[1])
         if entrypoint.name.lower() == "main.py":
