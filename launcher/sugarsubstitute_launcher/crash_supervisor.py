@@ -151,8 +151,8 @@ class ApplicationCrashSupervisor:
             context.crashpad_database,
             prepared.started_at_ns,
         )
-        if context.validates_clean_exit() and minidump is None:
-            _discard_clean_run_artifacts(context)
+        if context.validates_clean_exit() and return_code == 0:
+            _discard_clean_run_artifacts(context, minidump=minidump)
             return return_code
 
         incident = self._resolve_incident(
@@ -339,9 +339,24 @@ def _newest_minidump(database: Path, started_at_ns: int) -> Path | None:
     return max(candidates, default=(0, None), key=lambda item: item[0])[1]
 
 
-def _discard_clean_run_artifacts(context: CrashRunContext) -> None:
+def _discard_clean_run_artifacts(
+    context: CrashRunContext,
+    *,
+    minidump: Path | None,
+) -> None:
     """Remove only known per-run files after authenticated clean termination."""
 
+    if minidump is not None:
+        minidump.unlink(missing_ok=True)
+        crashpad_attachment_directory = (
+            context.crashpad_database / "attachments" / minidump.stem
+        )
+        crashpad_fault_log = crashpad_attachment_directory / "python-fault.log"
+        crashpad_fault_log.unlink(missing_ok=True)
+        try:
+            crashpad_attachment_directory.rmdir()
+        except OSError:
+            pass
     for path in (context.exit_intent_path, context.exit_receipt_path):
         path.unlink(missing_ok=True)
     lifecycle_directory = context.exit_intent_path.parent

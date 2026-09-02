@@ -175,7 +175,7 @@ class OnboardingQualificationDriver(QObject):
                     "Completion did not retain its ready application handoff."
                 )
             self._plan.record("onboarding.completion.ready")
-            self._click("OnboardingPrimaryButton")
+            self._click_terminal_action("OnboardingPrimaryButton")
             self._plan.record("onboarding.open_substitute.clicked")
         except Exception as error:
             self._record_failure(error)
@@ -237,6 +237,22 @@ class OnboardingQualificationDriver(QObject):
     def _click(self, object_name: str) -> None:
         """Click one enabled, visible production control."""
 
+        control = self._clickable_control(object_name)
+        self._mouse_click(control)
+
+    def _click_terminal_action(self, object_name: str) -> None:
+        """Click the final action without entering another nested Qt event wait."""
+
+        control = self._clickable_control(object_name)
+        QTest.mouseClick(
+            control,
+            Qt.MouseButton.LeftButton,
+            pos=control.rect().center(),
+        )
+
+    def _clickable_control(self, object_name: str) -> QWidget:
+        """Return one enabled, visible production control for qualification."""
+
         control = self._widget(QWidget, object_name)
         if not control.isEnabled() or not control.isVisible():
             raise RuntimeError(
@@ -244,7 +260,7 @@ class OnboardingQualificationDriver(QObject):
                 f"{object_name} enabled={control.isEnabled()} "
                 f"visible={control.isVisible()}."
             )
-        self._mouse_click(control)
+        return control
 
     def _mouse_click(self, control: QWidget) -> None:
         """Send a real Qt mouse click and service resulting queued work."""
