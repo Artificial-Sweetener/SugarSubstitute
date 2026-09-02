@@ -259,6 +259,8 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
     assert '--timeout-seconds "$env:QUALIFICATION_TIMEOUT_SECONDS"' in historical_proof
     assert "clean-install-diagnostics-${{ runner.os }}" in qualification_text
     assert current_install_text.count(".candidate-certificate/requests.jsonl") == 2
+    assert current_install_text.count("appdata/diagnostics/**") == 2
+    assert "appdata/diagnostics/logs/**" not in current_install_text
     assert "Restore checksum-addressed standalone artifact" not in qualification_text
     assert "cache_managed_comfy_artifacts.py" not in qualification_text
     assert "standalone_variant" not in qualification_text
