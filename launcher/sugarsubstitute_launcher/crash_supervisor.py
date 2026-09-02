@@ -25,12 +25,11 @@ from datetime import datetime, timezone
 import logging
 from pathlib import Path
 import signal
-import subprocess
-import sys
 import time
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.launcher_ui_process import start_crash_reporter
 from launcher.sugarsubstitute_launcher.process import spawn_detached_process
 from sugarsubstitute_shared.crash_reporting import (
     CrashAttribution,
@@ -87,7 +86,7 @@ class ApplicationCrashSupervisor:
         """Store process, reporter, and clock boundaries for deterministic proof."""
 
         self._process_starter = process_starter or _start_application_process
-        self._reporter_starter = reporter_starter or _start_crash_reporter
+        self._reporter_starter = reporter_starter or start_crash_reporter
         self._native_runtime_resolver = (
             native_runtime_resolver or _installed_native_runtime
         )
@@ -295,32 +294,6 @@ def _installed_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:
     """Return the native runtime bundled beside the installed launcher."""
 
     return layout.crashpad_handler_path, layout.crashpad_client_library_path
-
-
-def _start_crash_reporter(layout: InstallLayout, incident_id: str) -> None:
-    """Start the stable launcher in dedicated crash-report mode."""
-
-    startupinfo = None
-    creationflags = 0
-    if sys.platform == "win32":
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = 0
-        creationflags = subprocess.CREATE_NO_WINDOW
-    subprocess.Popen(  # noqa: S603
-        [
-            str(layout.executable_path),
-            f"--install-root={layout.root}",
-            f"--show-crash-report={incident_id}",
-        ],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        close_fds=True,
-        creationflags=creationflags,
-        startupinfo=startupinfo,
-        shell=False,
-    )
 
 
 def _newest_minidump(database: Path, started_at_ns: int) -> Path | None:
