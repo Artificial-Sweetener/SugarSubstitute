@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       candidate_version:
-        description: "Exact semantic version already staged for qualification"
+        description: "Exact release version already staged for qualification"
         required: true
         type: string
       candidate_tag:
@@ -45,7 +45,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_version:
-        description: "Exact semantic version already staged for qualification"
+        description: "Exact release version already staged for qualification"
         required: true
         type: string
       candidate_tag:

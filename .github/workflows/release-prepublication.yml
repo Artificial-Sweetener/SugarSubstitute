@@ -95,7 +95,7 @@ jobs:
     uses: ./.github/workflows/tests.yml
 
   determine-version:
-    name: Resolve semantic release version
+    name: Resolve release version
     needs: tests
     if: >-
       always() && (
