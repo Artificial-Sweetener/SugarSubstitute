@@ -126,6 +126,15 @@ def validate_staged_bundle(
         raise LauncherBundleValidationError(
             "Launcher bundle is missing its runtime support directory."
         )
+    missing_files = [
+        str(path)
+        for path in target.required_file_relative_paths
+        if not (bundle_dir / path).is_file()
+    ]
+    if missing_files:
+        raise LauncherBundleValidationError(
+            "Launcher bundle is missing required files: " + ", ".join(missing_files)
+        )
     missing_roots = [
         str(path)
         for path in target.replacement_roots

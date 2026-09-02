@@ -154,9 +154,9 @@ def _write_launcher(path: Path) -> None:
 
     path.mkdir(parents=True)
     (path / "SugarSubstitute.exe").write_bytes(b"new-launcher")
-    (path / "LauncherUi.exe").write_bytes(b"new-launcher-ui")
-    (path / "Repair.exe").write_bytes(b"new-repair")
     (path / "launcher-bin").mkdir()
+    (path / "launcher-bin" / "LauncherUi.exe").write_bytes(b"new-launcher-ui")
+    (path / "launcher-bin" / "Repair.exe").write_bytes(b"new-repair")
     (path / "launcher-bin" / "runtime.dll").write_bytes(b"new-support")
 
 
@@ -194,9 +194,9 @@ def _write_old_install(layout: InstallLayout) -> None:
     layout.runtime_python.write_bytes(b"old-python")
     layout.executable_path.parent.mkdir(parents=True, exist_ok=True)
     layout.executable_path.write_bytes(b"old-launcher")
-    (layout.root / "LauncherUi.exe").write_bytes(b"old-launcher-ui")
-    (layout.root / "Repair.exe").write_bytes(b"old-repair")
     layout.launcher_support_path.mkdir()
+    (layout.launcher_support_path / "LauncherUi.exe").write_bytes(b"old-launcher-ui")
+    (layout.launcher_support_path / "Repair.exe").write_bytes(b"old-repair")
     (layout.launcher_support_path / "runtime.dll").write_bytes(b"old-support")
     protected = (
         layout.user_dir / "projects" / "work.json",
@@ -236,8 +236,10 @@ def test_execution_commits_exact_version_and_preserves_all_user_comfy_data(
     ) == '__version__ = "1.2.3"\n'
     assert layout.runtime_python.read_bytes() == b"candidate-python"
     assert layout.executable_path.read_bytes() == b"new-launcher"
-    assert (layout.root / "LauncherUi.exe").read_bytes() == b"new-launcher-ui"
-    assert (layout.root / "Repair.exe").read_bytes() == b"new-repair"
+    assert (
+        layout.launcher_support_path / "LauncherUi.exe"
+    ).read_bytes() == b"new-launcher-ui"
+    assert (layout.launcher_support_path / "Repair.exe").read_bytes() == b"new-repair"
     assert {path: path.read_bytes() for path in protected_paths} == before
 
 
@@ -282,8 +284,10 @@ def test_execution_rolls_back_every_component_after_final_validation_failure(
     ) == '__version__ = "0.9.0"\n'
     assert layout.runtime_python.read_bytes() == b"old-python"
     assert layout.executable_path.read_bytes() == b"old-launcher"
-    assert (layout.root / "LauncherUi.exe").read_bytes() == b"old-launcher-ui"
-    assert (layout.root / "Repair.exe").read_bytes() == b"old-repair"
+    assert (
+        layout.launcher_support_path / "LauncherUi.exe"
+    ).read_bytes() == b"old-launcher-ui"
+    assert (layout.launcher_support_path / "Repair.exe").read_bytes() == b"old-repair"
     assert (layout.launcher_support_path / "runtime.dll").read_bytes() == b"old-support"
 
 
