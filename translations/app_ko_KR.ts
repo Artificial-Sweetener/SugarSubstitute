@@ -40,7 +40,7 @@ Prompt preview:
       <translation>%1(%2)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_title.py" line="33"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_title.py" line="34"></location>
       <source>%1 (bypassed)</source>
       <translation>%1(우회됨)</translation>
     </message>
@@ -255,7 +255,7 @@ Prompt preview:
       <translation>%1% 완료</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="732"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="731"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
     </message>
@@ -760,7 +760,7 @@ Prompt preview:
       <translation>기본적으로 관리형 ComfyUI 폴더는 Substitute 폴더 안에 `comfyui`라는 이름으로 생성됩니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="295"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="310"></location>
       <source>Bypass</source>
       <translation>우회</translation>
     </message>
@@ -805,7 +805,7 @@ Prompt preview:
       <translation>작업 취소</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="278"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="329"></location>
       <source>Cancel loading</source>
       <translation>불러오기 취소</translation>
     </message>
@@ -2125,7 +2125,7 @@ Prompt preview:
       <translation>큐브 종속성 복구로 대상 환경이 변경되었습니다. 복구된 큐브로 생성하기 전에 ComfyUI를 다시 시작하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="979"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="977"></location>
       <source>Cube disabled</source>
       <translation>큐브 비활성화됨</translation>
     </message>
@@ -2193,7 +2193,7 @@ Install these nodes now?</source>
       <translation>곡선</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="538"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="580"></location>
       <source>Cut</source>
       <translation>잘라내기</translation>
     </message>
@@ -2373,7 +2373,7 @@ Install these nodes now?</source>
       <translation>저장 안 함</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="271"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
       <source>Don't save outputs</source>
       <translation>출력 저장 안 함</translation>
     </message>
@@ -2448,7 +2448,7 @@ Install these nodes now?</source>
       <translation>끌어오기 및 복사 형식</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="301"></location>
       <source>Duplicate</source>
       <translation>복제</translation>
     </message>
@@ -3056,11 +3056,6 @@ Install these nodes now?</source>
       <translation>전체 대기열 패널 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="53"></location>
-      <source>Hide advanced inputs</source>
-      <translation>고급 입력 숨기기</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
       <source>Hide full queue panel</source>
       <translation>전체 대기열 패널 숨기기</translation>
@@ -3181,12 +3176,12 @@ Install these nodes now?</source>
       <translation>프롬프트 메뉴에서 Prompt Control LoRA 일정 토큰을 삽입합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="607"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="188"></location>
       <source>Insert saved segment</source>
       <translation>저장된 구간 삽입</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="651"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="232"></location>
       <source>Insert trigger words</source>
       <translation>트리거 단어 삽입</translation>
     </message>
@@ -3326,7 +3321,7 @@ Install these nodes now?</source>
       <translation>종류: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="60"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="64"></location>
       <source>Landscape</source>
       <translation>가로</translation>
     </message>
@@ -4091,7 +4086,7 @@ Install these nodes now?</source>
       <translation>노드 ID: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="70"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="80"></location>
       <source>Node actions</source>
       <translation>노드 작업</translation>
     </message>
@@ -4371,7 +4366,7 @@ Install these nodes now?</source>
       <translation>프롬프트에서 Prompt Control LoRA 일정 토큰을 분석하고 표시합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="552"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="594"></location>
       <source>Paste</source>
       <translation>붙여넣기</translation>
     </message>
@@ -4496,7 +4491,7 @@ Install these nodes now?</source>
       <translation>포트는 1에서 65535 사이여야 합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="65"></location>
       <source>Portrait</source>
       <translation>세로</translation>
     </message>
@@ -4731,7 +4726,7 @@ Install these nodes now?</source>
       <translation>로컬 모델 캐시에 이미 알려진 해시를 CivitAI에서 조회합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="595"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="176"></location>
       <source>Queue this scene</source>
       <translation>이 장면을 대기열에 추가</translation>
     </message>
@@ -4921,7 +4916,7 @@ Install these nodes now?</source>
       <translation>큐브 팩 제거</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="293"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="308"></location>
       <source>Remove bypass</source>
       <translation>우회 제거</translation>
     </message>
@@ -5180,7 +5175,7 @@ No known extension claimant.</source>
       <translation>다시 시도</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="796"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="795"></location>
       <source>Reveal Hidden Cards</source>
       <translation>숨겨진 카드 표시</translation>
     </message>
@@ -5265,7 +5260,7 @@ No known extension claimant.</source>
       <translation>시작 보고서를 검토하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="704"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="157"></location>
       <source>Rich prompt rendering</source>
       <translation>서식 있는 프롬프트 표시</translation>
     </message>
@@ -5280,12 +5275,12 @@ No known extension claimant.</source>
       <translation>오른쪽으로 회전</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="271"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="252"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Sugar Substitute 실행 시작 화면을 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="236"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="287"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute 시작 화면 호스트를 실행합니다.</translation>
     </message>
@@ -5360,7 +5355,7 @@ No known extension claimant.</source>
       <translation>저장</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="224"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="229"></location>
       <source>Save %1 preset</source>
       <translation>%1 프리셋 저장</translation>
     </message>
@@ -5390,12 +5385,12 @@ No known extension claimant.</source>
       <translation>계속하기 전에 “%1”의 변경 사항을 저장할까요?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="215"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="220"></location>
       <source>Save current %1 as preset...</source>
       <translation>현재 %1을(를) 프리셋으로 저장...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="54"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
       <source>Save current dimensions</source>
       <translation>현재 크기 저장</translation>
     </message>
@@ -5405,12 +5400,12 @@ No known extension claimant.</source>
       <translation>모든 큐브 출력 또는 마지막 활성 큐브만 저장합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="472"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="520"></location>
       <source>Save for %1</source>
       <translation>%1에 저장</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
       <source>Save globally</source>
       <translation>전역으로 저장</translation>
     </message>
@@ -5420,7 +5415,7 @@ No known extension claimant.</source>
       <translation>프리셋 저장 또는 불러오기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="273"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="288"></location>
       <source>Save outputs</source>
       <translation>출력 저장</translation>
     </message>
@@ -5430,7 +5425,7 @@ No known extension claimant.</source>
       <translation>구간 저장</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="674"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="255"></location>
       <source>Save segment as...</source>
       <translation>다른 이름으로 구간 저장...</translation>
     </message>
@@ -5500,7 +5495,7 @@ No known extension claimant.</source>
       <translation>와일드카드 값에서는 장면을 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="692"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="273"></location>
       <source>Schedule LoRA</source>
       <translation>LoRA 예약</translation>
     </message>
@@ -5580,7 +5575,7 @@ No known extension claimant.</source>
       <translation>대신 Python 수동 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="559"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="601"></location>
       <source>Select all</source>
       <translation>모두 선택</translation>
     </message>
@@ -5610,17 +5605,17 @@ No known extension claimant.</source>
       <translation>전역 재정의 설정</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="53"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
       <source>Set dimensions</source>
       <translation>크기 설정</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="59"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="63"></location>
       <source>Set ratio by Height</source>
       <translation>높이 기준 비율 설정</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="62"></location>
       <source>Set ratio by Width</source>
       <translation>너비 기준 비율 설정</translation>
     </message>
@@ -5745,7 +5740,7 @@ No known extension claimant.</source>
       <translation>전체 대기열 패널 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="52"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="63"></location>
       <source>Show advanced inputs</source>
       <translation>고급 입력 표시</translation>
     </message>
@@ -6626,7 +6621,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>후원자</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="52"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="56"></location>
       <source>Swap width &amp; height</source>
       <translation>너비와 높이 바꾸기</translation>
     </message>
@@ -7411,7 +7406,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>업데이트는 선택 사항입니다. 다운로드한 버전은 현재 파일 옆에 추가되며 기존 워크플로는 현재 모델을 계속 사용합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="265"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="264"></location>
       <source>Updating</source>
       <translation>업데이트 중</translation>
     </message>

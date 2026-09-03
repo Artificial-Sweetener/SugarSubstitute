@@ -32,8 +32,8 @@ from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.interactions import (
     prompt_menu_presenter as prompt_menu_presenter_module,
 )
-from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
-    _PromptEditorTextEditMenu,
+from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
+    PromptTextMenu,
 )
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetMenuItem,
@@ -322,7 +322,7 @@ def test_prompt_editor_saved_segment_action_inserts_text(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,

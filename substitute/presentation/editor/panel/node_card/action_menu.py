@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import cast
 
 from PySide6.QtCore import QObject, QPoint, QSize, Qt
 from PySide6.QtWidgets import QHBoxLayout, QWidget
@@ -39,6 +40,9 @@ from substitute.presentation.editor.panel.node_card.advanced_input_binding impor
     AdvancedInputCardBinding,
 )
 from substitute.presentation.resources.app_icon import AppIcon
+from substitute.presentation.widgets.menu_button_controller import (
+    MenuButtonController,
+)
 from substitute.presentation.widgets.menu_model import (
     MenuEntry,
     MenuItem,
@@ -57,7 +61,6 @@ from sugarsubstitute_shared.presentation.localization import (
 
 _NODE_ACTIONS = "Node actions"
 _SHOW_ADVANCED_INPUTS = app_text("Show advanced inputs")
-_HIDE_ADVANCED_INPUTS = app_text("Hide advanced inputs")
 _BUTTON_SIZE = 28
 _ICON_SIZE = 20
 
@@ -153,25 +156,30 @@ class NodeCardActionMenuBinding(QObject):
         self._is_connection = is_connection
         self._advanced_inputs = advanced_inputs
         self._field_action_contributions = field_action_contributions
-        self._active_menu: object | None = None
         self.button = NodeCardActionMenuButton(title_row)
-        self.button.clicked.connect(self.show_menu)
-
-    def show_menu(self) -> None:
-        """Build current actions and open their Fluent menu below the gear."""
-
-        anchor_global_position = self.button.mapToGlobal(
-            QPoint(0, self.button.height())
+        self._menu_controller = MenuButtonController(
+            self.button,
+            menu_position=self._menu_position,
         )
+        self._menu_controller.set_menu_factory(self._build_menu)
+
+    def _menu_position(self) -> QPoint:
+        """Return the current global anchor below the node-card gear."""
+
+        return cast(QPoint, self.button.mapToGlobal(QPoint(0, self.button.height())))
+
+    def _build_menu(self) -> object | None:
+        """Render the current node actions for one legitimate open request."""
+
+        anchor_global_position = self._menu_position()
         model = self.current_menu_model(
             FieldActionContext(anchor_global_position=anchor_global_position)
         )
         if model is None:
-            return
+            return None
         menu = QFluentMenuRenderer(parent=self.button).render(model)
         install_submenu_click_openers(menu)
-        self._active_menu = menu
-        menu.exec(anchor_global_position)
+        return cast(object, menu)
 
     def current_menu_model(
         self,
@@ -209,12 +217,10 @@ class NodeCardActionMenuBinding(QObject):
         entries.append(
             MenuItem(
                 "node.advanced_inputs.toggle",
-                (
-                    _HIDE_ADVANCED_INPUTS
-                    if self._advanced_inputs.shown
-                    else _SHOW_ADVANCED_INPUTS
-                ),
-                callback=self._advanced_inputs.toggle,
+                _SHOW_ADVANCED_INPUTS,
+                checkable=True,
+                checked=self._advanced_inputs.shown,
+                checked_callback=self._advanced_inputs.set_shown,
             )
         )
         return tuple(entries)

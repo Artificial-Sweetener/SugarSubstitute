@@ -32,7 +32,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
-    DropDownPushButton,
     FluentIcon,
     HorizontalSeparator,
     SegmentedWidget,
@@ -63,6 +62,7 @@ from substitute.presentation.localization import (
     LocalizedStrongBodyLabel,
 )
 from substitute.presentation.widgets.spin_box import SpinBox
+from substitute.presentation.widgets.menu_buttons import ToggleDropDownPushButton
 
 _DIMENSION_MINIMUM = 64
 _DIMENSION_MAXIMUM = 32768
@@ -150,7 +150,7 @@ class SyntheticCanvasResolutionForm(QWidget):
     def set_preset_menu(self, menu: RoundMenu) -> None:
         """Install the existing preset menu without adapting its contents."""
 
-        self.preset_menu_button.setMenu(menu)
+        self.preset_menu_button.set_popup_menu(menu)
 
     def set_preset_menu_enabled(self, enabled: bool) -> None:
         """Enable or disable the shared preset-menu trigger."""
@@ -196,7 +196,7 @@ class SyntheticCanvasResolutionForm(QWidget):
 
         layout.addWidget(LocalizedStrongBodyLabel(app_text("New size"), self))
 
-        self.preset_menu_button = DropDownPushButton(self)
+        self.preset_menu_button = ToggleDropDownPushButton(self)
         self.preset_menu_button.setSizePolicy(
             QSizePolicy.Policy.Fixed,
             QSizePolicy.Policy.Fixed,

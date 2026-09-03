@@ -95,7 +95,7 @@ Vista previa del prompt:
       <translation>%1 (%2)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_title.py" line="33"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_title.py" line="34"></location>
       <source>%1 (bypassed)</source>
       <translation>%1 (omitido)</translation>
     </message>
@@ -310,7 +310,7 @@ Vista previa del prompt:
       <translation>%1% completado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="732"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="731"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
     </message>
@@ -815,7 +815,7 @@ Vista previa del prompt:
       <translation>De forma predeterminada, la carpeta administrada de ComfyUI se crea como `comfyui` dentro de tu carpeta de Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="295"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="310"></location>
       <source>Bypass</source>
       <translation>Omitir</translation>
     </message>
@@ -860,7 +860,7 @@ Vista previa del prompt:
       <translation>Cancelar tarea</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="278"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="329"></location>
       <source>Cancel loading</source>
       <translation>Cancelar la carga</translation>
     </message>
@@ -2180,7 +2180,7 @@ Vista previa del prompt:
       <translation>La reparación de las dependencias de cubos modificó el entorno de destino. Reinicia ComfyUI antes de generar con los cubos reparados.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="979"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="977"></location>
       <source>Cube disabled</source>
       <translation>Cubo desactivado</translation>
     </message>
@@ -2248,7 +2248,7 @@ Install these nodes now?</source>
       <translation>Curva</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="538"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="580"></location>
       <source>Cut</source>
       <translation>Cortar</translation>
     </message>
@@ -2428,7 +2428,7 @@ Install these nodes now?</source>
       <translation>No guardar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="271"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
       <source>Don't save outputs</source>
       <translation>No guardar las salidas</translation>
     </message>
@@ -2503,7 +2503,7 @@ Install these nodes now?</source>
       <translation>Formato de arrastrar y copiar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="301"></location>
       <source>Duplicate</source>
       <translation>Duplicar</translation>
     </message>
@@ -3111,11 +3111,6 @@ Install these nodes now?</source>
       <translation>Ocultar el panel completo de la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="53"></location>
-      <source>Hide advanced inputs</source>
-      <translation>Ocultar entradas avanzadas</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
       <source>Hide full queue panel</source>
       <translation>Ocultar el panel completo de la cola</translation>
@@ -3236,12 +3231,12 @@ Install these nodes now?</source>
       <translation>Inserta elementos de programación de Prompt Control LoRA desde el menú del prompt.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="607"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="188"></location>
       <source>Insert saved segment</source>
       <translation>Insertar segmento guardado</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="651"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="232"></location>
       <source>Insert trigger words</source>
       <translation>Insertar palabras de activación</translation>
     </message>
@@ -3381,7 +3376,7 @@ Install these nodes now?</source>
       <translation>Tipo: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="60"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="64"></location>
       <source>Landscape</source>
       <translation>Horizontal</translation>
     </message>
@@ -4146,7 +4141,7 @@ Install these nodes now?</source>
       <translation>ID del nodo: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="70"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="80"></location>
       <source>Node actions</source>
       <translation>Acciones del nodo</translation>
     </message>
@@ -4426,7 +4421,7 @@ Install these nodes now?</source>
       <translation>Interpreta y resalta los elementos de programación de Prompt Control LoRA en los prompts.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="552"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="594"></location>
       <source>Paste</source>
       <translation>Pegar</translation>
     </message>
@@ -4551,7 +4546,7 @@ Install these nodes now?</source>
       <translation>El puerto debe estar entre 1 y 65535.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="65"></location>
       <source>Portrait</source>
       <translation>Vertical</translation>
     </message>
@@ -4786,7 +4781,7 @@ Install these nodes now?</source>
       <translation>Consulta en CivitAI los hashes que ya se conocen en la caché local de modelos.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="595"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="176"></location>
       <source>Queue this scene</source>
       <translation>Añadir esta escena a la cola</translation>
     </message>
@@ -4976,7 +4971,7 @@ Install these nodes now?</source>
       <translation>Eliminar paquete de cubos</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="293"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="308"></location>
       <source>Remove bypass</source>
       <translation>Dejar de omitir</translation>
     </message>
@@ -5235,7 +5230,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reintentar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="796"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="795"></location>
       <source>Reveal Hidden Cards</source>
       <translation>Mostrar tarjetas ocultas</translation>
     </message>
@@ -5320,7 +5315,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Revisa el informe de inicio.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="704"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="157"></location>
       <source>Rich prompt rendering</source>
       <translation>Presentación enriquecida de prompts</translation>
     </message>
@@ -5335,12 +5330,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Girar a la derecha</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="271"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="252"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Ejecutar la pantalla de inicio de Sugar Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="236"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="287"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>Ejecutar el host de la pantalla de inicio de SugarSubstitute.</translation>
     </message>
@@ -5415,7 +5410,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="224"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="229"></location>
       <source>Save %1 preset</source>
       <translation>Guardar preajuste de %1</translation>
     </message>
@@ -5445,12 +5440,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>¿Guardar los cambios de «%1» antes de continuar?</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="215"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="220"></location>
       <source>Save current %1 as preset...</source>
       <translation>Guardar el valor actual de %1 como preajuste...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="54"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
       <source>Save current dimensions</source>
       <translation>Guardar las dimensiones actuales</translation>
     </message>
@@ -5460,12 +5455,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guarda las salidas de todos los cubos o solo la del último cubo activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="472"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="520"></location>
       <source>Save for %1</source>
       <translation>Guardar para %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
       <source>Save globally</source>
       <translation>Guardar globalmente</translation>
     </message>
@@ -5475,7 +5470,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar o cargar preajuste</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="273"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="288"></location>
       <source>Save outputs</source>
       <translation>Guardar salidas</translation>
     </message>
@@ -5485,7 +5480,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardar segmento</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="674"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="255"></location>
       <source>Save segment as...</source>
       <translation>Guardar segmento como...</translation>
     </message>
@@ -5555,7 +5550,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Los valores de comodines no admiten escenas.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="692"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="273"></location>
       <source>Schedule LoRA</source>
       <translation>Programar LoRA</translation>
     </message>
@@ -5635,7 +5630,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Seleccionar Python manualmente</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="559"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="601"></location>
       <source>Select all</source>
       <translation>Seleccionar todo</translation>
     </message>
@@ -5665,17 +5660,17 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Establecer reemplazo global</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="53"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
       <source>Set dimensions</source>
       <translation>Establecer dimensiones</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="59"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="63"></location>
       <source>Set ratio by Height</source>
       <translation>Establecer proporción según la altura</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="62"></location>
       <source>Set ratio by Width</source>
       <translation>Establecer proporción según la anchura</translation>
     </message>
@@ -5800,7 +5795,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Mostrar el panel completo de la cola</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="52"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="63"></location>
       <source>Show advanced inputs</source>
       <translation>Mostrar entradas avanzadas</translation>
     </message>
@@ -6681,7 +6676,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Colaboradores</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="52"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="56"></location>
       <source>Swap width &amp; height</source>
       <translation>Intercambiar anchura y altura</translation>
     </message>
@@ -7466,7 +7461,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Las actualizaciones son opcionales. Las versiones descargadas se añaden junto a tus archivos actuales y los flujos existentes siguen usando su modelo actual.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="265"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="264"></location>
       <source>Updating</source>
       <translation>Actualizando</translation>
     </message>

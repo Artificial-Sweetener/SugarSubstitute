@@ -362,10 +362,10 @@ def test_node_title_menu_appends_advanced_visibility_after_preset_actions(
 
         shown = False
 
-        def toggle(self) -> None:
-            """Invert the represented disclosure state."""
+        def set_shown(self, shown: bool) -> None:
+            """Set the represented disclosure state."""
 
-            self.shown = not self.shown
+            self.shown = shown
 
     advanced = _AdvancedInputs()
     try:
@@ -391,10 +391,13 @@ def test_node_title_menu_appends_advanced_visibility_after_preset_actions(
 
         binding.button.click()
 
+        advanced_action = rendered_menus[-1].menuActions()[-1]
         assert _round_menu_entries(rendered_menus[-1])[-1] == (
             "action",
-            "Hide advanced inputs",
+            "Show advanced inputs",
         )
+        assert advanced_action.isCheckable() is True
+        assert advanced_action.isChecked() is True
     finally:
         title.close()
 
