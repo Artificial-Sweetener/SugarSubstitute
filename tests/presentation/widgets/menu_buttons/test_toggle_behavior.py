@@ -18,23 +18,20 @@
 
 from __future__ import annotations
 
-import sys
-
-import pytest
 from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtGui import QHideEvent
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QPushButton, QWidget
 from qfluentwidgets import RoundMenu  # type: ignore[import-untyped]
-from shiboken6 import isValid
 
-import substitute.presentation.widgets.menu_buttons as menu_buttons
+from substitute.presentation.widgets.menu_button_controller import (
+    MenuButtonController,
+)
 from substitute.presentation.widgets.menu_buttons import (
-    ToggleDropDownToolButton,
+    ToggleDropDownPushButton,
     TogglePrimarySplitPushButton,
     ToggleSplitToolButton,
     ToggleTransparentDropDownToolButton,
-    _PopupToggleMixin,
 )
 from tests.support.qt.lifecycle import destroy_qt_object, ensure_qt_application
 from tests.support.qt.semantic_wait import wait_for_qt_condition
@@ -101,7 +98,7 @@ def test_transparent_dropdown_second_click_closes_and_third_reopens() -> None:
     ensure_qt_application()
     button = ToggleTransparentDropDownToolButton()
     menu = _RecordingRoundMenu(button)
-    button.setMenu(menu)
+    button.set_popup_menu(menu)
     button.show()
 
     QTest.mouseClick(button, Qt.MouseButton.LeftButton)
@@ -124,7 +121,7 @@ def test_split_tool_drop_arrow_preserves_signal_and_toggles_flyout() -> None:
     popup = _RecordingPopup(button)
     drop_clicks: list[str] = []
     button.dropDownClicked.connect(lambda: drop_clicks.append("drop"))
-    button.setFlyout(popup)
+    button.set_popup_flyout(popup)
 
     button.dropButton.clicked.emit()
     button.dropButton.clicked.emit()
@@ -144,7 +141,7 @@ def test_primary_split_button_preserves_primary_action() -> None:
     popup = _RecordingPopup(button)
     primary_clicks: list[str] = []
     button.clicked.connect(lambda: primary_clicks.append("primary"))
-    button.setFlyout(popup)
+    button.set_popup_flyout(popup)
 
     button.button.clicked.emit()
     button.dropButton.clicked.emit()
@@ -154,144 +151,83 @@ def test_primary_split_button_preserves_primary_action() -> None:
     destroy_qt_object(button)
 
 
-def test_external_popup_close_clears_tracked_open_state() -> None:
-    """An externally hidden real menu should reopen on the next trigger."""
+def test_dropdown_push_button_uses_the_same_toggle_lifecycle() -> None:
+    """Push-button dropdowns should close and reopen through the shared owner."""
 
     ensure_qt_application()
-    button = ToggleDropDownToolButton()
+    button = ToggleDropDownPushButton()
     menu = _RecordingRoundMenu(button)
-    button.setMenu(menu)
+    button.set_popup_menu(menu)
+    button.show()
 
-    button._toggle_attached_popup(button._showMenu)
-    menu.isHideBySystem = False
-    menu.hide()
-    button._toggle_attached_popup(button._showMenu)
+    QTest.mouseClick(button, Qt.MouseButton.LeftButton)
+    wait_for_qt_condition(menu.isVisible)
+    QTest.mouseClick(button, Qt.MouseButton.LeftButton)
+    wait_for_qt_condition(lambda: not menu.isVisible())
+    QTest.mouseClick(button, Qt.MouseButton.LeftButton)
+    wait_for_qt_condition(menu.isVisible)
 
     assert menu.exec_calls == 2
     assert menu.hidden_calls == 1
     destroy_qt_object(button)
 
 
-def test_same_close_action_does_not_reopen_popup_on_release(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A system close over the trigger should consume the matching release."""
+def test_dynamic_menu_factory_builds_only_for_legitimate_opens() -> None:
+    """A second button click should close without rebuilding a dynamic menu."""
 
     ensure_qt_application()
-    button = ToggleTransparentDropDownToolButton()
-    menu = _RecordingRoundMenu(button)
-    button.setMenu(menu)
-    button._toggle_attached_popup(button._showMenu)
-    monkeypatch.setattr(button, "_should_suppress_next_popup_show", lambda _popup: True)
+    button = QPushButton()
+    menus: list[_RecordingRoundMenu] = []
 
-    menu.hide()
-    button._toggle_attached_popup(button._showMenu)
-    button._toggle_attached_popup(button._showMenu)
+    def build_menu() -> _RecordingRoundMenu:
+        """Build one observable menu for an allowed open request."""
 
-    assert menu.exec_calls == 2
+        menu = _RecordingRoundMenu(button)
+        menus.append(menu)
+        return menu
+
+    controller = MenuButtonController(
+        button,
+        menu_position=lambda: button.mapToGlobal(QPoint(0, button.height())),
+    )
+    controller.set_menu_factory(build_menu)
+
+    button.click()
+    button.click()
+    button.click()
+
+    assert len(menus) == 2
+    assert [menu.exec_calls for menu in menus] == [1, 1]
+    assert menus[0].hidden_calls == 1
     destroy_qt_object(button)
 
 
-def test_cursor_hit_test_rejects_destroyed_qt_widget() -> None:
-    """A synchronously destroyed wrapper should short-circuit hit testing."""
+def test_external_dynamic_menu_close_allows_a_fresh_open() -> None:
+    """External closure should reset shared state before the next click."""
 
     ensure_qt_application()
-    widget = QWidget()
-    destroy_qt_object(widget)
+    button = QPushButton()
+    menus: list[_RecordingRoundMenu] = []
+    controller = MenuButtonController(
+        button,
+        menu_position=lambda: QPoint(),
+    )
 
-    assert isValid(widget) is False
-    assert _PopupToggleMixin._widget_contains_cursor(widget) is False
+    def build_menu() -> _RecordingRoundMenu:
+        """Build and retain one menu for lifecycle assertions."""
 
+        menu = _RecordingRoundMenu(button)
+        menus.append(menu)
+        return menu
 
-def test_cursor_hit_test_logs_runtime_teardown_failure(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A wrapper race should retain structured diagnostic context."""
+    controller.set_menu_factory(build_menu)
 
-    debug_calls: list[tuple[str, dict[str, object]]] = []
+    button.click()
+    menus[0].isHideBySystem = False
+    menus[0].hide()
+    wait_for_qt_condition(lambda: not controller.is_menu_open())
+    button.click()
 
-    def record_debug(
-        _logger: object,
-        message: str,
-        **context: object,
-    ) -> None:
-        """Record one structured production debug event."""
-
-        debug_calls.append((message, context))
-
-    monkeypatch.setattr(menu_buttons, "log_debug", record_debug)
-
-    class _BrokenWidget:
-        """Raise from the native geometry boundary during teardown."""
-
-        def rect(self) -> object:
-            """Simulate a wrapper whose C++ geometry owner is gone."""
-
-            raise RuntimeError("already deleted")
-
-        def mapFromGlobal(self, point: object) -> object:
-            """Preserve the supplied point when geometry remains callable."""
-
-            return point
-
-    assert _PopupToggleMixin._widget_contains_cursor(_BrokenWidget()) is False
-    assert debug_calls == [
-        (
-            "Popup trigger cursor hit-test failed during teardown",
-            {
-                "widget_type": "_BrokenWidget",
-                "error": "RuntimeError('already deleted')",
-            },
-        )
-    ]
-
-
-def test_late_popup_close_tolerates_destroyed_owner(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Late lifecycle signals should clear state without touching dead Qt state."""
-
-    ensure_qt_application()
-    monkeypatch.setattr(sys, "platform", "win32")
-    debug_calls: list[tuple[str, dict[str, object]]] = []
-
-    def record_debug(
-        _logger: object,
-        message: str,
-        **context: object,
-    ) -> None:
-        """Record one structured production debug event."""
-
-        debug_calls.append((message, context))
-
-    monkeypatch.setattr(menu_buttons, "log_debug", record_debug)
-
-    class _RuntimeOwner(_PopupToggleMixin, QWidget):
-        """Mount the production tracker on a real Qt lifetime owner."""
-
-        def __init__(self) -> None:
-            """Prime tracker state before QWidget construction."""
-
-            self._prime_popup_toggle_state()
-            super().__init__()
-
-    owner = _RuntimeOwner()
-    popup = _RecordingPopup()
-    owner._track_attached_popup(popup)
-    owner._attached_popup_marked_open = True
-    destroy_qt_object(owner)
-
-    assert isValid(owner) is False
-    popup.closedSignal.emit()
-
-    assert owner._attached_popup_marked_open is False
-    assert owner._suppress_next_popup_show is False
-    assert (
-        "Skipped popup-close suppression recompute for invalid owner",
-        {
-            "owner_type": "_RuntimeOwner",
-            "popup_type": "_RecordingPopup",
-            "suppress_next_popup_show": False,
-        },
-    ) in debug_calls
-    destroy_qt_object(popup)
+    assert len(menus) == 2
+    assert controller.menu() is menus[1]
+    destroy_qt_object(button)

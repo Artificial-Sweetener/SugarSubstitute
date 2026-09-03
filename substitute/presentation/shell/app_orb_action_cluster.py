@@ -48,8 +48,8 @@ from substitute.presentation.shell.chrome_style import (
     connect_theme_refresh,
     toolbar_separator_rgba,
 )
-from substitute.presentation.shell.menu_button_controller import (
-    ShellMenuButtonController,
+from substitute.presentation.widgets.menu_button_controller import (
+    MenuButtonController,
 )
 
 APP_ORB_ACTION_CLUSTER_OBJECT_NAME = "AppOrbActionCluster"
@@ -326,13 +326,12 @@ class AppOrbOverrideButton(AppOrbActionButton):
         self.setObjectName(APP_ORB_OVERRIDE_BUTTON_OBJECT_NAME)
         set_localized_tooltip(self, "Select Global Field Overrides")
         set_localized_accessible_name(self, "Select Global Field Overrides")
-        self._menu_controller = ShellMenuButtonController(
+        self._menu_controller = MenuButtonController(
             self,
             menu_position=lambda: self.mapToGlobal(QPoint(0, self.height() - 2)),
         )
-        self.clicked.connect(self._show_menu)
 
-    def setMenu(self, menu: object) -> None:
+    def set_popup_menu(self, menu: object) -> None:
         """Attach the global override menu to this shaped button."""
 
         self._menu_controller.set_menu(menu)
@@ -341,11 +340,6 @@ class AppOrbOverrideButton(AppOrbActionButton):
         """Return the attached menu."""
 
         return self._menu_controller.menu()
-
-    def _show_menu(self, _checked: bool = False) -> None:
-        """Open the attached override menu below the button."""
-
-        self._menu_controller.handle_button_clicked(_checked)
 
     def _clicked_visual_active(self) -> bool:
         """Return whether the attached menu is visibly open."""

@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own shared popup-menu toggle behavior for shell buttons."""
+"""Own shared popup-menu toggle behavior for presentation buttons."""
 
 from __future__ import annotations
 
@@ -24,6 +24,11 @@ from PySide6.QtCore import QEvent, QObject, QPoint, Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QAbstractButton, QApplication
 from qfluentwidgets import MenuAnimationType  # type: ignore[import-untyped]
+from shiboken6 import isValid as is_valid_qt_object
+
+from substitute.presentation.widgets.menu_button_positioning import (
+    MenuButtonPositioner,
+)
 
 
 def left_mouse_button_is_down() -> bool:
@@ -32,8 +37,8 @@ def left_mouse_button_is_down() -> bool:
     return bool(QApplication.mouseButtons() & Qt.MouseButton.LeftButton)
 
 
-class ShellMenuButtonController(QObject):
-    """Synchronize one shell button with its popup menu visibility."""
+class MenuButtonController(QObject):
+    """Synchronize one presentation button with its popup-menu lifecycle."""
 
     def __init__(
         self,
@@ -42,15 +47,20 @@ class ShellMenuButtonController(QObject):
         menu_position: Callable[[], QPoint],
         animation_type: MenuAnimationType = MenuAnimationType.DROP_DOWN,
         qfluent_drop_down_vertical_offset: int = 0,
+        connect_clicked: bool = True,
     ) -> None:
         """Create a controller that reacts to normal button click delivery."""
 
         super().__init__(button)
         self._button = button
-        self._menu_position = menu_position
-        self._animation_type = animation_type
-        self._qfluent_drop_down_vertical_offset = qfluent_drop_down_vertical_offset
+        self._positioner = MenuButtonPositioner(
+            button,
+            fallback_position=menu_position,
+            animation_type=animation_type,
+            qfluent_drop_down_vertical_offset=qfluent_drop_down_vertical_offset,
+        )
         self._menu: object | None = None
+        self._menu_factory: Callable[[], object | None] | None = None
         self._observed_menu: QObject | None = None
         self._menu_open = False
         self._closing_from_controller = False
@@ -58,14 +68,29 @@ class ShellMenuButtonController(QObject):
         self._consume_owner_click_release = False
         self._application_filter_installed = False
         self._button.installEventFilter(self)
+        if connect_clicked:
+            self._button.clicked.connect(self.handle_button_clicked)
 
     def set_menu(self, menu: object) -> None:
         """Attach the menu and observe external menu closure."""
 
+        self._menu_factory = None
+        self._replace_menu(menu)
+
+    def set_menu_factory(self, menu_factory: Callable[[], object | None]) -> None:
+        """Build and attach a fresh menu for each legitimate open request."""
+
+        self._menu_factory = menu_factory
+        self._replace_menu(None)
+
+    def _replace_menu(self, menu: object | None) -> None:
+        """Replace the observed menu without changing its configured source."""
+
         self._remove_menu_filter()
         self._menu = menu
-        self._install_menu_filter(menu)
-        self._connect_menu_close_signal(menu)
+        if menu is not None:
+            self._install_menu_filter(menu)
+            self._connect_menu_close_signal(menu)
 
     def menu(self) -> object | None:
         """Return the currently attached menu."""
@@ -94,6 +119,16 @@ class ShellMenuButtonController(QObject):
         if self.close_menu_if_open():
             return
         self._open_menu()
+
+    def trigger_with(self, show_menu: Callable[[], None]) -> None:
+        """Toggle an attached menu through a toolkit-owned show operation."""
+
+        if self.close_menu_if_open():
+            return
+        if self._menu is None:
+            return
+        show_menu()
+        self._set_menu_open(self._menu_is_visible())
 
     def is_menu_open(self) -> bool:
         """Return whether the controller has a confirmed visible menu."""
@@ -129,87 +164,23 @@ class ShellMenuButtonController(QObject):
     def _open_menu(self) -> None:
         """Open the attached menu at the controller-owned position."""
 
-        menu = self._menu
+        menu = self._menu_for_open()
         execute = getattr(menu, "exec", None)
         if not callable(execute):
             self._set_menu_open(False)
             return
-        position, animation_type = self._resolve_menu_execution(menu)
+        position, animation_type = self._positioner.resolve(menu)
         execute(position, aniType=animation_type)
         self._set_menu_open(self._menu_is_visible())
 
-    def _resolve_menu_execution(
-        self,
-        menu: object,
-    ) -> tuple[QPoint, MenuAnimationType]:
-        """Return a left-anchored QFluent popup position and animation type."""
+    def _menu_for_open(self) -> object | None:
+        """Return the static menu or build and observe one dynamic menu."""
 
-        view = getattr(menu, "view", None)
-        height_for_animation = getattr(view, "heightForAnimation", None)
-        if view is None or not callable(height_for_animation):
-            return self._menu_position(), self._animation_type
-
-        self._prepare_menu_size(menu, view)
-        # QFluent treats exec().x as the visible list edge and subtracts its
-        # transparent layout margin when moving the popup window.
-        drop_down_position = self._button.mapToGlobal(
-            QPoint(
-                0,
-                self._button.height() + self._qfluent_drop_down_vertical_offset,
-            )
-        )
-        pull_up_position = self._button.mapToGlobal(QPoint(0, 0))
-        drop_down_height = int(
-            height_for_animation(drop_down_position, MenuAnimationType.DROP_DOWN)
-        )
-        pull_up_height = int(
-            height_for_animation(pull_up_position, MenuAnimationType.PULL_UP)
-        )
-        if drop_down_height >= pull_up_height:
-            self._adjust_menu_view_for_animation(
-                view,
-                drop_down_position,
-                MenuAnimationType.DROP_DOWN,
-            )
-            return drop_down_position, MenuAnimationType.DROP_DOWN
-
-        self._adjust_menu_view_for_animation(
-            view,
-            pull_up_position,
-            MenuAnimationType.PULL_UP,
-        )
-        return pull_up_position, MenuAnimationType.PULL_UP
-
-    def _prepare_menu_size(self, menu: object, view: object) -> None:
-        """Apply QFluent dropdown sizing before positioning a menu."""
-
-        set_minimum_width = getattr(view, "setMinimumWidth", None)
-        if callable(set_minimum_width):
-            set_minimum_width(self._button.width())
-
-        adjust_view_size = getattr(view, "adjustSize", None)
-        if callable(adjust_view_size):
-            adjust_view_size()
-
-        adjust_menu_size = getattr(menu, "adjustSize", None)
-        if callable(adjust_menu_size):
-            adjust_menu_size()
-
-    def _adjust_menu_view_for_animation(
-        self,
-        view: object,
-        position: QPoint,
-        animation_type: MenuAnimationType,
-    ) -> None:
-        """Resize the QFluent menu view for the selected popup direction."""
-
-        adjust_size = getattr(view, "adjustSize", None)
-        if not callable(adjust_size):
-            return
-        try:
-            adjust_size(position, animation_type)
-        except TypeError:
-            adjust_size()
+        if self._menu_factory is None:
+            return self._menu
+        menu = self._menu_factory()
+        self._replace_menu(menu)
+        return menu
 
     def _connect_menu_close_signal(self, menu: object) -> None:
         """Listen to menu close notifications when the menu exposes them."""
@@ -227,6 +198,8 @@ class ShellMenuButtonController(QObject):
     def _mark_menu_closed(self, menu: object | None = None) -> None:
         """Return the button to unchecked state when the popup closes elsewhere."""
 
+        if menu is not None and menu is not self._menu:
+            return
         if self._closing_from_controller:
             return
 
@@ -241,6 +214,8 @@ class ShellMenuButtonController(QObject):
     def _should_suppress_next_owner_click(self, menu: object | None) -> bool:
         """Return whether a popup close belongs to an owner-button click."""
 
+        if not self._button_is_usable():
+            return False
         if not self._cursor_is_over_button():
             return False
         return left_mouse_button_is_down() or bool(
@@ -436,11 +411,16 @@ class ShellMenuButtonController(QObject):
     def _global_point_is_over_button(self, global_point: QPoint) -> bool:
         """Return whether one global point is inside the owner button."""
 
-        local_cursor = self._button.mapFromGlobal(global_point)
-        if not self._button.rect().contains(local_cursor):
+        if not self._button_is_usable():
             return False
-        hit_button = getattr(self._button, "hitButton", None)
-        return bool(hit_button(local_cursor)) if callable(hit_button) else True
+        try:
+            local_cursor = self._button.mapFromGlobal(global_point)
+            if not self._button.rect().contains(local_cursor):
+                return False
+            hit_button = getattr(self._button, "hitButton", None)
+            return bool(hit_button(local_cursor)) if callable(hit_button) else True
+        except RuntimeError:
+            return False
 
     def _set_menu_open(self, menu_open: bool) -> None:
         """Set confirmed menu-open state and repaint the owner button."""
@@ -449,10 +429,16 @@ class ShellMenuButtonController(QObject):
             return
         self._menu_open = menu_open
         self._sync_application_filter()
-        self._button.update()
+        if self._button_is_usable():
+            self._button.update()
+
+    def _button_is_usable(self) -> bool:
+        """Return whether the native Qt owner remains safe to access."""
+
+        return bool(is_valid_qt_object(self._button))
 
 
 __all__ = [
-    "ShellMenuButtonController",
+    "MenuButtonController",
     "left_mouse_button_is_down",
 ]

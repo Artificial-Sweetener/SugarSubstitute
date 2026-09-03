@@ -19,12 +19,10 @@
 from __future__ import annotations
 
 
-import sys
-from typing import TYPE_CHECKING, Callable, Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
-from PySide6.QtCore import QEvent
-from PySide6.QtGui import QCursor
-from shiboken6 import isValid as _is_valid_shiboken_object
+from PySide6.QtCore import QPoint
+from PySide6.QtWidgets import QAbstractButton
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget
@@ -55,6 +53,15 @@ if TYPE_CHECKING:
         def mouseReleaseEvent(self, event: object) -> None:
             """Forward one release event through the QFluent base."""
 
+    class PushButton(QWidget):
+        """Describe the typed push-button method used by the mixin."""
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            """Accept the constructor overloads owned by QFluent."""
+
+        def mouseReleaseEvent(self, event: object) -> None:
+            """Forward one release event through the QFluent base."""
+
     class DropDownToolButton(ToolButton):
         """Describe the dropdown methods supplied by QFluent."""
 
@@ -66,6 +73,15 @@ if TYPE_CHECKING:
 
     class TransparentDropDownToolButton(DropDownToolButton):
         """Describe the transparent dropdown QFluent variant."""
+
+    class DropDownPushButton(PushButton):
+        """Describe the dropdown push-button methods supplied by QFluent."""
+
+        def setMenu(self, menu: object) -> None:
+            """Attach one popup menu."""
+
+        def _showMenu(self) -> None:
+            """Show the attached popup menu."""
 
     class _SplitButtonBase(QWidget):
         """Describe the split-button surface used by toggle adapters."""
@@ -96,296 +112,94 @@ if TYPE_CHECKING:
 else:
     from qfluentwidgets import (  # type: ignore[import-untyped]
         DropDownToolButton,
+        DropDownPushButton,
         PrimarySplitPushButton,
+        PushButton,
         SplitToolButton,
         ToolButton,
         TransparentDropDownToolButton,
     )
 
-from substitute.shared.logging.logger import get_logger, log_debug
-
-_LOGGER = get_logger("presentation.widgets.menu_buttons")
-
-
-def _is_usable_qt_wrapper(candidate: object | None) -> bool:
-    """Return whether one potential Qt wrapper is safe to call into."""
-
-    if candidate is None:
-        return False
-    return bool(_is_valid_shiboken_object(candidate))
+from substitute.presentation.widgets.menu_button_controller import (
+    MenuButtonController,
+)
 
 
-def _qt_object_type(candidate: object | None) -> str:
-    """Return one stable object type label for structured popup logging."""
+class _ToggleDropDownButtonMixin:
+    """Delegate QFluent dropdown menu lifecycle to the shared controller."""
 
-    if candidate is None:
-        return "NoneType"
-    return type(candidate).__name__
+    def _initialize_menu_controller(self) -> None:
+        """Bind the concrete dropdown trigger after its Qt base is initialized."""
 
-
-def _popup_log_context(owner: object | None, popup: object | None) -> dict[str, object]:
-    """Build structured context for popup-toggle lifecycle logging."""
-
-    return {
-        "owner_type": _qt_object_type(owner),
-        "popup_type": _qt_object_type(popup),
-    }
-
-
-class _PopupToggleMixin:
-    """Track one attached popup and apply combo-box-like toggle semantics."""
-
-    def _prime_popup_toggle_state(self) -> None:
-        """Initialize popup tracking before the base widget constructor runs."""
-
-        self._attached_popup: object | None = None
-        self._attached_popup_marked_open = False
-        self._suppress_next_popup_show = False
-        self._closing_popup_from_toggle = False
-
-    def _track_attached_popup(self, popup: object | None) -> None:
-        """Register one popup instance for toggle-aware open and close tracking."""
-
-        previous_popup = getattr(self, "_attached_popup", None)
-        if previous_popup is not None and hasattr(previous_popup, "removeEventFilter"):
-            previous_popup.removeEventFilter(self)
-
-        self._attached_popup = popup
-        self._attached_popup_marked_open = False
-
-        log_debug(
-            _LOGGER,
-            "Updated tracked popup for toggle owner",
-            popup_attached=popup is not None,
-            **_popup_log_context(self, popup),
+        button = cast(QAbstractButton, self)
+        self._menu_controller = MenuButtonController(
+            button,
+            menu_position=lambda: button.mapToGlobal(QPoint(0, button.height())),
+            connect_clicked=False,
         )
-
-        if popup is None:
-            return
-
-        if hasattr(popup, "installEventFilter"):
-            popup.installEventFilter(self)
-
-        self._connect_popup_lifecycle_signal(popup, "closedSignal")
-        self._connect_popup_lifecycle_signal(popup, "destroyed")
-
-    def _connect_popup_lifecycle_signal(
-        self,
-        popup: object,
-        signal_name: str,
-    ) -> None:
-        """Connect one popup lifecycle signal back to the shared close tracker."""
-
-        signal = getattr(popup, signal_name, None)
-        if signal is None or not hasattr(signal, "connect"):
-            return
-        signal.connect(
-            lambda *_args, tracked_popup=popup: self._on_tracked_popup_closed(
-                tracked_popup
-            )
-        )
-
-    def _on_tracked_popup_closed(self, popup: object) -> None:
-        """Clear stale open state when the tracked popup closes or is destroyed."""
-
-        if popup is not self._attached_popup:
-            return
-
-        self._attached_popup_marked_open = False
-        if self._closing_popup_from_toggle:
-            self._suppress_next_popup_show = False
-            log_debug(
-                _LOGGER,
-                "Tracked popup closed from toggle action",
-                suppress_next_popup_show=False,
-                **_popup_log_context(self, popup),
-            )
-            return
-
-        if not _is_usable_qt_wrapper(self):
-            self._suppress_next_popup_show = False
-            log_debug(
-                _LOGGER,
-                "Skipped popup-close suppression recompute for invalid owner",
-                suppress_next_popup_show=False,
-                **_popup_log_context(self, popup),
-            )
-            return
-
-        self._suppress_next_popup_show = self._should_suppress_next_popup_show(popup)
-        log_debug(
-            _LOGGER,
-            "Tracked popup closed and updated suppression state",
-            popup_hide_by_system=bool(getattr(popup, "isHideBySystem", False)),
-            suppress_next_popup_show=self._suppress_next_popup_show,
-            **_popup_log_context(self, popup),
-        )
-
-    def _should_suppress_next_popup_show(self, popup: object) -> bool:
-        """Return whether the next trigger release should be consumed after a close."""
-
-        if sys.platform != "win32":
-            return False
-        if not bool(getattr(popup, "isHideBySystem", False)):
-            return False
-        return self._is_cursor_over_popup_trigger()
-
-    def _is_cursor_over_popup_trigger(self) -> bool:
-        """Return whether the cursor is currently over this wrapper's trigger area."""
-
-        return self._widget_contains_cursor(self)
-
-    @staticmethod
-    def _widget_contains_cursor(widget: object) -> bool:
-        """Return whether the supplied widget contains the global cursor position."""
-
-        if not _is_usable_qt_wrapper(widget):
-            log_debug(
-                _LOGGER,
-                "Skipped cursor hit-test for invalid popup trigger",
-                widget_type=_qt_object_type(widget),
-            )
-            return False
-
-        rect = getattr(widget, "rect", None)
-        map_from_global = getattr(widget, "mapFromGlobal", None)
-        if not callable(rect) or not callable(map_from_global):
-            return False
-
-        try:
-            contains = getattr(rect(), "contains", None)
-            if not callable(contains):
-                return False
-            return bool(contains(map_from_global(QCursor.pos())))
-        except RuntimeError as error:
-            log_debug(
-                _LOGGER,
-                "Popup trigger cursor hit-test failed during teardown",
-                widget_type=_qt_object_type(widget),
-                error=repr(error),
-            )
-            return False
-
-    def _toggle_attached_popup(self, show_popup: Callable[[], None]) -> None:
-        """Hide the current popup when open or invoke the inherited show path."""
-
-        if self._suppress_next_popup_show:
-            self._suppress_next_popup_show = False
-            log_debug(
-                _LOGGER,
-                "Consumed suppressed popup show on trigger release",
-                suppress_next_popup_show=False,
-                **_popup_log_context(self, self._attached_popup),
-            )
-            return
-
-        popup = self._attached_popup
-        if popup is not None and self._is_attached_popup_open(popup):
-            log_debug(
-                _LOGGER,
-                "Hiding tracked popup from toggle trigger",
-                **_popup_log_context(self, popup),
-            )
-            self._hide_attached_popup(popup)
-            self._attached_popup_marked_open = False
-            return
-
-        self._attached_popup_marked_open = popup is not None
-        log_debug(
-            _LOGGER,
-            "Showing tracked popup from toggle trigger",
-            popup_marked_open=self._attached_popup_marked_open,
-            **_popup_log_context(self, popup),
-        )
-        show_popup()
-
-    def _is_attached_popup_open(self, popup: object) -> bool:
-        """Return whether the tracked popup is currently considered open."""
-
-        if popup is not self._attached_popup:
-            return False
-        if self._attached_popup_marked_open:
-            return True
-        visible = getattr(popup, "isVisible", None)
-        if not callable(visible):
-            return False
-        try:
-            return bool(visible())
-        except RuntimeError:
-            self._attached_popup_marked_open = False
-            return False
-
-    def _hide_attached_popup(self, popup: object) -> None:
-        """Hide or close the tracked popup without re-entering the show path."""
-
-        hide = getattr(popup, "hide", None)
-        if callable(hide):
-            self._closing_popup_from_toggle = True
-            try:
-                hide()
-            finally:
-                self._closing_popup_from_toggle = False
-            return
-        close = getattr(popup, "close", None)
-        if callable(close):
-            self._closing_popup_from_toggle = True
-            try:
-                close()
-            finally:
-                self._closing_popup_from_toggle = False
-
-    def eventFilter(self, watched: object, event: object) -> bool:
-        """Clear tracked open state when the current popup hides or closes."""
-
-        event_type = getattr(event, "type", None)
-        if (
-            watched is self._attached_popup
-            and callable(event_type)
-            and event_type()
-            in {
-                QEvent.Type.Hide,
-                QEvent.Type.Close,
-                QEvent.Type.Destroy,
-            }
-        ):
-            self._on_tracked_popup_closed(watched)
-
-        parent_event_filter = getattr(super(), "eventFilter", None)
-        if callable(parent_event_filter):
-            return bool(parent_event_filter(watched, event))
-        return False
-
-
-class _ToggleDropDownButtonMixin(_PopupToggleMixin):
-    """Apply toggle semantics to QFluent dropdown tool buttons."""
 
     def setMenu(self, menu: object) -> None:
-        """Attach one menu and register it with the shared popup tracker."""
+        """Attach one menu through QFluent and the shared lifecycle owner."""
 
         cast(DropDownToolButton, super()).setMenu(menu)
-        self._track_attached_popup(menu)
+        self._menu_controller.set_menu(menu)
+
+    def set_popup_menu(self, menu: object) -> None:
+        """Expose the architecture-approved menu attachment boundary."""
+
+        self.setMenu(menu)
+
+    def _toggle_menu(self, show_menu: object) -> None:
+        """Toggle the attached menu through its QFluent show operation."""
+
+        if callable(show_menu):
+            self._menu_controller.trigger_with(show_menu)
+
+
+class _ToggleDropDownToolButtonMixin(_ToggleDropDownButtonMixin):
+    """Adapt QFluent tool-button release delivery to shared menu ownership."""
 
     def mouseReleaseEvent(self, event: object) -> None:
         """Forward base release handling and then toggle the attached menu."""
 
         runtime_button = cast(DropDownToolButton, self)
         ToolButton.mouseReleaseEvent(runtime_button, event)
-        self._toggle_attached_popup(runtime_button._showMenu)
+        self._toggle_menu(runtime_button._showMenu)
 
 
-class _ToggleSplitButtonMixin(_PopupToggleMixin):
-    """Apply toggle semantics to QFluent split-button drop arrows."""
+class _ToggleDropDownPushButtonMixin(_ToggleDropDownButtonMixin):
+    """Adapt QFluent push-button release delivery to shared menu ownership."""
+
+    def mouseReleaseEvent(self, event: object) -> None:
+        """Forward base release handling and then toggle the attached menu."""
+
+        runtime_button = cast(DropDownPushButton, self)
+        PushButton.mouseReleaseEvent(runtime_button, event)
+        self._toggle_menu(runtime_button._showMenu)
+
+
+class _ToggleSplitButtonMixin:
+    """Delegate QFluent split-arrow flyout lifecycle to the shared controller."""
 
     def _prime_split_toggle_state(self) -> None:
         """Initialize one-time drop-button rewiring state."""
 
         self._toggle_wired_drop_button: object | None = None
+        self._attached_flyout: object | None = None
+        self._menu_controller: MenuButtonController | None = None
 
     def setFlyout(self, flyout: object) -> None:
-        """Attach one flyout and register it with the shared popup tracker."""
+        """Attach one flyout through QFluent and the shared lifecycle owner."""
 
         cast("_SplitButtonBase", super()).setFlyout(flyout)
-        self._track_attached_popup(flyout)
+        self._attached_flyout = flyout
+        if self._menu_controller is not None:
+            self._menu_controller.set_menu(flyout)
+
+    def set_popup_flyout(self, flyout: object) -> None:
+        """Expose the architecture-approved flyout attachment boundary."""
+
+        self.setFlyout(flyout)
 
     def setDropButton(self, button: object) -> None:
         """Replace the drop button and restore toggle-aware arrow wiring."""
@@ -420,6 +234,14 @@ class _ToggleSplitButtonMixin(_PopupToggleMixin):
 
         connect = getattr(clicked_signal, "connect", None)
         if callable(connect):
+            trigger = cast(QAbstractButton, drop_button)
+            self._menu_controller = MenuButtonController(
+                trigger,
+                menu_position=lambda: trigger.mapToGlobal(QPoint(0, trigger.height())),
+                connect_clicked=False,
+            )
+            if self._attached_flyout is not None:
+                self._menu_controller.set_menu(self._attached_flyout)
             connect(cast("_SplitButtonBase", self).dropDownClicked)
             connect(self._toggle_drop_flyout)
             self._toggle_wired_drop_button = drop_button
@@ -427,26 +249,27 @@ class _ToggleSplitButtonMixin(_PopupToggleMixin):
     def _toggle_drop_flyout(self) -> None:
         """Toggle the tracked flyout instead of always reopening it."""
 
-        self._toggle_attached_popup(cast("_SplitButtonBase", self).showFlyout)
-
-    def _is_cursor_over_popup_trigger(self) -> bool:
-        """Return whether the cursor is currently over the drop-arrow trigger."""
-
-        return self._widget_contains_cursor(getattr(self, "dropButton", None))
+        if self._menu_controller is not None:
+            self._menu_controller.trigger_with(
+                cast("_SplitButtonBase", self).showFlyout
+            )
 
 
-class ToggleDropDownToolButton(_ToggleDropDownButtonMixin, DropDownToolButton):
+class ToggleDropDownToolButton(
+    _ToggleDropDownToolButtonMixin,
+    DropDownToolButton,
+):
     """Close the attached menu on repeated clicks instead of reopening it."""
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         """Initialize the runtime widget and shared popup tracking state."""
 
-        self._prime_popup_toggle_state()
         super().__init__(*args, **kwargs)
+        self._initialize_menu_controller()
 
 
 class ToggleTransparentDropDownToolButton(
-    _ToggleDropDownButtonMixin,
+    _ToggleDropDownToolButtonMixin,
     TransparentDropDownToolButton,
 ):
     """Close the attached menu on repeated clicks for transparent dropdown tools."""
@@ -454,8 +277,21 @@ class ToggleTransparentDropDownToolButton(
     def __init__(self, *args: object, **kwargs: object) -> None:
         """Initialize the runtime widget and shared popup tracking state."""
 
-        self._prime_popup_toggle_state()
         super().__init__(*args, **kwargs)
+        self._initialize_menu_controller()
+
+
+class ToggleDropDownPushButton(
+    _ToggleDropDownPushButtonMixin,
+    DropDownPushButton,
+):
+    """Close an attached push-button menu on repeated clicks."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        """Initialize the QFluent button and shared lifecycle controller."""
+
+        super().__init__(*args, **kwargs)
+        self._initialize_menu_controller()
 
 
 class ToggleSplitToolButton(_ToggleSplitButtonMixin, SplitToolButton):
@@ -464,7 +300,6 @@ class ToggleSplitToolButton(_ToggleSplitButtonMixin, SplitToolButton):
     def __init__(self, *args: object, **kwargs: object) -> None:
         """Initialize the runtime widget, popup tracking, and arrow rewiring."""
 
-        self._prime_popup_toggle_state()
         self._prime_split_toggle_state()
         super().__init__(*args, **kwargs)
         self._wire_toggle_drop_button()
@@ -476,13 +311,13 @@ class TogglePrimarySplitPushButton(_ToggleSplitButtonMixin, PrimarySplitPushButt
     def __init__(self, *args: object, **kwargs: object) -> None:
         """Initialize the runtime widget, popup tracking, and arrow rewiring."""
 
-        self._prime_popup_toggle_state()
         self._prime_split_toggle_state()
         super().__init__(*args, **kwargs)
         self._wire_toggle_drop_button()
 
 
 __all__ = [
+    "ToggleDropDownPushButton",
     "ToggleDropDownToolButton",
     "TogglePrimarySplitPushButton",
     "ToggleSplitToolButton",

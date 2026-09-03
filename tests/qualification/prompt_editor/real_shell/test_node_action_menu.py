@@ -62,7 +62,7 @@ def test_real_shell_node_cog_contains_prompt_actions_without_editor_commands(
         button.click()
 
         binding = getattr(title_row, "_node_card_action_menu_binding")
-        root_menu = cast(Any, binding)._active_menu
+        root_menu = cast(Any, binding)._menu_controller.menu()
         top_level_labels = _top_level_labels(root_menu)
         assert "Rich prompt rendering" in top_level_labels
         assert "Value" not in top_level_labels

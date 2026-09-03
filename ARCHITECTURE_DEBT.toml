@@ -710,7 +710,7 @@ next_extraction = "Move registry access and feature coordination behind focused 
 id = "SS-ARCH-052"
 owner = "editor cube section"
 paths = ["substitute/presentation/editor/panel/widgets/cube_section.py"]
-fingerprint = "sha256:0f7ac91ab0c5fe2bd8e01c04e468d003a39fcae725a2fdf13cf9a177f4fcfd3d"
+fingerprint = "sha256:ca48ac38bf4ecd42e7413228647f80196bd0129e58b20f2dfa13823ce517edcc"
 issue = "chore:SS-ARCH-052"
 review_by = 2026-12-15
 responsibilities = [
@@ -887,22 +887,6 @@ responsibilities = [
   "renderer registration and theme adaptation",
 ]
 next_extraction = "Split emphasis, wildcard, and LoRA renderers into focused modules behind the renderer registry contract."
-
-[[debts]]
-id = "SS-ARCH-063"
-owner = "prompt context menus"
-paths = ["substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py"]
-fingerprint = "sha256:75afce1f0da27bf429d3f2de7f29aed92a8ef1adf710bc44d7d0e4a7b338c31d"
-issue = "chore:SS-ARCH-063"
-review_by = 2026-12-15
-responsibilities = [
-  "context-event routing and insert state",
-  "native text edit actions",
-  "prompt semantic-menu request preparation",
-  "node-menu target preparation",
-  "inline LoRA menu routing",
-]
-next_extraction = "Extract inline LoRA routing from context-event and insertion-state coordination."
 
 [[debts]]
 id = "SS-ARCH-064"

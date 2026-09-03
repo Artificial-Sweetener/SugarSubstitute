@@ -2446,10 +2446,6 @@ Install these nodes now?</source>
       <translation>⟦Hïdë Füll Qüëüë Pànël ···⟧</translation>
     </message>
     <message>
-      <source>Hide advanced inputs</source>
-      <translation>⟦Hïdë àdvàncëd ïnpüts ···⟧</translation>
-    </message>
-    <message>
       <source>Hide full queue panel</source>
       <translation>⟦Hïdë füll qüëüë pànël ···⟧</translation>
     </message>

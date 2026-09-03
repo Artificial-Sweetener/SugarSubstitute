@@ -729,19 +729,6 @@ next_limit = 1128
 debt = "SS-ARCH-062"
 
 [[waivers]]
-id = "SS-WAIVER-R063"
-owner = "prompt context menus"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py"
-kind = "remediation"
-justification = "The assessed file mixes context-event routing and insert state, native text edit actions, prompt semantic-menu request preparation, node-menu target preparation, and inline LoRA menu routing. Extract inline LoRA routing from context-event and insertion-state coordination."
-issue = "chore:SS-ARCH-063"
-review_by = 2026-12-15
-max_lines = 529
-next_limit = 423
-debt = "SS-ARCH-063"
-
-[[waivers]]
 id = "SS-WAIVER-R064"
 owner = "prompt editor shell"
 rule = "STRUCT003"

@@ -34,8 +34,8 @@ from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.interactions import (
     danbooru_dialog_runner as danbooru_dialog_runner_module,
 )
-from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
-    _PromptEditorTextEditMenu,
+from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
+    PromptTextMenu,
 )
 from tests.presentation.editor.prompt_editor.context_menu.event_positions import (
     context_event_for_source_text,
@@ -83,7 +83,7 @@ def test_prompt_editor_context_menu_adds_danbooru_wiki_action_for_selection(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
@@ -124,7 +124,7 @@ def test_prompt_editor_context_menu_omits_danbooru_wiki_action_without_selection
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
@@ -153,7 +153,7 @@ def test_phase24_1_context_menu_omits_disabled_danbooru_lookup(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    menu = _PromptEditorTextEditMenu(
+    menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         selected_prompt_text="long hair",

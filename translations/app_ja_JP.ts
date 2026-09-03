@@ -95,7 +95,7 @@ Prompt preview:
       <translation>%1（%2）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_title.py" line="33"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_title.py" line="34"></location>
       <source>%1 (bypassed)</source>
       <translation>%1（バイパス）</translation>
     </message>
@@ -310,7 +310,7 @@ Prompt preview:
       <translation>%1% 完了</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="732"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="731"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
     </message>
@@ -815,7 +815,7 @@ Prompt preview:
       <translation>既定では、管理対象の ComfyUI フォルダーは Substitute フォルダー内に `comfyui` という名前で作成されます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="295"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="310"></location>
       <source>Bypass</source>
       <translation>バイパス</translation>
     </message>
@@ -860,7 +860,7 @@ Prompt preview:
       <translation>ジョブをキャンセル</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="278"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="329"></location>
       <source>Cancel loading</source>
       <translation>読み込みをキャンセル</translation>
     </message>
@@ -2180,7 +2180,7 @@ Prompt preview:
       <translation>キューブ依存関係の修復によってターゲット環境が変更されました。修復したキューブで生成する前に ComfyUI を再起動してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="979"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="977"></location>
       <source>Cube disabled</source>
       <translation>キューブは無効です</translation>
     </message>
@@ -2248,7 +2248,7 @@ Install these nodes now?</source>
       <translation>カーブ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="538"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="580"></location>
       <source>Cut</source>
       <translation>切り取り</translation>
     </message>
@@ -2428,7 +2428,7 @@ Install these nodes now?</source>
       <translation>保存しない</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="271"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
       <source>Don't save outputs</source>
       <translation>出力を保存しない</translation>
     </message>
@@ -2503,7 +2503,7 @@ Install these nodes now?</source>
       <translation>ドラッグとコピーの形式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="301"></location>
       <source>Duplicate</source>
       <translation>複製</translation>
     </message>
@@ -3111,11 +3111,6 @@ Install these nodes now?</source>
       <translation>フルキューパネルを非表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="53"></location>
-      <source>Hide advanced inputs</source>
-      <translation>詳細入力を非表示</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
       <source>Hide full queue panel</source>
       <translation>キューパネル全体を非表示</translation>
@@ -3236,12 +3231,12 @@ Install these nodes now?</source>
       <translation>プロンプトメニューから Prompt Control LoRA のスケジュールトークンを挿入します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="607"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="188"></location>
       <source>Insert saved segment</source>
       <translation>保存済みのセグメントを挿入</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="651"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="232"></location>
       <source>Insert trigger words</source>
       <translation>トリガーワードを挿入</translation>
     </message>
@@ -3381,7 +3376,7 @@ Install these nodes now?</source>
       <translation>種類：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="60"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="64"></location>
       <source>Landscape</source>
       <translation>横向き</translation>
     </message>
@@ -4146,7 +4141,7 @@ Install these nodes now?</source>
       <translation>ノード ID：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="70"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="80"></location>
       <source>Node actions</source>
       <translation>ノードの操作</translation>
     </message>
@@ -4426,7 +4421,7 @@ Install these nodes now?</source>
       <translation>プロンプト内の Prompt Control LoRA スケジュールトークンを解析して装飾します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="552"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="594"></location>
       <source>Paste</source>
       <translation>貼り付け</translation>
     </message>
@@ -4551,7 +4546,7 @@ Install these nodes now?</source>
       <translation>ポートには 1 から 65535 までの値を指定してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="65"></location>
       <source>Portrait</source>
       <translation>縦向き</translation>
     </message>
@@ -4786,7 +4781,7 @@ Install these nodes now?</source>
       <translation>ローカルモデルキャッシュにある既知のハッシュを CivitAI で検索します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="595"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="176"></location>
       <source>Queue this scene</source>
       <translation>このシーンをキューに追加</translation>
     </message>
@@ -4976,7 +4971,7 @@ Install these nodes now?</source>
       <translation>Cube Pack を削除</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="293"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="308"></location>
       <source>Remove bypass</source>
       <translation>バイパスを解除</translation>
     </message>
@@ -5235,7 +5230,7 @@ No known extension claimant.</source>
       <translation>再試行</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="796"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="795"></location>
       <source>Reveal Hidden Cards</source>
       <translation>非表示のカードを表示</translation>
     </message>
@@ -5320,7 +5315,7 @@ No known extension claimant.</source>
       <translation>起動レポートを確認してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="704"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="157"></location>
       <source>Rich prompt rendering</source>
       <translation>リッチプロンプト表示</translation>
     </message>
@@ -5335,12 +5330,12 @@ No known extension claimant.</source>
       <translation>右に回転</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="271"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="252"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Sugar Substitute の起動スプラッシュを実行します。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="236"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="287"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute のスプラッシュホストを実行します。</translation>
     </message>
@@ -5415,7 +5410,7 @@ No known extension claimant.</source>
       <translation>保存</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="224"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="229"></location>
       <source>Save %1 preset</source>
       <translation>%1 プリセットを保存</translation>
     </message>
@@ -5445,12 +5440,12 @@ No known extension claimant.</source>
       <translation>続行する前に「%1」への変更を保存しますか？</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="215"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="220"></location>
       <source>Save current %1 as preset...</source>
       <translation>現在の %1 をプリセットとして保存...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="54"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
       <source>Save current dimensions</source>
       <translation>現在のサイズを保存</translation>
     </message>
@@ -5460,12 +5455,12 @@ No known extension claimant.</source>
       <translation>各キューブの出力を保存するか、最後のアクティブキューブだけを保存します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="472"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="520"></location>
       <source>Save for %1</source>
       <translation>%1 用に保存</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
       <source>Save globally</source>
       <translation>グローバルに保存</translation>
     </message>
@@ -5475,7 +5470,7 @@ No known extension claimant.</source>
       <translation>プリセットを保存または読み込む</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="273"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="288"></location>
       <source>Save outputs</source>
       <translation>出力を保存</translation>
     </message>
@@ -5485,7 +5480,7 @@ No known extension claimant.</source>
       <translation>部分を保存</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="674"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="255"></location>
       <source>Save segment as...</source>
       <translation>セグメントに名前を付けて保存...</translation>
     </message>
@@ -5555,7 +5550,7 @@ No known extension claimant.</source>
       <translation>ワイルドカード値ではシーンを使用できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="692"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="273"></location>
       <source>Schedule LoRA</source>
       <translation>LoRA を予約</translation>
     </message>
@@ -5635,7 +5630,7 @@ No known extension claimant.</source>
       <translation>代わりに Python を手動で選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="559"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="601"></location>
       <source>Select all</source>
       <translation>すべて選択</translation>
     </message>
@@ -5665,17 +5660,17 @@ No known extension claimant.</source>
       <translation>グローバルオーバーライドを設定</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="53"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
       <source>Set dimensions</source>
       <translation>サイズを設定</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="59"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="63"></location>
       <source>Set ratio by Height</source>
       <translation>高さを基準に縦横比を設定</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="62"></location>
       <source>Set ratio by Width</source>
       <translation>幅を基準に縦横比を設定</translation>
     </message>
@@ -5800,7 +5795,7 @@ No known extension claimant.</source>
       <translation>フルキューパネルを表示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="52"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="63"></location>
       <source>Show advanced inputs</source>
       <translation>詳細入力を表示</translation>
     </message>
@@ -6681,7 +6676,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>支援者</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="52"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="56"></location>
       <source>Swap width &amp; height</source>
       <translation>幅と高さを入れ替え</translation>
     </message>
@@ -7466,7 +7461,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>更新は任意です。ダウンロードしたバージョンは現在のファイルと並べて追加され、既存のワークフローは現在のモデルを使い続けます。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="265"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="264"></location>
       <source>Updating</source>
       <translation>更新しています</translation>
     </message>

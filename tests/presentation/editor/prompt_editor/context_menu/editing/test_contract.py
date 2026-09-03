@@ -32,8 +32,8 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
 
 from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.field_actions import FieldActionContext
-from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
-    _PromptEditorTextEditMenu,
+from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
+    PromptTextMenu,
 )
 from tests.presentation.editor.prompt_editor.context_menu.mounting import (
     create_prompt_editor,
@@ -132,7 +132,7 @@ def test_prompt_editor_context_menu_select_all_selects_full_source(
 
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
 
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(editor, schedule_lora=lambda: None)
     menu.exec(editor.mapToGlobal(editor.rect().center()))
     select_all_action = next(
@@ -148,8 +148,8 @@ def test_prompt_editor_context_menu_owns_clipboard_rows_without_qfluent_text_men
 ):
     """Prompt clipboard rows should not inherit QFluent's text-edit menu behavior."""
 
-    assert issubclass(_PromptEditorTextEditMenu, RoundMenu)
-    assert not issubclass(_PromptEditorTextEditMenu, TextEditMenu)
+    assert issubclass(PromptTextMenu, RoundMenu)
+    assert not issubclass(PromptTextMenu, TextEditMenu)
 
 
 def test_prompt_editor_context_menu_clipboard_rows_use_shared_controller(
@@ -180,7 +180,7 @@ def test_prompt_editor_context_menu_clipboard_rows_use_shared_controller(
     monkeypatch.setattr(PromptEditor, "paste", fail_parent_clipboard_method)
     monkeypatch.setattr(PromptEditor, "selectAll", fail_parent_clipboard_method)
 
-    menu = _PromptEditorTextEditMenu(editor, schedule_lora=lambda: None)
+    menu = PromptTextMenu(editor, schedule_lora=lambda: None)
     menu.exec(editor.mapToGlobal(editor.rect().center()))
     actions = {action.text(): action for action in menu.menuActions()}
 
@@ -235,7 +235,7 @@ def test_prompt_editor_context_menu_clipboard_row_clicks_call_the_shared_actions
     QApplication.clipboard().setText("omega")
     clipboard_actions = _RecordingClipboardActions()
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu = _PromptEditorTextEditMenu(
+    menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         clipboard_actions=clipboard_actions,
@@ -294,7 +294,7 @@ def test_prompt_editor_context_menu_clipboard_click_and_shortcut_share_controlle
 
     monkeypatch.setattr(controller_type, method_name, record_controller_call)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu = _PromptEditorTextEditMenu(editor, schedule_lora=lambda: None)
+    menu = PromptTextMenu(editor, schedule_lora=lambda: None)
     menu.exec(editor.mapToGlobal(editor.rect().center()))
     action = next(action for action in menu.menuActions() if action.text() == row_text)
     item = next(
@@ -420,7 +420,7 @@ def test_prompt_editor_context_menu_undo_redo_follow_custom_stack(
 
     editor = create_prompt_editor(prompt_widgets)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
 
     clean_menu = menu_type(editor, schedule_lora=lambda: None)
     clean_menu.exec(editor.mapToGlobal(editor.rect().center()))
@@ -463,7 +463,7 @@ def test_prompt_editor_context_menu_copy_restores_exclusive_selection_end(
     cursor.setPosition(len("see-through dres"), QTextCursor.MoveMode.KeepAnchor)
     editor.setTextCursor(cursor)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,

@@ -18,10 +18,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Protocol
+from typing import Any, Protocol
 
 from PySide6.QtWidgets import QWidget
+
+from substitute.presentation.widgets.menu_button_controller import MenuButtonController
 
 class SignalLike(Protocol):
     """Describe the minimal signal surface used by the wrapper call sites."""
@@ -41,24 +42,17 @@ class ButtonPartLike(QWidget):
     def setStyleSheet(self, style: str) -> None: ...
     def setEnabled(self, enabled: bool) -> None: ...
 
-class _PopupToggleMixin:
-    """Track one attached popup and apply combo-box-like toggle semantics."""
-
-    _attached_popup: object | None
-    _attached_popup_marked_open: bool
-    _suppress_next_popup_show: bool
-
-    def _prime_popup_toggle_state(self) -> None: ...
-    def _track_attached_popup(self, popup: object | None) -> None: ...
-    def _toggle_attached_popup(self, show_popup: Callable[[], None]) -> None: ...
-    @staticmethod
-    def _widget_contains_cursor(widget: object) -> bool: ...
-
-class ToggleDropDownToolButton(_PopupToggleMixin, QWidget):
+class ToggleDropDownToolButton(QWidget):
     """Close the attached menu on repeated clicks instead of reopening it."""
+
+    _menu_controller: MenuButtonController
+    clicked: SignalLike
 
     def __init__(self, *args: object, **kwargs: object) -> None: ...
     def setMenu(self, menu: object) -> None: ...
+    def set_popup_menu(self, menu: object) -> None: ...
+    def menu(self) -> Any: ...
+    def text(self) -> str: ...
     def setToolTip(self, tooltip: str) -> None: ...
     def setEnabled(self, enabled: bool) -> None: ...
     def setVisible(self, visible: bool) -> None: ...
@@ -69,16 +63,21 @@ class ToggleDropDownToolButton(_PopupToggleMixin, QWidget):
 class ToggleTransparentDropDownToolButton(ToggleDropDownToolButton):
     """Close the attached menu on repeated clicks for transparent tool buttons."""
 
-class ToggleSplitToolButton(_PopupToggleMixin, QWidget):
+class ToggleDropDownPushButton(ToggleDropDownToolButton):
+    """Close the attached menu on repeated clicks for push buttons."""
+
+class ToggleSplitToolButton(QWidget):
     """Close the attached flyout on repeated drop-arrow clicks."""
 
     button: ButtonPartLike
     dropButton: ButtonPartLike
     clicked: SignalLike
     dropDownClicked: SignalLike
+    _menu_controller: MenuButtonController | None
 
     def __init__(self, *args: object, **kwargs: object) -> None: ...
     def setFlyout(self, flyout: object) -> None: ...
+    def set_popup_flyout(self, flyout: object) -> None: ...
     def setToolTip(self, tooltip: str) -> None: ...
     def setEnabled(self, enabled: bool) -> None: ...
     def setIcon(self, icon: object) -> None: ...

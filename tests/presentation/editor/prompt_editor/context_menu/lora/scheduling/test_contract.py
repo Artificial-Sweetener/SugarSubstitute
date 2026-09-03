@@ -29,8 +29,8 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
 from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLora,
 )
-from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
-    _PromptEditorTextEditMenu,
+from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
+    PromptTextMenu,
 )
 from tests.presentation.editor.prompt_editor.context_menu.mounting import (
     create_lora_prompt_editor,
@@ -116,7 +116,7 @@ def test_prompt_editor_context_menu_uses_cached_scheduled_loras(
     trigger_full_labels: list[object] = []
 
     def fake_exec(
-        self: _PromptEditorTextEditMenu,
+        self: PromptTextMenu,
         *_args: object,
         **_kwargs: object,
     ) -> None:
@@ -262,7 +262,7 @@ def test_prompt_editor_context_menu_uses_scene_effective_lora_context(
     trigger_full_labels: list[object] = []
 
     def fake_exec(
-        self: _PromptEditorTextEditMenu,
+        self: PromptTextMenu,
         *_args: object,
         **_kwargs: object,
     ) -> None:
@@ -310,7 +310,7 @@ def test_prompt_editor_lora_context_menu_hides_schedule_action_when_disabled(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,

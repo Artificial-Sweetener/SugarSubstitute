@@ -158,11 +158,6 @@ class PromptSemanticMenuCatalog:
                 checkable=True,
                 checked=self._rich_prompt_rendering_enabled,
                 checked_callback=self._toggle_rich_prompt_rendering,
-                icon=(
-                    FIF.ACCEPT.icon()
-                    if self._rich_prompt_rendering_enabled
-                    else transparent_menu_icon()
-                ),
             ),
         )
 

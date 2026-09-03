@@ -95,7 +95,7 @@ Prompt preview:
       <translation>%1（%2）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/cube_section_title.py" line="33"></location>
+      <location filename="../substitute/presentation/editor/panel/cube_section_title.py" line="34"></location>
       <source>%1 (bypassed)</source>
       <translation>%1（已绕过）</translation>
     </message>
@@ -310,7 +310,7 @@ Prompt preview:
       <translation>已完成 %1%</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="732"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="731"></location>
       <source>%1%2</source>
       <translation>%1%2</translation>
     </message>
@@ -815,7 +815,7 @@ Prompt preview:
       <translation>默认情况下，托管的 ComfyUI 文件夹会在 Substitute 文件夹内创建，名称为 `comfyui`。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="295"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="310"></location>
       <source>Bypass</source>
       <translation>旁路</translation>
     </message>
@@ -860,7 +860,7 @@ Prompt preview:
       <translation>取消任务</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="278"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="329"></location>
       <source>Cancel loading</source>
       <translation>取消加载</translation>
     </message>
@@ -2180,7 +2180,7 @@ Prompt preview:
       <translation>修复立方体依赖项更改了目标环境。请先重启 ComfyUI，再使用修复后的立方体进行生成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="979"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="977"></location>
       <source>Cube disabled</source>
       <translation>立方体已禁用</translation>
     </message>
@@ -2248,7 +2248,7 @@ Install these nodes now?</source>
       <translation>曲线</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="538"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="580"></location>
       <source>Cut</source>
       <translation>剪切</translation>
     </message>
@@ -2428,7 +2428,7 @@ Install these nodes now?</source>
       <translation>不保存</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="271"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
       <source>Don't save outputs</source>
       <translation>不保存输出</translation>
     </message>
@@ -2503,7 +2503,7 @@ Install these nodes now?</source>
       <translation>拖放和复制格式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="286"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="301"></location>
       <source>Duplicate</source>
       <translation>复制</translation>
     </message>
@@ -3111,11 +3111,6 @@ Install these nodes now?</source>
       <translation>隐藏完整队列面板</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="53"></location>
-      <source>Hide advanced inputs</source>
-      <translation>隐藏高级输入</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
       <source>Hide full queue panel</source>
       <translation>隐藏完整队列面板</translation>
@@ -3236,12 +3231,12 @@ Install these nodes now?</source>
       <translation>从提示词菜单插入 Prompt Control LoRA 调度标记。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="607"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="188"></location>
       <source>Insert saved segment</source>
       <translation>插入已保存的片段</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="651"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="232"></location>
       <source>Insert trigger words</source>
       <translation>插入触发词</translation>
     </message>
@@ -3381,7 +3376,7 @@ Install these nodes now?</source>
       <translation>类型：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="60"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="64"></location>
       <source>Landscape</source>
       <translation>横向</translation>
     </message>
@@ -4146,7 +4141,7 @@ Install these nodes now?</source>
       <translation>节点 ID：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="70"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="80"></location>
       <source>Node actions</source>
       <translation>节点操作</translation>
     </message>
@@ -4426,7 +4421,7 @@ Install these nodes now?</source>
       <translation>解析并修饰提示词中的 Prompt Control LoRA 调度标记。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="552"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="594"></location>
       <source>Paste</source>
       <translation>粘贴</translation>
     </message>
@@ -4551,7 +4546,7 @@ Install these nodes now?</source>
       <translation>端口必须介于 1 和 65535 之间。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="65"></location>
       <source>Portrait</source>
       <translation>纵向</translation>
     </message>
@@ -4786,7 +4781,7 @@ Install these nodes now?</source>
       <translation>向 CivitAI 查询本地模型缓存中已有的哈希值。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="595"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="176"></location>
       <source>Queue this scene</source>
       <translation>将此场景加入队列</translation>
     </message>
@@ -4976,7 +4971,7 @@ Install these nodes now?</source>
       <translation>移除 Cube Pack</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="293"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="308"></location>
       <source>Remove bypass</source>
       <translation>取消旁路</translation>
     </message>
@@ -5235,7 +5230,7 @@ No known extension claimant.</source>
       <translation>重试</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="796"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="795"></location>
       <source>Reveal Hidden Cards</source>
       <translation>显示隐藏的卡片</translation>
     </message>
@@ -5320,7 +5315,7 @@ No known extension claimant.</source>
       <translation>查看启动报告。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="704"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="157"></location>
       <source>Rich prompt rendering</source>
       <translation>富文本提示词渲染</translation>
     </message>
@@ -5335,12 +5330,12 @@ No known extension claimant.</source>
       <translation>向右旋转</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="271"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="252"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>运行 Sugar Substitute 启动画面。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="236"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="287"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>运行 SugarSubstitute 启动画面宿主。</translation>
     </message>
@@ -5415,7 +5410,7 @@ No known extension claimant.</source>
       <translation>保存</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="224"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="229"></location>
       <source>Save %1 preset</source>
       <translation>保存 %1 预设</translation>
     </message>
@@ -5445,12 +5440,12 @@ No known extension claimant.</source>
       <translation>继续前要保存对“%1”的更改吗？</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="215"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/node_title_preset_actions.py" line="220"></location>
       <source>Save current %1 as preset...</source>
       <translation>将当前 %1 保存为预设...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="54"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
       <source>Save current dimensions</source>
       <translation>保存当前尺寸</translation>
     </message>
@@ -5460,12 +5455,12 @@ No known extension claimant.</source>
       <translation>保存每个立方体的输出，或仅保存最后一个活动立方体的输出。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="472"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="520"></location>
       <source>Save for %1</source>
       <translation>为 %1 保存</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="61"></location>
       <source>Save globally</source>
       <translation>全局保存</translation>
     </message>
@@ -5475,7 +5470,7 @@ No known extension claimant.</source>
       <translation>保存或加载预设</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/workflows/cube_item.py" line="273"></location>
+      <location filename="../substitute/presentation/workflows/cube_item.py" line="288"></location>
       <source>Save outputs</source>
       <translation>保存输出</translation>
     </message>
@@ -5485,7 +5480,7 @@ No known extension claimant.</source>
       <translation>保存片段</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="674"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="255"></location>
       <source>Save segment as...</source>
       <translation>将片段另存为...</translation>
     </message>
@@ -5555,7 +5550,7 @@ No known extension claimant.</source>
       <translation>通配符值不支持场景。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="692"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_catalog.py" line="273"></location>
       <source>Schedule LoRA</source>
       <translation>安排 LoRA</translation>
     </message>
@@ -5635,7 +5630,7 @@ No known extension claimant.</source>
       <translation>改为手动选择 Python</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="559"></location>
+      <location filename="../substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py" line="601"></location>
       <source>Select all</source>
       <translation>全选</translation>
     </message>
@@ -5665,17 +5660,17 @@ No known extension claimant.</source>
       <translation>设置全局覆盖</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="53"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="57"></location>
       <source>Set dimensions</source>
       <translation>设置尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="59"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="63"></location>
       <source>Set ratio by Height</source>
       <translation>按高度设置宽高比</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="58"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="62"></location>
       <source>Set ratio by Width</source>
       <translation>按宽度设置宽高比</translation>
     </message>
@@ -5800,7 +5795,7 @@ No known extension claimant.</source>
       <translation>显示完整队列面板</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="52"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/action_menu.py" line="63"></location>
       <source>Show advanced inputs</source>
       <translation>显示高级输入</translation>
     </message>
@@ -6681,7 +6676,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>支持者</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="52"></location>
+      <location filename="../substitute/presentation/editor/panel/menus/dimension_row_actions.py" line="56"></location>
       <source>Swap width &amp; height</source>
       <translation>交换宽度和高度</translation>
     </message>
@@ -7466,7 +7461,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>更新是可选的。下载的版本会添加到当前文件旁，现有工作流会继续使用当前模型。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="265"></location>
+      <location filename="../substitute/presentation/editor/panel/widgets/cube_section.py" line="264"></location>
       <source>Updating</source>
       <translation>正在更新</translation>
     </message>

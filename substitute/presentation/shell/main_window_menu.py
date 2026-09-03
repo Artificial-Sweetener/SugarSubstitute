@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QWidget,
 )
-from qfluentwidgets import CheckableMenu, MenuIndicatorType  # type: ignore[import-untyped]
+from substitute.presentation.widgets.action_menu import ActionMenu
 
 from substitute.presentation.editor.panel.overrides_controller import (
     GlobalOverridesManager,
@@ -72,7 +72,7 @@ class MainWindowMenuWidgets:
     pending_restart_button: PendingRestartToolbarButton
     settings_toolbar_search_box: SettingsToolbarSearchBox
     context_search_box: FloatingSearchBox
-    global_override_menu: CheckableMenu
+    global_override_menu: ActionMenu
     override_managers: dict[str, GlobalOverridesManager]
 
 
@@ -173,11 +173,8 @@ def build_main_window_menu(
     cast(QWidget, context_search_box).setParent(window)
     context_search_box.hide()
 
-    global_override_menu = CheckableMenu(
-        parent=menu_bar,
-        indicatorType=MenuIndicatorType.CHECK,
-    )
-    override_dropdown_btn.setMenu(global_override_menu)
+    global_override_menu = ActionMenu(parent=menu_bar)
+    override_dropdown_btn.set_popup_menu(global_override_menu)
     override_managers: dict[str, GlobalOverridesManager] = {}
 
     def _apply_theme_styles() -> None:
