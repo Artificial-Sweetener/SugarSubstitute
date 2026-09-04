@@ -47,6 +47,10 @@ from substitute.application.workflows.output_canvas_projection_model import (
 from substitute.application.workflows.output_canvas_route_projection import (
     resolve_output_canvas_route,
 )
+from substitute.application.workflows.output_canvas_result_selection import (
+    ordered_projected_position_items,
+    output_projection_items,
+)
 
 
 def build_output_canvas_projection(
@@ -55,7 +59,7 @@ def build_output_canvas_projection(
 ) -> OutputCanvasProjection:
     """Return grouped output-canvas presentation state for a workflow."""
 
-    projection_items = _projection_items(workflow, image_meta_map)
+    projection_items = output_projection_items(workflow, image_meta_map)
     preferred_image_id = _manually_selected_image_id(workflow, image_meta_map)
     sources, set_count, _items_by_uuid = _source_groups_for_items(
         projection_items,
@@ -83,22 +87,9 @@ def build_output_canvas_projection(
         active_scene_overview=route.active_scene_overview,
         scene_count=route.scene_count,
         compare_state=workflow.output_compare_state,
+        focus_mode=workflow.output_focus_mode,
     )
     return projection
-
-
-def _projection_items(
-    workflow: WorkflowState,
-    image_meta_map: Mapping[UUID, ImageMeta],
-) -> tuple[tuple[UUID, ImageMeta], ...]:
-    """Return output image metadata in workflow display order."""
-
-    items: list[tuple[UUID, ImageMeta]] = []
-    for image_id in workflow.output_image_uuids:
-        image_meta = image_meta_map.get(image_id)
-        if image_meta is not None:
-            items.append((image_id, image_meta))
-    return tuple(items)
 
 
 def _source_groups_for_items(
@@ -151,23 +142,12 @@ def _source_groups_for_items(
             image_meta.batch_index is not None
             for _image_id, image_meta in positioned_items
         )
-        ordered_positioned_items = (
-            tuple(
-                sorted(
-                    _items_for_projected_positions(
-                        positioned_items,
-                        preferred_image_id=preferred_image_id,
-                    ),
-                    key=_position_sort_key,
-                )
-            )
-            if uses_explicit_batch_coordinates
-            else positioned_items
+        ordered_positioned_items = ordered_projected_position_items(
+            positioned_items,
+            preferred_image_id=preferred_image_id,
         )
-        for ordinal, (image_id, image_meta) in enumerate(
-            ordered_positioned_items,
-            start=1,
-        ):
+        explicit_set_indices = _explicit_set_indices(ordered_positioned_items)
+        for image_id, image_meta in ordered_positioned_items:
             if image_meta.list_index is None:
                 continue
             position = OutputResultPosition(
@@ -175,7 +155,7 @@ def _source_groups_for_items(
                 batch_index=image_meta.batch_index or 0,
             )
             set_index = (
-                ordinal
+                explicit_set_indices[image_id]
                 if uses_explicit_batch_coordinates
                 else image_meta.list_index + 1
             )
@@ -218,33 +198,31 @@ def _source_groups_for_items(
     return tuple(sources), set_count, items_by_uuid
 
 
-def _position_sort_key(entry: tuple[UUID, ImageMeta]) -> tuple[int, int]:
-    """Return a total order for metadata known to carry a list coordinate."""
-
-    image_meta = entry[1]
-    return image_meta.list_index or 0, image_meta.batch_index or 0
-
-
-def _items_for_projected_positions(
+def _explicit_set_indices(
     image_items: tuple[tuple[UUID, ImageMeta], ...],
-    *,
-    preferred_image_id: UUID | None,
-) -> tuple[tuple[UUID, ImageMeta], ...]:
-    """Keep one result per backend position while retaining manual focus."""
+) -> dict[UUID, int]:
+    """Flatten run/list coordinates while preserving sparse tensor batch slots."""
 
-    latest_by_position: dict[tuple[int, int], tuple[UUID, ImageMeta]] = {}
+    set_indices: dict[UUID, int] = {}
+    next_set_index = 1
+    current_group: tuple[str, int] | None = None
+    group_base = 1
+    group_extent = 0
     for image_id, image_meta in image_items:
-        latest_by_position[
-            (image_meta.list_index or 0, image_meta.batch_index or 0)
-        ] = (image_id, image_meta)
-    for image_id, image_meta in image_items:
-        if image_id != preferred_image_id:
-            continue
-        latest_by_position[
-            (image_meta.list_index or 0, image_meta.batch_index or 0)
-        ] = (image_id, image_meta)
-        break
-    return tuple(latest_by_position.values())
+        group = (
+            image_meta.generation_run_id,
+            image_meta.list_index or 0,
+        )
+        if group != current_group:
+            if current_group is not None:
+                next_set_index = group_base + group_extent
+            current_group = group
+            group_base = next_set_index
+            group_extent = 0
+        batch_index = image_meta.batch_index or 0
+        set_indices[image_id] = group_base + batch_index
+        group_extent = max(group_extent, batch_index + 1)
+    return set_indices
 
 
 def _direct_source_order(label: str) -> tuple[int, str]:

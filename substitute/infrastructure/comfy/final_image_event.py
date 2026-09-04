@@ -56,6 +56,7 @@ class FinalImageEvent:
     source: FinalImageSource
     artifacts: tuple[ComfyImageArtifact, ...]
     list_index: int
+    output_session_id: str | None = None
     scene: FinalImageScene = FinalImageScene()
 
 

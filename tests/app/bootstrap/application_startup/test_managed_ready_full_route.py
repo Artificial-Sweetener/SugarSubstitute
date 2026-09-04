@@ -79,6 +79,11 @@ class _FakeApp:
 
         self.quit_calls += 1
 
+    def request_quit(self) -> None:
+        """Model the queued application-exit boundary."""
+
+        self.quit()
+
 
 def _ensure_runtime_qapplication() -> None:
     """Ensure startup runtime services have a real Qt owner during tests."""

@@ -44,6 +44,7 @@ from tests.presentation.shell.generation.controller.support import (
     _BindingRecorder,
     _build_bindings,
     _snapshot,
+    _without_output_sessions,
     _progress_update,
     _completed,
     _emit_completed,
@@ -90,7 +91,12 @@ def test_continuous_completion_enqueues_next_snapshot_after_ui_completion() -> N
 
     assert controller.is_continuous_active is True
     assert recorder.completed == [_completed("wf-1")]
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == [
         _snapshot("First"),
         _snapshot("Second"),
     ]
@@ -139,7 +145,12 @@ def test_continuous_scene_cycle_requeues_only_after_last_scene_snapshot() -> Non
     )
 
     _emit_completed(first_callbacks, _completed("wf-1"))
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == [
         first_scene,
         second_scene,
     ]
@@ -147,7 +158,12 @@ def test_continuous_scene_cycle_requeues_only_after_last_scene_snapshot() -> Non
     _emit_completed(second_callbacks, _completed("wf-1"))
 
     assert len(fake_queue.batch_entry_calls) == 2
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == [
         first_scene,
         second_scene,
         next_cycle,

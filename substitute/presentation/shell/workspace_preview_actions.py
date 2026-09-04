@@ -54,15 +54,86 @@ class WorkspacePreviewActions:
         authorize_source = getattr(authorization, "authorize_preview_source", None)
         registry = getattr(self.view, "output_preview_registry", None)
         accept_preview = getattr(registry, "accept_preview", None)
+        preview_rejection_reason = getattr(
+            registry,
+            "preview_rejection_reason",
+            None,
+        )
         session_service = getattr(self.view, "workflow_session_service", None)
-        if not callable(authorize_preview) or not callable(accept_preview):
+        if (
+            not callable(authorize_preview)
+            or not callable(accept_preview)
+            or not callable(preview_rejection_reason)
+        ):
             return
+        active_workflow_id = str(
+            getattr(session_service, "active_workflow_id", "") or ""
+        )
+        validation = preview_rejection_reason(
+            preview,
+            session=session,
+            active_workflow_id=active_workflow_id,
+            authorize_preview=authorize_preview,
+            is_valid_source_placeholder=authorize_source,
+            is_valid_scene_placeholder=self._valid_scene_placeholder,
+        )
+        if validation is not None:
+            accept_preview(
+                preview,
+                session=session,
+                active_workflow_id=active_workflow_id,
+                authorize_preview=authorize_preview,
+                is_valid_source_placeholder=authorize_source,
+                is_valid_scene_placeholder=self._valid_scene_placeholder,
+            )
+            return
+        workflows = getattr(session_service, "workflows", None)
+        if not isinstance(workflows, Mapping):
+            return
+        has_lanes_outside_session = getattr(
+            registry,
+            "has_lanes_outside_output_session",
+            None,
+        )
+        if not callable(has_lanes_outside_session):
+            return
+        has_old_previews = bool(
+            has_lanes_outside_session(
+                workflow_id,
+                preview.identity.output_session_id,
+            )
+        )
+        result_service = getattr(self.view, "output_generated_result_service", None)
+        begin_session = getattr(
+            result_service, "begin_presentable_output_session", None
+        )
+        if not callable(begin_session):
+            return
+        handoff = begin_session(
+            workflows,
+            workflow_id,
+            output_session_id=preview.identity.output_session_id,
+        )
+        if not handoff.accepted:
+            return
+        coordinator = getattr(self.view, "output_canvas_projection_coordinator", None)
+        retire_images = getattr(coordinator, "retire_replaced_output_images", None)
+        project_workflow = getattr(coordinator, "project_workflow", None)
+        if handoff.retired_image_ids and callable(retire_images):
+            retire_images(handoff.retired_image_ids)
+        if handoff.retired_image_ids and callable(project_workflow):
+            project_workflow(workflows, workflow_id)
+            session = self._output_session(output_canvas, workflow_id)
+            if session is None:
+                return
+        elif has_old_previews:
+            clear_previews = getattr(output_canvas, "clear_previews", None)
+            if callable(clear_previews):
+                clear_previews()
         acceptance = accept_preview(
             preview,
             session=session,
-            active_workflow_id=str(
-                getattr(session_service, "active_workflow_id", "") or ""
-            ),
+            active_workflow_id=active_workflow_id,
             authorize_preview=authorize_preview,
             is_valid_source_placeholder=authorize_source,
             is_valid_scene_placeholder=self._valid_scene_placeholder,

@@ -26,7 +26,6 @@ from PySide6.QtCore import QObject, QTimer
 from shiboken6 import isValid
 
 from substitute.application.workflows.output_canvas_projection import (
-    OutputCanvasProjection,
     OutputCanvasSceneGroup,
     OutputCanvasSourceGroup,
 )
@@ -47,8 +46,10 @@ from substitute.presentation.canvas.output.output_canvas_navigation_controller i
 from substitute.presentation.canvas.output.output_canvas_navigation_visibility import (
     OutputCanvasNavigationVisibilityPolicy,
 )
-from substitute.presentation.canvas.output.output_canvas_route_model import (
-    OutputCanvasRouteModel,
+from substitute.presentation.canvas.output.output_canvas_route_state import (
+    output_route_state_snapshot,
+    output_scene_groups_by_key,
+    visible_output_source_groups_by_key,
 )
 from substitute.presentation.canvas.shared.output_nav_layout import OutputNavBarGeometry
 
@@ -380,15 +381,11 @@ def _navigation_controller(host: object) -> OutputCanvasNavigationController:
 def _scene_groups_by_key(host: object) -> dict[str, OutputCanvasSceneGroup]:
     """Return host projection scenes with revision-scoped preview overlays."""
 
-    projection = getattr(host, "_output_projection", None)
-    return OutputCanvasRouteModel.scene_groups_by_key(
-        projection if isinstance(projection, OutputCanvasProjection) else None,
-        preview_scene_groups_by_key=getattr(
-            getattr(host, "_output_revision_cache", None),
-            "preview_scene_groups_by_key",
-            {},
-        ),
-    )
+    document_navigation = getattr(host, "_document_navigation", None)
+    scene_groups = getattr(document_navigation, "scene_groups", None)
+    if callable(scene_groups):
+        return dict(scene_groups())
+    return output_scene_groups_by_key(output_route_state_snapshot(host))
 
 
 def _visible_source_groups_by_key(
@@ -396,13 +393,12 @@ def _visible_source_groups_by_key(
 ) -> dict[str, OutputCanvasSourceGroup]:
     """Return source selector rows visible for the host projection context."""
 
-    projection = getattr(host, "_output_projection", None)
-    return OutputCanvasRouteModel.visible_source_groups_by_key(
-        projection if isinstance(projection, OutputCanvasProjection) else None,
-        scene_groups_by_key=_scene_groups_by_key(host),
-        active_scene_overview=bool(getattr(host, "active_scene_overview", False)),
-        active_scene_key=getattr(host, "active_scene_key", None),
-        scene_count=int(getattr(host, "scene_count", 0)),
+    document_navigation = getattr(host, "_document_navigation", None)
+    visible_sources = getattr(document_navigation, "visible_sources", None)
+    if callable(visible_sources):
+        return dict(visible_sources())
+    return visible_output_source_groups_by_key(
+        output_route_state_snapshot(host),
     )
 
 

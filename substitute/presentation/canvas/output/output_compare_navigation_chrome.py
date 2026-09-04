@@ -267,11 +267,7 @@ def sync_output_compare_scene_button(
     """Refresh one comparison scene selector from the current projection."""
 
     projection = getattr(view, "_output_projection", None)
-    revision_cache = getattr(
-        view,
-        "_revision_cache",
-        getattr(view, "_output_revision_cache", None),
-    )
+    revision_cache = getattr(view, "_revision_cache", None)
     scene_groups = OutputCanvasRouteModel.scene_groups_by_key(
         projection if isinstance(projection, OutputCanvasProjection) else None,
         preview_scene_groups_by_key=getattr(

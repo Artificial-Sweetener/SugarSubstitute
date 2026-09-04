@@ -51,6 +51,7 @@ def test_handle_add_output_image_registers_without_direct_output_route_mutation(
     scheduled_projection: list[OutputProjectionSchedulingIntent] = []
     unread_tabs: list[tuple[str, bool]] = []
     recorded_activity: list[tuple[str, str]] = []
+    automatic_follow_releases: list[None] = []
     first_image_id = uuid.uuid4()
     second_image_id = uuid.uuid4()
     preview_identity = OutputPreviewCloseIdentity(
@@ -63,6 +64,7 @@ def test_handle_add_output_image_registers_without_direct_output_route_mutation(
         client_id="client-1",
         node_id="save",
         list_index=0,
+        batch_index=0,
         scene_run_id=None,
         scene_key=None,
         scene_title=None,
@@ -106,6 +108,11 @@ def test_handle_add_output_image_registers_without_direct_output_route_mutation(
                 SimpleNamespace(closed=True, closed_preview_ids=(uuid.uuid4(),)),
             )
         ),
+        output_canvas=SimpleNamespace(
+            release_automatic_preview_follow=lambda: automatic_follow_releases.append(
+                None
+            )
+        ),
         canvas_host=SimpleNamespace(
             canvas_for={
                 "Output": SimpleNamespace(
@@ -136,8 +143,8 @@ def test_handle_add_output_image_registers_without_direct_output_route_mutation(
 
     assert [entry[0] for entry in added] == ["register", "register"]
     assert closed_preview_lanes == [preview_identity]
-    assert len(preview_acceptances) == 1
-    assert preview_acceptances[0].retired_preview_ids
+    assert automatic_follow_releases == [None]
+    assert preview_acceptances == []
     assert len(scheduled_projection) == 1
     assert scheduled_projection[0].workflow_id == "wf-a"
     assert scheduled_projection[0].registered_image_id == first_image_id
@@ -224,6 +231,7 @@ def test_handle_add_output_image_leaves_inactive_preview_lane_visible() -> None:
         client_id="client-1",
         node_id="save",
         list_index=0,
+        batch_index=0,
         scene_run_id=None,
         scene_key=None,
         scene_title=None,

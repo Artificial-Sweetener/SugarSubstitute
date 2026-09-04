@@ -50,21 +50,31 @@ def test_display_preview_image_updates_only_active_workflow() -> None:
         apply_preview_acceptance=previews.append,
     )
     registry = SimpleNamespace(
+        preview_rejection_reason=lambda *_args, **_kwargs: None,
+        has_lanes_outside_output_session=lambda *_args: False,
         accept_preview=lambda preview, **_kwargs: _record_and_return(
             registry_calls,
             preview.identity.workflow_id,
             accepted
             if preview.identity.workflow_id == "wf-1"
             else OutputPreviewAcceptance(accepted=False),
-        )
+        ),
     )
     view = SimpleNamespace(
-        workflow_session_service=SimpleNamespace(active_workflow_id="wf-1"),
+        workflow_session_service=SimpleNamespace(
+            active_workflow_id="wf-1",
+            workflows={"wf-1": WorkflowState()},
+        ),
         canvas_host=SimpleNamespace(
             canvas_for={"Output": output_canvas}.get,
             focus_attached_canvas=lambda label: focused.append(label),
         ),
         output_preview_registry=registry,
+        output_generated_result_service=SimpleNamespace(
+            begin_presentable_output_session=lambda *_args, **_kwargs: SimpleNamespace(
+                accepted=True, retired_image_ids=()
+            )
+        ),
         visual_authorization_service=SimpleNamespace(
             authorize_preview=lambda _identity: True
         ),
@@ -102,11 +112,13 @@ def test_display_preview_image_rebinds_stale_active_workflow_session() -> None:
         output_canvas._output_session = active_session
 
     registry = SimpleNamespace(
+        preview_rejection_reason=lambda *_args, **_kwargs: None,
+        has_lanes_outside_output_session=lambda *_args: False,
         accept_preview=lambda _preview, **kwargs: _record_and_return(
             accepted_sessions,
             kwargs["session"],
             accepted,
-        )
+        ),
     )
     workflows = {"wf-1": WorkflowState()}
     view = SimpleNamespace(
@@ -122,6 +134,11 @@ def test_display_preview_image_rebinds_stale_active_workflow_session() -> None:
             project_workflow=project_workflow
         ),
         output_preview_registry=registry,
+        output_generated_result_service=SimpleNamespace(
+            begin_presentable_output_session=lambda *_args, **_kwargs: SimpleNamespace(
+                accepted=True, retired_image_ids=()
+            )
+        ),
         visual_authorization_service=SimpleNamespace(
             authorize_preview=lambda _identity: True
         ),

@@ -143,6 +143,7 @@ def build_listener_output_pipeline(
             prompt_id=request.prompt_id,
             client_id=request.client_id,
             workflow_payload=request.workflow_payload,
+            output_session_id=request.output_session_id,
             scene=FinalImageScene(
                 run_id=request.scene_run_id,
                 key=request.scene_key,

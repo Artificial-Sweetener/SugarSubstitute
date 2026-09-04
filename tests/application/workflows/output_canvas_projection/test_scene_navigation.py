@@ -65,6 +65,71 @@ def test_projection_automatic_multi_scene_same_source_stays_on_scene_overview() 
     assert projection.active_uuid is None
 
 
+def test_projection_automatic_stays_all_with_multiple_populated_scenes() -> None:
+    """Keep Automatic on scene overview while later scene batches arrive."""
+
+    workflow = WorkflowState()
+    ids = [uuid4() for _ in range(8)]
+    workflow.output_image_uuids = ids[:7]
+    metadata = {
+        image_id: build_meta(
+            "Text to Image" if item_index % 2 == 0 else "Diffusion Upscale",
+            source_key="wf:text" if item_index % 2 == 0 else "wf:upscale",
+            scene_key=f"scene-{item_index // 2 + 1}",
+            scene_title=f"Scene {item_index // 2 + 1}",
+            scene_order=item_index // 2,
+            scene_count=3,
+            list_index=0,
+            batch_index=0,
+            generation_run_id=f"run-{item_index // 2 + 1}",
+            output_session_id="session-1",
+        )
+        for item_index, image_id in enumerate(ids[:6])
+    }
+    metadata[ids[6]] = build_meta(
+        "Text to Image",
+        source_key="wf:text",
+        scene_key="scene-1",
+        scene_title="Scene 1",
+        scene_order=0,
+        scene_count=3,
+        list_index=0,
+        batch_index=0,
+        generation_run_id="run-4",
+        output_session_id="session-1",
+    )
+
+    text_projection = build_output_canvas_projection(workflow, metadata)
+
+    assert text_projection.active_scene_key == "scene-1"
+    assert text_projection.active_scene_overview is True
+    assert text_projection.active_source_key is None
+    assert text_projection.active_set_index == 1
+    assert text_projection.active_uuid is None
+
+    workflow.output_image_uuids.append(ids[7])
+    metadata[ids[7]] = build_meta(
+        "Diffusion Upscale",
+        source_key="wf:upscale",
+        scene_key="scene-1",
+        scene_title="Scene 1",
+        scene_order=0,
+        scene_count=3,
+        list_index=0,
+        batch_index=0,
+        generation_run_id="run-4",
+        output_session_id="session-1",
+    )
+
+    upscale_projection = build_output_canvas_projection(workflow, metadata)
+
+    assert upscale_projection.active_scene_key == "scene-1"
+    assert upscale_projection.active_scene_overview is True
+    assert upscale_projection.active_source_key is None
+    assert upscale_projection.active_set_index == 1
+    assert upscale_projection.active_uuid is None
+
+
 def test_projection_manual_scene_overview_stays_on_scene_overview() -> None:
     """Manual All selection should remain active across later scene outputs."""
 
