@@ -56,7 +56,11 @@ def test_unequal_scene_sources_navigate_exact_batches_and_grid(
     harness.show_canvas("Output")
     expected_output_count = 0
     for scene_index in range(3):
-        run = harness.start_run("alpha", run_index=scene_index + 1)
+        run = harness.start_run(
+            "alpha",
+            run_index=scene_index + 1,
+            output_session_id="scene-run-alpha",
+        )
         scene = SceneSpec(
             run_id="scene-run-alpha",
             key=f"scene{scene_index + 1}",

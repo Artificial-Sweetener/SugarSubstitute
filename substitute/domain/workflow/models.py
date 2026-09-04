@@ -169,6 +169,7 @@ class ImageMeta:
     source_label: str = ""
     node_id: str = ""
     generation_run_id: str = ""
+    output_session_id: str = ""
     prompt_id: str = ""
     client_id: str = ""
     scene_run_id: str = ""

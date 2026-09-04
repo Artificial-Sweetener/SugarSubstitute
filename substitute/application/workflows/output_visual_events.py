@@ -62,6 +62,7 @@ class OutputVisualIdentity:
     source_key: str
     source_label: str
     scene: OutputVisualScene
+    output_session_id: str = ""
 
     @classmethod
     def from_update(
@@ -89,6 +90,11 @@ class OutputVisualIdentity:
             client_id=update.client_id,
             source_key=update.source_key,
             source_label=update.source_label,
+            output_session_id=(
+                update.output_session_id
+                or update.scene_run_id
+                or update.generation_run_id
+            ),
             scene=scene,
         )
 

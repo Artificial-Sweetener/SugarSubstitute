@@ -22,6 +22,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from uuid import UUID
 
+from substitute.application.workflows.output_automatic_frontier_projection import (
+    automatic_frontier_items,
+)
 from substitute.application.workflows.output_canvas_projection_model import (
     OutputCanvasImageItem,
     OutputCanvasSceneGroup,
@@ -57,6 +60,13 @@ def resolve_output_canvas_route(
         scene_groups,
         image_meta_map,
     )
+    active_scene = _scene_for_key(scene_groups, active_scene_key)
+    focus_sources = (
+        active_scene.sources
+        if scene_count > 1 and active_scene is not None
+        else sources
+    )
+    automatic_source_key = _latest_source_key_for_workflow(workflow, focus_sources)
     active_scene_overview = _active_scene_overview_for_workflow(
         workflow,
         scene_count=scene_count,
@@ -64,18 +74,18 @@ def resolve_output_canvas_route(
     if active_scene_overview:
         active_source_key, active_set_index, active_uuid = None, 1, None
     elif scene_count > 1 and active_scene_key is not None:
-        scene = _scene_for_key(scene_groups, active_scene_key)
-        focus_sources = scene.sources if scene is not None else ()
         active_source_key, active_set_index, active_uuid = _active_projection_focus(
             workflow=workflow,
             sources=focus_sources,
             items_by_uuid=_items_by_uuid_for_sources(focus_sources),
+            automatic_source_key=automatic_source_key,
         )
     else:
         active_source_key, active_set_index, active_uuid = _active_projection_focus(
             workflow=workflow,
             sources=sources,
             items_by_uuid=_items_by_uuid_for_sources(sources),
+            automatic_source_key=automatic_source_key,
         )
     return OutputCanvasResolvedRoute(
         scene_count=scene_count,
@@ -92,7 +102,7 @@ def _active_scene_overview_for_workflow(
     *,
     scene_count: int,
 ) -> bool:
-    """Expose scene overview only when multiple scenes are presentable."""
+    """Keep Automatic on All once more than one scene is presentable."""
 
     if scene_count <= 1:
         return False
@@ -112,15 +122,15 @@ def _active_scene_key_for_workflow(
         scene = _scene_for_key(scene_groups, workflow.active_output_scene_key)
         if scene is not None:
             return scene.scene_key
+    latest_scene_key = _latest_scene_key_for_workflow(workflow, image_meta_map)
+    if _scene_for_key(scene_groups, latest_scene_key) is not None:
+        return latest_scene_key
     uuid_scene_key = _active_scene_key_for_uuid(
         workflow.active_output_uuid,
         image_meta_map,
     )
     if _scene_for_key(scene_groups, uuid_scene_key) is not None:
         return uuid_scene_key
-    latest_scene_key = _latest_scene_key_for_workflow(workflow, image_meta_map)
-    if _scene_for_key(scene_groups, latest_scene_key) is not None:
-        return latest_scene_key
     return scene_groups[0].scene_key if scene_groups else None
 
 
@@ -168,6 +178,7 @@ def _active_projection_focus(
     workflow: WorkflowState,
     sources: tuple[OutputCanvasSourceGroup, ...],
     items_by_uuid: Mapping[UUID, tuple[str, OutputCanvasImageItem]],
+    automatic_source_key: str | None,
 ) -> tuple[str | None, int, UUID | None]:
     """Resolve active source/batch focus from user intent or automatic follow."""
 
@@ -177,15 +188,39 @@ def _active_projection_focus(
         if workflow.active_output_set_index == 0:
             return _manual_grid_focus(workflow, sources)
         return _manual_concrete_focus(workflow, sources, items_by_uuid)
-    return _automatic_focus(sources)
+    return _automatic_focus(sources, preferred_source_key=automatic_source_key)
 
 
 def _automatic_focus(
     sources: tuple[OutputCanvasSourceGroup, ...],
+    *,
+    preferred_source_key: str | None,
 ) -> tuple[str | None, int, UUID | None]:
-    """Promote the terminal populated source to its least-specific useful route."""
+    """Promote the newest populated source to its least-specific useful route."""
 
-    return _focus_for_source(sources[-1])
+    source = _source_for_key(sources, preferred_source_key) or sources[-1]
+    frontier = automatic_frontier_items(sources, source_key=source.source_key)
+    if len(frontier) > 1:
+        return source.source_key, 0, None
+    return _focus_for_source(source)
+
+
+def _latest_source_key_for_workflow(
+    workflow: WorkflowState,
+    sources: tuple[OutputCanvasSourceGroup, ...],
+) -> str | None:
+    """Return the source containing the newest projected workflow image."""
+
+    source_by_image_id = {
+        item.image_id: source.source_key
+        for source in sources
+        for item in source.images_by_set.values()
+    }
+    for image_id in reversed(workflow.output_image_uuids):
+        source_key = source_by_image_id.get(image_id)
+        if source_key is not None:
+            return source_key
+    return None
 
 
 def _manual_concrete_focus(

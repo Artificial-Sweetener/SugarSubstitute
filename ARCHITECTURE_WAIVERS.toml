@@ -139,7 +139,7 @@ kind = "remediation"
 justification = "The assessed file mixes prompt dispatch and request validation, listener lifecycle and preview routing, input asset staging, output preparation and generation diagnostics. Extract listener lifecycle and output routing from prompt dispatch and asset-staging orchestration."
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
-  max_lines = 754
+  max_lines = 746
 next_limit = 613
 debt = "SS-ARCH-012"
 
@@ -152,7 +152,7 @@ kind = "remediation"
 justification = "The assessed file mixes pending-job ordering and batch bookkeeping, output run-number reservation and commit, dispatch and Comfy interruption lifecycle, live progress and output projection, observer publication and terminal history. Extract output-run allocation and live-result projection from queue ordering and dispatch lifecycle."
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
-max_lines = 1566
+max_lines = 1558
 next_limit = 1261
 debt = "SS-ARCH-013"
 
@@ -409,10 +409,10 @@ owner = "output navigation"
 rule = "STRUCT003"
 path = "substitute/presentation/canvas/output/output_canvas_navigation_controller.py"
 kind = "remediation"
-justification = "The assessed file mixes navigation-bar geometry and measurement adapter, set, source, scene, grid, and item activation, selection restoration policy, selector presentation synchronization, host adapter discovery and signal dispatch. Extract layout measurement and selector synchronization from navigation intents and selection policy."
+justification = "The assessed file mixes navigation-bar responsive placement, set, source, scene, grid, and item activation, selection restoration policy, selector presentation synchronization, host adapter discovery and signal dispatch. Extract responsive bar placement and selector synchronization from navigation intents and selection policy."
 issue = "chore:SS-ARCH-037"
 review_by = 2026-12-15
-max_lines = 938
+max_lines = 825
 next_limit = 750
 debt = "SS-ARCH-037"
 
@@ -1010,7 +1010,7 @@ kind = "remediation"
 justification = "The assessed file mixes output focus and navigation mutation, external editor and asset reveal actions, generated and loaded output ingestion, output preparation and authorization, canvas host visibility and error presentation. Split external actions and output ingestion from output-navigation commands."
 issue = "chore:SS-ARCH-085"
 review_by = 2026-12-15
-max_lines = 833
+max_lines = 819
 next_limit = 732
 debt = "SS-ARCH-085"
 
@@ -1201,17 +1201,6 @@ review_by = 2026-12-15
 max_lines = 603
 
 [[waivers]]
-id = "SS-WAIVER-S012"
-owner = "output preview registry"
-rule = "STRUCT003"
-path = "substitute/application/workflows/output_preview_registry.py"
-kind = "structural"
-justification = "OutputPreviewRegistry is one in-memory aggregate for preview-lane admission, identity, lookup, generation-session rebinding, and retirement. Its acceptance predicates and mutations enforce the same lane-consistency invariant: a lane belongs to one workflow run and one current canvas-session revision. Separating session transition from lane storage would create two owners for registry consistency."
-issue = "chore:SS-WAIVER-S012"
-review_by = 2026-12-15
-max_lines = 553
-
-[[waivers]]
 id = "SS-WAIVER-S013"
 owner = "subgraph wrapper definition projection"
 rule = "STRUCT003"
@@ -1297,7 +1286,7 @@ kind = "structural"
 justification = "The module is the single explicit versioned JSON contract for workspace snapshots. Paired encoders and decoders for nested snapshot values must evolve atomically to preserve round-trip and backward-read invariants; splitting by nested type would distribute ownership of one persisted schema."
 issue = "chore:SS-WAIVER-S020"
 review_by = 2026-12-15
-max_lines = 1086
+max_lines = 1088
 
 [[waivers]]
 id = "SS-WAIVER-S021"
@@ -1792,7 +1781,7 @@ kind = "structural"
 justification = "WorkspaceGenerationController owns one UI generation lifecycle across single, batch, queued, and continuous activation. Preparation submission, queue admission, callbacks, cancellation/skip, backend availability, continuous rescheduling, and terminal recovery share one active-generation state."
 issue = "chore:SS-WAIVER-S068"
 review_by = 2026-12-15
-max_lines = 803
+max_lines = 820
 
 [[waivers]]
 id = "SS-WAIVER-S069"
@@ -1991,7 +1980,7 @@ kind = "structural"
 justification = "This module owns one atomic managed-ready application launch transaction. Its local application, runtime-service boundary, scheduler, splash, shell, readiness, compatibility, warmup, restore, and cleanup doubles share one deterministic event trace that proves activation after the event loop, timer ordering before shell construction, readiness before backend-ready, restoration before reveal, splash closure before showing the shell, and terminal resource cleanup. Splitting those local participants would fragment the trace owner, duplicate callback and timer identity, or weaken the complete route's fault sensitivity."
 issue = "chore:SS-WAIVER-S150"
 review_by = 2026-12-15
-max_lines = 616
+max_lines = 619
 
 [[waivers]]
 id = "SS-WAIVER-S104"
@@ -2057,7 +2046,7 @@ kind = "structural"
 justification = "This module owns one user-level driver for the real-shell output canvas. Harness-safe shell construction, workflow and output seeding, preview and final delivery, route selection, rendered control interaction, workflow lifecycle, projection waiting, and snapshot capture are operations over the same mounted shell and active output session."
 issue = "chore:SS-WAIVER-S120"
 review_by = 2026-12-15
-max_lines = 631
+max_lines = 670
 
 [[waivers]]
 id = "SS-WAIVER-S126"

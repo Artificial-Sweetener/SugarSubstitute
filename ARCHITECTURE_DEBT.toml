@@ -155,7 +155,7 @@ next_extraction = "Extract error payload interpretation and report rendering fro
 id = "SS-ARCH-012"
 owner = "generation execution"
 paths = ["substitute/application/generation/generation_service.py"]
-fingerprint = "sha256:a49151f59ec5bfdbef1e461fb5ba35bcea71d5c5401ded6401682d5bff3deb9f"
+fingerprint = "sha256:27d42da58b53b4969922417c9794d5b9e5f1058da3c2bac010bdbd1f9c16ebe2"
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
 responsibilities = [
@@ -170,7 +170,7 @@ next_extraction = "Extract listener lifecycle and output routing from prompt dis
 id = "SS-ARCH-013"
 owner = "generation job queue"
 paths = ["substitute/application/generation/job_queue_service.py"]
-fingerprint = "sha256:f931369229205752e5f64f812d0361853f7156cea4299b5aaf743f9f1f04c5fc"
+fingerprint = "sha256:08eb75b5072a1c5df82ed3decae3943750add81ad03eef3c35db84d9f303058a"
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
 responsibilities = [
@@ -484,17 +484,17 @@ next_extraction = "Extract pure navigation planning and measurement from Qt widg
 id = "SS-ARCH-037"
 owner = "output navigation"
 paths = ["substitute/presentation/canvas/output/output_canvas_navigation_controller.py"]
-fingerprint = "sha256:b13a4644ee7839c11adb9d3eedd0114e522f5ae6fab1d17138bb1e619ec84397"
+fingerprint = "sha256:d7a1f185ad42c75912ea0259dbc99f1e8f376772e168e3102b106a2321007304"
 issue = "chore:SS-ARCH-037"
 review_by = 2026-12-15
 responsibilities = [
-  "navigation-bar geometry and measurement adapter",
+  "navigation-bar responsive placement adapter",
   "set, source, scene, grid, and item activation",
   "selection restoration policy",
   "selector presentation synchronization",
   "host adapter discovery and signal dispatch",
 ]
-next_extraction = "Extract layout measurement and selector synchronization from navigation intents and selection policy."
+next_extraction = "Extract responsive bar placement and selector synchronization from navigation intents and selection policy."
 
 [[debts]]
 id = "SS-ARCH-039"
@@ -1241,7 +1241,7 @@ next_extraction = "Extract closed-workflow persistence/resource cleanup and tab 
 id = "SS-ARCH-085"
 owner = "workspace canvas actions"
 paths = ["substitute/presentation/shell/workspace_canvas_actions.py"]
-fingerprint = "sha256:4e0877498c0e25a34b560e2b9a77faf498432689388a994cb36c406a87e2e7ee"
+fingerprint = "sha256:f7ffbfe74f62b8722ba3b2475c46876aa0bc6bdc17ab18a99cddd038c648d130"
 issue = "chore:SS-ARCH-085"
 review_by = 2026-12-15
 responsibilities = [

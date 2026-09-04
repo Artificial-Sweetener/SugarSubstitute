@@ -120,6 +120,7 @@ class GenerationResultSnapshotService:
             self._output_reference(
                 job_id=job_id,
                 workflow_name=job.snapshot.workflow_name,
+                output_session_id=(job.snapshot.output_session_id or job_id),
                 output=output,
             )
             for output in outputs
@@ -227,6 +228,7 @@ class GenerationResultSnapshotService:
         *,
         job_id: str,
         workflow_name: str,
+        output_session_id: str,
         output: GenerationJobOutputRecord,
     ) -> OutputImageReference:
         """Build one output reference with deterministic replay identity."""
@@ -247,6 +249,7 @@ class GenerationResultSnapshotService:
                 source_label=source_label,
                 node_id=output.node_id,
                 generation_run_id=job_id,
+                output_session_id=output_session_id,
                 list_index=_optional_non_negative_int(
                     output.metadata.get("list_index")
                 ),

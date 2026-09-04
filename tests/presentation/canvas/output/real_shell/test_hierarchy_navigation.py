@@ -60,30 +60,23 @@ def test_batchless_scenes_show_scene_navigation_without_batch_navigation(
 def test_batched_scenes_show_only_available_hierarchy_controls(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
-    """Real scene batches should expose scene and batch navigation when relevant."""
+    """Automatic scene overview should expose only scene-level navigation."""
 
     source_ids = _seed_sources(harness, "alpha", {"text": 2})
 
-    overview = harness.fingerprint()
-    assert not overview.scene_selector_hidden, overview
-    assert overview.set_selector_hidden, overview
-    assert not overview.navigation_container_hidden, overview
-
-    harness.click_canvas_image(harness.output_representative_id_for_scene("scene3"))
-    harness.wait_until(
-        lambda: (
-            harness.fingerprint().workflow_output_routes[
-                harness.workflows["alpha"].workflow_id
-            ][:2]
-            == ("scene3", False)
-        )
-    )
-
     scene = harness.fingerprint()
+    assert scene.workflow_output_routes[harness.workflows["alpha"].workflow_id] == (
+        None,
+        True,
+        None,
+        1,
+        None,
+    )
     assert not scene.scene_selector_hidden, scene
-    assert not scene.set_selector_hidden, scene
+    assert scene.set_selector_hidden, scene
     assert not scene.navigation_container_hidden, scene
-    assert set(scene.presented_image_ids) == set(source_ids["alpha:text"]), scene
+    assert len(scene.presented_image_ids) == 3, scene
+    assert source_ids["alpha:text"][0] in scene.presented_image_ids, scene
 
 
 def test_multi_image_source_tab_restores_grid_after_deferred_disjoint_switch(

@@ -38,6 +38,7 @@ from tests.presentation.shell.generation.controller.support import (
     _BindingRecorder,
     _build_bindings,
     _snapshot,
+    _without_output_sessions,
     _bindings_with_snapshots,
 )
 
@@ -60,7 +61,12 @@ def test_handle_generate_clicked_starts_continuous_mode_when_inactive() -> None:
     assert controller.is_continuous_active is True
     assert recorder.refresh_requests == ["refresh"]
     assert fake_service.single_call_args == []
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [snapshot]
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == [snapshot]
     assert isinstance(fake_queue.enqueue_calls[0]["callbacks"], GenerationCallbacks)
 
 
@@ -100,9 +106,12 @@ def test_handle_generate_clicked_ignores_batch_count_in_continuous_mode() -> Non
     controller.handle_generate_clicked(current_mode="continuous", bindings=bindings)
 
     assert build_calls == 1
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [
-        _snapshot("Continuous")
-    ]
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == [_snapshot("Continuous")]
 
 
 def test_handle_generate_clicked_stops_continuous_mode_when_active() -> None:

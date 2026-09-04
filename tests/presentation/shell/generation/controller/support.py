@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, cast
 
 from substitute.application.generation import (
@@ -226,6 +226,14 @@ def _snapshot(name: str = "Workflow 1") -> GenerationJobSnapshot:
         workflow_name=name,
         sugar_script_text=f"# queued {name}",
     )
+
+
+def _without_output_sessions(
+    snapshots: list[GenerationJobSnapshot],
+) -> list[GenerationJobSnapshot]:
+    """Remove generated session identities for legacy payload comparisons."""
+
+    return [replace(snapshot, output_session_id=None) for snapshot in snapshots]
 
 
 def _progress_update(

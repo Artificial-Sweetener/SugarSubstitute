@@ -67,6 +67,9 @@ class _FakeApp:
     def quit(self) -> None:
         """Accept a shutdown request delegated through the coordinator."""
 
+    def request_quit(self) -> None:
+        """Accept a phase-safe shutdown request during startup."""
+
 
 def _ensure_qapplication() -> None:
     """Ensure production runtime composition can resolve a Qt application."""

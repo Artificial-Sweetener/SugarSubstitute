@@ -22,7 +22,7 @@ from collections.abc import Callable, Hashable
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Protocol, cast
+from typing import Literal, Protocol
 from uuid import uuid4
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
@@ -47,6 +47,9 @@ from substitute.application.generation.generation_models import (
     GenerationRunStarted,
     GenerationStartResult,
     PreparedGenerationRequest,
+)
+from substitute.application.generation.queued_generation_request_factory import (
+    prepared_request_from_queue_snapshot,
 )
 from substitute.application.generation.queue_models import (
     GenerationJobLifecycleAction,
@@ -87,9 +90,6 @@ from substitute.shared.logging.logger import (
     log_info,
     log_warning,
 )
-
-if TYPE_CHECKING:
-    from substitute.application.recipes.recipe_io_service import WorkflowLike
 
 _LOGGER = get_logger("application.generation.job_queue_service")
 ACTIVE_GENERATION_JOB_STATUSES = frozenset({"dispatching", "comfy_pending", "running"})
@@ -923,19 +923,10 @@ class GenerationJobQueueService:
         )
         self._notify_structural_observers(changed_job_id=committed_job.job_id)
         self._notify_lifecycle(committed_job.job_id, "dispatching")
-        request = PreparedGenerationRequest(
-            workflow_id=committed_job.snapshot.workflow_id,
-            workflow_name=committed_job.snapshot.workflow_name,
-            sugar_script_text=committed_job.snapshot.sugar_script_text,
-            direct_workflow_plan=committed_job.snapshot.direct_workflow_plan,
-            workflow=cast("WorkflowLike | None", committed_job.snapshot.workflow),
+        request = prepared_request_from_queue_snapshot(
+            committed_job.snapshot,
             output_run_number=committed_job.output_run_number,
-            output_job_started_at=job_started_at,
-            scene_run_id=committed_job.snapshot.scene_run_id,
-            scene_key=committed_job.snapshot.scene_key,
-            scene_title=committed_job.snapshot.scene_title,
-            scene_order=committed_job.snapshot.scene_order,
-            scene_count=committed_job.snapshot.scene_count,
+            job_started_at=job_started_at,
         )
         wrapped_callbacks = self._wrap_callbacks(committed_job.job_id, callbacks)
         if self._dispatch_scope is not None:

@@ -84,6 +84,7 @@ class CubeOutputEventHandler:
                 ),
                 artifacts=cube_output.artifacts,
                 list_index=cube_output.list_index or 0,
+                output_session_id=visual_identity.output_session_id,
                 scene=FinalImageScene(
                     run_id=visual_identity.scene_run_id,
                     key=visual_identity.scene_key,

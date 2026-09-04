@@ -14,13 +14,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own the fatal boundary around Qt event delivery."""
+"""Own Qt application event delivery and lifecycle boundaries."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 
-from PySide6.QtCore import QEvent, QObject
+from PySide6.QtCore import QEvent, QMetaObject, QObject, Qt
 from PySide6.QtWidgets import QApplication
 
 from sugarsubstitute_shared.crash_reporting.runtime import (
@@ -29,7 +29,7 @@ from sugarsubstitute_shared.crash_reporting.runtime import (
 
 
 class CrashAwareApplication(QApplication):
-    """Route exceptions escaping Qt event dispatch into crash supervision."""
+    """Own crash-aware event delivery and phase-safe application exit."""
 
     def __init__(self, argv: Sequence[str]) -> None:
         """Create the application with a stable copied argument list."""
@@ -47,6 +47,17 @@ class CrashAwareApplication(QApplication):
                 raise
             runtime.record_qt_exception(error)
             return False
+
+    def request_quit(self) -> None:
+        """Queue shutdown so an exit request made before ``exec`` is preserved."""
+
+        invoked = QMetaObject.invokeMethod(
+            self,
+            "quit",
+            Qt.ConnectionType.QueuedConnection,
+        )
+        if not invoked:
+            raise RuntimeError("Qt rejected the queued application exit request")
 
 
 __all__ = ["CrashAwareApplication"]
