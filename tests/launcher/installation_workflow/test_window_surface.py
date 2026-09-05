@@ -75,6 +75,8 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
     assert window.titleBar.minBtn.isHidden() is True
     assert window.titleBar.maxBtn.isHidden() is True
     assert window.titleBar.height() == INSTALLER_BRAND_BAR_HEIGHT
+    assert window.titleBar.closeBtn.geometry().top() == 0
+    assert window.titleBar.closeBtn.geometry().right() == window.titleBar.rect().right()
     assert window.titleBar.canDrag(QPoint(600, INSTALLER_BRAND_BAR_HEIGHT - 8))
     assert window.ui_state.name == LauncherUiState.SELECT_LANGUAGE.name
     assert window.view.progress_count_label.text() == "Step 1 of 5 · Language"

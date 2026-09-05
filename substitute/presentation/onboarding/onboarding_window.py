@@ -26,12 +26,12 @@ from sugarsubstitute_shared.presentation.localization import (
     set_localized_window_title,
 )
 from sugarsubstitute_shared.presentation.installer_surface import (
-    INSTALLER_BRAND_BAR_HEIGHT,
     INSTALLER_WINDOW_HEIGHT,
     INSTALLER_WINDOW_WIDTH,
     InstallerBrandBar,
     InstallerBodyMaterialSurface,
     build_installer_surface_style_sheet,
+    configure_installer_title_bar,
     expose_native_material,
 )
 from substitute.presentation.localization import (
@@ -210,7 +210,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.setFixedSize(INSTALLER_WINDOW_WIDTH, INSTALLER_WINDOW_HEIGHT)
         self.titleBar.minBtn.hide()
         self.titleBar.maxBtn.hide()
-        self.titleBar.setFixedHeight(INSTALLER_BRAND_BAR_HEIGHT)
+        configure_installer_title_bar(self.titleBar)
 
         self._build_ui()
         report_presenter = error_presenter or ErrorPresenter(

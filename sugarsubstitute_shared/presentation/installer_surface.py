@@ -47,6 +47,16 @@ INSTALLER_BRAND_BAR_HEIGHT = 126
 INSTALLER_CONTENT_MAX_WIDTH = 1030
 
 
+def configure_installer_title_bar(title_bar: QWidget) -> None:
+    """Keep native controls in the top edge of the full-height drag region."""
+
+    title_bar.setFixedHeight(INSTALLER_BRAND_BAR_HEIGHT)
+    layout = title_bar.layout()
+    if layout is None:
+        raise RuntimeError("Installer title bar requires a layout")
+    layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+
+
 def expose_native_material(widget: QWidget) -> None:
     """Keep one installer surface from painting over its native backdrop."""
 
@@ -267,6 +277,7 @@ __all__ = [
     "InstallerBodyMaterialSurface",
     "build_installer_surface_style_sheet",
     "center_installer_window",
+    "configure_installer_title_bar",
     "expose_native_material",
     "installer_wordmark_path",
 ]

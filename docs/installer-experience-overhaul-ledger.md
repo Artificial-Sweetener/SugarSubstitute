@@ -287,7 +287,9 @@ The work is ordered so every slice leaves the qualification path usable.
 
 - The shared 1180 × 760 Mica Alt surface, persistent README SVG wordmark bar,
   washed content layer, compact five-stage progress, scroll-safe task area, and
-  stable footer now span the launcher and application-owned ComfyUI setup.
+  stable footer now span the launcher and application-owned ComfyUI setup. The
+  close control is anchored to the true top-right title-bar corner while the
+  remainder of the full 126-pixel Mica header stays draggable.
 - Clean install begins with the manifest-owned, visibly centered language
   selector. Selection retranslates immediately, persists with the chosen
   installation, and is handed across the process boundary. All four release
@@ -333,6 +335,11 @@ The work is ordered so every slice leaves the qualification path usable.
 - Native localized and display-scaled evidence is in
   `build/qualification/installer-overhaul-es/`; the Spanish configuration and
   integration pages remain readable, correctly localized, and scroll-safe.
+- Post-review title-bar evidence is in
+  `build/qualification/installer-titlebar-correction/`. The launcher language
+  capture and application target-mode capture show the close control at the top
+  edge rather than vertically centered beside journey progress; automated geometry
+  assertions cover both process-owned windows.
 - The implementation passes formatting, lint, strict typing, architecture
   governance, test governance, localization policy, the full parallel suite, all
   90 isolated modules, the serial module, deterministic installer qualification,

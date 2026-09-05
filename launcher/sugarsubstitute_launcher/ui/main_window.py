@@ -83,10 +83,10 @@ from launcher.sugarsubstitute_launcher.ui.window_geometry import (
     serialize_handoff_geometry,
 )
 from sugarsubstitute_shared.presentation.installer_surface import (
-    INSTALLER_BRAND_BAR_HEIGHT,
     INSTALLER_WINDOW_HEIGHT,
     INSTALLER_WINDOW_WIDTH,
     center_installer_window,
+    configure_installer_title_bar,
 )
 
 if TYPE_CHECKING:
@@ -204,7 +204,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self.resize(INSTALLER_WINDOW_WIDTH, INSTALLER_WINDOW_HEIGHT)
         self.setFixedSize(INSTALLER_WINDOW_WIDTH, INSTALLER_WINDOW_HEIGHT)
         title_bar = TitleBar(self)
-        title_bar.setFixedHeight(INSTALLER_BRAND_BAR_HEIGHT)
+        configure_installer_title_bar(title_bar)
         self.setTitleBar(title_bar)
         self.titleBar.maxBtn.hide()
         self.titleBar.minBtn.hide()

@@ -128,6 +128,8 @@ def test_onboarding_window_builds_all_required_pages(
     assert window.titleBar.maxBtn.isHidden() is True
     assert window.titleBar.closeBtn.isHidden() is False
     assert window.titleBar.height() == INSTALLER_BRAND_BAR_HEIGHT
+    assert window.titleBar.closeBtn.geometry().top() == 0
+    assert window.titleBar.closeBtn.geometry().right() == window.titleBar.rect().right()
     assert window.titleBar.canDrag(QPoint(600, INSTALLER_BRAND_BAR_HEIGHT - 8))
     assert not window.windowIcon().isNull()
     assert window.brand_bar.wordmark.renderer().isValid()
