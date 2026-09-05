@@ -88,6 +88,7 @@ def test_onboarding_pages_fit_fixed_window_layout_budget(
         window.page_stage,
         window.page_stack,
     )
+    window._provisioning_started = True
 
     page_height_budget = window.page_stage.contentsRect().height()
     for page_id, page in window._pages.items():

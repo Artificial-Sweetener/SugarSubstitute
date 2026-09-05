@@ -257,9 +257,6 @@ def _run_launcher_window(
     from launcher.sugarsubstitute_launcher.application.installation.composition import (
         build_installation_workflow,
     )
-    from launcher.sugarsubstitute_launcher.application.model_onboarding import (
-        build_installer_model_onboarding,
-    )
     from launcher.sugarsubstitute_launcher.localization import (
         build_launcher_localization_runtime,
     )
@@ -291,9 +288,6 @@ def _run_launcher_window(
             workflow_factory=lambda output_callback: build_installation_workflow(
                 output_callback=output_callback,
                 process_starter=start_installed_launcher_handoff,
-            ),
-            model_onboarding_service_factory=lambda model_root: (
-                build_installer_model_onboarding(model_root=model_root)
             ),
             handoff_geometry=args.handoff_geometry,
         )

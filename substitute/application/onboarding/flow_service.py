@@ -21,9 +21,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Protocol
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.model_acquisition import (
+    ModelAcquisitionCredentialRequired,
+)
 from sugarsubstitute_shared.external_path_failure import (
     ExternalLongPathCompatibilityError,
 )
@@ -32,29 +34,53 @@ from sugarsubstitute_shared.windows_long_paths import WindowsPathComponentTooLon
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyEndpoint,
-    ComfyPythonBinding,
     ComfyPythonResolutionError,
     ComfyPythonResolutionFailure,
-    ComfyTargetConfiguration,
     ComfyTargetMode,
-    InstallationConfiguration,
     InstallationContext,
-    ManagedRuntimeConfiguration,
-    RuntimeConfiguration,
 )
 from substitute.application.onboarding.managed_runtime_state_recorder import (
     PendingManagedRuntimeStateRecorder,
 )
+from substitute.application.onboarding.flow_contracts import (
+    AttachedWorkspaceProvisioner,
+    ManagedWorkspaceProvisioner,
+    OnboardingBundleFactory,
+    OnboardingCompletionResult,
+    OnboardingDraftState,
+    OnboardingProvisioningFailure,
+)
+from substitute.application.onboarding.draft_recovery import (
+    recover_stale_attached_managed_draft,
+)
 from substitute.application.onboarding.preference_setup_service import (
     OnboardingCredentialDraft,
-    OnboardingPreferenceSetupDraft,
-    OnboardingPreferenceSetupFailure,
+)
+from substitute.application.onboarding.setup_application import (
+    OnboardingPreferenceApplication,
+    OnboardingRuntimeLaunchPlanner,
+)
+from substitute.application.onboarding.setup_model_installer import (
+    OnboardingModelInstaller,
 )
 from substitute.application.onboarding.setup_transaction_service import (
     SetupTransactionOptions,
 )
-from substitute.application.ports.setup_transaction_repository import (
-    SetupTransactionRepositoryError,
+from substitute.application.onboarding.setup_progress import (
+    SetupProgressEvent,
+    SetupProgressReporter,
+    SetupTaskId,
+    SetupTaskState,
+    require_setup_current,
+)
+from substitute.application.onboarding.transaction_failure_recorder import (
+    record_setup_transaction_failure,
+)
+from substitute.application.execution import CancellationToken
+from substitute.domain.model_recommendations import ModelInstallPlan
+from substitute.application.onboarding.draft_load_support import (
+    credential_is_configured,
+    load_pending_transaction_safely,
 )
 from substitute.domain.onboarding.readiness_models import (
     ReadinessAssessment,
@@ -62,390 +88,15 @@ from substitute.domain.onboarding.readiness_models import (
     ReadinessIssueCode,
 )
 from substitute.domain.onboarding.setup_transaction_models import (
-    SetupTransaction,
-    SetupTransactionFailure,
     SetupTransactionMode,
     SetupTransactionStatus,
 )
-from substitute.domain.civitai import CivitaiPreferences, CivitaiThumbnailSafetyPolicy
+from substitute.domain.civitai import CivitaiThumbnailSafetyPolicy
 from substitute.domain.comfy_nodepacks import CoreNodepackId
-from substitute.domain.comfy_environment import ComfyModelRootStatus
-from substitute.domain.danbooru.preferences import DanbooruPreferences
-from substitute.domain.generation import OutputPreferences
 from substitute.domain.prompt.features.models import PromptEditorFeature
-from substitute.domain.prompt.preferences.models import PromptEditorPreferences
-from substitute.shared.logging.logger import get_logger, log_info, log_warning
+from substitute.shared.logging.logger import get_logger
 
 _LOGGER = get_logger("application.onboarding.flow_service")
-
-
-@dataclass(frozen=True)
-class OnboardingDraftState:
-    """Capture onboarding selections using presentation-safe primitive types."""
-
-    installation_root: Path
-    target_mode: str
-    endpoint_host: str
-    endpoint_port: int
-    managed_workspace_path: Path
-    attached_workspace_path: Path | None
-    attached_python_binding: ComfyPythonBinding | None = None
-    managed_model_root: Path | None = None
-    managed_model_root_uses_default: bool = True
-    output_root: Path | None = None
-    output_root_uses_default: bool = True
-    danbooru_tag_help_enabled: bool = True
-    danbooru_safe_previews_enabled: bool = True
-    danbooru_image_rating_policy: str = "safe_only"
-    civitai_model_help_enabled: bool = True
-    civitai_downloads_enabled: bool = True
-    civitai_safe_thumbnails_enabled: bool = True
-    civitai_thumbnail_safety_policy: str = "sfw_only"
-    civitai_api_key_configured: bool = False
-    detected_platform: str | None = None
-    detected_accelerator: str | None = None
-    selected_install_target: str | None = None
-    selected_python_version: str | None = None
-    selected_comfy_channel: str | None = None
-    selected_backend_policy: str | None = None
-    selected_torch_channel: str | None = None
-    selected_torch_reason: str | None = None
-    selected_stability: str | None = None
-    force_cpu_mode: bool = False
-    prefer_edge_torch: bool = False
-    prefer_edge_comfy_channel: bool = False
-
-
-@dataclass(frozen=True)
-class OnboardingCompletionResult:
-    """Capture the result of a successful onboarding or repair run."""
-
-    context: InstallationContext
-    restart_required: bool
-    launch_command: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class OnboardingProvisioningFailure(Exception):
-    """Describe a user-facing onboarding failure with remediation guidance."""
-
-    headline: ApplicationText
-    user_message: ApplicationText
-    technical_detail: str
-    remediation_steps: tuple[ApplicationText, ...]
-
-    def __str__(self) -> str:
-        """Render the technical detail when coerced to a string."""
-
-        return self.technical_detail
-
-
-class OnboardingServiceProtocol(Protocol):
-    """Describe the onboarding application operations used by the flow service."""
-
-    def load_draft_context(self) -> InstallationContext:
-        """Load persisted or default onboarding context."""
-
-    def configure_managed_local(
-        self,
-        *,
-        endpoint: ComfyEndpoint,
-        workspace_path: Path,
-    ) -> InstallationContext:
-        """Configure managed-local onboarding state."""
-
-    def build_managed_local_context(
-        self,
-        *,
-        endpoint: ComfyEndpoint,
-        workspace_path: Path,
-    ) -> InstallationContext:
-        """Build managed-local onboarding state without active writes."""
-
-    def configure_attached_local(
-        self,
-        *,
-        endpoint: ComfyEndpoint,
-        workspace_path: Path,
-    ) -> InstallationContext:
-        """Configure existing-local onboarding state."""
-
-    def build_attached_local_context(
-        self,
-        *,
-        endpoint: ComfyEndpoint,
-        workspace_path: Path,
-        python_binding: ComfyPythonBinding | None = None,
-    ) -> InstallationContext:
-        """Build existing-local onboarding state without active writes."""
-
-    def configure_remote(self, *, endpoint: ComfyEndpoint) -> InstallationContext:
-        """Configure remote onboarding state."""
-
-    def build_remote_context(self, *, endpoint: ComfyEndpoint) -> InstallationContext:
-        """Build remote onboarding state without active writes."""
-
-
-class RuntimeLaunchServiceProtocol(Protocol):
-    """Describe runtime launch command behavior used by the flow service."""
-
-    def provision_draft(
-        self,
-        configuration: RuntimeConfiguration | None = None,
-    ) -> RuntimeConfiguration:
-        """Provision runtime files and return configuration without active writes."""
-
-    def build_launch_command(
-        self,
-        configuration: RuntimeConfiguration,
-        entrypoint_path: Path,
-    ) -> list[str]:
-        """Build the authoritative runtime launch command."""
-
-
-class ReadinessServiceProtocol(Protocol):
-    """Describe readiness assessment behavior used by the flow service."""
-
-    def assess(self) -> ReadinessAssessment:
-        """Assess bootstrap readiness for the selected install root."""
-
-    def assess_candidate(
-        self,
-        *,
-        installation: InstallationConfiguration,
-        runtime: RuntimeConfiguration,
-        target: ComfyTargetConfiguration,
-        managed_runtime: ManagedRuntimeConfiguration | None = None,
-    ) -> ReadinessAssessment:
-        """Assess pending setup state before it is committed."""
-
-
-class OnboardingModelRootProviderProtocol(Protocol):
-    """Describe BackEnd-owned model-root state used by onboarding."""
-
-    def load(
-        self,
-        target: ComfyTargetConfiguration,
-    ) -> ComfyModelRootStatus | None:
-        """Return connected host model-root state when BackEnd is available."""
-
-
-class OutputPreferenceServiceProtocol(Protocol):
-    """Describe output preference operations used by onboarding."""
-
-    def load_preferences(self) -> OutputPreferences:
-        """Load output preferences."""
-
-    def effective_output_root(
-        self,
-        preferences: OutputPreferences | None = None,
-    ) -> Path:
-        """Return the concrete output root for the supplied preferences."""
-
-
-class PromptEditorPreferenceServiceProtocol(Protocol):
-    """Describe prompt editor preference operations used by onboarding."""
-
-    def load_preferences(self) -> PromptEditorPreferences:
-        """Load prompt editor preferences."""
-
-
-class DanbooruPreferenceServiceProtocol(Protocol):
-    """Describe Danbooru preference operations used by onboarding."""
-
-    def load_preferences(self) -> DanbooruPreferences:
-        """Load Danbooru viewer preferences."""
-
-
-class CivitaiPreferenceServiceProtocol(Protocol):
-    """Describe CivitAI preference operations used by onboarding."""
-
-    def load_preferences(self) -> CivitaiPreferences:
-        """Load CivitAI preferences."""
-
-
-class CivitaiCredentialServiceProtocol(Protocol):
-    """Describe CivitAI credential state used by onboarding."""
-
-    def has_api_key(self) -> bool:
-        """Return whether a CivitAI API key is already stored."""
-
-
-class OnboardingPreferenceSetupServiceProtocol(Protocol):
-    """Describe onboarding preference persistence used by the flow service."""
-
-    def save_preferences(self, draft: OnboardingPreferenceSetupDraft) -> None:
-        """Persist non-secret onboarding choices."""
-
-    def save_credentials(self, draft: OnboardingCredentialDraft) -> None:
-        """Persist optional onboarding credentials."""
-
-
-class OnboardingBundleProtocol(Protocol):
-    """Describe the onboarding bundle consumed by the flow service."""
-
-    @property
-    def onboarding_service(self) -> OnboardingServiceProtocol:
-        """Return the onboarding service used to load and save config."""
-
-    @property
-    def runtime_service(self) -> RuntimeLaunchServiceProtocol:
-        """Return the runtime service used to build launch commands."""
-
-    @property
-    def readiness_service(self) -> ReadinessServiceProtocol:
-        """Return the readiness service used after provisioning."""
-
-    @property
-    def managed_runtime_service(self) -> "ManagedRuntimeServiceProtocol":
-        """Return the managed runtime service used for strategy selection."""
-
-    @property
-    def setup_transaction_service(self) -> "SetupTransactionServiceProtocol":
-        """Return the setup transaction service used for pending state."""
-
-    @property
-    def model_root_provider(self) -> OnboardingModelRootProviderProtocol:
-        """Return the connected BackEnd model-root provider."""
-
-    @property
-    def output_preference_service(
-        self,
-    ) -> OutputPreferenceServiceProtocol:
-        """Return the output preference service."""
-
-    @property
-    def prompt_editor_preference_service(
-        self,
-    ) -> PromptEditorPreferenceServiceProtocol:
-        """Return the prompt editor preference service."""
-
-    @property
-    def danbooru_preference_service(self) -> DanbooruPreferenceServiceProtocol:
-        """Return the Danbooru preference service."""
-
-    @property
-    def civitai_preference_service(self) -> CivitaiPreferenceServiceProtocol:
-        """Return the CivitAI preference service."""
-
-    @property
-    def civitai_credential_service(self) -> CivitaiCredentialServiceProtocol:
-        """Return the CivitAI credential service."""
-
-    @property
-    def preference_setup_service(self) -> OnboardingPreferenceSetupServiceProtocol:
-        """Return the onboarding preference persistence service."""
-
-
-class ManagedRuntimeServiceProtocol(Protocol):
-    """Describe managed runtime selection behavior used by the flow service."""
-
-    def load_persisted(self) -> ManagedRuntimeConfiguration | None:
-        """Load the persisted managed runtime configuration when present."""
-
-    def load_draft_configuration(self) -> ManagedRuntimeConfiguration:
-        """Load an onboarding-safe managed runtime configuration."""
-
-    def detect_and_select(
-        self,
-        *,
-        force_cpu_mode: bool = False,
-        prefer_edge_torch: bool = False,
-        prefer_edge_comfy_channel: bool = False,
-    ) -> ManagedRuntimeConfiguration:
-        """Detect hardware and persist the selected managed install strategy."""
-
-    def select_configuration(
-        self,
-        *,
-        force_cpu_mode: bool = False,
-        prefer_edge_torch: bool = False,
-        prefer_edge_comfy_channel: bool = False,
-    ) -> ManagedRuntimeConfiguration:
-        """Detect hardware and return the selected strategy without saving."""
-
-
-class SetupTransactionServiceProtocol(Protocol):
-    """Describe pending setup transaction operations used by the flow service."""
-
-    def load(self) -> SetupTransaction | None:
-        """Load the current pending setup transaction when present."""
-
-    def begin(
-        self,
-        *,
-        mode: SetupTransactionMode,
-        options: SetupTransactionOptions | None = None,
-    ) -> SetupTransaction:
-        """Create a pending setup transaction."""
-
-    def update_status(
-        self,
-        transaction_id: str,
-        status: SetupTransactionStatus,
-    ) -> SetupTransaction:
-        """Update one pending setup transaction status."""
-
-    def record_installation(
-        self,
-        transaction_id: str,
-        configuration: InstallationConfiguration,
-    ) -> SetupTransaction:
-        """Record pending installation configuration."""
-
-    def record_runtime(
-        self,
-        transaction_id: str,
-        configuration: RuntimeConfiguration,
-    ) -> SetupTransaction:
-        """Record pending runtime configuration."""
-
-    def record_target(
-        self,
-        transaction_id: str,
-        configuration: ComfyTargetConfiguration,
-    ) -> SetupTransaction:
-        """Record pending Comfy target configuration."""
-
-    def record_managed_runtime(
-        self,
-        transaction_id: str,
-        configuration: ManagedRuntimeConfiguration,
-    ) -> SetupTransaction:
-        """Record pending managed runtime configuration."""
-
-    def record_failure(
-        self,
-        transaction_id: str,
-        failure: SetupTransactionFailure,
-    ) -> SetupTransaction:
-        """Record pending setup failure details."""
-
-    def commit(self, transaction_id: str) -> InstallationContext:
-        """Promote pending setup state into active configuration."""
-
-
-ManagedWorkspaceProvisioner = Callable[..., Path]
-
-
-class AttachedWorkspaceProvisioner(Protocol):
-    """Prepare one attached Comfy workspace through a verified interpreter."""
-
-    def __call__(
-        self,
-        *,
-        workspace: Path,
-        python_binding: ComfyPythonBinding,
-        model_root: Path | None = None,
-        configure_model_root: bool = False,
-        on_status: Callable[[str], None] | None = None,
-        on_log: Callable[[str], None] | None = None,
-        **unused: object,
-    ) -> ComfyPythonBinding:
-        """Prepare dependencies without replacing the selected interpreter."""
-
-
-OnboardingBundleFactory = Callable[[Path | None], OnboardingBundleProtocol]
 
 
 @dataclass
@@ -457,13 +108,22 @@ class OnboardingFlowService:
     entrypoint_path: Path
     attached_workspace_provisioner: AttachedWorkspaceProvisioner | None = None
     transaction_mode: SetupTransactionMode = SetupTransactionMode.REPAIR
+    preference_application: OnboardingPreferenceApplication = (
+        OnboardingPreferenceApplication()
+    )
+    runtime_launch_planner: OnboardingRuntimeLaunchPlanner = (
+        OnboardingRuntimeLaunchPlanner()
+    )
+    model_installer: OnboardingModelInstaller | None = None
 
     def load_draft(self, installation_root: Path) -> OnboardingDraftState:
         """Load onboarding draft state from persisted config or defaults."""
 
         bundle = self.service_bundle_factory(installation_root)
         context = bundle.onboarding_service.load_draft_context()
-        pending_transaction = self._load_pending_transaction(bundle)
+        pending_transaction = load_pending_transaction_safely(
+            bundle.setup_transaction_service
+        )
         if (
             pending_transaction is not None
             and pending_transaction.installation is not None
@@ -543,7 +203,9 @@ class OnboardingFlowService:
                 is CivitaiThumbnailSafetyPolicy.DISABLED
                 else civitai_preferences.thumbnail_safety_policy.value
             ),
-            civitai_api_key_configured=self._civitai_api_key_is_configured(bundle),
+            civitai_api_key_configured=credential_is_configured(
+                bundle.civitai_credential_service
+            ),
             detected_platform=managed_runtime.detected_platform,
             detected_accelerator=managed_runtime.detected_accelerator,
             selected_install_target=managed_runtime.install_target,
@@ -558,36 +220,6 @@ class OnboardingFlowService:
             prefer_edge_comfy_channel=managed_runtime.prefer_edge_comfy_channel,
         )
 
-    @staticmethod
-    def _load_pending_transaction(
-        bundle: OnboardingBundleProtocol,
-    ) -> SetupTransaction | None:
-        """Load pending setup state for draft prefill and ignore corrupt state."""
-
-        try:
-            return bundle.setup_transaction_service.load()
-        except SetupTransactionRepositoryError as error:
-            log_warning(
-                _LOGGER,
-                "Pending setup transaction could not be loaded for draft prefill.",
-                error=error,
-            )
-            return None
-
-    @staticmethod
-    def _civitai_api_key_is_configured(bundle: OnboardingBundleProtocol) -> bool:
-        """Return secure credential presence without exposing the stored key."""
-
-        try:
-            return bundle.civitai_credential_service.has_api_key()
-        except Exception as error:
-            log_warning(
-                _LOGGER,
-                "CivitAI API key status could not be loaded for onboarding.",
-                error=error,
-            )
-            return False
-
     def provision(
         self,
         *,
@@ -596,12 +228,17 @@ class OnboardingFlowService:
         restart_required: bool,
         on_status: Callable[[ApplicationText], None],
         on_log: Callable[[ApplicationText], None],
+        model_install_plan: ModelInstallPlan | None = None,
+        setup_generation: int = 1,
+        on_setup_progress: Callable[[SetupProgressEvent], None] | None = None,
+        cancellation: CancellationToken | None = None,
     ) -> OnboardingCompletionResult:
         """Provision the selected target and return the completion payload."""
         bundle = self.service_bundle_factory(draft.installation_root)
-        draft = self._recover_stale_attached_managed_draft(
+        draft = recover_stale_attached_managed_draft(
             bundle=bundle,
             draft=draft,
+            transaction_mode=self.transaction_mode,
         )
         endpoint = ComfyEndpoint(
             host=draft.endpoint_host.strip(),
@@ -610,6 +247,12 @@ class OnboardingFlowService:
         on_status(app_text("Starting setup."))
         on_log(app_text("Runtime root: %1", draft.installation_root / "runtime"))
         target_mode = ComfyTargetMode(draft.target_mode)
+        progress = SetupProgressReporter(setup_generation, on_setup_progress)
+        progress.transition(
+            SetupTaskId.CONFIGURATION,
+            SetupTaskState.RUNNING,
+            app_text("Saving and applying setup choices."),
+        )
         transaction_id: str | None = None
         try:
             if target_mode is ComfyTargetMode.MANAGED_LOCAL:
@@ -637,7 +280,10 @@ class OnboardingFlowService:
                     transaction.transaction_id,
                     pending_context.comfy_target,
                 )
-                self._save_setup_preferences(bundle=bundle, draft=draft)
+                self.preference_application.save_setup(
+                    service=bundle.preference_setup_service,
+                    selection=draft,
+                )
                 bundle.setup_transaction_service.update_status(
                     transaction.transaction_id,
                     SetupTransactionStatus.MANAGED_RUNTIME_SELECTING,
@@ -650,6 +296,11 @@ class OnboardingFlowService:
                 bundle.setup_transaction_service.record_managed_runtime(
                     transaction.transaction_id,
                     managed_runtime,
+                )
+                progress.transition(
+                    SetupTaskId.CONFIGURATION,
+                    SetupTaskState.COMPLETED,
+                    app_text("Setup choices are ready."),
                 )
                 on_status(app_text("Saving your setup choices."))
                 on_log(app_text("Managed workspace: %1", draft.managed_workspace_path))
@@ -671,12 +322,22 @@ class OnboardingFlowService:
                     transaction.transaction_id,
                     SetupTransactionStatus.RUNTIME_PROVISIONING,
                 )
+                progress.transition(
+                    SetupTaskId.RUNTIME,
+                    SetupTaskState.RUNNING,
+                    app_text("Preparing Substitute's local runtime."),
+                )
                 runtime = bundle.runtime_service.provision_draft(
                     pending_context.runtime
                 )
                 bundle.setup_transaction_service.record_runtime(
                     transaction.transaction_id,
                     runtime,
+                )
+                progress.transition(
+                    SetupTaskId.RUNTIME,
+                    SetupTaskState.COMPLETED,
+                    app_text("Substitute's local runtime is ready."),
                 )
                 on_status(app_text("Installing ComfyUI and finishing setup."))
                 bundle.setup_transaction_service.update_status(
@@ -685,6 +346,11 @@ class OnboardingFlowService:
                 )
                 managed_model_root = self._managed_model_root_for_save(draft)
                 is_repair = self.transaction_mode is SetupTransactionMode.REPAIR
+                progress.transition(
+                    SetupTaskId.COMFY_WORKSPACE,
+                    SetupTaskState.RUNNING,
+                    app_text("Preparing ComfyUI."),
+                )
                 self.managed_workspace_provisioner(
                     workspace=(
                         pending_context.comfy_target.workspace_path
@@ -706,7 +372,33 @@ class OnboardingFlowService:
                         transaction_id=transaction.transaction_id,
                     ),
                 )
+                progress.transition(
+                    SetupTaskId.COMFY_WORKSPACE,
+                    SetupTaskState.COMPLETED,
+                    app_text("ComfyUI is ready for final checks."),
+                )
+                if self.model_installer is not None:
+                    self.model_installer.install(
+                        plan=model_install_plan,
+                        credential_draft=credential_draft,
+                        cancellation=cancellation,
+                        setup_generation=setup_generation,
+                        on_setup_progress=on_setup_progress,
+                    )
+                elif model_install_plan is not None and model_install_plan.files:
+                    raise RuntimeError("Model download service is unavailable.")
+                else:
+                    progress.transition(
+                        SetupTaskId.MODEL_DOWNLOAD,
+                        SetupTaskState.SKIPPED,
+                        app_text("No model downloads were selected."),
+                    )
                 current_transaction = bundle.setup_transaction_service.load()
+                progress.transition(
+                    SetupTaskId.VALIDATION,
+                    SetupTaskState.RUNNING,
+                    app_text("Checking that ComfyUI is ready."),
+                )
                 candidate_assessment = bundle.readiness_service.assess_candidate(
                     installation=pending_context.installation,
                     runtime=runtime,
@@ -723,9 +415,20 @@ class OnboardingFlowService:
                         target_mode=target_mode,
                         assessment=candidate_assessment,
                     )
+                progress.transition(
+                    SetupTaskId.VALIDATION,
+                    SetupTaskState.COMPLETED,
+                    app_text("ComfyUI passed its readiness checks."),
+                )
                 bundle.setup_transaction_service.update_status(
                     transaction.transaction_id,
                     SetupTransactionStatus.READY_TO_COMMIT,
+                )
+                require_setup_current(cancellation)
+                progress.transition(
+                    SetupTaskId.COMMIT,
+                    SetupTaskState.RUNNING,
+                    app_text("Saving the completed setup."),
                 )
                 context = bundle.setup_transaction_service.commit(
                     transaction.transaction_id
@@ -781,10 +484,23 @@ class OnboardingFlowService:
                     transaction.transaction_id,
                     pending_context.comfy_target,
                 )
-                self._save_setup_preferences(bundle=bundle, draft=draft)
+                self.preference_application.save_setup(
+                    service=bundle.preference_setup_service,
+                    selection=draft,
+                )
+                progress.transition(
+                    SetupTaskId.CONFIGURATION,
+                    SetupTaskState.COMPLETED,
+                    app_text("Setup choices are ready."),
+                )
                 bundle.setup_transaction_service.update_status(
                     transaction.transaction_id,
                     SetupTransactionStatus.RUNTIME_PROVISIONING,
+                )
+                progress.transition(
+                    SetupTaskId.RUNTIME,
+                    SetupTaskState.RUNNING,
+                    app_text("Preparing Substitute's local runtime."),
                 )
                 runtime = bundle.runtime_service.provision_draft(
                     pending_context.runtime
@@ -792,6 +508,11 @@ class OnboardingFlowService:
                 bundle.setup_transaction_service.record_runtime(
                     transaction.transaction_id,
                     runtime,
+                )
+                progress.transition(
+                    SetupTaskId.RUNTIME,
+                    SetupTaskState.COMPLETED,
+                    app_text("Substitute's local runtime is ready."),
                 )
                 bundle.setup_transaction_service.update_status(
                     transaction.transaction_id,
@@ -811,6 +532,11 @@ class OnboardingFlowService:
                     transaction.transaction_id,
                     SetupTransactionStatus.MANAGED_WORKSPACE_PROVISIONING,
                 )
+                progress.transition(
+                    SetupTaskId.COMFY_WORKSPACE,
+                    SetupTaskState.RUNNING,
+                    app_text("Preparing the existing ComfyUI installation."),
+                )
                 self.attached_workspace_provisioner(
                     workspace=draft.attached_workspace_path,
                     python_binding=binding,
@@ -819,7 +545,33 @@ class OnboardingFlowService:
                     on_status=on_status,
                     on_log=on_log,
                 )
+                progress.transition(
+                    SetupTaskId.COMFY_WORKSPACE,
+                    SetupTaskState.COMPLETED,
+                    app_text("The existing ComfyUI installation is ready."),
+                )
+                if self.model_installer is not None:
+                    self.model_installer.install(
+                        plan=model_install_plan,
+                        credential_draft=credential_draft,
+                        cancellation=cancellation,
+                        setup_generation=setup_generation,
+                        on_setup_progress=on_setup_progress,
+                    )
+                elif model_install_plan is not None and model_install_plan.files:
+                    raise RuntimeError("Model download service is unavailable.")
+                else:
+                    progress.transition(
+                        SetupTaskId.MODEL_DOWNLOAD,
+                        SetupTaskState.SKIPPED,
+                        app_text("No model downloads were selected."),
+                    )
                 current_transaction = bundle.setup_transaction_service.load()
+                progress.transition(
+                    SetupTaskId.VALIDATION,
+                    SetupTaskState.RUNNING,
+                    app_text("Checking that ComfyUI is ready."),
+                )
                 candidate_assessment = bundle.readiness_service.assess_candidate(
                     installation=pending_context.installation,
                     runtime=runtime,
@@ -836,14 +588,29 @@ class OnboardingFlowService:
                         target_mode=target_mode,
                         assessment=candidate_assessment,
                     )
+                progress.transition(
+                    SetupTaskId.VALIDATION,
+                    SetupTaskState.COMPLETED,
+                    app_text("ComfyUI passed its readiness checks."),
+                )
                 bundle.setup_transaction_service.update_status(
                     transaction.transaction_id,
                     SetupTransactionStatus.READY_TO_COMMIT,
+                )
+                require_setup_current(cancellation)
+                progress.transition(
+                    SetupTaskId.COMMIT,
+                    SetupTaskState.RUNNING,
+                    app_text("Saving the completed setup."),
                 )
                 context = bundle.setup_transaction_service.commit(
                     transaction.transaction_id
                 )
             else:
+                if model_install_plan is not None and model_install_plan.files:
+                    raise ValueError(
+                        "Remote ComfyUI setup cannot install files into a local model root."
+                    )
                 transaction = bundle.setup_transaction_service.begin(
                     mode=self.transaction_mode,
                     options=SetupTransactionOptions(
@@ -871,10 +638,23 @@ class OnboardingFlowService:
                     transaction.transaction_id,
                     pending_context.comfy_target,
                 )
-                self._save_setup_preferences(bundle=bundle, draft=draft)
+                self.preference_application.save_setup(
+                    service=bundle.preference_setup_service,
+                    selection=draft,
+                )
+                progress.transition(
+                    SetupTaskId.CONFIGURATION,
+                    SetupTaskState.COMPLETED,
+                    app_text("Setup choices are ready."),
+                )
                 bundle.setup_transaction_service.update_status(
                     transaction.transaction_id,
                     SetupTransactionStatus.RUNTIME_PROVISIONING,
+                )
+                progress.transition(
+                    SetupTaskId.RUNTIME,
+                    SetupTaskState.RUNNING,
+                    app_text("Preparing Substitute's local runtime."),
                 )
                 runtime = bundle.runtime_service.provision_draft(
                     pending_context.runtime
@@ -882,6 +662,28 @@ class OnboardingFlowService:
                 bundle.setup_transaction_service.record_runtime(
                     transaction.transaction_id,
                     runtime,
+                )
+                progress.transition(
+                    SetupTaskId.RUNTIME,
+                    SetupTaskState.COMPLETED,
+                    app_text("Substitute's local runtime is ready."),
+                )
+                progress.transition(
+                    SetupTaskId.COMFY_WORKSPACE,
+                    SetupTaskState.SKIPPED,
+                    app_text(
+                        "Remote ComfyUI does not need local workspace preparation."
+                    ),
+                )
+                progress.transition(
+                    SetupTaskId.MODEL_DOWNLOAD,
+                    SetupTaskState.SKIPPED,
+                    app_text("Remote ComfyUI does not use local model downloads."),
+                )
+                progress.transition(
+                    SetupTaskId.VALIDATION,
+                    SetupTaskState.RUNNING,
+                    app_text("Checking the remote ComfyUI connection."),
                 )
                 candidate_assessment = bundle.readiness_service.assess_candidate(
                     installation=pending_context.installation,
@@ -894,9 +696,20 @@ class OnboardingFlowService:
                         target_mode=target_mode,
                         assessment=candidate_assessment,
                     )
+                progress.transition(
+                    SetupTaskId.VALIDATION,
+                    SetupTaskState.COMPLETED,
+                    app_text("The remote ComfyUI connection is ready."),
+                )
                 bundle.setup_transaction_service.update_status(
                     transaction.transaction_id,
                     SetupTransactionStatus.READY_TO_COMMIT,
+                )
+                require_setup_current(cancellation)
+                progress.transition(
+                    SetupTaskId.COMMIT,
+                    SetupTaskState.RUNNING,
+                    app_text("Saving the completed setup."),
                 )
                 context = bundle.setup_transaction_service.commit(
                     transaction.transaction_id
@@ -909,79 +722,63 @@ class OnboardingFlowService:
                     target_mode=target_mode,
                     assessment=assessment,
                 )
-            launch_command = bundle.runtime_service.build_launch_command(
-                context.runtime,
-                self.entrypoint_path,
+            launch_command = self.runtime_launch_planner.build(
+                runtime_service=bundle.runtime_service,
+                runtime=context.runtime,
+                entrypoint_path=self.entrypoint_path,
             )
-            self._save_optional_credentials(
-                bundle=bundle,
+            self.preference_application.save_optional_credentials(
+                service=bundle.preference_setup_service,
                 credential_draft=credential_draft,
                 on_log=on_log,
+            )
+            progress.transition(
+                SetupTaskId.COMMIT,
+                SetupTaskState.COMPLETED,
+                app_text("Setup is saved and ready."),
             )
             return OnboardingCompletionResult(
                 context=context,
                 restart_required=restart_required,
-                launch_command=tuple(launch_command),
+                launch_command=launch_command,
             )
         except OnboardingProvisioningFailure as error:
             if transaction_id is not None:
-                self._record_transaction_failure(
-                    bundle=bundle,
+                record_setup_transaction_failure(
+                    service=bundle.setup_transaction_service,
                     transaction_id=transaction_id,
                     error=error,
                 )
-            raise
+            raise replace(
+                error,
+                transaction_id=transaction_id,
+                failed_task=(
+                    progress.current_task_id.value
+                    if progress.current_task_id is not None
+                    else None
+                ),
+            )
         except Exception as error:
             if transaction_id is not None:
-                self._record_transaction_failure(
-                    bundle=bundle,
+                record_setup_transaction_failure(
+                    service=bundle.setup_transaction_service,
                     transaction_id=transaction_id,
                     error=error,
                 )
-            raise self._build_provisioning_failure(
+            failure = self._build_provisioning_failure(
                 draft=draft,
                 target_mode=target_mode,
                 error=error,
+            )
+            raise replace(
+                failure,
+                transaction_id=transaction_id,
+                failed_task=(
+                    progress.current_task_id.value
+                    if progress.current_task_id is not None
+                    else None
+                ),
             ) from error
-
-    def _recover_stale_attached_managed_draft(
-        self,
-        *,
-        bundle: OnboardingBundleProtocol,
-        draft: OnboardingDraftState,
-    ) -> OnboardingDraftState:
-        """Prefer recovered managed-local state for stale repair retries only."""
-
-        if self.transaction_mode is not SetupTransactionMode.REPAIR:
-            return draft
-
-        if ComfyTargetMode(draft.target_mode) is not ComfyTargetMode.ATTACHED_LOCAL:
-            return draft
-        context = bundle.onboarding_service.load_draft_context()
-        target = context.comfy_target
-        if target.mode is not ComfyTargetMode.MANAGED_LOCAL:
-            return draft
-        if (
-            target.endpoint.host != draft.endpoint_host.strip()
-            or target.endpoint.port != int(draft.endpoint_port)
-            or target.workspace_path != draft.attached_workspace_path
-        ):
-            return draft
-        log_info(
-            _LOGGER,
-            "Recovered stale attached-local provisioning draft as managed-local.",
-            workspace=target.workspace_path,
-            host=target.endpoint.host,
-            port=target.endpoint.port,
-        )
-        return replace(
-            draft,
-            target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
-            managed_workspace_path=target.workspace_path or context.managed_comfy_dir,
-            attached_workspace_path=target.workspace_path,
-            endpoint_host=target.endpoint.host,
-            endpoint_port=target.endpoint.port,
-        )
 
     @staticmethod
     def _managed_model_root_for_save(draft: OnboardingDraftState) -> Path | None:
@@ -990,100 +787,6 @@ class OnboardingFlowService:
         if not draft.managed_model_root_uses_default:
             return draft.managed_model_root
         return None
-
-    @staticmethod
-    def _save_setup_preferences(
-        *,
-        bundle: OnboardingBundleProtocol,
-        draft: OnboardingDraftState,
-    ) -> None:
-        """Persist non-secret setup choices with onboarding-friendly failures."""
-
-        try:
-            bundle.preference_setup_service.save_preferences(
-                OnboardingPreferenceSetupDraft(
-                    output_root=None
-                    if draft.output_root_uses_default
-                    else draft.output_root,
-                    danbooru_tag_help_enabled=draft.danbooru_tag_help_enabled,
-                    danbooru_safe_previews_enabled=(
-                        draft.danbooru_safe_previews_enabled
-                    ),
-                    danbooru_image_rating_policy=draft.danbooru_image_rating_policy,
-                    civitai_model_help_enabled=draft.civitai_model_help_enabled,
-                    civitai_downloads_enabled=draft.civitai_downloads_enabled,
-                    civitai_safe_thumbnails_enabled=(
-                        draft.civitai_safe_thumbnails_enabled
-                    ),
-                    civitai_thumbnail_safety_policy=draft.civitai_thumbnail_safety_policy,
-                )
-            )
-        except OnboardingPreferenceSetupFailure as error:
-            raise OnboardingProvisioningFailure(
-                headline=app_text("Substitute couldn't save these setup choices"),
-                user_message=app_text(
-                    "Substitute couldn't save one of the folder or helper settings."
-                ),
-                technical_detail=str(error).strip() or type(error).__name__,
-                remediation_steps=(
-                    app_text("Review the folder choices and try again."),
-                    app_text(
-                        "You can also finish setup with the defaults and adjust Settings later."
-                    ),
-                ),
-            ) from error
-
-    @staticmethod
-    def _save_optional_credentials(
-        *,
-        bundle: OnboardingBundleProtocol,
-        credential_draft: OnboardingCredentialDraft | None,
-        on_log: Callable[[ApplicationText], None],
-    ) -> None:
-        """Save optional credentials without failing completed core setup."""
-
-        if credential_draft is None:
-            return
-        try:
-            bundle.preference_setup_service.save_credentials(credential_draft)
-        except OnboardingPreferenceSetupFailure as error:
-            log_warning(
-                _LOGGER,
-                "Optional CivitAI API key could not be saved during onboarding.",
-                error=error,
-            )
-            on_log(
-                app_text(
-                    "CivitAI API key could not be saved. You can add it later in Settings."
-                )
-            )
-
-    @staticmethod
-    def _record_transaction_failure(
-        *,
-        bundle: OnboardingBundleProtocol,
-        transaction_id: str,
-        error: Exception,
-    ) -> None:
-        """Persist transaction failure detail without masking the original error."""
-
-        try:
-            bundle.setup_transaction_service.record_failure(
-                transaction_id,
-                SetupTransactionFailure(
-                    code=type(error).__name__,
-                    message=str(error).strip() or type(error).__name__,
-                    recoverable=True,
-                    diagnostic_detail=str(error).strip() or type(error).__name__,
-                ),
-            )
-        except Exception as transaction_error:
-            log_warning(
-                _LOGGER,
-                "Failed to record onboarding transaction failure.",
-                transaction_id=transaction_id,
-                error=transaction_error,
-            )
 
     @staticmethod
     def _build_readiness_failure(
@@ -1151,6 +854,19 @@ class OnboardingFlowService:
         """Translate one provisioning exception into actionable onboarding guidance."""
 
         technical_detail = str(error).strip() or type(error).__name__
+        if isinstance(error, ModelAcquisitionCredentialRequired):
+            return OnboardingProvisioningFailure(
+                headline=app_text("This CivitAI model needs an API key"),
+                user_message=app_text(
+                    "Your reviewed download plan is still selected. Add a CivitAI API key, then try setup again."
+                ),
+                technical_detail=technical_detail,
+                remediation_steps=(
+                    app_text("Go back to Integrations."),
+                    app_text("Add your CivitAI API key."),
+                    app_text("Return to setup and try again."),
+                ),
+            )
         if isinstance(error, WindowsPathComponentTooLongError):
             return OnboardingProvisioningFailure(
                 headline=app_text("A file or folder name is too long for Windows"),

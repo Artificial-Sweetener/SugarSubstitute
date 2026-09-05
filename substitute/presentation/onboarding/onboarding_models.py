@@ -22,6 +22,12 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from substitute.application.model_recommendations import FamilyRecommendationPage
+from substitute.domain.model_recommendations import (
+    ModelFamilyId,
+    ModelFamilyScanResult,
+    ModelInstallPlan,
+)
 from substitute.domain.onboarding import ComfyPythonBinding
 
 
@@ -45,7 +51,10 @@ class OnboardingPageId(str, Enum):
     ATTACHED_PYTHON_PROCESS = "attached_python_process"
     ATTACHED_PYTHON_MANUAL = "attached_python_manual"
     REMOTE = "remote"
+    EXISTING_MODELS = "existing_models"
     FOLDERS = "folders"
+    MODEL_RECOMMENDATIONS = "model_recommendations"
+    MODEL_DOWNLOAD_REVIEW = "model_download_review"
     INTEGRATIONS = "integrations"
     PROVISIONING = "provisioning"
     COMPLETION = "completion"
@@ -111,3 +120,17 @@ class OnboardingCompletion:
     context: object
     restart_required: bool
     launch_command: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class OnboardingModelState:
+    """Capture first-run model choices independently of Comfy artifact storage."""
+
+    has_existing_folder: bool | None = None
+    scan_result: ModelFamilyScanResult | None = None
+    missing_families: tuple[ModelFamilyId, ...] = ()
+    recommendation_pages: tuple[FamilyRecommendationPage, ...] = ()
+    recommendation_page_index: int = 0
+    selected_version_ids: frozenset[int] = frozenset()
+    remaining_recommendations_declined: bool = False
+    install_plan: ModelInstallPlan | None = None

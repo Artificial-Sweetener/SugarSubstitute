@@ -22,7 +22,7 @@ from pathlib import Path
 
 from substitute.application.model_metadata import ModelCatalogItem
 from substitute.application.model_updates import GenerationModelUsageRecorder
-from sugarsubstitute_shared.model_discovery import ModelCategory
+from sugarsubstitute_shared.model_discovery import ModelArtifactKind
 
 
 class _Catalog:
@@ -130,9 +130,9 @@ def test_nested_payload_records_distinct_exact_catalog_models() -> None:
 
     assert count == 2
     assert {call["sha256"] for call in usage.calls} == {"a" * 64, "b" * 64}
-    assert {call["category"] for call in usage.calls} == {
-        ModelCategory.CHECKPOINTS,
-        ModelCategory.LORAS,
+    assert {call["artifact_kind"] for call in usage.calls} == {
+        ModelArtifactKind.CHECKPOINTS,
+        ModelArtifactKind.LORAS,
     }
 
 

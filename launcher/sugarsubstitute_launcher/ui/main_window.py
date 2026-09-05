@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import QTimer, Signal, Slot
@@ -31,9 +30,6 @@ from qframelesswindow.titlebar import TitleBar  # type: ignore[import-untyped]
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstalledApplication,
     ReleaseManifestSource,
-)
-from launcher.sugarsubstitute_launcher.application.model_onboarding import (
-    default_installer_capabilities,
 )
 from launcher.sugarsubstitute_launcher.application.repair.models import RepairScope
 from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
@@ -65,12 +61,6 @@ from launcher.sugarsubstitute_launcher.ui.installer_view import InstallerView
 from launcher.sugarsubstitute_launcher.ui.launcher_theme import (
     configure_launcher_theme,
 )
-from launcher.sugarsubstitute_launcher.ui.model_onboarding_controller import (
-    InstallerModelOnboardingController,
-)
-from launcher.sugarsubstitute_launcher.ui.model_onboarding_execution import (
-    QtModelOnboardingExecutor,
-)
 from launcher.sugarsubstitute_launcher.ui.experience_models import RepairChoice
 from launcher.sugarsubstitute_launcher.ui.repair_preparation_execution import (
     QtRepairPreparationExecutor,
@@ -84,14 +74,11 @@ from launcher.sugarsubstitute_launcher.ui.window_geometry import (
     parse_handoff_geometry,
     serialize_handoff_geometry,
 )
-from sugarsubstitute_shared.model_discovery import ModelOnboardingService
-
 
 _LOGGER = logging.getLogger(__name__)
 _WINDOW_WIDTH = 1260
 _WINDOW_HEIGHT = 800
 _TITLEBAR_HEIGHT = 34
-ModelOnboardingServiceFactory = Callable[[Path], ModelOnboardingService]
 
 
 class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
@@ -109,7 +96,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         initial_release_source: ReleaseManifestSource,
         workflow_factory: InstallationWorkflowFactory,
         handoff_geometry: str | None = None,
-        model_onboarding_service_factory: ModelOnboardingServiceFactory | None = None,
     ) -> None:
         """Build the launcher shell and initialize installer state."""
 
@@ -122,10 +108,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._workflow_factory = workflow_factory
         self._handoff_geometry = handoff_geometry
         self._repair_mode = repair
-        self._model_onboarding_service_factory = model_onboarding_service_factory
-        self._model_onboarding_controller: InstallerModelOnboardingController | None = (
-            None
-        )
         self._setup_handoff_close_pending = False
         self._installed_application: InstalledApplication | None = None
         self._setup_command: list[str] | None = None
@@ -139,7 +121,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             parent=self,
         )
         self.repair_execution = QtRepairPreparationExecutor(parent=self)
-        self.model_onboarding_execution = QtModelOnboardingExecutor(parent=self)
         self.repair_execution.succeeded.connect(self._handle_repair_prepared)
         self.repair_execution.failed.connect(self._handle_repair_preparation_failed)
         self.execution.log.connect(self._append_log)
@@ -289,45 +270,12 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self.view.set_path_controls_enabled(False)
         self._append_log(launcher_text("Preparing SugarSubstitute install."))
 
-        started = self.execution.start_initial(
+        self.execution.start_initial(
             layout=InstallLayout.from_root(install_root),
             frozen_setup=_current_frozen_executable() is not None,
             release_source=self._initial_release_source,
             handoff_geometry=self._current_handoff_geometry(),
         )
-        if (
-            started
-            and not self._repair_mode
-            and self._model_onboarding_service_factory is not None
-        ):
-            self._offer_model_onboarding(install_root)
-
-    def _offer_model_onboarding(self, install_root: Path) -> bool:
-        """Offer zero-model onboarding against the selected managed model root."""
-
-        factory = self._model_onboarding_service_factory
-        if factory is None:
-            return False
-        service = factory(install_root / "comfyui" / "models")
-        controller = InstallerModelOnboardingController(
-            view=self.view,
-            service=service,
-            capabilities=default_installer_capabilities(),
-            on_finished=self._resume_after_model_onboarding,
-            executor=self.model_onboarding_execution,
-        )
-        self._model_onboarding_controller = controller
-        return controller.offer_if_eligible()
-
-    def _resume_after_model_onboarding(self) -> None:
-        """Continue the install after optional model selection releases the view."""
-
-        self._refresh_primary_button()
-        if (
-            self._ui_state is LauncherUiState.INSTALL_RUNTIME
-            and not self.execution.initial_running
-        ):
-            QTimer.singleShot(0, self._start_setup_worker)
 
     def _install_app_payload(self) -> None:
         """Install the app source payload for source-run development setup."""
@@ -490,9 +438,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._refresh_primary_button()
             return
         if self._ui_state is LauncherUiState.INSTALL_RUNTIME:
-            controller = self._model_onboarding_controller
-            if controller is None or not controller.active:
-                QTimer.singleShot(0, self._start_setup_worker)
+            QTimer.singleShot(0, self._start_setup_worker)
 
     def _refresh_primary_button(self) -> None:
         """Project the current setup phase onto editable and primary controls."""

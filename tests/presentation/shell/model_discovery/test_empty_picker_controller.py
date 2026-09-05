@@ -29,13 +29,13 @@ from substitute.presentation.shell.empty_model_picker_discovery_controller impor
 )
 from sugarsubstitute_shared.model_acquisition import ModelAcquisitionService
 from sugarsubstitute_shared.model_discovery import (
-    CategoryModelDestinationPolicy,
     DiscoveredModel,
+    EmptyPickerModelDiscoveryPlanner,
+    EmptyPickerModelDiscoveryService,
     LocalModel,
-    ModelCategory,
+    ModelArtifactDestinationPolicy,
+    ModelArtifactKind,
     ModelDiscoveryPlan,
-    ModelDiscoveryPlanner,
-    ModelOnboardingService,
     model_card_identity,
 )
 from tests.support.qt.semantic_wait import wait_for_qt_condition
@@ -46,11 +46,11 @@ class _Inventory:
 
     def list_models(
         self,
-        categories: Collection[ModelCategory],
+        artifact_kinds: Collection[ModelArtifactKind],
     ) -> tuple[LocalModel, ...]:
         """Return no local models."""
 
-        _ = categories
+        _ = artifact_kinds
         return ()
 
 
@@ -64,14 +64,16 @@ class _Discovery:
 
     def discover_monthly_popular(
         self,
-        category: ModelCategory,
+        artifact_kind: ModelArtifactKind,
         *,
         limit: int,
     ) -> tuple[DiscoveredModel, ...]:
-        """Return the candidate only for its category."""
+        """Return the candidate only for its artifact_kind."""
 
         _ = limit
-        return (self._candidate,) if category is self._candidate.category else ()
+        return (
+            (self._candidate,) if artifact_kind is self._candidate.artifact_kind else ()
+        )
 
 
 class _Stream:
@@ -110,7 +112,7 @@ class _Catalog:
 def test_unknown_or_unavailable_picker_does_not_start_provider_work(
     tmp_path: Path,
 ) -> None:
-    """Unknown categories and unsupported targets should fail locally and clearly."""
+    """Unknown artifact_kinds and unsupported targets should fail locally and clearly."""
 
     _ = tmp_path
     parent = QWidget()
@@ -122,7 +124,7 @@ def test_unknown_or_unavailable_picker_does_not_start_provider_work(
         feedback=lambda severity, message: feedback.append((severity, message)),
     )
 
-    assert controller.request_for_empty_picker("not-a-category") is False
+    assert controller.request_for_empty_picker("not-a-artifact_kind") is False
     assert controller.request_for_empty_picker("checkpoints") is False
     assert feedback and feedback[-1][0] == "warning"
     controller.close()
@@ -137,7 +139,7 @@ def test_checked_empty_picker_model_downloads_and_refreshes_catalog(
     payload = b"verified-picker-model"
     model_root = tmp_path / "models"
     candidate = DiscoveredModel(
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         model_id=11,
         version_id=12,
         model_name="Popular model",
@@ -163,11 +165,11 @@ def test_checked_empty_picker_model_downloads_and_refreshes_catalog(
         _ = (url, headers, timeout)
         return _Stream(payload)
 
-    service = ModelOnboardingService(
-        planner=ModelDiscoveryPlanner(
+    service = EmptyPickerModelDiscoveryService(
+        planner=EmptyPickerModelDiscoveryPlanner(
             inventory=_Inventory(),
             discovery=_Discovery(candidate),
-            destinations=CategoryModelDestinationPolicy(model_root),
+            destinations=ModelArtifactDestinationPolicy(model_root),
         ),
         acquisition=ModelAcquisitionService(
             allowed_roots=(model_root,),

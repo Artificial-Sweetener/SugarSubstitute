@@ -25,7 +25,7 @@ from typing import Protocol
 
 from sugarsubstitute_shared.model_discovery.models import (
     DiscoveredModel,
-    ModelCategory,
+    ModelArtifactKind,
 )
 from sugarsubstitute_shared.model_updates.models import (
     ModelUpdatePreferences,
@@ -52,7 +52,7 @@ class CompatibleUpdateGateway(Protocol):
         *,
         model_id: int,
         current_version_id: int,
-        category: ModelCategory,
+        artifact_kind: ModelArtifactKind,
         base_model: str | None,
     ) -> DiscoveredModel | None:
         """Return a strictly newer compatible candidate or none."""
@@ -83,7 +83,7 @@ class ModelUpdateService:
         *,
         sha256: str,
         path: Path,
-        category: ModelCategory,
+        artifact_kind: ModelArtifactKind,
         model_id: int | None,
         version_id: int | None,
         base_model: str | None,
@@ -105,7 +105,7 @@ class ModelUpdateService:
         record = ModelUsageRecord(
             sha256=normalized_hash,
             path=path,
-            category=category,
+            artifact_kind=artifact_kind,
             model_id=model_id
             if model_id is not None
             else getattr(previous, "model_id", None),
@@ -153,7 +153,7 @@ class ModelUpdateService:
             candidate = self._updates.latest_compatible(
                 model_id=record.model_id,
                 current_version_id=record.version_id,
-                category=record.category,
+                artifact_kind=record.artifact_kind,
                 base_model=record.base_model,
             )
             if (

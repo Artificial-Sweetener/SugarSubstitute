@@ -126,7 +126,7 @@ def test_onboarding_window_builds_all_required_pages(
         window, window.titleBar.closeBtn.rect().center()
     )
     assert window.childAt(close_hit) is window.titleBar.closeBtn
-    assert window.page_stack.count() == 13
+    assert window.page_stack.count() == 16
     assert window.page_stack.parentWidget() is window.page_stage
     assert (
         window.attached_python_choice_page.objectName()
@@ -171,8 +171,10 @@ def test_onboarding_window_builds_all_required_pages(
     assert log_view.toPlainText() == ""
     assert log_view.horizontalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAlwaysOff
     assert not hasattr(window.provisioning_page, "progress_bar")
-    assert log_view.maximumHeight() == 390
-    assert log_view.minimumHeight() == 320
+    assert window.provisioning_page.details_container.isHidden() is True
+    assert window.provisioning_page.overall_progress_bar.maximum() == 100
+    assert log_view.maximumHeight() == 280
+    assert log_view.minimumHeight() == 220
     assert (
         window.integrations_page.danbooru_image_policy_combo.currentData()
         == "safe_only"

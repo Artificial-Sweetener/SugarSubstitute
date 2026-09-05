@@ -14,19 +14,6 @@ next_limit = 2430
 debt = "SS-ARCH-002"
 
 [[waivers]]
-id = "SS-WAIVER-R003"
-owner = "execution runtime"
-rule = "STRUCT003"
-path = "substitute/app/bootstrap/execution_runtime.py"
-kind = "remediation"
-justification = "The assessed file mixes execution-lane configuration policy and validation, process-lifetime dispatcher and long-lived task registries, feature-specific lane facade, owner-scoped submission and cancellation adapters. Extract lane configuration and scoped submission adapters from the process-lifetime runtime registry."
-issue = "chore:SS-ARCH-003"
-review_by = 2026-12-15
-max_lines = 554
-next_limit = 500
-debt = "SS-ARCH-003"
-
-[[waivers]]
 id = "SS-WAIVER-R004"
 owner = "managed compatibility recovery"
 rule = "STRUCT003"
@@ -188,11 +175,11 @@ owner = "onboarding flow"
 rule = "STRUCT003"
 path = "substitute/application/onboarding/flow_service.py"
 kind = "remediation"
-justification = "The assessed file mixes onboarding draft loading and validation, preference persistence across independent domains, workspace provisioning transactions, runtime launch and completion routing. Extract preference application and runtime launch from provisioning transaction orchestration."
+justification = "The assessed file mixes draft-state loading and recovery coordination, managed, attached, and remote provisioning transaction orchestration, readiness and provisioning failure classification. Extract target-specific provisioning strategies and failure classifiers from the shared transaction sequence."
 issue = "chore:SS-ARCH-016"
 review_by = 2026-12-15
-max_lines = 1390
-next_limit = 1110
+max_lines = 1208
+next_limit = 1075
 debt = "SS-ARCH-016"
 
 [[waivers]]
@@ -755,42 +742,16 @@ next_limit = 549
 debt = "SS-ARCH-065"
 
 [[waivers]]
-id = "SS-WAIVER-R066"
-owner = "onboarding presentation flow"
-rule = "STRUCT003"
-path = "substitute/presentation/onboarding/onboarding_controller.py"
-kind = "remediation"
-justification = "The assessed file mixes onboarding page and selection state, readiness issue projection, background provisioning execution, progress-event adaptation, completion, failure, and shutdown routing. Extract provisioning execution and progress adaptation from page-flow and selection-state coordination."
-issue = "chore:SS-ARCH-066"
-review_by = 2026-12-15
-max_lines = 777
-next_limit = 621
-debt = "SS-ARCH-066"
-
-[[waivers]]
-id = "SS-WAIVER-R067"
-owner = "onboarding pages"
-rule = "STRUCT003"
-path = "substitute/presentation/onboarding/onboarding_pages.py"
-kind = "remediation"
-justification = "The assessed file mixes shared onboarding layout primitives, install-root and target-mode pages, managed, attached, and remote target pages, folder and integration preference pages, provisioning and completion pages. Split independently changing onboarding pages into focused modules while retaining shared page primitives."
-issue = "chore:SS-ARCH-067"
-review_by = 2026-12-15
-max_lines = 1305
-next_limit = 1044
-debt = "SS-ARCH-067"
-
-[[waivers]]
 id = "SS-WAIVER-R068"
 owner = "onboarding window"
 rule = "STRUCT003"
 path = "substitute/presentation/onboarding/onboarding_window.py"
 kind = "remediation"
-justification = "The assessed file mixes window chrome, layout, and navigation rail, page flow and dynamic height, draft, issue, progress, and completion presentation, attached Python discovery and recovery, observed-process termination, filesystem browsing and default-path policy. Extract environment recovery, process termination, and path selection from onboarding window presentation."
+justification = "The assessed file mixes window chrome, layout, and navigation rail, page flow and dynamic height, draft, issue, completion, and model-flow interaction routing, preflight and attached Python recovery interaction routing. Extract window-shell navigation and geometry from route-specific onboarding interactions."
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
-max_lines = 1520
-next_limit = 1212
+max_lines = 1379
+next_limit = 1158
 debt = "SS-ARCH-068"
 
 [[waivers]]
@@ -1910,7 +1871,7 @@ kind = "remediation"
 justification = "The assessed file mixes native Windows process and structure bindings, installer and onboarding UI automation, historical shell and diagnostic evidence collection, isolated desktop launch and process termination, command-line orchestration. Extract native process/desktop control and historical evidence projection from installer UI workflow automation."
 issue = "chore:SS-ARCH-096"
 review_by = 2026-12-15
-max_lines = 703
+max_lines = 707
 next_limit = 564
 debt = "SS-ARCH-096"
 
@@ -1991,7 +1952,7 @@ kind = "structural"
 justification = "This module owns one terminal shutdown state machine. Cleanup ordering, duplicate requests, delayed progress, retry, recovery choice, force close, UI-thread updates, responsiveness, and final close authorization all transition the same single shutdown attempt and its owned dialogs."
 issue = "chore:SS-WAIVER-S104"
 review_by = 2026-12-15
-max_lines = 791
+max_lines = 789
 
 [[waivers]]
 id = "SS-WAIVER-S108"
@@ -2112,7 +2073,7 @@ kind = "structural"
 justification = "This module owns one user-requested metadata refresh transaction. Backend identity and fingerprint lookup, CivitAI policy and response handling, metadata association, thumbnail preservation or download, cache persistence, update publication, cancellation, and failure preservation all produce one refreshed model record."
 issue = "chore:SS-WAIVER-S138"
 review_by = 2026-12-15
-max_lines = 547
+max_lines = 539
 
 [[waivers]]
 id = "SS-WAIVER-S140"

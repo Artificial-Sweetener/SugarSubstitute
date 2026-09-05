@@ -39,6 +39,9 @@ from substitute.presentation.onboarding import OnboardingController, OnboardingW
 from substitute.presentation.onboarding.comfy_environment_coordinator import (
     ComfyEnvironmentCoordinator,
 )
+from substitute.presentation.onboarding.model_onboarding_coordinator import (
+    ModelOnboardingCoordinator,
+)
 from substitute.presentation.widgets.spin_box import SpinBox
 from tests.onboarding_automation.environment_fixture import (
     QuiescentProcessGateway,
@@ -57,6 +60,7 @@ from tests.support.qt.lifecycle import (
     ensure_qt_application,
 )
 from tests.support.qt.semantic_wait import wait_for_qt_condition
+from tools.install_experience_models import SyntheticModelOnboardingCoordinator
 
 
 _WIDGET_T = TypeVar("_WIDGET_T", bound=QWidget)
@@ -111,6 +115,10 @@ class OnboardingAutomationDriver:
         self._window = OnboardingWindow(
             controller=self._controller,
             environment_coordinator=environment_coordinator,
+            model_coordinator=cast(
+                ModelOnboardingCoordinator,
+                SyntheticModelOnboardingCoordinator(parent=self._controller),
+            ),
         )
         self._window.show()
         self._window.raise_()
@@ -189,12 +197,13 @@ class OnboardingAutomationDriver:
                 lambda: (
                     self._current_page_name()
                     in {
+                        "OnboardingExistingModelsQuestionPage",
                         "OnboardingFolderSetupPage",
                         "OnboardingAttachedPythonChoicePage",
                     }
                 ),
                 timeout_seconds=30.0,
-                description="folder setup or attached Python recovery",
+                description="model-folder question, folder setup, or attached Python recovery",
             )
             if self._current_page_name() == "OnboardingAttachedPythonChoicePage":
                 if self._scenario.expected_outcome is ScenarioOutcome.SUCCESS:
@@ -215,20 +224,39 @@ class OnboardingAutomationDriver:
                     launch_command=(),
                     screenshot_dir=str(self._screenshot_dir),
                 )
-            self._capture("folders")
-            self._click("OnboardingPrimaryButton")
+            if self._current_page_name() == "OnboardingExistingModelsQuestionPage":
+                self._capture("existing_models_question")
+                self._click("OnboardingExistingModelsNo")
+                self._click("OnboardingPrimaryButton")
+                self._wait_until(
+                    lambda: (
+                        self._current_page_name()
+                        in {
+                            "OnboardingModelRecommendationPage",
+                            "OnboardingIntegrationsPage",
+                        }
+                    ),
+                    timeout_seconds=30.0,
+                    description="model recommendations or integrations",
+                )
+            if self._current_page_name() == "OnboardingFolderSetupPage":
+                self._capture("folders")
+                self._click("OnboardingPrimaryButton")
+            if self._current_page_name() == "OnboardingModelRecommendationPage":
+                self._capture("model_recommendations")
+                self._click("OnboardingFindOwnModelsButton")
             self._wait_for_page("OnboardingIntegrationsPage")
             self._capture("integrations")
             self._click("OnboardingPrimaryButton")
-            self._wait_for_page("OnboardingProvisioningPage")
-            self._capture("provisioning")
             if self._scenario.retry_after_failure:
+                self._wait_for_page("OnboardingProvisioningPage")
+                self._capture("provisioning")
                 self._wait_for_provisioning_button_text("Try again")
                 self._assert_user_facing_failure_copy()
                 self._capture("failure")
                 self._fixture_owner.clear_forced_failure_stage()
                 self._click("OnboardingPrimaryButton")
-                self._wait_for_provisioning_button_text("Review setup")
+                self._wait_for_page("OnboardingCompletionPage")
             else:
                 self._wait_for_terminal_provisioning_state()
             if self._scenario.expected_outcome is ScenarioOutcome.FAILURE:
@@ -243,7 +271,6 @@ class OnboardingAutomationDriver:
                     launch_command=(),
                     screenshot_dir=str(self._screenshot_dir),
                 )
-            self._click("OnboardingPrimaryButton")
             self._wait_for_page("OnboardingCompletionPage")
             self._capture("completion")
             return ScenarioResult(
@@ -330,15 +357,15 @@ class OnboardingAutomationDriver:
     def _wait_for_terminal_provisioning_state(self) -> None:
         """Wait until provisioning reaches a success or failure terminal state."""
 
-        expected_button_text = (
-            "Review setup"
-            if self._scenario.expected_outcome is ScenarioOutcome.SUCCESS
-            else "Try again"
-        )
+        expected_button_text = "Try again"
         self._wait_until(
-            lambda: self._window.primary_button.text() == expected_button_text,
+            lambda: (
+                self._current_page_name() == "OnboardingCompletionPage"
+                if self._scenario.expected_outcome is ScenarioOutcome.SUCCESS
+                else self._window.primary_button.text() == expected_button_text
+            ),
             timeout_seconds=self._scenario.provisioning_timeout_seconds,
-            description=f"provisioning terminal state {expected_button_text}",
+            description="provisioning terminal state",
         )
 
     def _wait_for_provisioning_button_text(self, expected_text: str) -> None:

@@ -143,13 +143,6 @@ QLabel#RepairScopeBadge {
             background-color: rgba(__ACCENT_RGB__, 0.09);
             border: 1px solid rgba(__ACCENT_RGB__, 0.42);
         }
-        QCheckBox#ModelCategoryChoice {
-            background-color: rgba(__WASH_RGB__, 0.035);
-            border: 1px solid rgba(__WASH_RGB__, 0.085);
-            border-radius: 14px;
-            padding: 14px;
-            min-height: 30px;
-        }
         QFrame#ModelDiscoveryCard {
             background-color: rgba(__WASH_RGB__, 0.04);
             border: 1px solid rgba(__WASH_RGB__, 0.09);

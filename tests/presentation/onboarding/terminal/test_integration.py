@@ -29,6 +29,9 @@ from PySide6.QtWidgets import QApplication, QWidget
 from substitute.presentation.onboarding.onboarding_controller import (
     OnboardingController,
 )
+from substitute.presentation.onboarding.model_onboarding_session import (
+    ModelOnboardingSession,
+)
 from substitute.presentation.onboarding.onboarding_models import (
     OnboardingDraft,
     OnboardingFlowMode,
@@ -48,6 +51,7 @@ class _TerminalIntegrationController(QObject):
     provisioning_finished = Signal()
     progress_status_changed = Signal(str)
     progress_log_emitted = Signal(str)
+    setup_progress_changed = Signal(object)
     failure_reported = Signal(object)
     completion_ready = Signal(object)
 
@@ -56,6 +60,10 @@ class _TerminalIntegrationController(QObject):
 
         super().__init__()
         self._draft = draft
+        self._model_session = ModelOnboardingSession(
+            flow_mode=OnboardingFlowMode.FIRST_RUN,
+            target_mode=draft.target_mode,
+        )
 
     @property
     def draft(self) -> OnboardingDraft:
@@ -68,6 +76,12 @@ class _TerminalIntegrationController(QObject):
         """Return the first-run route used by this integration contract."""
 
         return OnboardingFlowMode.FIRST_RUN
+
+    @property
+    def model_session(self) -> ModelOnboardingSession:
+        """Return the inert model-onboarding session."""
+
+        return self._model_session
 
 
 @pytest.fixture(scope="module", autouse=True)

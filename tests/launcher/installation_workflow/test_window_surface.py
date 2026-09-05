@@ -176,5 +176,10 @@ def test_launcher_page_fits_fixed_window_with_live_output_visible(
             assert page.sizeHint().height() <= page_stage.contentsRect().height()
             assert page_stage.contentsRect().contains(page_stack.geometry())
             assert page_stack.contentsRect().contains(page.geometry())
+            top_gap = page_stack.geometry().top() - page_stage.contentsRect().top()
+            bottom_gap = (
+                page_stage.contentsRect().bottom() - page_stack.geometry().bottom()
+            )
+            assert abs(top_gap - bottom_gap) <= 2
     finally:
         close_and_delete_launcher_window(window)

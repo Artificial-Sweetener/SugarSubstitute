@@ -23,11 +23,16 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from sugarsubstitute_shared.localization import ApplicationText, app_text
+
+from substitute.application.execution import CancellationToken
 from substitute.application.onboarding import (
     OnboardingCompletionResult,
     OnboardingCredentialDraft,
     OnboardingDraftState,
 )
+from substitute.application.onboarding.setup_progress import SetupProgressEvent
+from substitute.domain.model_recommendations import ModelInstallPlan
 from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyEndpoint,
@@ -111,14 +116,24 @@ class ImmediateSuccessFlowService:
         draft: OnboardingDraftState,
         credential_draft: OnboardingCredentialDraft | None = None,
         restart_required: bool,
-        on_status: Callable[[str], None],
-        on_log: Callable[[str], None],
+        on_status: Callable[[ApplicationText], None],
+        on_log: Callable[[ApplicationText], None],
+        model_install_plan: ModelInstallPlan | None = None,
+        setup_generation: int = 1,
+        on_setup_progress: Callable[[SetupProgressEvent], None] | None = None,
+        cancellation: CancellationToken | None = None,
     ) -> OnboardingCompletionResult:
         """Emit deterministic progress and complete successfully."""
 
-        _ = credential_draft
-        on_status("Saving your setup.")
-        on_log(f"Automation scenario: {draft.target_mode}")
+        _ = (
+            credential_draft,
+            model_install_plan,
+            setup_generation,
+            on_setup_progress,
+            cancellation,
+        )
+        on_status(app_text("Saving your setup."))
+        on_log(app_text("Automation scenario: %1", draft.target_mode))
         target_mode = ComfyTargetMode(draft.target_mode)
         installation = InstallationConfiguration.create_default(draft.installation_root)
         runtime = RuntimeConfiguration(
@@ -148,8 +163,8 @@ class ImmediateSuccessFlowService:
                 launch_owned=target_mode is ComfyTargetMode.MANAGED_LOCAL,
             ),
         )
-        on_status("Setup is ready.")
-        on_log("Automation scenario completed successfully.")
+        on_status(app_text("Setup is ready."))
+        on_log(app_text("Automation scenario completed successfully."))
         return OnboardingCompletionResult(
             context=context,
             restart_required=restart_required,
