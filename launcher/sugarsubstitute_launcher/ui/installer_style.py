@@ -160,7 +160,6 @@ QLabel#RepairScopeBadge {
         CaptionLabel#OnboardingFieldHelper {
             color: rgba(__TEXT_RGB__, 0.74);
         }
-        CaptionLabel#OnboardingHeroEyebrow,
         CaptionLabel#OnboardingFieldLabel {
             color: rgba(__ACCENT_RGB__, 0.9);
             font-weight: 600;

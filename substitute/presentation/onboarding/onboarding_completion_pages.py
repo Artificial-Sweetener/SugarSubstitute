@@ -68,7 +68,6 @@ class ProvisioningPage(OnboardingPageFrame):
             title=app_text("Finishing your setup"),
             description=app_text("The first setup can take a few minutes."),
             icon=FIF.SYNC,
-            eyebrow=app_text("Setup in progress"),
             parent=parent,
         )
         self.setObjectName("OnboardingProvisioningPage")
@@ -379,7 +378,6 @@ class CompletionPage(OnboardingPageFrame):
             title=app_text("You're ready"),
             description=app_text("Open Substitute and start creating."),
             icon=FIF.ACCEPT,
-            eyebrow=app_text("All set"),
             parent=parent,
         )
         self.setObjectName("OnboardingCompletionPage")

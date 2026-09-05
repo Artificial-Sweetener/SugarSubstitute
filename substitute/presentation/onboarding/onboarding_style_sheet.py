@@ -165,7 +165,6 @@ def build_onboarding_style_sheet() -> str:
         CaptionLabel#OnboardingDownloadSummaryLabel {
             color: rgba(__TEXT_RGB__, 0.66);
         }
-        CaptionLabel#OnboardingHeroEyebrow,
         CaptionLabel#OnboardingFieldLabel {
             color: rgba(__ACCENT_RGB__, 0.9);
             font-weight: 600;

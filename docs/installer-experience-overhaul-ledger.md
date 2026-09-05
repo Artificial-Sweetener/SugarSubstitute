@@ -296,8 +296,11 @@ The work is ordered so every slice leaves the qualification path usable.
 - Clean install begins with the manifest-owned, visibly centered language
   selector. Selection retranslates immediately, persists with the chosen
   installation, and is handed across the process boundary. All four release
-  catalogs compile with zero unfinished messages: 1,662 application strings and
-  122 launcher strings per locale.
+  catalogs compile with zero unfinished messages: 1,648 application strings and
+  121 launcher strings per locale.
+- Installer page headers present one title and one supporting sentence. The
+  redundant uppercase eyebrow labels have been removed from every launcher and
+  onboarding route rather than repeating the heading in a second form.
 - Default managed setup keeps host, port, runtime diagnosis, channel, CPU, and
   experimental controls in a bounded Advanced dialog. Opening it leaves the
   centered page, stage height, scrollbar state, and footer geometry unchanged.
@@ -311,7 +314,7 @@ The work is ordered so every slice leaves the qualification path usable.
   skip and find-own exits, and reveals real names immediately while 1024-pixel
   CivitAI images load behind per-card activity indicators.
 - Deterministic visual evidence for every route and recovery state is in
-  `build/qualification/installer-remediation-dialog-v3/`. Its side-effect audit is
+  `build/qualification/installer-no-redundant-eyebrows/`. Its side-effect audit is
   zero for network, downloads, installs, subprocesses, handoffs, configuration
   writes, and target mutations, and protected-file hashes remain unchanged.
 - Live read-only CivitAI evidence is in

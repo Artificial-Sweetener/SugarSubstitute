@@ -9,12 +9,12 @@
       <translation>%1 无法使用这个可由 SugarSubstitute 处理的长 Windows 路径：%2。请为此操作选择较短的文件夹，或者在 Windows 中启用 Win32 长路径，然后重试。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="79"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="78"></location>
       <source>Also rebuild installer-owned ComfyUI and its Python environment.</source>
       <translation>同时重新构建由安装程序管理的 ComfyUI 及其 Python 环境。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="95"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="94"></location>
       <source>Always preserved</source>
       <translation>始终保留</translation>
     </message>
@@ -39,7 +39,7 @@
       <translation>浏览…</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="115"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="114"></location>
       <source>Cancel</source>
       <translation>取消</translation>
     </message>
@@ -199,12 +199,12 @@
       <translation>语言</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="82"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="81"></location>
       <source>More thorough</source>
       <translation>更彻底</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="49"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="57"></location>
       <source>Nothing else was changed. Review the report, then try this step again.</source>
       <translation>未更改任何其他内容。请查看报告，然后重试此步骤。</translation>
     </message>
@@ -219,7 +219,7 @@
       <translation>请选择一个有足够空间存放应用、ComfyUI 和模型的文件夹。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="57"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="65"></location>
       <source>Platform: %1</source>
       <translation>平台：%1</translation>
     </message>
@@ -234,17 +234,17 @@
       <translation>正在准备安装 SugarSubstitute。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="139"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="138"></location>
       <source>Preparing repair...</source>
       <translation>正在准备修复...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="99"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="98"></location>
       <source>Projects • outputs • autosaves • settings • models • inputs • ComfyUI user data • third-party custom nodes</source>
       <translation>项目 • 输出 • 自动保存 • 设置 • 模型 • 输入 • ComfyUI 用户数据 • 第三方自定义节点</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="61"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="60"></location>
       <source>Put Substitute back in a fresh state</source>
       <translation>将 Substitute 恢复到全新状态</translation>
     </message>
@@ -254,27 +254,22 @@
       <translation>准备就绪。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="74"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="73"></location>
       <source>Recommended</source>
       <translation>推荐</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="60"></location>
-      <source>Recovery suite</source>
-      <translation>恢复套件</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="70"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="69"></location>
       <source>Refresh Substitute, its launcher, and runtime. Managed installs also refresh Substitute's ComfyUI nodes.</source>
       <translation>刷新 Substitute、启动器和运行环境。托管安装还会刷新 Substitute 的 ComfyUI 节点。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="69"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="68"></location>
       <source>Repair Substitute</source>
       <translation>修复 Substitute</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="78"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="77"></location>
       <source>Repair Substitute and managed ComfyUI</source>
       <translation>修复 Substitute 和托管的 ComfyUI</translation>
     </message>
@@ -294,12 +289,12 @@
       <translation>已请求修复模式。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="62"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="61"></location>
       <source>Restore installer-owned files. Your work and models stay in place.</source>
       <translation>恢复由安装程序管理的文件。您的作品和模型会保留在原处。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="117"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="116"></location>
       <source>Review repair</source>
       <translation>检查修复内容</translation>
     </message>
@@ -319,7 +314,7 @@
       <translation>设置命令尚不可用。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="48"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="56"></location>
       <source>Setup could not continue</source>
       <translation>无法继续设置</translation>
     </message>
@@ -349,12 +344,12 @@
       <translation>检测到从源代码运行的启动器；已跳过复制可执行文件。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="68"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="76"></location>
       <source>Stage</source>
       <translation>阶段</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="56"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="64"></location>
       <source>Stage: %1</source>
       <translation>阶段：%1</translation>
     </message>
@@ -399,7 +394,7 @@
       <translation>SugarSubstitute 将在设置过程中使用此语言。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="59"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="67"></location>
       <source>Technical details:</source>
       <translation>技术详细信息：</translation>
     </message>
@@ -578,7 +573,7 @@
       <translation>Substitute 操作上下文</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/presentation/installer_surface.py" line="112"></location>
+      <location filename="../sugarsubstitute_shared/presentation/installer_surface.py" line="140"></location>
       <source>SugarSubstitute</source>
       <translation>SugarSubstitute</translation>
     </message>

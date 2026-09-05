@@ -159,7 +159,6 @@ class ModelDownloadReviewPage(OnboardingPageFrame):
             title=app_text("Review model downloads"),
             description=app_text("Remove anything you no longer want, then download."),
             icon=FIF.CHECKBOX,
-            eyebrow=app_text("Download review"),
             parent=parent,
         )
         self.setObjectName("OnboardingModelDownloadReviewPage")

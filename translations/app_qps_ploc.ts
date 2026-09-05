@@ -434,10 +434,6 @@ Prömpt prëvïëw:
       <translation>⟦Åll ràtïngs ···⟧</translation>
     </message>
     <message>
-      <source>All set</source>
-      <translation>⟦Åll sët ···⟧</translation>
-    </message>
-    <message>
       <source>All setup tasks are complete.</source>
       <translation>⟦Åll sëtüp tàsks àrë cömplëtë. ···⟧</translation>
     </message>
@@ -1038,10 +1034,6 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë yöür mödë ···⟧</translation>
     </message>
     <message>
-      <source>Choose your setup</source>
-      <translation>⟦Chöösë yöür sëtüp ···⟧</translation>
-    </message>
-    <message>
       <source>CivitAI API key</source>
       <translation>⟦CïvïtÅÏ ÅPÏ këy ···⟧</translation>
     </message>
@@ -1100,10 +1092,6 @@ Prömpt prëvïëw:
     <message>
       <source>CivitAI metadata refreshed.</source>
       <translation>⟦CïvïtÅÏ mëtàdàtà rëfrëshëd. ···⟧</translation>
-    </message>
-    <message>
-      <source>CivitAI recommendations</source>
-      <translation>⟦CïvïtÅÏ rëcömmëndàtïöns ···⟧</translation>
     </message>
     <message>
       <source>CivitAI recommendations could not be loaded. Try again or go back.</source>
@@ -1926,10 +1914,6 @@ Install these nodes now?</source>
       <translation>⟦Dësëlëct ···⟧</translation>
     </message>
     <message>
-      <source>Detect ComfyUI's Python environment</source>
-      <translation>⟦Dëtëct CömfyÜÏ's Pythön ënvïrönmënt ···⟧</translation>
-    </message>
-    <message>
       <source>Detect ComfyUI's environment</source>
       <translation>⟦Dëtëct CömfyÜÏ's ënvïrönmënt ···⟧</translation>
     </message>
@@ -2020,10 +2004,6 @@ Install these nodes now?</source>
     <message>
       <source>Download provider images for model picker thumbnails.</source>
       <translation>⟦Döwnlöàd prövïdër ïmàgës för mödël pïckër thümbnàïls. ···⟧</translation>
-    </message>
-    <message>
-      <source>Download review</source>
-      <translation>⟦Döwnlöàd rëvïëw ···⟧</translation>
     </message>
     <message>
       <source>Download selected</source>
@@ -2148,10 +2128,6 @@ Install these nodes now?</source>
     <message>
       <source>Enter the address of the ComfyUI server.</source>
       <translation>⟦Ëntër thë àddrëss öf thë CömfyÜÏ sërvër. ···⟧</translation>
-    </message>
-    <message>
-      <source>Environment safety check</source>
-      <translation>⟦Ënvïrönmënt sàfëty chëck ···⟧</translation>
     </message>
     <message>
       <source>Eraser</source>
@@ -2322,10 +2298,6 @@ Install these nodes now?</source>
       <translation>⟦Fïltër pàckàgës, clàïmànts, ör tàgs ···⟧</translation>
     </message>
     <message>
-      <source>Find ComfyUI's Python environment</source>
-      <translation>⟦Fïnd CömfyÜÏ's Pythön ënvïrönmënt ···⟧</translation>
-    </message>
-    <message>
       <source>Find ComfyUI's environment</source>
       <translation>⟦Fïnd CömfyÜÏ's ënvïrönmënt ···⟧</translation>
     </message>
@@ -2372,10 +2344,6 @@ Install these nodes now?</source>
     <message>
       <source>Folder</source>
       <translation>⟦Földër ···⟧</translation>
-    </message>
-    <message>
-      <source>Folders</source>
-      <translation>⟦Földërs ···⟧</translation>
     </message>
     <message>
       <source>For %1</source>
@@ -2756,10 +2724,6 @@ Install these nodes now?</source>
     <message>
       <source>Keep v%1</source>
       <translation>⟦Këëp v%1 ···⟧</translation>
-    </message>
-    <message>
-      <source>Keep your existing setup</source>
-      <translation>⟦Këëp yöür ëxïstïng sëtüp ···⟧</translation>
     </message>
     <message>
       <source>Keep your internet connection available while setup runs.</source>
@@ -3998,10 +3962,6 @@ Install these nodes now?</source>
       <translation>⟦Rëàsön: %1 ···⟧</translation>
     </message>
     <message>
-      <source>Recommended for most people</source>
-      <translation>⟦Rëcömmëndëd för möst pëöplë ···⟧</translation>
-    </message>
-    <message>
       <source>Reconfigure</source>
       <translation>⟦Rëcönfïgürë ···⟧</translation>
     </message>
@@ -4088,10 +4048,6 @@ Install these nodes now?</source>
     <message>
       <source>Remote ComfyUI does not use local model downloads.</source>
       <translation>⟦Rëmötë CömfyÜÏ döës nöt üsë löcàl mödël döwnlöàds. ···⟧</translation>
-    </message>
-    <message>
-      <source>Remote connection</source>
-      <translation>⟦Rëmötë cönnëctïön ···⟧</translation>
     </message>
     <message>
       <source>Remote endpoint: %1:%2</source>
@@ -4662,10 +4618,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëlëct ···⟧</translation>
     </message>
     <message>
-      <source>Select ComfyUI's Python environment</source>
-      <translation>⟦Sëlëct CömfyÜÏ's Pythön ënvïrönmënt ···⟧</translation>
-    </message>
-    <message>
       <source>Select ComfyUI's Python executable</source>
       <translation>⟦Sëlëct CömfyÜÏ's Pythön ëxëcütàblë ···⟧</translation>
     </message>
@@ -4772,10 +4724,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Setup did not finish</source>
       <translation>⟦Sëtüp dïd nöt fïnïsh ···⟧</translation>
-    </message>
-    <message>
-      <source>Setup in progress</source>
-      <translation>⟦Sëtüp ïn prögrëss ···⟧</translation>
     </message>
     <message>
       <source>Setup is saved and ready.</source>
@@ -4992,10 +4940,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Start cubes</source>
       <translation>⟦Stàrt cübës ···⟧</translation>
-    </message>
-    <message>
-      <source>Start here</source>
-      <translation>⟦Stàrt hërë ···⟧</translation>
     </message>
     <message>
       <source>Start setup again so Substitute can save a clean setup state.</source>

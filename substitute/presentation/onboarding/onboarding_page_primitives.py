@@ -86,7 +86,6 @@ class OnboardingHeroPanel(QFrame):
         title: ApplicationText,
         description: ApplicationText,
         icon: object,
-        eyebrow: ApplicationText,
         parent: QWidget | None = None,
     ) -> None:
         """Build the compact hero with icon badge, title, and supporting line."""
@@ -112,10 +111,6 @@ class OnboardingHeroPanel(QFrame):
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(5)
 
-        eyebrow_label = LocalizedCaptionLabel(eyebrow, self)
-        eyebrow_label.setObjectName("OnboardingHeroEyebrow")
-        text_layout.addWidget(eyebrow_label)
-
         self.title_label = LocalizedBodyLabel(title, self)
         self.title_label.setObjectName("OnboardingPageTitle")
         self.title_label.setWordWrap(True)
@@ -136,9 +131,6 @@ class OnboardingHeroPanel(QFrame):
             self.description_label,
         ):
             label.setFixedWidth(text_width)
-        eyebrow = self.findChild(QWidget, "OnboardingHeroEyebrow")
-        if eyebrow is not None:
-            eyebrow.setFixedWidth(text_width)
         layout = self.layout()
         if not isinstance(layout, QHBoxLayout):
             return
@@ -156,7 +148,6 @@ class OnboardingPageFrame(QFrame):
         title: ApplicationText,
         description: ApplicationText,
         icon: object,
-        eyebrow: ApplicationText,
         parent: QWidget | None = None,
     ) -> None:
         """Build the shared page surface and expose a body layout for content."""
@@ -181,7 +172,6 @@ class OnboardingPageFrame(QFrame):
             title=title,
             description=description,
             icon=icon,
-            eyebrow=eyebrow,
             parent=self,
         )
         layout.addWidget(self.hero_panel)
