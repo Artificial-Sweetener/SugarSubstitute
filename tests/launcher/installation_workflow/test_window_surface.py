@@ -37,6 +37,7 @@ from launcher.sugarsubstitute_launcher.ui.installer_presentation import Launcher
 from sugarsubstitute_shared.installer_qualification import InstallerQualificationPlan
 from sugarsubstitute_shared.presentation.installer_surface import (
     INSTALLER_BRAND_BAR_HEIGHT,
+    INSTALLER_WORDMARK_OPTICAL_Y_OFFSET,
     INSTALLER_WINDOW_HEIGHT,
     INSTALLER_WINDOW_WIDTH,
     InstallerBrandBar,
@@ -83,6 +84,14 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
     assert isinstance(window.view.brand_bar, InstallerBrandBar)
     assert isinstance(window.view.content_panel, InstallerBodyMaterialSurface)
     assert window.view.brand_bar.wordmark.isVisible() is True
+    wordmark_top = window.view.brand_bar.wordmark.mapTo(
+        window.view.brand_bar,
+        QPoint(0, 0),
+    ).y()
+    centered_wordmark_top = (
+        window.view.brand_bar.height() - window.view.brand_bar.wordmark.height()
+    ) // 2
+    assert wordmark_top == centered_wordmark_top + INSTALLER_WORDMARK_OPTICAL_Y_OFFSET
     assert window.view.language_combo.objectName() == "LauncherLanguageSelector"
     viewport_center = window.view.page_stage.viewport().mapToGlobal(
         window.view.page_stage.viewport().rect().center()

@@ -289,7 +289,10 @@ The work is ordered so every slice leaves the qualification path usable.
   washed content layer, compact five-stage progress, scroll-safe task area, and
   stable footer now span the launcher and application-owned ComfyUI setup. The
   close control is anchored to the true top-right title-bar corner while the
-  remainder of the full 126-pixel Mica header stays draggable.
+  remainder of the full 126-pixel Mica header stays draggable. Post-review
+  rendering in `build/qualification/installer-wordmark-optical-centering/`
+  verifies that the visible wordmark artwork, rather than only its SVG viewport,
+  is vertically centered in that extended header on both process-owned windows.
 - Clean install begins with the manifest-owned, visibly centered language
   selector. Selection retranslates immediately, persists with the chosen
   installation, and is handed across the process boundary. All four release

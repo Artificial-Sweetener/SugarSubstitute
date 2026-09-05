@@ -45,6 +45,9 @@ INSTALLER_WINDOW_WIDTH = 1180
 INSTALLER_WINDOW_HEIGHT = 760
 INSTALLER_BRAND_BAR_HEIGHT = 126
 INSTALLER_CONTENT_MAX_WIDTH = 1030
+INSTALLER_WORDMARK_WIDTH = 270
+INSTALLER_WORDMARK_HEIGHT = 88
+INSTALLER_WORDMARK_OPTICAL_Y_OFFSET = 2
 
 
 def configure_installer_title_bar(title_bar: QWidget) -> None:
@@ -115,13 +118,28 @@ class InstallerBrandBar(QFrame):
         layout.setContentsMargins(38, 19, 52, 19)
         layout.setSpacing(24)
 
-        self.wordmark = QSvgWidget(str(installer_wordmark_path()), self)
+        self.wordmark_host = QWidget(self)
+        self.wordmark_host.setObjectName("InstallerWordmarkHost")
+        self.wordmark_host.setFixedSize(
+            INSTALLER_WORDMARK_WIDTH,
+            INSTALLER_WORDMARK_HEIGHT,
+        )
+        expose_native_material(self.wordmark_host)
+        self.wordmark = QSvgWidget(
+            str(installer_wordmark_path()),
+            self.wordmark_host,
+        )
         self.wordmark.setObjectName("InstallerWordmark")
-        self.wordmark.setFixedSize(270, 88)
+        self.wordmark.setGeometry(
+            0,
+            INSTALLER_WORDMARK_OPTICAL_Y_OFFSET,
+            INSTALLER_WORDMARK_WIDTH,
+            INSTALLER_WORDMARK_HEIGHT,
+        )
         self.wordmark.setAccessibleName(
             render_application_text(app_text("SugarSubstitute"))
         )
-        layout.addWidget(self.wordmark, alignment=Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(self.wordmark_host, alignment=Qt.AlignmentFlag.AlignVCenter)
         layout.addStretch(1)
 
         progress_host = QWidget(self)
@@ -197,6 +215,7 @@ def build_installer_surface_style_sheet() -> str:
             background: transparent;
             border: none;
         }
+        QWidget#InstallerWordmarkHost,
         QSvgWidget#InstallerWordmark {
             background: transparent;
             border: none;
@@ -271,6 +290,9 @@ def build_installer_surface_style_sheet() -> str:
 __all__ = [
     "INSTALLER_BRAND_BAR_HEIGHT",
     "INSTALLER_CONTENT_MAX_WIDTH",
+    "INSTALLER_WORDMARK_HEIGHT",
+    "INSTALLER_WORDMARK_OPTICAL_Y_OFFSET",
+    "INSTALLER_WORDMARK_WIDTH",
     "INSTALLER_WINDOW_HEIGHT",
     "INSTALLER_WINDOW_WIDTH",
     "InstallerBrandBar",
