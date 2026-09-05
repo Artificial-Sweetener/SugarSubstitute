@@ -47,6 +47,7 @@ from substitute.presentation.shell.window_frame import SubstituteWindowFrame
 from substitute.presentation.widgets.spin_box import SpinBox
 from sugarsubstitute_shared.presentation.installer_surface import (
     INSTALLER_BRAND_BAR_HEIGHT,
+    INSTALLER_WORDMARK_OPTICAL_Y_OFFSET,
     InstallerBodyMaterialSurface,
     InstallerBrandBar,
 )
@@ -133,6 +134,14 @@ def test_onboarding_window_builds_all_required_pages(
     assert window.titleBar.canDrag(QPoint(600, INSTALLER_BRAND_BAR_HEIGHT - 8))
     assert not window.windowIcon().isNull()
     assert window.brand_bar.wordmark.renderer().isValid()
+    wordmark_top = window.brand_bar.wordmark.mapTo(
+        window.brand_bar,
+        QPoint(0, 0),
+    ).y()
+    centered_wordmark_top = (
+        window.brand_bar.height() - window.brand_bar.wordmark.height()
+    ) // 2
+    assert wordmark_top == centered_wordmark_top + INSTALLER_WORDMARK_OPTICAL_Y_OFFSET
     close_hit = window.titleBar.closeBtn.mapTo(
         window, window.titleBar.closeBtn.rect().center()
     )
