@@ -24,19 +24,16 @@ from substitute.domain.model_recommendations.install_models import (
     ModelInstallFile,
     ModelInstallPlan,
     ModelInstallProgress,
-    ModelInstallSource,
 )
 from substitute.domain.model_recommendations.models import (
     CivitaiFamilyMapping,
     FamilyDetectionPolicy,
     ModelFamilyDefinition,
     ModelFamilyId,
-    ModelRecipeRole,
     ModelRecommendation,
     ModelRecommendationQuery,
     ModelStylePreference,
     TensorShapeSignature,
-    TrustedRecipeAsset,
 )
 from substitute.domain.model_recommendations.scan_models import (
     DetectedModelFamily,
@@ -59,13 +56,10 @@ __all__ = [
     "ModelInstallFile",
     "ModelInstallPlan",
     "ModelInstallProgress",
-    "ModelInstallSource",
-    "ModelRecipeRole",
     "ModelRecommendation",
     "ModelRecommendationQuery",
     "ModelStylePreference",
     "TensorShapeSignature",
     "SUPPORTED_MODEL_FAMILIES",
     "SupportedModelFamilyCatalog",
-    "TrustedRecipeAsset",
 ]

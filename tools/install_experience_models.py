@@ -169,6 +169,7 @@ def _family_cards(family_id: ModelFamilyId) -> tuple[RecommendationCardAsset, ..
                     f"https://civitai.com/models/{family_offset + rank}"
                     f"?modelVersionId={family_offset * 10 + rank}"
                 ),
+                thumbnail_image_id=family_offset * 100 + rank,
                 thumbnail_url=f"https://image.civitai.com/synthetic/{family_offset + rank}.png",
                 popularity_rank=rank,
             ),

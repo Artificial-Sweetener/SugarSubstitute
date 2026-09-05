@@ -19,9 +19,6 @@
 from __future__ import annotations
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
-from sugarsubstitute_shared.presentation.localization import (
-    apply_application_text,
-)
 from substitute.presentation.localization import (
     LocalizedBodyLabel,
     LocalizedCaptionLabel,
@@ -52,11 +49,6 @@ class TargetModePresentation:
 
     title: ApplicationText
     summary: ApplicationText
-    best_if: ApplicationText
-    meaning: ApplicationText
-    substitute_handles: ApplicationText
-    you_handle: ApplicationText
-    technical_note: ApplicationText
     icon: object
 
 
@@ -66,22 +58,6 @@ _TARGET_MODE_PRESENTATION: dict[OnboardingTargetMode, TargetModePresentation] = 
         summary=app_text(
             "Substitute installs and prepares a local ComfyUI setup for you."
         ),
-        best_if=app_text("Best if you want the simplest path."),
-        meaning=app_text(
-            "Substitute creates a local ComfyUI setup in the folder you choose."
-        ),
-        substitute_handles=app_text(
-            "Substitute installs ComfyUI, prepares what it needs, and keeps required "
-            "node packs ready."
-        ),
-        you_handle=app_text(
-            "You mainly choose where the files live. Most people can leave the "
-            "local address alone."
-        ),
-        technical_note=app_text(
-            "By default, the managed ComfyUI folder is created as `comfyui` inside "
-            "your Substitute folder."
-        ),
         icon=FIF.HOME,
     ),
     OnboardingTargetMode.ATTACHED_LOCAL: TargetModePresentation(
@@ -89,46 +65,12 @@ _TARGET_MODE_PRESENTATION: dict[OnboardingTargetMode, TargetModePresentation] = 
         summary=app_text(
             "Substitute adopts and starts the local ComfyUI setup you already use."
         ),
-        best_if=app_text("Best if you already have local ComfyUI set up."),
-        meaning=app_text(
-            "Substitute uses your current local ComfyUI folder without reinstalling "
-            "the repository."
-        ),
-        substitute_handles=app_text(
-            "Substitute saves that folder, prepares the Python environment it needs, "
-            "and starts ComfyUI for you."
-        ),
-        you_handle=app_text(
-            "You keep your ComfyUI files and models. Substitute takes over launching "
-            "it while the app is running."
-        ),
-        technical_note=app_text(
-            "The ComfyUI folder is required so Substitute can launch it and inspect "
-            "local custom-node files."
-        ),
         icon=FIF.LINK,
     ),
     OnboardingTargetMode.REMOTE: TargetModePresentation(
         title=app_text("Use remote ComfyUI"),
         summary=app_text(
             "Substitute connects to a ComfyUI server running on another machine."
-        ),
-        best_if=app_text("Best if ComfyUI lives on another machine."),
-        meaning=app_text(
-            "Substitute sends work to a remote ComfyUI server instead of starting one "
-            "here."
-        ),
-        substitute_handles=app_text(
-            "Substitute saves the remote address and prepares the local pieces it "
-            "still needs for the canvas."
-        ),
-        you_handle=app_text(
-            "You keep the remote ComfyUI server running and reachable from this "
-            "computer."
-        ),
-        technical_note=app_text(
-            "Some canvas features still need a local Python environment even when "
-            "ComfyUI itself is remote."
         ),
         icon=FIF.IOT,
     ),
@@ -156,15 +98,15 @@ class OnboardingHeroPanel(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(14)
 
-        badge = QFrame(self)
-        badge.setObjectName("OnboardingHeroBadge")
-        badge_layout = QVBoxLayout(badge)
+        self.badge = QFrame(self)
+        self.badge.setObjectName("OnboardingHeroBadge")
+        badge_layout = QVBoxLayout(self.badge)
         badge_layout.setContentsMargins(10, 10, 10, 10)
         badge_layout.setSpacing(0)
-        icon_widget = IconWidget(icon, badge)
+        icon_widget = IconWidget(icon, self.badge)
         icon_widget.setFixedSize(22, 22)
         badge_layout.addWidget(icon_widget, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(badge, alignment=Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(self.badge, alignment=Qt.AlignmentFlag.AlignTop)
 
         text_layout = QVBoxLayout()
         text_layout.setContentsMargins(0, 0, 0, 0)
@@ -185,6 +127,24 @@ class OnboardingHeroPanel(QFrame):
         text_layout.addWidget(self.description_label)
 
         layout.addLayout(text_layout, 1)
+
+    def center_compact_content(self, *, text_width: int) -> None:
+        """Center a sparse hero as one bounded icon-and-text composition."""
+
+        for label in (
+            self.title_label,
+            self.description_label,
+        ):
+            label.setFixedWidth(text_width)
+        eyebrow = self.findChild(QWidget, "OnboardingHeroEyebrow")
+        if eyebrow is not None:
+            eyebrow.setFixedWidth(text_width)
+        layout = self.layout()
+        if not isinstance(layout, QHBoxLayout):
+            return
+        layout.setStretch(1, 0)
+        layout.insertStretch(0, 1)
+        layout.addStretch(1)
 
 
 class OnboardingPageFrame(QFrame):
@@ -230,8 +190,7 @@ class OnboardingPageFrame(QFrame):
         self.body_layout.setContentsMargins(0, 0, 0, 0)
         self.body_layout.setSpacing(14)
         layout.addLayout(self.body_layout)
-        layout.addStretch(1)
-        outer_layout.addWidget(self.content_column, 8)
+        outer_layout.addWidget(self.content_column)
         outer_layout.addStretch(1)
 
 
@@ -326,6 +285,21 @@ class OnboardingSectionPanel(QFrame):
         self.content_layout.setSpacing(12)
 
 
+def invalidate_onboarding_layout(widget: QWidget, stop: QWidget) -> None:
+    """Invalidate nested page layouts after a disclosure changes visible height."""
+
+    current: QWidget | None = widget.parentWidget()
+    while current is not None:
+        layout = current.layout()
+        if layout is not None:
+            layout.invalidate()
+            layout.activate()
+        current.updateGeometry()
+        if current is stop:
+            return
+        current = current.parentWidget()
+
+
 class TargetModeCard(QFrame):
     """Render one selectable setup card for the target-mode page."""
 
@@ -381,11 +355,6 @@ class TargetModeCard(QFrame):
         header_row.addLayout(text_column, 1)
         layout.addLayout(header_row)
 
-        self.best_if_label = LocalizedCaptionLabel(presentation.best_if, self)
-        self.best_if_label.setObjectName("OnboardingTargetCardBestIf")
-        self.best_if_label.setWordWrap(True)
-        layout.addWidget(self.best_if_label)
-
         layout.addStretch(1)
 
         self.selection_radio = LocalizedRadioButton(app_text("Select"), self)
@@ -416,48 +385,3 @@ class TargetModeCard(QFrame):
         """Emit the configured target mode for card and button activation."""
 
         self.clicked.emit(self._mode.value)
-
-
-class TargetModeSummaryPanel(QFrame):
-    """Render the selected-mode summary beneath the target-mode cards."""
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        """Build the compact summary block for the current target choice."""
-
-        super().__init__(parent)
-        self.setObjectName("OnboardingModeSummaryPanel")
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(8)
-
-        self.meaning_label = LocalizedCaptionLabel("", self)
-        self.meaning_label.setObjectName("OnboardingModeSummaryText")
-        self.meaning_label.setWordWrap(True)
-        layout.addWidget(self.meaning_label)
-
-        self.substitute_label = LocalizedCaptionLabel("", self)
-        self.substitute_label.setObjectName("OnboardingModeSummaryText")
-        self.substitute_label.setWordWrap(True)
-        layout.addWidget(self.substitute_label)
-
-        self.you_label = LocalizedCaptionLabel("", self)
-        self.you_label.setObjectName("OnboardingModeSummaryText")
-        self.you_label.setWordWrap(True)
-        layout.addWidget(self.you_label)
-
-        self.technical_label = LocalizedCaptionLabel("", self)
-        self.technical_label.setObjectName("OnboardingModeTechnicalNote")
-        self.technical_label.setWordWrap(True)
-        layout.addWidget(self.technical_label)
-
-    def set_presentation(self, presentation: TargetModePresentation) -> None:
-        """Render the selected target-mode summary lines."""
-
-        apply_application_text(self.meaning_label, presentation.meaning)
-        apply_application_text(
-            self.substitute_label,
-            presentation.substitute_handles,
-        )
-        apply_application_text(self.you_label, presentation.you_handle)
-        apply_application_text(self.technical_label, presentation.technical_note)

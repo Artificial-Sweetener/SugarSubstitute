@@ -60,8 +60,7 @@ class RepairScopePage(QFrame):
             eyebrow=launcher_text("Recovery suite"),
             title=launcher_text("Put Substitute back in a fresh state"),
             description=launcher_text(
-                "Repair installs the exact version carried by this installer. "
-                "Your projects, outputs, models, inputs, and ComfyUI user data stay in place."
+                "Restore installer-owned files. Your work and models stay in place."
             ),
         )
         self._group = QButtonGroup(self)
@@ -69,9 +68,8 @@ class RepairScopePage(QFrame):
             self,
             title=launcher_text("Repair Substitute"),
             description=launcher_text(
-                "Replace the app, launcher, Python runtime, and app state. "
-                "When this installation owns managed ComfyUI, its Substitute Backend "
-                "and SugarCubes nodes are refreshed too."
+                "Refresh Substitute, its launcher, and runtime. Managed installs also "
+                "refresh Substitute's ComfyUI nodes."
             ),
             badge=launcher_text("Recommended"),
         )
@@ -79,8 +77,7 @@ class RepairScopePage(QFrame):
             self,
             title=launcher_text("Repair Substitute and managed ComfyUI"),
             description=launcher_text(
-                "Also rebuild installer-owned ComfyUI core and its Python environment. "
-                "Models, user data, inputs, outputs, and third-party custom nodes are preserved."
+                "Also rebuild installer-owned ComfyUI and its Python environment."
             ),
             badge=launcher_text("More thorough"),
         )

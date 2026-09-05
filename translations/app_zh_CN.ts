@@ -64,7 +64,7 @@
       <translation>“%1”</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/preparation_service.py" line="170"></location>
+      <location filename="../substitute/application/onboarding/preparation_service.py" line="183"></location>
       <source>%1</source>
       <translation>%1</translation>
     </message>
@@ -200,7 +200,7 @@ Prompt preview:
       <translation>已下载并验证 %1 个模型文件。请重新打开选择器以使用它们。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="278"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="317"></location>
       <source>%1 model recommendation</source>
       <translation>%1 个模型推荐</translation>
     </message>
@@ -245,7 +245,7 @@ Prompt preview:
       <translation>%1 像素</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1239"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="949"></location>
       <source>%1 saved setup items need repair before Substitute can open.</source>
       <translation>有 %1 个已保存的设置项需要修复，之后才能打开 Substitute。</translation>
     </message>
@@ -303,6 +303,11 @@ Prompt preview:
       <location filename="../substitute/application/cube_library/settings_projection.py" line="228"></location>
       <source>%1 · %2 · Disabled · Update available</source>
       <translation>%1 · %2 · 已禁用 · 有可用更新</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="196"></location>
+      <source>%1 · %2 · Python %3 · %4</source>
+      <translation>%1 · %2 · Python：%3 · %4</translation>
     </message>
     <message>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="232"></location>
@@ -410,7 +415,7 @@ Prompt preview:
       <translation>另一个 ComfyUI 安装正在运行。请启动所选 ComfyUI 文件夹中的实例，以便 Substitute 识别其 Python 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="263"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="268"></location>
       <source>A different ComfyUI is running</source>
       <translation>另一个 ComfyUI 正在运行</translation>
     </message>
@@ -430,7 +435,7 @@ Prompt preview:
       <translation>原生依赖项加载失败。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="32"></location>
+      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="45"></location>
       <source>A newer image model family with strong illustration and character-focused fine-tunes.</source>
       <translation>较新的图像模型系列，擅长插画和角色类微调模型。</translation>
     </message>
@@ -450,7 +455,7 @@ Prompt preview:
       <translation>缺少必需的本地 Python 文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="26"></location>
+      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="39"></location>
       <source>A widely supported family with versatile realistic and illustrative fine-tunes.</source>
       <translation>广泛支持的模型系列，拥有多种写实和插画类微调模型。</translation>
     </message>
@@ -460,7 +465,12 @@ Prompt preview:
       <translation>API 密钥</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="321"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="302"></location>
+      <source>API key (optional)</source>
+      <translation>API 密钥（可选）</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="340"></location>
       <source>API key already saved</source>
       <translation>API 密钥已保存</translation>
     </message>
@@ -478,11 +488,6 @@ Prompt preview:
       <location filename="../substitute/presentation/settings/settings_workspace.py" line="235"></location>
       <source>About</source>
       <translation>关于</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="330"></location>
-      <source>Accelerator: %1</source>
-      <translation>加速器：%1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1545"></location>
@@ -513,6 +518,11 @@ Prompt preview:
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="264"></location>
       <source>Add Cube Pack</source>
       <translation>添加方块包</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="303"></location>
+      <source>Add a CivitAI API key now, or leave this blank and add one later in Settings.</source>
+      <translation>现在添加 CivitAI API 密钥，或留空并稍后在设置中添加。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="428"></location>
@@ -560,14 +570,14 @@ Prompt preview:
       <translation>调整带权重的提示词文本并显示强调控件。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="432"></location>
-      <source>Advanced details</source>
-      <translation>高级详细信息</translation>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="281"></location>
+      <source>Advanced ComfyUI settings</source>
+      <translation>ComfyUI 高级设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="287"></location>
-      <source>Advanced options</source>
-      <translation>高级选项</translation>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="216"></location>
+      <source>Advanced settings</source>
+      <translation>高级设置</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="99"></location>
@@ -580,12 +590,12 @@ Prompt preview:
       <translation>全部</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="400"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="419"></location>
       <source>All ratings</source>
       <translation>所有分级</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="385"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="382"></location>
       <source>All set</source>
       <translation>全部就绪</translation>
     </message>
@@ -595,7 +605,7 @@ Prompt preview:
       <translation>所有设置任务均已完成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="425"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="444"></location>
       <source>Allow all</source>
       <translation>全部允许</translation>
     </message>
@@ -610,7 +620,7 @@ Prompt preview:
       <translation>允许在缺少模型时提供经 CivitAI 验证的下载项。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="421"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="440"></location>
       <source>Allow soft</source>
       <translation>允许软限制内容</translation>
     </message>
@@ -640,7 +650,7 @@ Prompt preview:
       <translation>锚点</translation>
     </message>
     <message>
-      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="31"></location>
+      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="44"></location>
       <source>Anima</source>
       <translation>Anima</translation>
     </message>
@@ -750,11 +760,6 @@ Prompt preview:
       <translation>后端下载功能不可用。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="350"></location>
-      <source>Backend: %1</source>
-      <translation>后端：%1</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="241"></location>
       <source>Base</source>
       <translation>基础</translation>
@@ -790,21 +795,6 @@ Prompt preview:
       <translation>批次数量</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="116"></location>
-      <source>Best if ComfyUI lives on another machine.</source>
-      <translation>适合 ComfyUI 位于其他机器上的情况。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="92"></location>
-      <source>Best if you already have local ComfyUI set up.</source>
-      <translation>适合已经设置好本地 ComfyUI 的情况。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="69"></location>
-      <source>Best if you want the simplest path.</source>
-      <translation>如果您想要最简单的方式，这是最佳选择。</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/planned_changes_panel.py" line="544"></location>
       <source>Blocked</source>
       <translation>受阻</translation>
@@ -830,7 +820,7 @@ Prompt preview:
       <translation>浏览文件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="339"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="344"></location>
       <source>Browse for Python executable…</source>
       <translation>浏览 Python 可执行文件…</translation>
     </message>
@@ -848,11 +838,6 @@ Prompt preview:
       <location filename="../substitute/presentation/canvas/input/input_brush_settings.py" line="61"></location>
       <source>Brush settings</source>
       <translation>画笔设置</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="81"></location>
-      <source>By default, the managed ComfyUI folder is created as `comfyui` inside your Substitute folder.</source>
-      <translation>默认情况下，托管的 ComfyUI 文件夹会在 Substitute 文件夹内创建，名称为 `comfyui`。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/workflows/cube_item.py" line="310"></location>
@@ -930,6 +915,11 @@ Prompt preview:
       <translation>更改画布分辨率</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="303"></location>
+      <source>Change the address Substitute uses for this ComfyUI setup.</source>
+      <translation>更改 Substitute 用来连接此 ComfyUI 环境的地址。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="1385"></location>
       <source>Change the colors that appear in Substitute.</source>
       <translation>更改 Substitute 中显示的颜色。</translation>
@@ -940,9 +930,9 @@ Prompt preview:
       <translation>更改主窗口的背景材质。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="158"></location>
-      <source>Change the saved setup or ComfyUI connection.</source>
-      <translation>更改已保存的设置或 ComfyUI 连接。</translation>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="160"></location>
+      <source>Change these only when you need a different runtime strategy.</source>
+      <translation>仅在需要不同的运行时方案时更改这些设置。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="461"></location>
@@ -955,7 +945,7 @@ Prompt preview:
       <translation>仅在模型用于生成后，才到 CivitAI 检查兼容更新。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="196"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="51"></location>
       <source>Check ComfyUI</source>
       <translation>检查 ComfyUI</translation>
     </message>
@@ -1005,7 +995,7 @@ Prompt preview:
       <translation>正在检查 ComfyUI 的 Python 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1003"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="714"></location>
       <source>Checking ComfyUI…</source>
       <translation>正在检查 ComfyUI…</translation>
     </message>
@@ -1020,7 +1010,7 @@ Prompt preview:
       <translation>正在检查 ComfyUI 是否就绪。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="397"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="402"></location>
       <source>Checking the Python environment</source>
       <translation>正在检查 Python 环境</translation>
     </message>
@@ -1035,12 +1025,12 @@ Prompt preview:
       <translation>正在检查所选 Comfy 服务器。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="376"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="381"></location>
       <source>Checking the selected Python executable…</source>
       <translation>正在检查所选 Python 可执行文件…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1054"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="773"></location>
       <source>Checking…</source>
       <translation>正在检查…</translation>
     </message>
@@ -1055,7 +1045,7 @@ Prompt preview:
       <translation>选择</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/path_selector.py" line="84"></location>
+      <location filename="../substitute/presentation/onboarding/path_selector.py" line="97"></location>
       <source>Choose ComfyUI Python Executable</source>
       <translation>选择 ComfyUI Python 可执行文件</translation>
     </message>
@@ -1090,22 +1080,17 @@ Prompt preview:
       <translation>选择输出文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="164"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="45"></location>
       <source>Choose a folder</source>
       <translation>选择文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="152"></location>
-      <source>Choose a folder and connect Substitute to ComfyUI.</source>
-      <translation>选择文件夹并将 Substitute 连接到 ComfyUI。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="351"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="390"></location>
       <source>Choose a model to download, skip this family, or find your own models.</source>
       <translation>选择要下载的模型、跳过此系列，或自行查找模型。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="385"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="443"></location>
       <source>Choose a models folder before reviewing downloads.</source>
       <translation>请先选择模型文件夹，再查看下载内容。</translation>
     </message>
@@ -1130,7 +1115,7 @@ Prompt preview:
       <translation>为此 ComfyUI 安装选择可用的 Python</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="190"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="201"></location>
       <source>Choose an accessible existing models folder.</source>
       <translation>选择一个可访问的现有模型文件夹。</translation>
     </message>
@@ -1155,22 +1140,27 @@ Prompt preview:
       <translation>选择固定质量或大致的目标文件大小。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="109"></location>
+      <source>Choose folders</source>
+      <translation>选择文件夹</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="105"></location>
       <source>Choose from popular compatible files from the last month, or explore CivitAI. Nothing is selected automatically.</source>
       <translation>从上个月热门的兼容文件中选择，或浏览 CivitAI。不会自动选择任何内容。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="221"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="223"></location>
       <source>Choose helpful extras</source>
       <translation>选择实用的附加功能</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="221"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="76"></location>
       <source>Choose how Substitute should identify ComfyUI's Python.</source>
       <translation>选择 Substitute 应如何识别 ComfyUI 的 Python 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="124"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="115"></location>
       <source>Choose how Substitute should reach ComfyUI</source>
       <translation>选择 Substitute 连接 ComfyUI 的方式</translation>
     </message>
@@ -1200,7 +1190,7 @@ Prompt preview:
       <translation>选择查找方式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="248"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="103"></location>
       <source>Choose models</source>
       <translation>选择模型</translation>
     </message>
@@ -1208,6 +1198,11 @@ Prompt preview:
       <location filename="../substitute/presentation/settings/generation_output_settings_rows.py" line="108"></location>
       <source>Choose output folder</source>
       <translation>选择输出文件夹</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="237"></location>
+      <source>Choose the ComfyUI folder you already use.</source>
+      <translation>选择你已在使用的 ComfyUI 文件夹。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="359"></location>
@@ -1220,17 +1215,12 @@ Prompt preview:
       <translation>选择新提示发送到 ComfyUI 时使用的潜空间预览方式。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_existing_model_page.py" line="32"></location>
-      <source>Choose the ComfyUI models folder you already use. Substitute will scan it without changing its contents.</source>
-      <translation>选择你正在使用的 ComfyUI 模型文件夹。Substitute 将在不更改内容的情况下扫描它。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="235"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="90"></location>
       <source>Choose the Python executable that this ComfyUI installation uses.</source>
       <translation>选择此 ComfyUI 安装所使用的 Python 可执行文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="308"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="313"></location>
       <source>Choose the Python executable used by this ComfyUI installation.</source>
       <translation>选择此 ComfyUI 安装所使用的 Python 可执行文件。</translation>
     </message>
@@ -1240,7 +1230,7 @@ Prompt preview:
       <translation>选择此 ComfyUI 安装使用的 Python</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="319"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="324"></location>
       <source>Choose the Python your setup actually uses</source>
       <translation>选择您的设置实际使用的 Python</translation>
     </message>
@@ -1250,7 +1240,7 @@ Prompt preview:
       <translation>选择用于突出显示和选中控件的颜色。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="215"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="70"></location>
       <source>Choose the existing ComfyUI folder Substitute should launch.</source>
       <translation>选择 Substitute 应启动的现有 ComfyUI 文件夹。</translation>
     </message>
@@ -1270,9 +1260,14 @@ Prompt preview:
       <translation>选择包含 Substitute 应启动的 ComfyUI 安装的文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="479"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="262"></location>
       <source>Choose the folder that contains your existing ComfyUI main.py file. Substitute will launch this copy when it starts.</source>
       <translation>选择包含现有 ComfyUI main.py 文件的文件夹。Substitute 启动时将运行此副本。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="127"></location>
+      <source>Choose the folder where your models are stored. Substitute will scan it without changing its contents.</source>
+      <translation>选择存放模型的文件夹。Substitute 会扫描该文件夹，但不会更改其中的内容。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/language_settings.py" line="66"></location>
@@ -1285,12 +1280,22 @@ Prompt preview:
       <translation>选择画布变化时保持固定的点。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="116"></location>
+      <source>Choose the way you use ComfyUI.</source>
+      <translation>选择你的 ComfyUI 使用方式。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/cube_updates/cube_update_modal.py" line="401"></location>
       <source>Choose version...</source>
       <translation>选择版本...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="75"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="179"></location>
+      <source>Choose where ComfyUI should live. Substitute handles the rest.</source>
+      <translation>选择 ComfyUI 的安装位置，其余工作由 Substitute 完成。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="66"></location>
       <source>Choose where Substitute should keep its setup</source>
       <translation>选择 Substitute 保存其设置的位置</translation>
     </message>
@@ -1315,12 +1320,12 @@ Prompt preview:
       <translation>选择由 Substitute 安装 ComfyUI、使用现有副本，或连接到另一台计算机。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="264"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="291"></location>
       <source>Choose which CivitAI image levels may be used for model thumbnails.</source>
       <translation>选择可用于模型缩略图的 CivitAI 图片内容级别。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="240"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="249"></location>
       <source>Choose which Danbooru wiki preview image ratings Substitute may show.</source>
       <translation>选择 Substitute 可以显示的 Danbooru Wiki 预览图片分级。</translation>
     </message>
@@ -1345,7 +1350,7 @@ Prompt preview:
       <translation>选择模式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="129"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="118"></location>
       <source>Choose your setup</source>
       <translation>选择设置方式</translation>
     </message>
@@ -1355,12 +1360,7 @@ Prompt preview:
       <translation>CivitAI API 密钥</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="300"></location>
-      <source>CivitAI API key (optional)</source>
-      <translation>CivitAI API 密钥（可选）</translation>
-    </message>
-    <message>
-      <location filename="../substitute/application/onboarding/setup_application.py" line="161"></location>
+      <location filename="../substitute/application/onboarding/setup_application.py" line="174"></location>
       <source>CivitAI API key could not be saved. You can add it later in Settings.</source>
       <translation>无法保存 CivitAI API 密钥。您可以稍后在“设置”中添加。</translation>
     </message>
@@ -1395,7 +1395,7 @@ Prompt preview:
       <translation>CivitAI 未返回匹配项；已保留现有元数据。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="370"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="428"></location>
       <source>CivitAI did not return a safe portrait for this family. You can skip it or find your own models.</source>
       <translation>CivitAI 未返回此系列的安全竖图。你可以跳过或自行查找模型。</translation>
     </message>
@@ -1430,17 +1430,17 @@ Prompt preview:
       <translation>CivitAI 元数据已刷新。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="355"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="394"></location>
       <source>CivitAI recommendations</source>
       <translation>CivitAI 推荐</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="289"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="330"></location>
       <source>CivitAI recommendations could not be loaded. Try again or go back.</source>
       <translation>无法加载 CivitAI 推荐。请重试或返回。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="271"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="297"></location>
       <source>CivitAI returned no usable recommendations.</source>
       <translation>CivitAI 未返回可用的推荐。</translation>
     </message>
@@ -1448,11 +1448,6 @@ Prompt preview:
       <location filename="../substitute/application/model_metadata/manual_refresh_service.py" line="277"></location>
       <source>CivitAI returned unusable metadata; existing metadata was kept.</source>
       <translation>CivitAI 返回的元数据无法使用；已保留现有元数据。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="263"></location>
-      <source>CivitAI thumbnail content</source>
-      <translation>CivitAI 缩略图内容</translation>
     </message>
     <message>
       <location filename="../substitute/app/bootstrap/lifecycle.py" line="151"></location>
@@ -1530,7 +1525,7 @@ Prompt preview:
       <translation>关闭</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="235"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="240"></location>
       <source>Close ComfyUI and continue</source>
       <translation>关闭 ComfyUI 并继续</translation>
     </message>
@@ -1705,11 +1700,6 @@ Prompt preview:
       <translation>ComfyUI 可以继续启动，但某些 SugarCubes 工作流可能需要处理后才能正常运行。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="345"></location>
-      <source>ComfyUI channel: %1</source>
-      <translation>ComfyUI 通道：%1</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/onboarding/comfy_connection_settings_service.py" line="476"></location>
       <source>ComfyUI connection</source>
       <translation>ComfyUI 连接</translation>
@@ -1720,12 +1710,12 @@ Prompt preview:
       <translation>ComfyUI 连接、安装和 Python 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="287"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="292"></location>
       <source>ComfyUI could not be checked yet</source>
       <translation>暂时无法检查 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1493"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1203"></location>
       <source>ComfyUI could not be checked yet: %1</source>
       <translation>暂时无法检查 ComfyUI：%1</translation>
     </message>
@@ -1755,11 +1745,6 @@ Prompt preview:
       <translation>ComfyUI 在 %1:%2 未响应。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="495"></location>
-      <source>ComfyUI does not need to be running during setup.</source>
-      <translation>设置期间无需运行 ComfyUI。</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/collector.py" line="128"></location>
       <source>ComfyUI exited before it became ready.</source>
       <translation>ComfyUI 在就绪前已退出。</translation>
@@ -1770,7 +1755,7 @@ Prompt preview:
       <translation>ComfyUI 启动失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="408"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="209"></location>
       <source>ComfyUI folder</source>
       <translation>ComfyUI 文件夹</translation>
     </message>
@@ -1850,7 +1835,7 @@ Prompt preview:
       <translation>ComfyUI 已通过就绪检查。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/preparation_service.py" line="191"></location>
+      <location filename="../substitute/application/onboarding/preparation_service.py" line="204"></location>
       <source>ComfyUI preparation is ready for final setup.</source>
       <translation>ComfyUI 准备工作已完成，可以进行最终设置。</translation>
     </message>
@@ -1990,7 +1975,7 @@ Prompt preview:
       <translation>确认下载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="166"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="63"></location>
       <source>Confirm the details</source>
       <translation>确认详细信息</translation>
     </message>
@@ -2005,7 +1990,7 @@ Prompt preview:
       <translation>请确认远程主机名和端口正确。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="514"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="286"></location>
       <source>Connect to ComfyUI on another machine</source>
       <translation>连接到其他计算机上的 ComfyUI</translation>
     </message>
@@ -2013,6 +1998,11 @@ Prompt preview:
       <location filename="../substitute/application/cube_library/settings_projection.py" line="109"></location>
       <source>Connected to %1.</source>
       <translation>已连接到 %1。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="315"></location>
+      <source>Connection</source>
+      <translation>连接</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="340"></location>
@@ -2028,6 +2018,11 @@ Prompt preview:
       <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="758"></location>
       <source>Connection check succeeded</source>
       <translation>连接检查成功</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="281"></location>
+      <source>Connection settings</source>
+      <translation>连接设置</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/comfy_connection_settings_service.py" line="271"></location>
@@ -2373,11 +2368,6 @@ Install these nodes now?</source>
       <translation>Danbooru 未响应。请稍后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="239"></location>
-      <source>Danbooru image rating</source>
-      <translation>Danbooru 图像分级</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="1126"></location>
       <source>Danbooru returned content the app could not render safely.</source>
       <translation>Danbooru 返回的内容无法在应用中安全显示。</translation>
@@ -2468,12 +2458,12 @@ Install these nodes now?</source>
       <translation>取消选择</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="211"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="216"></location>
       <source>Detect ComfyUI's Python environment</source>
       <translation>检测 ComfyUI 的 Python 环境</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="226"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="81"></location>
       <source>Detect ComfyUI's environment</source>
       <translation>检测 ComfyUI 环境</translation>
     </message>
@@ -2483,9 +2473,14 @@ Install these nodes now?</source>
       <translation>从运行中的 ComfyUI 检测</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1076"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="795"></location>
       <source>Detect from running ComfyUI instead</source>
       <translation>改为从正在运行的 ComfyUI 检测</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="120"></location>
+      <source>Detected setup</source>
+      <translation>检测到的环境</translation>
     </message>
     <message>
       <location filename="../substitute/application/errors.py" line="647"></location>
@@ -2523,7 +2518,7 @@ Install these nodes now?</source>
       <translation>放弃更改</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_existing_model_page.py" line="31"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_existing_model_page.py" line="38"></location>
       <source>Do you have an existing models folder?</source>
       <translation>你有现有的模型文件夹吗？</translation>
     </message>
@@ -2538,9 +2533,19 @@ Install these nodes now?</source>
       <translation>不保存输出</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="112"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="334"></location>
+      <source>Done</source>
+      <translation>完成</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="101"></location>
       <source>Download</source>
       <translation>下载</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="451"></location>
+      <source>Download %1 models</source>
+      <translation>下载 %1 个模型</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="419"></location>
@@ -2573,7 +2578,7 @@ Install these nodes now?</source>
       <translation>下载提供方图像作为模型选择器的缩略图。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="145"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="149"></location>
       <source>Download review</source>
       <translation>下载确认</translation>
     </message>
@@ -2613,7 +2618,7 @@ Install these nodes now?</source>
       <translation>正在下载此配方所需的模型。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/setup_model_installer.py" line="84"></location>
+      <location filename="../substitute/application/onboarding/setup_model_installer.py" line="97"></location>
       <source>Downloading the selected model files.</source>
       <translation>正在下载所选模型文件。</translation>
     </message>
@@ -2726,6 +2731,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="559"></location>
       <source>Enter an API key first</source>
       <translation>请先输入 API 密钥</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="287"></location>
+      <source>Enter the address of the ComfyUI server.</source>
+      <translation>输入 ComfyUI 服务器地址。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="70"></location>
@@ -2941,11 +2951,6 @@ Install these nodes now?</source>
       <translation>正在获取 Danbooru Wiki 内容...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="120"></location>
-      <source>Files will be saved in your ComfyUI models folder.</source>
-      <translation>文件将保存到您的 ComfyUI 模型文件夹中。</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="604"></location>
       <source>Filter packages, claimants, or tags</source>
       <translation>筛选包、使用方或标签</translation>
@@ -2956,7 +2961,7 @@ Install these nodes now?</source>
       <translation>查找 ComfyUI 的 Python 环境</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="220"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="75"></location>
       <source>Find ComfyUI's environment</source>
       <translation>查找 ComfyUI 环境</translation>
     </message>
@@ -2966,7 +2971,7 @@ Install these nodes now?</source>
       <translation>查找模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="910"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="621"></location>
       <source>Finding Python…</source>
       <translation>正在查找 Python…</translation>
     </message>
@@ -2991,24 +2996,14 @@ Install these nodes now?</source>
       <translation>完成设置，让 Substitute 知道应将文件保存在何处。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="67"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="68"></location>
       <source>Finishing your setup</source>
       <translation>正在完成设置</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="425"></location>
-      <source>First-time setup can take a while because ComfyUI and Python packages may need to be installed.</source>
-      <translation>首次设置可能需要一些时间，因为可能需要安装 ComfyUI 和 Python 软件包。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="1001"></location>
       <source>Fix the reported issue if you can.</source>
       <translation>请尽量修复报告的问题。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="155"></location>
-      <source>Fix the saved setup so Substitute can open again.</source>
-      <translation>修复已保存的设置，使 Substitute 可以再次打开。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/canvas/input/input_transform_contextual_toolbar.py" line="71"></location>
@@ -3021,12 +3016,12 @@ Install these nodes now?</source>
       <translation>垂直翻转</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="94"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="85"></location>
       <source>Folder</source>
       <translation>文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_existing_model_page.py" line="36"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_existing_model_page.py" line="43"></location>
       <source>Folders</source>
       <translation>文件夹</translation>
     </message>
@@ -3034,11 +3029,6 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/editor/panel/dimension_presets/catalog_source.py" line="95"></location>
       <source>For %1</source>
       <translation>用于 %1</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="291"></location>
-      <source>Force CPU mode</source>
-      <translation>强制使用 CPU 模式</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/danbooru_wiki_dialog.py" line="526"></location>
@@ -3051,7 +3041,7 @@ Install these nodes now?</source>
       <translation>已找到 ComfyUI 使用的 Python 环境。请关闭 ComfyUI 以继续。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="116"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="102"></location>
       <source>Free space</source>
       <translation>可用空间</translation>
     </message>
@@ -3216,22 +3206,22 @@ Install these nodes now?</source>
       <translation>高度</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="248"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="262"></location>
       <source>Help find model info</source>
       <translation>协助查找模型信息</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="234"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="236"></location>
       <source>Help with prompt tags</source>
       <translation>协助输入提示词标签</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="226"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="228"></location>
       <source>Helpful extras</source>
       <translation>实用附加功能</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="273"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="128"></location>
       <source>Helpful extras can be changed later in Settings.</source>
       <translation>之后可以在“设置”中更改这些实用附加功能。</translation>
     </message>
@@ -3261,6 +3251,11 @@ Install these nodes now?</source>
       <translation>隐藏完整队列面板</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="457"></location>
+      <source>Hide details</source>
+      <translation>隐藏详细信息</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/generation/queue_panel.py" line="110"></location>
       <source>Hide full queue panel</source>
       <translation>隐藏完整队列面板</translation>
@@ -3276,11 +3271,6 @@ Install these nodes now?</source>
       <translation>隐藏报告</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="320"></location>
-      <source>Hide setup log</source>
-      <translation>隐藏设置日志</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/about/about_info_service.py" line="103"></location>
       <source>High-performance PySide6 image viewer</source>
       <translation>高性能 PySide6 图像查看器</translation>
@@ -3291,14 +3281,9 @@ Install these nodes now?</source>
       <translation>突出显示并解析通配符标记。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="211"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="87"></location>
       <source>Host</source>
       <translation>主机</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="540"></location>
-      <source>Host and port are the address of the remote ComfyUI server.</source>
-      <translation>主机和端口是远程 ComfyUI 服务器的地址。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/comfy_connection_settings_service.py" line="502"></location>
@@ -3306,7 +3291,7 @@ Install these nodes now?</source>
       <translation>主机名不能为空。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="382"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="440"></location>
       <source>I'll find my own models</source>
       <translation>我会自行查找模型</translation>
     </message>
@@ -3316,7 +3301,7 @@ Install these nodes now?</source>
       <translation>如果文件夹中已有未完成的安装，请将其删除后再重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="331"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="336"></location>
       <source>If you are not sure, use Detect from running ComfyUI instead.</source>
       <translation>如果不确定，请改用“从运行中的 ComfyUI 检测”。</translation>
     </message>
@@ -3351,7 +3336,7 @@ Install these nodes now?</source>
       <translation>已忽略</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="410"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="534"></location>
       <source>Illustrious · SDXL compatible</source>
       <translation>Illustrious · 兼容 SDXL</translation>
     </message>
@@ -3359,11 +3344,6 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/widgets/model_metadata_context_menu.py" line="572"></location>
       <source>Image %1</source>
       <translation>图像 %1</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="248"></location>
-      <source>Image decoder</source>
-      <translation>图像解码器</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/load_image.py" line="70"></location>
@@ -3441,11 +3421,6 @@ Install these nodes now?</source>
       <translation>安装支持组件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="335"></location>
-      <source>Install target: %1</source>
-      <translation>安装目标：%1</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/settings_catalog_builders.py" line="695"></location>
       <source>Installed Python packages</source>
       <translation>已安装的 Python 软件包</translation>
@@ -3516,7 +3491,7 @@ Install these nodes now?</source>
       <translation>保留当前版本</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="249"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="104"></location>
       <source>Keep the defaults or point Substitute at your folders.</source>
       <translation>保留默认值，或将 Substitute 指向您的文件夹。</translation>
     </message>
@@ -3526,7 +3501,7 @@ Install these nodes now?</source>
       <translation>保留 v%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="456"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="239"></location>
       <source>Keep your existing setup</source>
       <translation>保留现有设置</translation>
     </message>
@@ -3606,12 +3581,17 @@ Install these nodes now?</source>
       <translation>启动参数：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="381"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="425"></location>
+      <source>Launch command</source>
+      <translation>启动命令</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="178"></location>
       <source>Let Substitute set up ComfyUI for you</source>
       <translation>让 Substitute 为您设置 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="298"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="153"></location>
       <source>Let's get this setup back on track</source>
       <translation>让我们修复此设置</translation>
     </message>
@@ -3721,7 +3701,12 @@ Install these nodes now?</source>
       <translation>正在加载定义</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="251"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="109"></location>
+      <source>Loading preview…</source>
+      <translation>正在加载预览…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="284"></location>
       <source>Loading recommendations…</source>
       <translation>正在加载推荐…</translation>
     </message>
@@ -3971,7 +3956,7 @@ Install these nodes now?</source>
       <translation>模型下载失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="141"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="142"></location>
       <source>Model download progress</source>
       <translation>模型下载进度</translation>
     </message>
@@ -4011,7 +3996,7 @@ Install these nodes now?</source>
       <translation>模型文件夹模式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="246"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="276"></location>
       <source>Model recommendations are unavailable in this setup run.</source>
       <translation>本次设置无法使用模型推荐。</translation>
     </message>
@@ -4041,12 +4026,17 @@ Install these nodes now?</source>
       <translation>模型：%1</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="100"></location>
+      <source>Models</source>
+      <translation>模型</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/canvas/input/input_selection_contextual_toolbar.py" line="53"></location>
       <source>Modify selection</source>
       <translation>修改选区</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="266"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="271"></location>
       <source>More than one ComfyUI process was found</source>
       <translation>发现多个 ComfyUI 进程</translation>
     </message>
@@ -4056,12 +4046,7 @@ Install these nodes now?</source>
       <translation>此 ComfyUI 安装有多个进程正在运行。请关闭多余实例，只保留一个。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="424"></location>
-      <source>Most people can leave the local address unchanged.</source>
-      <translation>大多数用户可以保留本地地址不变。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="203"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="58"></location>
       <source>Most people should start with the first option.</source>
       <translation>大多数用户应从第一个选项开始。</translation>
     </message>
@@ -4151,7 +4136,7 @@ Install these nodes now?</source>
       <translation>下一个匹配项（Enter）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_binary_choice.py" line="45"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_binary_choice.py" line="58"></location>
       <source>No</source>
       <translation>否</translation>
     </message>
@@ -4251,11 +4236,6 @@ Install these nodes now?</source>
       <translation>未选择模型下载。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="156"></location>
-      <source>No model files selected. Setup will continue without a download.</source>
-      <translation>未选择模型文件。设置将继续，不进行下载。</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="100"></location>
       <source>No models are available for this picker</source>
       <translation>此选择器没有可用模型</translation>
@@ -4309,6 +4289,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="252"></location>
       <source>No thumbnail</source>
       <translation>无缩略图</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="388"></location>
+      <source>No, show recommendations</source>
+      <translation>否，显示推荐</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="90"></location>
@@ -4386,7 +4371,7 @@ Install these nodes now?</source>
       <translation>未设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="267"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="122"></location>
       <source>Nothing downloads until setup is confirmed.</source>
       <translation>确认设置前不会下载任何内容。</translation>
     </message>
@@ -4416,7 +4401,7 @@ Install these nodes now?</source>
       <translation>操作系统：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="255"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="269"></location>
       <source>Offer model downloads</source>
       <translation>提供模型下载</translation>
     </message>
@@ -4461,14 +4446,19 @@ Install these nodes now?</source>
       <translation>打开 CivitAI 页面</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="246"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="251"></location>
       <source>Open ComfyUI yourself</source>
       <translation>自行打开 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1094"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="814"></location>
       <source>Open Substitute</source>
       <translation>打开 Substitute</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="380"></location>
+      <source>Open Substitute and start creating.</source>
+      <translation>打开 Substitute，开始创作。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/app_orb_menu.py" line="47"></location>
@@ -4536,6 +4526,11 @@ Install these nodes now?</source>
       <translation>此 Comfy 服务器不支持操作规划。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="224"></location>
+      <source>Optional services can help with prompts and models. You can change them later in Settings.</source>
+      <translation>可选服务可以帮助处理提示词和模型。你可以稍后在设置中更改。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="894"></location>
       <source>Or enable Win32 long paths in Windows, then try again.</source>
       <translation>或者在 Windows 中启用 Win32 长路径，然后重试。</translation>
@@ -4596,7 +4591,7 @@ Install these nodes now?</source>
       <translation>输出设置已保存。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="118"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="119"></location>
       <source>Overall setup progress</source>
       <translation>总体设置进度</translation>
     </message>
@@ -4661,29 +4656,24 @@ Install these nodes now?</source>
       <translation>ComfyUI 主机上的路径</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="365"></location>
-      <source>Path stability: %1</source>
-      <translation>路径稳定性：%1</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/shell/pending_restart_toolbar_button.py" line="69"></location>
       <source>Pending restart requirements</source>
       <translation>待重启要求</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="165"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="155"></location>
+      <source>Performance and updates</source>
+      <translation>性能和更新</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="57"></location>
       <source>Pick a setup</source>
       <translation>选择设置方式</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="76"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="67"></location>
       <source>Pick the main folder for Substitute's files. If you let Substitute install ComfyUI for you, it will place that there too by default.</source>
       <translation>选择存放 Substitute 文件的主文件夹。如果让 Substitute 为您安装 ComfyUI，默认也会将其安装在这里。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="125"></location>
-      <source>Pick the setup that matches your current situation. You can change this later if your workflow changes.</source>
-      <translation>选择符合当前情况的设置方式。如果工作流发生变化，之后可以更改。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/canvas/input/input_coverage_modification_controls.py" line="92"></location>
@@ -4726,22 +4716,17 @@ Install these nodes now?</source>
       <translation>计划更改已更新。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="325"></location>
-      <source>Platform: %1</source>
-      <translation>平台：%1</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/shell/shutdown_progress_dialog.py" line="48"></location>
       <source>Please wait a moment.</source>
       <translation>请稍候。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="350"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="389"></location>
       <source>Popular models this month</source>
       <translation>本月热门模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="222"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="98"></location>
       <source>Port</source>
       <translation>端口</translation>
     </message>
@@ -4766,11 +4751,6 @@ Install these nodes now?</source>
       <translation>帖子</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="293"></location>
-      <source>Prefer cutting-edge torch backend</source>
-      <translation>优先使用前沿 Torch 后端</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/generation/queue_list_view.py" line="343"></location>
       <source>Preparing</source>
       <translation>正在准备</translation>
@@ -4781,7 +4761,7 @@ Install these nodes now?</source>
       <translation>正在准备 Base-Cubes 依赖项。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/preparation_service.py" line="159"></location>
+      <location filename="../substitute/application/onboarding/preparation_service.py" line="172"></location>
       <source>Preparing ComfyUI in the background.</source>
       <translation>正在后台准备 ComfyUI。</translation>
     </message>
@@ -4861,6 +4841,11 @@ Install these nodes now?</source>
       <translation>预览</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="248"></location>
+      <source>Preview image content</source>
+      <translation>预览图像内容</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/danbooru/image_preview_service.py" line="73"></location>
       <source>Preview image is not available for this wiki embed.</source>
       <translation>此 Wiki 嵌入内容没有可用的预览图片。</translation>
@@ -4876,7 +4861,7 @@ Install these nodes now?</source>
       <translation>预览类型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="89"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="113"></location>
       <source>Preview unavailable</source>
       <translation>预览不可用</translation>
     </message>
@@ -4961,12 +4946,12 @@ Install these nodes now?</source>
       <translation>Python 无法解析此扩展的源代码。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="272"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="277"></location>
       <source>Python environment found</source>
       <translation>已找到 Python 环境</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="275"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="280"></location>
       <source>Python environment ready</source>
       <translation>Python 环境已就绪</translation>
     </message>
@@ -4976,12 +4961,12 @@ Install these nodes now?</source>
       <translation>Python 可执行文件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/path_selector.py" line="86"></location>
+      <location filename="../substitute/presentation/onboarding/path_selector.py" line="99"></location>
       <source>Python executable (python.exe python);;All files (*)</source>
       <translation>Python 可执行文件 (python.exe python);;所有文件 (*)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="340"></location>
+      <location filename="../substitute/application/errors.py" line="635"></location>
       <source>Python: %1</source>
       <translation>Python：%1</translation>
     </message>
@@ -5056,17 +5041,17 @@ Install these nodes now?</source>
       <translation>无法从当前目标获取就绪状态。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="284"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="139"></location>
       <source>Ready to launch</source>
       <translation>可以启动</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="360"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="260"></location>
       <source>Reason: %1</source>
       <translation>原因：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="386"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="183"></location>
       <source>Recommended for most people</source>
       <translation>推荐大多数用户使用</translation>
     </message>
@@ -5181,7 +5166,7 @@ Install these nodes now?</source>
       <translation>远程 ComfyUI 不使用本地模型下载。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="519"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="289"></location>
       <source>Remote connection</source>
       <translation>远程连接</translation>
     </message>
@@ -5214,6 +5199,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="1004"></location>
       <source>Remove Cube Pack</source>
       <translation>移除 Cube Pack</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="147"></location>
+      <source>Remove anything you no longer want, then download.</source>
+      <translation>移除不再需要的项目，然后开始下载。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/workflows/cube_item.py" line="308"></location>
@@ -5360,11 +5350,6 @@ No known extension claimant.</source>
 没有已知的扩展依赖方。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="197"></location>
-      <source>Required components</source>
-      <translation>必需组件</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/cube_library/settings_projection.py" line="172"></location>
       <source>Required custom nodes</source>
       <translation>必需的自定义节点</translation>
@@ -5495,17 +5480,17 @@ No known extension claimant.</source>
       <translation>在文件管理器中显示</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="261"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="116"></location>
       <source>Review CivitAI's popular models for each family.</source>
       <translation>查看每个系列的 CivitAI 热门模型。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="266"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="121"></location>
       <source>Review downloads</source>
       <translation>查看下载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="140"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="146"></location>
       <source>Review model downloads</source>
       <translation>查看模型下载</translation>
     </message>
@@ -5530,9 +5515,14 @@ No known extension claimant.</source>
       <translation>请检查下面的详细信息，并继续执行修复以完成设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1301"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1011"></location>
       <source>Review the details below, fix the reported issue, and try again.</source>
       <translation>请检查下面的详细信息，修复报告的问题，然后重试。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="303"></location>
+      <source>Review the detected setup or change expert connection and runtime choices.</source>
+      <translation>查看检测到的环境，或更改高级连接和运行时选项。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="1053"></location>
@@ -5540,7 +5530,7 @@ No known extension claimant.</source>
       <translation>请检查现有的 ComfyUI 文件夹和本地地址，然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/setup_application.py" line="134"></location>
+      <location filename="../substitute/application/onboarding/setup_application.py" line="147"></location>
       <source>Review the folder choices and try again.</source>
       <translation>请检查文件夹选择，然后重试。</translation>
     </message>
@@ -5655,22 +5645,22 @@ No known extension claimant.</source>
       <translation>运行环境根目录：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="25"></location>
+      <location filename="../substitute/application/model_recommendations/family_presentation.py" line="38"></location>
       <source>SDXL</source>
       <translation>SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="417"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="436"></location>
       <source>SFW only</source>
       <translation>仅 SFW</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="396"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="415"></location>
       <source>Safe and questionable</source>
       <translation>安全及存疑</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="392"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="411"></location>
       <source>Safe only</source>
       <translation>仅安全</translation>
     </message>
@@ -5810,12 +5800,12 @@ No known extension claimant.</source>
       <translation>缩放质量</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="194"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="205"></location>
       <source>Scanning for SDXL and Anima…</source>
       <translation>正在扫描 SDXL 和 Anima…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="195"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="206"></location>
       <source>Scanning…</source>
       <translation>正在扫描…</translation>
     </message>
@@ -5885,22 +5875,22 @@ No known extension claimant.</source>
       <translation>片段重新排序</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="391"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="360"></location>
       <source>Select</source>
       <translation>选择</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="313"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="318"></location>
       <source>Select ComfyUI's Python environment</source>
       <translation>选择 ComfyUI 的 Python 环境</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="306"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="311"></location>
       <source>Select ComfyUI's Python executable</source>
       <translation>选择 ComfyUI 的 Python 可执行文件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="234"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="89"></location>
       <source>Select ComfyUI's environment</source>
       <translation>选择 ComfyUI 环境</translation>
     </message>
@@ -5915,7 +5905,7 @@ No known extension claimant.</source>
       <translation>手动选择 Python 可执行文件</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1068"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="787"></location>
       <source>Select Python manually instead</source>
       <translation>改为手动选择 Python</translation>
     </message>
@@ -5930,24 +5920,19 @@ No known extension claimant.</source>
       <translation>选择模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="327"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="332"></location>
       <source>Select the executable used by the custom shortcut, script, launcher, or environment manager that starts ComfyUI.</source>
       <translation>请选择自定义快捷方式、脚本、启动器或环境管理器实际用于启动 ComfyUI 的可执行文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="404"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="373"></location>
       <source>Selected</source>
       <translation>已选择</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/setup_model_installer.py" line="127"></location>
+      <location filename="../substitute/application/onboarding/setup_model_installer.py" line="140"></location>
       <source>Selected model files are ready.</source>
       <translation>所选模型文件已准备好。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="190"></location>
-      <source>Selected models</source>
-      <translation>已选模型</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_connection_page.py" line="698"></location>
@@ -5980,7 +5965,7 @@ No known extension claimant.</source>
       <translation>从画布设置缩略图</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="65"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="57"></location>
       <source>Set up ComfyUI here</source>
       <translation>在此处设置 ComfyUI</translation>
     </message>
@@ -6010,7 +5995,7 @@ No known extension claimant.</source>
       <translation>设置选择已准备好。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="197"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="52"></location>
       <source>Setup continues automatically once ComfyUI is closed.</source>
       <translation>ComfyUI 关闭后，设置会自动继续。</translation>
     </message>
@@ -6035,7 +6020,7 @@ No known extension claimant.</source>
       <translation>设置未完成</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="70"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="71"></location>
       <source>Setup in progress</source>
       <translation>正在设置</translation>
     </message>
@@ -6050,17 +6035,17 @@ No known extension claimant.</source>
       <translation>设置日志</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1249"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="959"></location>
       <source>Setup needs attention</source>
       <translation>设置需要处理</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1300"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1010"></location>
       <source>Setup needs attention.</source>
       <translation>设置需要处理。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="98"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="99"></location>
       <source>Setup progress appears here. Open the setup log only when you want technical details.</source>
       <translation>设置进度会显示在这里。仅在需要技术细节时打开设置日志。</translation>
     </message>
@@ -6075,12 +6060,7 @@ No known extension claimant.</source>
       <translation>ComfyUI 准备就绪前设置已停止。请阅读下面的实时输出，修复其中提到的问题，然后重试。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="247"></location>
-      <source>Setup summary</source>
-      <translation>设置摘要</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="127"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="128"></location>
       <source>Setup task activity</source>
       <translation>设置任务活动</translation>
     </message>
@@ -6135,6 +6115,11 @@ No known extension claimant.</source>
       <translation>显示依赖扩展</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="457"></location>
+      <source>Show details</source>
+      <translation>显示详细信息</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/titlebar_buttons.py" line="172"></location>
       <source>Show generation controls</source>
       <translation>显示生成控件</translation>
@@ -6155,7 +6140,7 @@ No known extension claimant.</source>
       <translation>ComfyUI 生成时显示采样器预览帧。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="320"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="319"></location>
       <source>Show setup log</source>
       <translation>显示设置日志</translation>
     </message>
@@ -6210,7 +6195,7 @@ No known extension claimant.</source>
       <translation>大小</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="415"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="539"></location>
       <source>Skip %1</source>
       <translation>跳过 %1</translation>
     </message>
@@ -6243,11 +6228,6 @@ No known extension claimant.</source>
       <location filename="../substitute/domain/comfy_startup_diagnostics/remediation.py" line="84"></location>
       <source>Some built-in or API nodes may be unavailable in ComfyUI.</source>
       <translation>ComfyUI 中的某些内置节点或 API 节点可能不可用。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="129"></location>
-      <source>Some canvas features still need a local Python environment even when ComfyUI itself is remote.</source>
-      <translation>即使 ComfyUI 位于远程，某些画布功能仍需要本地 Python 环境。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="114"></location>
@@ -6300,12 +6280,12 @@ No known extension claimant.</source>
       <translation>暂存立方体队列失败</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="203"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="208"></location>
       <source>Start ComfyUI</source>
       <translation>启动 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="227"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="82"></location>
       <source>Start ComfyUI yourself; Substitute will detect it automatically.</source>
       <translation>请自行启动 ComfyUI；Substitute 会自动检测它。</translation>
     </message>
@@ -6315,7 +6295,7 @@ No known extension claimant.</source>
       <translation>起始方块</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="80"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="71"></location>
       <source>Start here</source>
       <translation>从这里开始</translation>
     </message>
@@ -6325,7 +6305,7 @@ No known extension claimant.</source>
       <translation>请重新开始设置，让 Substitute 保存完整的设置状态。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="247"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="252"></location>
       <source>Start this ComfyUI installation using your usual shortcut, script, or launcher. Keep this installer open; Substitute will detect it automatically.</source>
       <translation>使用您常用的快捷方式、脚本或启动器启动此 ComfyUI 安装。请保持此安装程序打开；Substitute 会自动检测它。</translation>
     </message>
@@ -6340,7 +6320,7 @@ No known extension claimant.</source>
       <translation>正在开始下载...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1260"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="970"></location>
       <source>Starting setup.</source>
       <translation>正在开始设置。</translation>
     </message>
@@ -6360,9 +6340,9 @@ No known extension claimant.</source>
       <translation>启动记录</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1133"></location>
-      <source>Step %1 of %2</source>
-      <translation>第 %1 步，共 %2 步</translation>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="842"></location>
+      <source>Step %1 of %2 · %3</source>
+      <translation>第 %1 步，共 %2 步 · %3</translation>
     </message>
     <message>
       <location filename="../substitute/application/launch_activity.py" line="48"></location>
@@ -6455,12 +6435,12 @@ No known extension claimant.</source>
       <translation>Substitute 设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="89"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="65"></location>
       <source>Substitute adopts and starts the local ComfyUI setup you already use.</source>
       <translation>Substitute 会采用并启动您已在使用的本地 ComfyUI 设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="321"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="326"></location>
       <source>Substitute already checked the usual environment locations in this ComfyUI folder.</source>
       <translation>Substitute 已检查此 ComfyUI 文件夹中的常用环境位置。</translation>
     </message>
@@ -6468,6 +6448,11 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="167"></location>
       <source>Substitute can detect the environment from a running ComfyUI, or you can select the Python executable manually.</source>
       <translation>Substitute 可以从正在运行的 ComfyUI 检测环境，也可以手动选择 Python 可执行文件。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_existing_model_page.py" line="39"></location>
+      <source>Substitute can scan a folder you already use without changing its contents.</source>
+      <translation>Substitute 可以扫描你正在使用的文件夹，而不会更改其中的内容。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="944"></location>
@@ -6480,7 +6465,7 @@ No known extension claimant.</source>
       <translation>Substitute 在更改本地环境前会检查正在运行的 ComfyUI 进程。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="113"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="72"></location>
       <source>Substitute connects to a ComfyUI server running on another machine.</source>
       <translation>Substitute 连接到另一台计算机上运行的 ComfyUI 服务器。</translation>
     </message>
@@ -6600,19 +6585,14 @@ No known extension claimant.</source>
       <translation>Substitute 无法连接到您的 ComfyUI 安装</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/setup_application.py" line="129"></location>
+      <location filename="../substitute/application/onboarding/setup_application.py" line="142"></location>
       <source>Substitute couldn't save one of the folder or helper settings.</source>
       <translation>Substitute 无法保存某项文件夹或辅助功能设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/setup_application.py" line="128"></location>
+      <location filename="../substitute/application/onboarding/setup_application.py" line="141"></location>
       <source>Substitute couldn't save these setup choices</source>
       <translation>Substitute 无法保存这些设置选项</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="70"></location>
-      <source>Substitute creates a local ComfyUI setup in the folder you choose.</source>
-      <translation>Substitute 会在您选择的文件夹中创建本地 ComfyUI 设置。</translation>
     </message>
     <message>
       <location filename="../substitute/app/bootstrap/lifecycle.py" line="374"></location>
@@ -6640,12 +6620,7 @@ No known extension claimant.</source>
       <translation>Substitute 尚未完成对此计算机托管后端的验证。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="73"></location>
-      <source>Substitute installs ComfyUI, prepares what it needs, and keeps required node packs ready.</source>
-      <translation>Substitute 会安装 ComfyUI、准备所需组件，并确保必需的节点包可用。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="66"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="58"></location>
       <source>Substitute installs and prepares a local ComfyUI setup for you.</source>
       <translation>Substitute 会为您安装并准备本地 ComfyUI 设置。</translation>
     </message>
@@ -6665,17 +6640,12 @@ No known extension claimant.</source>
       <translation>Substitute 正在准备 ComfyUI。你可以将此窗口置于后台。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="380"></location>
-      <source>Substitute is ready</source>
-      <translation>Substitute 已就绪</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/onboarding/comfy_connection_settings_service.py" line="516"></location>
       <source>Substitute is showing the default managed ComfyUI connection because no saved connection exists yet.</source>
       <translation>尚未保存连接，因此 Substitute 正在显示默认的托管 ComfyUI 连接。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="346"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="351"></location>
       <source>Substitute is verifying that this Python belongs to ComfyUI.</source>
       <translation>Substitute 正在验证此 Python 是否属于 ComfyUI。</translation>
     </message>
@@ -6685,7 +6655,7 @@ No known extension claimant.</source>
       <translation>Substitute 准备并启动您现有的 ComfyUI 文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="106"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="97"></location>
       <source>Substitute may create settings, a local runtime, cubes, and a `comfyui` folder here if you choose the managed setup.</source>
       <translation>如果选择托管设置，Substitute 可能会在此处创建设置、本地运行环境、立方体和 `comfyui` 文件夹。</translation>
     </message>
@@ -6700,7 +6670,7 @@ No known extension claimant.</source>
       <translation>Substitute 操作上下文</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/provisioning_executor.py" line="428"></location>
+      <location filename="../substitute/presentation/onboarding/provisioning_executor.py" line="441"></location>
       <source>Substitute ran into a setup problem</source>
       <translation>Substitute 遇到设置问题</translation>
     </message>
@@ -6713,36 +6683,6 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="181"></location>
       <source>Substitute saves finished images here. The default keeps them with your Substitute files.</source>
       <translation>Substitute 会将完成的图片保存在这里。默认位置会将其与 Substitute 文件放在一起。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="97"></location>
-      <source>Substitute saves that folder, prepares the Python environment it needs, and starts ComfyUI for you.</source>
-      <translation>Substitute 会保存该文件夹、准备所需的 Python 环境，并为您启动 ComfyUI。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="536"></location>
-      <source>Substitute saves the remote address and keeps the local pieces it still needs for the canvas on this computer.</source>
-      <translation>Substitute 会保存远程地址，并在此计算机上保留画布仍需使用的本地组件。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="121"></location>
-      <source>Substitute saves the remote address and prepares the local pieces it still needs for the canvas.</source>
-      <translation>Substitute 会保存远程地址，并在本机准备画布仍需使用的组件。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="491"></location>
-      <source>Substitute saves this folder as a local launch target and prepares the Python environment it needs.</source>
-      <translation>Substitute 会将此文件夹保存为本地启动目标，并准备所需的 Python 环境。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="420"></location>
-      <source>Substitute saves this setup, installs ComfyUI in the folder above, picks the right backend for this machine, and prepares what it needs to run.</source>
-      <translation>Substitute 会保存此设置，在上方文件夹中安装 ComfyUI，为此计算机选择合适的后端，并准备运行所需的组件。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="117"></location>
-      <source>Substitute sends work to a remote ComfyUI server instead of starting one here.</source>
-      <translation>Substitute 会将任务发送到远程 ComfyUI 服务器，而不是在本机启动 ComfyUI。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="106"></location>
@@ -6770,22 +6710,17 @@ No known extension claimant.</source>
       <translation>Substitute 存储、准备并启动此本地 ComfyUI 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="93"></location>
-      <source>Substitute uses your current local ComfyUI folder without reinstalling the repository.</source>
-      <translation>Substitute 会使用当前的本地 ComfyUI 文件夹，不会重新安装仓库。</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/errors.py" line="630"></location>
       <source>Substitute version: %1</source>
       <translation>Substitute 版本：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="205"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="210"></location>
       <source>Substitute will identify the Python environment from the running ComfyUI process.</source>
       <translation>Substitute 将从运行中的 ComfyUI 进程识别 Python 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="95"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="86"></location>
       <source>Substitute will keep its own settings and setup files here. You can still switch between managed, existing, or remote ComfyUI later.</source>
       <translation>Substitute 会在这里保存自身的设置和安装文件。之后仍可在托管、现有或远程 ComfyUI 之间切换。</translation>
     </message>
@@ -6793,16 +6728,6 @@ No known extension claimant.</source>
       <location filename="../substitute/presentation/onboarding/readiness_issue_presenter.py" line="151"></location>
       <source>Substitute will not start over a different app that is already listening on the managed port.</source>
       <translation>如果其他应用已在监听托管端口，Substitute 不会强行占用该端口启动。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="496"></location>
-      <source>Substitute will start it and then wait for the local address to respond.</source>
-      <translation>Substitute 会启动它，然后等待本地地址响应。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="452"></location>
-      <source>Substitute will use this local ComfyUI folder, prepare what it needs, and start it for you.</source>
-      <translation>Substitute 将使用此本地 ComfyUI 文件夹，准备所需组件并替您启动它。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="340"></location>
@@ -7116,6 +7041,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>技术详情</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/setup_log_dialog.py" line="48"></location>
+      <source>Technical setup details update here while the installer works.</source>
+      <translation>安装程序运行时，技术设置详情会在此处更新。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="119"></location>
       <source>Test</source>
       <translation>测试</translation>
@@ -7126,12 +7056,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>测试连接</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="247"></location>
-      <source>Text encoder</source>
-      <translation>文本编码器</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="408"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="413"></location>
       <source>That Python executable did not work</source>
       <translation>该 Python 可执行文件无法使用</translation>
     </message>
@@ -7141,7 +7066,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>该组合键由 Windows 保留。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="269"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="274"></location>
       <source>That environment could not be verified</source>
       <translation>无法验证该环境</translation>
     </message>
@@ -7154,11 +7079,6 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/application/onboarding/flow_service.py" line="813"></location>
       <source>The ComfyUI folder couldn't be found</source>
       <translation>找不到 ComfyUI 文件夹</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="105"></location>
-      <source>The ComfyUI folder is required so Substitute can launch it and inspect local custom-node files.</source>
-      <translation>必须提供 ComfyUI 文件夹，Substitute 才能启动它并检查本地自定义节点文件。</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="921"></location>
@@ -7206,7 +7126,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法调整画布尺寸。未进行任何更改。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="209"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="64"></location>
       <source>The defaults usually work well for first-time setup.</source>
       <translation>这些默认值通常很适合首次设置。</translation>
     </message>
@@ -7236,7 +7156,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>扩展启动脚本在正常导入完成前失败。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="68"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="69"></location>
       <source>The first setup can take a few minutes.</source>
       <translation>首次设置可能需要几分钟。</translation>
     </message>
@@ -7291,12 +7211,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>模型下载已完成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="227"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="239"></location>
       <source>The models folder could not be fully scanned. Try again or choose No.</source>
       <translation>无法完整扫描模型文件夹。请重试或选择“否”。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="282"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="323"></location>
       <source>The models folder could not be scanned. Try again or choose No.</source>
       <translation>无法扫描模型文件夹。请重试或选择“否”。</translation>
     </message>
@@ -7376,7 +7296,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>所选 Comfy 服务器不提供环境管理功能。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1450"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1160"></location>
       <source>The selected Python executable could not be validated.</source>
       <translation>无法验证所选的 Python 可执行文件。</translation>
     </message>
@@ -7471,6 +7391,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>然后重试。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="209"></location>
+      <source>There is not enough free space for these models.</source>
+      <translation>没有足够的可用空间存放这些模型。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/dialogs/restart_required_dialog.py" line="121"></location>
       <source>These changes will apply after restart.</source>
       <translation>这些更改将在重启后应用。</translation>
@@ -7481,22 +7406,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>这些默认值适合大多数用户。如果您已将模型或成品图像存放在其他位置，可以进行更改。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="222"></location>
-      <source>These features help with tags, model info, and preview image preferences. You can change them later in Settings.</source>
-      <translation>这些功能有助于使用标签、模型信息和预览图像偏好。之后可以在“设置”中更改。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="141"></location>
-      <source>These files will be downloaded only after you confirm setup.</source>
-      <translation>这些文件仅会在你确认设置后下载。</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="859"></location>
       <source>This CivitAI model needs an API key</source>
       <translation>此 CivitAI 模型需要 API 密钥</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="279"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="134"></location>
       <source>This can take a little while the first time.</source>
       <translation>首次执行可能需要一些时间。</translation>
     </message>
@@ -7511,29 +7426,14 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法渲染此立方体，因为实时 Comfy 元数据不可用。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="212"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="88"></location>
       <source>This is the address Substitute will use to reach ComfyUI.</source>
       <translation>这是 Substitute 用来连接 ComfyUI 的地址。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="382"></location>
-      <source>This is the easiest option for most people. Substitute installs ComfyUI, prepares it, and keeps the setup ready to use.</source>
-      <translation>这是适合大多数用户的最简便选项。Substitute 会安装并准备 ComfyUI，使设置随时可用。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="223"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="99"></location>
       <source>This is the port number used by that ComfyUI address.</source>
       <translation>这是该 ComfyUI 地址使用的端口号。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="409"></location>
-      <source>This is where Substitute will place ComfyUI. Most people can keep the default location.</source>
-      <translation>Substitute 会将 ComfyUI 放在这里。大多数用户可以保留默认位置。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="209"></location>
-      <source>This models folder does not have enough free space for the selected downloads.</source>
-      <translation>此模型文件夹没有足够空间用于所选下载。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="356"></location>
@@ -7551,7 +7451,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>此配方使用的模型不在当前 ComfyUI 模型文件夹中。我们在 CivitAI 上找到了匹配文件，可以替您下载后打开配方。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="226"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="231"></location>
       <source>This screen updates as soon as the matching ComfyUI process appears.</source>
       <translation>匹配的 ComfyUI 进程出现后，此页面会立即更新。</translation>
     </message>
@@ -7564,6 +7464,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/application/model_metadata/output_thumbnail_service.py" line="143"></location>
       <source>Thumbnail assignment requires a model kind and value.</source>
       <translation>分配缩略图需要模型类型和值。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="290"></location>
+      <source>Thumbnail content</source>
+      <translation>缩略图内容</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="434"></location>
@@ -7599,11 +7504,6 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/application/errors.py" line="556"></location>
       <source>Top-level error:</source>
       <translation>顶层错误：</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="355"></location>
-      <source>Torch channel: %1</source>
-      <translation>Torch 通道：%1</translation>
     </message>
     <message>
       <location filename="../substitute/application/errors.py" line="604"></location>
@@ -7646,9 +7546,19 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>请尝试其他搜索词。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="320"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="345"></location>
       <source>Try again</source>
       <translation>重试</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="169"></location>
+      <source>Try preview ComfyUI builds</source>
+      <translation>试用 ComfyUI 预览版本</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="172"></location>
+      <source>Try preview Torch builds</source>
+      <translation>试用 Torch 预览版本</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="577"></location>
@@ -7906,12 +7816,17 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>使用 Python 可执行文件旁的“浏览”，选择此 ComfyUI 安装所用的 Python。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_connection_settings_dialog.py" line="167"></location>
+      <source>Use CPU instead</source>
+      <translation>使用 CPU</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="339"></location>
       <source>Use CivitAI only after local recipe model matching fails.</source>
       <translation>仅在本地配方模型匹配失败后使用 CivitAI。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="249"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="263"></location>
       <source>Use CivitAI to help identify local models and missing recipe models.</source>
       <translation>使用 CivitAI 协助识别本地模型和配方中缺失的模型。</translation>
     </message>
@@ -7931,7 +7846,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>使用当前值</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="235"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="237"></location>
       <source>Use Danbooru tag tools while writing prompts.</source>
       <translation>编写提示词时使用 Danbooru 标签工具。</translation>
     </message>
@@ -7956,22 +7871,17 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>使用默认值</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="296"></location>
-      <source>Use edge ComfyUI channel</source>
-      <translation>使用 ComfyUI edge 通道</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/editor/prompt_editor/interactions/parenthesis_education_controller.py" line="68"></location>
       <source>Use explicit prompt emphasis</source>
       <translation>使用显式提示词强调</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="88"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="64"></location>
       <source>Use my current ComfyUI</source>
       <translation>使用我当前的 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="112"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="71"></location>
       <source>Use remote ComfyUI</source>
       <translation>使用远程 ComfyUI</translation>
     </message>
@@ -7981,19 +7891,14 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>使用 ComfyUI 页面中的软件包筛选器查看已安装的软件包和维护操作。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="451"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="236"></location>
       <source>Use the ComfyUI setup you already have</source>
       <translation>使用现有的 ComfyUI 设置</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="243"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="98"></location>
       <source>Use the server address this computer can reach.</source>
       <translation>使用此计算机能够访问的服务器地址。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="515"></location>
-      <source>Use this when ComfyUI lives on another PC or server and you want Substitute to reach it from here.</source>
-      <translation>当 ComfyUI 位于其他计算机或服务器上，并希望 Substitute 从此处连接时，请使用此选项。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="278"></location>
@@ -8061,7 +7966,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>版本：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="310"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="349"></location>
       <source>View %1 on CivitAI</source>
       <translation>在 CivitAI 上查看 %1</translation>
     </message>
@@ -8136,16 +8041,6 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>我们尝试更新 Substitute，但更新失败。Substitute 已可正常使用。请向维护者发送错误报告。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="419"></location>
-      <source>What happens next</source>
-      <translation>接下来会发生什么</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="414"></location>
-      <source>What's ready</source>
-      <translation>已就绪的项目</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/prompt_editor_page.py" line="272"></location>
       <source>Wheel adjust after hover</source>
       <translation>悬停后滚轮调整</translation>
@@ -8156,7 +8051,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>启用 JPEG 副本后，拖放和复制将导出该 JPEG 副本。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="256"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="270"></location>
       <source>When a recipe needs a missing model, Substitute can offer verified CivitAI downloads.</source>
       <translation>当配方缺少所需模型时，Substitute 可以提供经过验证的 CivitAI 下载。</translation>
     </message>
@@ -8246,7 +8141,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>工作流名称</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1083"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="802"></location>
       <source>Working...</source>
       <translation>正在处理...</translation>
     </message>
@@ -8266,17 +8161,22 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>Y 坐标</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_binary_choice.py" line="43"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_binary_choice.py" line="56"></location>
       <source>Yes</source>
       <translation>是</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/setup_application.py" line="135"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="393"></location>
+      <source>Yes, choose folder</source>
+      <translation>是，选择文件夹</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/onboarding/setup_application.py" line="148"></location>
       <source>You can also finish setup with the defaults and adjust Settings later.</source>
       <translation>您也可以使用默认值完成设置，稍后再到“设置”中调整。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="191"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="46"></location>
       <source>You can change the ComfyUI connection later.</source>
       <translation>之后可以更改 ComfyUI 连接。</translation>
     </message>
@@ -8286,39 +8186,29 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>您可以自行关闭它，也可以让 Substitute 关闭已验证的进程。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="210"></location>
+      <source>You can keep the suggested location.</source>
+      <translation>你可以保留建议的位置。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/shutdown_recovery_dialog.py" line="110"></location>
       <source>You can retry shutdown or close Substitute anyway.</source>
       <translation>你可以重试关闭操作，也可以直接关闭 Substitute。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="301"></location>
-      <source>You can skip this and add one later in Settings.</source>
-      <translation>可以跳过此项，之后再到“设置”中添加。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="543"></location>
-      <source>You keep that remote server running and reachable from this PC.</source>
-      <translation>请确保该远程服务器保持运行，并可从此电脑访问。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="125"></location>
-      <source>You keep the remote ComfyUI server running and reachable from this computer.</source>
-      <translation>请确保远程 ComfyUI 服务器保持运行，并可从此计算机访问。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="101"></location>
-      <source>You keep your ComfyUI files and models. Substitute takes over launching it while the app is running.</source>
-      <translation>您可以继续使用自己的 ComfyUI 文件和模型。应用运行期间，由 Substitute 负责启动它。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_page_primitives.py" line="77"></location>
-      <source>You mainly choose where the files live. Most people can leave the local address alone.</source>
-      <translation>您主要只需选择文件保存位置。大多数用户可以保留本地地址不变。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="285"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_shell_presentation.py" line="140"></location>
       <source>You're almost done.</source>
       <translation>马上就完成了。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="379"></location>
+      <source>You're ready</source>
+      <translation>一切就绪</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="160"></location>
+      <source>Your model cart is empty.</source>
+      <translation>模型购物车为空。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/session_autosave_controller.py" line="247"></location>
@@ -8331,17 +8221,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>已确认的下载计划仍保持选中。添加 CivitAI API 密钥，然后重试设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="381"></location>
-      <source>Your setup has been saved. Review the summary below, then open Substitute or close this window if a restart is needed.</source>
-      <translation>您的设置已保存。请查看下方摘要，然后打开 Substitute；如果需要重启，也可以关闭此窗口。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1346"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1056"></location>
       <source>Your setup is saved and ready to use.</source>
       <translation>设置已保存，可以开始使用。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1342"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1052"></location>
       <source>Your updated setup has been saved. Close Substitute now, then open it again to use the new configuration.</source>
       <translation>更新后的设置已保存。请立即关闭 Substitute，然后重新打开以使用新配置。</translation>
     </message>

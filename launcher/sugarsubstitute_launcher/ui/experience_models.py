@@ -25,6 +25,7 @@ from enum import Enum
 class ExperiencePage(str, Enum):
     """Identify one production page in the setup and recovery experience."""
 
+    LANGUAGE = "language"
     INSTALL_LOCATION = "install_location"
     REPAIR_SCOPE = "repair_scope"
     REVIEW = "review"

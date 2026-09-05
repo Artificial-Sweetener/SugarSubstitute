@@ -26,6 +26,7 @@ import pytest
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
 from tests.launcher.installation_workflow.support import (
+    advance_to_install_location,
     close_and_delete_launcher_window,
     release_source_for_test,
     wait_for_launcher_condition,
@@ -95,6 +96,7 @@ def test_launcher_runtime_failure_keeps_runtime_retry_enabled(
         ),
     )
 
+    advance_to_install_location(window)
     window.view.primary_button.click()
     window.view.primary_button.click()
     wait_for_launcher_condition(

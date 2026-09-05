@@ -59,6 +59,7 @@ class ProvisioningPage(OnboardingPageFrame):
     """Display honest setup progress with an opt-in technical transcript."""
 
     content_height_changed = Signal()
+    log_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the setup progress page with status-first hierarchy."""
@@ -147,8 +148,7 @@ class ProvisioningPage(OnboardingPageFrame):
             app_text("Show setup log"), self.status_panel
         )
         self.show_log_button.setObjectName("OnboardingShowSetupLogButton")
-        self.show_log_button.setCheckable(True)
-        self.show_log_button.toggled.connect(self.set_log_expanded)
+        self.show_log_button.clicked.connect(self.log_requested.emit)
         status_layout.addWidget(
             self.show_log_button,
             alignment=Qt.AlignmentFlag.AlignLeft,
@@ -311,17 +311,14 @@ class ProvisioningPage(OnboardingPageFrame):
             )
 
     def set_log_expanded(self, expanded: bool) -> None:
-        """Show or collapse the bounded technical setup transcript."""
+        """Open the dedicated transcript surface without changing page geometry."""
 
-        self._log_expanded = expanded
-        self.details_container.setVisible(expanded)
-        if self.show_log_button.isChecked() != expanded:
-            self.show_log_button.setChecked(expanded)
-        set_localized_text(
-            self.show_log_button,
-            "Hide setup log" if expanded else "Show setup log",
-        )
-        self.content_height_changed.emit()
+        self._log_expanded = False
+        self.details_container.hide()
+        self.show_log_button.setChecked(False)
+        set_localized_text(self.show_log_button, "Show setup log")
+        if expanded:
+            self.log_requested.emit()
 
     def set_output_stream(self, stream: TerminalOutputStream | None) -> None:
         """Bind the shared onboarding output stream to the details surface."""
@@ -373,14 +370,14 @@ class ProvisioningPage(OnboardingPageFrame):
 class CompletionPage(OnboardingPageFrame):
     """Display a confident finish state after setup or repair succeeds."""
 
+    content_height_changed = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the completion page with primary success and optional details."""
 
         super().__init__(
-            title=app_text("Substitute is ready"),
-            description=app_text(
-                "Your setup has been saved. Review the summary below, then open Substitute or close this window if a restart is needed."
-            ),
+            title=app_text("You're ready"),
+            description=app_text("Open Substitute and start creating."),
             icon=FIF.ACCEPT,
             eyebrow=app_text("All set"),
             parent=parent,
@@ -411,10 +408,6 @@ class CompletionPage(OnboardingPageFrame):
         summary_column.setContentsMargins(0, 0, 0, 0)
         summary_column.setSpacing(6)
 
-        title_label = LocalizedBodyLabel(app_text("What's ready"), self.success_panel)
-        title_label.setObjectName("OnboardingInfoTitle")
-        summary_column.addWidget(title_label)
-
         self.summary_label = LocalizedCaptionLabel("", self.success_panel)
         self.summary_label.setObjectName("OnboardingCompletionSummary")
         self.summary_label.setWordWrap(True)
@@ -429,7 +422,7 @@ class CompletionPage(OnboardingPageFrame):
         command_layout.setSpacing(8)
 
         command_title = LocalizedCaptionLabel(
-            app_text("Advanced details"), self.command_surface
+            app_text("Launch command"), self.command_surface
         )
         command_title.setObjectName("OnboardingFieldLabel")
         command_layout.addWidget(command_title)
@@ -441,9 +434,31 @@ class CompletionPage(OnboardingPageFrame):
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
         command_layout.addWidget(self.command_label)
+        self.command_surface.hide()
         success_layout.addWidget(self.command_surface)
 
+        self.details_button = LocalizedPushButton(
+            app_text("Show details"), self.success_panel
+        )
+        self.details_button.setObjectName("OnboardingCompletionDetailsButton")
+        self.details_button.setCheckable(True)
+        self.details_button.toggled.connect(self._set_details_visible)
+        success_layout.addWidget(
+            self.details_button,
+            alignment=Qt.AlignmentFlag.AlignLeft,
+        )
+
         self.body_layout.addWidget(self.success_panel)
+
+    def _set_details_visible(self, visible: bool) -> None:
+        """Reveal the launch command only when explicitly requested."""
+
+        self.command_surface.setVisible(visible)
+        set_localized_text(
+            self.details_button,
+            "Hide details" if visible else "Show details",
+        )
+        self.content_height_changed.emit()
 
 
 __all__ = ["CompletionPage", "ProvisioningPage"]

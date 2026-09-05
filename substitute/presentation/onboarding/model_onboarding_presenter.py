@@ -93,7 +93,7 @@ class ModelOnboardingPresenter:
         self._recipe_planner = recipe_planner or ModelInstallRecipePlanner()
         self._waiting_for_scan = False
         self._waiting_for_recommendations = False
-        existing_folder_page.answer_changed.connect(self._answer_folder)
+        self._recommendation_failed = False
         folder_page.managed_model_root_edit.textChanged.connect(
             self._model_root_text_changed
         )
@@ -101,6 +101,7 @@ class ModelOnboardingPresenter:
         recommendation_page.link_requested.connect(self._open_model_page)
         recommendation_page.skip_family_requested.connect(self._skip_current_family)
         recommendation_page.find_own_requested.connect(self._find_own_models)
+        review_page.remove_requested.connect(self._remove_review_model)
         if coordinator is not None:
             coordinator.scan_finished.connect(self._scan_finished)
             coordinator.recommendation_finished.connect(self._recommendations_finished)
@@ -120,12 +121,7 @@ class ModelOnboardingPresenter:
         if not self._enabled:
             return
         if page_id is OnboardingPageId.EXISTING_MODELS:
-            self._existing_folder_page.set_answer(
-                self._session.state.has_existing_folder
-            )
-            self._primary_button.setEnabled(
-                self._existing_folder_page.answer() is not None
-            )
+            return
         elif page_id is OnboardingPageId.FOLDERS:
             has_existing_folder = self._session.state.has_existing_folder is True
             self._folder_page.set_model_picker_visible(
@@ -147,20 +143,17 @@ class ModelOnboardingPresenter:
         """Handle model-owned next actions and report whether navigation was consumed."""
 
         if page_id is OnboardingPageId.EXISTING_MODELS:
-            answer = self._existing_folder_page.answer()
-            if answer is None:
-                return True
-            self._session.answer_existing_folder(answer)
-            if answer:
-                self._navigate(OnboardingPageId.FOLDERS)
-            else:
-                self._start_recommendations(frozenset())
             return True
         if page_id is OnboardingPageId.FOLDERS:
             if not self._enabled:
                 return False
             return self._advance_folders()
         if page_id is OnboardingPageId.MODEL_RECOMMENDATIONS:
+            if self._waiting_for_recommendations:
+                return True
+            if self._recommendation_failed:
+                self._load_recommendations(self._session.state.missing_families)
+                return True
             if not self._session.current_family_has_selection():
                 return True
             self._advance_recommendation_page()
@@ -174,6 +167,11 @@ class ModelOnboardingPresenter:
         """Move within paged recommendations while preserving selections."""
 
         if page_id is OnboardingPageId.MODEL_RECOMMENDATIONS:
+            if self._waiting_for_recommendations:
+                self._waiting_for_recommendations = False
+                if self._coordinator is not None:
+                    self._coordinator.cancel()
+            self._recommendation_failed = False
             index = self._session.state.recommendation_page_index
             if index > 0:
                 self._session.set_page_index(index - 1)
@@ -210,15 +208,16 @@ class ModelOnboardingPresenter:
         coordinator.start_scan(root)
         return True
 
-    def _answer_folder(self, answer: bool) -> None:
-        """Enable Continue after an explicit answer and invalidate stale work."""
+    def choose_existing_folder(self, answer: bool) -> None:
+        """Commit one direct folder branch and advance immediately."""
 
         self._session.answer_existing_folder(answer)
-        if answer:
-            self._folder_page.managed_model_root_edit.clear()
-        self._primary_button.setEnabled(True)
         if self._coordinator is not None:
             self._coordinator.cancel()
+        if answer:
+            self._navigate(OnboardingPageId.FOLDERS)
+        else:
+            self._start_recommendations(frozenset())
 
     def _model_root_text_changed(self, text: str) -> None:
         """Enable folder confirmation after an explicit inline path is present."""
@@ -253,13 +252,34 @@ class ModelOnboardingPresenter:
         if not missing_families:
             self._navigate(OnboardingPageId.INTEGRATIONS)
             return
+        if self._session.state.remaining_recommendations_declined:
+            self._navigate(OnboardingPageId.INTEGRATIONS)
+            return
+        if self._session.has_loaded_recommendations():
+            self._navigate(OnboardingPageId.MODEL_RECOMMENDATIONS)
+            return
+        self._navigate(OnboardingPageId.MODEL_RECOMMENDATIONS)
+        self._load_recommendations(missing_families)
+
+    def _load_recommendations(
+        self,
+        missing_families: tuple[ModelFamilyId, ...],
+    ) -> None:
+        """Show the family page immediately and request its provider results."""
+
+        if not missing_families:
+            self._navigate(OnboardingPageId.INTEGRATIONS)
+            return
         coordinator = self._coordinator
         if coordinator is None:
-            self._show_folder_failure(
+            self._show_recommendation_failure(
                 app_text("Model recommendations are unavailable in this setup run.")
             )
             return
+        self._recommendation_failed = False
         self._waiting_for_recommendations = True
+        self._recommendation_page.show_loading(missing_families[0])
+        self._refresh_height()
         apply_application_text(
             self._primary_button, app_text("Loading recommendations…")
         )
@@ -272,15 +292,23 @@ class ModelOnboardingPresenter:
         if not self._waiting_for_recommendations or not isinstance(pages, tuple):
             return
         if any(not isinstance(page, FamilyRecommendationPage) for page in pages):
+            self._waiting_for_recommendations = False
+            self._show_recommendation_failure(
+                app_text("CivitAI returned no usable recommendations.")
+            )
             return
         self._waiting_for_recommendations = False
+        self._recommendation_failed = False
         typed_pages = tuple(
             page for page in pages if isinstance(page, FamilyRecommendationPage)
         )
-        if not self._session.accept_recommendations(typed_pages):
-            return
         if not typed_pages:
-            self._show_folder_failure(
+            self._show_recommendation_failure(
+                app_text("CivitAI returned no usable recommendations.")
+            )
+            return
+        if not self._session.accept_recommendations(typed_pages):
+            self._show_recommendation_failure(
                 app_text("CivitAI returned no usable recommendations.")
             )
             return
@@ -298,12 +326,25 @@ class ModelOnboardingPresenter:
             )
         elif operation == "recommendations" and self._waiting_for_recommendations:
             self._waiting_for_recommendations = False
-            self._show_folder_failure(
+            self._show_recommendation_failure(
                 app_text(
                     "CivitAI recommendations could not be loaded. Try again or go back."
                 )
             )
         _ = error
+
+    def _show_recommendation_failure(self, message: ApplicationText) -> None:
+        """Keep provider recovery visible on the recommendation page itself."""
+
+        missing_families = self._session.state.missing_families
+        if not missing_families:
+            self._show_folder_failure(message)
+            return
+        self._recommendation_failed = True
+        self._recommendation_page.show_failure(missing_families[0], message)
+        apply_application_text(self._primary_button, app_text("Try again"))
+        self._primary_button.setEnabled(True)
+        self._refresh_height()
 
     def _thumbnail_finished(
         self,
@@ -343,6 +384,10 @@ class ModelOnboardingPresenter:
     def _find_own_models(self) -> None:
         """Skip every remaining recommendation page while retaining prior choices."""
 
+        if self._coordinator is not None:
+            self._coordinator.cancel()
+        self._waiting_for_recommendations = False
+        self._recommendation_failed = False
         self._session.clear_current_family_selection()
         self._session.decline_remaining_recommendations()
         self._finish_recommendations()
@@ -389,7 +434,7 @@ class ModelOnboardingPresenter:
             )
 
     def _render_review(self) -> None:
-        """Show every exact selected primary and required auxiliary file."""
+        """Show exact selected primary models as an editable checkout."""
 
         selected = self._session.selected_recommendations()
         model_root = self._controller.draft.managed_model_root
@@ -400,9 +445,19 @@ class ModelOnboardingPresenter:
             return
         plan = self._recipe_planner.plan(selected, model_root=model_root)
         self._session.accept_install_plan(plan)
-        self._review_page.set_plan(plan)
-        self._primary_button.setEnabled(plan.has_sufficient_space)
+        self._review_page.set_plan(plan, self._session.selected_cards())
+        apply_application_text(
+            self._primary_button,
+            app_text("Download %1 models", len(plan.files)),
+        )
+        self._primary_button.setEnabled(bool(plan.files) and plan.has_sufficient_space)
         self._refresh_height()
+
+    def _remove_review_model(self, version_id: int) -> None:
+        """Remove one checkout item and immediately refresh totals and action state."""
+
+        if self._session.set_version_selected(version_id, False):
+            self._render_review()
 
 
 __all__ = ["ModelOnboardingPresenter"]

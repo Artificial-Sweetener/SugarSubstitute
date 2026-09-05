@@ -32,7 +32,6 @@ from substitute.application.model_recommendations.onboarding_service import (
 from substitute.application.model_recommendations.install_service import (
     ModelInstallRecipePlanner,
     ModelInstallService,
-    trusted_recipe_url_validator,
 )
 
 __all__ = [
@@ -45,5 +44,4 @@ __all__ = [
     "ModelInstallService",
     "RecommendationCardAsset",
     "model_family_presentation",
-    "trusted_recipe_url_validator",
 ]

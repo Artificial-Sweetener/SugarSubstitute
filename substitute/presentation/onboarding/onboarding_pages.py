@@ -20,6 +20,10 @@ from substitute.presentation.onboarding.onboarding_completion_pages import (
     CompletionPage,
     ProvisioningPage,
 )
+from substitute.presentation.onboarding.onboarding_connection_settings_dialog import (
+    ManagedRuntimeSummaryPanel,
+    TargetEndpointFields,
+)
 from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingFieldBlock,
     OnboardingHeroPanel,
@@ -28,7 +32,6 @@ from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingSectionPanel,
     TargetModeCard,
     TargetModePresentation,
-    TargetModeSummaryPanel,
 )
 from substitute.presentation.onboarding.onboarding_preference_pages import (
     FolderSetupPage,
@@ -38,9 +41,7 @@ from substitute.presentation.onboarding.onboarding_target_pages import (
     AttachedLocalPage,
     InstallRootPage,
     ManagedLocalPage,
-    ManagedRuntimeSummaryPanel,
     RemotePage,
-    TargetEndpointFields,
     TargetModePage,
 )
 
@@ -63,5 +64,4 @@ __all__ = [
     "TargetModeCard",
     "TargetModePage",
     "TargetModePresentation",
-    "TargetModeSummaryPanel",
 ]

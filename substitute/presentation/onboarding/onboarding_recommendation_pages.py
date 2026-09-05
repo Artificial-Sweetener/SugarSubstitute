@@ -38,7 +38,7 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     IndeterminateProgressRing,
 )
 
-from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.localization import ApplicationText, app_text
 from sugarsubstitute_shared.presentation.localization import (
     apply_application_text,
     render_application_text,
@@ -60,10 +60,12 @@ from substitute.presentation.localization import (
 from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingPageFrame,
 )
+from substitute.presentation.onboarding.onboarding_recommendation_loading import (
+    PORTRAIT_HEIGHT as _PORTRAIT_HEIGHT,
+    PORTRAIT_WIDTH as _PORTRAIT_WIDTH,
+    RecommendationLoadingGallery,
+)
 from substitute.shared.qt_thumbnail_codec import image_from_qt_thumbnail_payload
-
-_PORTRAIT_WIDTH = 228
-_PORTRAIT_HEIGHT = 285
 
 
 class RecommendationPortrait(QWidget):
@@ -79,6 +81,8 @@ class RecommendationPortrait(QWidget):
         thumbnail_failed: bool,
         selected: bool,
         accessible_name: str,
+        portrait_size: QSize | None = None,
+        selectable: bool = True,
         parent: QWidget,
     ) -> None:
         """Store one decoded image and expose a native selectable control."""
@@ -89,15 +93,22 @@ class RecommendationPortrait(QWidget):
         self._pixmap = pixmap
         self._title = title
         self._hovered = False
+        self._selectable = selectable
         self.setObjectName("OnboardingRecommendationPortrait")
-        self.setFixedSize(_PORTRAIT_WIDTH, _PORTRAIT_HEIGHT)
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedSize(portrait_size or QSize(_PORTRAIT_WIDTH, _PORTRAIT_HEIGHT))
+        self.setFocusPolicy(
+            Qt.FocusPolicy.StrongFocus if selectable else Qt.FocusPolicy.NoFocus
+        )
+        if selectable:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAccessibleName(accessible_name)
         self.busy_ring = IndeterminateProgressRing(self, start=pixmap is None)
         self.busy_ring.setObjectName("OnboardingRecommendationThumbnailBusy")
         self.busy_ring.setFixedSize(34, 34)
         self.busy_ring.setStrokeWidth(4)
+        self.loading_label = LocalizedCaptionLabel(app_text("Loading preview…"), self)
+        self.loading_label.setObjectName("OnboardingRecommendationThumbnailLoading")
+        self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.unavailable_label = LocalizedCaptionLabel(
             app_text("Preview unavailable"), self
         )
@@ -110,11 +121,13 @@ class RecommendationPortrait(QWidget):
         self.checkbox.setObjectName("OnboardingRecommendationPortraitCheck")
         self.checkbox.setAccessibleName(accessible_name)
         self.checkbox.setChecked(selected)
+        self.checkbox.setVisible(selectable)
         self.checkbox.toggled.connect(self._selection_toggled)
         self._position_checkbox()
         self._position_thumbnail_status()
         if pixmap is not None:
             self.busy_ring.hide()
+            self.loading_label.hide()
         elif thumbnail_failed:
             self.set_thumbnail_unavailable()
 
@@ -143,6 +156,7 @@ class RecommendationPortrait(QWidget):
         self._pixmap = pixmap
         self.busy_ring.stop()
         self.busy_ring.hide()
+        self.loading_label.hide()
         self.unavailable_label.hide()
         self.update()
         return True
@@ -152,6 +166,7 @@ class RecommendationPortrait(QWidget):
 
         self.busy_ring.stop()
         self.busy_ring.hide()
+        self.loading_label.hide()
         self.unavailable_label.show()
         self.update()
 
@@ -221,7 +236,7 @@ class RecommendationPortrait(QWidget):
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
         """Toggle selection when the user clicks the image surface."""
 
-        if event.button() is Qt.MouseButton.LeftButton:
+        if self._selectable and event.button() is Qt.MouseButton.LeftButton:
             self.checkbox.toggle()
             event.accept()
             return
@@ -230,7 +245,11 @@ class RecommendationPortrait(QWidget):
     def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
         """Toggle selection with Space or Enter from keyboard focus."""
 
-        if event.key() in {Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter}:
+        if self._selectable and event.key() in {
+            Qt.Key.Key_Space,
+            Qt.Key.Key_Return,
+            Qt.Key.Key_Enter,
+        }:
             self.checkbox.toggle()
             event.accept()
             return
@@ -263,7 +282,14 @@ class RecommendationPortrait(QWidget):
             (self.height() - self.busy_ring.height()) // 2 - 10,
         )
         self.unavailable_label.setGeometry(16, 0, self.width() - 32, self.height() - 34)
+        self.loading_label.setGeometry(
+            16,
+            (self.height() // 2) + 18,
+            self.width() - 32,
+            28,
+        )
         self.busy_ring.raise_()
+        self.loading_label.raise_()
         self.unavailable_label.raise_()
 
 
@@ -378,7 +404,26 @@ class ModelRecommendationPage(OnboardingPageFrame):
         self.card_grid = QGridLayout(self.card_host)
         self.card_grid.setContentsMargins(0, 0, 0, 0)
         self.card_grid.setHorizontalSpacing(14)
+        self._loading_gallery = RecommendationLoadingGallery(
+            host=self.card_host,
+            grid=self.card_grid,
+        )
         self.body_layout.addWidget(self.card_host)
+        self.loading_row = QWidget(self)
+        loading_layout = QHBoxLayout(self.loading_row)
+        loading_layout.setContentsMargins(0, 18, 0, 18)
+        loading_layout.setSpacing(12)
+        self.loading_ring = IndeterminateProgressRing(self.loading_row, start=False)
+        self.loading_ring.setFixedSize(26, 26)
+        self.loading_ring.setAccessibleName(
+            render_application_text(app_text("Loading recommendations…"))
+        )
+        self.loading_status = LocalizedBodyLabel("", self.loading_row)
+        self.loading_status.setWordWrap(True)
+        loading_layout.addWidget(self.loading_ring)
+        loading_layout.addWidget(self.loading_status, 1)
+        self.loading_row.hide()
+        self.body_layout.addWidget(self.loading_row)
         self.empty_label = LocalizedCaptionLabel(
             app_text(
                 "CivitAI did not return a safe portrait for this family. You can skip it or find your own models."
@@ -402,10 +447,46 @@ class ModelRecommendationPage(OnboardingPageFrame):
         self.skip_button.clicked.connect(self.skip_family_requested.emit)
         self.find_own_button.clicked.connect(self.find_own_requested.emit)
 
+    def show_loading(self, family_id: ModelFamilyId) -> None:
+        """Show the final three-card composition while CivitAI responds."""
+
+        self._clear_cards()
+        self._set_family(family_id)
+        self._loading_gallery.build()
+        self.loading_ring.stop()
+        self.loading_row.hide()
+        self.card_host.show()
+        self.empty_label.hide()
+        self.skip_button.hide()
+        self.find_own_button.hide()
+
+    def show_failure(
+        self,
+        family_id: ModelFamilyId,
+        message: ApplicationText,
+    ) -> None:
+        """Keep provider failure on the page where the user can recover."""
+
+        self._clear_cards()
+        self._set_family(family_id)
+        self.loading_ring.stop()
+        self.loading_ring.hide()
+        apply_application_text(self.loading_status, message)
+        self.loading_row.show()
+        self.card_host.hide()
+        self.empty_label.hide()
+        self.skip_button.hide()
+        self.find_own_button.show()
+
     def current_family(self) -> ModelFamilyId | None:
         """Return the family currently represented by the card grid."""
 
         return self._family_id
+
+    def visible_cards(self) -> tuple[RecommendationCard, ...]:
+        """Return the currently rendered cards for qualification and accessibility."""
+
+        return tuple(self._cards_by_version_id.values())
 
     def set_recommendations(
         self,
@@ -415,18 +496,13 @@ class ModelRecommendationPage(OnboardingPageFrame):
     ) -> None:
         """Replace cards with one missing-family page and retained selections."""
 
-        _clear_layout(self.card_grid)
-        self._cards_by_version_id.clear()
-        self._family_id = page.family_id
-        presentation = model_family_presentation(page.family_id)
-        if page.family_id is ModelFamilyId.SDXL:
-            self.family_label.setText(app_text("Illustrious · SDXL compatible"))
-        else:
-            self.family_label.setText(presentation.name)
-        apply_application_text(
-            self.skip_button,
-            app_text("Skip %1", presentation.name),
-        )
+        self._clear_cards()
+        self._set_family(page.family_id)
+        self.loading_ring.stop()
+        self.loading_row.hide()
+        self.card_host.show()
+        self.skip_button.show()
+        self.find_own_button.show()
         rendered = 0
         for index, card in enumerate(page.cards[:3]):
             widget = RecommendationCard(
@@ -440,6 +516,28 @@ class ModelRecommendationPage(OnboardingPageFrame):
             self._cards_by_version_id[card.recommendation.version_id] = widget
             rendered += 1
         self.empty_label.setVisible(rendered == 0)
+
+    def _clear_cards(self) -> None:
+        """Remove prior cards before showing another family state."""
+
+        self._loading_gallery.clear()
+        _clear_layout(self.card_grid)
+        self.card_host.setMinimumHeight(0)
+        self._cards_by_version_id.clear()
+
+    def _set_family(self, family_id: ModelFamilyId) -> None:
+        """Render the family heading and corresponding skip action."""
+
+        self._family_id = family_id
+        presentation = model_family_presentation(family_id)
+        if family_id is ModelFamilyId.SDXL:
+            self.family_label.setText(app_text("Illustrious · SDXL compatible"))
+        else:
+            self.family_label.setText(presentation.name)
+        apply_application_text(
+            self.skip_button,
+            app_text("Skip %1", presentation.name),
+        )
 
     def set_thumbnail(self, version_id: int, thumbnail: ThumbnailAsset) -> bool:
         """Install a completed thumbnail when its card is currently visible."""

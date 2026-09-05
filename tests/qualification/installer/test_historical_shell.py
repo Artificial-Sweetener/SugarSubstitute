@@ -42,7 +42,7 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
         "OnboardingInstallRootEdit",
         "OnboardingTargetCardRadio_managed_local",
         "OnboardingManagedWorkspaceEdit",
-        "OnboardingExistingModelsYes",
+        "OnboardingYesExistingModelsButton",
         "OnboardingManagedModelRootEdit",
         "OnboardingFindOwnModelsButton",
         "OnboardingCivitaiApiKeyEdit",
@@ -93,9 +93,11 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
 
             if self.suffix in {
                 "OnboardingTargetCardRadio_managed_local",
-                "OnboardingExistingModelsYes",
             }:
                 values[self.suffix] = True
+            elif self.suffix == "OnboardingYesExistingModelsButton":
+                values[self.suffix] = True
+                state["page"] += 1
             elif self.suffix == "OnboardingFindOwnModelsButton":
                 state["page"] += 1
             elif self.suffix == "OnboardingPrimaryButton":

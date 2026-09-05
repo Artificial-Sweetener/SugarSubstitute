@@ -46,7 +46,7 @@ def test_headless_smoke_renders_complete_matrix_without_side_effects() -> None:
     result = run_headless_smoke(artifact_root=artifact_root)
 
     assert result["headless"] is True
-    assert result["schema_version"] == 3
+    assert result["schema_version"] == 4
     assert result["journey"] == (
         "bootstrap-launcher",
         "comfy-setup",
@@ -57,6 +57,7 @@ def test_headless_smoke_renders_complete_matrix_without_side_effects() -> None:
         "installation_root_prompt_occurrences": 1,
         "comfy_setup_initial_page": "OnboardingTargetModePage",
         "verified_setup_routes": 14,
+        "first_interaction": "language",
     }
     scenario_values = cast(list[dict[str, object]], result["scenarios"])
     scenarios = {str(item["scenario"]): item for item in scenario_values}
@@ -84,6 +85,9 @@ def test_headless_smoke_renders_complete_matrix_without_side_effects() -> None:
         "comfy-setup/managed-sdxl-and-anima/recommendations-sdxl",
         "comfy-setup/managed-sdxl-and-anima/recommendations-anima",
         "comfy-setup/managed-sdxl-and-anima/model-download-review",
+        "comfy-setup/managed-sdxl-and-anima/configuration-advanced",
+        "comfy-setup/managed-sdxl-and-anima/setup-log",
+        "comfy-setup/managed-sdxl-and-anima/completion-details",
         "comfy-setup/managed-model-download-retry/download-failure",
         "comfy-setup/managed-model-download-retry/completion",
         "comfy-setup/managed-civitai-unavailable/model-provider-recovery",
@@ -101,6 +105,12 @@ def test_headless_smoke_renders_complete_matrix_without_side_effects() -> None:
         for key in scenarios
     )
     assert "restored" in cast(str, scenarios["repair-rollback"]["status"])
+    assert (
+        scenarios["comfy-setup/managed-civitai-unavailable/model-provider-recovery"][
+            "page"
+        ]
+        == "OnboardingModelRecommendationPage"
+    )
     side_effect_audit = cast(dict[str, int], result["side_effect_audit"])
     assert all(value == 0 for value in side_effect_audit.values())
     protected_sentinels = cast(dict[str, str], result["protected_sentinels"])
@@ -193,6 +203,31 @@ def test_interactive_cli_requires_explicit_flag_and_preserves_surface(
         == 17
     )
     assert calls == [("comfy-setup", "install")]
+
+
+def test_live_model_capture_requires_explicit_flag(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Keep real CivitAI access behind its named qualification action."""
+
+    calls: list[Path] = []
+
+    def record_live_capture(*, artifact_root: Path) -> dict[str, str]:
+        """Record explicit provider routing without performing network work."""
+
+        calls.append(artifact_root)
+        return {"family": "sdxl"}
+
+    monkeypatch.setattr(
+        installer_experience_smoke,
+        "capture_live_recommendation_page",
+        record_live_capture,
+    )
+
+    assert installer_experience_smoke.main(["--live-model-capture"]) == 0
+    assert len(calls) == 1
+    assert '"family": "sdxl"' in capsys.readouterr().out
 
 
 def test_full_interactive_route_hands_real_launcher_into_setup_offscreen(

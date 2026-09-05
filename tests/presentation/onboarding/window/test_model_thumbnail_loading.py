@@ -189,6 +189,7 @@ def _recommendation(rank: int) -> ModelRecommendation:
         sha256=f"{model_id:064x}",
         download_url=f"https://civitai.com/api/download/models/{model_id * 10}",
         model_page_url=f"https://civitai.com/models/{model_id}",
+        thumbnail_image_id=model_id * 100,
         thumbnail_url=f"https://image.civitai.com/{model_id}.png",
         popularity_rank=rank,
     )
@@ -216,6 +217,7 @@ def _recommendation_with_identity(
         model_page_url=(
             f"https://civitai.com/models/{model_id}?modelVersionId={version_id}"
         ),
+        thumbnail_image_id=version_id * 10,
         thumbnail_url=f"https://image.civitai.com/{version_id}.png",
         popularity_rank=1,
     )

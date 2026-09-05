@@ -40,14 +40,6 @@ class ModelStylePreference(str, Enum):
     ANIME_STYLE = "anime_style"
 
 
-class ModelRecipeRole(str, Enum):
-    """Identify the role of one file in a runnable family recipe."""
-
-    PRIMARY_MODEL = "primary_model"
-    TEXT_ENCODER = "text_encoder"
-    VAE = "vae"
-
-
 @dataclass(frozen=True, slots=True)
 class CivitaiFamilyMapping:
     """Define the preferred provider lineage recommended for a family."""
@@ -75,19 +67,6 @@ class FamilyDetectionPolicy:
 
 
 @dataclass(frozen=True, slots=True)
-class TrustedRecipeAsset:
-    """Define one checksum-pinned auxiliary required by a family loader."""
-
-    role: ModelRecipeRole
-    artifact_kind: ModelArtifactKind
-    filename: str
-    subfolder: str
-    source_url: str
-    sha256: str
-    size_bytes: int
-
-
-@dataclass(frozen=True, slots=True)
 class ModelFamilyDefinition:
     """Define provider, detection, and runnable-install policy for one family."""
 
@@ -96,7 +75,6 @@ class ModelFamilyDefinition:
     civitai: CivitaiFamilyMapping
     detection: FamilyDetectionPolicy
     primary_artifact_kind: ModelArtifactKind
-    auxiliaries: tuple[TrustedRecipeAsset, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,6 +100,7 @@ class ModelRecommendation:
     sha256: str
     download_url: str
     model_page_url: str
+    thumbnail_image_id: int
     thumbnail_url: str
     popularity_rank: int
 
@@ -131,10 +110,8 @@ __all__ = [
     "FamilyDetectionPolicy",
     "ModelFamilyDefinition",
     "ModelFamilyId",
-    "ModelRecipeRole",
     "ModelRecommendation",
     "ModelRecommendationQuery",
     "ModelStylePreference",
     "TensorShapeSignature",
-    "TrustedRecipeAsset",
 ]

@@ -125,7 +125,7 @@ class FolderSetupPage(OnboardingPageFrame):
         self.model_path_block = OnboardingFieldBlock(
             label=app_text("Existing models folder"),
             helper_text=app_text(
-                "Choose the ComfyUI models folder you already use. Substitute will scan it without changing its contents."
+                "Choose the folder where your models are stored. Substitute will scan it without changing its contents."
             ),
             field=self.managed_model_root_edit,
             trailing_widget=model_buttons,
@@ -214,13 +214,15 @@ class FolderSetupPage(OnboardingPageFrame):
 class IntegrationsPage(OnboardingPageFrame):
     """Collect first-run helper integration preferences."""
 
+    content_height_changed = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the friendly integrations setup page."""
 
         super().__init__(
             title=app_text("Choose helpful extras"),
             description=app_text(
-                "These features help with tags, model info, and preview image preferences. You can change them later in Settings."
+                "Optional services can help with prompts and models. You can change them later in Settings."
             ),
             icon=FIF.ROBOT,
             eyebrow=app_text("Helpful extras"),
@@ -235,14 +237,26 @@ class IntegrationsPage(OnboardingPageFrame):
             app_text("Use Danbooru tag tools while writing prompts."),
         )
         self.danbooru_image_policy_combo = self._danbooru_policy_combo()
-        danbooru_image_policy_block = OnboardingFieldBlock(
-            label=app_text("Danbooru image rating"),
-            helper_text=app_text(
-                "Choose which Danbooru wiki preview image ratings Substitute may show."
+        self.danbooru_details = QWidget(self)
+        danbooru_details_layout = QGridLayout(self.danbooru_details)
+        danbooru_details_layout.setContentsMargins(0, 4, 0, 0)
+        danbooru_details_layout.setHorizontalSpacing(22)
+        danbooru_details_layout.setVerticalSpacing(12)
+        danbooru_details_layout.addWidget(danbooru_tag_help_row, 0, 0)
+        danbooru_details_layout.addWidget(
+            OnboardingFieldBlock(
+                label=app_text("Preview image content"),
+                helper_text=app_text(
+                    "Choose which Danbooru wiki preview image ratings Substitute may show."
+                ),
+                field=self.danbooru_image_policy_combo,
+                parent=self.danbooru_details,
             ),
-            field=self.danbooru_image_policy_combo,
-            parent=self,
+            0,
+            1,
         )
+        danbooru_details_layout.setColumnStretch(0, 1)
+        danbooru_details_layout.setColumnStretch(1, 1)
         civitai_model_help_row, self.civitai_model_help_checkbox = self._preference_row(
             "OnboardingCivitaiModelHelpSwitch",
             app_text("Help find model info"),
@@ -259,59 +273,64 @@ class IntegrationsPage(OnboardingPageFrame):
             ),
         )
         self.civitai_thumbnail_policy_combo = self._civitai_thumbnail_policy_combo()
-        civitai_thumbnail_policy_block = OnboardingFieldBlock(
-            label=app_text("CivitAI thumbnail content"),
-            helper_text=app_text(
-                "Choose which CivitAI image levels may be used for model thumbnails."
-            ),
-            field=self.civitai_thumbnail_policy_combo,
-            parent=self,
-        )
         self.civitai_api_key_edit = LineEdit(self)
         self.civitai_api_key_edit.setObjectName("OnboardingCivitaiApiKeyEdit")
         self.civitai_api_key_edit.setEchoMode(LineEdit.EchoMode.Password)
         self.civitai_api_key_status = LocalizedCaptionLabel("", self)
         self.civitai_api_key_status.setObjectName("OnboardingCivitaiApiKeyStatus")
+        self.civitai_details = QWidget(self)
+        civitai_details_layout = QGridLayout(self.civitai_details)
+        civitai_details_layout.setContentsMargins(0, 4, 0, 0)
+        civitai_details_layout.setHorizontalSpacing(22)
+        civitai_details_layout.setVerticalSpacing(14)
+        civitai_details_layout.addWidget(civitai_model_help_row, 0, 0)
+        civitai_details_layout.addWidget(civitai_downloads_row, 0, 1)
+        civitai_details_layout.addWidget(
+            OnboardingFieldBlock(
+                label=app_text("Thumbnail content"),
+                helper_text=app_text(
+                    "Choose which CivitAI image levels may be used for model thumbnails."
+                ),
+                field=self.civitai_thumbnail_policy_combo,
+                parent=self.civitai_details,
+            ),
+            1,
+            0,
+        )
+        civitai_details_layout.addWidget(
+            OnboardingFieldBlock(
+                label=app_text("API key (optional)"),
+                helper_text=app_text(
+                    "Add a CivitAI API key now, or leave this blank and add one later in Settings."
+                ),
+                field=self.civitai_api_key_edit,
+                parent=self.civitai_details,
+            ),
+            1,
+            1,
+        )
+        civitai_details_layout.addWidget(self.civitai_api_key_status, 2, 1)
+        civitai_details_layout.setColumnStretch(0, 1)
+        civitai_details_layout.setColumnStretch(1, 1)
 
-        choices_layout = QGridLayout()
+        choices_layout = QVBoxLayout()
         choices_layout.setContentsMargins(0, 0, 0, 0)
-        choices_layout.setHorizontalSpacing(14)
-        choices_layout.setVerticalSpacing(14)
+        choices_layout.setSpacing(14)
 
         danbooru_section = OnboardingSectionPanel(self)
         danbooru_section.content_layout.addWidget(
             self._section_title("Danbooru", danbooru_section)
         )
-        danbooru_section.content_layout.addWidget(danbooru_tag_help_row)
-        danbooru_section.content_layout.addWidget(danbooru_image_policy_block)
-        danbooru_section.content_layout.addStretch(1)
+        danbooru_section.content_layout.addWidget(self.danbooru_details)
 
         civitai_section = OnboardingSectionPanel(self)
         civitai_section.content_layout.addWidget(
             self._section_title("CivitAI", civitai_section)
         )
-        civitai_section.content_layout.addWidget(civitai_model_help_row)
-        civitai_section.content_layout.addWidget(civitai_downloads_row)
-        civitai_section.content_layout.addWidget(civitai_thumbnail_policy_block)
+        civitai_section.content_layout.addWidget(self.civitai_details)
 
-        api_section = OnboardingSectionPanel(self)
-        api_section.content_layout.addWidget(
-            OnboardingFieldBlock(
-                label=app_text("CivitAI API key (optional)"),
-                helper_text=app_text(
-                    "You can skip this and add one later in Settings."
-                ),
-                field=self.civitai_api_key_edit,
-                parent=self,
-            )
-        )
-        api_section.content_layout.addWidget(self.civitai_api_key_status)
-
-        choices_layout.addWidget(danbooru_section, 0, 0)
-        choices_layout.addWidget(civitai_section, 0, 1)
-        choices_layout.addWidget(api_section, 1, 0, 1, 2)
-        choices_layout.setColumnStretch(0, 1)
-        choices_layout.setColumnStretch(1, 1)
+        choices_layout.addWidget(danbooru_section)
+        choices_layout.addWidget(civitai_section)
         self.body_layout.addLayout(choices_layout)
 
     def set_api_key_configured(self, configured: bool) -> None:

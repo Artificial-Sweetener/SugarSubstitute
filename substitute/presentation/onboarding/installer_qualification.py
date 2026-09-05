@@ -152,11 +152,10 @@ class OnboardingQualificationDriver(QObject):
             if self._plan.target_mode != "remote":
                 self._wait_for_page("OnboardingExistingModelsQuestionPage")
                 self._click(
-                    "OnboardingExistingModelsYes"
+                    "OnboardingYesExistingModelsButton"
                     if self._plan.managed_model_root is not None
-                    else "OnboardingExistingModelsNo"
+                    else "OnboardingNoExistingModelsButton"
                 )
-                self._click("OnboardingPrimaryButton")
             if (
                 self._plan.target_mode == "remote"
                 or self._plan.managed_model_root is not None

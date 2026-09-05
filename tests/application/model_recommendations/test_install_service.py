@@ -32,8 +32,6 @@ from substitute.domain.model_recommendations import (
     ModelInstallFile,
     ModelInstallPlan,
     ModelInstallProgress,
-    ModelInstallSource,
-    ModelRecipeRole,
     ModelRecommendation,
 )
 from sugarsubstitute_shared.model_discovery import ModelArtifactKind
@@ -80,15 +78,16 @@ def _recommendation(family_id: ModelFamilyId, model_id: int) -> ModelRecommendat
         sha256="a" * 64,
         download_url=f"https://civitai.com/api/download/models/{model_id * 10}",
         model_page_url=f"https://civitai.com/models/{model_id}",
+        thumbnail_image_id=model_id * 100,
         thumbnail_url="https://image.civitai.com/example.jpeg",
         popularity_rank=model_id,
     )
 
 
-def test_recipe_planner_expands_anima_and_deduplicates_shared_auxiliaries(
+def test_recipe_planner_keeps_anima_to_explicit_primary_selections(
     tmp_path: Path,
 ) -> None:
-    """Every Anima selection includes one shared Qwen encoder and VAE."""
+    """SimpleSyrup owns Anima dependencies, so setup downloads only chosen models."""
 
     planner = ModelInstallRecipePlanner(free_space=lambda _path: 10**12)
 
@@ -100,16 +99,10 @@ def test_recipe_planner_expands_anima_and_deduplicates_shared_auxiliaries(
         model_root=tmp_path / "models",
     )
 
-    assert [item.role for item in plan.files] == [
-        ModelRecipeRole.PRIMARY_MODEL,
-        ModelRecipeRole.TEXT_ENCODER,
-        ModelRecipeRole.VAE,
-        ModelRecipeRole.PRIMARY_MODEL,
-    ]
+    assert len(plan.files) == 2
     assert plan.files[0].destination_dir.name == "diffusion_models"
-    assert plan.files[1].destination_dir.parts[-2:] == ("text_encoders", "qwen")
-    assert plan.files[2].destination_dir.parts[-2:] == ("vae", "qwen")
-    assert plan.total_bytes == 2_048 + 1_192_135_096 + 253_806_246
+    assert plan.files[1].destination_dir.name == "diffusion_models"
+    assert plan.total_bytes == 2_048
     assert plan.has_sufficient_space
 
 
@@ -123,7 +116,6 @@ def test_recipe_planner_keeps_sdxl_a_single_checkpoint_file(tmp_path: Path) -> N
 
     assert len(plan.files) == 1
     assert plan.files[0].artifact_kind is ModelArtifactKind.CHECKPOINTS
-    assert plan.files[0].role is ModelRecipeRole.PRIMARY_MODEL
 
 
 def test_model_install_service_reports_monotonic_file_and_aggregate_bytes(
@@ -133,7 +125,7 @@ def test_model_install_service_reports_monotonic_file_and_aggregate_bytes(
 
     payloads = {
         "https://civitai.com/api/download/models/10": b"primary",
-        "https://trusted.example/aux": b"auxiliary",
+        "https://civitai.com/api/download/models/20": b"second",
     }
 
     def open_stream(url: str, _headers: object, _timeout: float) -> _Stream:
@@ -141,25 +133,17 @@ def test_model_install_service_reports_monotonic_file_and_aggregate_bytes(
 
         return _Stream(payloads[url])
 
-    def validate_trusted(url: str) -> None:
-        """Accept only the recorded trusted auxiliary URL."""
-
-        if url != "https://trusted.example/aux":
-            raise ValueError("unexpected URL")
-
     files = (
         _install_file(
             tmp_path,
-            source=ModelInstallSource.CIVITAI,
             url="https://civitai.com/api/download/models/10",
             payload=payloads["https://civitai.com/api/download/models/10"],
             model_id=1,
         ),
         _install_file(
             tmp_path,
-            source=ModelInstallSource.TRUSTED_FAMILY_ASSET,
-            url="https://trusted.example/aux",
-            payload=payloads["https://trusted.example/aux"],
+            url="https://civitai.com/api/download/models/20",
+            payload=payloads["https://civitai.com/api/download/models/20"],
             model_id=2,
         ),
     )
@@ -168,16 +152,10 @@ def test_model_install_service_reports_monotonic_file_and_aggregate_bytes(
         allowed_roots=(tmp_path,),
         stream_opener=open_stream,
     )
-    trusted = ModelAcquisitionService(
-        allowed_roots=(tmp_path,),
-        stream_opener=open_stream,
-        download_url_validator=validate_trusted,
-    )
     progress: list[ModelInstallProgress] = []
 
     results = ModelInstallService(
         primary_acquisition=primary,
-        trusted_acquisition=trusted,
     ).acquire(plan, on_progress=progress.append)
 
     assert len(results) == 2
@@ -194,7 +172,6 @@ def test_model_install_service_rejects_insufficient_space_before_reservation(
 
     file = _install_file(
         tmp_path,
-        source=ModelInstallSource.CIVITAI,
         url="https://civitai.com/api/download/models/10",
         payload=b"large",
         model_id=1,
@@ -202,7 +179,6 @@ def test_model_install_service_rejects_insufficient_space_before_reservation(
     plan = ModelInstallPlan(tmp_path, (file,), available_bytes=1)
     service = ModelInstallService(
         primary_acquisition=ModelAcquisitionService(allowed_roots=(tmp_path,)),
-        trusted_acquisition=ModelAcquisitionService(allowed_roots=(tmp_path,)),
     )
 
     try:
@@ -217,7 +193,6 @@ def test_model_install_service_rejects_insufficient_space_before_reservation(
 def _install_file(
     root: Path,
     *,
-    source: ModelInstallSource,
     url: str,
     payload: bytes,
     model_id: int,
@@ -226,9 +201,7 @@ def _install_file(
 
     return ModelInstallFile(
         family_id=ModelFamilyId.SDXL,
-        role=ModelRecipeRole.PRIMARY_MODEL,
         artifact_kind=ModelArtifactKind.CHECKPOINTS,
-        source=source,
         model_id=model_id,
         version_id=model_id * 10,
         display_name=f"file-{model_id}",

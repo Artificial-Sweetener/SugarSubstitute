@@ -314,8 +314,7 @@ def _run_installed_onboarding(
     process_events()
     click("OnboardingPrimaryButton")
     wait_for_page("OnboardingExistingModelsQuestionPage")
-    click("OnboardingExistingModelsYes")
-    click("OnboardingPrimaryButton")
+    click("OnboardingYesExistingModelsButton")
     wait_for_page("OnboardingFolderSetupPage")
 
     widget(LineEdit, "OnboardingManagedModelRootEdit").setText(

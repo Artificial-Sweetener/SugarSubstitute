@@ -20,7 +20,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from substitute.application.model_recommendations import FamilyRecommendationPage
+from substitute.application.model_recommendations import (
+    FamilyRecommendationPage,
+    RecommendationCardAsset,
+)
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import (
     SUPPORTED_MODEL_FAMILIES,
@@ -76,6 +79,8 @@ class ModelOnboardingSession:
     def answer_existing_folder(self, answer: bool | None) -> None:
         """Record the explicit existing-folder answer and clear derived state."""
 
+        if answer is self._state.has_existing_folder:
+            return
         self._state = replace(
             self._state,
             has_existing_folder=answer,
@@ -100,6 +105,17 @@ class ModelOnboardingSession:
 
         missing_families = SUPPORTED_MODEL_FAMILIES.missing_from(detected_families)
 
+        if (
+            missing_families == self._state.missing_families
+            and self._state.recommendation_pages
+        ):
+            self._state = replace(
+                self._state,
+                recommendation_page_index=0,
+                install_plan=None,
+            )
+            return missing_families
+
         self._state = replace(
             self._state,
             missing_families=missing_families,
@@ -110,6 +126,15 @@ class ModelOnboardingSession:
             install_plan=None,
         )
         return missing_families
+
+    def has_loaded_recommendations(self) -> bool:
+        """Return whether this session already owns every requested family page."""
+
+        return (
+            bool(self._state.recommendation_pages)
+            and tuple(page.family_id for page in self._state.recommendation_pages)
+            == self._state.missing_families
+        )
 
     def accept_recommendations(
         self, pages: tuple[FamilyRecommendationPage, ...]
@@ -215,6 +240,17 @@ class ModelOnboardingSession:
         selected_ids = self._state.selected_version_ids
         return tuple(
             card.recommendation
+            for page in self._state.recommendation_pages
+            for card in page.cards
+            if card.recommendation.version_id in selected_ids
+        )
+
+    def selected_cards(self) -> tuple[RecommendationCardAsset, ...]:
+        """Return selected cards with their exact retained thumbnail payloads."""
+
+        selected_ids = self._state.selected_version_ids
+        return tuple(
+            card
             for page in self._state.recommendation_pages
             for card in page.cards
             if card.recommendation.version_id in selected_ids

@@ -18,10 +18,6 @@
 
 from __future__ import annotations
 
-from sugarsubstitute_shared.presentation.fluent_tooltips import (
-    set_fluent_tooltip_text,
-)
-
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 from sugarsubstitute_shared.presentation.localization import (
     apply_application_text,
@@ -29,34 +25,31 @@ from sugarsubstitute_shared.presentation.localization import (
     set_localized_text,
     set_localized_window_title,
 )
+from sugarsubstitute_shared.presentation.installer_surface import (
+    INSTALLER_BRAND_BAR_HEIGHT,
+    INSTALLER_WINDOW_HEIGHT,
+    INSTALLER_WINDOW_WIDTH,
+    InstallerBrandBar,
+    InstallerBodyMaterialSurface,
+    build_installer_surface_style_sheet,
+    expose_native_material,
+)
 from substitute.presentation.localization import (
-    LocalizedBodyLabel,
-    LocalizedCaptionLabel,
     LocalizedPrimaryPushButton,
     LocalizedPushButton,
 )
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QRect, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QRect, Qt, Signal
 from PySide6.QtGui import QCloseEvent, QMouseEvent
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
-    QSizePolicy,
-    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
-from qfluentwidgets import (  # type: ignore[import-untyped]
-    BodyLabel,
-    FluentIcon as FIF,
-    IconWidget,
-)
-
 from substitute.application.onboarding import OnboardingProvisioningFailure
 from substitute.application.onboarding.comfy_environment_service import (
     AttachedPythonRecoverySnapshot,
@@ -106,10 +99,16 @@ from substitute.presentation.onboarding.onboarding_models import (
     OnboardingTargetMode,
     initial_onboarding_page,
 )
+from substitute.presentation.onboarding.onboarding_shell_presentation import (
+    PROGRESS_BY_PAGE,
+    OnboardingIssuePanel,
+)
 from substitute.presentation.onboarding.onboarding_navigation_presentation import (
     onboarding_primary_button_label,
-    onboarding_rail_title,
     onboarding_window_title,
+)
+from substitute.presentation.onboarding.onboarding_page_stage import (
+    OnboardingPageStage,
 )
 from substitute.presentation.onboarding.onboarding_style_sheet import (
     build_onboarding_style_sheet,
@@ -132,6 +131,7 @@ from substitute.presentation.onboarding.path_selector import (
 from substitute.presentation.onboarding.setup_progress_presenter import (
     SetupProgressPresenter,
 )
+from substitute.presentation.onboarding.setup_log_dialog import SetupLogDialog
 from substitute.presentation.resources.app_icon import application_icon
 from substitute.presentation.errors.error_presenter import (
     ErrorPresenter,
@@ -145,266 +145,11 @@ from substitute.presentation.shell.window_frame import SubstituteWindowFrame
 from substitute.presentation.shell.window_attention import (
     request_window_attention_if_inactive,
 )
+from substitute.presentation.shell.window_effects import ShellBackdropMode
 from substitute.shared.logging.logger import get_logger, log_warning
 
 
-_FLOW_SUMMARY_BY_MODE: dict[OnboardingFlowMode, ApplicationText] = {
-    OnboardingFlowMode.FIRST_RUN: app_text(
-        "Choose a folder and connect Substitute to ComfyUI."
-    ),
-    OnboardingFlowMode.REPAIR: app_text(
-        "Fix the saved setup so Substitute can open again."
-    ),
-    OnboardingFlowMode.RECONFIGURE: app_text(
-        "Change the saved setup or ComfyUI connection."
-    ),
-}
-
-_STEP_TITLES: tuple[ApplicationText, ...] = (
-    app_text("Choose a folder"),
-    app_text("Pick a setup"),
-    app_text("Confirm the details"),
-    app_text("Finish setup"),
-)
-
-_ONBOARDING_WINDOW_WIDTH = 1260
-_ONBOARDING_WINDOW_HEIGHT = 800
-
 _LOGGER = get_logger("presentation.onboarding.onboarding_window")
-
-
-@dataclass(frozen=True)
-class ProgressPresentation:
-    """Describe the compact rail progress copy for one page."""
-
-    step_number: int
-    step_count: int
-    title: ApplicationText
-    helper: ApplicationText
-
-
-_PROGRESS_BY_PAGE = {
-    OnboardingPageId.WELCOME: ProgressPresentation(
-        step_number=1,
-        step_count=4,
-        title=app_text("Choose a folder"),
-        helper=app_text("You can change the ComfyUI connection later."),
-    ),
-    OnboardingPageId.COMFY_PREFLIGHT: ProgressPresentation(
-        step_number=1,
-        step_count=4,
-        title=app_text("Check ComfyUI"),
-        helper=app_text("Setup continues automatically once ComfyUI is closed."),
-    ),
-    OnboardingPageId.TARGET_MODE: ProgressPresentation(
-        step_number=2,
-        step_count=4,
-        title=app_text("Pick a setup"),
-        helper=app_text("Most people should start with the first option."),
-    ),
-    OnboardingPageId.MANAGED_LOCAL: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Confirm the details"),
-        helper=app_text("The defaults usually work well for first-time setup."),
-    ),
-    OnboardingPageId.ATTACHED_LOCAL: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Confirm the details"),
-        helper=app_text("Choose the existing ComfyUI folder Substitute should launch."),
-    ),
-    OnboardingPageId.ATTACHED_PYTHON_CHOICE: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Find ComfyUI's environment"),
-        helper=app_text("Choose how Substitute should identify ComfyUI's Python."),
-    ),
-    OnboardingPageId.ATTACHED_PYTHON_PROCESS: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Detect ComfyUI's environment"),
-        helper=app_text(
-            "Start ComfyUI yourself; Substitute will detect it automatically."
-        ),
-    ),
-    OnboardingPageId.ATTACHED_PYTHON_MANUAL: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Select ComfyUI's environment"),
-        helper=app_text(
-            "Choose the Python executable that this ComfyUI installation uses."
-        ),
-    ),
-    OnboardingPageId.REMOTE: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Confirm the details"),
-        helper=app_text("Use the server address this computer can reach."),
-    ),
-    OnboardingPageId.EXISTING_MODELS: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Choose models"),
-        helper=app_text("Keep the defaults or point Substitute at your folders."),
-    ),
-    OnboardingPageId.FOLDERS: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Confirm the details"),
-        helper=app_text("Keep the defaults or point Substitute at your folders."),
-    ),
-    OnboardingPageId.MODEL_RECOMMENDATIONS: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Choose models"),
-        helper=app_text("Review CivitAI's popular models for each family."),
-    ),
-    OnboardingPageId.MODEL_DOWNLOAD_REVIEW: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Review downloads"),
-        helper=app_text("Nothing downloads until setup is confirmed."),
-    ),
-    OnboardingPageId.INTEGRATIONS: ProgressPresentation(
-        step_number=3,
-        step_count=4,
-        title=app_text("Confirm the details"),
-        helper=app_text("Helpful extras can be changed later in Settings."),
-    ),
-    OnboardingPageId.PROVISIONING: ProgressPresentation(
-        step_number=4,
-        step_count=4,
-        title=app_text("Finish setup"),
-        helper=app_text("This can take a little while the first time."),
-    ),
-    OnboardingPageId.COMPLETION: ProgressPresentation(
-        step_number=4,
-        step_count=4,
-        title=app_text("Ready to launch"),
-        helper=app_text("You're almost done."),
-    ),
-}
-
-
-class OnboardingIssuePanel(QFrame):
-    """Render repair-mode issues in a supportive inline surface."""
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        """Build the issue panel used for repair and incomplete setup states."""
-
-        super().__init__(parent)
-        self.setObjectName("OnboardingIssuePanel")
-        self._issue_title: ApplicationText = app_text(
-            "Let's get this setup back on track"
-        )
-        self._issue_body: ApplicationText = ""
-        self._issue_detail = ""
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(6)
-
-        header_row = QHBoxLayout()
-        header_row.setContentsMargins(0, 0, 0, 0)
-        header_row.setSpacing(10)
-
-        self.icon_widget = IconWidget(FIF.INFO, self)
-        self.icon_widget.setFixedSize(16, 16)
-        header_row.addWidget(self.icon_widget, alignment=Qt.AlignmentFlag.AlignTop)
-
-        self.title_label = LocalizedCaptionLabel(
-            app_text("Let's get this setup back on track"), self
-        )
-        self.title_label.setObjectName("OnboardingIssueTitle")
-        self.title_label.setWordWrap(True)
-        header_row.addWidget(self.title_label, 1, alignment=Qt.AlignmentFlag.AlignTop)
-        layout.addLayout(header_row)
-
-        self.body_label = LocalizedCaptionLabel("", self)
-        self.body_label.setObjectName("OnboardingIssueBody")
-        self.body_label.setWordWrap(True)
-        layout.addWidget(self.body_label)
-
-    def set_issue_content(
-        self,
-        *,
-        title: ApplicationText,
-        body: ApplicationText,
-        detail: str,
-    ) -> None:
-        """Render the issue headline, user guidance, and technical detail."""
-
-        apply_application_text(self.title_label, title)
-        apply_application_text(self.body_label, body)
-        set_fluent_tooltip_text(self, detail)
-        self._issue_title = title
-        self._issue_body = body
-        self._issue_detail = detail
-
-    def setText(self, text: str) -> None:
-        """Preserve the label-like API used by existing tests."""
-
-        self.set_issue_content(title=self._issue_title, body=text, detail="")
-
-    def text(self) -> str:
-        """Return the rendered issue copy for contract tests."""
-
-        return "\n".join(
-            part
-            for part in (
-                render_application_text(self._issue_title),
-                render_application_text(self._issue_body),
-                self._issue_detail,
-            )
-            if part
-        )
-
-
-class OnboardingStepItem(QFrame):
-    """Render one compact numbered onboarding step inside the rail."""
-
-    def __init__(
-        self,
-        *,
-        index: int,
-        title: ApplicationText,
-        parent: QWidget | None = None,
-    ) -> None:
-        """Build the compact numbered step row used for guided progress."""
-
-        super().__init__(parent)
-        self.setObjectName("OnboardingStepItem")
-        self.setProperty("stepState", "inactive")
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(10)
-
-        self.index_label = BodyLabel(str(index), self)
-        self.index_label.setObjectName("OnboardingStepNumber")
-        layout.addWidget(self.index_label, alignment=Qt.AlignmentFlag.AlignTop)
-
-        self.title_label = LocalizedCaptionLabel(title, self)
-        self.title_label.setObjectName("OnboardingStepTitle")
-        self.title_label.setWordWrap(True)
-        layout.addWidget(self.title_label, 1)
-
-    def set_state(self, *, active: bool, complete: bool) -> None:
-        """Apply the visual state for the current, completed, or pending step."""
-
-        if active:
-            state = "active"
-        elif complete:
-            state = "complete"
-        else:
-            state = "inactive"
-        self.setProperty("stepState", state)
-        self.index_label.setProperty("stepState", state)
-        self.title_label.setProperty("stepState", state)
-        for widget in (self, self.index_label, self.title_label):
-            widget.style().unpolish(widget)
-            widget.style().polish(widget)
 
 
 class OnboardingWindow(SubstituteWindowFrame):
@@ -429,7 +174,11 @@ class OnboardingWindow(SubstituteWindowFrame):
     ) -> None:
         """Build the onboarding shell and connect it to the controller."""
 
-        super().__init__(parent, create_menu_container=False)
+        super().__init__(
+            parent,
+            create_menu_container=False,
+            backdrop_mode=ShellBackdropMode.MICA_ALT,
+        )
         self._controller = controller
         self._environment_coordinator = environment_coordinator
         self._model_coordinator = model_coordinator
@@ -445,11 +194,6 @@ class OnboardingWindow(SubstituteWindowFrame):
         self._attention_outcomes: set[str] = set()
         self._emit_close_requested_on_close = True
         self._drag_widgets: set[QWidget] = set()
-        self._current_page_height_refresh_timer = QTimer(self)
-        self._current_page_height_refresh_timer.setSingleShot(True)
-        self._current_page_height_refresh_timer.timeout.connect(
-            self._refresh_current_page_height
-        )
         self._provisioning_output_stream = TerminalOutputStream(max_lines=2000)
         self._preflight_snapshot: ComfyPreflightSnapshot | None = None
         self._preflight_destination: OnboardingPageId | None = None
@@ -463,9 +207,10 @@ class OnboardingWindow(SubstituteWindowFrame):
             *window_title.arguments,
         )
         self.setWindowIcon(application_icon())
-        self.setFixedSize(_ONBOARDING_WINDOW_WIDTH, _ONBOARDING_WINDOW_HEIGHT)
+        self.setFixedSize(INSTALLER_WINDOW_WIDTH, INSTALLER_WINDOW_HEIGHT)
         self.titleBar.minBtn.hide()
         self.titleBar.maxBtn.hide()
+        self.titleBar.setFixedHeight(INSTALLER_BRAND_BAR_HEIGHT)
 
         self._build_ui()
         report_presenter = error_presenter or ErrorPresenter(
@@ -497,7 +242,7 @@ class OnboardingWindow(SubstituteWindowFrame):
             review_page=self.model_download_review_page,
             primary_button=self.primary_button,
             navigate=self._show_page,
-            refresh_height=self._schedule_current_page_height_refresh,
+            refresh_height=self.page_stage.schedule_current_page_height_refresh,
             open_model_page=open_civitai_model_page,
         )
         self.titleBar.raise_()
@@ -513,10 +258,11 @@ class OnboardingWindow(SubstituteWindowFrame):
         self._place_initial_window()
 
     def _build_ui(self) -> None:
-        """Build the shell, quiet orientation rail, and dominant content area."""
+        """Build the shared brand shell and dominant content area."""
 
         self.root_container = QWidget(self)
         self.root_container.setObjectName("OnboardingRoot")
+        expose_native_material(self.root_container)
 
         root_layout = QVBoxLayout(self.root_container)
         root_layout.setContentsMargins(0, 0, 0, 0)
@@ -524,107 +270,35 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         self.content_surface = QWidget(self.root_container)
         self.content_surface.setObjectName("OnboardingSurface")
-        surface_layout = QHBoxLayout(self.content_surface)
+        expose_native_material(self.content_surface)
+        surface_layout = QVBoxLayout(self.content_surface)
         surface_layout.setContentsMargins(0, 0, 0, 0)
         surface_layout.setSpacing(0)
 
         self.identity_rail = QFrame(self.content_surface)
         self.identity_rail.setObjectName("OnboardingIdentityRail")
-        self.identity_rail.setFixedWidth(280)
+        self.identity_rail.setFixedHeight(126)
+        expose_native_material(self.identity_rail)
         rail_layout = QVBoxLayout(self.identity_rail)
-        rail_layout.setContentsMargins(24, 24, 18, 18)
-        rail_layout.setSpacing(14)
+        rail_layout.setContentsMargins(0, 0, 0, 0)
+        rail_layout.setSpacing(0)
 
-        brand_row = QHBoxLayout()
-        brand_row.setContentsMargins(0, 0, 0, 0)
-        brand_row.setSpacing(12)
+        self.brand_bar = InstallerBrandBar(self.identity_rail)
+        rail_layout.addWidget(self.brand_bar)
 
-        self.app_icon_badge = QFrame(self.identity_rail)
-        self.app_icon_badge.setObjectName("OnboardingIconBadge")
-        badge_layout = QVBoxLayout(self.app_icon_badge)
-        badge_layout.setContentsMargins(10, 10, 10, 10)
-        badge_layout.setSpacing(0)
-        self.app_icon = QLabel(self.app_icon_badge)
-        self.app_icon.setPixmap(application_icon().pixmap(26, 26))
-        self.app_icon.setFixedSize(26, 26)
-        badge_layout.addWidget(self.app_icon, alignment=Qt.AlignmentFlag.AlignCenter)
-        brand_row.addWidget(self.app_icon_badge, alignment=Qt.AlignmentFlag.AlignTop)
-
-        brand_text = QVBoxLayout()
-        brand_text.setContentsMargins(0, 0, 0, 0)
-        brand_text.setSpacing(4)
-
-        self.flow_title_label = LocalizedBodyLabel(
-            onboarding_rail_title(self._controller.flow_mode),
-            self.identity_rail,
+        self.content_panel = InstallerBodyMaterialSurface(
+            object_name="OnboardingContentPanel",
+            parent=self.content_surface,
         )
-        self.flow_title_label.setObjectName("OnboardingRailTitle")
-        self.flow_title_label.setWordWrap(True)
-        brand_text.addWidget(self.flow_title_label)
-
-        self.flow_summary_label = LocalizedCaptionLabel(
-            _FLOW_SUMMARY_BY_MODE[self._controller.flow_mode],
-            self.identity_rail,
-        )
-        self.flow_summary_label.setObjectName("OnboardingRailSummary")
-        self.flow_summary_label.setWordWrap(True)
-        brand_text.addWidget(self.flow_summary_label)
-        brand_row.addLayout(brand_text, 1)
-        rail_layout.addLayout(brand_row)
-
-        self.progress_count_label = LocalizedCaptionLabel("", self.identity_rail)
-        self.progress_count_label.setObjectName("OnboardingProgressCount")
-        rail_layout.addWidget(self.progress_count_label)
-
-        self.progress_title_label = LocalizedBodyLabel("", self.identity_rail)
-        self.progress_title_label.setObjectName("OnboardingProgressTitle")
-        self.progress_title_label.setWordWrap(True)
-        rail_layout.addWidget(self.progress_title_label)
-
-        self.progress_helper_label = LocalizedCaptionLabel("", self.identity_rail)
-        self.progress_helper_label.setObjectName("OnboardingProgressHelper")
-        self.progress_helper_label.setWordWrap(True)
-        rail_layout.addWidget(self.progress_helper_label)
-
-        self.step_items: list[OnboardingStepItem] = []
-        for index, title in enumerate(_STEP_TITLES, start=1):
-            step_item = OnboardingStepItem(
-                index=index,
-                title=title,
-                parent=self.identity_rail,
-            )
-            rail_layout.addWidget(step_item)
-            self.step_items.append(step_item)
-
-        self.issue_banner = OnboardingIssuePanel(self.identity_rail)
-        rail_layout.addWidget(self.issue_banner)
-        rail_layout.addStretch(1)
-
-        self.content_panel = QFrame(self.content_surface)
-        self.content_panel.setObjectName("OnboardingContentPanel")
         content_layout = QVBoxLayout(self.content_panel)
-        content_layout.setContentsMargins(24, 24, 24, 18)
+        content_layout.setContentsMargins(38, 22, 38, 20)
         content_layout.setSpacing(14)
+        self.issue_banner = OnboardingIssuePanel(self.content_panel)
+        content_layout.addWidget(self.issue_banner)
 
-        self.page_stage = QWidget(self.content_panel)
-        self.page_stage.setObjectName("OnboardingPageStage")
-        page_stage_layout = QVBoxLayout(self.page_stage)
-        page_stage_layout.setContentsMargins(0, 0, 0, 0)
-        page_stage_layout.setSpacing(0)
-        page_stage_layout.addStretch(1)
-
-        self.page_stack = QStackedWidget(self.content_panel)
-        self.page_stack.setObjectName("OnboardingPageStack")
-        self.page_stack.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Maximum,
-        )
-        page_stage_layout.addWidget(
-            self.page_stack,
-            0,
-            alignment=Qt.AlignmentFlag.AlignVCenter,
-        )
-        page_stage_layout.addStretch(1)
+        self.page_stage = OnboardingPageStage(self.content_panel)
+        self.page_scroll_content = self.page_stage.scroll_content
+        self.page_stack = self.page_stage.page_stack
         content_layout.addWidget(self.page_stage, 1)
 
         self.install_root_page = InstallRootPage(self.content_panel)
@@ -647,6 +321,10 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.integrations_page = IntegrationsPage(self.content_panel)
         self.provisioning_page = ProvisioningPage(self.content_panel)
         self.provisioning_page.set_output_stream(self._provisioning_output_stream)
+        self.setup_log_dialog = SetupLogDialog(
+            stream=self._provisioning_output_stream,
+            parent=self,
+        )
         self._setup_progress_presenter = SetupProgressPresenter(self.provisioning_page)
         self.completion_page = CompletionPage(self.content_panel)
         self._pages = {
@@ -668,18 +346,30 @@ class OnboardingWindow(SubstituteWindowFrame):
             OnboardingPageId.COMPLETION: self.completion_page,
         }
         for page in self._pages.values():
-            self.page_stack.addWidget(page)
+            self.page_stage.add_page(page)
         self.comfy_preflight_page.content_height_changed.connect(
-            self._schedule_current_page_height_refresh
+            self.page_stage.schedule_current_page_height_refresh
+        )
+        self.managed_local_page.content_height_changed.connect(
+            self.page_stage.schedule_current_page_height_refresh
+        )
+        self.attached_local_page.content_height_changed.connect(
+            self.page_stage.schedule_current_page_height_refresh
         )
         self.attached_python_process_page.content_height_changed.connect(
-            self._schedule_current_page_height_refresh
+            self.page_stage.schedule_current_page_height_refresh
         )
         self.attached_python_manual_page.content_height_changed.connect(
-            self._schedule_current_page_height_refresh
+            self.page_stage.schedule_current_page_height_refresh
         )
         self.provisioning_page.content_height_changed.connect(
-            self._schedule_current_page_height_refresh
+            self.page_stage.schedule_current_page_height_refresh
+        )
+        self.completion_page.content_height_changed.connect(
+            self.page_stage.schedule_current_page_height_refresh
+        )
+        self.integrations_page.content_height_changed.connect(
+            self.page_stage.schedule_current_page_height_refresh
         )
 
         self.footer_row = QFrame(self.content_panel)
@@ -694,6 +384,16 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.route_switch_button = LocalizedPushButton("", self.footer_row)
         self.route_switch_button.setObjectName("OnboardingRouteSwitchButton")
         self.route_switch_button.hide()
+        self.no_models_button = LocalizedPushButton(
+            app_text("No, show recommendations"), self.footer_row
+        )
+        self.no_models_button.setObjectName("OnboardingNoExistingModelsButton")
+        self.no_models_button.hide()
+        self.yes_models_button = LocalizedPrimaryPushButton(
+            app_text("Yes, choose folder"), self.footer_row
+        )
+        self.yes_models_button.setObjectName("OnboardingYesExistingModelsButton")
+        self.yes_models_button.hide()
         self.primary_button = LocalizedPrimaryPushButton(
             app_text("Continue"), self.footer_row
         )
@@ -702,6 +402,8 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.primary_button.setMinimumWidth(164)
         footer_layout.addWidget(self.back_button)
         footer_layout.addWidget(self.route_switch_button)
+        footer_layout.addWidget(self.no_models_button)
+        footer_layout.addWidget(self.yes_models_button)
         footer_layout.addWidget(self.primary_button)
         content_layout.addWidget(self.footer_row)
 
@@ -768,7 +470,9 @@ class OnboardingWindow(SubstituteWindowFrame):
     def _apply_styles(self) -> None:
         """Apply onboarding-specific styling tuned for a quieter, balanced layout."""
 
-        self.setStyleSheet(build_onboarding_style_sheet())
+        self.root_container.setStyleSheet(
+            build_onboarding_style_sheet() + build_installer_surface_style_sheet()
+        )
 
     def _connect_signals(self) -> None:
         """Connect page actions, navigation buttons, and controller signals."""
@@ -807,8 +511,15 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.folder_setup_page.output_default_requested.connect(
             paths.use_default_output_root
         )
+        self.provisioning_page.log_requested.connect(self.setup_log_dialog.present)
         self.back_button.clicked.connect(self._go_back)
         self.route_switch_button.clicked.connect(self._switch_attached_python_route)
+        self.no_models_button.clicked.connect(
+            lambda: self._model_presenter.choose_existing_folder(False)
+        )
+        self.yes_models_button.clicked.connect(
+            lambda: self._model_presenter.choose_existing_folder(True)
+        )
         self.primary_button.clicked.connect(self._advance)
         self._controller.draft_changed.connect(self._apply_draft)
         self._controller.provisioning_started.connect(self._handle_provisioning_started)
@@ -1029,8 +740,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         if coordinator is not None:
             coordinator.stop_monitoring()
         self._current_page = page_id
-        self.page_stack.setCurrentWidget(self._pages[page_id])
-        self._refresh_current_page_height()
+        self.page_stage.show_page(self._pages[page_id])
         self._update_progress(page_id)
 
         self.back_button.setEnabled(
@@ -1045,8 +755,17 @@ class OnboardingWindow(SubstituteWindowFrame):
             )
         )
         self.route_switch_button.hide()
+        self.no_models_button.hide()
+        self.yes_models_button.hide()
         self.primary_button.show()
         self.primary_button.setEnabled(True)
+
+        if page_id is OnboardingPageId.EXISTING_MODELS:
+            self.primary_button.hide()
+            self.no_models_button.show()
+            self.yes_models_button.show()
+            self._model_presenter.prepare_page(page_id)
+            return
 
         if page_id is OnboardingPageId.COMFY_PREFLIGHT:
             self._preflight_snapshot = None
@@ -1086,11 +805,12 @@ class OnboardingWindow(SubstituteWindowFrame):
                 self._provisioning_started = True
                 self.provisioning_page.clear_details()
                 self.provisioning_page.reset_progress()
-                self._refresh_current_page_height()
+                self.page_stage.refresh_current_page_height()
                 self._controller.start_provisioning()
             return
 
         if page_id is OnboardingPageId.COMPLETION and self._last_completion is not None:
+            self.back_button.hide()
             set_localized_text(
                 self.primary_button,
                 (
@@ -1109,43 +829,24 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.primary_button.adjustSize()
         self._model_presenter.prepare_page(page_id)
 
-    def _refresh_current_page_height(self) -> None:
-        """Resize the stack when current-page content appears or disappears."""
-
-        page = self._pages[self._current_page]
-        page_layout = page.layout()
-        if page_layout is not None:
-            page_layout.invalidate()
-            page_layout.activate()
-        page.updateGeometry()
-        self.page_stack.setFixedHeight(page.sizeHint().height())
-        self.page_stack.updateGeometry()
-
-    def _schedule_current_page_height_refresh(self) -> None:
-        """Refresh geometry after Qt applies a dynamic child visibility change."""
-
-        self._current_page_height_refresh_timer.start(1)
-
     def _update_progress(self, page_id: OnboardingPageId) -> None:
-        """Refresh the compact progress copy shown in the left rail."""
+        """Refresh the persistent brand progress for the current page."""
 
-        progress = _PROGRESS_BY_PAGE[page_id]
-        set_localized_text(
-            self.progress_count_label,
-            "Step %1 of %2",
-            progress.step_number,
-            progress.step_count,
+        progress = PROGRESS_BY_PAGE[page_id]
+        journey_step = progress.step_number + 1
+        journey_step_count = progress.step_count + 1
+        self.brand_bar.set_progress(
+            current=journey_step,
+            total=journey_step_count,
+            description=render_application_text(
+                app_text(
+                    "Step %1 of %2 · %3",
+                    journey_step,
+                    journey_step_count,
+                    render_application_text(progress.title),
+                )
+            ),
         )
-        apply_application_text(self.progress_title_label, progress.title)
-        apply_application_text(self.progress_helper_label, progress.helper)
-        for index, step_item in enumerate(self.step_items, start=1):
-            apply_application_text(step_item.title_label, _STEP_TITLES[index - 1])
-            if index == progress.step_number:
-                apply_application_text(step_item.title_label, progress.title)
-            step_item.set_state(
-                active=index == progress.step_number,
-                complete=index < progress.step_number,
-            )
 
     def _initial_page(self) -> OnboardingPageId:
         """Return the first visible onboarding page for this install mode."""
@@ -1200,6 +901,15 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.folder_setup_page.output_root_edit.setText(
             str(draft.output_root or self._path_selector.default_output_root())
         )
+        for path_edit in (
+            self.install_root_page.install_root_edit,
+            self.managed_local_page.workspace_edit,
+            self.attached_local_page.workspace_edit,
+            self.folder_setup_page.managed_model_root_edit,
+            self.folder_setup_page.output_root_edit,
+        ):
+            path_edit.setCursorPosition(0)
+            path_edit.deselect()
         self.integrations_page.danbooru_tag_help_checkbox.setChecked(
             draft.danbooru_tag_help_enabled
         )

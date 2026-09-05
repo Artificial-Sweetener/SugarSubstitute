@@ -272,7 +272,7 @@ def _run_launcher_window(
     if application is None:
         application = QApplication(sys.argv[:1])
     application = cast(QApplication, application)
-    build_launcher_localization_runtime(
+    localization_runtime = build_launcher_localization_runtime(
         application,
         layout=startup_plan.layout,
         locale_override=args.locale_override,
@@ -289,6 +289,7 @@ def _run_launcher_window(
                 output_callback=output_callback,
                 process_starter=start_installed_launcher_handoff,
             ),
+            localization_manager=localization_runtime.manager,
             handoff_geometry=args.handoff_geometry,
         )
         if owns_application:

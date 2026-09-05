@@ -27,6 +27,9 @@ from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
     isDarkTheme,
     themeColor,
 )
+from sugarsubstitute_shared.presentation.installer_surface import (
+    build_installer_surface_style_sheet,
+)
 
 
 def apply_installer_style(window: Any) -> None:
@@ -60,9 +63,12 @@ def apply_installer_style(window: Any) -> None:
             background-color: rgb(24, 24, 24);
         }
         """
+    else:
+        window.setAutoFillBackground(False)
     window.titleBar.setStyleSheet("background-color: transparent; border: none;")
-    window.setStyleSheet(
+    window.view.setStyleSheet(
         offscreen_background
+        + build_installer_surface_style_sheet()
         + """
         QWidget#OnboardingRoot,
         QWidget#OnboardingSurface,
@@ -74,26 +80,13 @@ def apply_installer_style(window: Any) -> None:
             background-color: transparent;
             border: none;
         }
-        QFrame#OnboardingIconBadge,
         QFrame#OnboardingHeroBadge {
             background-color: rgba(__ACCENT_RGB__, 0.12);
             border: 1px solid rgba(__ACCENT_RGB__, 0.24);
             border-radius: 14px;
         }
-        QFrame#OnboardingStepItem {
-            background-color: transparent;
-            border: none;
-            border-radius: 14px;
-        }
-        QFrame#OnboardingStepItem[stepState="active"] {
-            background-color: rgba(__WASH_RGB__, 0.045);
-            border: 1px solid rgba(__WASH_RGB__, 0.075);
-        }
-        QFrame#OnboardingStepItem[stepState="complete"] {
-            background-color: transparent;
-            border: none;
-        }
-        QWidget#OnboardingPageStage,
+        QScrollArea#OnboardingPageStage,
+        QWidget#OnboardingPageScrollContent,
         QWidget#OnboardingContentColumn,
         QFrame#OnboardingPageFrame,
         QFrame#OnboardingHeroPanel,
@@ -163,57 +156,19 @@ QLabel#RepairScopeBadge {
         CaptionLabel#RepairStatus {
             color: rgba(__TEXT_RGB__, 0.72);
         }
-        BodyLabel#OnboardingRailTitle {
-            font-size: 24px;
-            font-weight: 600;
-        }
-        CaptionLabel#OnboardingRailSummary,
-        CaptionLabel#OnboardingProgressHelper,
         CaptionLabel#OnboardingPageDescription,
         CaptionLabel#OnboardingFieldHelper {
             color: rgba(__TEXT_RGB__, 0.74);
         }
         CaptionLabel#OnboardingHeroEyebrow,
-        CaptionLabel#OnboardingFieldLabel,
-        CaptionLabel#OnboardingProgressCount {
+        CaptionLabel#OnboardingFieldLabel {
             color: rgba(__ACCENT_RGB__, 0.9);
             font-weight: 600;
             text-transform: uppercase;
         }
-        BodyLabel#OnboardingPageTitle,
-        BodyLabel#OnboardingProgressTitle {
+        BodyLabel#OnboardingPageTitle {
             font-size: 22px;
             font-weight: 600;
-        }
-        BodyLabel#OnboardingStepNumber {
-            min-width: 24px;
-            max-width: 24px;
-            min-height: 24px;
-            max-height: 24px;
-            border-radius: 12px;
-            qproperty-alignment: 'AlignCenter';
-            background-color: rgba(__WASH_RGB__, 0.06);
-            color: rgba(__TEXT_RGB__, 0.68);
-            font-size: 12px;
-            font-weight: 700;
-        }
-        BodyLabel#OnboardingStepNumber[stepState="active"] {
-            background-color: rgba(__ACCENT_RGB__, 0.32);
-            color: rgba(__TEXT_RGB__, 1.0);
-        }
-        BodyLabel#OnboardingStepNumber[stepState="complete"] {
-            background-color: rgba(__ACCENT_RGB__, 0.18);
-            color: rgba(__TEXT_RGB__, 0.92);
-        }
-        CaptionLabel#OnboardingStepTitle {
-            color: rgba(__TEXT_RGB__, 0.62);
-        }
-        CaptionLabel#OnboardingStepTitle[stepState="active"] {
-            color: rgba(__TEXT_RGB__, 0.98);
-            font-weight: 600;
-        }
-        CaptionLabel#OnboardingStepTitle[stepState="complete"] {
-            color: rgba(__TEXT_RGB__, 0.78);
         }
         BodyLabel#OnboardingOutputTitle {
             color: rgba(__TEXT_RGB__, 0.9);

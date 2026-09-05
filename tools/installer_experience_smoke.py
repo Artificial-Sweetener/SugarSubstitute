@@ -40,15 +40,25 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
+from launcher.sugarsubstitute_launcher.localization import (  # noqa: E402
+    LauncherLocalizationRuntime,
+    build_launcher_localization_runtime,
+)
 from launcher.sugarsubstitute_launcher.ui.experience_models import (  # noqa: E402
     ExperienceSnapshot,
 )
 from launcher.sugarsubstitute_launcher.ui.main_window import (  # noqa: E402
     LauncherMainWindow,
 )
+from launcher.sugarsubstitute_launcher.ui.installer_presentation import (  # noqa: E402
+    LauncherUiState,
+)
 from tools.install_experience_onboarding import (  # noqa: E402
     capture_onboarding_matrix,
     open_interactive_onboarding,
+)
+from tools.install_experience_model_evidence import (  # noqa: E402
+    capture_live_recommendation_page,
 )
 from tools.install_experience_capture import (  # noqa: E402
     prepare_opaque_dark_capture_surface,
@@ -61,6 +71,7 @@ from tools.install_experience_interactive import (  # noqa: E402
 
 _DEFAULT_ARTIFACT_ROOT = REPO_ROOT / "build" / "qualification" / "installer-smoke"
 _PAGES = (
+    "language",
     "install",
     "install-failure",
     "install-complete",
@@ -120,7 +131,11 @@ def run_headless_smoke(
     application = _application()
     setTheme(Theme.DARK)
     audit = SideEffectAudit()
-    window = _window(audit=audit, repair=False)
+    window, localization_runtime = _window(
+        application=application,
+        audit=audit,
+        repair=False,
+    )
     prepare_opaque_dark_capture_surface(window)
     sentinels = _create_protected_sentinels(output_root)
     sentinel_hashes_before = _sentinel_hashes(sentinels)
@@ -131,6 +146,9 @@ def run_headless_smoke(
         for page in _PAGES:
             _project_page(window, page)
             application.processEvents()
+            if window.failure_presenter.active_dialog is not None:
+                QTest.qWait(250)
+                application.processEvents()
             screenshot_path = output_root / f"{page}.png"
             save_opaque_dark_widget_capture(window, screenshot_path)
             snapshot = window.view.experience_snapshot()
@@ -144,6 +162,7 @@ def run_headless_smoke(
             )
     finally:
         window.close()
+        localization_runtime.manager.close()
         window.deleteLater()
         application.processEvents()
     onboarding_evidence, onboarding_audit = capture_onboarding_matrix(
@@ -156,7 +175,7 @@ def run_headless_smoke(
     if sentinel_hashes_after != sentinel_hashes_before:
         raise SmokeBoundaryViolation("Smoke scenarios changed protected sentinels.")
     result: dict[str, object] = {
-        "schema_version": 3,
+        "schema_version": 4,
         "headless": os.environ.get("QT_QPA_PLATFORM") == "offscreen",
         "production_windows": (
             f"{LauncherMainWindow.__module__}.{LauncherMainWindow.__name__}",
@@ -188,6 +207,18 @@ def _verify_full_journey_entry(
     evidence: Sequence[dict[str, object]],
 ) -> dict[str, object]:
     """Require one install-root decision before every Comfy setup route."""
+
+    language_entry = next(
+        (item for item in evidence if item.get("scenario") == "language"),
+        None,
+    )
+    language_snapshot = (
+        language_entry.get("snapshot") if language_entry is not None else None
+    )
+    if not isinstance(language_snapshot, dict) or (
+        language_snapshot.get("page") != "language"
+    ):
+        raise RuntimeError("The full journey does not start with language selection.")
 
     launcher_entry = next(
         (item for item in evidence if item.get("scenario") == "install"),
@@ -224,6 +255,7 @@ def _verify_full_journey_entry(
             f"{unexpected_entries}"
         )
     return {
+        "first_interaction": "language",
         "installation_root_decision_owner": "bootstrap-launcher",
         "installation_root_prompt_occurrences": 1,
         "comfy_setup_initial_page": "OnboardingTargetModePage",
@@ -263,23 +295,44 @@ def run_interactive_smoke(
     if surface != "launcher":
         raise ValueError(f"Unsupported smoke surface: {surface}")
     audit = SideEffectAudit()
-    window = _window(audit=audit, repair=False)
+    window, localization_runtime = _window(
+        application=application,
+        audit=audit,
+        repair=False,
+    )
     _project_page(window, page)
     window.show()
-    return int(application.exec())
+    try:
+        return int(application.exec())
+    finally:
+        window.close()
+        localization_runtime.manager.close()
 
 
-def _window(*, audit: SideEffectAudit, repair: bool) -> LauncherMainWindow:
+def _window(
+    *,
+    application: QApplication,
+    audit: SideEffectAudit,
+    repair: bool,
+) -> tuple[LauncherMainWindow, LauncherLocalizationRuntime]:
     """Construct the real launcher shell around forbidden side-effect ports."""
 
-    return LauncherMainWindow(
-        initial_layout=InstallLayout.from_root(Path("smoke-install")),
+    layout = InstallLayout.from_root(Path("smoke-install"))
+    localization_runtime = build_launcher_localization_runtime(
+        application,
+        layout=layout,
+        locale_override=None,
+    )
+    window = LauncherMainWindow(
+        initial_layout=layout,
         continue_install=False,
         repair=repair,
         update_check_enabled=False,
         initial_release_source=BlockedReleaseSource(),
         workflow_factory=audit.workflow_factory,
+        localization_manager=localization_runtime.manager,
     )
+    return window, localization_runtime
 
 
 def _project_page(
@@ -288,13 +341,23 @@ def _project_page(
 ) -> None:
     """Drive real widgets into one deterministic smoke scenario."""
 
+    active_dialog = window.failure_presenter.active_dialog
+    if active_dialog is not None:
+        active_dialog.hide()
+        active_dialog.close()
+
+    if page == "language":
+        window.view.show_language_selection()
+        return
     if page == "install":
+        if window.ui_state is LauncherUiState.SELECT_LANGUAGE:
+            window._handle_primary_clicked()
         window.view.show_install_location()
         return
     if page == "install-failure":
         window.view.show_install_location()
-        window._handle_initial_install_failed("Simulated disk permission failure")
         window.view.show_status_output()
+        window._handle_initial_install_failed("Simulated disk permission failure")
         return
     if page == "install-complete":
         window.view.show_install_location()
@@ -448,6 +511,11 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     )
     parser.add_argument("--interactive", action="store_true")
     parser.add_argument(
+        "--live-model-capture",
+        action="store_true",
+        help="Capture real read-only CivitAI recommendations and 1024px thumbnails.",
+    )
+    parser.add_argument(
         "--surface",
         choices=("full", "launcher", "comfy-setup"),
         default="full",
@@ -462,6 +530,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run an interactive page or write complete headless visual evidence."""
 
     args = _parse_args(sys.argv[1:] if argv is None else argv)
+    if args.live_model_capture:
+        application = _application()
+        setTheme(Theme.DARK)
+        artifact_root = _require_artifact_root(args.artifact_root)
+        result = capture_live_recommendation_page(artifact_root=artifact_root)
+        application.processEvents()
+        sys.stdout.write(json.dumps(result, indent=2) + "\n")
+        return 0
     if args.interactive:
         return run_interactive_smoke(
             args.page,

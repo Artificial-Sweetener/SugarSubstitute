@@ -22,8 +22,7 @@ from pathlib import Path
 from typing import Never, cast
 
 from PySide6.QtCore import QPoint, QTimer
-from PySide6.QtWidgets import QApplication, QLabel, QWidget
-from qfluentwidgets import RadioButton  # type: ignore[import-untyped]
+from PySide6.QtWidgets import QApplication, QWidget
 
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
 from substitute.presentation.onboarding import OnboardingWindow
@@ -35,7 +34,6 @@ def test_full_handoff_presents_installation_root_exactly_once(tmp_path: Path) ->
     """Keep the launcher as the sole installation-root decision owner."""
 
     application = cast(QApplication, QApplication.instance())
-    prompt = "Choose where Substitute should keep its setup"
     launcher_prompt_count: int | None = None
     setup_prompt_count: int | None = None
     setup_initial_page: str | None = None
@@ -54,8 +52,10 @@ def test_full_handoff_presents_installation_root_exactly_once(tmp_path: Path) ->
 
         widget = cast(LauncherMainWindow | OnboardingWindow, window)
         return sum(
-            label.text() == prompt and label.isVisible()
-            for label in widget.findChildren(QLabel)
+            child.objectName()
+            in {"LauncherInstallPathEdit", "OnboardingInstallRootEdit"}
+            and child.isVisible()
+            for child in widget.findChildren(QWidget)
         )
 
     def drive_journey() -> None:
@@ -87,7 +87,11 @@ def test_full_handoff_presents_installation_root_exactly_once(tmp_path: Path) ->
             if isinstance(widget, LauncherMainWindow) and widget.isVisible()
         )
         for launcher in launchers:
-            if launcher_prompt_count is None:
+            if (
+                launcher_prompt_count is None
+                and launcher.view.page_stack.currentWidget()
+                is launcher.view.install_location_page
+            ):
                 launcher_prompt_count = visible_prompt_count(launcher)
             if launcher.view.primary_button.isEnabled():
                 launcher.view.primary_button.click()
@@ -111,8 +115,8 @@ def test_full_handoff_presents_installation_root_exactly_once(tmp_path: Path) ->
     assert not (tmp_path / "qualification").exists()
 
 
-def test_existing_models_answer_precedes_inline_picker(tmp_path: Path) -> None:
-    """Keep Yes/No and directory browsing as two separate user actions."""
+def test_existing_models_footer_choice_precedes_folder_picker(tmp_path: Path) -> None:
+    """Keep the sparse decision and directory browsing as separate user actions."""
 
     application = cast(QApplication, QApplication.instance())
     selected_folder = tmp_path / "existing-models"
@@ -141,28 +145,23 @@ def test_existing_models_answer_precedes_inline_picker(tmp_path: Path) -> None:
         window.primary_button.click()
         application.processEvents()
         assert window.page_stack.currentWidget() is window.existing_models_question_page
-        assert not isinstance(
-            window.existing_models_question_page.yes_button,
-            RadioButton,
-        )
-        assert not isinstance(
-            window.existing_models_question_page.no_button,
-            RadioButton,
-        )
+        assert window.primary_button.isHidden()
+        assert window.no_models_button.isVisible()
+        assert window.yes_models_button.isVisible()
+        assert window.no_models_button.text() == "No, show recommendations"
+        assert window.yes_models_button.text() == "Yes, choose folder"
         assert chooser_calls == []
 
-        window.existing_models_question_page.yes_button.click()
+        window.yes_models_button.click()
         application.processEvents()
         assert chooser_calls == []
-        assert window.page_stack.currentWidget() is window.existing_models_question_page
-
-        window.primary_button.click()
-        application.processEvents()
         assert window.page_stack.currentWidget() is window.folder_setup_page
         assert chooser_calls == []
         assert window.folder_setup_page.model_path_block.isHidden() is False
-        assert window.folder_setup_page.managed_model_root_edit.text() == ""
-        assert window.primary_button.isEnabled() is False
+        assert window.folder_setup_page.managed_model_root_edit.text() == str(
+            tmp_path / "install" / "comfyui" / "models"
+        )
+        assert window.primary_button.isEnabled()
         model_edit = window.folder_setup_page.managed_model_root_edit
         output_edit = window.folder_setup_page.output_root_edit
         model_bottom = model_edit.mapTo(window, QPoint(0, model_edit.height())).y()
