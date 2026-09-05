@@ -36,7 +36,6 @@ from substitute.presentation.onboarding.onboarding_models import (
 from substitute.presentation.onboarding.onboarding_window import (
     OnboardingWindow,
 )
-from substitute.presentation.localization import LocalizedBodyLabel
 
 from tests.support.qt.lifecycle import activate_widget_layouts, ensure_qt_application
 
@@ -76,6 +75,39 @@ def test_onboarding_window_shows_completion_page_after_provisioning(
     window.completion_page.details_button.click()
     ensure_qt_application().processEvents()
     assert window.completion_page.command_surface.isHidden() is False
+    window._emit_close_requested_on_close = False
+    window.close()
+
+
+def test_completed_provisioning_page_cannot_reopen_as_disabled_working_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Redirect any completed provisioning revisit to the completion page."""
+
+    ensure_qt_application()
+    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
+    draft = OnboardingDraft(
+        installation_root=tmp_path,
+        target_mode=OnboardingTargetMode.MANAGED_LOCAL,
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        managed_workspace_path=tmp_path / "comfyui",
+        attached_workspace_path=None,
+    )
+    window = OnboardingWindow(
+        controller=cast(
+            OnboardingController,
+            _FakeController(draft, OnboardingFlowMode.RECONFIGURE),
+        )
+    )
+
+    window._show_page(OnboardingPageId.PROVISIONING)
+    window._show_page(OnboardingPageId.PROVISIONING)
+
+    assert window._current_page is OnboardingPageId.COMPLETION
+    assert window.primary_button.text() == "Close"
+    assert window.primary_button.isEnabled()
     window._emit_close_requested_on_close = False
     window.close()
 
@@ -326,18 +358,14 @@ def test_provisioning_live_output_stays_inside_status_panel(
 
     window.provisioning_page.show_log_button.click()
     application.processEvents()
-    assert not window.setup_log_dialog.isHidden()
-    assert window.setup_log_dialog.width() == 860
-    assert window.setup_log_dialog.height() == 520
-    dialog_title = window.setup_log_dialog.findChild(
-        LocalizedBodyLabel,
-        "OnboardingDialogTitle",
-    )
-    assert dialog_title is not None
-    assert dialog_title.text() == "Setup log"
-    assert window.provisioning_page.details_container.isHidden()
-    assert window.provisioning_page.height() == page_height_before
+    assert not window.provisioning_page.details_container.isHidden()
+    assert window.provisioning_page.show_log_button.text() == "Hide setup log"
+    assert window.provisioning_page.height() > page_height_before
+    assert window.page_stage.verticalScrollBar().maximum() > 0
 
-    window.setup_log_dialog.close()
+    window.provisioning_page.show_log_button.click()
+    application.processEvents()
+    assert window.provisioning_page.details_container.isHidden()
+    assert window.provisioning_page.show_log_button.text() == "Show setup log"
     window._emit_close_requested_on_close = False
     window.close()

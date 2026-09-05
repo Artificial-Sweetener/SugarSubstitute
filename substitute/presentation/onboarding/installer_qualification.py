@@ -176,7 +176,11 @@ class OnboardingQualificationDriver(QObject):
                 self._click("OnboardingPrimaryButton")
             if self._plan.target_mode != "remote":
                 self._wait_for_page("OnboardingModelRecommendationPage")
-                self._click("OnboardingFindOwnModelsButton")
+                for _family_index in range(2):
+                    self._click("OnboardingOwnModelChoice")
+                    self._click("OnboardingPrimaryButton")
+                    if self._current_page() != "OnboardingModelRecommendationPage":
+                        break
             self._wait_for_page("OnboardingIntegrationsPage")
             self._click("OnboardingPrimaryButton")
             self._wait_for_page("OnboardingProvisioningPage")

@@ -131,7 +131,6 @@ from substitute.presentation.onboarding.path_selector import (
 from substitute.presentation.onboarding.setup_progress_presenter import (
     SetupProgressPresenter,
 )
-from substitute.presentation.onboarding.setup_log_dialog import SetupLogDialog
 from substitute.presentation.resources.app_icon import application_icon
 from substitute.presentation.errors.error_presenter import (
     ErrorPresenter,
@@ -321,10 +320,6 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.integrations_page = IntegrationsPage(self.content_panel)
         self.provisioning_page = ProvisioningPage(self.content_panel)
         self.provisioning_page.set_output_stream(self._provisioning_output_stream)
-        self.setup_log_dialog = SetupLogDialog(
-            stream=self._provisioning_output_stream,
-            parent=self,
-        )
         self._setup_progress_presenter = SetupProgressPresenter(self.provisioning_page)
         self.completion_page = CompletionPage(self.content_panel)
         self._pages = {
@@ -511,7 +506,6 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.folder_setup_page.output_default_requested.connect(
             paths.use_default_output_root
         )
-        self.provisioning_page.log_requested.connect(self.setup_log_dialog.present)
         self.back_button.clicked.connect(self._go_back)
         self.route_switch_button.clicked.connect(self._switch_attached_python_route)
         self.no_models_button.clicked.connect(
@@ -736,6 +730,8 @@ class OnboardingWindow(SubstituteWindowFrame):
 
         if self._install_root_locked and page_id is OnboardingPageId.WELCOME:
             page_id = OnboardingPageId.TARGET_MODE
+        if self._last_completion and page_id is OnboardingPageId.PROVISIONING:
+            page_id = OnboardingPageId.COMPLETION
         coordinator = self._environment_coordinator
         if coordinator is not None:
             coordinator.stop_monitoring()
@@ -1060,6 +1056,9 @@ class OnboardingWindow(SubstituteWindowFrame):
         )
         self.primary_button.setEnabled(True)
         self.primary_button.adjustSize()
+        if self._current_page is OnboardingPageId.PROVISIONING:
+            self.provisioning_page.mark_complete()
+            self._show_page(OnboardingPageId.COMPLETION)
 
     def _request_attention_once(self, outcome: str) -> bool:
         """Request visible-window attention once and report whether it was new."""

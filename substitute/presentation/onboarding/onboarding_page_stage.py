@@ -86,16 +86,30 @@ class OnboardingPageStage(QScrollArea):
         page = self.page_stack.currentWidget()
         if page is None:
             return
-        page_layout = page.layout()
-        if page_layout is not None:
-            page_layout.invalidate()
-            page_layout.activate()
-        page.updateGeometry()
-        page_height = page.sizeHint().height()
-        viewport_width = self.viewport().contentsRect().width()
-        self.page_stack.setFixedWidth(viewport_width)
-        self.page_stack.setFixedHeight(page_height)
         viewport_height = self.viewport().contentsRect().height()
+        page_height = 0
+        for _pass in range(2):
+            viewport_width = self.viewport().contentsRect().width()
+            self.page_stack.setFixedWidth(viewport_width)
+            self.scroll_content.setFixedWidth(viewport_width)
+            page_layout = page.layout()
+            if page_layout is not None:
+                page_layout.invalidate()
+                page_layout.activate()
+            page.updateGeometry()
+            page_height = page.sizeHint().height()
+            vertical_policy = (
+                Qt.ScrollBarPolicy.ScrollBarAsNeeded
+                if page_height > viewport_height
+                else Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            )
+            if self.verticalScrollBarPolicy() is vertical_policy:
+                break
+            self.setVerticalScrollBarPolicy(vertical_policy)
+
+        overflows = page_height > viewport_height
+        self.verticalScrollBar().setVisible(overflows)
+        self.page_stack.setFixedHeight(page_height)
         alignment = (
             Qt.AlignmentFlag.AlignVCenter
             if page_height <= viewport_height
@@ -107,20 +121,6 @@ class OnboardingPageStage(QScrollArea):
         self._content_layout.activate()
         self.page_stack.updateGeometry()
         self.scroll_content.updateGeometry()
-
-        QTimer.singleShot(0, self._settle_viewport_width)
-
-    def _settle_viewport_width(self) -> None:
-        """Match the page width after a vertical scrollbar appears or disappears."""
-
-        try:
-            viewport_width = self.viewport().contentsRect().width()
-        except RuntimeError:
-            return
-        if self.page_stack.width() == viewport_width:
-            return
-        self.page_stack.setFixedWidth(viewport_width)
-        self.scroll_content.setFixedWidth(viewport_width)
 
     def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802
         """Recenter fitting content after the viewport receives final geometry."""

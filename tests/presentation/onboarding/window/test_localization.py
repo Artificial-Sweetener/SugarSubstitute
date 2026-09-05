@@ -53,7 +53,10 @@ def test_onboarding_issue_panel_retains_semantic_copy_across_language_change() -
         detail="python.exe --technical-detail",
     )
     try:
-        assert panel.text() == "正在完成设置\n打开 Substitute\npython.exe --technical-detail"
+        assert (
+            panel.text()
+            == "正在完成设置\n打开 Substitute\npython.exe --technical-detail"
+        )
 
         assert app.removeTranslator(chinese)
         assert app.installTranslator(japanese)

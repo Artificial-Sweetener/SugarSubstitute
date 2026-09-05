@@ -324,7 +324,11 @@ def _run_installed_onboarding(
     process_events()
     click("OnboardingPrimaryButton")
     wait_for_page("OnboardingModelRecommendationPage")
-    click("OnboardingFindOwnModelsButton")
+    for _family_index in range(2):
+        click("OnboardingOwnModelChoice")
+        click("OnboardingPrimaryButton")
+        if current_page() != "OnboardingModelRecommendationPage":
+            break
     wait_for_page("OnboardingIntegrationsPage")
     click("OnboardingPrimaryButton")
     wait_for_page("OnboardingProvisioningPage")

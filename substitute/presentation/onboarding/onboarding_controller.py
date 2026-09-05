@@ -383,10 +383,7 @@ class OnboardingController(QObject):
             if self._model_session.enabled:
                 if self._model_session.state.selected_version_ids:
                     return OnboardingPageId.MODEL_DOWNLOAD_REVIEW
-                if (
-                    self._model_session.state.recommendation_pages
-                    and not self._model_session.state.remaining_recommendations_declined
-                ):
+                if self._model_session.state.recommendation_pages:
                     self._model_session.set_page_index(
                         len(self._model_session.state.recommendation_pages) - 1
                     )

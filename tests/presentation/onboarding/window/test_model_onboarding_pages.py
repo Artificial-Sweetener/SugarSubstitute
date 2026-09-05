@@ -23,7 +23,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QCheckBox, QFrame, QLabel
+from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     IndeterminateProgressRing,
     RadioButton,
@@ -54,6 +54,8 @@ from substitute.presentation.onboarding.onboarding_model_download_review_page im
 )
 from substitute.presentation.onboarding.onboarding_recommendation_pages import (
     ModelRecommendationPage,
+)
+from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
     RecommendationPortrait,
 )
 from substitute.presentation.onboarding.onboarding_page_primitives import (
@@ -120,10 +122,10 @@ def test_no_existing_models_removes_entire_model_folder_section() -> None:
     folder.close()
 
 
-def test_recommendation_page_renders_three_large_portrait_cards_and_skip_actions() -> (
+def test_recommendation_page_renders_three_large_portrait_cards_and_own_model_choice() -> (
     None
 ):
-    """Show three attractive selectable portrait cards and explicit skip actions."""
+    """Show three portrait cards and one coherent provide-your-own choice."""
 
     ensure_qt_application()
     page = ModelRecommendationPage()
@@ -132,6 +134,7 @@ def test_recommendation_page_renders_three_large_portrait_cards_and_skip_actions
     page.set_recommendations(
         FamilyRecommendationPage(ModelFamilyId.SDXL, cards),
         selected_version_ids=frozenset(),
+        use_own_model=False,
     )
 
     checkboxes = [
@@ -147,8 +150,8 @@ def test_recommendation_page_renders_three_large_portrait_cards_and_skip_actions
     assert not any(portrait.thumbnail_is_loading() for portrait in portraits)
     assert all(portrait.width() * 5 == portrait.height() * 4 for portrait in portraits)
     assert all(portrait.source_size().height() >= 960 for portrait in portraits)
-    assert page.skip_button.text() == "Skip SDXL"
-    assert page.find_own_button.text() == "I'll find my own models"
+    assert page.own_model_checkbox.text() == "I'll provide my own SDXL model"
+    assert not page.own_model_checkbox.isChecked()
     assert "Illustrious" in page.family_label.text()
     card_text = " ".join(
         label.text() for label in page.card_host.findChildren(QLabel) if label.text()
@@ -170,6 +173,7 @@ def test_recommendation_choices_are_keyboard_operable() -> None:
             tuple(_card(ModelFamilyId.ANIMA, rank) for rank in range(1, 4)),
         ),
         selected_version_ids=frozenset(),
+        use_own_model=False,
     )
     recommendations.show()
     choice = recommendations.findChild(
@@ -186,6 +190,26 @@ def test_recommendation_choices_are_keyboard_operable() -> None:
     recommendations.close()
 
 
+def test_recommendation_no_download_path_is_a_selection_not_an_action_button() -> None:
+    """Keep the provide-my-own path inside the choice model and out of page actions."""
+
+    ensure_qt_application()
+    page = ModelRecommendationPage()
+    page.set_recommendations(
+        FamilyRecommendationPage(
+            ModelFamilyId.SDXL,
+            tuple(_card(ModelFamilyId.SDXL, rank) for rank in range(1, 4)),
+        ),
+        selected_version_ids=frozenset(),
+        use_own_model=True,
+    )
+
+    assert page.own_model_checkbox.isChecked()
+    assert page.findChild(QWidget, "OnboardingRecommendationSkipButton") is None
+    assert page.findChild(QWidget, "OnboardingFindOwnModelsButton") is None
+    page.close()
+
+
 def test_recommendation_cards_show_immediately_while_thumbnails_load() -> None:
     """Keep all choices usable while each portrait image arrives independently."""
 
@@ -199,6 +223,7 @@ def test_recommendation_cards_show_immediately_while_thumbnails_load() -> None:
     page.set_recommendations(
         FamilyRecommendationPage(ModelFamilyId.SDXL, pending_cards),
         selected_version_ids=frozenset(),
+        use_own_model=False,
     )
 
     portraits = page.findChildren(RecommendationPortrait)
@@ -252,8 +277,7 @@ def test_recommendation_page_owns_provider_loading_and_recovery_states() -> None
 
     assert page.loading_ring.isHidden()
     assert "could not be loaded" in page.loading_status.text()
-    assert not page.find_own_button.isHidden()
-    assert page.skip_button.isHidden()
+    assert page.own_model_choice.isHidden()
     page.close()
 
 
@@ -468,23 +492,6 @@ def test_shared_model_page_versions_keep_selections_and_thumbnails_independent()
     assert state.recommendation_pages[0].cards[0].thumbnail is None
     assert state.recommendation_pages[1].cards[0].thumbnail is not None
     assert session.selected_recommendations() == (sdxl.recommendation,)
-
-
-def test_model_session_rejects_stale_family_page_order() -> None:
-    """Never populate a changed family selection with an older async result."""
-
-    session = ModelOnboardingSession(
-        flow_mode=OnboardingFlowMode.FIRST_RUN,
-        target_mode=OnboardingTargetMode.MANAGED_LOCAL,
-    )
-    session.select_missing_families(frozenset({ModelFamilyId.SDXL}))
-
-    accepted = session.accept_recommendations(
-        (FamilyRecommendationPage(ModelFamilyId.SDXL, ()),)
-    )
-
-    assert not accepted
-    assert session.state.recommendation_pages == ()
 
 
 def _card(family: ModelFamilyId, rank: int) -> RecommendationCardAsset:

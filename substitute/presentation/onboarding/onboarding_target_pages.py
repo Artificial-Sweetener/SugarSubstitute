@@ -19,14 +19,18 @@
 from __future__ import annotations
 
 from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization import set_localized_text
 from substitute.presentation.localization import (
+    LocalizedBodyLabel,
     LocalizedCaptionLabel,
     LocalizedPushButton,
 )
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QFrame,
     QGridLayout,
+    QVBoxLayout,
     QWidget,
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
@@ -40,8 +44,8 @@ from substitute.presentation.platform_path_guidance import (
     managed_comfy_example,
     substitute_install_example,
 )
-from substitute.presentation.onboarding.onboarding_connection_settings_dialog import (
-    ConnectionSettingsDialog,
+from substitute.presentation.onboarding.onboarding_connection_settings import (
+    ManagedRuntimeSummaryPanel,
     build_endpoint_fields,
     build_endpoint_row,
 )
@@ -181,18 +185,12 @@ class ManagedLocalPage(OnboardingPageFrame):
             parent=parent,
         )
         self.setObjectName("OnboardingManagedLocalPage")
-        self.connection_settings_dialog = ConnectionSettingsDialog(
-            managed_runtime=True,
-            parent=self,
-        )
-        self.host_edit = self.connection_settings_dialog.host_edit
+        endpoint_fields = build_endpoint_fields(self)
+        self.host_edit = endpoint_fields.host_edit
         self.host_edit.setObjectName("OnboardingManagedHostEdit")
-        self.port_spinbox = self.connection_settings_dialog.port_spinbox
+        self.port_spinbox = endpoint_fields.port_spinbox
         self.port_spinbox.setObjectName("OnboardingManagedPortSpinBox")
-        runtime_summary_panel = self.connection_settings_dialog.runtime_summary_panel
-        if runtime_summary_panel is None:
-            raise RuntimeError("Managed connection settings require runtime controls")
-        self.runtime_summary_panel = runtime_summary_panel
+        self.runtime_summary_panel = ManagedRuntimeSummaryPanel(self)
         self.workspace_edit = LineEdit(self)
         self.workspace_edit.setObjectName("OnboardingManagedWorkspaceEdit")
         self.workspace_edit.setPlaceholderText(managed_comfy_example())
@@ -200,8 +198,10 @@ class ManagedLocalPage(OnboardingPageFrame):
         browse_button.setObjectName("OnboardingManagedWorkspaceBrowseButton")
         browse_button.clicked.connect(self.browse_requested.emit)
 
-        section = OnboardingSectionPanel(self)
-        section.content_layout.addWidget(
+        self.settings_section = OnboardingSectionPanel(self)
+        self.settings_section.content_layout.setContentsMargins(18, 12, 18, 12)
+        self.settings_section.content_layout.setSpacing(9)
+        self.settings_section.content_layout.addWidget(
             OnboardingFieldBlock(
                 label=app_text("ComfyUI folder"),
                 helper_text=app_text("You can keep the suggested location."),
@@ -212,12 +212,48 @@ class ManagedLocalPage(OnboardingPageFrame):
         )
         self.advanced_button = LocalizedPushButton(app_text("Advanced settings"), self)
         self.advanced_button.setObjectName("OnboardingAdvancedButton")
-        self.advanced_button.clicked.connect(self.connection_settings_dialog.present)
-        section.content_layout.addWidget(
+        self.advanced_button.clicked.connect(self._toggle_advanced_settings)
+        self.settings_section.content_layout.addWidget(
             self.advanced_button,
             alignment=Qt.AlignmentFlag.AlignLeft,
         )
-        self.body_layout.addWidget(section)
+        self.advanced_content = QWidget(self)
+        advanced_layout = QVBoxLayout(self.advanced_content)
+        advanced_layout.setContentsMargins(0, 0, 0, 0)
+        advanced_layout.setSpacing(10)
+        self.connection_content = QFrame(self.advanced_content)
+        self.connection_content.setObjectName("OnboardingInfoPanel")
+        connection_layout = QVBoxLayout(self.connection_content)
+        connection_layout.setContentsMargins(18, 8, 18, 8)
+        connection_layout.setSpacing(5)
+        connection_title = LocalizedBodyLabel(
+            app_text("Connection"), self.connection_content
+        )
+        connection_title.setObjectName("OnboardingInfoTitle")
+        connection_layout.addWidget(connection_title)
+        connection_layout.addLayout(
+            build_endpoint_row(fields=endpoint_fields, parent=self.connection_content)
+        )
+        advanced_layout.addWidget(self.connection_content)
+        advanced_layout.addWidget(self.runtime_summary_panel)
+        self.advanced_content.hide()
+        self.body_layout.setSpacing(6)
+        self.body_layout.addWidget(self.settings_section)
+        self.body_layout.addWidget(self.advanced_content)
+
+    def _toggle_advanced_settings(self) -> None:
+        """Expand or collapse the inline expert settings without opening a window."""
+
+        expanded = self.advanced_content.isHidden()
+        self.advanced_content.setVisible(expanded)
+        self.settings_section.content_layout.invalidate()
+        self.settings_section.updateGeometry()
+        self.updateGeometry()
+        set_localized_text(
+            self.advanced_button,
+            "Hide advanced settings" if expanded else "Advanced settings",
+        )
+        self.content_height_changed.emit()
 
 
 class AttachedLocalPage(OnboardingPageFrame):
@@ -236,13 +272,10 @@ class AttachedLocalPage(OnboardingPageFrame):
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedLocalPage")
-        self.connection_settings_dialog = ConnectionSettingsDialog(
-            managed_runtime=False,
-            parent=self,
-        )
-        self.host_edit = self.connection_settings_dialog.host_edit
+        endpoint_fields = build_endpoint_fields(self)
+        self.host_edit = endpoint_fields.host_edit
         self.host_edit.setObjectName("OnboardingAttachedHostEdit")
-        self.port_spinbox = self.connection_settings_dialog.port_spinbox
+        self.port_spinbox = endpoint_fields.port_spinbox
         self.port_spinbox.setObjectName("OnboardingAttachedPortSpinBox")
         self.workspace_edit = LineEdit(self)
         self.workspace_edit.setObjectName("OnboardingAttachedWorkspaceEdit")
@@ -251,8 +284,8 @@ class AttachedLocalPage(OnboardingPageFrame):
         browse_button.setObjectName("OnboardingAttachedWorkspaceBrowseButton")
         browse_button.clicked.connect(self.browse_requested.emit)
 
-        section = OnboardingSectionPanel(self)
-        section.content_layout.addWidget(
+        self.settings_section = OnboardingSectionPanel(self)
+        self.settings_section.content_layout.addWidget(
             OnboardingFieldBlock(
                 label=app_text("ComfyUI folder"),
                 helper_text=app_text(
@@ -267,9 +300,31 @@ class AttachedLocalPage(OnboardingPageFrame):
         self.advanced_button = LocalizedPushButton(
             app_text("Connection settings"), self
         )
-        self.advanced_button.clicked.connect(self.connection_settings_dialog.present)
-        section.content_layout.addWidget(self.advanced_button)
-        self.body_layout.addWidget(section)
+        self.advanced_button.clicked.connect(self._toggle_connection_settings)
+        self.settings_section.content_layout.addWidget(self.advanced_button)
+        self.connection_content = QWidget(self.settings_section)
+        connection_layout = QVBoxLayout(self.connection_content)
+        connection_layout.setContentsMargins(0, 4, 0, 0)
+        connection_layout.addLayout(
+            build_endpoint_row(fields=endpoint_fields, parent=self.connection_content)
+        )
+        self.connection_content.hide()
+        self.settings_section.content_layout.addWidget(self.connection_content)
+        self.body_layout.addWidget(self.settings_section)
+
+    def _toggle_connection_settings(self) -> None:
+        """Expand or collapse the existing setup's inline endpoint fields."""
+
+        expanded = self.connection_content.isHidden()
+        self.connection_content.setVisible(expanded)
+        self.settings_section.content_layout.invalidate()
+        self.settings_section.updateGeometry()
+        self.updateGeometry()
+        set_localized_text(
+            self.advanced_button,
+            "Hide connection settings" if expanded else "Connection settings",
+        )
+        self.content_height_changed.emit()
 
 
 class RemotePage(OnboardingPageFrame):

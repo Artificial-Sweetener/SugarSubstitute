@@ -40,7 +40,7 @@ from substitute.presentation.localization import (
 from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingPageFrame,
 )
-from substitute.presentation.onboarding.onboarding_recommendation_pages import (
+from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
     RecommendationPortrait,
 )
 from substitute.shared.qt_thumbnail_codec import image_from_qt_thumbnail_payload
