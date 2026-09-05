@@ -413,11 +413,11 @@ def test_onboarding_window_renders_managed_runtime_summary(
         window.managed_local_page.runtime_summary_panel.objectName()
         == "OnboardingInfoPanel"
     )
-    advanced_gap = (
-        window.managed_local_page.runtime_summary_panel.geometry().top()
-        - window.managed_local_page.connection_content.geometry().bottom()
-    )
-    assert 0 <= advanced_gap <= 16
+    connection_geometry = window.managed_local_page.connection_content.geometry()
+    runtime_geometry = window.managed_local_page.runtime_summary_panel.geometry()
+    assert connection_geometry.top() == runtime_geometry.top()
+    assert connection_geometry.bottom() == runtime_geometry.bottom()
+    assert connection_geometry.right() < runtime_geometry.left()
     host_top = window.managed_local_page.host_edit.mapTo(
         window, window.managed_local_page.host_edit.rect().topLeft()
     ).y()
