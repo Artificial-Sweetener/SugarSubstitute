@@ -40,7 +40,6 @@ class ExistingModelsFolderQuestionPage(OnboardingPageFrame):
                 "Substitute can scan a folder you already use without changing its contents."
             ),
             icon=FIF.FOLDER,
-            eyebrow=app_text("Folders"),
             parent=parent,
         )
         self.setObjectName("OnboardingExistingModelsQuestionPage")

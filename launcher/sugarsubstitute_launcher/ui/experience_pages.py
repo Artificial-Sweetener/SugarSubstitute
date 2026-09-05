@@ -57,7 +57,6 @@ class RepairScopePage(QFrame):
         _add_hero(
             layout,
             icon=FIF.SYNC,
-            eyebrow=launcher_text("Recovery suite"),
             title=launcher_text("Put Substitute back in a fresh state"),
             description=launcher_text(
                 "Restore installer-owned files. Your work and models stay in place."
@@ -156,7 +155,6 @@ def _add_hero(
     layout: QVBoxLayout,
     *,
     icon: FIF,
-    eyebrow: str,
     title: str,
     description: str,
 ) -> None:
@@ -172,9 +170,6 @@ def _add_hero(
     badge_layout.addWidget(icon_widget)
     row.addWidget(badge, alignment=Qt.AlignmentFlag.AlignTop)
     text = QVBoxLayout()
-    eyebrow_label = CaptionLabel(eyebrow)
-    eyebrow_label.setObjectName("OnboardingHeroEyebrow")
-    text.addWidget(eyebrow_label)
     title_label = SubtitleLabel(title)
     title_label.setObjectName("ExperiencePageTitle")
     title_label.setWordWrap(True)

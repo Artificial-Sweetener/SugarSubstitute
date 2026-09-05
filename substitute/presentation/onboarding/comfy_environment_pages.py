@@ -67,7 +67,6 @@ class ComfyPreflightPage(OnboardingPageFrame):
                 )
             ),
             icon=FIF.SYNC,
-            eyebrow=app_text("Environment safety check"),
             parent=parent,
         )
         self.setObjectName("OnboardingComfyPreflightPage")
@@ -156,7 +155,6 @@ class AttachedPythonChoicePage(OnboardingPageFrame):
                 )
             ),
             icon=FIF.HELP,
-            eyebrow=app_text("Find ComfyUI's Python environment"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedPythonChoicePage")
@@ -213,7 +211,6 @@ class AttachedPythonProcessPage(OnboardingPageFrame):
                 )
             ),
             icon=FIF.HELP,
-            eyebrow=app_text("Detect ComfyUI's Python environment"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedPythonProcessPage")
@@ -315,7 +312,6 @@ class AttachedPythonManualPage(OnboardingPageFrame):
                 )
             ),
             icon=FIF.HELP,
-            eyebrow=app_text("Select ComfyUI's Python environment"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedPythonManualPage")

@@ -391,7 +391,6 @@ class ModelRecommendationPage(OnboardingPageFrame):
                 "Choose a model to download, skip this family, or find your own models."
             ),
             icon=FIF.PHOTO,
-            eyebrow=app_text("CivitAI recommendations"),
             parent=parent,
         )
         self.setObjectName("OnboardingModelRecommendationPage")

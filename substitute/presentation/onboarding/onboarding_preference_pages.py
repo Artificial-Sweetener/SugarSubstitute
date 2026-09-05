@@ -81,7 +81,6 @@ class FolderSetupPage(OnboardingPageFrame):
                 "These defaults work well for most people. Change them if you already keep models or finished images somewhere else."
             ),
             icon=FIF.FOLDER,
-            eyebrow=app_text("Folders"),
             parent=parent,
         )
         self.setObjectName("OnboardingFolderSetupPage")
@@ -225,7 +224,6 @@ class IntegrationsPage(OnboardingPageFrame):
                 "Optional services can help with prompts and models. You can change them later in Settings."
             ),
             icon=FIF.ROBOT,
-            eyebrow=app_text("Helpful extras"),
             parent=parent,
         )
         self.setObjectName("OnboardingIntegrationsPage")

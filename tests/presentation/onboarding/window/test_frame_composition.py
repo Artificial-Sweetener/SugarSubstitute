@@ -168,6 +168,7 @@ def test_onboarding_window_builds_all_required_pages(
     assert window.brand_bar.progress_caption.text() == "Step 2 of 5 · Choose a folder"
     assert window.findChild(QWidget, "OnboardingRailTitle") is None
     assert window.findChild(QWidget, "OnboardingStepItem") is None
+    assert window.findChildren(QWidget, "OnboardingHeroEyebrow") == []
     assert window.identity_rail.styleSheet() == ""
     assert window.root_container.testAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
     assert window.content_surface.testAttribute(

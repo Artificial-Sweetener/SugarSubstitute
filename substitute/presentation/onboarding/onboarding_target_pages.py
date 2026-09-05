@@ -68,7 +68,6 @@ class InstallRootPage(OnboardingPageFrame):
                 "Pick the main folder for Substitute's files. If you let Substitute install ComfyUI for you, it will place that there too by default."
             ),
             icon=FIF.FOLDER,
-            eyebrow=app_text("Start here"),
             parent=parent,
         )
         self.setObjectName("OnboardingWelcomePage")
@@ -115,7 +114,6 @@ class TargetModePage(OnboardingPageFrame):
             title=app_text("Choose how Substitute should reach ComfyUI"),
             description=app_text("Choose the way you use ComfyUI."),
             icon=FIF.LINK,
-            eyebrow=app_text("Choose your setup"),
             parent=parent,
         )
         self._selected_mode = OnboardingTargetMode.MANAGED_LOCAL
@@ -180,7 +178,6 @@ class ManagedLocalPage(OnboardingPageFrame):
                 "Choose where ComfyUI should live. Substitute handles the rest."
             ),
             icon=FIF.HOME,
-            eyebrow=app_text("Recommended for most people"),
             parent=parent,
         )
         self.setObjectName("OnboardingManagedLocalPage")
@@ -236,7 +233,6 @@ class AttachedLocalPage(OnboardingPageFrame):
             title=app_text("Use the ComfyUI setup you already have"),
             description=app_text("Choose the ComfyUI folder you already use."),
             icon=FIF.LINK,
-            eyebrow=app_text("Keep your existing setup"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedLocalPage")
@@ -286,7 +282,6 @@ class RemotePage(OnboardingPageFrame):
             title=app_text("Connect to ComfyUI on another machine"),
             description=app_text("Enter the address of the ComfyUI server."),
             icon=FIF.IOT,
-            eyebrow=app_text("Remote connection"),
             parent=parent,
         )
         self.setObjectName("OnboardingRemotePage")

@@ -9,12 +9,12 @@
       <translation>%1에서 SugarSubstitute가 처리할 수 있는 이 긴 Windows 경로를 사용할 수 없습니다: %2. 이 작업에는 더 짧은 폴더를 선택하거나 Windows에서 Win32 긴 경로를 사용하도록 설정한 다음 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="79"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="78"></location>
       <source>Also rebuild installer-owned ComfyUI and its Python environment.</source>
       <translation>설치 프로그램이 관리하는 ComfyUI와 Python 환경도 다시 구성합니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="95"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="94"></location>
       <source>Always preserved</source>
       <translation>항상 보존됨</translation>
     </message>
@@ -39,7 +39,7 @@
       <translation>찾아보기…</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="115"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="114"></location>
       <source>Cancel</source>
       <translation>취소</translation>
     </message>
@@ -199,12 +199,12 @@
       <translation>언어</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="82"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="81"></location>
       <source>More thorough</source>
       <translation>더 철저하게</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="49"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="57"></location>
       <source>Nothing else was changed. Review the report, then try this step again.</source>
       <translation>다른 항목은 변경되지 않았습니다. 보고서를 확인한 다음 이 단계를 다시 시도하세요.</translation>
     </message>
@@ -219,7 +219,7 @@
       <translation>앱, ComfyUI 및 모델을 위한 충분한 공간이 있는 폴더를 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="57"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="65"></location>
       <source>Platform: %1</source>
       <translation>플랫폼: %1</translation>
     </message>
@@ -234,17 +234,17 @@
       <translation>SugarSubstitute 설치를 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="139"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="138"></location>
       <source>Preparing repair...</source>
       <translation>복구 준비 중...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="99"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="98"></location>
       <source>Projects • outputs • autosaves • settings • models • inputs • ComfyUI user data • third-party custom nodes</source>
       <translation>프로젝트 • 출력 • 자동 저장 • 설정 • 모델 • 입력 • ComfyUI 사용자 데이터 • 타사 사용자 정의 노드</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="61"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="60"></location>
       <source>Put Substitute back in a fresh state</source>
       <translation>Substitute를 새 상태로 복구</translation>
     </message>
@@ -254,27 +254,22 @@
       <translation>준비되었습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="74"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="73"></location>
       <source>Recommended</source>
       <translation>권장</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="60"></location>
-      <source>Recovery suite</source>
-      <translation>복구 도구</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="70"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="69"></location>
       <source>Refresh Substitute, its launcher, and runtime. Managed installs also refresh Substitute's ComfyUI nodes.</source>
       <translation>Substitute, 런처 및 런타임을 새로 고칩니다. 관리형 설치에서는 Substitute의 ComfyUI 노드도 새로 고칩니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="69"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="68"></location>
       <source>Repair Substitute</source>
       <translation>Substitute 복구</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="78"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="77"></location>
       <source>Repair Substitute and managed ComfyUI</source>
       <translation>Substitute 및 관리형 ComfyUI 복구</translation>
     </message>
@@ -294,12 +289,12 @@
       <translation>복구 모드가 요청되었습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="62"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="61"></location>
       <source>Restore installer-owned files. Your work and models stay in place.</source>
       <translation>설치 프로그램이 관리하는 파일을 복원합니다. 작업물과 모델은 그대로 유지됩니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="117"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="116"></location>
       <source>Review repair</source>
       <translation>복구 검토</translation>
     </message>
@@ -319,7 +314,7 @@
       <translation>설정 명령을 아직 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="48"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="56"></location>
       <source>Setup could not continue</source>
       <translation>설정을 계속할 수 없습니다</translation>
     </message>
@@ -349,12 +344,12 @@
       <translation>소스 실행용 실행기를 감지하여 실행 파일 자체 복사를 건너뛰었습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="68"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="76"></location>
       <source>Stage</source>
       <translation>단계</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="56"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="64"></location>
       <source>Stage: %1</source>
       <translation>단계: %1</translation>
     </message>
@@ -399,7 +394,7 @@
       <translation>SugarSubstitute는 설정 중에 이 언어를 사용합니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="59"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="67"></location>
       <source>Technical details:</source>
       <translation>기술 세부 정보:</translation>
     </message>
@@ -578,7 +573,7 @@
       <translation>Substitute 작업 컨텍스트</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/presentation/installer_surface.py" line="112"></location>
+      <location filename="../sugarsubstitute_shared/presentation/installer_surface.py" line="140"></location>
       <source>SugarSubstitute</source>
       <translation>SugarSubstitute</translation>
     </message>

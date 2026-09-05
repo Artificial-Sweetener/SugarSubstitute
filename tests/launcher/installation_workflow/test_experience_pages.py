@@ -18,7 +18,7 @@
 
 from pathlib import Path
 
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QLabel, QWidget
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.experience_models import (
@@ -56,5 +56,6 @@ def test_explicit_repair_mode_opens_with_application_repair_selected(
     ).lower()
     assert "projects" in visible_copy
     assert "third-party custom nodes" in visible_copy
+    assert window.view.repair_page.findChildren(QWidget, "OnboardingHeroEyebrow") == []
     assert window.repair_execution.running is False
     close_and_delete_launcher_window(window)
