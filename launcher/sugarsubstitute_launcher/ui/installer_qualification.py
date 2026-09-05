@@ -51,7 +51,6 @@ class InstallerQualificationDriver(QObject):
         self._plan = plan
         window.handoff_completed.connect(self._record_handoff)
         window.execution.initial_failed.connect(self._record_initial_failure)
-        window.execution.initial_finished.connect(self._skip_optional_model_setup)
         window.execution.setup_failed.connect(self._record_setup_failure)
 
     def schedule(self) -> None:
@@ -100,27 +99,6 @@ class InstallerQualificationDriver(QObject):
                 error=str(error),
             )
             QCoreApplication.exit(1)
-
-    @Slot()
-    def _skip_optional_model_setup(self) -> None:
-        """Skip the visible optional model page during installer qualification."""
-
-        page = self._window.view.model_interest_page
-        if not page.isVisible():
-            return
-        button = page.skip_button
-        if not button.isVisible() or not button.isEnabled():
-            self._record_installation_failure(
-                phase="optional_model_setup",
-                details="The visible model setup page did not expose its Skip action.",
-            )
-            return
-        QTest.mouseClick(
-            button,
-            Qt.MouseButton.LeftButton,
-            pos=button.rect().center(),
-        )
-        self._plan.record("installer.model_setup.skipped")
 
     @Slot()
     def _record_handoff(self) -> None:

@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify reusable installer and empty-picker model discovery policy."""
+"""Verify the focused empty-picker model discovery policy."""
 
 from __future__ import annotations
 
@@ -22,16 +22,15 @@ from collections.abc import Collection
 from pathlib import Path
 
 from sugarsubstitute_shared.model_discovery import (
-    CubeModelCapability,
     DiscoveredModel,
+    EmptyPickerModelDiscoveryPlanner,
     LocalModel,
-    ModelCategory,
-    ModelDiscoveryPlanner,
+    ModelArtifactKind,
 )
 
 
 class _Inventory:
-    """Expose deterministic local models across requested categories."""
+    """Expose deterministic local models across requested artifact kinds."""
 
     def __init__(self, models: tuple[LocalModel, ...]) -> None:
         """Store local inventory records."""
@@ -40,61 +39,60 @@ class _Inventory:
 
     def list_models(
         self,
-        categories: Collection[ModelCategory],
+        artifact_kinds: Collection[ModelArtifactKind],
     ) -> tuple[LocalModel, ...]:
         """Return only requested model kinds."""
 
-        selected = set(categories)
-        return tuple(model for model in self._models if model.category in selected)
+        selected = set(artifact_kinds)
+        return tuple(model for model in self._models if model.artifact_kind in selected)
 
 
 class _Discovery:
-    """Expose deliberately duplicated and owned provider results."""
+    """Expose deliberately duplicated provider results."""
 
-    def __init__(
-        self, models: dict[ModelCategory, tuple[DiscoveredModel, ...]]
-    ) -> None:
-        """Store provider-ranked category results."""
+    def __init__(self, models: tuple[DiscoveredModel, ...]) -> None:
+        """Store provider-ranked results."""
 
         self._models = models
 
     def discover_monthly_popular(
         self,
-        category: ModelCategory,
+        artifact_kind: ModelArtifactKind,
         *,
         limit: int,
     ) -> tuple[DiscoveredModel, ...]:
-        """Return provider order up to the requested acquisition limit."""
+        """Return matching provider results up to the acquisition limit."""
 
         assert limit == 30
-        return self._models.get(category, ())[:limit]
+        return tuple(
+            model for model in self._models if model.artifact_kind is artifact_kind
+        )[:limit]
 
 
 class _Destinations:
-    """Map each category to a representative Comfy model root."""
+    """Map each artifact kind to a representative Comfy model root."""
 
     def __init__(self, root: Path) -> None:
         """Store the Comfy models root."""
 
         self._root = root
 
-    def destination_for(self, category: ModelCategory) -> Path:
-        """Return the category folder."""
+    def destination_for(self, artifact_kind: ModelArtifactKind) -> Path:
+        """Return the artifact-kind folder."""
 
-        return self._root / category.value
+        return self._root / artifact_kind.value
 
 
 def _model(
-    category: ModelCategory,
     rank: int,
     *,
+    artifact_kind: ModelArtifactKind = ModelArtifactKind.LORAS,
     sha256: str | None = None,
 ) -> DiscoveredModel:
     """Build one provider-ranked candidate."""
 
-    digest = sha256 or f"{rank:064x}"
     return DiscoveredModel(
-        category=category,
+        artifact_kind=artifact_kind,
         model_id=rank,
         version_id=rank * 10,
         model_name=f"Model {rank}",
@@ -103,7 +101,7 @@ def _model(
         base_model="SDXL 1.0",
         file_name=f"model-{rank}.safetensors",
         size_bytes=rank * 1024,
-        sha256=digest,
+        sha256=sha256 or f"{rank:064x}",
         download_url=f"https://civitai.com/api/download/models/{rank * 10}",
         model_page_url=f"https://civitai.com/models/{rank}",
         thumbnail_url=None,
@@ -111,94 +109,56 @@ def _model(
     )
 
 
-def test_installer_is_suppressed_when_any_supported_local_model_exists(
-    tmp_path: Path,
-) -> None:
-    """Installer onboarding is a zero-compatible-inventory experience only."""
+def test_empty_picker_returns_three_unchecked_monthly_cards(tmp_path: Path) -> None:
+    """Cards preserve provider popularity order and use the artifact destination."""
 
-    capability = CubeModelCapability(
-        "supported-cube",
-        frozenset({ModelCategory.CHECKPOINTS, ModelCategory.LORAS}),
-    )
-    planner = ModelDiscoveryPlanner(
-        inventory=_Inventory(
-            (LocalModel(ModelCategory.CHECKPOINTS, tmp_path / "existing.safetensors"),)
-        ),
-        discovery=_Discovery({}),
-        destinations=_Destinations(tmp_path),
-    )
-
-    plan = planner.plan_installer(
-        (capability,), selected_categories=(ModelCategory.LORAS,)
-    )
-
-    assert not plan.eligibility.should_offer
-    assert plan.selected_categories == ()
-    assert plan.cards == ()
-
-
-def test_installer_returns_three_unchecked_monthly_cards_per_selected_category(
-    tmp_path: Path,
-) -> None:
-    """Cards should preserve provider popularity order and show destinations."""
-
-    categories = frozenset({ModelCategory.CHECKPOINTS, ModelCategory.LORAS})
-    candidates = {
-        category: tuple(_model(category, rank) for rank in range(1, 6))
-        for category in categories
-    }
-    planner = ModelDiscoveryPlanner(
+    planner = EmptyPickerModelDiscoveryPlanner(
         inventory=_Inventory(()),
-        discovery=_Discovery(candidates),
+        discovery=_Discovery(tuple(_model(rank) for rank in range(1, 6))),
         destinations=_Destinations(tmp_path / "models"),
     )
 
-    plan = planner.plan_installer(
-        (CubeModelCapability("cube", categories),),
-        selected_categories=categories,
-    )
+    plan = planner.plan_empty_picker(ModelArtifactKind.LORAS)
 
-    assert plan.eligibility.should_offer
-    assert len(plan.cards_for(ModelCategory.CHECKPOINTS)) == 3
-    assert len(plan.cards_for(ModelCategory.LORAS)) == 3
-    assert [
-        card.model.provider_rank for card in plan.cards_for(ModelCategory.CHECKPOINTS)
-    ] == [1, 2, 3]
-    assert all(not card.selected for card in plan.cards)
-    assert all(card.destination.parent == tmp_path / "models" for card in plan.cards)
+    assert [card.model.provider_rank for card in plan.cards] == [1, 2, 3]
+    assert all(card.destination == tmp_path / "models" / "loras" for card in plan.cards)
     assert "period=Month" in plan.explore_url
 
 
-def test_empty_picker_reuses_cards_and_filters_owned_or_duplicate_identities(
+def test_empty_picker_filters_duplicates_and_wrong_artifact_kinds(
     tmp_path: Path,
 ) -> None:
-    """Picker recovery should share discovery while never offering an owned file."""
+    """Only unique candidates for the requested technical kind are eligible."""
 
-    owned = "a" * 64
-    provider = (
-        _model(ModelCategory.LORAS, 1, sha256=owned),
-        _model(ModelCategory.LORAS, 2),
-        _model(ModelCategory.LORAS, 2),
-        _model(ModelCategory.LORAS, 3),
-        _model(ModelCategory.LORAS, 4),
-        _model(ModelCategory.LORAS, 5),
-    )
-    discovery = _Discovery({ModelCategory.LORAS: provider})
-    destinations = _Destinations(tmp_path)
-    empty_planner = ModelDiscoveryPlanner(
+    duplicate = _model(2)
+    planner = EmptyPickerModelDiscoveryPlanner(
         inventory=_Inventory(()),
-        discovery=discovery,
-        destinations=destinations,
-    )
-
-    empty_plan = empty_planner.plan_empty_picker(ModelCategory.LORAS)
-
-    assert [card.model.provider_rank for card in empty_plan.cards] == [1, 2, 3]
-    owned_planner = ModelDiscoveryPlanner(
-        inventory=_Inventory(
-            (LocalModel(ModelCategory.LORAS, tmp_path / "owned", owned),)
+        discovery=_Discovery(
+            (
+                _model(1, artifact_kind=ModelArtifactKind.CHECKPOINTS),
+                duplicate,
+                duplicate,
+                _model(3),
+                _model(4),
+                _model(5),
+            )
         ),
-        discovery=discovery,
-        destinations=destinations,
+        destinations=_Destinations(tmp_path),
     )
-    assert owned_planner.plan_empty_picker(ModelCategory.LORAS).cards == ()
+
+    plan = planner.plan_empty_picker(ModelArtifactKind.LORAS)
+
+    assert [card.model.provider_rank for card in plan.cards] == [2, 3, 4]
+
+
+def test_nonempty_picker_does_not_offer_provider_cards(tmp_path: Path) -> None:
+    """Existing local content keeps the empty-picker recovery dormant."""
+
+    owned = LocalModel(ModelArtifactKind.LORAS, tmp_path / "owned.safetensors")
+    planner = EmptyPickerModelDiscoveryPlanner(
+        inventory=_Inventory((owned,)),
+        discovery=_Discovery((_model(1),)),
+        destinations=_Destinations(tmp_path),
+    )
+
+    assert planner.plan_empty_picker(ModelArtifactKind.LORAS).cards == ()

@@ -101,7 +101,6 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("hard_exit", "sugarsubstitute_shared/launcher_update/transaction.py", "_process_exists", "os.kill", 1, "process_liveness_probe"),
     ("qt_thread", "launcher/sugarsubstitute_launcher/ui/installation_execution.py", "QtInstallationExecutor.start_initial", "PySide6.QtCore.QThread", 1, "signal_reported_install_worker"),
     ("qt_thread", "launcher/sugarsubstitute_launcher/ui/installation_execution.py", "QtInstallationExecutor.start_setup", "PySide6.QtCore.QThread", 1, "signal_reported_install_worker"),
-    ("qt_thread", "launcher/sugarsubstitute_launcher/ui/model_onboarding_execution.py", "QtModelOnboardingExecutor._start", "PySide6.QtCore.QThread", 1, "signal_reported_install_worker"),
     ("qt_thread", "launcher/sugarsubstitute_launcher/ui/repair_preparation_execution.py", "QtRepairPreparationExecutor.start", "PySide6.QtCore.QThread", 1, "signal_reported_install_worker"),
     ("qt_thread", "substitute/presentation/shell/empty_model_picker_discovery_controller.py", "EmptyModelPickerDiscoveryController._start", "PySide6.QtCore.QThread", 1, "managed_task_outcomes"),
     ("qt_thread", "substitute/presentation/shell/model_update_notification_controller.py", "ModelUpdateNotificationController._start", "PySide6.QtCore.QThread", 1, "managed_task_outcomes"),

@@ -28,12 +28,14 @@ import secrets
 import ssl
 from typing import IO, Protocol
 import urllib.request
+import urllib.error
 from urllib.parse import urlparse
 
 from sugarsubstitute_shared.model_acquisition.models import (
     AcquisitionProgress,
     AcquisitionResult,
     ModelAcquisitionCancelled,
+    ModelAcquisitionCredentialRequired,
     ModelAcquisitionError,
 )
 from sugarsubstitute_shared.model_discovery.models import DiscoveredModel
@@ -71,6 +73,7 @@ class DownloadStream(Protocol):
 
 StreamOpener = Callable[[str, Mapping[str, str], float], DownloadStream]
 ProgressCallback = Callable[[AcquisitionProgress], None]
+DownloadUrlValidator = Callable[[str], None]
 
 
 class ModelAcquisitionService:
@@ -83,6 +86,7 @@ class ModelAcquisitionService:
         stream_opener: StreamOpener | None = None,
         api_key_provider: Callable[[], str | None] | None = None,
         timeout_seconds: float = 60.0,
+        download_url_validator: DownloadUrlValidator | None = None,
     ) -> None:
         """Store explicit model roots and a bounded secret-aware HTTPS boundary."""
 
@@ -95,6 +99,7 @@ class ModelAcquisitionService:
         self._stream_opener = stream_opener or _open_stream
         self._api_key_provider = api_key_provider
         self._timeout_seconds = timeout_seconds
+        self._download_url_validator = download_url_validator or _require_download_url
 
     def acquire(
         self,
@@ -109,7 +114,7 @@ class ModelAcquisitionService:
         expected_hash = _normalized_sha256(model.sha256)
         if model.size_bytes <= 0:
             raise ModelAcquisitionError("Model download size must be positive.")
-        _require_download_url(model.download_url)
+        self._download_url_validator(model.download_url)
         file_name = _safe_file_name(model.file_name)
         destination = self._require_destination(destination_dir)
         destination.mkdir(parents=True, exist_ok=True)
@@ -189,6 +194,14 @@ class ModelAcquisitionService:
             )
         except ModelAcquisitionError:
             raise
+        except urllib.error.HTTPError as error:
+            if error.code in {401, 403}:
+                raise ModelAcquisitionCredentialRequired(
+                    "This model download requires a CivitAI API key."
+                ) from error
+            raise ModelAcquisitionError(
+                "Model download could not be completed."
+            ) from error
         except (OSError, TimeoutError) as error:
             raise ModelAcquisitionError(
                 "Model download could not be completed."
@@ -469,6 +482,7 @@ def _file_sha256(path: Path) -> str:
 __all__ = [
     "CancellationProbe",
     "DownloadStream",
+    "DownloadUrlValidator",
     "ModelAcquisitionService",
     "ProgressCallback",
     "StreamOpener",

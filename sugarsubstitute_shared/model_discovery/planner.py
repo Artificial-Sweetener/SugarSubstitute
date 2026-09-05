@@ -14,38 +14,35 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Plan reusable zero-inventory and empty-picker model discovery."""
+"""Plan provider discovery for one empty ComfyUI artifact picker."""
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Collection, Mapping
 from pathlib import Path
 from typing import Protocol
 from urllib.parse import urlencode
 
 from sugarsubstitute_shared.model_discovery.models import (
-    CubeModelCapability,
     DiscoveredModel,
     LocalModel,
-    ModelCategory,
+    ModelArtifactKind,
     ModelDiscoveryCard,
     ModelDiscoveryPlan,
-    ModelOnboardingEligibility,
 )
 
 _CARD_LIMIT = 3
 _DISCOVERY_FETCH_LIMIT = 30
-_CATEGORY_ORDER = tuple(ModelCategory)
 
 
 class ModelInventory(Protocol):
-    """List models across managed, attached, and configured external roots."""
+    """List artifacts across backend-configured ComfyUI model roots."""
 
     def list_models(
         self,
-        categories: Collection[ModelCategory],
+        artifact_kinds: Collection[ModelArtifactKind],
     ) -> tuple[LocalModel, ...]:
-        """Return all visible local models for the requested categories."""
+        """Return all visible local artifacts for the requested kinds."""
 
 
 class ModelDiscoveryGateway(Protocol):
@@ -53,7 +50,7 @@ class ModelDiscoveryGateway(Protocol):
 
     def discover_monthly_popular(
         self,
-        category: ModelCategory,
+        artifact_kind: ModelArtifactKind,
         *,
         limit: int,
     ) -> tuple[DiscoveredModel, ...]:
@@ -61,14 +58,14 @@ class ModelDiscoveryGateway(Protocol):
 
 
 class ModelDestinationPolicy(Protocol):
-    """Resolve the concrete model folder for one inventory category."""
+    """Resolve the concrete model folder for one artifact kind."""
 
-    def destination_for(self, category: ModelCategory) -> Path:
-        """Return the safe destination directory for the category."""
+    def destination_for(self, artifact_kind: ModelArtifactKind) -> Path:
+        """Return the safe destination directory for the artifact kind."""
 
 
-class ModelDiscoveryPlanner:
-    """Own installer gating and model-picker reuse over shared discovery ports."""
+class EmptyPickerModelDiscoveryPlanner:
+    """Plan an empty picker's provider cards without onboarding policy."""
 
     def __init__(
         self,
@@ -83,70 +80,25 @@ class ModelDiscoveryPlanner:
         self._discovery = discovery
         self._destinations = destinations
 
-    def assess_installer(
+    def plan_empty_picker(
         self,
-        capabilities: Collection[CubeModelCapability],
-    ) -> ModelOnboardingEligibility:
-        """Offer onboarding only when supported cubes have no compatible local model."""
-
-        categories = _supported_categories(capabilities)
-        local_models = self._inventory.list_models(categories)
-        compatible = tuple(
-            model for model in local_models if model.category in categories
-        )
-        return ModelOnboardingEligibility(categories, len(compatible))
-
-    def plan_installer(
-        self,
-        capabilities: Collection[CubeModelCapability],
-        *,
-        selected_categories: Collection[ModelCategory],
+        artifact_kind: ModelArtifactKind,
     ) -> ModelDiscoveryPlan:
-        """Return unchecked top-three cards only for selected supported interests."""
+        """Return unchecked popular cards only when the picker remains empty."""
 
-        eligibility = self.assess_installer(capabilities)
-        selected = _selected_supported_categories(
-            selected_categories,
-            eligibility.supported_categories,
-        )
-        if not eligibility.should_offer:
-            return ModelDiscoveryPlan(
-                eligibility=eligibility,
-                selected_categories=(),
-                cards=(),
-                explore_url=_explore_url(()),
-            )
-        local_models = self._inventory.list_models(selected)
-        cards = self._cards(selected, local_models)
+        local_models = self._inventory.list_models((artifact_kind,))
+        cards = self._cards(artifact_kind, local_models) if not local_models else ()
         return ModelDiscoveryPlan(
-            eligibility=eligibility,
-            selected_categories=selected,
             cards=cards,
-            explore_url=_explore_url(selected),
-        )
-
-    def plan_empty_picker(self, category: ModelCategory) -> ModelDiscoveryPlan:
-        """Reuse the same cards when one in-app picker has no local choices."""
-
-        local_models = self._inventory.list_models((category,))
-        eligibility = ModelOnboardingEligibility(
-            supported_categories=(category,),
-            compatible_local_model_count=len(local_models),
-        )
-        cards = self._cards((category,), local_models) if not local_models else ()
-        return ModelDiscoveryPlan(
-            eligibility=eligibility,
-            selected_categories=(category,) if not local_models else (),
-            cards=cards,
-            explore_url=_explore_url((category,)),
+            explore_url=_explore_url(artifact_kind),
         )
 
     def _cards(
         self,
-        categories: Sequence[ModelCategory],
+        artifact_kind: ModelArtifactKind,
         local_models: Collection[LocalModel],
     ) -> tuple[ModelDiscoveryCard, ...]:
-        """Filter owned identities and retain provider order without preselection."""
+        """Exclude owned identities and retain provider order without selection."""
 
         owned_hashes = {
             model.sha256.casefold()
@@ -154,88 +106,58 @@ class ModelDiscoveryPlanner:
             if model.sha256 is not None and model.sha256.strip()
         }
         cards: list[ModelDiscoveryCard] = []
-        for category in categories:
-            seen: set[tuple[int, int, str]] = set()
-            accepted = 0
-            for model in self._discovery.discover_monthly_popular(
-                category,
-                limit=_DISCOVERY_FETCH_LIMIT,
+        seen: set[tuple[int, int, str]] = set()
+        for model in self._discovery.discover_monthly_popular(
+            artifact_kind,
+            limit=_DISCOVERY_FETCH_LIMIT,
+        ):
+            identity = (
+                model.model_id,
+                model.version_id,
+                model.sha256.casefold(),
+            )
+            if (
+                model.artifact_kind is not artifact_kind
+                or model.sha256.casefold() in owned_hashes
+                or identity in seen
             ):
-                identity = (
-                    model.model_id,
-                    model.version_id,
-                    model.sha256.casefold(),
+                continue
+            seen.add(identity)
+            cards.append(
+                ModelDiscoveryCard(
+                    model=model,
+                    destination=self._destinations.destination_for(artifact_kind),
                 )
-                if (
-                    model.category is not category
-                    or model.sha256.casefold() in owned_hashes
-                    or identity in seen
-                ):
-                    continue
-                seen.add(identity)
-                cards.append(
-                    ModelDiscoveryCard(
-                        model=model,
-                        destination=self._destinations.destination_for(category),
-                    )
-                )
-                accepted += 1
-                if accepted == _CARD_LIMIT:
-                    break
+            )
+            if len(cards) == _CARD_LIMIT:
+                break
         return tuple(cards)
 
 
-def _supported_categories(
-    capabilities: Collection[CubeModelCapability],
-) -> tuple[ModelCategory, ...]:
-    """Return a deterministic union of categories exposed by available cubes."""
-
-    supported = {
-        category for capability in capabilities for category in capability.categories
-    }
-    return tuple(category for category in _CATEGORY_ORDER if category in supported)
-
-
-def _selected_supported_categories(
-    selected: Collection[ModelCategory],
-    supported: Collection[ModelCategory],
-) -> tuple[ModelCategory, ...]:
-    """Normalize interests against cube-supported categories."""
-
-    selected_set = set(selected)
-    supported_set = set(supported)
-    return tuple(
-        category
-        for category in _CATEGORY_ORDER
-        if category in selected_set and category in supported_set
-    )
-
-
-def _explore_url(categories: Collection[ModelCategory]) -> str:
+def _explore_url(artifact_kind: ModelArtifactKind) -> str:
     """Build a public CivitAI exploration URL with no authentication material."""
 
-    type_names = tuple(_CIVITAI_TYPE_NAMES[category] for category in categories)
     query: Mapping[str, str] = {
         "sort": "Most Downloaded",
         "period": "Month",
-        **({"types": ",".join(type_names)} if type_names else {}),
+        "types": _CIVITAI_TYPE_NAMES[artifact_kind],
     }
     return "https://civitai.com/models?" + urlencode(query)
 
 
 _CIVITAI_TYPE_NAMES = {
-    ModelCategory.CHECKPOINTS: "Checkpoint",
-    ModelCategory.DIFFUSION_MODELS: "Checkpoint",
-    ModelCategory.LORAS: "LORA",
-    ModelCategory.VAE: "VAE",
-    ModelCategory.CONTROLNET: "Controlnet",
-    ModelCategory.UPSCALE_MODELS: "Upscaler",
+    ModelArtifactKind.CHECKPOINTS: "Checkpoint",
+    ModelArtifactKind.DIFFUSION_MODELS: "Checkpoint",
+    ModelArtifactKind.LORAS: "LORA",
+    ModelArtifactKind.VAE: "VAE",
+    ModelArtifactKind.CONTROLNET: "Controlnet",
+    ModelArtifactKind.UPSCALE_MODELS: "Upscaler",
 }
 
 
 __all__ = [
+    "EmptyPickerModelDiscoveryPlanner",
     "ModelDestinationPolicy",
     "ModelDiscoveryGateway",
-    "ModelDiscoveryPlanner",
     "ModelInventory",
 ]

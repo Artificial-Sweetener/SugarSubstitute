@@ -22,8 +22,10 @@ from threading import Event, Thread
 
 import pytest
 
-from substitute.app.bootstrap.execution_runtime import (
+from substitute.app.bootstrap.execution_lane_configs import (
     DEFAULT_EXECUTION_LANE_CONFIGS,
+)
+from substitute.app.bootstrap.execution_runtime import (
     LONG_LIVED_EXECUTION_REGISTRIES,
     ExecutionRuntime,
 )

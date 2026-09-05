@@ -20,21 +20,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sugarsubstitute_shared.model_discovery.models import ModelCategory
+from sugarsubstitute_shared.model_discovery.models import ModelArtifactKind
 
 
-class CategoryModelDestinationPolicy:
-    """Map each supported model category to its standard ComfyUI folder."""
+class ModelArtifactDestinationPolicy:
+    """Map each supported model artifact kind to its standard ComfyUI folder."""
 
     def __init__(self, model_root: Path) -> None:
         """Store the trusted model root without creating directories."""
 
         self._model_root = Path(model_root)
 
-    def destination_for(self, category: ModelCategory) -> Path:
-        """Return the category-owned destination below the model root."""
+    def destination_for(self, artifact_kind: ModelArtifactKind) -> Path:
+        """Return the artifact-kind-owned destination below the model root."""
 
-        return self._model_root / category.value
+        return self._model_root / artifact_kind.value
 
 
-__all__ = ["CategoryModelDestinationPolicy"]
+__all__ = ["ModelArtifactDestinationPolicy"]

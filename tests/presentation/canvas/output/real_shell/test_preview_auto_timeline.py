@@ -41,6 +41,7 @@ def test_new_run_keeps_prior_result_presented_until_first_new_visual(
         OutputSpec("alpha:text", "Text to Image", (120, 45, 180)),
     )
     harness.wait_for_output_count("alpha", 1)
+    harness.assert_showing_workflow("alpha", color=(120, 45, 180))
     before = harness.fingerprint()
 
     harness.start_run(

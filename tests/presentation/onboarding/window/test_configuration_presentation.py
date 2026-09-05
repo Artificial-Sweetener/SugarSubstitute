@@ -30,6 +30,7 @@ from substitute.presentation.onboarding.onboarding_controller import (
 from substitute.presentation.onboarding.onboarding_models import (
     OnboardingDraft,
     OnboardingFlowMode,
+    OnboardingPageId,
     OnboardingTargetMode,
 )
 from substitute.presentation.onboarding.onboarding_window import (
@@ -65,6 +66,9 @@ def test_onboarding_window_renders_folder_and_integration_controls(
         )
     )
 
+    assert window.folder_setup_page.managed_model_section.isHidden() is True
+    window._controller.model_session.answer_existing_folder(True)
+    window._show_page(OnboardingPageId.FOLDERS)
     assert window.folder_setup_page.managed_model_section.isHidden() is False
     assert window.folder_setup_page.managed_model_root_edit.text() == str(
         tmp_path / "comfyui" / "models"
@@ -108,6 +112,42 @@ def test_onboarding_window_hides_saved_setup_issues_during_first_run(
 
     assert window.issue_banner.isHidden() is True
     assert "saved setup items need repair" not in window.issue_banner.text()
+    window._emit_close_requested_on_close = False
+    window.close()
+
+
+def test_model_pages_name_the_active_progress_step_accurately(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Do not label the model decision as a generic confirmation step."""
+
+    ensure_qt_application()
+    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
+    draft = OnboardingDraft(
+        installation_root=tmp_path,
+        target_mode=OnboardingTargetMode.MANAGED_LOCAL,
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        managed_workspace_path=tmp_path / "comfyui",
+        attached_workspace_path=None,
+    )
+    window = OnboardingWindow(
+        controller=cast(
+            OnboardingController,
+            _FakeController(draft, OnboardingFlowMode.FIRST_RUN),
+        )
+    )
+
+    window._show_page(OnboardingPageId.EXISTING_MODELS)
+
+    assert window.progress_title_label.text() == "Choose models"
+    assert window.step_items[2].title_label.text() == "Choose models"
+    window._show_page(OnboardingPageId.FOLDERS)
+    assert window.step_items[2].title_label.text() == "Confirm the details"
+    assert window.folder_setup_page.managed_model_section.isHidden()
+    window._apply_draft(window._controller.draft)
+    assert window.folder_setup_page.managed_model_section.isHidden()
     window._emit_close_requested_on_close = False
     window.close()
 
@@ -165,6 +205,9 @@ def test_onboarding_window_shows_model_folder_for_attached_local(
         )
     )
 
+    assert window.folder_setup_page.managed_model_section.isHidden() is True
+    window._controller.model_session.answer_existing_folder(True)
+    window._show_page(OnboardingPageId.FOLDERS)
     assert window.folder_setup_page.managed_model_section.isHidden() is False
     assert window.folder_setup_page.managed_model_root_edit.text() == str(
         attached_workspace / "models"

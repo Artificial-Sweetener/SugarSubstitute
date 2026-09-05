@@ -29,7 +29,7 @@ from substitute.application.execution import (
     TaskSubmitter,
 )
 from substitute.infrastructure.execution.thread_pool_lane import CompletionDispatcher
-from substitute.presentation.onboarding.onboarding_controller import (
+from substitute.presentation.onboarding.provisioning_executor import (
     OnboardingProvisioningExecutionRoute,
     OnboardingProvisioningSubmitterFactory,
 )
@@ -39,6 +39,7 @@ TResult = TypeVar("TResult")
 
 _ONBOARDING_PROVISIONING_LANE = "onboarding_provisioning"
 _ONBOARDING_ENVIRONMENT_LANE = "onboarding_environment"
+_ONBOARDING_MODELS_LANE = "onboarding_models"
 
 
 class RuntimeOnboardingSubmitter(TaskSubmitter, Protocol):
@@ -105,9 +106,23 @@ def create_onboarding_environment_submitter(
     )
 
 
+def create_onboarding_model_submitter(
+    execution_runtime: OnboardingExecutionRuntime,
+    owner: QObject,
+) -> RuntimeOnboardingSubmitter:
+    """Create one owner-scoped route for model scans and recommendations."""
+
+    return execution_runtime.submitter(
+        _ONBOARDING_MODELS_LANE,
+        owner_id="onboarding_model_coordinator",
+        dispatcher=QtOwnerThreadDispatcher(owner),
+    )
+
+
 __all__ = [
     "OnboardingExecutionRuntime",
     "RuntimeOnboardingSubmitter",
     "create_onboarding_environment_submitter",
+    "create_onboarding_model_submitter",
     "create_onboarding_provisioning_submitter_factory",
 ]

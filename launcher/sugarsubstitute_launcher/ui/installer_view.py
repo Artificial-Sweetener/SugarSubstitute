@@ -49,14 +49,10 @@ from launcher.sugarsubstitute_launcher.ui.installer_errors import (
 from launcher.sugarsubstitute_launcher.ui.experience_models import (
     ExperiencePage,
     ExperienceSnapshot,
-    ModelCardPresentation,
 )
 from launcher.sugarsubstitute_launcher.ui.experience_pages import (
-    ModelGalleryPage,
-    ModelInterestPage,
     RepairScopePage,
 )
-from sugarsubstitute_shared.model_discovery.models import ModelCategory
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
 
 
@@ -141,8 +137,6 @@ class InstallerView(QWidget):
         self.step_items: list[LauncherStepItem]
         self.page_stack: QStackedWidget
         self.repair_page: RepairScopePage
-        self.model_interest_page: ModelInterestPage
-        self.model_gallery_page: ModelGalleryPage
         self._experience_page = ExperiencePage.INSTALL_LOCATION
         self._build()
 
@@ -187,52 +181,6 @@ class InstallerView(QWidget):
             progress_helper=launcher_text("User files and models stay in place."),
         )
 
-    def show_model_interests(
-        self,
-        categories: tuple[ModelCategory, ...],
-    ) -> None:
-        """Reveal the unchecked category checklist for zero-model onboarding."""
-
-        self._experience_page = ExperiencePage.MODEL_INTERESTS
-        self.model_interest_page.set_categories(categories)
-        self.page_stack.setCurrentWidget(self.model_interest_page)
-        self.primary_button.hide()
-        self._set_steps(
-            titles=(
-                "Choose a folder",
-                "Pick interests",
-                "Choose models",
-                "Finish setup",
-            ),
-            active_index=1,
-            progress_title=launcher_text("Pick interests"),
-            progress_helper=launcher_text(
-                "Model setup is optional and can be skipped."
-            ),
-        )
-
-    def show_model_gallery(
-        self,
-        cards: tuple[ModelCardPresentation, ...],
-    ) -> None:
-        """Reveal provider-ranked cards after explicit category selection."""
-
-        self._experience_page = ExperiencePage.MODEL_GALLERY
-        self.model_gallery_page.set_cards(cards)
-        self.page_stack.setCurrentWidget(self.model_gallery_page)
-        self.primary_button.hide()
-        self._set_steps(
-            titles=(
-                "Choose a folder",
-                "Pick interests",
-                "Choose models",
-                "Finish setup",
-            ),
-            active_index=2,
-            progress_title=launcher_text("Choose models"),
-            progress_helper=launcher_text("Nothing is downloaded until you confirm."),
-        )
-
     def show_install_location(self) -> None:
         """Return to the first installation page and its primary action."""
 
@@ -258,31 +206,6 @@ class InstallerView(QWidget):
                 primary_action=self.repair_page.primary_button.text(),
                 secondary_action=launcher_text("Cancel"),
                 repair_choice=self.repair_page.choice,
-                selected_categories=(),
-                visible_models=(),
-                selected_models=(),
-            )
-        if self._experience_page is ExperiencePage.MODEL_INTERESTS:
-            return ExperienceSnapshot(
-                page=self._experience_page,
-                title=launcher_text("Which models are you interested in using?"),
-                primary_action=self.model_interest_page.primary_button.text(),
-                secondary_action=launcher_text("Skip model setup"),
-                repair_choice=None,
-                selected_categories=self.model_interest_page.selected_categories,
-                visible_models=(),
-                selected_models=(),
-            )
-        if self._experience_page is ExperiencePage.MODEL_GALLERY:
-            return ExperienceSnapshot(
-                page=self._experience_page,
-                title=launcher_text("Choose models to download"),
-                primary_action=self.model_gallery_page.primary_button.text(),
-                secondary_action=launcher_text("Explore more on CivitAI"),
-                repair_choice=None,
-                selected_categories=(),
-                visible_models=self.model_gallery_page.visible_model_ids,
-                selected_models=self.model_gallery_page.selected_model_ids,
             )
         return ExperienceSnapshot(
             page=self._experience_page,
@@ -290,9 +213,6 @@ class InstallerView(QWidget):
             primary_action=self.primary_button.text(),
             secondary_action=None,
             repair_choice=None,
-            selected_categories=(),
-            visible_models=(),
-            selected_models=(),
         )
 
     def _set_steps(
@@ -421,12 +341,13 @@ class InstallerView(QWidget):
         page_stage_layout = QVBoxLayout(page_stage)
         page_stage_layout.setContentsMargins(0, 0, 0, 0)
         page_stage_layout.setSpacing(0)
+        page_stage_layout.addStretch(1)
 
         self.page_stack = QStackedWidget(content_panel)
         self.page_stack.setObjectName("OnboardingPageStack")
         self.page_stack.setSizePolicy(
             QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Maximum,
         )
 
         install_root_page = QFrame(content_panel)
@@ -542,14 +463,15 @@ class InstallerView(QWidget):
         page_outer_layout.addStretch(1)
         self.page_stack.addWidget(install_root_page)
         self.repair_page = RepairScopePage(self.page_stack)
-        self.model_interest_page = ModelInterestPage(self.page_stack)
-        self.model_gallery_page = ModelGalleryPage(self.page_stack)
         self.page_stack.addWidget(self.repair_page)
-        self.page_stack.addWidget(self.model_interest_page)
-        self.page_stack.addWidget(self.model_gallery_page)
         self.page_stack.setCurrentWidget(install_root_page)
 
-        page_stage_layout.addWidget(self.page_stack, 1)
+        page_stage_layout.addWidget(
+            self.page_stack,
+            0,
+            Qt.AlignmentFlag.AlignVCenter,
+        )
+        page_stage_layout.addStretch(1)
         content_layout.addWidget(page_stage, 1)
 
         footer_row = QFrame(content_panel)

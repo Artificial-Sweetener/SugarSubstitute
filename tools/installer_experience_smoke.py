@@ -24,7 +24,7 @@ import json
 import os
 from pathlib import Path
 import sys
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Callable, Sequence
 from typing import Never, cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -33,6 +33,7 @@ from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtGui import QFont, QFontDatabase  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
+from qfluentwidgets import Theme, setTheme  # type: ignore[import-untyped] # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -45,20 +46,16 @@ from launcher.sugarsubstitute_launcher.ui.experience_models import (  # noqa: E4
 from launcher.sugarsubstitute_launcher.ui.main_window import (  # noqa: E402
     LauncherMainWindow,
 )
-from launcher.sugarsubstitute_launcher.ui.model_onboarding_controller import (  # noqa: E402
-    InstallerModelOnboardingController,
+from tools.install_experience_onboarding import (  # noqa: E402
+    capture_onboarding_matrix,
+    open_interactive_onboarding,
 )
-from sugarsubstitute_shared.model_acquisition import (  # noqa: E402
-    ModelAcquisitionService,
+from tools.install_experience_capture import (  # noqa: E402
+    prepare_opaque_dark_capture_surface,
+    save_opaque_dark_widget_capture,
 )
-from sugarsubstitute_shared.model_discovery import (  # noqa: E402
-    CategoryModelDestinationPolicy,
-    CubeModelCapability,
-    DiscoveredModel,
-    LocalModel,
-    ModelCategory,
-    ModelDiscoveryPlanner,
-    ModelOnboardingService,
+from tools.install_experience_interactive import (  # noqa: E402
+    run_interactive_full_experience,
 )
 
 
@@ -67,7 +64,6 @@ _PAGES = (
     "install",
     "install-failure",
     "install-complete",
-    "existing-model-skip",
     "repair",
     "repair-full",
     "repair-working",
@@ -75,14 +71,6 @@ _PAGES = (
     "repair-failure",
     "repair-rollback",
     "repair-complete",
-    "model-interests",
-    "model-discovery-working",
-    "model-discovery-failure",
-    "model-gallery",
-    "model-gallery-selected",
-    "model-download-working",
-    "model-download-failure",
-    "model-download-complete",
 )
 
 
@@ -130,9 +118,10 @@ def run_headless_smoke(
     output_root = _require_artifact_root(artifact_root)
     output_root.mkdir(parents=True, exist_ok=True)
     application = _application()
+    setTheme(Theme.DARK)
     audit = SideEffectAudit()
     window = _window(audit=audit, repair=False)
-    model_controller = _model_controller(window, output_root)
+    prepare_opaque_dark_capture_surface(window)
     sentinels = _create_protected_sentinels(output_root)
     sentinel_hashes_before = _sentinel_hashes(sentinels)
     window.show()
@@ -140,13 +129,10 @@ def run_headless_smoke(
     evidence: list[dict[str, object]] = []
     try:
         for page in _PAGES:
-            _project_page(window, page, model_controller=model_controller)
+            _project_page(window, page)
             application.processEvents()
             screenshot_path = output_root / f"{page}.png"
-            if not window.grab().save(str(screenshot_path), "PNG"):
-                raise RuntimeError(
-                    f"Could not write smoke screenshot: {screenshot_path}"
-                )
+            save_opaque_dark_widget_capture(window, screenshot_path)
             snapshot = window.view.experience_snapshot()
             evidence.append(
                 {
@@ -160,13 +146,24 @@ def run_headless_smoke(
         window.close()
         window.deleteLater()
         application.processEvents()
+    onboarding_evidence, onboarding_audit = capture_onboarding_matrix(
+        artifact_root=output_root,
+        install_root_locked=True,
+    )
+    evidence.extend(onboarding_evidence)
+    journey_invariants = _verify_full_journey_entry(evidence)
     sentinel_hashes_after = _sentinel_hashes(sentinels)
     if sentinel_hashes_after != sentinel_hashes_before:
         raise SmokeBoundaryViolation("Smoke scenarios changed protected sentinels.")
     result: dict[str, object] = {
-        "schema_version": 1,
+        "schema_version": 3,
         "headless": os.environ.get("QT_QPA_PLATFORM") == "offscreen",
-        "production_window": f"{LauncherMainWindow.__module__}.{LauncherMainWindow.__name__}",
+        "production_windows": (
+            f"{LauncherMainWindow.__module__}.{LauncherMainWindow.__name__}",
+            "substitute.presentation.onboarding.onboarding_window.OnboardingWindow",
+        ),
+        "journey": ("bootstrap-launcher", "comfy-setup", "ready"),
+        "journey_invariants": journey_invariants,
         "scenarios": evidence,
         "side_effect_audit": {
             "workflow_factory_calls": audit.workflow_factory_calls,
@@ -178,6 +175,7 @@ def run_headless_smoke(
             "subprocesses": audit.subprocess_calls,
             "handoffs": audit.handoff_calls,
             "target_mutations": audit.target_mutations,
+            **onboarding_audit,
         },
         "protected_sentinels": sentinel_hashes_after,
     }
@@ -186,17 +184,87 @@ def run_headless_smoke(
     return result
 
 
-def run_interactive_smoke(page: str) -> int:
-    """Show one production page for maintainer-driven aesthetic inspection."""
+def _verify_full_journey_entry(
+    evidence: Sequence[dict[str, object]],
+) -> dict[str, object]:
+    """Require one install-root decision before every Comfy setup route."""
+
+    launcher_entry = next(
+        (item for item in evidence if item.get("scenario") == "install"),
+        None,
+    )
+    launcher_snapshot = (
+        launcher_entry.get("snapshot") if launcher_entry is not None else None
+    )
+    if not isinstance(launcher_snapshot, dict) or (
+        launcher_snapshot.get("page") != "install_location"
+    ):
+        raise RuntimeError("The full journey does not start at launcher install root.")
+
+    setup_entries = [item for item in evidence if item.get("surface") == "comfy-setup"]
+    if not setup_entries:
+        raise RuntimeError("The full journey has no ComfyUI setup evidence.")
+    if any(item.get("page") == "OnboardingWelcomePage" for item in setup_entries):
+        raise RuntimeError(
+            "ComfyUI setup repeated the launcher installation-root decision."
+        )
+    first_page_by_route: dict[str, object] = {}
+    for item in setup_entries:
+        route = item.get("route")
+        if isinstance(route, str) and route not in first_page_by_route:
+            first_page_by_route[route] = item.get("page")
+    unexpected_entries = {
+        route: page
+        for route, page in first_page_by_route.items()
+        if page != "OnboardingTargetModePage"
+    }
+    if unexpected_entries:
+        raise RuntimeError(
+            "ComfyUI setup entered the wrong first page after launcher handoff: "
+            f"{unexpected_entries}"
+        )
+    return {
+        "installation_root_decision_owner": "bootstrap-launcher",
+        "installation_root_prompt_occurrences": 1,
+        "comfy_setup_initial_page": "OnboardingTargetModePage",
+        "verified_setup_routes": len(first_page_by_route),
+    }
+
+
+def run_interactive_smoke(
+    page: str,
+    *,
+    surface: str = "launcher",
+    artifact_root: Path = _DEFAULT_ARTIFACT_ROOT,
+) -> int:
+    """Open an explicitly requested production surface without external work."""
 
     if page not in _PAGES:
         raise ValueError(f"Unsupported smoke page: {page}")
     if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
         os.environ.pop("QT_QPA_PLATFORM", None)
     application = _application()
+    setTheme(Theme.DARK)
+    if surface == "comfy-setup":
+        session = open_interactive_onboarding(
+            install_root=artifact_root / "interactive" / "synthetic-install",
+            install_root_locked=False,
+        )
+        try:
+            return int(application.exec())
+        finally:
+            session.close()
+    if surface == "full":
+        return run_interactive_full_experience(
+            application=application,
+            artifact_root=artifact_root,
+            release_source=BlockedReleaseSource(),
+        )
+    if surface != "launcher":
+        raise ValueError(f"Unsupported smoke surface: {surface}")
     audit = SideEffectAudit()
     window = _window(audit=audit, repair=False)
-    _project_page(window, page, model_controller=_model_controller(window, None))
+    _project_page(window, page)
     window.show()
     return int(application.exec())
 
@@ -217,8 +285,6 @@ def _window(*, audit: SideEffectAudit, repair: bool) -> LauncherMainWindow:
 def _project_page(
     window: LauncherMainWindow,
     page: str,
-    *,
-    model_controller: InstallerModelOnboardingController,
 ) -> None:
     """Drive real widgets into one deterministic smoke scenario."""
 
@@ -234,18 +300,6 @@ def _project_page(
         window.view.show_install_location()
         window._append_log("Smoke: exact-version application payload verified.")
         window._append_log("Smoke: setup handoff ready; no process was started.")
-        window.view.show_status_output()
-        return
-    if page == "existing-model-skip":
-        skip_controller = _model_controller(window, None, existing_model=True)
-        if skip_controller.offer_if_eligible():
-            raise SmokeBoundaryViolation(
-                "Compatible local models did not suppress installer onboarding."
-            )
-        window.view.show_install_location()
-        window._append_log(
-            "Smoke: compatible local model found; optional model onboarding skipped."
-        )
         window.view.show_status_output()
         return
     if page.startswith("repair"):
@@ -280,158 +334,7 @@ def _project_page(
                 working=False,
             )
         return
-    if page == "model-interests":
-        model_controller.offer_if_eligible()
-        return
-    if page == "model-discovery-working":
-        model_controller.offer_if_eligible()
-        window.view.model_interest_page.set_status(
-            "Finding safe popular models from the last month...",
-            working=True,
-        )
-        return
-    if page == "model-discovery-failure":
-        model_controller.offer_if_eligible()
-        model_controller._handle_failure("Simulated provider timeout")
-        return
-    model_controller._handle_plan(_sample_plan())
-    if page == "model-gallery-selected":
-        first = window.view.model_gallery_page.visible_model_ids[0]
-        window.view.model_gallery_page.set_model_selected(first, selected=True)
-    elif page == "model-download-working":
-        first = window.view.model_gallery_page.visible_model_ids[0]
-        window.view.model_gallery_page.set_model_selected(first, selected=True)
-        window.view.model_gallery_page.set_status(
-            "Downloading 1 selected model file(s). Existing files will not be overwritten.",
-            working=True,
-        )
-    elif page == "model-download-failure":
-        model_controller._handle_failure("Simulated checksum mismatch")
-    elif page == "model-download-complete":
-        model_controller._handle_downloads((object(),))
-
-
-def _sample_plan() -> object:
-    """Return a real shared plan that the production controller can present."""
-
-    planner = ModelDiscoveryPlanner(
-        inventory=_SmokeInventory(),
-        discovery=_SmokeDiscovery(),
-        destinations=CategoryModelDestinationPolicy(
-            Path("smoke-install/comfyui/models")
-        ),
-    )
-    return planner.plan_installer(
-        _smoke_capabilities(),
-        selected_categories=(ModelCategory.CHECKPOINTS,),
-    )
-
-
-class _SmokeInventory:
-    """Expose deterministic model inventory without touching a target."""
-
-    def __init__(self, *, existing_model: bool = False) -> None:
-        """Select whether gating observes one compatible local model."""
-
-        self._existing_model = existing_model
-
-    def list_models(
-        self,
-        categories: Collection[ModelCategory],
-    ) -> tuple[LocalModel, ...]:
-        """Return optional synthetic local evidence for smoke gating."""
-
-        if self._existing_model and ModelCategory.CHECKPOINTS in categories:
-            return (
-                LocalModel(
-                    category=ModelCategory.CHECKPOINTS,
-                    path=Path("smoke-install/existing-model.safetensors"),
-                    sha256="a" * 64,
-                ),
-            )
-        return ()
-
-
-class _SmokeDiscovery:
-    """Return deterministic provider-shaped cards without network access."""
-
-    def discover_monthly_popular(
-        self,
-        category: ModelCategory,
-        *,
-        limit: int,
-    ) -> tuple[DiscoveredModel, ...]:
-        """Return three safe candidates in monthly popularity order."""
-
-        _ = limit
-        if category is not ModelCategory.CHECKPOINTS:
-            return ()
-        gibibyte = 1024**3
-        names = (
-            ("Luminous XL", "Cinematic 2.1", "Sample Studio", "SDXL 1.0", 7),
-            ("Illustria", "Soft Anime v4", "Example Creator", "Pony", 6),
-            ("Photo Realism", "Natural Light", None, "Flux.1 D", 12),
-        )
-        return tuple(
-            DiscoveredModel(
-                category=category,
-                model_id=index,
-                version_id=100 + index,
-                model_name=name,
-                version_name=version,
-                creator=creator,
-                base_model=base,
-                file_name=f"smoke-{index}.safetensors",
-                size_bytes=size * gibibyte,
-                sha256=f"{index:064x}",
-                download_url=f"https://civitai.com/api/download/models/{100 + index}",
-                model_page_url=f"https://civitai.com/models/{index}",
-                thumbnail_url=None,
-                provider_rank=index,
-            )
-            for index, (name, version, creator, base, size) in enumerate(names, 1)
-        )
-
-
-def _smoke_capabilities() -> tuple[CubeModelCapability, ...]:
-    """Return one release-shaped supported category contract."""
-
-    return (
-        CubeModelCapability(
-            cube_id="smoke-cubes",
-            categories=frozenset(ModelCategory),
-        ),
-    )
-
-
-def _model_controller(
-    window: LauncherMainWindow,
-    artifact_root: Path | None,
-    *,
-    existing_model: bool = False,
-) -> InstallerModelOnboardingController:
-    """Compose the production controller over deterministic no-I/O services."""
-
-    model_root = (
-        artifact_root / "simulated-model-root"
-        if artifact_root is not None
-        else Path.cwd() / "build" / "qualification" / "interactive-smoke-models"
-    )
-    service = ModelOnboardingService(
-        planner=ModelDiscoveryPlanner(
-            inventory=_SmokeInventory(existing_model=existing_model),
-            discovery=_SmokeDiscovery(),
-            destinations=CategoryModelDestinationPolicy(model_root),
-        ),
-        acquisition=ModelAcquisitionService(allowed_roots=(model_root,)),
-    )
-    return InstallerModelOnboardingController(
-        view=window.view,
-        service=service,
-        capabilities=_smoke_capabilities(),
-        on_finished=lambda: None,
-        executor=window.model_onboarding_execution,
-    )
+    raise ValueError(f"Unsupported launcher smoke page: {page}")
 
 
 def _create_protected_sentinels(output_root: Path) -> tuple[Path, ...]:
@@ -481,9 +384,6 @@ def _snapshot_payload(snapshot: ExperienceSnapshot) -> dict[str, object]:
     payload["repair_choice"] = (
         snapshot.repair_choice.value if snapshot.repair_choice is not None else None
     )
-    payload["selected_categories"] = [
-        category.value for category in snapshot.selected_categories
-    ]
     return payload
 
 
@@ -542,12 +442,18 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
         description=(
-            "Inspect production installer and repair pages without downloads, installs, "
-            "subprocesses, or installation mutations."
+            "Inspect the complete production install experience without downloads, "
+            "installs, subprocesses, or user-machine mutations."
         )
     )
     parser.add_argument("--interactive", action="store_true")
-    parser.add_argument("--page", choices=_PAGES, default="model-gallery")
+    parser.add_argument(
+        "--surface",
+        choices=("full", "launcher", "comfy-setup"),
+        default="full",
+        help="Production install surface to open in explicit interactive mode.",
+    )
+    parser.add_argument("--page", choices=_PAGES, default="install")
     parser.add_argument("--artifact-root", type=Path, default=_DEFAULT_ARTIFACT_ROOT)
     return parser.parse_args(list(argv))
 
@@ -557,7 +463,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = _parse_args(sys.argv[1:] if argv is None else argv)
     if args.interactive:
-        return run_interactive_smoke(args.page)
+        return run_interactive_smoke(
+            args.page,
+            surface=args.surface,
+            artifact_root=args.artifact_root,
+        )
     result = run_headless_smoke(artifact_root=args.artifact_root)
     sys.stdout.write(json.dumps(result, indent=2) + "\n")
     return 0

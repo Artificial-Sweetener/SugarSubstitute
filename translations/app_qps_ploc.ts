@@ -8,6 +8,10 @@
       <translation>⟦"%1" ···⟧</translation>
     </message>
     <message>
+      <source>%1</source>
+      <translation>⟦%1 ···⟧</translation>
+    </message>
+    <message>
       <source>%1
 
 Prompt preview:
@@ -114,12 +118,20 @@ Prömpt prëvïëw:
       <translation>⟦%1 mödël fïlë(s) döwnlöàdëd ànd vërïfïëd. Rëöpën thë pïckër tö üsë thëm. ···⟧</translation>
     </message>
     <message>
+      <source>%1 model recommendation</source>
+      <translation>⟦%1 mödël rëcömmëndàtïön ···⟧</translation>
+    </message>
+    <message>
       <source>%1 model update(s) downloaded beside your current files.</source>
       <translation>⟦%1 mödël üpdàtë(s) döwnlöàdëd bësïdë yöür cürrënt fïlës. ···⟧</translation>
     </message>
     <message>
       <source>%1 of %2</source>
       <translation>⟦%1 öf %2 ···⟧</translation>
+    </message>
+    <message>
+      <source>%1 of %2 setup tasks complete</source>
+      <translation>⟦%1 öf %2 sëtüp tàsks cömplëtë ···⟧</translation>
     </message>
     <message>
       <source>%1 outputs</source>
@@ -290,6 +302,10 @@ Prömpt prëvïëw:
       <translation>⟦Å nàtïvë dëpëndëncy fàïlëd tö löàd. ···⟧</translation>
     </message>
     <message>
+      <source>A newer image model family with strong illustration and character-focused fine-tunes.</source>
+      <translation>⟦Å nëwër ïmàgë mödël fàmïly wïth ströng ïllüstràtïön ànd chàràctër-föcüsëd fïnë-tünës. ···⟧</translation>
+    </message>
+    <message>
       <source>A recovery copy is kept, but explicit saves are the durable project file.</source>
       <translation>⟦Å rëcövëry cöpy ïs këpt, büt ëxplïcït sàvës àrë thë düràblë pröjëct fïlë. ···⟧</translation>
     </message>
@@ -300,6 +316,10 @@ Prömpt prëvïëw:
     <message>
       <source>A required local Python file is missing.</source>
       <translation>⟦Å rëqüïrëd löcàl Pythön fïlë ïs mïssïng. ···⟧</translation>
+    </message>
+    <message>
+      <source>A widely supported family with versatile realistic and illustrative fine-tunes.</source>
+      <translation>⟦Å wïdëly süppörtëd fàmïly wïth vërsàtïlë rëàlïstïc ànd ïllüstràtïvë fïnë-tünës. ···⟧</translation>
     </message>
     <message>
       <source>API key</source>
@@ -370,6 +390,10 @@ Prömpt prëvïëw:
       <translation>⟦Ådd tö dïctïönàry ···⟧</translation>
     </message>
     <message>
+      <source>Add your CivitAI API key.</source>
+      <translation>⟦Ådd yöür CïvïtÅÏ ÅPÏ këy. ···⟧</translation>
+    </message>
+    <message>
       <source>Adding uninstall to planned changes.</source>
       <translation>⟦Åddïng ünïnstàll tö plànnëd chàngës. ···⟧</translation>
     </message>
@@ -406,6 +430,10 @@ Prömpt prëvïëw:
       <translation>⟦Åll sët ···⟧</translation>
     </message>
     <message>
+      <source>All setup tasks are complete.</source>
+      <translation>⟦Åll sëtüp tàsks àrë cömplëtë. ···⟧</translation>
+    </message>
+    <message>
       <source>Allow all</source>
       <translation>⟦Ållöw àll ···⟧</translation>
     </message>
@@ -440,6 +468,10 @@ Prömpt prëvïëw:
     <message>
       <source>Anchor point</source>
       <translation>⟦Ånchör pöïnt ···⟧</translation>
+    </message>
+    <message>
+      <source>Anima</source>
+      <translation>⟦Ånïmà ···⟧</translation>
     </message>
     <message>
       <source>Another process is already using the saved ComfyUI address</source>
@@ -738,8 +770,16 @@ Prömpt prëvïëw:
       <translation>⟦Chëckïng för rünnïng CömfyÜÏ… ···⟧</translation>
     </message>
     <message>
+      <source>Checking that ComfyUI is ready.</source>
+      <translation>⟦Chëckïng thàt CömfyÜÏ ïs rëàdy. ···⟧</translation>
+    </message>
+    <message>
       <source>Checking the Python environment</source>
       <translation>⟦Chëckïng thë Pythön ënvïrönmënt ···⟧</translation>
+    </message>
+    <message>
+      <source>Checking the remote ComfyUI connection.</source>
+      <translation>⟦Chëckïng thë rëmötë CömfyÜÏ cönnëctïön. ···⟧</translation>
     </message>
     <message>
       <source>Checking the selected Comfy server.</source>
@@ -774,10 +814,6 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë Ïmàgë ···⟧</translation>
     </message>
     <message>
-      <source>Choose Installation Root</source>
-      <translation>⟦Chöösë Ïnstàllàtïön Rööt ···⟧</translation>
-    </message>
-    <message>
       <source>Choose Managed ComfyUI Folder</source>
       <translation>⟦Chöösë Mànàgëd CömfyÜÏ Földër ···⟧</translation>
     </message>
@@ -790,10 +826,6 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë Mödël Földër ···⟧</translation>
     </message>
     <message>
-      <source>Choose Models Folder</source>
-      <translation>⟦Chöösë Mödëls Földër ···⟧</translation>
-    </message>
-    <message>
       <source>Choose Output Folder</source>
       <translation>⟦Chöösë Öütpüt Földër ···⟧</translation>
     </message>
@@ -804,6 +836,14 @@ Prömpt prëvïëw:
     <message>
       <source>Choose a folder and connect Substitute to ComfyUI.</source>
       <translation>⟦Chöösë à földër ànd cönnëct Sübstïtütë tö CömfyÜÏ. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose a model to download, skip this family, or find your own models.</source>
+      <translation>⟦Chöösë à mödël tö döwnlöàd, skïp thïs fàmïly, ör fïnd yöür öwn mödëls. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose a models folder before reviewing downloads.</source>
+      <translation>⟦Chöösë à mödëls földër bëförë rëvïëwïng döwnlöàds. ···⟧</translation>
     </message>
     <message>
       <source>Choose a new size for the Input canvas and its masks</source>
@@ -820,6 +860,10 @@ Prömpt prëvïëw:
     <message>
       <source>Choose a working Python for this ComfyUI setup</source>
       <translation>⟦Chöösë à wörkïng Pythön för thïs CömfyÜÏ sëtüp ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose an accessible existing models folder.</source>
+      <translation>⟦Chöösë àn àccëssïblë ëxïstïng mödëls földër. ···⟧</translation>
     </message>
     <message>
       <source>Choose an existing audio file</source>
@@ -874,6 +918,10 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë höw tö fïnd ït ···⟧</translation>
     </message>
     <message>
+      <source>Choose models</source>
+      <translation>⟦Chöösë mödëls ···⟧</translation>
+    </message>
+    <message>
       <source>Choose output folder</source>
       <translation>⟦Chöösë öütpüt földër ···⟧</translation>
     </message>
@@ -884,6 +932,10 @@ Prömpt prëvïëw:
     <message>
       <source>Choose the ComfyUI latent preview method sent with new prompts.</source>
       <translation>⟦Chöösë thë CömfyÜÏ làtënt prëvïëw mëthöd sënt wïth nëw prömpts. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose the ComfyUI models folder you already use. Substitute will scan it without changing its contents.</source>
+      <translation>⟦Chöösë thë CömfyÜÏ mödëls földër yöü àlrëàdy üsë. Sübstïtütë wïll scàn ït wïthöüt chàngïng ïts cöntënts. ···⟧</translation>
     </message>
     <message>
       <source>Choose the Python executable that this ComfyUI installation uses.</source>
@@ -1022,6 +1074,10 @@ Prömpt prëvïëw:
       <translation>⟦CïvïtÅÏ dïd nöt rëtürn à màtch; ëxïstïng mëtàdàtà wàs këpt. ···⟧</translation>
     </message>
     <message>
+      <source>CivitAI did not return a safe portrait for this family. You can skip it or find your own models.</source>
+      <translation>⟦CïvïtÅÏ dïd nöt rëtürn à sàfë pörtràït för thïs fàmïly. Yöü càn skïp ït ör fïnd yöür öwn mödëls. ···⟧</translation>
+    </message>
+    <message>
       <source>CivitAI download organization settings saved.</source>
       <translation>⟦CïvïtÅÏ döwnlöàd örgànïzàtïön sëttïngs sàvëd. ···⟧</translation>
     </message>
@@ -1044,6 +1100,18 @@ Prömpt prëvïëw:
     <message>
       <source>CivitAI metadata refreshed.</source>
       <translation>⟦CïvïtÅÏ mëtàdàtà rëfrëshëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>CivitAI recommendations</source>
+      <translation>⟦CïvïtÅÏ rëcömmëndàtïöns ···⟧</translation>
+    </message>
+    <message>
+      <source>CivitAI recommendations could not be loaded. Try again or go back.</source>
+      <translation>⟦CïvïtÅÏ rëcömmëndàtïöns cöüld nöt bë löàdëd. Try àgàïn ör gö bàck. ···⟧</translation>
+    </message>
+    <message>
+      <source>CivitAI returned no usable recommendations.</source>
+      <translation>⟦CïvïtÅÏ rëtürnëd nö üsàblë rëcömmëndàtïöns. ···⟧</translation>
     </message>
     <message>
       <source>CivitAI returned unusable metadata; existing metadata was kept.</source>
@@ -1326,6 +1394,10 @@ Prömpt prëvïëw:
       <translation>⟦CömfyÜÏ ïs clösëd. Sëtüp càn cöntïnüë. ···⟧</translation>
     </message>
     <message>
+      <source>ComfyUI is ready for final checks.</source>
+      <translation>⟦CömfyÜÏ ïs rëàdy för fïnàl chëcks. ···⟧</translation>
+    </message>
+    <message>
       <source>ComfyUI is ready, but %1 did not load. Workflows using this extension may fail or show missing nodes.</source>
       <translation>⟦CömfyÜÏ ïs rëàdy, büt %1 dïd nöt löàd. Wörkflöws üsïng thïs ëxtënsïön mày fàïl ör shöw mïssïng nödës. ···⟧</translation>
     </message>
@@ -1354,16 +1426,20 @@ Prömpt prëvïëw:
       <translation>⟦CömfyÜÏ ïs ünàvàïlàblë. ···⟧</translation>
     </message>
     <message>
-      <source>ComfyUI looks here for checkpoints, LoRAs, VAEs, and other model files. You can keep the default or choose a folder you already use.</source>
-      <translation>⟦CömfyÜÏ lööks hërë för chëckpöïnts, LöRÅs, VÅËs, ànd öthër mödël fïlës. Yöü càn këëp thë dëfàült ör chöösë à földër yöü àlrëàdy üsë. ···⟧</translation>
-    </message>
-    <message>
       <source>ComfyUI must restart before repaired cube dependencies can be used.</source>
       <translation>⟦CömfyÜÏ müst rëstàrt bëförë rëpàïrëd cübë dëpëndëncïës càn bë üsëd. ···⟧</translation>
     </message>
     <message>
       <source>ComfyUI needs repair before it can start</source>
       <translation>⟦CömfyÜÏ nëëds rëpàïr bëförë ït càn stàrt ···⟧</translation>
+    </message>
+    <message>
+      <source>ComfyUI passed its readiness checks.</source>
+      <translation>⟦CömfyÜÏ pàssëd ïts rëàdïnëss chëcks. ···⟧</translation>
+    </message>
+    <message>
+      <source>ComfyUI preparation is ready for final setup.</source>
+      <translation>⟦CömfyÜÏ prëpàràtïön ïs rëàdy för fïnàl sëtüp. ···⟧</translation>
     </message>
     <message>
       <source>ComfyUI reported a startup warning</source>
@@ -1468,6 +1544,10 @@ Prömpt prëvïëw:
     <message>
       <source>Configuring the ComfyUI models folder.</source>
       <translation>⟦Cönfïgürïng thë CömfyÜÏ mödëls földër. ···⟧</translation>
+    </message>
+    <message>
+      <source>Confirm downloads</source>
+      <translation>⟦Cönfïrm döwnlöàds ···⟧</translation>
     </message>
     <message>
       <source>Confirm the details</source>
@@ -1898,12 +1978,20 @@ Install these nodes now?</source>
       <translation>⟦Dïscàrd chàngës ···⟧</translation>
     </message>
     <message>
+      <source>Do you have an existing models folder?</source>
+      <translation>⟦Dö yöü hàvë àn ëxïstïng mödëls földër? ···⟧</translation>
+    </message>
+    <message>
       <source>Don't Save</source>
       <translation>⟦Dön't Sàvë ···⟧</translation>
     </message>
     <message>
       <source>Don't save outputs</source>
       <translation>⟦Dön't sàvë öütpüts ···⟧</translation>
+    </message>
+    <message>
+      <source>Download</source>
+      <translation>⟦Döwnlöàd ···⟧</translation>
     </message>
     <message>
       <source>Download CivitAI thumbnails</source>
@@ -1930,6 +2018,10 @@ Install these nodes now?</source>
       <translation>⟦Döwnlöàd prövïdër ïmàgës för mödël pïckër thümbnàïls. ···⟧</translation>
     </message>
     <message>
+      <source>Download review</source>
+      <translation>⟦Döwnlöàd rëvïëw ···⟧</translation>
+    </message>
+    <message>
       <source>Download selected</source>
       <translation>⟦Döwnlöàd sëlëctëd ···⟧</translation>
     </message>
@@ -1942,12 +2034,24 @@ Install these nodes now?</source>
       <translation>⟦Döwnlöàdïng %1 ···⟧</translation>
     </message>
     <message>
+      <source>Downloading %1 (%2 of %3) — %4 of %5 MiB</source>
+      <translation>⟦Döwnlöàdïng %1 (%2 öf %3) — %4 öf %5 MïB ···⟧</translation>
+    </message>
+    <message>
+      <source>Downloading %1 — %2 of %3 MiB</source>
+      <translation>⟦Döwnlöàdïng %1 — %2 öf %3 MïB ···⟧</translation>
+    </message>
+    <message>
       <source>Downloading model</source>
       <translation>⟦Döwnlöàdïng mödël ···⟧</translation>
     </message>
     <message>
       <source>Downloading the model this recipe needs.</source>
       <translation>⟦Döwnlöàdïng thë mödël thïs rëcïpë nëëds. ···⟧</translation>
+    </message>
+    <message>
+      <source>Downloading the selected model files.</source>
+      <translation>⟦Döwnlöàdïng thë sëlëctëd mödël fïlës. ···⟧</translation>
     </message>
     <message>
       <source>Downloading...</source>
@@ -2086,6 +2190,10 @@ Install these nodes now?</source>
       <translation>⟦Ëxïstïng löcàl sëtüp ···⟧</translation>
     </message>
     <message>
+      <source>Existing models folder</source>
+      <translation>⟦Ëxïstïng mödëls földër ···⟧</translation>
+    </message>
+    <message>
       <source>Expand</source>
       <translation>⟦Ëxpànd ···⟧</translation>
     </message>
@@ -2202,6 +2310,10 @@ Install these nodes now?</source>
       <translation>⟦Fëtchïng Dànböörü wïkï cöntënt... ···⟧</translation>
     </message>
     <message>
+      <source>Files will be saved in your ComfyUI models folder.</source>
+      <translation>⟦Fïlës wïll bë sàvëd ïn yöür CömfyÜÏ mödëls földër. ···⟧</translation>
+    </message>
+    <message>
       <source>Filter packages, claimants, or tags</source>
       <translation>⟦Fïltër pàckàgës, clàïmànts, ör tàgs ···⟧</translation>
     </message>
@@ -2284,6 +2396,10 @@ Install these nodes now?</source>
     <message>
       <source>Found the Python environment ComfyUI uses. Close ComfyUI to continue.</source>
       <translation>⟦Föünd thë Pythön ënvïrönmënt CömfyÜÏ üsës. Clösë CömfyÜÏ tö cöntïnüë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Free space</source>
+      <translation>⟦Frëë spàcë ···⟧</translation>
     </message>
     <message>
       <source>Free space on the drive that contains %1.</source>
@@ -2386,6 +2502,10 @@ Install these nodes now?</source>
       <translation>⟦Glöbàl ···⟧</translation>
     </message>
     <message>
+      <source>Go back to Integrations.</source>
+      <translation>⟦Gö bàck tö Ïntëgràtïöns. ···⟧</translation>
+    </message>
+    <message>
       <source>Go back to My Current ComfyUI.</source>
       <translation>⟦Gö bàck tö My Cürrënt CömfyÜÏ. ···⟧</translation>
     </message>
@@ -2458,6 +2578,10 @@ Install these nodes now?</source>
       <translation>⟦Hïdë rëpört ···⟧</translation>
     </message>
     <message>
+      <source>Hide setup log</source>
+      <translation>⟦Hïdë sëtüp lög ···⟧</translation>
+    </message>
+    <message>
       <source>High-performance PySide6 image viewer</source>
       <translation>⟦Hïgh-përförmàncë PySïdë6 ïmàgë vïëwër ···⟧</translation>
     </message>
@@ -2476,6 +2600,10 @@ Install these nodes now?</source>
     <message>
       <source>Host cannot be blank.</source>
       <translation>⟦Höst cànnöt bë blànk. ···⟧</translation>
+    </message>
+    <message>
+      <source>I'll find my own models</source>
+      <translation>⟦Ï'll fïnd my öwn mödëls ···⟧</translation>
     </message>
     <message>
       <source>If the folder already contains a partial install, delete it before retrying.</source>
@@ -2510,8 +2638,16 @@ Install these nodes now?</source>
       <translation>⟦Ïgnörëd ···⟧</translation>
     </message>
     <message>
+      <source>Illustrious · SDXL compatible</source>
+      <translation>⟦Ïllüstrïöüs · SDXL cömpàtïblë ···⟧</translation>
+    </message>
+    <message>
       <source>Image %1</source>
       <translation>⟦Ïmàgë %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>Image decoder</source>
+      <translation>⟦Ïmàgë dëcödër ···⟧</translation>
     </message>
     <message>
       <source>Images (*.png *.jpg *.jpeg *.bmp *.gif)</source>
@@ -2730,10 +2866,6 @@ Install these nodes now?</source>
       <translation>⟦Lïvë Cömfy nödë dëfïnïtïöns ünàvàïlàblë ···⟧</translation>
     </message>
     <message>
-      <source>Live Output</source>
-      <translation>⟦Lïvë Öütpüt ···⟧</translation>
-    </message>
-    <message>
       <source>LoRA autocomplete</source>
       <translation>⟦LöRÅ àütöcömplëtë ···⟧</translation>
     </message>
@@ -2800,6 +2932,10 @@ Install these nodes now?</source>
     <message>
       <source>Loading definition</source>
       <translation>⟦Löàdïng dëfïnïtïön ···⟧</translation>
+    </message>
+    <message>
+      <source>Loading recommendations…</source>
+      <translation>⟦Löàdïng rëcömmëndàtïöns… ···⟧</translation>
     </message>
     <message>
       <source>Loading...</source>
@@ -2998,6 +3134,10 @@ Install these nodes now?</source>
       <translation>⟦Mödël döwnlöàd fàïlëd ···⟧</translation>
     </message>
     <message>
+      <source>Model download progress</source>
+      <translation>⟦Mödël döwnlöàd prögrëss ···⟧</translation>
+    </message>
+    <message>
       <source>Model download unavailable</source>
       <translation>⟦Mödël döwnlöàd ünàvàïlàblë ···⟧</translation>
     </message>
@@ -3010,6 +3150,10 @@ Install these nodes now?</source>
       <translation>⟦Mödël döwnlöàds rëtürnëd ïnvàlïd rësülts. ···⟧</translation>
     </message>
     <message>
+      <source>Model downloads — %1 of %2 MiB</source>
+      <translation>⟦Mödël döwnlöàds — %1 öf %2 MïB ···⟧</translation>
+    </message>
+    <message>
       <source>Model file</source>
       <translation>⟦Mödël fïlë ···⟧</translation>
     </message>
@@ -3020,6 +3164,10 @@ Install these nodes now?</source>
     <message>
       <source>Model folder pattern</source>
       <translation>⟦Mödël földër pàttërn ···⟧</translation>
+    </message>
+    <message>
+      <source>Model recommendations are unavailable in this setup run.</source>
+      <translation>⟦Mödël rëcömmëndàtïöns àrë ünàvàïlàblë ïn thïs sëtüp rün. ···⟧</translation>
     </message>
     <message>
       <source>Model update operation failed: %1</source>
@@ -3040,10 +3188,6 @@ Install these nodes now?</source>
     <message>
       <source>Model: %1</source>
       <translation>⟦Mödël: %1 ···⟧</translation>
-    </message>
-    <message>
-      <source>Models folder</source>
-      <translation>⟦Mödëls földër ···⟧</translation>
     </message>
     <message>
       <source>Modify selection</source>
@@ -3210,6 +3354,14 @@ Install these nodes now?</source>
       <translation>⟦Nö mïcröphönë ···⟧</translation>
     </message>
     <message>
+      <source>No model downloads were selected.</source>
+      <translation>⟦Nö mödël döwnlöàds wërë sëlëctëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>No model files selected. Setup will continue without a download.</source>
+      <translation>⟦Nö mödël fïlës sëlëctëd. Sëtüp wïll cöntïnüë wïthöüt à döwnlöàd. ···⟧</translation>
+    </message>
+    <message>
       <source>No models are available for this picker</source>
       <translation>⟦Nö mödëls àrë àvàïlàblë för thïs pïckër ···⟧</translation>
     </message>
@@ -3312,6 +3464,10 @@ Install these nodes now?</source>
     <message>
       <source>Not set</source>
       <translation>⟦Nöt sët ···⟧</translation>
+    </message>
+    <message>
+      <source>Nothing downloads until setup is confirmed.</source>
+      <translation>⟦Nöthïng döwnlöàds üntïl sëtüp ïs cönfïrmëd. ···⟧</translation>
     </message>
     <message>
       <source>Nothing to transform!</source>
@@ -3478,6 +3634,10 @@ Install these nodes now?</source>
       <translation>⟦Öütpüt sëttïngs sàvëd. ···⟧</translation>
     </message>
     <message>
+      <source>Overall setup progress</source>
+      <translation>⟦Övëràll sëtüp prögrëss ···⟧</translation>
+    </message>
+    <message>
       <source>Package</source>
       <translation>⟦Pàckàgë ···⟧</translation>
     </message>
@@ -3586,6 +3746,10 @@ Install these nodes now?</source>
       <translation>⟦Plëàsë wàït à mömënt. ···⟧</translation>
     </message>
     <message>
+      <source>Popular models this month</source>
+      <translation>⟦Pöpülàr mödëls thïs mönth ···⟧</translation>
+    </message>
+    <message>
       <source>Port</source>
       <translation>⟦Pört ···⟧</translation>
     </message>
@@ -3618,6 +3782,18 @@ Install these nodes now?</source>
       <translation>⟦Prëpàrïng Bàsë-Cübës dëpëndëncïës. ···⟧</translation>
     </message>
     <message>
+      <source>Preparing ComfyUI in the background.</source>
+      <translation>⟦Prëpàrïng CömfyÜÏ ïn thë bàckgröünd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Preparing ComfyUI.</source>
+      <translation>⟦Prëpàrïng CömfyÜÏ. ···⟧</translation>
+    </message>
+    <message>
+      <source>Preparing Substitute's local runtime.</source>
+      <translation>⟦Prëpàrïng Sübstïtütë's löcàl rüntïmë. ···⟧</translation>
+    </message>
+    <message>
       <source>Preparing acceleration support.</source>
       <translation>⟦Prëpàrïng àccëlëràtïön süppört. ···⟧</translation>
     </message>
@@ -3626,12 +3802,20 @@ Install these nodes now?</source>
       <translation>⟦Prëpàrïng mànàgëd àccëlëràtïön süppört. ···⟧</translation>
     </message>
     <message>
+      <source>Preparing setup tasks…</source>
+      <translation>⟦Prëpàrïng sëtüp tàsks… ···⟧</translation>
+    </message>
+    <message>
       <source>Preparing the application interface.</source>
       <translation>⟦Prëpàrïng thë àpplïcàtïön ïntërfàcë. ···⟧</translation>
     </message>
     <message>
       <source>Preparing the download.</source>
       <translation>⟦Prëpàrïng thë döwnlöàd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Preparing the existing ComfyUI installation.</source>
+      <translation>⟦Prëpàrïng thë ëxïstïng CömfyÜÏ ïnstàllàtïön. ···⟧</translation>
     </message>
     <message>
       <source>Preparing your existing ComfyUI installation.</source>
@@ -3672,6 +3856,10 @@ Install these nodes now?</source>
     <message>
       <source>Preview type</source>
       <translation>⟦Prëvïëw typë ···⟧</translation>
+    </message>
+    <message>
+      <source>Preview unavailable</source>
+      <translation>⟦Prëvïëw ünàvàïlàblë ···⟧</translation>
     </message>
     <message>
       <source>Previous match (Shift+Enter)</source>
@@ -3906,6 +4094,14 @@ Install these nodes now?</source>
       <translation>⟦Rëmötë ···⟧</translation>
     </message>
     <message>
+      <source>Remote ComfyUI does not need local workspace preparation.</source>
+      <translation>⟦Rëmötë CömfyÜÏ döës nöt nëëd löcàl wörkspàcë prëpàràtïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>Remote ComfyUI does not use local model downloads.</source>
+      <translation>⟦Rëmötë CömfyÜÏ döës nöt üsë löcàl mödël döwnlöàds. ···⟧</translation>
+    </message>
+    <message>
       <source>Remote connection</source>
       <translation>⟦Rëmötë cönnëctïön ···⟧</translation>
     </message>
@@ -4050,6 +4246,10 @@ No known extension claimant.</source>
 Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     </message>
     <message>
+      <source>Required components</source>
+      <translation>⟦Rëqüïrëd cömpönënts ···⟧</translation>
+    </message>
+    <message>
       <source>Required custom nodes</source>
       <translation>⟦Rëqüïrëd cüstöm nödës ···⟧</translation>
     </message>
@@ -4142,6 +4342,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rëtry ···⟧</translation>
     </message>
     <message>
+      <source>Return to setup and try again.</source>
+      <translation>⟦Rëtürn tö sëtüp ànd try àgàïn. ···⟧</translation>
+    </message>
+    <message>
       <source>Reveal Hidden Cards</source>
       <translation>⟦Rëvëàl Hïddën Càrds ···⟧</translation>
     </message>
@@ -4150,8 +4354,16 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rëvëàl ïn Fïlë Mànàgër ···⟧</translation>
     </message>
     <message>
-      <source>Review setup</source>
-      <translation>⟦Rëvïëw sëtüp ···⟧</translation>
+      <source>Review CivitAI's popular models for each family.</source>
+      <translation>⟦Rëvïëw CïvïtÅÏ's pöpülàr mödëls för ëàch fàmïly. ···⟧</translation>
+    </message>
+    <message>
+      <source>Review downloads</source>
+      <translation>⟦Rëvïëw döwnlöàds ···⟧</translation>
+    </message>
+    <message>
+      <source>Review model downloads</source>
+      <translation>⟦Rëvïëw mödël döwnlöàds ···⟧</translation>
     </message>
     <message>
       <source>Review the SugarCubes diagnostic details and repair the listed cube pack or dependency when convenient.</source>
@@ -4270,6 +4482,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rüntïmë rööt: %1 ···⟧</translation>
     </message>
     <message>
+      <source>SDXL</source>
+      <translation>⟦SDXL ···⟧</translation>
+    </message>
+    <message>
       <source>SFW only</source>
       <translation>⟦SFW önly ···⟧</translation>
     </message>
@@ -4362,8 +4578,16 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sàvës tö %1 ···⟧</translation>
     </message>
     <message>
+      <source>Saving and applying setup choices.</source>
+      <translation>⟦Sàvïng ànd àpplyïng sëtüp chöïcës. ···⟧</translation>
+    </message>
+    <message>
       <source>Saving generation preview settings.</source>
       <translation>⟦Sàvïng gënëràtïön prëvïëw sëttïngs. ···⟧</translation>
+    </message>
+    <message>
+      <source>Saving the completed setup.</source>
+      <translation>⟦Sàvïng thë cömplëtëd sëtüp. ···⟧</translation>
     </message>
     <message>
       <source>Saving your remote ComfyUI connection.</source>
@@ -4380,6 +4604,14 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Scaling quality</source>
       <translation>⟦Scàlïng qüàlïty ···⟧</translation>
+    </message>
+    <message>
+      <source>Scanning for SDXL and Anima…</source>
+      <translation>⟦Scànnïng för SDXL ànd Ånïmà… ···⟧</translation>
+    </message>
+    <message>
+      <source>Scanning…</source>
+      <translation>⟦Scànnïng… ···⟧</translation>
     </message>
     <message>
       <source>Scene</source>
@@ -4478,6 +4710,14 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëlëctëd ···⟧</translation>
     </message>
     <message>
+      <source>Selected model files are ready.</source>
+      <translation>⟦Sëlëctëd mödël fïlës àrë rëàdy. ···⟧</translation>
+    </message>
+    <message>
+      <source>Selected models</source>
+      <translation>⟦Sëlëctëd mödëls ···⟧</translation>
+    </message>
+    <message>
       <source>Server endpoint</source>
       <translation>⟦Sërvër ëndpöïnt ···⟧</translation>
     </message>
@@ -4522,6 +4762,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëtüp ···⟧</translation>
     </message>
     <message>
+      <source>Setup choices are ready.</source>
+      <translation>⟦Sëtüp chöïcës àrë rëàdy. ···⟧</translation>
+    </message>
+    <message>
       <source>Setup continues automatically once ComfyUI is closed.</source>
       <translation>⟦Sëtüp cöntïnüës àütömàtïcàlly öncë CömfyÜÏ ïs clösëd. ···⟧</translation>
     </message>
@@ -4546,12 +4790,24 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëtüp ïn prögrëss ···⟧</translation>
     </message>
     <message>
+      <source>Setup is saved and ready.</source>
+      <translation>⟦Sëtüp ïs sàvëd ànd rëàdy. ···⟧</translation>
+    </message>
+    <message>
+      <source>Setup log</source>
+      <translation>⟦Sëtüp lög ···⟧</translation>
+    </message>
+    <message>
       <source>Setup needs attention</source>
       <translation>⟦Sëtüp nëëds àttëntïön ···⟧</translation>
     </message>
     <message>
       <source>Setup needs attention.</source>
       <translation>⟦Sëtüp nëëds àttëntïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>Setup progress appears here. Open the setup log only when you want technical details.</source>
+      <translation>⟦Sëtüp prögrëss àppëàrs hërë. Öpën thë sëtüp lög önly whën yöü wànt tëchnïcàl dëtàïls. ···⟧</translation>
     </message>
     <message>
       <source>Setup state could not be read</source>
@@ -4564,6 +4820,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Setup summary</source>
       <translation>⟦Sëtüp sümmàry ···⟧</translation>
+    </message>
+    <message>
+      <source>Setup task activity</source>
+      <translation>⟦Sëtüp tàsk àctïvïty ···⟧</translation>
     </message>
     <message>
       <source>Setup was interrupted</source>
@@ -4622,6 +4882,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Shöw sàmplër prëvïëw fràmës whïlë CömfyÜÏ ïs gënëràtïng. ···⟧</translation>
     </message>
     <message>
+      <source>Show setup log</source>
+      <translation>⟦Shöw sëtüp lög ···⟧</translation>
+    </message>
+    <message>
       <source>Showing stale catalog</source>
       <translation>⟦Shöwïng stàlë càtàlög ···⟧</translation>
     </message>
@@ -4660,6 +4924,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Size</source>
       <translation>⟦Sïzë ···⟧</translation>
+    </message>
+    <message>
+      <source>Skip %1</source>
+      <translation>⟦Skïp %1 ···⟧</translation>
     </message>
     <message>
       <source>Skip generation</source>
@@ -5018,6 +5286,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sübstïtütë ïs nöt fülly prëpàrëd yët ···⟧</translation>
     </message>
     <message>
+      <source>Substitute is preparing ComfyUI. You can keep this window in the background.</source>
+      <translation>⟦Sübstïtütë ïs prëpàrïng CömfyÜÏ. Yöü càn këëp thïs wïndöw ïn thë bàckgröünd. ···⟧</translation>
+    </message>
+    <message>
       <source>Substitute is ready</source>
       <translation>⟦Sübstïtütë ïs rëàdy ···⟧</translation>
     </message>
@@ -5128,6 +5400,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Substitute will use this local ComfyUI folder, prepare what it needs, and start it for you.</source>
       <translation>⟦Sübstïtütë wïll üsë thïs löcàl CömfyÜÏ földër, prëpàrë whàt ït nëëds, ànd stàrt ït för yöü. ···⟧</translation>
+    </message>
+    <message>
+      <source>Substitute's local runtime is ready.</source>
+      <translation>⟦Sübstïtütë's löcàl rüntïmë ïs rëàdy. ···⟧</translation>
     </message>
     <message>
       <source>Substitute's local runtime settings need repair</source>
@@ -5384,6 +5660,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Tëst cönnëctïön ···⟧</translation>
     </message>
     <message>
+      <source>Text encoder</source>
+      <translation>⟦Tëxt ëncödër ···⟧</translation>
+    </message>
+    <message>
       <source>That Python executable did not work</source>
       <translation>⟦Thàt Pythön ëxëcütàblë dïd nöt wörk ···⟧</translation>
     </message>
@@ -5452,6 +5732,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thë dësktöp nàtïvë Qt fröntënd för CömfyÜÏ ···⟧</translation>
     </message>
     <message>
+      <source>The existing ComfyUI installation is ready.</source>
+      <translation>⟦Thë ëxïstïng CömfyÜÏ ïnstàllàtïön ïs rëàdy. ···⟧</translation>
+    </message>
+    <message>
       <source>The extension is missing a Python dependency.</source>
       <translation>⟦Thë ëxtënsïön ïs mïssïng à Pythön dëpëndëncy. ···⟧</translation>
     </message>
@@ -5508,6 +5792,14 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thë mödël hàs fïnïshëd döwnlöàdïng. ···⟧</translation>
     </message>
     <message>
+      <source>The models folder could not be fully scanned. Try again or choose No.</source>
+      <translation>⟦Thë mödëls földër cöüld nöt bë fülly scànnëd. Try àgàïn ör chöösë Nö. ···⟧</translation>
+    </message>
+    <message>
+      <source>The models folder could not be scanned. Try again or choose No.</source>
+      <translation>⟦Thë mödëls földër cöüld nöt bë scànnëd. Try àgàïn ör chöösë Nö. ···⟧</translation>
+    </message>
+    <message>
       <source>The most powerful and modular diffusion model GUI, api and backend</source>
       <translation>⟦Thë möst pöwërfül ànd mödülàr dïffüsïön mödël GÜÏ, àpï ànd bàckënd ···⟧</translation>
     </message>
@@ -5530,6 +5822,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>The recipe loaded with Cube Library warnings.</source>
       <translation>⟦Thë rëcïpë löàdëd wïth Cübë Lïbràry wàrnïngs. ···⟧</translation>
+    </message>
+    <message>
+      <source>The remote ComfyUI connection is ready.</source>
+      <translation>⟦Thë rëmötë CömfyÜÏ cönnëctïön ïs rëàdy. ···⟧</translation>
     </message>
     <message>
       <source>The requested definition is not available.</source>
@@ -5652,6 +5948,14 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thësë fëàtürës hëlp wïth tàgs, mödël ïnfö, ànd prëvïëw ïmàgë prëfërëncës. Yöü càn chàngë thëm làtër ïn Sëttïngs. ···⟧</translation>
     </message>
     <message>
+      <source>These files will be downloaded only after you confirm setup.</source>
+      <translation>⟦Thësë fïlës wïll bë döwnlöàdëd önly àftër yöü cönfïrm sëtüp. ···⟧</translation>
+    </message>
+    <message>
+      <source>This CivitAI model needs an API key</source>
+      <translation>⟦Thïs CïvïtÅÏ mödël nëëds àn ÅPÏ këy ···⟧</translation>
+    </message>
+    <message>
       <source>This can take a little while the first time.</source>
       <translation>⟦Thïs càn tàkë à lïttlë whïlë thë fïrst tïmë. ···⟧</translation>
     </message>
@@ -5678,6 +5982,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>This is where Substitute will place ComfyUI. Most people can keep the default location.</source>
       <translation>⟦Thïs ïs whërë Sübstïtütë wïll plàcë CömfyÜÏ. Möst pëöplë càn këëp thë dëfàült löcàtïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>This models folder does not have enough free space for the selected downloads.</source>
+      <translation>⟦Thïs mödëls földër döës nöt hàvë ënöügh frëë spàcë för thë sëlëctëd döwnlöàds. ···⟧</translation>
     </message>
     <message>
       <source>This recipe uses a model that is not available in your current ComfyUI model folders. Turn on CivitAI model lookup in Settings to search for it.</source>
@@ -6100,6 +6408,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Vërsïön: %1 ···⟧</translation>
     </message>
     <message>
+      <source>View %1 on CivitAI</source>
+      <translation>⟦Vïëw %1 ön CïvïtÅÏ ···⟧</translation>
+    </message>
+    <message>
       <source>View ComfyUI startup diagnostics</source>
       <translation>⟦Vïëw CömfyÜÏ stàrtüp dïàgnöstïcs ···⟧</translation>
     </message>
@@ -6276,10 +6588,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Yöü càn clösë ït yöürsëlf ör àsk Sübstïtütë tö clösë à vërïfïëd pröcëss. ···⟧</translation>
     </message>
     <message>
-      <source>You can follow the live output below while setup runs.</source>
-      <translation>⟦Yöü càn föllöw thë lïvë öütpüt bëlöw whïlë sëtüp rüns. ···⟧</translation>
-    </message>
-    <message>
       <source>You can retry shutdown or close Substitute anyway.</source>
       <translation>⟦Yöü càn rëtry shütdöwn ör clösë Sübstïtütë ànywày. ···⟧</translation>
     </message>
@@ -6310,6 +6618,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Your recovery save could not be completed, so generation was not started.</source>
       <translation>⟦Yöür rëcövëry sàvë cöüld nöt bë cömplëtëd, sö gënëràtïön wàs nöt stàrtëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Your reviewed download plan is still selected. Add a CivitAI API key, then try setup again.</source>
+      <translation>⟦Yöür rëvïëwëd döwnlöàd plàn ïs stïll sëlëctëd. Ådd à CïvïtÅÏ ÅPÏ këy, thën try sëtüp àgàïn. ···⟧</translation>
     </message>
     <message>
       <source>Your setup has been saved. Review the summary below, then open Substitute or close this window if a restart is needed.</source>

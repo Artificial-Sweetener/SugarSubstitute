@@ -54,6 +54,9 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/app/bootstrap/launch_splash.py": frozenset(
         {"threading.Event", "threading.Lock"}
     ),
+    "substitute/infrastructure/onboarding/setup_transcript.py": frozenset(
+        {"threading.Lock"}
+    ),
     "substitute/app/bootstrap/lifecycle.py": frozenset({"threading.Lock"}),
     "substitute/app/bootstrap/managed_comfy_runtime_owner.py": frozenset(
         {"threading.Lock"}
@@ -145,6 +148,7 @@ LONG_LIVED_HANDLE_CONSTRUCTOR_FILES = {
     ),
 }
 WORKER_TERMINOLOGY_FILE_REASONS = {
+    "substitute/app/bootstrap/execution_lane_configs.py": "lane configuration declares concrete thread-pool capacity and thread names",
     "substitute/app/bootstrap/execution_runtime.py": "runtime lane configuration maps logical lanes to concrete thread pools",
     "substitute/infrastructure/execution/thread_pool_lane.py": "concrete thread-pool adapter owns worker-thread implementation details",
     "substitute/infrastructure/execution/thread_pool_admission.py": "physical bounded-admission adapter owns its worker-thread implementation",

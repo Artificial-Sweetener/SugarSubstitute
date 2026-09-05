@@ -23,7 +23,7 @@ from urllib.parse import parse_qs, urlparse
 
 from sugarsubstitute_shared.model_discovery import (
     CivitaiDiscoveryClient,
-    ModelCategory,
+    ModelArtifactKind,
 )
 
 
@@ -87,7 +87,7 @@ def test_client_requests_monthly_popularity_and_parses_safe_primary_file() -> No
     models = CivitaiDiscoveryClient(
         fetch_json=fetch,
         api_key_provider=lambda: "secret-key",
-    ).discover_monthly_popular(ModelCategory.CHECKPOINTS, limit=30)
+    ).discover_monthly_popular(ModelArtifactKind.CHECKPOINTS, limit=30)
 
     query = parse_qs(urlparse(calls[0][0]).query)
     assert query == {
@@ -147,7 +147,7 @@ def test_client_filters_archived_nsfw_bad_scan_hash_format_and_host() -> None:
         }
     )
 
-    models = client.discover_monthly_popular(ModelCategory.CHECKPOINTS, limit=30)
+    models = client.discover_monthly_popular(ModelArtifactKind.CHECKPOINTS, limit=30)
 
     assert [model.model_id for model in models] == [8]
     assert models[0].provider_rank == 8
@@ -166,6 +166,6 @@ def test_client_omits_thumbnail_unless_image_is_explicitly_safe() -> None:
         fetch_json=lambda *_args, **_kwargs: {"items": [model]}
     )
 
-    candidates = client.discover_monthly_popular(ModelCategory.CHECKPOINTS, limit=1)
+    candidates = client.discover_monthly_popular(ModelArtifactKind.CHECKPOINTS, limit=1)
 
     assert candidates[0].thumbnail_url is None

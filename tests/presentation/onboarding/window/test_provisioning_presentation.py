@@ -46,7 +46,7 @@ def test_onboarding_window_shows_completion_page_after_provisioning(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Provisioning completion should enable the completion review step."""
+    """Provisioning completion should route directly to its finished summary."""
 
     ensure_qt_application()
     monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
@@ -67,7 +67,8 @@ def test_onboarding_window_shows_completion_page_after_provisioning(
 
     window._show_page(OnboardingPageId.PROVISIONING)
 
-    assert window.primary_button.text() == "Review setup"
+    assert window._current_page is OnboardingPageId.COMPLETION
+    assert window.primary_button.text() == "Close"
     assert window.completion_page.command_surface.isHidden() is False
     assert "python main.py" == window.completion_page.command_label.text()
     assert window.completion_page.hero_panel.title_label.text() == "Substitute is ready"
@@ -263,7 +264,7 @@ def test_provisioning_live_output_stays_inside_status_panel(
 ) -> None:
     """Setup live output should remain bounded inside the status card."""
 
-    ensure_qt_application()
+    application = ensure_qt_application()
     monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
@@ -280,22 +281,29 @@ def test_provisioning_live_output_stays_inside_status_panel(
         )
     )
     window.resize(1220, 900)
-    window._show_page(OnboardingPageId.PROVISIONING)
+    window._current_page = OnboardingPageId.PROVISIONING
+    window.page_stack.setCurrentWidget(window.provisioning_page)
+    window._refresh_current_page_height()
+    window.provisioning_page.set_model_download_progress(
+        completed_bytes=1024,
+        total_bytes=2048,
+        current_item="Test model",
+    )
     window.provisioning_page.append_log(
         "Downloading torch-2.14.0.dev20260620%2Bcu130-cp312-cp312-win_amd64.whl "
         "(1969.5 MB)"
     )
+    assert window.provisioning_page.details_container.isHidden() is True
     window.show()
+    application.processEvents()
     activate_widget_layouts(
         window,
         window.page_stack,
         window.provisioning_page,
         window.provisioning_page.status_panel,
-        window.provisioning_page.details_surface,
     )
 
     status_panel = window.provisioning_page.status_panel
-    details_surface = window.provisioning_page.details_surface
     status_layout = status_panel.layout()
     assert status_layout is not None
     status_margins = status_layout.contentsMargins()
@@ -305,14 +313,37 @@ def test_provisioning_live_output_stays_inside_status_panel(
         -status_margins.right(),
         -status_margins.bottom(),
     )
-
-    assert status_contents.contains(details_surface.geometry().topLeft())
-    assert status_contents.contains(details_surface.geometry().bottomRight())
-    assert details_surface.contentsRect().contains(
-        details_surface.log_view.geometry().topLeft()
+    assert status_contents.contains(
+        window.provisioning_page.show_log_button.geometry().bottomRight()
     )
-    assert details_surface.contentsRect().contains(
-        details_surface.log_view.geometry().bottomRight()
+
+    window.provisioning_page.show_log_button.click()
+    application.processEvents()
+    activate_widget_layouts(
+        window,
+        window.page_stack,
+        window.provisioning_page,
+        window.provisioning_page.status_panel,
+        window.provisioning_page.details_container,
+        window.provisioning_page.details_surface,
+    )
+
+    details_surface = window.provisioning_page.details_surface
+    status_contents = status_panel.rect().adjusted(
+        status_margins.left(),
+        status_margins.top(),
+        -status_margins.right(),
+        -status_margins.bottom(),
+    )
+
+    details_container = window.provisioning_page.details_container
+    assert status_contents.contains(details_container.geometry().topLeft())
+    assert status_contents.contains(details_container.geometry().bottomRight())
+    assert details_container.contentsRect().contains(
+        details_surface.geometry().topLeft()
+    )
+    assert details_container.contentsRect().contains(
+        details_surface.geometry().bottomRight()
     )
 
     window._emit_close_requested_on_close = False

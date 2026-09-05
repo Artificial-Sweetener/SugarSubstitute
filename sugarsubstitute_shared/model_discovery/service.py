@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Coordinate reusable model onboarding planning and checked acquisition."""
+"""Coordinate discovery and checked acquisition for an empty model picker."""
 
 from __future__ import annotations
 
@@ -27,55 +27,35 @@ if TYPE_CHECKING:
         CancellationProbe,
         ModelAcquisitionService,
     )
+
 from sugarsubstitute_shared.model_discovery.models import (
-    CubeModelCapability,
-    ModelCategory,
+    ModelArtifactKind,
     ModelDiscoveryCard,
     ModelDiscoveryPlan,
-    ModelOnboardingEligibility,
 )
-from sugarsubstitute_shared.model_discovery.planner import ModelDiscoveryPlanner
+from sugarsubstitute_shared.model_discovery.planner import (
+    EmptyPickerModelDiscoveryPlanner,
+)
 
 
-class ModelOnboardingService:
-    """Coordinate gating, popular cards, picker reuse, and checked acquisitions."""
+class EmptyPickerModelDiscoveryService:
+    """Coordinate empty-picker recommendations and verified acquisitions."""
 
     def __init__(
         self,
         *,
-        planner: ModelDiscoveryPlanner,
+        planner: EmptyPickerModelDiscoveryPlanner,
         acquisition: ModelAcquisitionService,
     ) -> None:
-        """Store shared planning and verified acquisition owners."""
+        """Store the planning and verified-acquisition owners."""
 
         self._planner = planner
         self._acquisition = acquisition
 
-    def assess(
-        self,
-        capabilities: Collection[CubeModelCapability],
-    ) -> ModelOnboardingEligibility:
-        """Return whether installer onboarding should be offered."""
+    def plan_empty_picker(self, artifact_kind: ModelArtifactKind) -> ModelDiscoveryPlan:
+        """Return safe provider cards for one empty artifact picker."""
 
-        return self._planner.assess_installer(capabilities)
-
-    def plan(
-        self,
-        capabilities: Collection[CubeModelCapability],
-        *,
-        selected_categories: Collection[ModelCategory],
-    ) -> ModelDiscoveryPlan:
-        """Return unchecked safe cards for explicitly selected interests."""
-
-        return self._planner.plan_installer(
-            capabilities,
-            selected_categories=selected_categories,
-        )
-
-    def plan_empty_picker(self, category: ModelCategory) -> ModelDiscoveryPlan:
-        """Return the same safe cards when one picker has no local choices."""
-
-        return self._planner.plan_empty_picker(category)
+        return self._planner.plan_empty_picker(artifact_kind)
 
     def download_selected(
         self,
@@ -108,7 +88,7 @@ def model_card_identity(card: ModelDiscoveryCard) -> str:
     """Return a collision-resistant identity for one exact provider version."""
 
     model = card.model
-    return f"{model.category.value}:{model.model_id}:{model.version_id}:{model.sha256}"
+    return f"{model.artifact_kind.value}:{model.model_id}:{model.version_id}:{model.sha256}"
 
 
-__all__ = ["ModelOnboardingService", "model_card_identity"]
+__all__ = ["EmptyPickerModelDiscoveryService", "model_card_identity"]
