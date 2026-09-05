@@ -185,16 +185,15 @@ class ManagedRuntimeSummaryPanel(QFrame):
         self.edge_torch_checkbox = LocalizedCheckBox(
             app_text("Try preview Torch builds"), self
         )
-        choices_layout = QHBoxLayout()
+        choices_layout = QVBoxLayout()
         choices_layout.setContentsMargins(0, 0, 0, 0)
-        choices_layout.setSpacing(18)
+        choices_layout.setSpacing(5)
         for checkbox in (
             self.force_cpu_checkbox,
             self.edge_channel_checkbox,
             self.edge_torch_checkbox,
         ):
             choices_layout.addWidget(checkbox)
-        choices_layout.addStretch(1)
         self.content_layout.addLayout(choices_layout)
 
     def update_summary(

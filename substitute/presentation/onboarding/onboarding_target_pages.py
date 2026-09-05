@@ -30,6 +30,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
+    QHBoxLayout,
     QVBoxLayout,
     QWidget,
 )
@@ -218,9 +219,9 @@ class ManagedLocalPage(OnboardingPageFrame):
             alignment=Qt.AlignmentFlag.AlignLeft,
         )
         self.advanced_content = QWidget(self)
-        advanced_layout = QVBoxLayout(self.advanced_content)
+        advanced_layout = QHBoxLayout(self.advanced_content)
         advanced_layout.setContentsMargins(0, 0, 0, 0)
-        advanced_layout.setSpacing(10)
+        advanced_layout.setSpacing(12)
         self.connection_content = QFrame(self.advanced_content)
         self.connection_content.setObjectName("OnboardingInfoPanel")
         connection_layout = QVBoxLayout(self.connection_content)
@@ -234,8 +235,8 @@ class ManagedLocalPage(OnboardingPageFrame):
         connection_layout.addLayout(
             build_endpoint_row(fields=endpoint_fields, parent=self.connection_content)
         )
-        advanced_layout.addWidget(self.connection_content)
-        advanced_layout.addWidget(self.runtime_summary_panel)
+        advanced_layout.addWidget(self.connection_content, 1)
+        advanced_layout.addWidget(self.runtime_summary_panel, 1)
         self.advanced_content.hide()
         self.body_layout.setSpacing(6)
         self.body_layout.addWidget(self.settings_section)
