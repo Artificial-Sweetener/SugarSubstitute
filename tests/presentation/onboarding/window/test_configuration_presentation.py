@@ -23,7 +23,7 @@ from typing import cast
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLineEdit
+from PySide6.QtWidgets import QDialog, QLineEdit
 
 from substitute.presentation.onboarding.onboarding_controller import (
     OnboardingController,
@@ -363,7 +363,7 @@ def test_onboarding_window_renders_managed_runtime_summary(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Keep expert runtime controls in a bounded, non-reflowing surface."""
+    """Keep expert runtime controls inline without creating another window."""
 
     application = ensure_qt_application()
     monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
@@ -397,20 +397,45 @@ def test_onboarding_window_renders_managed_runtime_summary(
     window._show_page(OnboardingPageId.MANAGED_LOCAL)
     window.show()
     application.processEvents()
-    collapsed_height = window.page_stack.height()
     stable_stage_geometry = window.page_stage.geometry()
     stable_footer_geometry = window.footer_row.geometry()
+    assert window.managed_local_page.advanced_content.isHidden()
     window.managed_local_page.advanced_button.click()
     application.processEvents()
-    dialog = window.managed_local_page.connection_settings_dialog
-    assert dialog.isVisible()
-    assert window.managed_local_page.advanced_button.text() == "Advanced settings"
-    assert window.page_stack.height() == collapsed_height
+    assert not window.managed_local_page.advanced_content.isHidden()
+    assert window.managed_local_page.advanced_button.text() == "Hide advanced settings"
+    assert window.findChild(QDialog, "OnboardingConnectionSettingsDialog") is None
+    assert (
+        window.managed_local_page.connection_content.objectName()
+        == "OnboardingInfoPanel"
+    )
+    assert (
+        window.managed_local_page.runtime_summary_panel.objectName()
+        == "OnboardingInfoPanel"
+    )
+    advanced_gap = (
+        window.managed_local_page.runtime_summary_panel.geometry().top()
+        - window.managed_local_page.connection_content.geometry().bottom()
+    )
+    assert 0 <= advanced_gap <= 16
+    host_top = window.managed_local_page.host_edit.mapTo(
+        window, window.managed_local_page.host_edit.rect().topLeft()
+    ).y()
+    port_top = window.managed_local_page.port_spinbox.mapTo(
+        window, window.managed_local_page.port_spinbox.rect().topLeft()
+    ).y()
+    assert port_top == host_top
+    assert (
+        window.managed_local_page.port_spinbox.height()
+        == window.managed_local_page.host_edit.height()
+    )
     assert window.page_stage.geometry() == stable_stage_geometry
     assert window.footer_row.geometry() == stable_footer_geometry
     assert window.page_stage.verticalScrollBar().maximum() == 0
-    assert dialog.width() <= window.width()
-    assert dialog.height() <= window.height()
+    assert window.page_stage.verticalScrollBarPolicy() is (
+        Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    )
+    assert window.page_stage.verticalScrollBar().isHidden()
 
     assert (
         "Windows NVIDIA"
@@ -428,11 +453,11 @@ def test_onboarding_window_renders_managed_runtime_summary(
         window.managed_local_page.runtime_summary_panel.edge_torch_checkbox.isChecked()
         is True
     )
-    dialog.accept()
+    window.managed_local_page.advanced_button.click()
     application.processEvents()
-    assert dialog.isHidden()
+    assert window.managed_local_page.advanced_content.isHidden()
+    assert window.managed_local_page.advanced_button.text() == "Advanced settings"
     assert window.page_stage.verticalScrollBar().maximum() == 0
-    assert window.page_stack.height() == collapsed_height
     assert window.page_stage.geometry() == stable_stage_geometry
     assert window.footer_row.geometry() == stable_footer_geometry
     window._emit_close_requested_on_close = False

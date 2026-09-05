@@ -750,7 +750,7 @@ kind = "remediation"
 justification = "The assessed file mixes shared installer-shell composition and drag routing, page navigation and route-dependent action state, draft, issue, completion, and model-flow interaction routing, and preflight and attached Python recovery interaction routing. Extract page-navigation and route-action coordination from shell composition and environment recovery interactions."
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
-max_lines = 1136
+max_lines = 1135
 next_limit = 900
 debt = "SS-ARCH-068"
 

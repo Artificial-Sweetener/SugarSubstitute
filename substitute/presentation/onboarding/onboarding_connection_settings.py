@@ -14,30 +14,27 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Present bounded expert connection and managed-runtime settings."""
+"""Build inline connection and managed-runtime settings."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 from qfluentwidgets import LineEdit  # type: ignore[import-untyped]
 
 from sugarsubstitute_shared.localization import app_text
 from sugarsubstitute_shared.presentation.localization import (
     set_localized_text,
-    set_localized_window_title,
 )
 from substitute.presentation.localization import (
     LocalizedBodyLabel,
     LocalizedCaptionLabel,
     LocalizedCheckBox,
-    LocalizedPushButton,
 )
 from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingFieldBlock,
-    OnboardingSectionPanel,
 )
 from substitute.presentation.widgets.spin_box import SpinBox
 
@@ -86,6 +83,7 @@ def build_endpoint_fields(parent: QWidget) -> TargetEndpointFields:
     port_spinbox = SpinBox(parent)
     port_spinbox.setRange(1, 65535)
     port_spinbox.setValue(8188)
+    port_spinbox.setFixedHeight(host_edit.height())
     return TargetEndpointFields(host_edit=host_edit, port_spinbox=port_spinbox)
 
 
@@ -105,6 +103,7 @@ def build_endpoint_row(*, fields: TargetEndpointFields, parent: QWidget) -> QHBo
             parent=parent,
         ),
         2,
+        Qt.AlignmentFlag.AlignTop,
     )
     row.addWidget(
         OnboardingFieldBlock(
@@ -116,19 +115,22 @@ def build_endpoint_row(*, fields: TargetEndpointFields, parent: QWidget) -> QHBo
             parent=parent,
         ),
         1,
+        Qt.AlignmentFlag.AlignTop,
     )
     return row
 
 
-class ManagedRuntimeSummaryPanel(OnboardingSectionPanel):
-    """Separate detected setup facts from explicit expert overrides."""
+class ManagedRuntimeSummaryPanel(QFrame):
+    """Present detected setup facts and explicit expert overrides inline."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build a concise detected summary followed by explained choices."""
 
         super().__init__(parent)
-        self.setObjectName("ManagedRuntimeSummaryPanel")
-        self.content_layout.setSpacing(7)
+        self.setObjectName("OnboardingInfoPanel")
+        self.content_layout = QVBoxLayout(self)
+        self.content_layout.setContentsMargins(18, 8, 18, 8)
+        self.content_layout.setSpacing(5)
 
         detected_title = LocalizedBodyLabel(app_text("Detected setup"), self)
         detected_title.setObjectName("OnboardingInfoTitle")
@@ -167,7 +169,6 @@ class ManagedRuntimeSummaryPanel(OnboardingSectionPanel):
 
         choices_title = LocalizedBodyLabel(app_text("Performance and updates"), self)
         choices_title.setObjectName("OnboardingInfoTitle")
-        self.content_layout.addSpacing(5)
         self.content_layout.addWidget(choices_title)
         choices_description = LocalizedCaptionLabel(
             app_text("Change these only when you need a different runtime strategy."),
@@ -184,12 +185,17 @@ class ManagedRuntimeSummaryPanel(OnboardingSectionPanel):
         self.edge_torch_checkbox = LocalizedCheckBox(
             app_text("Try preview Torch builds"), self
         )
+        choices_layout = QHBoxLayout()
+        choices_layout.setContentsMargins(0, 0, 0, 0)
+        choices_layout.setSpacing(18)
         for checkbox in (
             self.force_cpu_checkbox,
             self.edge_channel_checkbox,
             self.edge_torch_checkbox,
         ):
-            self.content_layout.addWidget(checkbox)
+            choices_layout.addWidget(checkbox)
+        choices_layout.addStretch(1)
+        self.content_layout.addLayout(choices_layout)
 
     def update_summary(
         self,
@@ -277,101 +283,7 @@ class ManagedRuntimeSummaryPanel(OnboardingSectionPanel):
         )
 
 
-class ConnectionSettingsDialog(QDialog):
-    """Keep expert connection settings bounded outside the centered main page."""
-
-    def __init__(
-        self,
-        *,
-        managed_runtime: bool,
-        parent: QWidget,
-    ) -> None:
-        """Build one focused connection dialog, optionally with runtime choices."""
-
-        super().__init__(parent)
-        self.setObjectName("OnboardingConnectionSettingsDialog")
-        self.setWindowModality(Qt.WindowModality.WindowModal)
-        set_localized_window_title(
-            self,
-            "Advanced ComfyUI settings" if managed_runtime else "Connection settings",
-        )
-        self.resize(820, 560 if managed_runtime else 330)
-        self.setMinimumSize(720, 500 if managed_runtime else 300)
-        self.setMaximumSize(920, 660 if managed_runtime else 390)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 22, 24, 20)
-        layout.setSpacing(14)
-        title = LocalizedBodyLabel(
-            app_text(
-                "Advanced ComfyUI settings"
-                if managed_runtime
-                else "Connection settings"
-            ),
-            self,
-        )
-        title.setObjectName("OnboardingDialogTitle")
-        layout.addWidget(title)
-        description = LocalizedCaptionLabel(
-            app_text(
-                "Review the detected setup or change expert connection and runtime choices."
-                if managed_runtime
-                else "Change the address Substitute uses for this ComfyUI setup."
-            ),
-            self,
-        )
-        description.setObjectName("OnboardingInfoDescription")
-        description.setWordWrap(True)
-        layout.addWidget(description)
-
-        endpoint_section = OnboardingSectionPanel(self)
-        endpoint_title = LocalizedBodyLabel(app_text("Connection"), self)
-        endpoint_title.setObjectName("OnboardingInfoTitle")
-        endpoint_section.content_layout.addWidget(endpoint_title)
-        fields = build_endpoint_fields(self)
-        self.host_edit = fields.host_edit
-        self.port_spinbox = fields.port_spinbox
-        endpoint_section.content_layout.addLayout(
-            build_endpoint_row(fields=fields, parent=endpoint_section)
-        )
-        layout.addWidget(endpoint_section)
-
-        self.runtime_summary_panel: ManagedRuntimeSummaryPanel | None = None
-        if managed_runtime:
-            self.runtime_summary_panel = ManagedRuntimeSummaryPanel(self)
-            layout.addWidget(self.runtime_summary_panel)
-        layout.addStretch(1)
-
-        actions = QHBoxLayout()
-        actions.addStretch(1)
-        done_button = LocalizedPushButton(app_text("Done"), self)
-        done_button.setObjectName("OnboardingConnectionSettingsDoneButton")
-        done_button.clicked.connect(self.accept)
-        actions.addWidget(done_button)
-        layout.addLayout(actions)
-
-    def present(self) -> None:
-        """Show the retained dialog centered over the installer window."""
-
-        parent = self.parentWidget()
-        if parent is None:
-            self.show()
-            return
-        host_window = parent.window()
-        root = host_window.findChild(QWidget, "OnboardingRoot")
-        if root is not None:
-            self.setFont(root.font())
-            self.setStyleSheet(root.styleSheet())
-        frame = self.frameGeometry()
-        frame.moveCenter(host_window.frameGeometry().center())
-        self.move(frame.topLeft())
-        self.show()
-        self.raise_()
-        self.activateWindow()
-
-
 __all__ = [
-    "ConnectionSettingsDialog",
     "ManagedRuntimeSummaryPanel",
     "TargetEndpointFields",
     "build_endpoint_fields",

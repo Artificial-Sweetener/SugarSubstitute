@@ -34,7 +34,6 @@ def build_onboarding_style_sheet() -> str:
     warning_rgb = f"{warning.red()}, {warning.green()}, {warning.blue()}"
     wash_rgb = "255, 255, 255" if isDarkTheme() else "0, 0, 0"
     text_rgb = "255, 255, 255" if isDarkTheme() else "0, 0, 0"
-    dialog_rgb = "30, 30, 30" if isDarkTheme() else "249, 249, 249"
     return (
         """
         QWidget#OnboardingRoot,
@@ -42,10 +41,6 @@ def build_onboarding_style_sheet() -> str:
         QFrame#OnboardingContentPanel {
             background-color: transparent;
             border: none;
-        }
-        QDialog#OnboardingConnectionSettingsDialog,
-        QDialog#OnboardingSetupLogDialog {
-            background-color: rgb(__DIALOG_RGB__);
         }
         QFrame#OnboardingIdentityRail {
             background-color: transparent;
@@ -75,7 +70,6 @@ def build_onboarding_style_sheet() -> str:
         }
         QFrame#OnboardingInfoPanel,
         QFrame#OnboardingModeSummaryPanel,
-        QFrame#ManagedRuntimeSummaryPanel,
         QFrame#OnboardingStatusPanel {
             background-color: rgba(__WASH_RGB__, 0.035);
             border: 1px solid rgba(__WASH_RGB__, 0.065);
@@ -105,6 +99,15 @@ def build_onboarding_style_sheet() -> str:
             background-color: rgba(__WASH_RGB__, 0.028);
             border: 1px solid rgba(__WASH_RGB__, 0.07);
             border-radius: 18px;
+        }
+        QFrame#OnboardingRecommendationAlternative {
+            background-color: rgba(__WASH_RGB__, 0.028);
+            border: 1px solid rgba(__WASH_RGB__, 0.07);
+            border-radius: 14px;
+        }
+        QFrame#OnboardingRecommendationAlternative[selected="true"] {
+            background-color: rgba(__ACCENT_RGB__, 0.10);
+            border: 1px solid rgba(__ACCENT_RGB__, 0.55);
         }
         QFrame#OnboardingRecommendationLoadingCard {
             background-color: rgba(__WASH_RGB__, 0.022);
@@ -227,7 +230,6 @@ def build_onboarding_style_sheet() -> str:
         .replace("__WARNING_RGB__", warning_rgb)
         .replace("__WASH_RGB__", wash_rgb)
         .replace("__TEXT_RGB__", text_rgb)
-        .replace("__DIALOG_RGB__", dialog_rgb)
     )
 
 

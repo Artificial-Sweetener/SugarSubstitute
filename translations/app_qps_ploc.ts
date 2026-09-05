@@ -414,10 +414,6 @@ Prömpt prëvïëw:
       <translation>⟦Ådjüst wëïghtëd prömpt tëxt ànd shöw ëmphàsïs cöntröls. ···⟧</translation>
     </message>
     <message>
-      <source>Advanced ComfyUI settings</source>
-      <translation>⟦Ådvàncëd CömfyÜÏ sëttïngs ···⟧</translation>
-    </message>
-    <message>
       <source>Advanced settings</source>
       <translation>⟦Ådvàncëd sëttïngs ···⟧</translation>
     </message>
@@ -686,10 +682,6 @@ Prömpt prëvïëw:
       <translation>⟦Chàngë cànvàs rësölütïön ···⟧</translation>
     </message>
     <message>
-      <source>Change the address Substitute uses for this ComfyUI setup.</source>
-      <translation>⟦Chàngë thë àddrëss Sübstïtütë üsës för thïs CömfyÜÏ sëtüp. ···⟧</translation>
-    </message>
-    <message>
       <source>Change the colors that appear in Substitute.</source>
       <translation>⟦Chàngë thë cölörs thàt àppëàr ïn Sübstïtütë. ···⟧</translation>
     </message>
@@ -822,16 +814,16 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë à földër ···⟧</translation>
     </message>
     <message>
-      <source>Choose a model to download, skip this family, or find your own models.</source>
-      <translation>⟦Chöösë à mödël tö döwnlöàd, skïp thïs fàmïly, ör fïnd yöür öwn mödëls. ···⟧</translation>
-    </message>
-    <message>
       <source>Choose a models folder before reviewing downloads.</source>
       <translation>⟦Chöösë à mödëls földër bëförë rëvïëwïng döwnlöàds. ···⟧</translation>
     </message>
     <message>
       <source>Choose a new size for the Input canvas and its masks</source>
       <translation>⟦Chöösë à nëw sïzë för thë Ïnpüt cànvàs ànd ïts màsks ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose a recommended model or tell Substitute that you will provide your own.</source>
+      <translation>⟦Chöösë à rëcömmëndëd mödël ör tëll Sübstïtütë thàt yöü wïll prövïdë yöür öwn. ···⟧</translation>
     </message>
     <message>
       <source>Choose a shorter folder for this operation.</source>
@@ -1590,6 +1582,10 @@ Prömpt prëvïëw:
       <translation>⟦Cöntïnüë sëtüp tö fïnïsh vàlïdàtïng thë sëlëctëd CömfyÜÏ rüntïmë. ···⟧</translation>
     </message>
     <message>
+      <source>Continue without downloading a model for this family.</source>
+      <translation>⟦Cöntïnüë wïthöüt döwnlöàdïng à mödël för thïs fàmïly. ···⟧</translation>
+    </message>
+    <message>
       <source>Continuous</source>
       <translation>⟦Cöntïnüöüs ···⟧</translation>
     </message>
@@ -1968,10 +1964,6 @@ Install these nodes now?</source>
     <message>
       <source>Don't save outputs</source>
       <translation>⟦Dön't sàvë öütpüts ···⟧</translation>
-    </message>
-    <message>
-      <source>Done</source>
-      <translation>⟦Dönë ···⟧</translation>
     </message>
     <message>
       <source>Download</source>
@@ -2526,6 +2518,14 @@ Install these nodes now?</source>
       <translation>⟦Hïdë Füll Qüëüë Pànël ···⟧</translation>
     </message>
     <message>
+      <source>Hide advanced settings</source>
+      <translation>⟦Hïdë àdvàncëd sëttïngs ···⟧</translation>
+    </message>
+    <message>
+      <source>Hide connection settings</source>
+      <translation>⟦Hïdë cönnëctïön sëttïngs ···⟧</translation>
+    </message>
+    <message>
       <source>Hide details</source>
       <translation>⟦Hïdë dëtàïls ···⟧</translation>
     </message>
@@ -2540,6 +2540,10 @@ Install these nodes now?</source>
     <message>
       <source>Hide report</source>
       <translation>⟦Hïdë rëpört ···⟧</translation>
+    </message>
+    <message>
+      <source>Hide setup log</source>
+      <translation>⟦Hïdë sëtüp lög ···⟧</translation>
     </message>
     <message>
       <source>High-performance PySide6 image viewer</source>
@@ -2558,8 +2562,8 @@ Install these nodes now?</source>
       <translation>⟦Höst cànnöt bë blànk. ···⟧</translation>
     </message>
     <message>
-      <source>I'll find my own models</source>
-      <translation>⟦Ï'll fïnd my öwn mödëls ···⟧</translation>
+      <source>I'll provide my own %1 model</source>
+      <translation>⟦Ï'll prövïdë my öwn %1 mödël ···⟧</translation>
     </message>
     <message>
       <source>If the folder already contains a partial install, delete it before retrying.</source>
@@ -4330,10 +4334,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rëvïëw thë dëtàïls bëlöw, fïx thë rëpörtëd ïssüë, ànd try àgàïn. ···⟧</translation>
     </message>
     <message>
-      <source>Review the detected setup or change expert connection and runtime choices.</source>
-      <translation>⟦Rëvïëw thë dëtëctëd sëtüp ör chàngë ëxpërt cönnëctïön ànd rüntïmë chöïcës. ···⟧</translation>
-    </message>
-    <message>
       <source>Review the existing ComfyUI folder and local address, then try again.</source>
       <translation>⟦Rëvïëw thë ëxïstïng CömfyÜÏ földër ànd löcàl àddrëss, thën try àgàïn. ···⟧</translation>
     </message>
@@ -4860,10 +4860,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Size</source>
       <translation>⟦Sïzë ···⟧</translation>
-    </message>
-    <message>
-      <source>Skip %1</source>
-      <translation>⟦Skïp %1 ···⟧</translation>
     </message>
     <message>
       <source>Skip generation</source>
@@ -5534,10 +5530,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Technical detail</source>
       <translation>⟦Tëchnïcàl dëtàïl ···⟧</translation>
-    </message>
-    <message>
-      <source>Technical setup details update here while the installer works.</source>
-      <translation>⟦Tëchnïcàl sëtüp dëtàïls üpdàtë hërë whïlë thë ïnstàllër wörks. ···⟧</translation>
     </message>
     <message>
       <source>Test</source>

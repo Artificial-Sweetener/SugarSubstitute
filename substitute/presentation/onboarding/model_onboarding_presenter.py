@@ -99,8 +99,7 @@ class ModelOnboardingPresenter:
         )
         recommendation_page.selection_changed.connect(self._set_version_selected)
         recommendation_page.link_requested.connect(self._open_model_page)
-        recommendation_page.skip_family_requested.connect(self._skip_current_family)
-        recommendation_page.find_own_requested.connect(self._find_own_models)
+        recommendation_page.own_model_changed.connect(self._set_use_own_model)
         review_page.remove_requested.connect(self._remove_review_model)
         if coordinator is not None:
             coordinator.scan_finished.connect(self._scan_finished)
@@ -154,7 +153,10 @@ class ModelOnboardingPresenter:
             if self._recommendation_failed:
                 self._load_recommendations(self._session.state.missing_families)
                 return True
-            if not self._session.current_family_has_selection():
+            if not (
+                self._session.current_family_has_selection()
+                or self._session.current_family_is_declined()
+            ):
                 return True
             self._advance_recommendation_page()
             return True
@@ -250,9 +252,6 @@ class ModelOnboardingPresenter:
 
         missing_families = self._session.select_missing_families(detected_families)
         if not missing_families:
-            self._navigate(OnboardingPageId.INTEGRATIONS)
-            return
-        if self._session.state.remaining_recommendations_declined:
             self._navigate(OnboardingPageId.INTEGRATIONS)
             return
         if self._session.has_loaded_recommendations():
@@ -375,22 +374,16 @@ class ModelOnboardingPresenter:
         self._primary_button.setEnabled(True)
         self._refresh_height()
 
-    def _skip_current_family(self) -> None:
-        """Discard this family and advance to the next missing family."""
+    def _set_use_own_model(self, selected: bool) -> None:
+        """Store the explicit no-download choice and keep it exclusive with cards."""
 
-        self._session.clear_current_family_selection()
-        self._advance_recommendation_page()
-
-    def _find_own_models(self) -> None:
-        """Skip every remaining recommendation page while retaining prior choices."""
-
-        if self._coordinator is not None:
-            self._coordinator.cancel()
-        self._waiting_for_recommendations = False
-        self._recommendation_failed = False
-        self._session.clear_current_family_selection()
-        self._session.decline_remaining_recommendations()
-        self._finish_recommendations()
+        self._session.set_current_family_declined(selected)
+        if selected:
+            self._recommendation_page.clear_model_selections()
+        self._primary_button.setEnabled(
+            self._session.current_family_has_selection()
+            or self._session.current_family_is_declined()
+        )
 
     def _advance_recommendation_page(self) -> None:
         """Advance to the next missing family or finish recommendation selection."""
@@ -421,16 +414,23 @@ class ModelOnboardingPresenter:
         self._recommendation_page.set_recommendations(
             page,
             selected_version_ids=state.selected_version_ids,
+            use_own_model=self._session.current_family_is_declined(),
         )
-        self._primary_button.setEnabled(self._session.current_family_has_selection())
+        self._primary_button.setEnabled(
+            self._session.current_family_has_selection()
+            or self._session.current_family_is_declined()
+        )
         self._refresh_height()
 
     def _set_version_selected(self, version_id: int, selected: bool) -> None:
         """Retain one exact-version selection and update the Continue gate."""
 
         if self._session.set_version_selected(version_id, selected):
+            if selected:
+                self._recommendation_page.clear_own_model_choice()
             self._primary_button.setEnabled(
                 self._session.current_family_has_selection()
+                or self._session.current_family_is_declined()
             )
 
     def _render_review(self) -> None:

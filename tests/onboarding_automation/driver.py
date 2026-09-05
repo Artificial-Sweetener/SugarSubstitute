@@ -241,9 +241,16 @@ class OnboardingAutomationDriver:
             if self._current_page_name() == "OnboardingFolderSetupPage":
                 self._capture("folders")
                 self._click("OnboardingPrimaryButton")
-            if self._current_page_name() == "OnboardingModelRecommendationPage":
-                self._capture("model_recommendations")
-                self._click("OnboardingFindOwnModelsButton")
+            recommendation_page_count = 0
+            while self._current_page_name() == "OnboardingModelRecommendationPage":
+                self._capture(f"model_recommendations_{recommendation_page_count + 1}")
+                self._click("OnboardingOwnModelChoice")
+                self._click("OnboardingPrimaryButton")
+                recommendation_page_count += 1
+                if recommendation_page_count > 2:
+                    raise AssertionError(
+                        "Model recommendation flow exceeded two families."
+                    )
             self._wait_for_page("OnboardingIntegrationsPage")
             self._capture("integrations")
             self._click("OnboardingPrimaryButton")

@@ -132,5 +132,5 @@ class OnboardingModelState:
     recommendation_pages: tuple[FamilyRecommendationPage, ...] = ()
     recommendation_page_index: int = 0
     selected_version_ids: frozenset[int] = frozenset()
-    remaining_recommendations_declined: bool = False
+    declined_family_ids: frozenset[ModelFamilyId] = frozenset()
     install_plan: ModelInstallPlan | None = None

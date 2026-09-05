@@ -20,7 +20,7 @@ from substitute.presentation.onboarding.onboarding_completion_pages import (
     CompletionPage,
     ProvisioningPage,
 )
-from substitute.presentation.onboarding.onboarding_connection_settings_dialog import (
+from substitute.presentation.onboarding.onboarding_connection_settings import (
     ManagedRuntimeSummaryPanel,
     TargetEndpointFields,
 )

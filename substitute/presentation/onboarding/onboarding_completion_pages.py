@@ -59,7 +59,6 @@ class ProvisioningPage(OnboardingPageFrame):
     """Display honest setup progress with an opt-in technical transcript."""
 
     content_height_changed = Signal()
-    log_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the setup progress page with status-first hierarchy."""
@@ -147,7 +146,8 @@ class ProvisioningPage(OnboardingPageFrame):
             app_text("Show setup log"), self.status_panel
         )
         self.show_log_button.setObjectName("OnboardingShowSetupLogButton")
-        self.show_log_button.clicked.connect(self.log_requested.emit)
+        self.show_log_button.setCheckable(True)
+        self.show_log_button.toggled.connect(self.set_log_expanded)
         status_layout.addWidget(
             self.show_log_button,
             alignment=Qt.AlignmentFlag.AlignLeft,
@@ -310,14 +310,25 @@ class ProvisioningPage(OnboardingPageFrame):
             )
 
     def set_log_expanded(self, expanded: bool) -> None:
-        """Open the dedicated transcript surface without changing page geometry."""
+        """Expand or collapse the inline transcript without leaving the setup page."""
 
-        self._log_expanded = False
-        self.details_container.hide()
-        self.show_log_button.setChecked(False)
-        set_localized_text(self.show_log_button, "Show setup log")
-        if expanded:
-            self.log_requested.emit()
+        if self._log_expanded == expanded:
+            return
+        self._log_expanded = expanded
+        self.details_container.setVisible(expanded)
+        self.show_log_button.blockSignals(True)
+        self.show_log_button.setChecked(expanded)
+        self.show_log_button.blockSignals(False)
+        set_localized_text(
+            self.show_log_button,
+            "Hide setup log" if expanded else "Show setup log",
+        )
+        status_layout = self.status_panel.layout()
+        if status_layout is not None:
+            status_layout.invalidate()
+        self.status_panel.updateGeometry()
+        self.updateGeometry()
+        self.content_height_changed.emit()
 
     def set_output_stream(self, stream: TerminalOutputStream | None) -> None:
         """Bind the shared onboarding output stream to the details surface."""

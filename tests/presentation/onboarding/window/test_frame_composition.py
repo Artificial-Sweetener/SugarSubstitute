@@ -131,7 +131,13 @@ def test_onboarding_window_builds_all_required_pages(
     assert window.titleBar.height() == INSTALLER_BRAND_BAR_HEIGHT
     assert window.titleBar.closeBtn.geometry().top() == 0
     assert window.titleBar.closeBtn.geometry().right() == window.titleBar.rect().right()
-    assert window.titleBar.canDrag(QPoint(600, INSTALLER_BRAND_BAR_HEIGHT - 8))
+    for drag_point in (
+        QPoint(80, 20),
+        QPoint(180, INSTALLER_BRAND_BAR_HEIGHT // 2),
+        QPoint(600, INSTALLER_BRAND_BAR_HEIGHT - 8),
+        QPoint(980, INSTALLER_BRAND_BAR_HEIGHT // 2),
+    ):
+        assert window.titleBar.canDrag(drag_point)
     assert not window.windowIcon().isNull()
     assert window.brand_bar.wordmark.renderer().isValid()
     wordmark_top = window.brand_bar.wordmark.mapTo(

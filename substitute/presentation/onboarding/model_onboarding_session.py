@@ -89,7 +89,7 @@ class ModelOnboardingSession:
             recommendation_pages=(),
             recommendation_page_index=0,
             selected_version_ids=frozenset(),
-            remaining_recommendations_declined=False,
+            declined_family_ids=frozenset(),
             install_plan=None,
         )
 
@@ -122,7 +122,7 @@ class ModelOnboardingSession:
             recommendation_pages=(),
             recommendation_page_index=0,
             selected_version_ids=frozenset(),
-            remaining_recommendations_declined=False,
+            declined_family_ids=frozenset(),
             install_plan=None,
         )
         return missing_families
@@ -172,11 +172,6 @@ class ModelOnboardingSession:
             install_plan=None,
         )
 
-    def decline_remaining_recommendations(self) -> None:
-        """Remember that the user explicitly skipped all unvisited family pages."""
-
-        self._state = replace(self._state, remaining_recommendations_declined=True)
-
     def current_family_has_selection(self) -> bool:
         """Return whether the visible family page has an explicit selection."""
 
@@ -186,6 +181,39 @@ class ModelOnboardingSession:
         return any(
             card.recommendation.version_id in self._state.selected_version_ids
             for card in page.cards
+        )
+
+    def current_family_is_declined(self) -> bool:
+        """Return whether the user chose to provide the visible family themselves."""
+
+        if not self._state.recommendation_pages:
+            return False
+        family_id = self._state.recommendation_pages[
+            self._state.recommendation_page_index
+        ].family_id
+        return family_id in self._state.declined_family_ids
+
+    def set_current_family_declined(self, declined: bool) -> None:
+        """Store one explicit no-download choice for the visible model family."""
+
+        if not self._state.recommendation_pages:
+            return
+        page = self._state.recommendation_pages[self._state.recommendation_page_index]
+        declined_family_ids = set(self._state.declined_family_ids)
+        if declined:
+            declined_family_ids.add(page.family_id)
+            current_ids = {card.recommendation.version_id for card in page.cards}
+            selected_version_ids = self._state.selected_version_ids.difference(
+                current_ids
+            )
+        else:
+            declined_family_ids.discard(page.family_id)
+            selected_version_ids = self._state.selected_version_ids
+        self._state = replace(
+            self._state,
+            declined_family_ids=frozenset(declined_family_ids),
+            selected_version_ids=selected_version_ids,
+            install_plan=None,
         )
 
     def set_version_selected(self, version_id: int, selected: bool) -> bool:
@@ -202,11 +230,23 @@ class ModelOnboardingSession:
         selected_ids = set(self._state.selected_version_ids)
         if selected:
             selected_ids.add(version_id)
+            selected_family_ids = {
+                page.family_id
+                for page in self._state.recommendation_pages
+                if any(
+                    card.recommendation.version_id == version_id for card in page.cards
+                )
+            }
+            declined_family_ids = self._state.declined_family_ids.difference(
+                selected_family_ids
+            )
         else:
             selected_ids.discard(version_id)
+            declined_family_ids = self._state.declined_family_ids
         self._state = replace(
             self._state,
             selected_version_ids=frozenset(selected_ids),
+            declined_family_ids=declined_family_ids,
             install_plan=None,
         )
         return True

@@ -26,7 +26,7 @@ from PySide6.QtWidgets import QApplication
 from substitute.application.model_recommendations import RecommendationCardAsset
 from substitute.domain.model_recommendations import ModelFamilyId
 from substitute.presentation.onboarding import OnboardingWindow
-from substitute.presentation.onboarding.onboarding_recommendation_pages import (
+from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
     RecommendationPortrait,
 )
 from tools.install_experience_capture import (
@@ -112,7 +112,8 @@ def capture_live_recommendation_page(*, artifact_root: Path) -> dict[str, object
             )
         revisit_path = artifact_root / "live-civitai" / "settled-revisit.png"
         save_opaque_dark_widget_capture(window, revisit_path)
-        click_installer_control(window, "OnboardingRecommendationSkipButton")
+        click_installer_control(window, "OnboardingOwnModelChoice")
+        click_installer_control(window, "OnboardingPrimaryButton")
         wait_for_installer_condition(
             lambda: (
                 window.model_recommendation_page.current_family() is ModelFamilyId.ANIMA

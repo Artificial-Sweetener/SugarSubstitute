@@ -148,15 +148,15 @@ def _drive_onboarding_scenario(
     if scenario.slug == "managed-sdxl-and-anima":
         _click(window, "OnboardingAdvancedButton")
         QTest.qWait(20)
+        _require_current_page_to_fit(window, "expanded managed settings")
         _capture(
             window,
             artifact_root,
             scenario.slug,
             "configuration-advanced",
             evidence,
-            capture_widget=window.managed_local_page.connection_settings_dialog,
         )
-        _click(window, "OnboardingConnectionSettingsDoneButton")
+        _click(window, "OnboardingAdvancedButton")
     _click(window, "OnboardingPrimaryButton")
     if scenario.target != "remote":
         _wait_for_page(window, "OnboardingExistingModelsQuestionPage")
@@ -238,9 +238,8 @@ def _drive_onboarding_scenario(
                 scenario.slug,
                 "setup-log",
                 evidence,
-                capture_widget=window.setup_log_dialog,
             )
-            window.setup_log_dialog.close()
+            _click(window, "OnboardingShowSetupLogButton")
         if not session.preparation_started:
             raise RuntimeError("Background preparation did not start before choices.")
         session.release_preparation()
@@ -250,7 +249,7 @@ def _drive_onboarding_scenario(
             lambda: len(session.error_presenter.reports) == 1,
             description=f"{scenario.slug} structured failure report",
         )
-        if window.setup_log_dialog.isHidden():
+        if window.provisioning_page.details_container.isHidden():
             raise RuntimeError("Setup failure did not reveal the diagnostic log.")
         report = session.error_presenter.reports[0]
         if report.operation_context is None or not report.operation_context.trace_id:
@@ -295,12 +294,14 @@ def _drive_model_recommendations(
         _capture(
             window, artifact_root, scenario.slug, "model-provider-recovery", evidence
         )
-        _click(window, "OnboardingFindOwnModelsButton")
-        return
     selected_any = False
     for family in missing_families:
         _wait_for_page(window, "OnboardingModelRecommendationPage")
-        _assert_recommendation_page(window, family)
+        _assert_recommendation_page(
+            window,
+            family,
+            allow_unavailable=scenario.thumbnail_failure,
+        )
         _capture(
             window,
             artifact_root,
@@ -337,10 +338,8 @@ def _drive_model_recommendations(
             _click(window, "OnboardingPrimaryButton")
             selected_any = True
             continue
-        if not selected_any and not scenario.selected_families:
-            _click(window, "OnboardingFindOwnModelsButton")
-            return
-        _click(window, "OnboardingRecommendationSkipButton")
+        _click(window, "OnboardingOwnModelChoice")
+        _click(window, "OnboardingPrimaryButton")
     if selected_any:
         _wait_for_page(window, "OnboardingModelDownloadReviewPage")
         _capture(
@@ -352,12 +351,14 @@ def _drive_model_recommendations(
 def _assert_recommendation_page(
     window: OnboardingWindow,
     family: object,
+    *,
+    allow_unavailable: bool = False,
 ) -> None:
     """Require three real, initially unchecked portrait cards."""
 
     from PySide6.QtWidgets import QCheckBox
 
-    from substitute.presentation.onboarding.onboarding_recommendation_pages import (
+    from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
         RecommendationPortrait,
     )
 
@@ -383,7 +384,9 @@ def _assert_recommendation_page(
         for portrait in card.findChildren(RecommendationPortrait)
     ]
     if len(portraits) != 3 or any(
-        portrait.source_size().height() < 960 for portrait in portraits
+        portrait.source_size().height() < 960
+        and not (allow_unavailable and portrait.thumbnail_is_unavailable())
+        for portrait in portraits
     ):
         raise RuntimeError(f"{family} recommendations lack real prepared thumbnails.")
 
@@ -413,6 +416,20 @@ def _capture(
             "screenshot": str(path),
         }
     )
+
+
+def _require_current_page_to_fit(
+    window: OnboardingWindow,
+    checkpoint: str,
+) -> None:
+    """Reject qualification states that spill beneath the fixed installer footer."""
+
+    QApplication.processEvents()
+    overflow = window.page_stage.verticalScrollBar().maximum()
+    if overflow > 0:
+        raise RuntimeError(
+            f"{checkpoint} exceeds the installer viewport by {overflow} pixels."
+        )
 
 
 def _merge_audit(target: SetupSideEffectAudit, source: SetupSideEffectAudit) -> None:

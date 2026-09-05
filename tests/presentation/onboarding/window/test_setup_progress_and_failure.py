@@ -160,21 +160,18 @@ def test_progress_uses_exact_tasks_bytes_and_rejects_stale_generation() -> None:
     page.close()
 
 
-def test_failure_freezes_progress_and_requests_dedicated_log() -> None:
-    """Request diagnostic detail outside the page when setup fails."""
+def test_failure_freezes_progress_and_reveals_inline_log() -> None:
+    """Reveal diagnostic detail in the stable page when setup fails."""
 
     ensure_qt_application()
     page = ProvisioningPage()
-    log_requests: list[bool] = []
-    page.log_requested.connect(lambda: log_requests.append(True))
     page.begin_progress()
     page.append_log("technical line")
 
     page.mark_failed()
 
-    assert page.details_container.isHidden()
-    assert not page.show_log_button.isChecked()
-    assert log_requests == [True]
+    assert not page.details_container.isHidden()
+    assert page.show_log_button.isChecked()
     assert "technical line" in page.details_surface.log_view.toPlainText()
     page.close()
 
