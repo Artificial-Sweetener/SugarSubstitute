@@ -160,18 +160,21 @@ def test_progress_uses_exact_tasks_bytes_and_rejects_stale_generation() -> None:
     page.close()
 
 
-def test_failure_freezes_progress_and_expands_log() -> None:
-    """Reveal diagnostic detail automatically only after setup fails."""
+def test_failure_freezes_progress_and_requests_dedicated_log() -> None:
+    """Request diagnostic detail outside the page when setup fails."""
 
     ensure_qt_application()
     page = ProvisioningPage()
+    log_requests: list[bool] = []
+    page.log_requested.connect(lambda: log_requests.append(True))
     page.begin_progress()
     page.append_log("technical line")
 
     page.mark_failed()
 
-    assert page.details_container.isHidden() is False
-    assert page.show_log_button.isChecked()
+    assert page.details_container.isHidden()
+    assert not page.show_log_button.isChecked()
+    assert log_requests == [True]
     assert "technical line" in page.details_surface.log_view.toPlainText()
     page.close()
 
@@ -245,6 +248,17 @@ def test_visible_completion_and_failure_request_attention_once_each(
     controller.start_provisioning()
     completion = window._last_completion
     assert completion is not None
+    assert window.page_stack.currentWidget() is window.completion_page
+    assert window.back_button.isHidden()
+    assert window.primary_button.isEnabled()
+    assert window.primary_button.text() == "Open Substitute"
+
+    window._go_back()
+
+    assert window.page_stack.currentWidget() is window.completion_page
+    assert window.back_button.isHidden()
+    assert window.primary_button.isEnabled()
+    assert window.primary_button.text() == "Open Substitute"
     window._handle_completion(completion)
     failure = OnboardingProvisioningFailure(
         headline="Setup failed",

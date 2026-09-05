@@ -18,15 +18,11 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QWidget
 from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
 
 from sugarsubstitute_shared.localization import app_text
 
-from substitute.presentation.onboarding.onboarding_binary_choice import (
-    OnboardingBinaryChoice,
-)
 from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingPageFrame,
 )
@@ -35,43 +31,21 @@ from substitute.presentation.onboarding.onboarding_page_primitives import (
 class ExistingModelsFolderQuestionPage(OnboardingPageFrame):
     """Ask whether setup should inspect an existing models folder."""
 
-    answer_changed = Signal(bool)
-
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build a dedicated binary decision page with explicit action buttons."""
 
         super().__init__(
             title=app_text("Do you have an existing models folder?"),
             description=app_text(
-                "Choose the ComfyUI models folder you already use. Substitute will scan it without changing its contents."
+                "Substitute can scan a folder you already use without changing its contents."
             ),
             icon=FIF.FOLDER,
             eyebrow=app_text("Folders"),
             parent=parent,
         )
         self.setObjectName("OnboardingExistingModelsQuestionPage")
-        self.choice = OnboardingBinaryChoice(
-            yes_object_name="OnboardingExistingModelsYes",
-            no_object_name="OnboardingExistingModelsNo",
-            parent=self,
-        )
-        self.yes_button = self.choice.yes_button
-        self.no_button = self.choice.no_button
-        self.choice.answer_changed.connect(self.answer_changed)
-        self.body_layout.addWidget(
-            self.choice,
-            alignment=Qt.AlignmentFlag.AlignLeft,
-        )
-
-    def answer(self) -> bool | None:
-        """Return the explicit Yes/No selection or None before a choice."""
-
-        return self.choice.answer()
-
-    def set_answer(self, answer: bool | None) -> None:
-        """Restore a prior answer when navigating back to the question."""
-
-        self.choice.set_answer(answer)
+        self.content_column.setFixedWidth(520)
+        self.hero_panel.center_compact_content(text_width=420)
 
 
 __all__ = ["ExistingModelsFolderQuestionPage"]

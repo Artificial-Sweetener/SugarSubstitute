@@ -35,6 +35,10 @@ from launcher.sugarsubstitute_launcher.application.installation.workflow import 
     InstallationWorkflow,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.localization import (
+    LauncherLocalizationRuntime,
+    build_launcher_localization_runtime,
+)
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
 from tools.install_experience_onboarding import (
     OnboardingCheckSession,
@@ -52,6 +56,13 @@ def run_interactive_full_experience(
 
     install_root = artifact_root / "interactive" / "synthetic-install"
     sessions: list[OnboardingCheckSession] = []
+    localization_runtime: LauncherLocalizationRuntime = (
+        build_launcher_localization_runtime(
+            application,
+            layout=InstallLayout.from_root(install_root),
+            locale_override=None,
+        )
+    )
     window = LauncherMainWindow(
         initial_layout=InstallLayout.from_root(install_root),
         continue_install=False,
@@ -59,6 +70,8 @@ def run_interactive_full_experience(
         update_check_enabled=False,
         initial_release_source=release_source,
         workflow_factory=_synthetic_workflow_factory(),
+        localization_manager=localization_runtime.manager,
+        persist_language_preference=lambda _install_root, _preference: None,
     )
 
     def show_comfy_setup() -> None:
@@ -79,6 +92,7 @@ def run_interactive_full_experience(
             session.close()
         window.close()
         window.deleteLater()
+        localization_runtime.manager.close()
 
 
 def _synthetic_workflow_factory() -> Callable[

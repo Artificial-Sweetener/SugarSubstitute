@@ -909,16 +909,16 @@ next_extraction = "Extract managed-asset commands and editor persistence from mo
 id = "SS-ARCH-068"
 owner = "onboarding window"
 paths = ["substitute/presentation/onboarding/onboarding_window.py"]
-fingerprint = "sha256:fbee2a0551263899d92cc30eff953c45c874695040f6c574630d67284b02c701"
+fingerprint = "sha256:2d3d6a492881a7ed76bfc7630b0da57f883c4e803512c021ca68122d58579c9a"
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
 responsibilities = [
-  "window chrome, layout, and navigation rail",
-  "page flow and dynamic height",
+  "shared installer-shell composition and drag routing",
+  "page navigation and route-dependent action state",
   "draft, issue, completion, and model-flow interaction routing",
   "preflight and attached Python recovery interaction routing",
 ]
-next_extraction = "Extract window-shell navigation and geometry from route-specific onboarding interactions."
+next_extraction = "Extract page-navigation and route-action coordination from shell composition and environment recovery interactions."
 
 [[debts]]
 id = "SS-ARCH-069"
@@ -1356,7 +1356,7 @@ next_extraction = "Extract visible-source AST classification and pseudo-localiza
 id = "SS-ARCH-096"
 owner = "Windows installer automation"
 paths = ["tools/ci/drive_windows_installer.py"]
-fingerprint = "sha256:905bf14663fc628c9ee791f66faa1f5f4d149521a81a0d0692f032e3c62a6714"
+fingerprint = "sha256:47e82958d2ca03e26672ac8c55cd26bffc1585a4149c81ed928fa49343065beb"
 issue = "chore:SS-ARCH-096"
 review_by = 2026-12-15
 responsibilities = [

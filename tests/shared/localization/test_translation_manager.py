@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import cast
 
 import pytest
-from PySide6.QtCore import QCoreApplication, QEvent, QTranslator
+from PySide6.QtCore import QCoreApplication, QEvent, QLocale, QTranslator, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
@@ -223,6 +223,58 @@ def test_manager_switches_and_restores_external_font_owner_atomically() -> None:
     assert font_adapter.state == ("Test ja",)
     manager.close()
     assert font_adapter.state == ("Library Default",)
+
+
+def test_manager_close_restores_application_presentation_before_releasing_bundle() -> (
+    None
+):
+    """Leave a reusable QApplication independent of released locale resources."""
+
+    application = _application()
+    initial_font = QFont(application.font())
+    initial_locale = QLocale()
+    initial_direction = application.layoutDirection()
+    store = _MemoryPreferenceStore(LanguagePreference.explicit("ja"))
+    release_observations: list[tuple[QFont, QLocale, Qt.LayoutDirection]] = []
+
+    class _ReleasingLoader(_RecordingBundleLoader):
+        """Observe presentation state at the locale-resource release boundary."""
+
+        def prepare(self, resolved_locale: ResolvedLocale) -> PreparedLanguageBundle:
+            """Return a bundle that records state immediately before resource release."""
+
+            bundle = super().prepare(resolved_locale)
+            return PreparedLanguageBundle(
+                resolved_locale=bundle.resolved_locale,
+                translators=bundle.translators,
+                application_font=bundle.application_font,
+                release_callback=lambda: release_observations.append(
+                    (
+                        QFont(application.font()),
+                        QLocale(),
+                        application.layoutDirection(),
+                    )
+                ),
+            )
+
+    manager = TranslationManager(
+        application,
+        preference_store=store,
+        bundle_loader=_ReleasingLoader(application),
+        ui_languages_provider=lambda: ("ja-JP",),
+    )
+    manager.initialize()
+
+    manager.close()
+
+    assert application.font() == initial_font
+    assert QLocale().name() == initial_locale.name()
+    assert application.layoutDirection() == initial_direction
+    assert len(release_observations) == 1
+    released_font, released_locale, released_direction = release_observations[0]
+    assert released_font == initial_font
+    assert released_locale.name() == initial_locale.name()
+    assert released_direction == initial_direction
 
 
 def _application() -> QApplication:

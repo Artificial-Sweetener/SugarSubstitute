@@ -29,7 +29,6 @@ from substitute.application.model_recommendations import (
     ExistingModelFamilyScanner,
     ModelInstallService,
     ModelOnboardingApplicationService,
-    trusted_recipe_url_validator,
 )
 from substitute.application.onboarding.preparation_service import (
     OnboardingPreparationService,
@@ -141,10 +140,6 @@ def show_onboarding_surface(
                             context.install_root
                         ).civitai_credential_service.load_api_key()
                     ),
-                ),
-                trusted_acquisition=ModelAcquisitionService(
-                    allowed_roots=(model_root,),
-                    download_url_validator=trusted_recipe_url_validator(),
                 ),
             )
         ),

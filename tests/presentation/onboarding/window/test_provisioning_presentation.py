@@ -36,6 +36,7 @@ from substitute.presentation.onboarding.onboarding_models import (
 from substitute.presentation.onboarding.onboarding_window import (
     OnboardingWindow,
 )
+from substitute.presentation.localization import LocalizedBodyLabel
 
 from tests.support.qt.lifecycle import activate_widget_layouts, ensure_qt_application
 
@@ -69,9 +70,12 @@ def test_onboarding_window_shows_completion_page_after_provisioning(
 
     assert window._current_page is OnboardingPageId.COMPLETION
     assert window.primary_button.text() == "Close"
-    assert window.completion_page.command_surface.isHidden() is False
+    assert window.completion_page.command_surface.isHidden() is True
     assert "python main.py" == window.completion_page.command_label.text()
-    assert window.completion_page.hero_panel.title_label.text() == "Substitute is ready"
+    assert window.completion_page.hero_panel.title_label.text() == "You're ready"
+    window.completion_page.details_button.click()
+    ensure_qt_application().processEvents()
+    assert window.completion_page.command_surface.isHidden() is False
     window._emit_close_requested_on_close = False
     window.close()
 
@@ -283,7 +287,7 @@ def test_provisioning_live_output_stays_inside_status_panel(
     window.resize(1220, 900)
     window._current_page = OnboardingPageId.PROVISIONING
     window.page_stack.setCurrentWidget(window.provisioning_page)
-    window._refresh_current_page_height()
+    window.page_stage.refresh_current_page_height()
     window.provisioning_page.set_model_download_progress(
         completed_bytes=1024,
         total_bytes=2048,
@@ -316,35 +320,24 @@ def test_provisioning_live_output_stays_inside_status_panel(
     assert status_contents.contains(
         window.provisioning_page.show_log_button.geometry().bottomRight()
     )
+    window.page_stage.refresh_current_page_height()
+    application.processEvents()
+    page_height_before = window.provisioning_page.height()
 
     window.provisioning_page.show_log_button.click()
     application.processEvents()
-    activate_widget_layouts(
-        window,
-        window.page_stack,
-        window.provisioning_page,
-        window.provisioning_page.status_panel,
-        window.provisioning_page.details_container,
-        window.provisioning_page.details_surface,
+    assert not window.setup_log_dialog.isHidden()
+    assert window.setup_log_dialog.width() == 860
+    assert window.setup_log_dialog.height() == 520
+    dialog_title = window.setup_log_dialog.findChild(
+        LocalizedBodyLabel,
+        "OnboardingDialogTitle",
     )
+    assert dialog_title is not None
+    assert dialog_title.text() == "Setup log"
+    assert window.provisioning_page.details_container.isHidden()
+    assert window.provisioning_page.height() == page_height_before
 
-    details_surface = window.provisioning_page.details_surface
-    status_contents = status_panel.rect().adjusted(
-        status_margins.left(),
-        status_margins.top(),
-        -status_margins.right(),
-        -status_margins.bottom(),
-    )
-
-    details_container = window.provisioning_page.details_container
-    assert status_contents.contains(details_container.geometry().topLeft())
-    assert status_contents.contains(details_container.geometry().bottomRight())
-    assert details_container.contentsRect().contains(
-        details_surface.geometry().topLeft()
-    )
-    assert details_container.contentsRect().contains(
-        details_surface.geometry().bottomRight()
-    )
-
+    window.setup_log_dialog.close()
     window._emit_close_requested_on_close = False
     window.close()

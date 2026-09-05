@@ -60,6 +60,7 @@ def _model(
                 "images": (
                     [
                         {
+                            "id": model_id * 100,
                             "url": f"https://image.civitai.com/model-{model_id}.jpeg",
                             "nsfw": False,
                             "nsfwLevel": 1,
@@ -219,6 +220,7 @@ def test_gateway_fetches_a_large_portrait_when_model_payload_has_no_preview() ->
         fallback_images={
             70: [
                 {
+                    "id": 700,
                     "url": "https://image.civitai.com/x/original=true/landscape.jpeg",
                     "nsfwLevel": 1,
                     "type": "image",
@@ -226,6 +228,7 @@ def test_gateway_fetches_a_large_portrait_when_model_payload_has_no_preview() ->
                     "height": 832,
                 },
                 {
+                    "id": 701,
                     "url": "https://image.civitai.com/x/original=true/portrait.jpeg",
                     "nsfwLevel": 1,
                     "type": "image",
@@ -242,6 +245,7 @@ def test_gateway_fetches_a_large_portrait_when_model_payload_has_no_preview() ->
     )
 
     assert len(cards) == 1
+    assert cards[0].thumbnail_image_id == 701
     assert cards[0].thumbnail_url == (
         "https://image.civitai.com/x/width=1024/portrait.jpeg"
     )
@@ -266,6 +270,7 @@ def test_shared_model_page_uses_the_selected_family_versions_own_preview() -> No
     assert isinstance(anima_images, list)
     anima_image = anima_images[0]
     assert isinstance(anima_image, dict)
+    anima_image["id"] = 42100
     anima_image["url"] = "https://image.civitai.com/anima-version.jpeg"
     illustrious_versions = shared_model["modelVersions"]
     assert isinstance(illustrious_versions, list)
@@ -275,6 +280,7 @@ def test_shared_model_page_uses_the_selected_family_versions_own_preview() -> No
     assert isinstance(illustrious_images, list)
     illustrious_image = illustrious_images[0]
     assert isinstance(illustrious_image, dict)
+    illustrious_image["id"] = 42000
     illustrious_image["url"] = "https://image.civitai.com/illustrious-version.jpeg"
     shared_model["modelVersions"] = [anima_version, illustrious_version]
 
@@ -287,6 +293,10 @@ def test_shared_model_page_uses_the_selected_family_versions_own_preview() -> No
 
     assert sdxl[0].model_id == anima[0].model_id == 42
     assert (sdxl[0].version_id, anima[0].version_id) == (420, 421)
+    assert (sdxl[0].thumbnail_image_id, anima[0].thumbnail_image_id) == (
+        42000,
+        42100,
+    )
     assert sdxl[0].thumbnail_url.endswith("illustrious-version.jpeg")
     assert anima[0].thumbnail_url.endswith("anima-version.jpeg")
 

@@ -19,22 +19,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
 
 from sugarsubstitute_shared.model_discovery import ModelArtifactKind
 
-from substitute.domain.model_recommendations.models import (
-    ModelFamilyId,
-    ModelRecipeRole,
-)
-
-
-class ModelInstallSource(str, Enum):
-    """Identify which trust policy owns a planned download URL."""
-
-    CIVITAI = "civitai"
-    TRUSTED_FAMILY_ASSET = "trusted_family_asset"
+from substitute.domain.model_recommendations.models import ModelFamilyId
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,9 +31,7 @@ class ModelInstallFile:
     """Describe one exact size/hash-verified file and safe destination."""
 
     family_id: ModelFamilyId
-    role: ModelRecipeRole
     artifact_kind: ModelArtifactKind
-    source: ModelInstallSource
     model_id: int
     version_id: int
     display_name: str
@@ -93,5 +80,4 @@ __all__ = [
     "ModelInstallFile",
     "ModelInstallPlan",
     "ModelInstallProgress",
-    "ModelInstallSource",
 ]

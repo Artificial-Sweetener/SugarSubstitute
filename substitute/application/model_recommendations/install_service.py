@@ -35,8 +35,6 @@ from substitute.domain.model_recommendations import (
     ModelInstallFile,
     ModelInstallPlan,
     ModelInstallProgress,
-    ModelInstallSource,
-    ModelRecipeRole,
     ModelRecommendation,
     SUPPORTED_MODEL_FAMILIES,
     SupportedModelFamilyCatalog,
@@ -73,19 +71,16 @@ class ModelInstallRecipePlanner:
         *,
         model_root: Path,
     ) -> ModelInstallPlan:
-        """Return exact primary and deduplicated auxiliary files for review."""
+        """Return the exact primary models explicitly selected for review."""
 
         root = model_root.resolve(strict=False)
         files: list[ModelInstallFile] = []
-        auxiliary_identities: set[tuple[str, str]] = set()
         for recommendation in recommendations:
             family = self._catalog.get(recommendation.family_id)
             files.append(
                 ModelInstallFile(
                     family_id=recommendation.family_id,
-                    role=ModelRecipeRole.PRIMARY_MODEL,
                     artifact_kind=family.primary_artifact_kind,
-                    source=ModelInstallSource.CIVITAI,
                     model_id=recommendation.model_id,
                     version_id=recommendation.version_id,
                     display_name=recommendation.model_name,
@@ -96,29 +91,6 @@ class ModelInstallRecipePlanner:
                     destination_dir=root / family.primary_artifact_kind.value,
                 )
             )
-            for auxiliary in family.auxiliaries:
-                identity = (auxiliary.source_url, auxiliary.sha256)
-                if identity in auxiliary_identities:
-                    continue
-                auxiliary_identities.add(identity)
-                files.append(
-                    ModelInstallFile(
-                        family_id=recommendation.family_id,
-                        role=auxiliary.role,
-                        artifact_kind=auxiliary.artifact_kind,
-                        source=ModelInstallSource.TRUSTED_FAMILY_ASSET,
-                        model_id=_auxiliary_model_id(auxiliary.role),
-                        version_id=1,
-                        display_name=auxiliary.filename,
-                        file_name=auxiliary.filename,
-                        source_url=auxiliary.source_url,
-                        sha256=auxiliary.sha256,
-                        size_bytes=auxiliary.size_bytes,
-                        destination_dir=(
-                            root / auxiliary.artifact_kind.value / auxiliary.subfolder
-                        ),
-                    )
-                )
         return ModelInstallPlan(
             model_root=root,
             files=tuple(files),
@@ -133,12 +105,10 @@ class ModelInstallService:
         self,
         *,
         primary_acquisition: ModelAcquisitionService,
-        trusted_acquisition: ModelAcquisitionService,
     ) -> None:
-        """Store independent CivitAI and family-asset trust boundaries."""
+        """Store the CivitAI acquisition boundary for selected models."""
 
         self._primary_acquisition = primary_acquisition
-        self._trusted_acquisition = trusted_acquisition
 
     def acquire(
         self,
@@ -154,11 +124,6 @@ class ModelInstallService:
         aggregate_completed = 0
         results: list[AcquisitionResult] = []
         for index, file in enumerate(plan.files):
-            acquisition = (
-                self._primary_acquisition
-                if file.source is ModelInstallSource.CIVITAI
-                else self._trusted_acquisition
-            )
 
             def publish(
                 progress: AcquisitionProgress, *, current: ModelInstallFile = file
@@ -179,7 +144,7 @@ class ModelInstallService:
                         )
                     )
 
-            result = acquisition.acquire(
+            result = self._primary_acquisition.acquire(
                 _as_discovered_model(file),
                 destination_dir=file.destination_dir,
                 cancellation=cancellation,
@@ -200,26 +165,6 @@ class ModelInstallService:
                     )
                 )
         return tuple(results)
-
-
-def trusted_recipe_url_validator(
-    catalog: SupportedModelFamilyCatalog = SUPPORTED_MODEL_FAMILIES,
-) -> Callable[[str], None]:
-    """Return an exact allowlist validator for checksum-pinned family assets."""
-
-    allowed = frozenset(
-        asset.source_url
-        for family in catalog.families()
-        for asset in family.auxiliaries
-    )
-
-    def validate(url: str) -> None:
-        """Reject every URL not owned by the shipped family catalog."""
-
-        if url not in allowed:
-            raise ValueError("Recipe asset URL is not in the trusted family catalog.")
-
-    return validate
 
 
 def _as_discovered_model(file: ModelInstallFile) -> DiscoveredModel:
@@ -252,20 +197,9 @@ def _free_space(path: Path) -> int:
     return shutil.disk_usage(probe).free
 
 
-def _auxiliary_model_id(role: ModelRecipeRole) -> int:
-    """Return a stable positive reservation identity for trusted auxiliaries."""
-
-    return {
-        ModelRecipeRole.TEXT_ENCODER: 1,
-        ModelRecipeRole.VAE: 2,
-        ModelRecipeRole.PRIMARY_MODEL: 3,
-    }[role]
-
-
 __all__ = [
     "DiskSpaceProvider",
     "ModelInstallProgressCallback",
     "ModelInstallRecipePlanner",
     "ModelInstallService",
-    "trusted_recipe_url_validator",
 ]

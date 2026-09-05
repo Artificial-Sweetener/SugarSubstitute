@@ -27,9 +27,7 @@ from substitute.domain.model_recommendations.models import (
     FamilyDetectionPolicy,
     ModelFamilyDefinition,
     ModelFamilyId,
-    ModelRecipeRole,
     TensorShapeSignature,
-    TrustedRecipeAsset,
 )
 
 
@@ -135,36 +133,6 @@ SUPPORTED_MODEL_FAMILIES = SupportedModelFamilyCatalog(
                 ),
             ),
             primary_artifact_kind=ModelArtifactKind.DIFFUSION_MODELS,
-            auxiliaries=(
-                TrustedRecipeAsset(
-                    role=ModelRecipeRole.TEXT_ENCODER,
-                    artifact_kind=ModelArtifactKind.TEXT_ENCODERS,
-                    filename="qwen_3_06b_base.safetensors",
-                    subfolder="qwen",
-                    source_url=(
-                        "https://huggingface.co/circlestone-labs/Anima/resolve/main/"
-                        "split_files/text_encoders/qwen_3_06b_base.safetensors"
-                    ),
-                    sha256=(
-                        "cd2a512003e2f9f3cd3c32a9c3573f820bb28c940f73c57b1ddaa983d9223eba"
-                    ),
-                    size_bytes=1_192_135_096,
-                ),
-                TrustedRecipeAsset(
-                    role=ModelRecipeRole.VAE,
-                    artifact_kind=ModelArtifactKind.VAE,
-                    filename="qwen_image_vae.safetensors",
-                    subfolder="qwen",
-                    source_url=(
-                        "https://huggingface.co/circlestone-labs/Anima/resolve/main/"
-                        "split_files/vae/qwen_image_vae.safetensors"
-                    ),
-                    sha256=(
-                        "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f"
-                    ),
-                    size_bytes=253_806_246,
-                ),
-            ),
         ),
     )
 )

@@ -403,7 +403,7 @@ class OnboardingController(QObject):
         if current_page is OnboardingPageId.PROVISIONING:
             return OnboardingPageId.INTEGRATIONS
         if current_page is OnboardingPageId.COMPLETION:
-            return OnboardingPageId.PROVISIONING
+            return OnboardingPageId.COMPLETION
         return current_page
 
     def start_provisioning(self) -> None:

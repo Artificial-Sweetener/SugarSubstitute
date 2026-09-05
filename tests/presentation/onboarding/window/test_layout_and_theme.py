@@ -152,10 +152,12 @@ def test_onboarding_window_stylesheet_refreshes_after_qfluent_theme_switch(
                 _FakeController(draft, OnboardingFlowMode.REPAIR),
             )
         )
-        dark_style = window.styleSheet()
+        dark_style = window.root_container.styleSheet()
 
         with fluent_theme(Theme.LIGHT):
-            wait_for_qt_condition(lambda: window.styleSheet() != dark_style)
+            wait_for_qt_condition(
+                lambda: window.root_container.styleSheet() != dark_style
+            )
 
-            assert window.styleSheet() != dark_style
-            assert "rgba(0, 0, 0, 0.74)" in window.styleSheet()
+            assert window.root_container.styleSheet() != dark_style
+            assert "rgba(0, 0, 0, 0.74)" in window.root_container.styleSheet()

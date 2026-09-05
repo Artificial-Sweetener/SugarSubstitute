@@ -34,6 +34,7 @@ def build_onboarding_style_sheet() -> str:
     warning_rgb = f"{warning.red()}, {warning.green()}, {warning.blue()}"
     wash_rgb = "255, 255, 255" if isDarkTheme() else "0, 0, 0"
     text_rgb = "255, 255, 255" if isDarkTheme() else "0, 0, 0"
+    dialog_rgb = "30, 30, 30" if isDarkTheme() else "249, 249, 249"
     return (
         """
         QWidget#OnboardingRoot,
@@ -42,11 +43,14 @@ def build_onboarding_style_sheet() -> str:
             background-color: transparent;
             border: none;
         }
+        QDialog#OnboardingConnectionSettingsDialog,
+        QDialog#OnboardingSetupLogDialog {
+            background-color: rgb(__DIALOG_RGB__);
+        }
         QFrame#OnboardingIdentityRail {
             background-color: transparent;
             border: none;
         }
-        QFrame#OnboardingIconBadge,
         QFrame#OnboardingHeroBadge,
         QFrame#OnboardingTargetCardBadge,
         QFrame#OnboardingCompletionBadge {
@@ -58,19 +62,6 @@ def build_onboarding_style_sheet() -> str:
             background-color: rgba(__WARNING_RGB__, 0.10);
             border: 1px solid rgba(__WARNING_RGB__, 0.28);
             border-radius: 16px;
-        }
-        QFrame#OnboardingStepItem {
-            background-color: transparent;
-            border: none;
-            border-radius: 14px;
-        }
-        QFrame#OnboardingStepItem[stepState="active"] {
-            background-color: rgba(__WASH_RGB__, 0.045);
-            border: 1px solid rgba(__WASH_RGB__, 0.075);
-        }
-        QFrame#OnboardingStepItem[stepState="complete"] {
-            background-color: transparent;
-            border: none;
         }
         QFrame#OnboardingPageFrame,
         QWidget#OnboardingContentColumn {
@@ -115,6 +106,21 @@ def build_onboarding_style_sheet() -> str:
             border: 1px solid rgba(__WASH_RGB__, 0.07);
             border-radius: 18px;
         }
+        QFrame#OnboardingRecommendationLoadingCard {
+            background-color: rgba(__WASH_RGB__, 0.022);
+            border: 1px solid rgba(__WASH_RGB__, 0.055);
+            border-radius: 18px;
+        }
+        QFrame#OnboardingRecommendationLoadingPortrait {
+            background-color: rgba(__WASH_RGB__, 0.045);
+            border: 1px solid rgba(__WASH_RGB__, 0.055);
+            border-radius: 14px;
+        }
+        QFrame#OnboardingRecommendationLoadingAction {
+            background-color: rgba(__WASH_RGB__, 0.045);
+            border: none;
+            border-radius: 6px;
+        }
         QFrame#OnboardingRecommendationCard[selected="true"] {
             background-color: rgba(__ACCENT_RGB__, 0.10);
             border: 2px solid rgba(__ACCENT_RGB__, 0.72);
@@ -129,17 +135,16 @@ def build_onboarding_style_sheet() -> str:
             border: 1px solid rgba(__WASH_RGB__, 0.055);
             border-radius: 12px;
         }
+        QFrame#OnboardingDownloadCartCard {
+            background-color: rgba(__WASH_RGB__, 0.028);
+            border: 1px solid rgba(__WASH_RGB__, 0.07);
+            border-radius: 18px;
+        }
         QFrame#OnboardingDownloadSummaryPanel {
             background-color: rgba(__ACCENT_RGB__, 0.08);
             border: 1px solid rgba(__ACCENT_RGB__, 0.22);
             border-radius: 16px;
         }
-        BodyLabel#OnboardingRailTitle {
-            font-size: 24px;
-            font-weight: 600;
-        }
-        CaptionLabel#OnboardingRailSummary,
-        CaptionLabel#OnboardingProgressHelper,
         CaptionLabel#OnboardingIssueBody,
         CaptionLabel#OnboardingIssueDetail,
         CaptionLabel#OnboardingPageDescription,
@@ -161,8 +166,7 @@ def build_onboarding_style_sheet() -> str:
             color: rgba(__TEXT_RGB__, 0.66);
         }
         CaptionLabel#OnboardingHeroEyebrow,
-        CaptionLabel#OnboardingFieldLabel,
-        CaptionLabel#OnboardingProgressCount {
+        CaptionLabel#OnboardingFieldLabel {
             color: rgba(__ACCENT_RGB__, 0.9);
             font-weight: 600;
             text-transform: uppercase;
@@ -173,55 +177,29 @@ def build_onboarding_style_sheet() -> str:
             text-transform: uppercase;
         }
         BodyLabel#OnboardingPageTitle,
-        BodyLabel#OnboardingProgressTitle,
+        BodyLabel#OnboardingDialogTitle,
         BodyLabel#OnboardingIssueTitle,
         BodyLabel#OnboardingInfoTitle,
         BodyLabel#OnboardingTargetCardTitle {
             font-size: 22px;
             font-weight: 600;
         }
+        BodyLabel#OnboardingDialogTitle {
+            font-size: 24px;
+        }
         BodyLabel#OnboardingTargetCardTitle,
         BodyLabel#OnboardingIssueTitle {
             font-size: 18px;
         }
         BodyLabel#OnboardingDownloadReviewItemTitle,
-        BodyLabel#OnboardingDownloadReviewItemSize {
+        BodyLabel#OnboardingDownloadReviewItemSize,
+        BodyLabel#OnboardingDownloadCartSize {
             font-size: 15px;
             font-weight: 600;
         }
         BodyLabel#OnboardingDownloadSummaryValue {
             font-size: 20px;
             font-weight: 600;
-        }
-        BodyLabel#OnboardingStepNumber {
-            min-width: 24px;
-            max-width: 24px;
-            min-height: 24px;
-            max-height: 24px;
-            border-radius: 12px;
-            qproperty-alignment: 'AlignCenter';
-            background-color: rgba(__WASH_RGB__, 0.06);
-            color: rgba(__TEXT_RGB__, 0.68);
-            font-size: 12px;
-            font-weight: 700;
-        }
-        BodyLabel#OnboardingStepNumber[stepState="active"] {
-            background-color: rgba(__ACCENT_RGB__, 0.32);
-            color: rgba(__TEXT_RGB__, 1.0);
-        }
-        BodyLabel#OnboardingStepNumber[stepState="complete"] {
-            background-color: rgba(__ACCENT_RGB__, 0.18);
-            color: rgba(__TEXT_RGB__, 0.92);
-        }
-        CaptionLabel#OnboardingStepTitle {
-            color: rgba(__TEXT_RGB__, 0.62);
-        }
-        CaptionLabel#OnboardingStepTitle[stepState="active"] {
-            color: rgba(__TEXT_RGB__, 0.98);
-            font-weight: 600;
-        }
-        CaptionLabel#OnboardingStepTitle[stepState="complete"] {
-            color: rgba(__TEXT_RGB__, 0.78);
         }
         BodyLabel#OnboardingProgressStatus {
             font-size: 24px;
@@ -250,6 +228,7 @@ def build_onboarding_style_sheet() -> str:
         .replace("__WARNING_RGB__", warning_rgb)
         .replace("__WASH_RGB__", wash_rgb)
         .replace("__TEXT_RGB__", text_rgb)
+        .replace("__DIALOG_RGB__", dialog_rgb)
     )
 
 

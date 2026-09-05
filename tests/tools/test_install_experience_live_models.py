@@ -151,6 +151,7 @@ def _recommendation() -> ModelRecommendation:
         sha256=f"{101:064x}",
         download_url="https://civitai.com/api/download/models/1010",
         model_page_url="https://civitai.com/models/101?modelVersionId=1010",
+        thumbnail_image_id=10100,
         thumbnail_url="https://image.civitai.com/model-101.jpeg",
         popularity_rank=1,
     )

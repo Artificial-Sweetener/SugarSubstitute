@@ -22,7 +22,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QEvent, QTranslator
 
-from substitute.presentation.onboarding.onboarding_window import (
+from substitute.presentation.onboarding.onboarding_shell_presentation import (
     OnboardingIssuePanel,
 )
 from sugarsubstitute_shared.localization import app_text

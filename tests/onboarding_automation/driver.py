@@ -226,8 +226,7 @@ class OnboardingAutomationDriver:
                 )
             if self._current_page_name() == "OnboardingExistingModelsQuestionPage":
                 self._capture("existing_models_question")
-                self._click("OnboardingExistingModelsNo")
-                self._click("OnboardingPrimaryButton")
+                self._click("OnboardingNoExistingModelsButton")
                 self._wait_until(
                     lambda: (
                         self._current_page_name()
@@ -398,11 +397,11 @@ class OnboardingAutomationDriver:
         """Assert that the managed-local summary panel shows the selected strategy."""
 
         panel = self._window.managed_local_page.runtime_summary_panel
-        if "windows_nvidia" not in panel.target_label.text():
+        if "Windows NVIDIA" not in panel.target_label.text():
             raise AssertionError(
                 "Managed runtime summary did not show the selected target."
             )
-        if "cuda_nightly_cu130" not in panel.backend_label.text():
+        if "CUDA Nightly CU130" not in panel.backend_label.text():
             raise AssertionError(
                 "Managed runtime summary did not show the selected backend."
             )

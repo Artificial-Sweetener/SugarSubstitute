@@ -23,21 +23,23 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QCheckBox, QLabel
-from qfluentwidgets import RadioButton  # type: ignore[import-untyped]
+from PySide6.QtWidgets import QCheckBox, QFrame, QLabel
+from qfluentwidgets import (  # type: ignore[import-untyped]
+    IndeterminateProgressRing,
+    RadioButton,
+)
 
 from substitute.application.model_recommendations import (
     FamilyRecommendationPage,
     RecommendationCardAsset,
 )
 from sugarsubstitute_shared.model_discovery import ModelArtifactKind
+from sugarsubstitute_shared.localization import app_text
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import (
     ModelFamilyId,
     ModelInstallFile,
     ModelInstallPlan,
-    ModelInstallSource,
-    ModelRecipeRole,
     ModelRecommendation,
 )
 from substitute.presentation.onboarding.model_onboarding_session import (
@@ -47,8 +49,7 @@ from substitute.presentation.onboarding.onboarding_existing_model_page import (
     ExistingModelsFolderQuestionPage,
 )
 from substitute.presentation.onboarding.onboarding_model_download_review_page import (
-    DownloadReviewGroup,
-    DownloadReviewItem,
+    DownloadCartCard,
     ModelDownloadReviewPage,
 )
 from substitute.presentation.onboarding.onboarding_recommendation_pages import (
@@ -69,25 +70,17 @@ from substitute.shared.qt_thumbnail_codec import prepare_qt_thumbnail
 from tests.support.qt.lifecycle import ensure_qt_application
 
 
-def test_existing_folder_question_uses_buttons_without_opening_picker() -> None:
-    """Keep the binary decision separate from the following folder picker."""
+def test_existing_folder_question_leaves_branch_actions_to_stable_footer() -> None:
+    """Keep the focal question free of select-then-continue controls."""
 
     ensure_qt_application()
     question = ExistingModelsFolderQuestionPage()
     folder = FolderSetupPage()
-    answers: list[bool] = []
     browse_requests: list[bool] = []
-    question.answer_changed.connect(answers.append)
     folder.managed_model_browse_requested.connect(lambda: browse_requests.append(True))
-
-    question.yes_button.click()
-
-    assert answers == [True]
-    assert browse_requests == []
-    assert question.yes_button.isCheckable()
-    assert question.yes_button.metaObject().className() != "RadioButton"
     assert question.findChildren(OnboardingSectionPanel) == []
-    assert question.choice.sizeHint().width() < question.content_column.minimumWidth()
+    assert question.findChildren(QCheckBox) == []
+    assert question.content_column.maximumWidth() == 520
 
     folder.set_model_picker_visible(True, allow_default=False)
     folder.managed_model_browse_button.click()
@@ -98,23 +91,14 @@ def test_existing_folder_question_uses_buttons_without_opening_picker() -> None:
     question.close()
 
 
-def test_existing_model_question_uses_compact_push_button_presentation() -> None:
-    """Use one unwrapped compact push-button choice for the folder question."""
+def test_existing_model_question_copy_does_not_assume_comfyui_layout() -> None:
+    """Describe a neutral existing models folder for future linked layouts."""
 
     ensure_qt_application()
     existing = ExistingModelsFolderQuestionPage()
-    assert existing.answer() is None
     assert existing.findChildren(RadioButton) == []
     assert existing.findChildren(OnboardingSectionPanel) == []
-    assert existing.choice.sizeHint().width() < existing.content_column.minimumWidth()
-    assert existing.yes_button.width() == 76
-    assert existing.no_button.width() == 76
-    existing.no_button.click()
-    assert existing.answer() is False
-    assert not existing.no_button.icon().isNull()
-    assert existing.yes_button.icon().isNull()
-    existing.set_answer(None)
-    assert existing.answer() is None
+    assert "ComfyUI models folder" not in existing.hero_panel.description_label.text()
     existing.close()
 
 
@@ -222,18 +206,59 @@ def test_recommendation_cards_show_immediately_while_thumbnails_load() -> None:
     assert first_thumbnail is not None
     assert len(portraits) == 3
     assert all(portrait.thumbnail_is_loading() for portrait in portraits)
+    assert all(not portrait.loading_label.isHidden() for portrait in portraits)
     assert all(portrait.source_size().isEmpty() for portrait in portraits)
     assert page.set_thumbnail(1010, first_thumbnail)
     assert not portraits[0].thumbnail_is_loading()
+    assert portraits[0].loading_label.isHidden()
     assert portraits[0].source_size().height() >= 960
     assert page.set_thumbnail_unavailable(1020)
     assert portraits[1].thumbnail_is_unavailable()
+    assert portraits[1].loading_label.isHidden()
     assert portraits[2].thumbnail_is_loading()
     page.close()
 
 
-def test_download_review_groups_files_without_exposing_absolute_paths() -> None:
-    """Present a compact hierarchy instead of a selectable path dump."""
+def test_recommendation_page_owns_provider_loading_and_recovery_states() -> None:
+    """Keep CivitAI progress and failure on the page the action belongs to."""
+
+    ensure_qt_application()
+    page = ModelRecommendationPage()
+
+    page.show_loading(ModelFamilyId.SDXL)
+
+    assert page.current_family() is ModelFamilyId.SDXL
+    loading_cards = page.card_host.findChildren(
+        QFrame,
+        "OnboardingRecommendationLoadingCard",
+    )
+    loading_rings = page.card_host.findChildren(
+        IndeterminateProgressRing,
+        "OnboardingRecommendationLoadingBusy",
+    )
+    assert len(loading_cards) == 3
+    assert len(loading_rings) == 3
+    assert all(not ring.isHidden() for ring in loading_rings)
+    assert all(
+        ring.accessibleName() == "Loading recommendations…" for ring in loading_rings
+    )
+    assert page.loading_row.isHidden()
+    assert not page.card_host.isHidden()
+
+    page.show_failure(
+        ModelFamilyId.SDXL,
+        app_text("CivitAI recommendations could not be loaded. Try again or go back."),
+    )
+
+    assert page.loading_ring.isHidden()
+    assert "could not be loaded" in page.loading_status.text()
+    assert not page.find_own_button.isHidden()
+    assert page.skip_button.isHidden()
+    page.close()
+
+
+def test_download_review_is_an_editable_thumbnail_cart() -> None:
+    """Present selected models as removable exact-thumbnail checkout cards."""
 
     ensure_qt_application()
     page = ModelDownloadReviewPage()
@@ -242,41 +267,81 @@ def test_download_review_groups_files_without_exposing_absolute_paths() -> None:
         model_root=model_root,
         files=(
             _install_file(
-                role=ModelRecipeRole.PRIMARY_MODEL,
+                display_name="One obsession",
+                file_name="oneObsession_v24.safetensors",
+                size_bytes=6_500_000_000,
+                destination_dir=model_root / "checkpoints",
+            ),
+        ),
+        available_bytes=244_800_000_000,
+    )
+
+    card = _card(ModelFamilyId.SDXL, 1)
+    page.set_plan(plan, (card,))
+
+    rows = page.findChildren(DownloadCartCard)
+    visible_text = " ".join(
+        label.text() for label in page.findChildren(QLabel) if label.text()
+    )
+    assert len(rows) == 1
+    assert "Required components" not in visible_text
+    assert "E:/models" not in visible_text
+    assert "E:\\models" not in visible_text
+    assert page.summary_panel.total_label.text() == "6.1 GiB"
+    assert not page.summary_panel.isHidden()
+    page.close()
+
+
+def test_two_model_checkout_centers_cards_and_portraits_without_overflow() -> None:
+    """Keep the common two-model cart centered and internally aligned."""
+
+    application = ensure_qt_application()
+    page = ModelDownloadReviewPage()
+    page.resize(980, 520)
+    model_root = Path("E:/models")
+    plan = ModelInstallPlan(
+        model_root=model_root,
+        files=(
+            _install_file(
                 display_name="One obsession",
                 file_name="oneObsession_v24.safetensors",
                 size_bytes=6_500_000_000,
                 destination_dir=model_root / "checkpoints",
             ),
             _install_file(
-                role=ModelRecipeRole.TEXT_ENCODER,
-                display_name="qwen_3_06b_base.safetensors",
-                file_name="qwen_3_06b_base.safetensors",
-                size_bytes=1_100_000_000,
-                destination_dir=model_root / "text_encoders" / "qwen",
+                family=ModelFamilyId.ANIMA,
+                model_id=201,
+                version_id=2010,
+                display_name="Anima",
+                file_name="anima.safetensors",
+                size_bytes=3_900_000_000,
+                destination_dir=model_root / "diffusion_models",
             ),
         ),
         available_bytes=244_800_000_000,
     )
-
-    page.set_plan(plan)
-
-    groups = page.findChildren(DownloadReviewGroup)
-    rows = page.findChildren(DownloadReviewItem)
-    visible_text = " ".join(
-        label.text() for label in page.findChildren(QLabel) if label.text()
+    page.set_plan(
+        plan,
+        (
+            _card(ModelFamilyId.SDXL, 1),
+            _card(ModelFamilyId.ANIMA, 1),
+        ),
     )
-    assert len(groups) == 2
-    assert len(rows) == 2
-    assert "Selected models" in visible_text
-    assert "Required components" in visible_text
-    assert "One obsession" in visible_text
-    assert "Text encoder" in visible_text
-    assert "oneObsession_v24.safetensors" in visible_text
-    assert "E:/models" not in visible_text
-    assert "E:\\models" not in visible_text
-    assert page.summary_panel.total_label.text() == "7.1 GiB"
-    assert not page.summary_panel.isHidden()
+    page.show()
+    application.processEvents()
+
+    cards = page.findChildren(DownloadCartCard)
+    assert len(cards) == 2
+    for card in cards:
+        card_center = card.mapToGlobal(card.rect().center()).x()
+        portrait_center = card.portrait.mapToGlobal(card.portrait.rect().center()).x()
+        assert abs(card_center - portrait_center) <= 1
+    cards_left = cards[0].mapToGlobal(cards[0].rect().topLeft()).x()
+    cards_right = cards[-1].mapToGlobal(cards[-1].rect().topRight()).x()
+    card_group_center = (cards_left + cards_right) // 2
+    page_center = page.mapToGlobal(page.rect().center()).x()
+    assert abs(card_group_center - page_center) <= 1
+    assert page.sizeHint().height() <= 520
     page.close()
 
 
@@ -302,6 +367,66 @@ def test_model_session_preserves_loaded_selections_and_rejects_stale_ids() -> No
 
     assert session.state.selected_version_ids == {1010}
     assert tuple(item.model_id for item in session.selected_recommendations()) == (101,)
+
+
+def test_model_session_reuses_exact_cards_when_reentering_the_same_flow() -> None:
+    """Keep model, version, image identity, order, and payload across Back/Continue."""
+
+    session = ModelOnboardingSession(
+        flow_mode=OnboardingFlowMode.FIRST_RUN,
+        target_mode=OnboardingTargetMode.MANAGED_LOCAL,
+    )
+    session.answer_existing_folder(False)
+    session.select_missing_families(frozenset())
+    pages = (
+        FamilyRecommendationPage(
+            ModelFamilyId.SDXL,
+            tuple(_card(ModelFamilyId.SDXL, rank) for rank in range(1, 4)),
+        ),
+        FamilyRecommendationPage(
+            ModelFamilyId.ANIMA,
+            tuple(_card(ModelFamilyId.ANIMA, rank) for rank in range(1, 4)),
+        ),
+    )
+    assert session.accept_recommendations(pages)
+    first_thumbnail = pages[0].cards[0].thumbnail
+    assert first_thumbnail is not None
+    assert session.accept_thumbnail(1010, first_thumbnail)
+    settled_pages = session.state.recommendation_pages
+    settled_identity = tuple(
+        (
+            card.recommendation.model_id,
+            card.recommendation.version_id,
+            card.recommendation.thumbnail_image_id,
+            card.recommendation.thumbnail_url,
+            card.thumbnail,
+        )
+        for page in settled_pages
+        for card in page.cards
+    )
+
+    session.answer_existing_folder(False)
+    assert session.select_missing_families(frozenset()) == (
+        ModelFamilyId.SDXL,
+        ModelFamilyId.ANIMA,
+    )
+
+    assert session.has_loaded_recommendations()
+    assert session.state.recommendation_pages is settled_pages
+    assert (
+        tuple(
+            (
+                card.recommendation.model_id,
+                card.recommendation.version_id,
+                card.recommendation.thumbnail_image_id,
+                card.recommendation.thumbnail_url,
+                card.thumbnail,
+            )
+            for page in session.state.recommendation_pages
+            for card in page.cards
+        )
+        == settled_identity
+    )
 
 
 def test_shared_model_page_versions_keep_selections_and_thumbnails_independent() -> (
@@ -379,6 +504,7 @@ def _card(family: ModelFamilyId, rank: int) -> RecommendationCardAsset:
             sha256=f"{model_id:064x}",
             download_url=f"https://civitai.com/api/download/models/{model_id * 10}",
             model_page_url=f"https://civitai.com/models/{model_id}",
+            thumbnail_image_id=model_id * 100,
             thumbnail_url=f"https://image.civitai.com/{model_id}.png",
             popularity_rank=rank,
         ),
@@ -409,6 +535,7 @@ def _card_with_identity(
             model_page_url=(
                 f"https://civitai.com/models/{model_id}?modelVersionId={version_id}"
             ),
+            thumbnail_image_id=version_id * 10,
             thumbnail_url=f"https://image.civitai.com/{version_id}.png",
             popularity_rank=1,
         )
@@ -434,7 +561,9 @@ def _thumbnail(family: ModelFamilyId, rank: int) -> ThumbnailAsset:
 
 def _install_file(
     *,
-    role: ModelRecipeRole,
+    family: ModelFamilyId = ModelFamilyId.SDXL,
+    model_id: int = 101,
+    version_id: int = 1010,
     display_name: str,
     file_name: str,
     size_bytes: int,
@@ -443,12 +572,10 @@ def _install_file(
     """Return one exact planned file for download-review presentation tests."""
 
     return ModelInstallFile(
-        family_id=ModelFamilyId.SDXL,
-        role=role,
+        family_id=family,
         artifact_kind=ModelArtifactKind.CHECKPOINTS,
-        source=ModelInstallSource.CIVITAI,
-        model_id=1,
-        version_id=2,
+        model_id=model_id,
+        version_id=version_id,
         display_name=display_name,
         file_name=file_name,
         source_url="https://example.invalid/model",

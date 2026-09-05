@@ -747,11 +747,11 @@ owner = "onboarding window"
 rule = "STRUCT003"
 path = "substitute/presentation/onboarding/onboarding_window.py"
 kind = "remediation"
-justification = "The assessed file mixes window chrome, layout, and navigation rail, page flow and dynamic height, draft, issue, completion, and model-flow interaction routing, preflight and attached Python recovery interaction routing. Extract window-shell navigation and geometry from route-specific onboarding interactions."
+justification = "The assessed file mixes shared installer-shell composition and drag routing, page navigation and route-dependent action state, draft, issue, completion, and model-flow interaction routing, and preflight and attached Python recovery interaction routing. Extract page-navigation and route-action coordination from shell composition and environment recovery interactions."
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
-max_lines = 1379
-next_limit = 1158
+max_lines = 1136
+next_limit = 900
 debt = "SS-ARCH-068"
 
 [[waivers]]
@@ -1871,7 +1871,7 @@ kind = "remediation"
 justification = "The assessed file mixes native Windows process and structure bindings, installer and onboarding UI automation, historical shell and diagnostic evidence collection, isolated desktop launch and process termination, command-line orchestration. Extract native process/desktop control and historical evidence projection from installer UI workflow automation."
 issue = "chore:SS-ARCH-096"
 review_by = 2026-12-15
-max_lines = 707
+max_lines = 706
 next_limit = 564
 debt = "SS-ARCH-096"
 

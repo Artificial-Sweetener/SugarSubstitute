@@ -147,7 +147,7 @@ class CivitaiFamilyRecommendationGateway:
 
         return f"{_API_ROOT}/models?{urlencode({'limit': str(self._page_size), 'types': family.civitai.model_type, 'baseModels': family.civitai.recommendation_base_model, 'sort': 'Most Downloaded', 'period': 'Month', 'nsfw': 'false', 'earlyAccess': 'false', 'primaryFileOnly': 'true'})}"
 
-    def _fallback_thumbnail(self, version_id: int) -> str | None:
+    def _fallback_thumbnail(self, version_id: int) -> tuple[int, str] | None:
         """Return a safe large portrait from the version's public image gallery."""
 
         url = f"{_API_ROOT}/images?{urlencode({'limit': '20', 'modelVersionId': str(version_id), 'sort': 'Most Reactions', 'period': 'AllTime', 'nsfw': 'None', 'type': 'image'})}"
@@ -188,7 +188,7 @@ def _parse_model(
     *,
     family: ModelFamilyDefinition,
     popularity_rank: int,
-    fallback_thumbnail: Callable[[int], str | None],
+    fallback_thumbnail: Callable[[int], tuple[int, str] | None],
 ) -> ModelRecommendation | None:
     """Parse one public model and choose its first exact-family eligible version."""
 
@@ -224,7 +224,8 @@ def _parse_model(
             size_bytes,
             sha256,
             download_url,
-            thumbnail,
+            thumbnail_image_id,
+            thumbnail_url,
         ) = parsed
         return ModelRecommendation(
             family_id=family.family_id,
@@ -238,7 +239,8 @@ def _parse_model(
             sha256=sha256,
             download_url=download_url,
             model_page_url=f"https://civitai.com/models/{model_id}?modelVersionId={version_id}",
-            thumbnail_url=thumbnail,
+            thumbnail_image_id=thumbnail_image_id,
+            thumbnail_url=thumbnail_url,
             popularity_rank=popularity_rank,
         )
     return None
@@ -248,8 +250,8 @@ def _parse_version(
     value: object,
     *,
     expected_base_model: str,
-    fallback_thumbnail: Callable[[int], str | None],
-) -> tuple[int, str, str, int, str, str, str] | None:
+    fallback_thumbnail: Callable[[int], tuple[int, str] | None],
+) -> tuple[int, str, str, int, str, str, int, str] | None:
     """Return one exact-family version with a safe image and verified primary file."""
 
     if not isinstance(value, dict):
@@ -280,7 +282,7 @@ def _parse_version(
     for item in ordered:
         parsed = _safe_file(item)
         if parsed is not None:
-            return (version_id, version_name, *parsed, thumbnail)
+            return (version_id, version_name, *parsed, *thumbnail)
     return None
 
 
@@ -312,8 +314,8 @@ def _safe_file(value: dict[str, Any]) -> tuple[str, int, str, str] | None:
     return name, int(round(size_kb * 1024)), sha256.casefold(), download_url
 
 
-def _safe_thumbnail(value: object) -> str | None:
-    """Return the first safe high-resolution portrait hosted by CivitAI."""
+def _safe_thumbnail(value: object) -> tuple[int, str] | None:
+    """Return the exact identity and URL of the first safe provider portrait."""
 
     if not isinstance(value, list):
         return None
@@ -321,8 +323,9 @@ def _safe_thumbnail(value: object) -> str | None:
         if not isinstance(image, dict):
             continue
         url = _text(image.get("url"))
+        image_id = _positive_integer(image.get("id"))
         normalized = CivitaiImage(
-            image_id=_positive_integer(image.get("id")),
+            image_id=image_id,
             url=url or "",
             image_type=_text(image.get("type")),
             nsfw=image.get("nsfw") if isinstance(image.get("nsfw"), bool) else None,
@@ -337,7 +340,8 @@ def _safe_thumbnail(value: object) -> str | None:
             meta=None,
         )
         if (
-            url is not None
+            image_id is not None
+            and url is not None
             and _is_civitai_asset_url(url)
             and _THUMBNAIL_POLICY.allows_image(normalized)
             and normalized.width is not None
@@ -346,7 +350,7 @@ def _safe_thumbnail(value: object) -> str | None:
             and normalized.height >= _MIN_PORTRAIT_HEIGHT
             and normalized.height > normalized.width
         ):
-            return _large_preview_url(url)
+            return image_id, _large_preview_url(url)
     return None
 
 

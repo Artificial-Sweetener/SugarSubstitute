@@ -116,12 +116,12 @@ class OnboardingPathSelector:
     def use_default_model_root(self) -> None:
         """Reset the models field to the selected local ComfyUI default."""
 
-        self._model_root_edit.setText(str(self.default_model_root()))
+        self._set_path_text(self._model_root_edit, str(self.default_model_root()))
 
     def use_default_output_root(self) -> None:
         """Reset the output field to Substitute's default output folder."""
 
-        self._output_root_edit.setText(str(self.default_output_root()))
+        self._set_path_text(self._output_root_edit, str(self.default_output_root()))
 
     def selected_model_root(self) -> Path:
         """Return the selected models folder from the folders page."""
@@ -160,9 +160,17 @@ class OnboardingPathSelector:
             target.text(),
         )
         if selected:
-            target.setText(selected)
+            self._set_path_text(target, selected)
             return True
         return False
+
+    @staticmethod
+    def _set_path_text(target: QLineEdit, path: str) -> None:
+        """Show a programmatic path from its informative beginning."""
+
+        target.setText(path)
+        target.setCursorPosition(0)
+        target.deselect()
 
 
 __all__ = ["OnboardingPathSelector"]

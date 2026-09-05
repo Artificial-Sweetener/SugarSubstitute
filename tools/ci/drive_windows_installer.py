@@ -373,7 +373,12 @@ def _complete_historical_onboarding(
         onboarding,
         deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
     )
-    _choose_and_continue(onboarding, "OnboardingExistingModelsYes", deadline)
+    _wait_for_visible_control(
+        onboarding,
+        "OnboardingYesExistingModelsButton",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _invoke_choice(onboarding, "OnboardingYesExistingModelsButton")
     _wait_for_visible_control(
         onboarding,
         "OnboardingManagedModelRootEdit",
@@ -490,15 +495,6 @@ def _invoke_primary(window: Any, *, deadline: float) -> None:
         "Historical onboarding primary action did not become enabled.\n"
         + _window_automation_snapshot(window)
     )
-
-
-def _choose_and_continue(window: Any, suffix: str, deadline: float) -> None:
-    """Wait for one binary choice, select it, and continue the onboarding route."""
-
-    phase_deadline = _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS)
-    _wait_for_visible_control(window, suffix, phase_deadline)
-    _invoke_choice(window, suffix)
-    _invoke_primary(window, deadline=phase_deadline)
 
 
 def _wait_for_primary_action(window: Any, action: str, deadline: float) -> None:

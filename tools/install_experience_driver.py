@@ -20,12 +20,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-import time
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QAbstractButton, QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets import RadioButton  # type: ignore[import-untyped]
 
 from substitute.domain.model_recommendations import ModelFamilyId
@@ -40,12 +39,16 @@ from tools.install_experience_capture import (
     save_opaque_dark_widget_capture,
 )
 from tools.install_experience_setup import SetupSideEffectAudit
+from tools.install_experience_model_evidence import recommendation_identity
+from tools.install_experience_navigation import (
+    click_installer_control as _click,
+    installer_widget as _widget,
+    wait_for_installer_condition as _wait_until,
+    wait_for_installer_page as _wait_for_page,
+)
 
 if TYPE_CHECKING:
     from tools.install_experience_onboarding import OnboardingCheckSession
-
-
-_WIDGET_T = TypeVar("_WIDGET_T", bound=QWidget)
 
 
 def capture_onboarding_matrix(
@@ -142,6 +145,18 @@ def _drive_onboarding_scenario(
     }[scenario.target]
     _wait_for_page(window, configuration_page)
     _capture(window, artifact_root, scenario.slug, "configuration", evidence)
+    if scenario.slug == "managed-sdxl-and-anima":
+        _click(window, "OnboardingAdvancedButton")
+        QTest.qWait(20)
+        _capture(
+            window,
+            artifact_root,
+            scenario.slug,
+            "configuration-advanced",
+            evidence,
+            capture_widget=window.managed_local_page.connection_settings_dialog,
+        )
+        _click(window, "OnboardingConnectionSettingsDoneButton")
     _click(window, "OnboardingPrimaryButton")
     if scenario.target != "remote":
         _wait_for_page(window, "OnboardingExistingModelsQuestionPage")
@@ -153,9 +168,9 @@ def _drive_onboarding_scenario(
             evidence,
         )
         existing_answer = (
-            "OnboardingExistingModelsYes"
+            "OnboardingYesExistingModelsButton"
             if scenario.existing_models
-            else "OnboardingExistingModelsNo"
+            else "OnboardingNoExistingModelsButton"
         )
         _click(
             window,
@@ -170,7 +185,6 @@ def _drive_onboarding_scenario(
             else "existing-models-answer-no",
             evidence,
         )
-        _click(window, "OnboardingPrimaryButton")
     if scenario.target != "remote" and not scenario.background_finishes_after_choices:
         _wait_until(
             lambda: session.preparation_completed,
@@ -195,8 +209,7 @@ def _drive_onboarding_scenario(
         _capture(window, artifact_root, scenario.slug, "scan-recovery", evidence)
         _click(window, "OnboardingBackButton")
         _wait_for_page(window, "OnboardingExistingModelsQuestionPage")
-        _click(window, "OnboardingExistingModelsNo")
-        _click(window, "OnboardingPrimaryButton")
+        _click(window, "OnboardingNoExistingModelsButton")
     missing_families = tuple(
         family
         for family in (ModelFamilyId.SDXL, ModelFamilyId.ANIMA)
@@ -216,6 +229,18 @@ def _drive_onboarding_scenario(
     if scenario.background_finishes_after_choices:
         _wait_for_page(window, "OnboardingProvisioningPage")
         _capture(window, artifact_root, scenario.slug, "provisioning", evidence)
+        if scenario.slug == "managed-sdxl-and-anima":
+            _click(window, "OnboardingShowSetupLogButton")
+            QTest.qWait(20)
+            _capture(
+                window,
+                artifact_root,
+                scenario.slug,
+                "setup-log",
+                evidence,
+                capture_widget=window.setup_log_dialog,
+            )
+            window.setup_log_dialog.close()
         if not session.preparation_started:
             raise RuntimeError("Background preparation did not start before choices.")
         session.release_preparation()
@@ -225,7 +250,7 @@ def _drive_onboarding_scenario(
             lambda: len(session.error_presenter.reports) == 1,
             description=f"{scenario.slug} structured failure report",
         )
-        if not window.provisioning_page.show_log_button.isChecked():
+        if window.setup_log_dialog.isHidden():
             raise RuntimeError("Setup failure did not reveal the diagnostic log.")
         report = session.error_presenter.reports[0]
         if report.operation_context is None or not report.operation_context.trace_id:
@@ -234,6 +259,16 @@ def _drive_onboarding_scenario(
         _click(window, "OnboardingPrimaryButton")
     _wait_for_page(window, "OnboardingCompletionPage")
     _capture(window, artifact_root, scenario.slug, "completion", evidence)
+    if scenario.slug == "managed-sdxl-and-anima":
+        _click(window, "OnboardingCompletionDetailsButton")
+        QTest.qWait(20)
+        _capture(
+            window,
+            artifact_root,
+            scenario.slug,
+            "completion-details",
+            evidence,
+        )
 
 
 def _drive_model_recommendations(
@@ -273,6 +308,29 @@ def _drive_model_recommendations(
             f"recommendations-{family.value}",
             evidence,
         )
+        if scenario.slug == "managed-sdxl-and-anima" and family == missing_families[0]:
+            settled_pages = window._controller.model_session.state.recommendation_pages
+            settled_identity = recommendation_identity(window)
+            _click(window, "OnboardingBackButton")
+            _wait_for_page(window, "OnboardingExistingModelsQuestionPage")
+            _click(window, "OnboardingNoExistingModelsButton")
+            _wait_for_page(window, "OnboardingModelRecommendationPage")
+            _assert_recommendation_page(window, family)
+            if (
+                window._controller.model_session.state.recommendation_pages
+                is not settled_pages
+                or recommendation_identity(window) != settled_identity
+            ):
+                raise RuntimeError(
+                    "Back/Continue replaced the settled CivitAI recommendation session."
+                )
+            _capture(
+                window,
+                artifact_root,
+                scenario.slug,
+                f"recommendations-{family.value}-revisit",
+                evidence,
+            )
         if family in scenario.selected_families:
             version_id = (100 if family.value == "sdxl" else 200) * 10 + 1
             _click(window, f"OnboardingRecommendationSelect_{version_id}")
@@ -336,13 +394,14 @@ def _capture(
     scenario: str,
     checkpoint: str,
     evidence: list[dict[str, object]],
+    capture_widget: QWidget | None = None,
 ) -> None:
     """Capture one production page and its stable semantic identity."""
 
     QApplication.processEvents()
     path = artifact_root / "comfy-setup" / scenario / f"{checkpoint}.png"
     path.parent.mkdir(parents=True, exist_ok=True)
-    save_opaque_dark_widget_capture(window, path)
+    save_opaque_dark_widget_capture(capture_widget or window, path)
     current = window.page_stack.currentWidget()
     evidence.append(
         {
@@ -354,64 +413,6 @@ def _capture(
             "screenshot": str(path),
         }
     )
-
-
-def _widget(
-    window: OnboardingWindow,
-    widget_type: type[_WIDGET_T],
-    object_name: str,
-) -> _WIDGET_T:
-    """Return one named production control or fail with useful evidence."""
-
-    widget = window.findChild(widget_type, object_name)
-    if widget is None:
-        raise LookupError(f"Onboarding control is missing: {object_name}")
-    return cast(_WIDGET_T, widget)
-
-
-def _click(window: OnboardingWindow, object_name: str) -> None:
-    """Click one enabled production control."""
-
-    widget = _widget(window, QWidget, object_name)
-    if not widget.isEnabled():
-        raise RuntimeError(f"Onboarding control is disabled: {object_name}")
-    if isinstance(widget, QAbstractButton):
-        widget.click()
-    else:
-        QTest.mouseClick(widget, Qt.MouseButton.LeftButton)
-    QApplication.processEvents()
-
-
-def _wait_for_page(window: OnboardingWindow, object_name: str) -> None:
-    """Wait for the production page stack to expose one page."""
-
-    def page_matches() -> bool:
-        """Return whether the visible production page has the expected identity."""
-
-        current = window.page_stack.currentWidget()
-        return current is not None and current.objectName() == object_name
-
-    _wait_until(
-        page_matches,
-        description=f"page {object_name}",
-    )
-
-
-def _wait_until(
-    predicate: Callable[[], bool],
-    *,
-    description: str,
-    timeout_seconds: float = 5.0,
-) -> None:
-    """Service Qt events until one bounded observable condition succeeds."""
-
-    deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        QApplication.processEvents()
-        if predicate():
-            return
-        QTest.qWait(10)
-    raise TimeoutError(f"Timed out waiting for {description}.")
 
 
 def _merge_audit(target: SetupSideEffectAudit, source: SetupSideEffectAudit) -> None:
@@ -437,4 +438,7 @@ def _synthetic_directory_chooser(root: Path) -> Callable[[QWidget, str, str], st
     return choose
 
 
-__all__ = ["capture_onboarding_matrix", "open_interactive_onboarding"]
+__all__ = [
+    "capture_onboarding_matrix",
+    "open_interactive_onboarding",
+]

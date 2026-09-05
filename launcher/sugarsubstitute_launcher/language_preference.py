@@ -14,28 +14,25 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own native installer backdrop and frameless-window integration."""
+"""Persist installer language selection into the prepared application root."""
 
 from __future__ import annotations
 
-import logging
-from typing import Any
+from pathlib import Path
 
-from qfluentwidgets.common.style_sheet import isDarkTheme  # type: ignore[import-untyped]
+from sugarsubstitute_shared.localization import (
+    LanguagePreference,
+    LocalizationPreferenceStore,
+)
 
 
-_LOGGER = logging.getLogger(__name__)
+def persist_launcher_language_preference(
+    install_root: Path,
+    preference: LanguagePreference,
+) -> None:
+    """Persist the selected language into the installation being prepared."""
+
+    LocalizationPreferenceStore.for_install_root(install_root).save(preference)
 
 
-def apply_launcher_window_effects(window: Any) -> None:
-    """Apply Mica Alt exactly as the main Substitute frame does."""
-
-    try:
-        window.setAutoFillBackground(False)
-        window.windowEffect.setMicaEffect(
-            window.winId(),
-            isDarkMode=isDarkTheme(),
-            isAlt=True,
-        )
-    except (AttributeError, RuntimeError, OSError) as error:
-        _LOGGER.warning("Failed to apply launcher backdrop: %r", error)
+__all__ = ["persist_launcher_language_preference"]
