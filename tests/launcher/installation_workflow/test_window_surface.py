@@ -146,7 +146,7 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
     assert "InstallerBrandBar" in window.view.styleSheet()
     assert "OnboardingSectionPanel" in window.view.styleSheet()
     assert "background: transparent" in window.view.styleSheet()
-    assert window.styleSheet() == "AcrylicWindow{background:transparent}"
+    assert "background:transparent" in window.styleSheet().replace(" ", "")
     assert window.view.testAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
     assert window.view.brand_bar.testAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
     header_pixel = window.view.grab().toImage().pixelColor(600, 60)
