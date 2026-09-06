@@ -40,9 +40,8 @@ def prepare_opaque_dark_capture_surface(widget: QWidget) -> None:
     widget.setPalette(palette)
     widget.setAutoFillBackground(True)
     widget.setStyleSheet(
-        widget.styleSheet()
-        + "\nQWidget#OnboardingRoot, QWidget#OnboardingSurface {"
-        + " background-color: #181818; }"
+        "QWidget#OnboardingWindow, QWidget#OnboardingRoot, "
+        "QWidget#OnboardingSurface { background-color: #181818; }"
     )
 
 

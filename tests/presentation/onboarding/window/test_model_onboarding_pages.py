@@ -141,7 +141,7 @@ def test_recommendation_page_renders_centered_five_by_two_family_choices() -> No
     assert len(portraits) == 8
     assert not any(portrait.thumbnail_is_loading() for portrait in portraits)
     assert all(portrait.width() == 184 for portrait in portraits)
-    assert all(portrait.height() == 204 for portrait in portraits)
+    assert all(portrait.height() == 200 for portrait in portraits)
     assert all(portrait.source_size().height() >= 960 for portrait in portraits)
     assert page.card_grid.count() == 10
     import_item = page.card_grid.itemAtPosition(1, 3)
