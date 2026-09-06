@@ -75,8 +75,8 @@ def test_download_review_is_an_editable_thumbnail_cart() -> None:
     assert "E:\\models" not in visible_text
     assert page.summary_panel.total_label.text() == "6.1 GiB"
     assert not page.summary_panel.isHidden()
-    assert cards[0].size().toTuple() == (204, 224)
-    assert cards[0].portrait.size().toTuple() == (184, 204)
+    assert cards[0].size().toTuple() == (204, 220)
+    assert cards[0].portrait.size().toTuple() == (184, 200)
     assert cards[0].portrait.accessibleDescription() == "SDXL  ·  6.1 GiB"
     assert cards[0].remove_button.accessibleName() == "Remove One obsession"
     assert bool(cards[0].remove_button.property("onboardingCardRemove"))
@@ -174,8 +174,8 @@ def test_nine_model_checkout_matches_picker_density_and_keeps_totals_in_hero() -
     cards = page.findChildren(DownloadCartCard)
     assert len(cards) == 9
     assert len({card.parentWidget() for card in cards}) == 2
-    assert all(card.size().toTuple() == (204, 224) for card in cards)
-    assert all(card.portrait.size().toTuple() == (184, 204) for card in cards)
+    assert all(card.size().toTuple() == (204, 220) for card in cards)
+    assert all(card.portrait.size().toTuple() == (184, 200) for card in cards)
     assert all("MiB" in card.portrait.accessibleDescription() for card in cards)
     assert not stage.verticalScrollBar().isVisible()
     bottom_row = cards[5:]
