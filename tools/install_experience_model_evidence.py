@@ -63,8 +63,8 @@ def capture_live_recommendation_page(*, artifact_root: Path) -> dict[str, object
         click_installer_control(window, "OnboardingNoExistingModelsButton")
         wait_for_installer_page(window, "OnboardingModelRecommendationPage")
         wait_for_installer_condition(
-            lambda: len(window.model_recommendation_page.visible_cards()) == 3,
-            description="three live CivitAI recommendation cards",
+            lambda: len(window.model_recommendation_page.visible_cards()) == 8,
+            description="eight live CivitAI recommendation cards",
             timeout_seconds=30.0,
         )
         QApplication.processEvents()
@@ -112,6 +112,27 @@ def capture_live_recommendation_page(*, artifact_root: Path) -> dict[str, object
             )
         revisit_path = artifact_root / "live-civitai" / "settled-revisit.png"
         save_opaque_dark_widget_capture(window, revisit_path)
+        click_installer_control(window, "OnboardingCivitaiImportCard")
+        import_overlay = window.model_recommendation_page._import_overlay
+        if import_overlay is None:
+            raise RuntimeError("Live CivitAI link import did not open its overlay.")
+        import_overlay.link_edit.setPlainText(
+            "https://civitai.com/models/133005/juggernaut-xl"
+        )
+        click_installer_control(window, "OnboardingModelLinkCheckButton")
+        wait_for_installer_condition(
+            lambda: len(import_overlay.ready_cards()) == 1,
+            description="real CivitAI linked-model preview",
+            timeout_seconds=45.0,
+        )
+        linked_card = import_overlay.ready_cards()[0]
+        if linked_card.thumbnail is None or not import_overlay.add_button.isEnabled():
+            raise RuntimeError(
+                "Live CivitAI link import did not produce an actionable preview."
+            )
+        link_import_path = artifact_root / "live-civitai" / "linked-model.png"
+        save_opaque_dark_widget_capture(window, link_import_path)
+        click_installer_control(window, "OnboardingModelLinkAddButton")
         click_installer_control(window, "OnboardingOwnModelChoice")
         click_installer_control(window, "OnboardingPrimaryButton")
         wait_for_installer_condition(
@@ -140,6 +161,8 @@ def capture_live_recommendation_page(*, artifact_root: Path) -> dict[str, object
             "loading_screenshot": str(loading_path),
             "settled_screenshot": str(settled_path),
             "revisited_screenshot": str(revisit_path),
+            "linked_model": _card_identity(linked_card),
+            "linked_model_screenshot": str(link_import_path),
             "anima_models": [_card_identity(card) for card in anima_page.cards[:3]],
             "anima_screenshot": str(anima_path),
             "source_heights": [

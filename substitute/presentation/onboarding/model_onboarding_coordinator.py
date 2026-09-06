@@ -35,7 +35,10 @@ from substitute.application.execution import (
     TaskRequest,
     TaskSubmitter,
 )
-from substitute.application.model_recommendations import FamilyRecommendationPage
+from substitute.application.model_recommendations import (
+    FamilyRecommendationPage,
+    RecommendationLinkResult,
+)
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import (
     ModelFamilyId,
@@ -75,6 +78,16 @@ class ModelOnboardingServiceLike(Protocol):
     ) -> ThumbnailAsset:
         """Load one governed recommendation thumbnail."""
 
+    def resolve_model_links(
+        self,
+        family_id: ModelFamilyId,
+        urls: tuple[str, ...],
+        *,
+        cancellation: CancellationToken,
+        excluded_version_ids: frozenset[int] = frozenset(),
+    ) -> tuple[RecommendationLinkResult, ...]:
+        """Resolve explicit CivitAI links for one family."""
+
 
 class ModelOnboardingCoordinator(QObject):
     """Own cancellable model-onboarding work for one onboarding window."""
@@ -85,34 +98,42 @@ class ModelOnboardingCoordinator(QObject):
     recommendation_finished = Signal(int, object)
     thumbnail_finished = Signal(int, int, object)
     thumbnail_failed = Signal(int, int)
+    link_import_finished = Signal(int, object)
     task_failed = Signal(int, str, object)
 
     def __init__(
         self,
         *,
         service: ModelOnboardingServiceLike,
-        submitter: TaskSubmitter,
-        close_submitter: Callable[[], None],
+        request_submitter: TaskSubmitter,
+        close_request_submitter: Callable[[], None],
+        thumbnail_submitter: TaskSubmitter,
+        close_thumbnail_submitter: Callable[[], None],
         parent: QObject | None = None,
     ) -> None:
         """Store work services and latest-wins execution channels."""
 
         super().__init__(parent)
         self._service = service
-        self._close_submitter = close_submitter
+        self._close_request_submitter = close_request_submitter
+        self._close_thumbnail_submitter = close_thumbnail_submitter
         self._scan_channel: LatestWinsRequestChannel[ModelFamilyScanResult] = (
-            LatestWinsRequestChannel(submitter=submitter)
+            LatestWinsRequestChannel(submitter=request_submitter)
         )
         self._recommendation_channel: LatestWinsRequestChannel[
             tuple[FamilyRecommendationPage, ...]
-        ] = LatestWinsRequestChannel(submitter=submitter)
+        ] = LatestWinsRequestChannel(submitter=request_submitter)
         self._thumbnail_scope = TaskScope(
-            submitter=submitter,
+            submitter=thumbnail_submitter,
             scope_id=f"onboarding_model_thumbnails_{id(self):x}",
         )
+        self._link_import_channel: LatestWinsRequestChannel[
+            tuple[RecommendationLinkResult, ...]
+        ] = LatestWinsRequestChannel(submitter=request_submitter)
         self._thumbnail_request_ids = count(1)
         self._scan_generation = 0
         self._recommendation_generation = 0
+        self._link_import_generation = 0
         self._closed = False
         self.destroyed.connect(self.shutdown)
 
@@ -192,7 +213,48 @@ class ModelOnboardingCoordinator(QObject):
         self._recommendation_channel.cancel_pending(
             reason="onboarding_model_choices_changed"
         )
+        self._link_import_channel.cancel_pending(
+            reason="onboarding_model_choices_changed"
+        )
         self._thumbnail_scope.cancel_all(reason="onboarding_model_choices_changed")
+
+    def start_link_import(
+        self,
+        family_id: ModelFamilyId,
+        urls: tuple[str, ...],
+        *,
+        excluded_version_ids: frozenset[int] = frozenset(),
+    ) -> int:
+        """Start latest-wins validation for explicit CivitAI model links."""
+
+        self._link_import_generation += 1
+        generation = self._link_import_generation
+        request = TaskRequest(
+            identity=TaskIdentity(
+                generation,
+                "onboarding_model_link_import",
+                (("family", family_id.value), ("link_count", len(urls))),
+            ),
+            context=ExecutionContext(
+                operation="onboarding_model_link_import",
+                reason="civitai_links_submitted",
+                lane="onboarding_models",
+                owner_id="onboarding_model_coordinator",
+                safe_fields=(("generation", generation), ("batch_count", len(urls))),
+            ),
+            work=lambda cancellation: self._service.resolve_model_links(
+                family_id,
+                urls,
+                cancellation=cancellation,
+                excluded_version_ids=excluded_version_ids,
+            ),
+        )
+        handle = self._link_import_channel.submit_latest(request)
+        handle.add_done_callback(
+            lambda outcome: self._deliver_link_import(generation, outcome),
+            reason="onboarding_model_link_import_complete",
+        )
+        return generation
 
     def shutdown(self) -> None:
         """Cancel work and release the owner-scoped runtime submitter."""
@@ -202,7 +264,8 @@ class ModelOnboardingCoordinator(QObject):
         self._closed = True
         self.cancel()
         self._thumbnail_scope.close(reason="onboarding_model_coordinator_shutdown")
-        self._close_submitter()
+        self._close_thumbnail_submitter()
+        self._close_request_submitter()
 
     def _deliver_scan(
         self,
@@ -259,7 +322,7 @@ class ModelOnboardingCoordinator(QObject):
                     context=ExecutionContext(
                         operation="onboarding_model_thumbnail",
                         reason="recommendation_card_visible",
-                        lane="onboarding_models",
+                        lane="onboarding_model_thumbnails",
                         owner_id="onboarding_model_coordinator",
                         safe_fields=(
                             ("generation", generation),
@@ -342,6 +405,24 @@ class ModelOnboardingCoordinator(QObject):
             self.thumbnail_failed.emit(generation, version_id)
             return
         self.thumbnail_finished.emit(generation, version_id, outcome.result)
+
+    def _deliver_link_import(
+        self,
+        generation: int,
+        outcome: TaskOutcome[tuple[RecommendationLinkResult, ...]],
+    ) -> None:
+        """Publish only the latest non-cancelled link-validation result."""
+
+        if (
+            self._closed
+            or generation != self._link_import_generation
+            or outcome.cancelled
+        ):
+            return
+        if outcome.error is not None:
+            self.task_failed.emit(generation, "link_import", outcome.error)
+        elif outcome.result is not None:
+            self.link_import_finished.emit(generation, outcome.result)
 
 
 __all__ = ["ModelOnboardingCoordinator", "ModelOnboardingServiceLike"]

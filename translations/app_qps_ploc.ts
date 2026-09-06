@@ -126,6 +126,10 @@ Prömpt prëvïëw:
       <translation>⟦%1 mödël üpdàtë(s) döwnlöàdëd bësïdë yöür cürrënt fïlës. ···⟧</translation>
     </message>
     <message>
+      <source>%1 models added</source>
+      <translation>⟦%1 mödëls àddëd ···⟧</translation>
+    </message>
+    <message>
       <source>%1 of %2</source>
       <translation>⟦%1 öf %2 ···⟧</translation>
     </message>
@@ -210,6 +214,10 @@ Prömpt prëvïëw:
       <translation>⟦%1 · %2 · Üpdàtë àvàïlàblë ···⟧</translation>
     </message>
     <message>
+      <source>%1 · by %2 · %3 GiB</source>
+      <translation>⟦%1 · by %2 · %3 GïB ···⟧</translation>
+    </message>
+    <message>
       <source>%1 • %2</source>
       <translation>⟦%1 • %2 ···⟧</translation>
     </message>
@@ -266,6 +274,10 @@ Prömpt prëvïëw:
       <translation>⟦1 ïnstàllëd pàckàgë ···⟧</translation>
     </message>
     <message>
+      <source>1 model added</source>
+      <translation>⟦1 mödël àddëd ···⟧</translation>
+    </message>
+    <message>
       <source>1 output</source>
       <translation>⟦1 öütpüt ···⟧</translation>
     </message>
@@ -300,6 +312,10 @@ Prömpt prëvïëw:
     <message>
       <source>A fluent design widgets library for PySide6</source>
       <translation>⟦Å flüënt dësïgn wïdgëts lïbràry för PySïdë6 ···⟧</translation>
+    </message>
+    <message>
+      <source>A high-quality image model family suited to detailed prompt following.</source>
+      <translation>⟦Å hïgh-qüàlïty ïmàgë mödël fàmïly süïtëd tö dëtàïlëd prömpt föllöwïng. ···⟧</translation>
     </message>
     <message>
       <source>A native dependency failed to load.</source>
@@ -370,6 +386,14 @@ Prömpt prëvïëw:
       <translation>⟦Ådd ···⟧</translation>
     </message>
     <message>
+      <source>Add %1 models</source>
+      <translation>⟦Ådd %1 mödëls ···⟧</translation>
+    </message>
+    <message>
+      <source>Add 1 model</source>
+      <translation>⟦Ådd 1 mödël ···⟧</translation>
+    </message>
+    <message>
       <source>Add Cube Pack</source>
       <translation>⟦Ådd Cübë Pàck ···⟧</translation>
     </message>
@@ -392,6 +416,14 @@ Prömpt prëvïëw:
     <message>
       <source>Add custom tags and hide unwanted tag suggestions.</source>
       <translation>⟦Ådd cüstöm tàgs ànd hïdë ünwàntëd tàg süggëstïöns. ···⟧</translation>
+    </message>
+    <message>
+      <source>Add models</source>
+      <translation>⟦Ådd mödëls ···⟧</translation>
+    </message>
+    <message>
+      <source>Add models from CivitAI</source>
+      <translation>⟦Ådd mödëls fröm CïvïtÅÏ ···⟧</translation>
     </message>
     <message>
       <source>Add to dictionary</source>
@@ -602,6 +634,10 @@ Prömpt prëvïëw:
       <translation>⟦Bröwsë ···⟧</translation>
     </message>
     <message>
+      <source>Browse CivitAI</source>
+      <translation>⟦Bröwsë CïvïtÅÏ ···⟧</translation>
+    </message>
+    <message>
       <source>Browse Files</source>
       <translation>⟦Bröwsë Fïlës ···⟧</translation>
     </message>
@@ -706,6 +742,10 @@ Prömpt prëvïëw:
       <translation>⟦Chëck CömfyÜÏ ···⟧</translation>
     </message>
     <message>
+      <source>Check links</source>
+      <translation>⟦Chëck lïnks ···⟧</translation>
+    </message>
+    <message>
       <source>Check that the ComfyUI folder still exists, or clear that field.</source>
       <translation>⟦Chëck thàt thë CömfyÜÏ földër stïll ëxïsts, ör clëàr thàt fïëld. ···⟧</translation>
     </message>
@@ -748,6 +788,10 @@ Prömpt prëvïëw:
     <message>
       <source>Checking for running ComfyUI…</source>
       <translation>⟦Chëckïng för rünnïng CömfyÜÏ… ···⟧</translation>
+    </message>
+    <message>
+      <source>Checking model links…</source>
+      <translation>⟦Chëckïng mödël lïnks… ···⟧</translation>
     </message>
     <message>
       <source>Checking that ComfyUI is ready.</source>
@@ -814,16 +858,16 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë à földër ···⟧</translation>
     </message>
     <message>
+      <source>Choose a model to download, explore CivitAI, or bring your own.</source>
+      <translation>⟦Chöösë à mödël tö döwnlöàd, ëxplörë CïvïtÅÏ, ör brïng yöür öwn. ···⟧</translation>
+    </message>
+    <message>
       <source>Choose a models folder before reviewing downloads.</source>
       <translation>⟦Chöösë à mödëls földër bëförë rëvïëwïng döwnlöàds. ···⟧</translation>
     </message>
     <message>
       <source>Choose a new size for the Input canvas and its masks</source>
       <translation>⟦Chöösë à nëw sïzë för thë Ïnpüt cànvàs ànd ïts màsks ···⟧</translation>
-    </message>
-    <message>
-      <source>Choose a recommended model or tell Substitute that you will provide your own.</source>
-      <translation>⟦Chöösë à rëcömmëndëd mödël ör tëll Sübstïtütë thàt yöü wïll prövïdë yöür öwn. ···⟧</translation>
     </message>
     <message>
       <source>Choose a shorter folder for this operation.</source>
@@ -860,6 +904,10 @@ Prömpt prëvïëw:
     <message>
       <source>Choose folders</source>
       <translation>⟦Chöösë földërs ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose from CivitAI</source>
+      <translation>⟦Chöösë fröm CïvïtÅÏ ···⟧</translation>
     </message>
     <message>
       <source>Choose from popular compatible files from the last month, or explore CivitAI. Nothing is selected automatically.</source>
@@ -958,10 +1006,6 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë thë földër thàt cöntàïns yöür ëxïstïng CömfyÜÏ màïn.py fïlë. Sübstïtütë wïll làünch thïs cöpy whën ït stàrts. ···⟧</translation>
     </message>
     <message>
-      <source>Choose the folder where your models are stored. Substitute will scan it without changing its contents.</source>
-      <translation>⟦Chöösë thë földër whërë yöür mödëls àrë störëd. Sübstïtütë wïll scàn ït wïthöüt chàngïng ïts cöntënts. ···⟧</translation>
-    </message>
-    <message>
       <source>Choose the language used by SugarSubstitute. Changes apply immediately.</source>
       <translation>⟦Chöösë thë làngüàgë üsëd by SügàrSübstïtütë. Chàngës àpply ïmmëdïàtëly. ···⟧</translation>
     </message>
@@ -990,12 +1034,12 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë whërë Sübstïtütë shöüld plàcë thë mànàgëd CömfyÜÏ fïlës. ···⟧</translation>
     </message>
     <message>
-      <source>Choose where files should live</source>
-      <translation>⟦Chöösë whërë fïlës shöüld lïvë ···⟧</translation>
-    </message>
-    <message>
       <source>Choose where generated images are saved.</source>
       <translation>⟦Chöösë whërë gënëràtëd ïmàgës àrë sàvëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>Choose where models and outputs should live</source>
+      <translation>⟦Chöösë whërë mödëls ànd öütpüts shöüld lïvë ···⟧</translation>
     </message>
     <message>
       <source>Choose whether Substitute should set up ComfyUI, use an existing copy, or connect to another machine.</source>
@@ -1054,16 +1098,24 @@ Prömpt prëvïëw:
       <translation>⟦CïvïtÅÏ càchë üsàgë ···⟧</translation>
     </message>
     <message>
+      <source>CivitAI could not check this link right now</source>
+      <translation>⟦CïvïtÅÏ cöüld nöt chëck thïs lïnk rïght nöw ···⟧</translation>
+    </message>
+    <message>
       <source>CivitAI did not return a match; existing metadata was kept.</source>
       <translation>⟦CïvïtÅÏ dïd nöt rëtürn à màtch; ëxïstïng mëtàdàtà wàs këpt. ···⟧</translation>
     </message>
     <message>
-      <source>CivitAI did not return a safe portrait for this family. You can skip it or find your own models.</source>
-      <translation>⟦CïvïtÅÏ dïd nöt rëtürn à sàfë pörtràït för thïs fàmïly. Yöü càn skïp ït ör fïnd yöür öwn mödëls. ···⟧</translation>
+      <source>CivitAI did not return enough safe previews. You can still browse CivitAI or bring your own model.</source>
+      <translation>⟦CïvïtÅÏ dïd nöt rëtürn ënöügh sàfë prëvïëws. Yöü càn stïll bröwsë CïvïtÅÏ ör brïng yöür öwn mödël. ···⟧</translation>
     </message>
     <message>
       <source>CivitAI download organization settings saved.</source>
       <translation>⟦CïvïtÅÏ döwnlöàd örgànïzàtïön sëttïngs sàvëd. ···⟧</translation>
+    </message>
+    <message>
+      <source>CivitAI is a library of community-made image models. Browse it, then paste the links you want below—we'll check that they work with %1.</source>
+      <translation>⟦CïvïtÅÏ ïs à lïbràry öf cömmünïty-màdë ïmàgë mödëls. Bröwsë ït, thën pàstë thë lïnks yöü wànt bëlöw—wë'll chëck thàt thëy wörk wïth %1. ···⟧</translation>
     </message>
     <message>
       <source>CivitAI is unavailable; existing metadata was kept.</source>
@@ -1580,10 +1632,6 @@ Prömpt prëvïëw:
     <message>
       <source>Continue setup to finish validating the selected ComfyUI runtime.</source>
       <translation>⟦Cöntïnüë sëtüp tö fïnïsh vàlïdàtïng thë sëlëctëd CömfyÜÏ rüntïmë. ···⟧</translation>
-    </message>
-    <message>
-      <source>Continue without downloading a model for this family.</source>
-      <translation>⟦Cöntïnüë wïthöüt döwnlöàdïng à mödël för thïs fàmïly. ···⟧</translation>
     </message>
     <message>
       <source>Continuous</source>
@@ -2166,10 +2214,6 @@ Install these nodes now?</source>
       <translation>⟦Ëxïstïng löcàl sëtüp ···⟧</translation>
     </message>
     <message>
-      <source>Existing models folder</source>
-      <translation>⟦Ëxïstïng mödëls földër ···⟧</translation>
-    </message>
-    <message>
       <source>Expand</source>
       <translation>⟦Ëxpànd ···⟧</translation>
     </message>
@@ -2208,6 +2252,10 @@ Install these nodes now?</source>
     <message>
       <source>External providers, credentials, safety, and caches.</source>
       <translation>⟦Ëxtërnàl prövïdërs, crëdëntïàls, sàfëty, ànd càchës. ···⟧</translation>
+    </message>
+    <message>
+      <source>FLUX.2</source>
+      <translation>⟦FLÜX.2 ···⟧</translation>
     </message>
     <message>
       <source>Failed - %1</source>
@@ -2562,10 +2610,6 @@ Install these nodes now?</source>
       <translation>⟦Höst cànnöt bë blànk. ···⟧</translation>
     </message>
     <message>
-      <source>I'll provide my own %1 model</source>
-      <translation>⟦Ï'll prövïdë my öwn %1 mödël ···⟧</translation>
-    </message>
-    <message>
       <source>If the folder already contains a partial install, delete it before retrying.</source>
       <translation>⟦Ïf thë földër àlrëàdy cöntàïns à pàrtïàl ïnstàll, dëlëtë ït bëförë rëtryïng. ···⟧</translation>
     </message>
@@ -2598,8 +2642,8 @@ Install these nodes now?</source>
       <translation>⟦Ïgnörëd ···⟧</translation>
     </message>
     <message>
-      <source>Illustrious · SDXL compatible</source>
-      <translation>⟦Ïllüstrïöüs · SDXL cömpàtïblë ···⟧</translation>
+      <source>Illustrious SDXL</source>
+      <translation>⟦Ïllüstrïöüs SDXL ···⟧</translation>
     </message>
     <message>
       <source>Image %1</source>
@@ -2692,6 +2736,10 @@ Install these nodes now?</source>
     <message>
       <source>Interaction</source>
       <translation>⟦Ïntëràctïön ···⟧</translation>
+    </message>
+    <message>
+      <source>Invalid CivitAI model link</source>
+      <translation>⟦Ïnvàlïd CïvïtÅÏ mödël lïnk ···⟧</translation>
     </message>
     <message>
       <source>Invalid backslash escape in the extension's Python code.</source>
@@ -3150,6 +3198,10 @@ Install these nodes now?</source>
       <translation>⟦Mödëls ···⟧</translation>
     </message>
     <message>
+      <source>Models folder</source>
+      <translation>⟦Mödëls földër ···⟧</translation>
+    </message>
+    <message>
       <source>Modify selection</source>
       <translation>⟦Mödïfy sëlëctïön ···⟧</translation>
     </message>
@@ -3352,6 +3404,12 @@ Install these nodes now?</source>
     <message>
       <source>No spelling suggestions</source>
       <translation>⟦Nö spëllïng süggëstïöns ···⟧</translation>
+    </message>
+    <message>
+      <source>No thanks,
+I’ll bring my own</source>
+      <translation>⟦Nö thànks,
+Ï’ll brïng my öwn ···⟧</translation>
     </message>
     <message>
       <source>No thumbnail</source>
@@ -3638,6 +3696,22 @@ Install these nodes now?</source>
       <translation>⟦Pàstë à ÜRL lïkë https://gïthüb.cöm/öwnër/rëpösïtöry. ···⟧</translation>
     </message>
     <message>
+      <source>Paste and preview model links.</source>
+      <translation>⟦Pàstë ànd prëvïëw mödël lïnks. ···⟧</translation>
+    </message>
+    <message>
+      <source>Paste at least one CivitAI model link.</source>
+      <translation>⟦Pàstë àt lëàst önë CïvïtÅÏ mödël lïnk. ···⟧</translation>
+    </message>
+    <message>
+      <source>Paste links above to preview compatible models.</source>
+      <translation>⟦Pàstë lïnks àbövë tö prëvïëw cömpàtïblë mödëls. ···⟧</translation>
+    </message>
+    <message>
+      <source>Paste one CivitAI model or version link per line</source>
+      <translation>⟦Pàstë önë CïvïtÅÏ mödël ör vërsïön lïnk për lïnë ···⟧</translation>
+    </message>
+    <message>
       <source>Paste supported Danbooru post or image URLs as prompt tags.</source>
       <translation>⟦Pàstë süppörtëd Dànböörü pöst ör ïmàgë ÜRLs às prömpt tàgs. ···⟧</translation>
     </message>
@@ -3702,8 +3776,8 @@ Install these nodes now?</source>
       <translation>⟦Plëàsë wàït à mömënt. ···⟧</translation>
     </message>
     <message>
-      <source>Popular models this month</source>
-      <translation>⟦Pöpülàr mödëls thïs mönth ···⟧</translation>
+      <source>Popular %1 models</source>
+      <translation>⟦Pöpülàr %1 mödëls ···⟧</translation>
     </message>
     <message>
       <source>Port</source>
@@ -4312,6 +4386,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Review model downloads</source>
       <translation>⟦Rëvïëw mödël döwnlöàds ···⟧</translation>
+    </message>
+    <message>
+      <source>Review or add more CivitAI links.</source>
+      <translation>⟦Rëvïëw ör àdd mörë CïvïtÅÏ lïnks. ···⟧</translation>
     </message>
     <message>
       <source>Review the SugarCubes diagnostic details and repair the listed cube pack or dependency when convenient.</source>
@@ -5054,12 +5132,12 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sübstïtütë àlrëàdy chëckëd thë üsüàl ënvïrönmënt löcàtïöns ïn thïs CömfyÜÏ földër. ···⟧</translation>
     </message>
     <message>
-      <source>Substitute can detect the environment from a running ComfyUI, or you can select the Python executable manually.</source>
-      <translation>⟦Sübstïtütë càn dëtëct thë ënvïrönmënt fröm à rünnïng CömfyÜÏ, ör yöü càn sëlëct thë Pythön ëxëcütàblë mànüàlly. ···⟧</translation>
+      <source>Substitute and ComfyUI use this folder in place, without moving or reorganizing its models.</source>
+      <translation>⟦Sübstïtütë ànd CömfyÜÏ üsë thïs földër ïn plàcë, wïthöüt mövïng ör rëörgànïzïng ïts mödëls. ···⟧</translation>
     </message>
     <message>
-      <source>Substitute can scan a folder you already use without changing its contents.</source>
-      <translation>⟦Sübstïtütë càn scàn à földër yöü àlrëàdy üsë wïthöüt chàngïng ïts cöntënts. ···⟧</translation>
+      <source>Substitute can detect the environment from a running ComfyUI, or you can select the Python executable manually.</source>
+      <translation>⟦Sübstïtütë càn dëtëct thë ënvïrönmënt fröm à rünnïng CömfyÜÏ, ör yöü càn sëlëct thë Pythön ëxëcütàblë mànüàlly. ···⟧</translation>
     </message>
     <message>
       <source>Substitute can't install a fresh managed ComfyUI setup into a folder that already has other files in it.</source>
@@ -5816,10 +5894,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thësë chàngës wïll àpply àftër rëstàrt. ···⟧</translation>
     </message>
     <message>
-      <source>These defaults work well for most people. Change them if you already keep models or finished images somewhere else.</source>
-      <translation>⟦Thësë dëfàülts wörk wëll för möst pëöplë. Chàngë thëm ïf yöü àlrëàdy këëp mödëls ör fïnïshëd ïmàgës sömëwhërë ëlsë. ···⟧</translation>
-    </message>
-    <message>
       <source>This CivitAI model needs an API key</source>
       <translation>⟦Thïs CïvïtÅÏ mödël nëëds àn ÅPÏ këy ···⟧</translation>
     </message>
@@ -5842,6 +5916,14 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>This is the port number used by that ComfyUI address.</source>
       <translation>⟦Thïs ïs thë pört nümbër üsëd by thàt CömfyÜÏ àddrëss. ···⟧</translation>
+    </message>
+    <message>
+      <source>This model is already in your list</source>
+      <translation>⟦Thïs mödël ïs àlrëàdy ïn yöür lïst ···⟧</translation>
+    </message>
+    <message>
+      <source>This model is not compatible with the current family</source>
+      <translation>⟦Thïs mödël ïs nöt cömpàtïblë wïth thë cürrënt fàmïly ···⟧</translation>
     </message>
     <message>
       <source>This recipe uses a model that is not available in your current ComfyUI model folders. Turn on CivitAI model lookup in Settings to search for it.</source>
@@ -6184,6 +6266,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Üsë à süppörtëd öpëràtïng-systëm crëdëntïàl störë, thën rëstàrt Sübstïtütë. ···⟧</translation>
     </message>
     <message>
+      <source>Use an existing ComfyUI, AUTOMATIC1111 WebUI, Forge, reForge, or NeoForge models folder without moving its files.</source>
+      <translation>⟦Üsë àn ëxïstïng CömfyÜÏ, ÅÜTÖMÅTÏC1111 WëbÜÏ, Förgë, rëFörgë, ör NëöFörgë mödëls földër wïthöüt mövïng ïts fïlës. ···⟧</translation>
+    </message>
+    <message>
       <source>Use companion JPEG for drag and Copy</source>
       <translation>⟦Üsë cömpànïön JPËG för dràg ànd Cöpy ···⟧</translation>
     </message>
@@ -6214,6 +6300,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Use the server address this computer can reach.</source>
       <translation>⟦Üsë thë sërvër àddrëss thïs cömpütër càn rëàch. ···⟧</translation>
+    </message>
+    <message>
+      <source>Use the suggested models folder or choose one already used by another WebUI.</source>
+      <translation>⟦Üsë thë süggëstëd mödëls földër ör chöösë önë àlrëàdy üsëd by ànöthër WëbÜÏ. ···⟧</translation>
     </message>
     <message>
       <source>Used for authenticated CivitAI lookups and downloads.</source>

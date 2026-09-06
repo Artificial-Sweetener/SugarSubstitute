@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Build the stable three-card loading composition for model recommendations."""
+"""Build the stable ten-card loading composition for model recommendations."""
 
 from __future__ import annotations
 
@@ -25,10 +25,12 @@ from qfluentwidgets import IndeterminateProgressRing  # type: ignore[import-unty
 from sugarsubstitute_shared.localization import app_text
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
-
-PORTRAIT_WIDTH = 228
-PORTRAIT_HEIGHT = 285
-LOADING_CARD_HEIGHT = PORTRAIT_HEIGHT + 59
+from substitute.presentation.onboarding.onboarding_recommendation_geometry import (
+    CARD_HEIGHT,
+    CARD_WIDTH,
+    PORTRAIT_HEIGHT,
+    PORTRAIT_WIDTH,
+)
 
 
 class RecommendationLoadingGallery:
@@ -42,15 +44,14 @@ class RecommendationLoadingGallery:
         self._rings: list[IndeterminateProgressRing] = []
 
     def build(self) -> None:
-        """Build three portrait skeletons without delaying page navigation."""
+        """Build a complete 5×2 skeleton without delaying page navigation."""
 
         accessible_name = render_application_text(app_text("Loading recommendations…"))
-        self._host.setMinimumHeight(LOADING_CARD_HEIGHT)
-        for index in range(3):
+        self._host.setMinimumHeight(CARD_HEIGHT)
+        for index in range(10):
             card = QFrame(self._host)
             card.setObjectName("OnboardingRecommendationLoadingCard")
-            card.setFixedWidth(PORTRAIT_WIDTH + 20)
-            card.setFixedHeight(LOADING_CARD_HEIGHT)
+            card.setFixedSize(CARD_WIDTH, CARD_HEIGHT)
             card_layout = QVBoxLayout(card)
             card_layout.setContentsMargins(10, 10, 10, 10)
             card_layout.setSpacing(7)
@@ -70,11 +71,7 @@ class RecommendationLoadingGallery:
             portrait_layout.addStretch(1)
             card_layout.addWidget(portrait)
 
-            action_placeholder = QFrame(card)
-            action_placeholder.setObjectName("OnboardingRecommendationLoadingAction")
-            action_placeholder.setFixedHeight(32)
-            card_layout.addWidget(action_placeholder)
-            self._grid.addWidget(card, 0, index)
+            self._grid.addWidget(card, index // 5, index % 5)
             self._rings.append(ring)
 
     def clear(self) -> None:
@@ -86,7 +83,6 @@ class RecommendationLoadingGallery:
 
 
 __all__ = [
-    "LOADING_CARD_HEIGHT",
     "PORTRAIT_HEIGHT",
     "PORTRAIT_WIDTH",
     "RecommendationLoadingGallery",

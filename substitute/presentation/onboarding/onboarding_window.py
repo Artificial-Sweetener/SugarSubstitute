@@ -77,6 +77,7 @@ from substitute.presentation.onboarding.onboarding_controller import (
 from substitute.presentation.onboarding.model_onboarding_coordinator import (
     ModelOnboardingCoordinator,
 )
+from substitute.application.model_recommendations import ModelInstallRecipePlanner
 from substitute.presentation.onboarding.model_onboarding_presenter import (
     ModelOnboardingPresenter,
 )
@@ -163,6 +164,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         controller: OnboardingController,
         environment_coordinator: ComfyEnvironmentCoordinator | None = None,
         model_coordinator: ModelOnboardingCoordinator | None = None,
+        recipe_planner: ModelInstallRecipePlanner | None = None,
         install_root_locked: bool = False,
         initial_geometry: tuple[int, int, int, int] | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
@@ -243,6 +245,7 @@ class OnboardingWindow(SubstituteWindowFrame):
             navigate=self._show_page,
             refresh_height=self.page_stage.schedule_current_page_height_refresh,
             open_model_page=open_civitai_model_page,
+            recipe_planner=recipe_planner,
         )
         self.titleBar.raise_()
         self._install_drag_regions()
@@ -732,6 +735,8 @@ class OnboardingWindow(SubstituteWindowFrame):
             page_id = OnboardingPageId.TARGET_MODE
         if self._last_completion and page_id is OnboardingPageId.PROVISIONING:
             page_id = OnboardingPageId.COMPLETION
+        if page_id is OnboardingPageId.MANAGED_LOCAL:
+            self.managed_local_page.collapse_advanced_settings()
         coordinator = self._environment_coordinator
         if coordinator is not None:
             coordinator.stop_monitoring()
@@ -1229,6 +1234,8 @@ class OnboardingWindow(SubstituteWindowFrame):
         """Choose an existing models folder and publish confirmation state."""
 
         selected = self._path_selector.browse_model_root()
+        if selected:
+            self.folder_setup_page.managed_model_root_edit.setCursorPosition(0)
         self._model_presenter.confirm_existing_folder_path(selected)
 
     def _center_on_screen(self) -> None:

@@ -163,7 +163,7 @@ class ModelOnboardingSession:
         if not self._state.recommendation_pages:
             return
         page = self._state.recommendation_pages[self._state.recommendation_page_index]
-        current_ids = {card.recommendation.version_id for card in page.cards}
+        current_ids = {card.recommendation.version_id for card in page.all_cards}
         self._state = replace(
             self._state,
             selected_version_ids=self._state.selected_version_ids.difference(
@@ -180,7 +180,7 @@ class ModelOnboardingSession:
         page = self._state.recommendation_pages[self._state.recommendation_page_index]
         return any(
             card.recommendation.version_id in self._state.selected_version_ids
-            for card in page.cards
+            for card in page.all_cards
         )
 
     def current_family_is_declined(self) -> bool:
@@ -202,7 +202,7 @@ class ModelOnboardingSession:
         declined_family_ids = set(self._state.declined_family_ids)
         if declined:
             declined_family_ids.add(page.family_id)
-            current_ids = {card.recommendation.version_id for card in page.cards}
+            current_ids = {card.recommendation.version_id for card in page.all_cards}
             selected_version_ids = self._state.selected_version_ids.difference(
                 current_ids
             )
@@ -222,7 +222,7 @@ class ModelOnboardingSession:
         available_ids = {
             card.recommendation.version_id
             for page in self._state.recommendation_pages
-            for card in page.cards
+            for card in page.all_cards
         }
         if version_id not in available_ids:
             return False
@@ -234,7 +234,8 @@ class ModelOnboardingSession:
                 page.family_id
                 for page in self._state.recommendation_pages
                 if any(
-                    card.recommendation.version_id == version_id for card in page.cards
+                    card.recommendation.version_id == version_id
+                    for card in page.all_cards
                 )
             }
             declined_family_ids = self._state.declined_family_ids.difference(
@@ -247,6 +248,38 @@ class ModelOnboardingSession:
             self._state,
             selected_version_ids=frozenset(selected_ids),
             declined_family_ids=declined_family_ids,
+            install_plan=None,
+        )
+        return True
+
+    def replace_current_family_imports(
+        self,
+        cards: tuple[RecommendationCardAsset, ...],
+    ) -> bool:
+        """Replace one family's imported cards and select every accepted model."""
+
+        if not self._state.recommendation_pages:
+            return False
+        page_index = self._state.recommendation_page_index
+        page = self._state.recommendation_pages[page_index]
+        curated_ids = {card.recommendation.version_id for card in page.cards}
+        imported_ids = {card.recommendation.version_id for card in cards}
+        if curated_ids.intersection(imported_ids):
+            return False
+        pages = list(self._state.recommendation_pages)
+        pages[page_index] = replace(page, imported_cards=cards)
+        previous_import_ids = {
+            card.recommendation.version_id for card in page.imported_cards
+        }
+        selected_ids = self._state.selected_version_ids.difference(
+            previous_import_ids
+        ).union(imported_ids)
+        declined = self._state.declined_family_ids.difference({page.family_id})
+        self._state = replace(
+            self._state,
+            recommendation_pages=tuple(pages),
+            selected_version_ids=frozenset(selected_ids),
+            declined_family_ids=declined,
             install_plan=None,
         )
         return True
@@ -281,7 +314,7 @@ class ModelOnboardingSession:
         return tuple(
             card.recommendation
             for page in self._state.recommendation_pages
-            for card in page.cards
+            for card in page.all_cards
             if card.recommendation.version_id in selected_ids
         )
 
@@ -292,7 +325,7 @@ class ModelOnboardingSession:
         return tuple(
             card
             for page in self._state.recommendation_pages
-            for card in page.cards
+            for card in page.all_cards
             if card.recommendation.version_id in selected_ids
         )
 
@@ -309,7 +342,7 @@ class ModelOnboardingSession:
         pages: list[FamilyRecommendationPage] = []
         for page in self._state.recommendation_pages:
             cards = []
-            for card in page.cards:
+            for card in page.all_cards:
                 if card.recommendation.version_id == version_id:
                     card = replace(
                         card,
@@ -318,7 +351,14 @@ class ModelOnboardingSession:
                     )
                     found = True
                 cards.append(card)
-            pages.append(replace(page, cards=tuple(cards)))
+            curated_count = len(page.cards)
+            pages.append(
+                replace(
+                    page,
+                    cards=tuple(cards[:curated_count]),
+                    imported_cards=tuple(cards[curated_count:]),
+                )
+            )
         if found:
             self._state = replace(self._state, recommendation_pages=tuple(pages))
         return found

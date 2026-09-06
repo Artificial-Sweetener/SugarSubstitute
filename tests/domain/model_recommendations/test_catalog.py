@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from sugarsubstitute_shared.presentation.localization import render_application_text
 from sugarsubstitute_shared.model_discovery import ModelArtifactKind
 
@@ -47,6 +49,22 @@ def test_supported_families_have_exact_product_order_and_provider_mappings() -> 
         "Illustrious",
         "Anima",
     ]
+    assert families[0].civitai.linked_base_models == frozenset(
+        {
+            "Illustrious",
+            "NoobAI",
+            "Playground v2",
+            "Pony",
+            "SDXL 0.9",
+            "SDXL 1.0",
+            "SDXL 1.0 LCM",
+            "SDXL Distilled",
+            "SDXL Hyper",
+            "SDXL Lightning",
+            "SDXL Turbo",
+        }
+    )
+    assert families[1].civitai.linked_base_models == frozenset({"Anima"})
     assert all(family.civitai.model_type == "Checkpoint" for family in families)
     assert families[0].primary_artifact_kind is ModelArtifactKind.CHECKPOINTS
     assert families[1].primary_artifact_kind is ModelArtifactKind.DIFFUSION_MODELS
@@ -92,7 +110,11 @@ def test_future_family_is_a_catalog_definition_not_a_page_type() -> None:
     future = ModelFamilyDefinition(
         family_id=ModelFamilyId.FLUX_2,
         catalog_order=30,
-        civitai=CivitaiFamilyMapping("Flux.2 D", "Checkpoint"),
+        civitai=CivitaiFamilyMapping(
+            "Flux.2 D",
+            "Checkpoint",
+            frozenset({"Flux.2 D"}),
+        ),
         detection=FamilyDetectionPolicy(
             ModelArtifactKind.DIFFUSION_MODELS,
             frozenset({"flux.2"}),
@@ -104,3 +126,26 @@ def test_future_family_is_a_catalog_definition_not_a_page_type() -> None:
     catalog = SupportedModelFamilyCatalog((future,))
 
     assert catalog.families() == (future,)
+
+
+def test_catalog_rejects_a_discovery_mapping_that_link_checking_disallows() -> None:
+    """Keep every curated provider lineage valid for direct link entry too."""
+
+    invalid = ModelFamilyDefinition(
+        family_id=ModelFamilyId.FLUX_2,
+        catalog_order=30,
+        civitai=CivitaiFamilyMapping(
+            "Flux.2 D",
+            "Checkpoint",
+            frozenset({"Flux.2 Klein"}),
+        ),
+        detection=FamilyDetectionPolicy(
+            ModelArtifactKind.DIFFUSION_MODELS,
+            frozenset({"flux.2"}),
+            ("model.diffusion_model.double_blocks.",),
+        ),
+        primary_artifact_kind=ModelArtifactKind.DIFFUSION_MODELS,
+    )
+
+    with pytest.raises(ValueError):
+        SupportedModelFamilyCatalog((invalid,))

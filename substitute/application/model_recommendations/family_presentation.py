@@ -30,20 +30,30 @@ class ModelFamilyPresentation:
     """Describe localized family copy without using text as identity."""
 
     name: ApplicationText
+    recommendation_name: ApplicationText
     description: ApplicationText
 
 
 _PRESENTATIONS = {
     ModelFamilyId.SDXL: ModelFamilyPresentation(
         name=app_text("SDXL"),
+        recommendation_name=app_text("Illustrious SDXL"),
         description=app_text(
             "A widely supported family with versatile realistic and illustrative fine-tunes."
         ),
     ),
     ModelFamilyId.ANIMA: ModelFamilyPresentation(
         name=app_text("Anima"),
+        recommendation_name=app_text("Anima"),
         description=app_text(
             "A newer image model family with strong illustration and character-focused fine-tunes."
+        ),
+    ),
+    ModelFamilyId.FLUX_2: ModelFamilyPresentation(
+        name=app_text("FLUX.2"),
+        recommendation_name=app_text("FLUX.2"),
+        description=app_text(
+            "A high-quality image model family suited to detailed prompt following."
         ),
     ),
 }

@@ -24,6 +24,8 @@ from substitute.application.execution import CancellationToken
 from substitute.application.model_recommendations import (
     FamilyRecommendationPage,
     RecommendationCardAsset,
+    RecommendationLinkResult,
+    RecommendationLinkStatus,
 )
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import (
@@ -83,6 +85,22 @@ class _ModelService:
         _ = (recommendation, cancellation)
         return _thumbnail()
 
+    def resolve_model_links(
+        self,
+        family_id: ModelFamilyId,
+        urls: tuple[str, ...],
+        *,
+        cancellation: CancellationToken,
+        excluded_version_ids: frozenset[int] = frozenset(),
+    ) -> tuple[RecommendationLinkResult, ...]:
+        """Return a settled result for every explicit model link."""
+
+        _ = (family_id, excluded_version_ids, cancellation)
+        return tuple(
+            RecommendationLinkResult(url, RecommendationLinkStatus.INVALID)
+            for url in urls
+        )
+
 
 def test_metadata_is_published_before_thumbnail_tasks_settle() -> None:
     """Show the page while every portrait image request remains pending."""
@@ -92,11 +110,14 @@ def test_metadata_is_published_before_thumbnail_tasks_settle() -> None:
         ModelFamilyId.SDXL,
         tuple(RecommendationCardAsset(_recommendation(rank)) for rank in range(1, 4)),
     )
-    submitter = QueuedTaskSubmitter()
+    request_submitter = QueuedTaskSubmitter()
+    thumbnail_submitter = QueuedTaskSubmitter()
     coordinator = ModelOnboardingCoordinator(
         service=_ModelService(page),
-        submitter=submitter,
-        close_submitter=lambda: None,
+        request_submitter=request_submitter,
+        close_request_submitter=lambda: None,
+        thumbnail_submitter=thumbnail_submitter,
+        close_thumbnail_submitter=lambda: None,
     )
     metadata_events: list[tuple[FamilyRecommendationPage, ...]] = []
     thumbnail_events: list[int] = []
@@ -108,15 +129,15 @@ def test_metadata_is_published_before_thumbnail_tasks_settle() -> None:
     )
 
     coordinator.start_recommendations((ModelFamilyId.SDXL,))
-    assert len(submitter.handles) == 1
+    assert len(request_submitter.handles) == 1
 
-    submitter.handles[0].complete_success((page,))
+    request_submitter.handles[0].complete_success((page,))
 
     assert metadata_events == [(page,)]
     assert thumbnail_events == []
-    assert len(submitter.handles) == 4
+    assert len(thumbnail_submitter.handles) == 3
 
-    submitter.handles[1].complete_success(_thumbnail())
+    thumbnail_submitter.handles[0].complete_success(_thumbnail())
 
     assert thumbnail_events == [1010]
     coordinator.shutdown()
@@ -153,11 +174,14 @@ def test_thumbnail_completions_identify_exact_versions_on_a_shared_model_page() 
             ),
         ),
     )
-    submitter = QueuedTaskSubmitter()
+    request_submitter = QueuedTaskSubmitter()
+    thumbnail_submitter = QueuedTaskSubmitter()
     coordinator = ModelOnboardingCoordinator(
         service=_ModelService(pages),
-        submitter=submitter,
-        close_submitter=lambda: None,
+        request_submitter=request_submitter,
+        close_request_submitter=lambda: None,
+        thumbnail_submitter=thumbnail_submitter,
+        close_thumbnail_submitter=lambda: None,
     )
     thumbnail_events: list[int] = []
     coordinator.thumbnail_finished.connect(
@@ -165,11 +189,64 @@ def test_thumbnail_completions_identify_exact_versions_on_a_shared_model_page() 
     )
 
     coordinator.start_recommendations((ModelFamilyId.SDXL, ModelFamilyId.ANIMA))
-    submitter.handles[0].complete_success(pages)
-    submitter.handles[1].complete_success(_thumbnail())
-    submitter.handles[2].complete_success(_thumbnail())
+    request_submitter.handles[0].complete_success(pages)
+    thumbnail_submitter.handles[0].complete_success(_thumbnail())
+    thumbnail_submitter.handles[1].complete_success(_thumbnail())
 
     assert thumbnail_events == [2851583, 3248362]
+    coordinator.shutdown()
+
+
+def test_link_import_is_not_queued_behind_two_families_of_thumbnail_work() -> None:
+    """Keep explicit user link checks responsive during the full preview burst."""
+
+    ensure_qt_application()
+    pages = tuple(
+        FamilyRecommendationPage(
+            family,
+            tuple(
+                RecommendationCardAsset(
+                    _recommendation_with_identity(
+                        family=family,
+                        model_id=family_offset + rank,
+                        version_id=(family_offset + rank) * 10,
+                    )
+                )
+                for rank in range(1, 9)
+            ),
+        )
+        for family, family_offset in (
+            (ModelFamilyId.SDXL, 100),
+            (ModelFamilyId.ANIMA, 200),
+        )
+    )
+    request_submitter = QueuedTaskSubmitter()
+    thumbnail_submitter = QueuedTaskSubmitter()
+    coordinator = ModelOnboardingCoordinator(
+        service=_ModelService(pages),
+        request_submitter=request_submitter,
+        close_request_submitter=lambda: None,
+        thumbnail_submitter=thumbnail_submitter,
+        close_thumbnail_submitter=lambda: None,
+    )
+    link_events: list[tuple[RecommendationLinkResult, ...]] = []
+    coordinator.link_import_finished.connect(
+        lambda _generation, results: link_events.append(results)
+    )
+
+    coordinator.start_recommendations((ModelFamilyId.SDXL, ModelFamilyId.ANIMA))
+    request_submitter.handles[0].complete_success(pages)
+    assert len(thumbnail_submitter.handles) == 16
+
+    url = "https://civitai.com/models/97479/furrytoonmix"
+    coordinator.start_link_import(ModelFamilyId.SDXL, (url,))
+    assert len(request_submitter.handles) == 2
+    assert not any(handle.is_finished for handle in thumbnail_submitter.handles)
+
+    expected = (RecommendationLinkResult(url, RecommendationLinkStatus.INVALID),)
+    request_submitter.handles[1].complete_success(expected)
+
+    assert link_events == [expected]
     coordinator.shutdown()
 
 

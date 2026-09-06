@@ -19,10 +19,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage, QPainter, QPalette
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QApplication, QWidget
+
+if TYPE_CHECKING:
+    from substitute.presentation.onboarding import OnboardingWindow
 
 _DARK_BACKDROP = QColor("#181818")
 
@@ -56,7 +60,35 @@ def save_opaque_dark_widget_capture(widget: QWidget, path: Path) -> None:
         raise RuntimeError(f"Could not write smoke screenshot: {path}")
 
 
+def capture_onboarding_checkpoint(
+    window: OnboardingWindow,
+    artifact_root: Path,
+    scenario: str,
+    checkpoint: str,
+    evidence: list[dict[str, object]],
+    capture_widget: QWidget | None = None,
+) -> None:
+    """Capture one production page and append its stable semantic identity."""
+
+    QApplication.processEvents()
+    path = artifact_root / "comfy-setup" / scenario / f"{checkpoint}.png"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    save_opaque_dark_widget_capture(capture_widget or window, path)
+    current = window.page_stack.currentWidget()
+    evidence.append(
+        {
+            "scenario": f"comfy-setup/{scenario}/{checkpoint}",
+            "surface": "comfy-setup",
+            "route": scenario,
+            "page": current.objectName() if current is not None else "",
+            "primary_action": window.primary_button.text(),
+            "screenshot": str(path),
+        }
+    )
+
+
 __all__ = [
+    "capture_onboarding_checkpoint",
     "prepare_opaque_dark_capture_surface",
     "save_opaque_dark_widget_capture",
 ]

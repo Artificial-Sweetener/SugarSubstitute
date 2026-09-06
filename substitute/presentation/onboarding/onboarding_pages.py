@@ -24,6 +24,9 @@ from substitute.presentation.onboarding.onboarding_connection_settings import (
     ManagedRuntimeSummaryPanel,
     TargetEndpointFields,
 )
+from substitute.presentation.onboarding.onboarding_folder_setup_page import (
+    FolderSetupPage,
+)
 from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingFieldBlock,
     OnboardingHeroPanel,
@@ -34,7 +37,6 @@ from substitute.presentation.onboarding.onboarding_page_primitives import (
     TargetModePresentation,
 )
 from substitute.presentation.onboarding.onboarding_preference_pages import (
-    FolderSetupPage,
     IntegrationsPage,
 )
 from substitute.presentation.onboarding.onboarding_target_pages import (

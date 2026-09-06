@@ -175,10 +175,10 @@ owner = "onboarding flow"
 rule = "STRUCT003"
 path = "substitute/application/onboarding/flow_service.py"
 kind = "remediation"
-justification = "The assessed file mixes draft-state loading and recovery coordination, managed, attached, and remote provisioning transaction orchestration, readiness and provisioning failure classification. Extract target-specific provisioning strategies and failure classifiers from the shared transaction sequence."
+justification = "The assessed file mixes draft-state loading and recovery coordination, managed, attached, and remote provisioning transaction orchestration, external model-library configuration coordination, readiness and provisioning failure classification. Extract target-specific provisioning strategies, external model-library configuration, and failure classifiers from the shared transaction sequence."
 issue = "chore:SS-ARCH-016"
 review_by = 2026-12-15
-max_lines = 1208
+max_lines = 1253
 next_limit = 1075
 debt = "SS-ARCH-016"
 
@@ -747,10 +747,10 @@ owner = "onboarding window"
 rule = "STRUCT003"
 path = "substitute/presentation/onboarding/onboarding_window.py"
 kind = "remediation"
-justification = "The assessed file mixes shared installer-shell composition and drag routing, page navigation and route-dependent action state, draft, issue, completion, and model-flow interaction routing, and preflight and attached Python recovery interaction routing. Extract page-navigation and route-action coordination from shell composition and environment recovery interactions."
+justification = "The assessed file mixes shared installer-shell composition and drag routing, page navigation and route-dependent action state, draft, folder-selection, issue, completion, and model-flow interaction routing, and preflight and attached Python recovery interaction routing. Extract page-navigation, folder-selection, and route-action coordination from shell composition and environment recovery interactions."
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
-max_lines = 1135
+max_lines = 1142
 next_limit = 900
 debt = "SS-ARCH-068"
 

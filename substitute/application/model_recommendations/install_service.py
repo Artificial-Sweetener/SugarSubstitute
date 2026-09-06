@@ -29,7 +29,7 @@ from sugarsubstitute_shared.model_acquisition import (
     CancellationProbe,
     ModelAcquisitionService,
 )
-from sugarsubstitute_shared.model_discovery import DiscoveredModel
+from sugarsubstitute_shared.model_discovery import DiscoveredModel, ModelArtifactKind
 
 from substitute.domain.model_recommendations import (
     ModelInstallFile,
@@ -49,6 +49,7 @@ class DiskSpaceProvider(Protocol):
 
 
 ModelInstallProgressCallback = Callable[[ModelInstallProgress], None]
+ModelInstallDestinationResolver = Callable[[Path, ModelArtifactKind], Path]
 
 
 class ModelInstallRecipePlanner:
@@ -59,11 +60,13 @@ class ModelInstallRecipePlanner:
         *,
         catalog: SupportedModelFamilyCatalog = SUPPORTED_MODEL_FAMILIES,
         free_space: DiskSpaceProvider | None = None,
+        destination_resolver: ModelInstallDestinationResolver | None = None,
     ) -> None:
         """Store the family catalog and review-time disk-space boundary."""
 
         self._catalog = catalog
         self._free_space = free_space or _free_space
+        self._destination_resolver = destination_resolver or _default_destination
 
     def plan(
         self,
@@ -88,7 +91,10 @@ class ModelInstallRecipePlanner:
                     source_url=recommendation.download_url,
                     sha256=recommendation.sha256,
                     size_bytes=recommendation.size_bytes,
-                    destination_dir=root / family.primary_artifact_kind.value,
+                    destination_dir=self._destination_resolver(
+                        root,
+                        family.primary_artifact_kind,
+                    ),
                 )
             )
         return ModelInstallPlan(
@@ -197,9 +203,16 @@ def _free_space(path: Path) -> int:
     return shutil.disk_usage(probe).free
 
 
+def _default_destination(root: Path, artifact_kind: ModelArtifactKind) -> Path:
+    """Return the ordinary ComfyUI destination for one artifact kind."""
+
+    return root / artifact_kind.value
+
+
 __all__ = [
     "DiskSpaceProvider",
     "ModelInstallProgressCallback",
+    "ModelInstallDestinationResolver",
     "ModelInstallRecipePlanner",
     "ModelInstallService",
 ]

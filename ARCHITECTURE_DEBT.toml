@@ -202,15 +202,16 @@ next_extraction = "Extract field metadata enrichment and override mutation from 
 id = "SS-ARCH-016"
 owner = "onboarding flow"
 paths = ["substitute/application/onboarding/flow_service.py"]
-fingerprint = "sha256:f9cdb76113a9fe1ae9a1e027183affb5f9defe9b1c5ff63cca13c6c32d8b4d21"
+fingerprint = "sha256:c8e5ac08bf4281378db405128c0bca74948942e58c2674129dff9404964871f9"
 issue = "chore:SS-ARCH-016"
 review_by = 2026-12-15
 responsibilities = [
   "draft-state loading and recovery coordination",
   "managed, attached, and remote provisioning transaction orchestration",
+  "external model-library configuration coordination",
   "readiness and provisioning failure classification",
 ]
-next_extraction = "Extract target-specific provisioning strategies and failure classifiers from the shared transaction sequence."
+next_extraction = "Extract target-specific provisioning strategies, external model-library configuration, and failure classifiers from the shared transaction sequence."
 
 [[debts]]
 id = "SS-ARCH-017"
@@ -909,16 +910,16 @@ next_extraction = "Extract managed-asset commands and editor persistence from mo
 id = "SS-ARCH-068"
 owner = "onboarding window"
 paths = ["substitute/presentation/onboarding/onboarding_window.py"]
-fingerprint = "sha256:bab2e6dd30b083a2bed123b58d59fd4aa993dfa74821df8bf87a52633c1e3a91"
+fingerprint = "sha256:07455eb64e46667c37fe7f1e7af4af271c845c68cea71bc838dcb99317ef0de9"
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
 responsibilities = [
   "shared installer-shell composition and drag routing",
   "page navigation and route-dependent action state",
-  "draft, issue, completion, and model-flow interaction routing",
+  "draft, folder-selection, issue, completion, and model-flow interaction routing",
   "preflight and attached Python recovery interaction routing",
 ]
-next_extraction = "Extract page-navigation and route-action coordination from shell composition and environment recovery interactions."
+next_extraction = "Extract page-navigation, folder-selection, and route-action coordination from shell composition and environment recovery interactions."
 
 [[debts]]
 id = "SS-ARCH-069"

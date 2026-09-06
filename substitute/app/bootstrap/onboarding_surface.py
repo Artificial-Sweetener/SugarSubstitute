@@ -28,6 +28,7 @@ from substitute.application.onboarding.flow_contracts import OnboardingBundleFac
 from substitute.application.model_recommendations import (
     ExistingModelFamilyScanner,
     ModelInstallService,
+    ModelInstallRecipePlanner,
     ModelOnboardingApplicationService,
 )
 from substitute.application.onboarding.preparation_service import (
@@ -50,6 +51,7 @@ from substitute.app.bootstrap.installation_context import (
 from substitute.app.bootstrap.onboarding_execution import (
     OnboardingExecutionRuntime,
     create_onboarding_environment_submitter,
+    create_onboarding_model_thumbnail_submitter,
     create_onboarding_model_submitter,
     create_onboarding_provisioning_submitter_factory,
 )
@@ -64,9 +66,17 @@ from substitute.domain.onboarding import (
     ReadinessAssessment,
     SetupTransactionMode,
 )
+from substitute.domain.civitai import CivitaiThumbnailSafetyPolicy
+from substitute.domain.model_metadata import CivitaiThumbnailPolicy
 from sugarsubstitute_shared.application_readiness import ApplicationReadinessSurface
 from substitute.infrastructure.comfy.attached_install import (
     prepare_verified_attached_comfy_setup,
+)
+from substitute.infrastructure.comfy.external_model_paths_configurator import (
+    ComfyExternalModelPathsConfigurator,
+)
+from substitute.infrastructure.comfy.webui_model_library_detector import (
+    WebUiModelLibraryDetector,
 )
 from substitute.infrastructure.comfy.local_process_gateway import (
     PsutilLocalComfyProcessGateway,
@@ -124,6 +134,7 @@ def show_onboarding_surface(
         OnboardingBundleFactory,
         build_onboarding_service_bundle,
     )
+    webui_model_library_detector = WebUiModelLibraryDetector()
     flow_service = OnboardingFlowService(
         service_bundle_factory=onboarding_bundle_factory,
         managed_workspace_provisioner=ensure_managed_comfy_setup,
@@ -142,6 +153,9 @@ def show_onboarding_surface(
                     ),
                 ),
             )
+        ),
+        external_model_library_configurator=ComfyExternalModelPathsConfigurator(
+            webui_model_library_detector
         ),
     )
     controller = OnboardingController(
@@ -175,13 +189,26 @@ def show_onboarding_surface(
         cast(OnboardingExecutionRuntime, active_execution_runtime),
         controller,
     )
+    model_thumbnail_submitter = create_onboarding_model_thumbnail_submitter(
+        cast(OnboardingExecutionRuntime, active_execution_runtime),
+        controller,
+    )
     model_coordinator = ModelOnboardingCoordinator(
         service=ModelOnboardingApplicationService(
-            scanner=ExistingModelFamilyScanner(),
+            scanner=ExistingModelFamilyScanner(
+                scan_roots_resolver=(
+                    webui_model_library_detector.model_family_scan_roots
+                )
+            ),
             gateway=CivitaiFamilyRecommendationGateway(
                 api_key_provider=lambda: build_onboarding_service_bundle(
                     context.install_root
-                ).civitai_credential_service.load_api_key()
+                ).civitai_credential_service.load_api_key(),
+                thumbnail_policy_provider=lambda: CivitaiThumbnailPolicy(
+                    CivitaiThumbnailSafetyPolicy(
+                        controller.draft.civitai_thumbnail_safety_policy
+                    )
+                ),
             ),
             thumbnail_fetcher=CachedRecommendationThumbnailFetcher(
                 fetcher=CivitaiThumbnailFetcher(),
@@ -189,14 +216,19 @@ def show_onboarding_surface(
                 asset_store=recommendation_thumbnails.assets,
             ),
         ),
-        submitter=model_submitter,
-        close_submitter=model_submitter.close,
+        request_submitter=model_submitter,
+        close_request_submitter=model_submitter.close,
+        thumbnail_submitter=model_thumbnail_submitter,
+        close_thumbnail_submitter=model_thumbnail_submitter.close,
         parent=controller,
     )
     window = OnboardingWindow(
         controller=controller,
         environment_coordinator=environment_coordinator,
         model_coordinator=model_coordinator,
+        recipe_planner=ModelInstallRecipePlanner(
+            destination_resolver=webui_model_library_detector.install_destination
+        ),
         install_root_locked=resolve_app_layout(context.install_root).installed_payload,
         initial_geometry=initial_geometry,
         diagnostic_log_sink=(setup_transcript.append if setup_transcript else None),

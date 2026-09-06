@@ -26,6 +26,7 @@ from substitute.application.model_recommendations import (
 )
 from substitute.app.bootstrap.execution_runtime import ExecutionRuntime
 from substitute.app.bootstrap.onboarding_execution import (
+    create_onboarding_model_thumbnail_submitter,
     create_onboarding_model_submitter,
 )
 from substitute.domain.model_metadata import STANDARD_THUMBNAIL_ROLE, ThumbnailAsset
@@ -90,15 +91,18 @@ def create_live_model_onboarding_coordinator(
 ) -> ModelOnboardingCoordinator:
     """Build live CivitAI discovery while leaving install effects synthetic."""
 
-    submitter = create_onboarding_model_submitter(runtime, parent)
+    request_submitter = create_onboarding_model_submitter(runtime, parent)
+    thumbnail_submitter = create_onboarding_model_thumbnail_submitter(runtime, parent)
     return ModelOnboardingCoordinator(
         service=ModelOnboardingApplicationService(
             scanner=ExistingModelFamilyScanner(),
             gateway=CivitaiFamilyRecommendationGateway(),
             thumbnail_fetcher=TransientRecommendationThumbnailFetcher(),
         ),
-        submitter=submitter,
-        close_submitter=submitter.close,
+        request_submitter=request_submitter,
+        close_request_submitter=request_submitter.close,
+        thumbnail_submitter=thumbnail_submitter,
+        close_thumbnail_submitter=thumbnail_submitter.close,
         parent=parent,
     )
 

@@ -93,6 +93,11 @@ DEFAULT_EXECUTION_LANE_CONFIGS = (
     _lane_config("onboarding_provisioning", max_workers=1),
     _lane_config("onboarding_environment", max_workers=1),
     _lane_config("onboarding_models", max_workers=2),
+    _lane_config_with_capacity(
+        "onboarding_model_thumbnails",
+        max_workers=4,
+        queue_capacity=64,
+    ),
     _lane_config("generation_dispatch", max_workers=1),
     _lane_config("generation_preparation", max_workers=1),
     _lane_config("cube_load", max_workers=2),

@@ -23,6 +23,7 @@ from pathlib import Path
 from substitute.application.execution import CancellationSource
 from substitute.application.model_recommendations import (
     ModelOnboardingApplicationService,
+    RecommendationLinkStatus,
 )
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import (
@@ -51,7 +52,7 @@ class _Scanner:
 
 
 class _Gateway:
-    """Return six family-specific provider-ordered recommendation candidates."""
+    """Return family-specific recommendations and resolve explicit model pages."""
 
     def discover(
         self,
@@ -60,7 +61,22 @@ class _Gateway:
     ) -> tuple[ModelRecommendation, ...]:
         """Build deterministic cards for the requested exact family."""
 
-        return tuple(_recommendation(query.family_id, rank) for rank in range(1, 7))
+        return tuple(_recommendation(query.family_id, rank) for rank in range(1, 10))
+
+    def resolve_model_page(
+        self,
+        family_id: ModelFamilyId,
+        url: str,
+    ) -> ModelRecommendation | None:
+        """Resolve deterministic links and reject a family mismatch."""
+
+        if "invalid" in url:
+            raise ValueError("invalid")
+        if "unavailable" in url:
+            raise RuntimeError("unavailable")
+        if "incompatible" in url:
+            return None
+        return _recommendation(family_id, int(url.rsplit("/", 1)[-1]))
 
 
 class _Thumbnails:
@@ -89,8 +105,8 @@ class _Thumbnails:
         )
 
 
-def test_service_returns_top_metadata_before_loading_thumbnails() -> None:
-    """Make three-card pages visible before any image transport begins."""
+def test_service_returns_eight_metadata_cards_before_loading_thumbnails() -> None:
+    """Make the complete curated grid visible before image transport begins."""
 
     thumbnails = _Thumbnails()
     service = ModelOnboardingApplicationService(
@@ -108,8 +124,12 @@ def test_service_returns_top_metadata_before_loading_thumbnails() -> None:
         ModelFamilyId.SDXL,
         ModelFamilyId.ANIMA,
     )
-    assert [card.recommendation.popularity_rank for card in pages[0].cards] == [1, 2, 3]
-    assert [card.recommendation.popularity_rank for card in pages[1].cards] == [1, 2, 3]
+    assert [card.recommendation.popularity_rank for card in pages[0].cards] == list(
+        range(1, 9)
+    )
+    assert [card.recommendation.popularity_rank for card in pages[1].cards] == list(
+        range(1, 9)
+    )
     assert all(card.thumbnail is None for page in pages for card in page.cards)
     assert thumbnails.calls == []
 
@@ -120,6 +140,39 @@ def test_service_returns_top_metadata_before_loading_thumbnails() -> None:
 
     assert thumbnail.payload
     assert thumbnails.calls == [101]
+
+
+def test_service_resolves_linked_models_with_preview_and_stable_feedback() -> None:
+    """Validate imported links per family without hiding partial success."""
+
+    service = ModelOnboardingApplicationService(
+        scanner=_Scanner(),
+        gateway=_Gateway(),
+        thumbnail_fetcher=_Thumbnails(),
+    )
+
+    results = service.resolve_model_links(
+        ModelFamilyId.ANIMA,
+        (
+            "https://civitai.com/models/1",
+            "https://civitai.com/models/1",
+            "invalid",
+            "unavailable",
+            "incompatible",
+        ),
+        cancellation=CancellationSource(generation=3),
+    )
+
+    assert [result.status for result in results] == [
+        RecommendationLinkStatus.READY,
+        RecommendationLinkStatus.DUPLICATE,
+        RecommendationLinkStatus.INVALID,
+        RecommendationLinkStatus.UNAVAILABLE,
+        RecommendationLinkStatus.INCOMPATIBLE,
+    ]
+    assert results[0].card is not None
+    assert results[0].card.thumbnail is not None
+    assert results[0].card.recommendation.family_id is ModelFamilyId.ANIMA
 
 
 def test_service_stops_before_provider_access_when_cancelled() -> None:

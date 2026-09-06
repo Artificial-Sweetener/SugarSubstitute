@@ -180,6 +180,16 @@ class OnboardingModelRootProviderProtocol(Protocol):
         """Return connected host model-root state when available."""
 
 
+class ExternalModelLibraryConfiguratorProtocol(Protocol):
+    """Persist and recover one connected WebUI model library."""
+
+    def configure(self, workspace: Path, models_root: Path | None) -> None:
+        """Apply or remove the external model-path mapping."""
+
+    def load_models_root(self, workspace: Path) -> Path | None:
+        """Return the previously connected WebUI models root."""
+
+
 class OutputPreferenceServiceProtocol(Protocol):
     """Describe output preference operations used by onboarding."""
 
@@ -376,6 +386,7 @@ OnboardingBundleFactory = Callable[[Path | None], OnboardingBundleProtocol]
 
 __all__ = [
     "AttachedWorkspaceProvisioner",
+    "ExternalModelLibraryConfiguratorProtocol",
     "ManagedWorkspaceProvisioner",
     "OnboardingBundleFactory",
     "OnboardingBundleProtocol",

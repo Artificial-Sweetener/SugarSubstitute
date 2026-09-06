@@ -26,6 +26,8 @@ from PySide6.QtGui import QColor, QImage
 from substitute.application.model_recommendations import (
     FamilyRecommendationPage,
     RecommendationCardAsset,
+    RecommendationLinkResult,
+    RecommendationLinkStatus,
 )
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import (
@@ -46,6 +48,7 @@ class SyntheticModelOnboardingCoordinator(QObject):
     recommendation_finished = Signal(int, object)
     thumbnail_finished = Signal(int, int, object)
     thumbnail_failed = Signal(int, int)
+    link_import_finished = Signal(int, object)
     task_failed = Signal(int, str, object)
 
     def __init__(
@@ -102,7 +105,7 @@ class SyntheticModelOnboardingCoordinator(QObject):
         return generation
 
     def start_recommendations(self, families: tuple[ModelFamilyId, ...]) -> int:
-        """Publish three safe exact-family cards or one configured provider failure."""
+        """Publish eight safe exact-family cards or one configured provider failure."""
 
         self._generation += 1
         generation = self._generation
@@ -139,6 +142,30 @@ class SyntheticModelOnboardingCoordinator(QObject):
                     )
         return generation
 
+    def start_link_import(
+        self,
+        family_id: ModelFamilyId,
+        urls: tuple[str, ...],
+        *,
+        excluded_version_ids: frozenset[int] = frozenset(),
+    ) -> int:
+        """Publish deterministic validated link previews for qualification."""
+
+        _ = excluded_version_ids
+        self._generation += 1
+        generation = self._generation
+        card = _linked_card(family_id)
+        results = tuple(
+            RecommendationLinkResult(
+                source_url=url,
+                status=RecommendationLinkStatus.READY,
+                card=card,
+            )
+            for url in urls
+        )
+        self.link_import_finished.emit(generation, results)
+        return generation
+
     def cancel(self) -> None:
         """Invalidate no work because synthetic results are synchronous."""
 
@@ -147,7 +174,7 @@ class SyntheticModelOnboardingCoordinator(QObject):
 
 
 def _family_cards(family_id: ModelFamilyId) -> tuple[RecommendationCardAsset, ...]:
-    """Return three deterministic portrait cards in provider order."""
+    """Return eight deterministic portrait cards in provider order."""
 
     family_offset = 100 if family_id is ModelFamilyId.SDXL else 200
     return tuple(
@@ -174,7 +201,36 @@ def _family_cards(family_id: ModelFamilyId) -> tuple[RecommendationCardAsset, ..
                 popularity_rank=rank,
             ),
         )
-        for rank in range(1, 4)
+        for rank in range(1, 9)
+    )
+
+
+def _linked_card(family_id: ModelFamilyId) -> RecommendationCardAsset:
+    """Return one distinct resolved link with a completed preview thumbnail."""
+
+    family_offset = 100 if family_id is ModelFamilyId.SDXL else 200
+    model_id = family_offset + 99
+    version_id = family_offset * 10 + 99
+    return RecommendationCardAsset(
+        recommendation=ModelRecommendation(
+            family_id=family_id,
+            model_id=model_id,
+            version_id=version_id,
+            model_name=f"Imported {family_id.value.upper()} model",
+            version_name="linked version",
+            creator="community-creator",
+            file_name=f"imported-{family_id.value}.safetensors",
+            size_bytes=3 * 1024**3,
+            sha256=f"{model_id:064x}",
+            download_url=f"https://civitai.com/api/download/models/{version_id}",
+            model_page_url=(
+                f"https://civitai.com/models/{model_id}?modelVersionId={version_id}"
+            ),
+            thumbnail_image_id=model_id * 100,
+            thumbnail_url=f"https://image.civitai.com/synthetic/{model_id}.png",
+            popularity_rank=0,
+        ),
+        thumbnail=_thumbnail_asset(family_id, 1),
     )
 
 

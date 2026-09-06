@@ -42,10 +42,11 @@ class ModelStylePreference(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class CivitaiFamilyMapping:
-    """Define the preferred provider lineage recommended for a family."""
+    """Define provider discovery and linked-model compatibility for a family."""
 
     recommendation_base_model: str
     model_type: str
+    linked_base_models: frozenset[str]
 
 
 @dataclass(frozen=True, slots=True)

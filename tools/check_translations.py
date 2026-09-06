@@ -49,6 +49,8 @@ _IDENTITY_ALLOWED = frozenset(
     {
         "ComfyUI",
         "Anima",
+        "FLUX.2",
+        "Illustrious SDXL",
         "PySide6",
         "PySide6-Fluent-Widgets",
         "QPane",

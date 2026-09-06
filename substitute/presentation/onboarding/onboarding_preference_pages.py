@@ -22,14 +22,12 @@ from sugarsubstitute_shared.localization import ApplicationText, app_text
 from sugarsubstitute_shared.presentation.localization import (
     LocalizationBindings,
     LocalizedComboItem,
-    apply_application_text,
     render_application_text,
 )
 from substitute.presentation.localization import (
     LocalizedBodyLabel,
     LocalizedCaptionLabel,
     LocalizedCheckBox,
-    LocalizedPushButton,
 )
 
 
@@ -37,7 +35,6 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
-    QHBoxLayout,
     QVBoxLayout,
     QWidget,
 )
@@ -62,152 +59,6 @@ _DANBOORU_ALL_RATINGS = "all_ratings"
 _CIVITAI_SFW_ONLY = "sfw_only"
 _CIVITAI_ALLOW_SOFT = "allow_soft"
 _CIVITAI_ALLOW_ALL = "allow_all"
-
-
-class FolderSetupPage(OnboardingPageFrame):
-    """Collect model and output folder choices without exposing implementation detail."""
-
-    managed_model_browse_requested = Signal()
-    output_browse_requested = Signal()
-    managed_model_default_requested = Signal()
-    output_default_requested = Signal()
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        """Build the folder setup page."""
-
-        super().__init__(
-            title=app_text("Choose where files should live"),
-            description=app_text(
-                "These defaults work well for most people. Change them if you already keep models or finished images somewhere else."
-            ),
-            icon=FIF.FOLDER,
-            parent=parent,
-        )
-        self.setObjectName("OnboardingFolderSetupPage")
-        self.content_column.setMinimumWidth(720)
-        self.managed_model_root_edit = LineEdit(self)
-        self.managed_model_root_edit.setObjectName("OnboardingManagedModelRootEdit")
-        self.output_root_edit = LineEdit(self)
-        self.output_root_edit.setObjectName("OnboardingOutputRootEdit")
-
-        self.managed_model_browse_button = LocalizedPushButton(
-            app_text("Browse..."), self
-        )
-        self.managed_model_browse_button.setObjectName(
-            "OnboardingManagedModelRootBrowseButton"
-        )
-        self.managed_model_default_button = LocalizedPushButton(
-            app_text("Use default"), self
-        )
-        self.managed_model_default_button.setObjectName(
-            "OnboardingManagedModelRootDefaultButton"
-        )
-        self.output_browse_button = LocalizedPushButton(app_text("Browse..."), self)
-        self.output_browse_button.setObjectName("OnboardingOutputRootBrowseButton")
-        self.output_default_button = LocalizedPushButton(app_text("Use default"), self)
-        self.output_default_button.setObjectName("OnboardingOutputRootDefaultButton")
-
-        self.managed_model_browse_button.clicked.connect(
-            self.managed_model_browse_requested.emit
-        )
-        self.output_browse_button.clicked.connect(self.output_browse_requested.emit)
-        self.managed_model_default_button.clicked.connect(
-            self.managed_model_default_requested.emit
-        )
-        self.output_default_button.clicked.connect(self.output_default_requested.emit)
-
-        self.managed_model_section = OnboardingSectionPanel(self)
-        model_buttons = self._button_row(
-            self.managed_model_browse_button,
-            self.managed_model_default_button,
-        )
-        self.model_path_block = OnboardingFieldBlock(
-            label=app_text("Existing models folder"),
-            helper_text=app_text(
-                "Choose the folder where your models are stored. Substitute will scan it without changing its contents."
-            ),
-            field=self.managed_model_root_edit,
-            trailing_widget=model_buttons,
-            parent=self,
-        )
-        self.managed_model_section.content_layout.addWidget(self.model_path_block)
-        self.model_scan_status = LocalizedCaptionLabel("", self.managed_model_section)
-        self.model_scan_status.setObjectName("OnboardingModelScanStatus")
-        self.model_scan_status.setWordWrap(True)
-        self.model_scan_status.hide()
-        self.managed_model_section.content_layout.addWidget(self.model_scan_status)
-        self.managed_model_section.hide()
-        self.body_layout.addWidget(self.managed_model_section)
-
-        self.output_section = OnboardingSectionPanel(self)
-        output_buttons = self._button_row(
-            self.output_browse_button,
-            self.output_default_button,
-        )
-        self.output_section.content_layout.addWidget(
-            OnboardingFieldBlock(
-                label=app_text("Output folder"),
-                helper_text=app_text(
-                    "Substitute saves finished images here. The default keeps them "
-                    "with your Substitute files."
-                ),
-                field=self.output_root_edit,
-                trailing_widget=output_buttons,
-                parent=self,
-            )
-        )
-        self.body_layout.addWidget(self.output_section)
-
-    def set_managed_model_visible(self, visible: bool) -> None:
-        """Show model-folder controls for a local ComfyUI setup."""
-
-        self.managed_model_section.setVisible(visible)
-        self.model_path_block.setVisible(visible)
-
-    def set_model_picker_visible(
-        self,
-        visible: bool,
-        *,
-        allow_default: bool,
-    ) -> None:
-        """Show the inline model-folder picker for the selected setup route."""
-
-        self.managed_model_section.setVisible(visible)
-        self.model_path_block.setVisible(visible)
-        self.managed_model_default_button.setVisible(visible and allow_default)
-        apply_application_text(
-            self.hero_panel.description_label,
-            app_text(
-                "These defaults work well for most people. Change them if you already keep models or finished images somewhere else."
-                if visible
-                else "Substitute saves finished images here. The default keeps them with your Substitute files."
-            ),
-        )
-        if not visible:
-            self.model_scan_status.hide()
-
-    def set_scan_status(self, message: ApplicationText) -> None:
-        """Show scan state without changing the selected path."""
-
-        self.model_scan_status.setText(message)
-        self.model_scan_status.show()
-
-    def reset_scan_status(self) -> None:
-        """Hide stale scan feedback when entering the folder page."""
-
-        self.model_scan_status.clear()
-        self.model_scan_status.hide()
-
-    def _button_row(self, *buttons: QWidget) -> QWidget:
-        """Return a compact row for browse and default actions."""
-
-        container = QWidget(self)
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-        for button in buttons:
-            layout.addWidget(button)
-        return container
 
 
 class IntegrationsPage(OnboardingPageFrame):

@@ -23,7 +23,7 @@ from typing import cast
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QLineEdit
+from PySide6.QtWidgets import QDialog, QLineEdit, QWidget
 
 from substitute.presentation.onboarding.onboarding_controller import (
     OnboardingController,
@@ -49,7 +49,7 @@ def test_onboarding_window_renders_folder_and_integration_controls(
 ) -> None:
     """Folder and integration pages should expose the expected first-run controls."""
 
-    ensure_qt_application()
+    application = ensure_qt_application()
     monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
@@ -67,7 +67,7 @@ def test_onboarding_window_renders_folder_and_integration_controls(
         )
     )
 
-    assert window.folder_setup_page.managed_model_section.isHidden() is True
+    assert window.folder_setup_page.managed_model_section.isHidden() is False
     window._controller.model_session.answer_existing_folder(True)
     window._show_page(OnboardingPageId.FOLDERS)
     assert window.folder_setup_page.managed_model_section.isHidden() is False
@@ -78,6 +78,10 @@ def test_onboarding_window_renders_folder_and_integration_controls(
     assert window.folder_setup_page.output_root_edit.text() == str(
         tmp_path / "user" / "outputs"
     )
+    window.show()
+    application.processEvents()
+    window.page_stage.refresh_current_page_height()
+    assert window.page_stage.verticalScrollBar().maximum() == 0
     assert (
         window.integrations_page.civitai_api_key_edit.echoMode()
         is QLineEdit.EchoMode.Password
@@ -93,7 +97,7 @@ def test_existing_folder_action_keeps_computed_default_path(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Open the folder picker with its useful computed default intact."""
+    """Keep the computed Comfy default usable without an external WebUI path."""
 
     application = ensure_qt_application()
     monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
@@ -122,6 +126,10 @@ def test_existing_folder_action_keeps_computed_default_path(
     assert window._current_page is OnboardingPageId.FOLDERS
     assert window.folder_setup_page.managed_model_root_edit.text() == str(
         tmp_path / "comfyui" / "models"
+    )
+    assert (
+        window.folder_setup_page.findChild(QWidget, "OnboardingWebUiModelsRootEdit")
+        is None
     )
     assert window.primary_button.isEnabled()
     window._emit_close_requested_on_close = False
@@ -288,9 +296,9 @@ def test_model_pages_name_the_active_progress_step_accurately(
     assert "Choose models" in window.brand_bar.progress_caption.text()
     window._show_page(OnboardingPageId.FOLDERS)
     assert "Choose folders" in window.brand_bar.progress_caption.text()
-    assert window.folder_setup_page.managed_model_section.isHidden()
+    assert not window.folder_setup_page.managed_model_section.isHidden()
     window._apply_draft(window._controller.draft)
-    assert window.folder_setup_page.managed_model_section.isHidden()
+    assert not window.folder_setup_page.managed_model_section.isHidden()
     window._emit_close_requested_on_close = False
     window.close()
 
@@ -348,7 +356,7 @@ def test_onboarding_window_shows_model_folder_for_attached_local(
         )
     )
 
-    assert window.folder_setup_page.managed_model_section.isHidden() is True
+    assert window.folder_setup_page.managed_model_section.isHidden() is False
     window._controller.model_session.answer_existing_folder(True)
     window._show_page(OnboardingPageId.FOLDERS)
     assert window.folder_setup_page.managed_model_section.isHidden() is False
@@ -460,5 +468,14 @@ def test_onboarding_window_renders_managed_runtime_summary(
     assert window.page_stage.verticalScrollBar().maximum() == 0
     assert window.page_stage.geometry() == stable_stage_geometry
     assert window.footer_row.geometry() == stable_footer_geometry
+
+    window.managed_local_page.advanced_button.click()
+    application.processEvents()
+    assert not window.managed_local_page.advanced_content.isHidden()
+    window._show_page(OnboardingPageId.TARGET_MODE)
+    window._show_page(OnboardingPageId.MANAGED_LOCAL)
+    application.processEvents()
+    assert window.managed_local_page.advanced_content.isHidden()
+    assert window.managed_local_page.advanced_button.text() == "Advanced settings"
     window._emit_close_requested_on_close = False
     window.close()
