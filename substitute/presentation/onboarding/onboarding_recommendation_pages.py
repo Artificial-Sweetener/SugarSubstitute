@@ -14,12 +14,12 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Render portrait model recommendations and exact download review."""
+"""Render the reusable ten-choice model-family recommendation page."""
 
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon as FIF,
     IndeterminateProgressRing,
@@ -34,6 +34,7 @@ from sugarsubstitute_shared.presentation.localization import (
 from substitute.application.model_recommendations import (
     FamilyRecommendationPage,
     RecommendationCardAsset,
+    RecommendationLinkResult,
     model_family_presentation,
 )
 from substitute.domain.model_metadata import ThumbnailAsset
@@ -41,133 +42,59 @@ from substitute.domain.model_recommendations import ModelFamilyId
 from substitute.presentation.localization import (
     LocalizedBodyLabel,
     LocalizedCaptionLabel,
-    LocalizedCheckBox,
-    LocalizedPushButton,
+)
+from substitute.presentation.onboarding.onboarding_model_link_import import (
+    ModelLinkImportOverlay,
 )
 from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingPageFrame,
 )
+from substitute.presentation.onboarding.onboarding_recommendation_cards import (
+    RecommendationActionCard,
+    RecommendationCard,
+    civitai_action_card,
+    unavailable_recommendation_card,
+)
 from substitute.presentation.onboarding.onboarding_recommendation_loading import (
     RecommendationLoadingGallery,
 )
-from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
-    RecommendationPortrait,
-    thumbnail_pixmap,
-)
 
-
-class RecommendationCard(QFrame):
-    """Render one selectable portrait recommendation with compact metadata."""
-
-    selection_changed = Signal(int, bool)
-    link_requested = Signal(str)
-
-    def __init__(
-        self,
-        card: RecommendationCardAsset,
-        *,
-        selected: bool,
-        parent: QWidget,
-    ) -> None:
-        """Build an accessible card from provider-safe text and decoded media."""
-
-        super().__init__(parent)
-        recommendation = card.recommendation
-        self._version_id = recommendation.version_id
-        self.setObjectName("OnboardingRecommendationCard")
-        self.setProperty("selected", selected)
-        accessible_name = render_application_text(
-            app_text("%1 model recommendation", recommendation.model_name)
-        )
-        self.setAccessibleName(accessible_name)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(7)
-        pixmap = (
-            thumbnail_pixmap(card.thumbnail) if card.thumbnail is not None else None
-        )
-        self.portrait = RecommendationPortrait(
-            pixmap=pixmap,
-            title=recommendation.model_name,
-            thumbnail_failed=card.thumbnail_failed
-            or (card.thumbnail is not None and pixmap is None),
-            selected=selected,
-            accessible_name=accessible_name,
-            parent=self,
-        )
-        self.checkbox = self.portrait.checkbox
-        self.checkbox.setObjectName(
-            f"OnboardingRecommendationSelect_{recommendation.version_id}"
-        )
-        self.portrait.selection_changed.connect(self._set_selected)
-        layout.addWidget(self.portrait)
-        self.link_button = LocalizedPushButton(app_text("View on CivitAI"), self)
-        self.link_button.setObjectName(
-            f"OnboardingRecommendationLink_{recommendation.version_id}"
-        )
-        self.link_button.setAccessibleName(
-            render_application_text(
-                app_text("View %1 on CivitAI", recommendation.model_name)
-            )
-        )
-        self.link_button.clicked.connect(
-            lambda: self.link_requested.emit(recommendation.model_page_url)
-        )
-        layout.addWidget(self.link_button)
-
-    def set_thumbnail(self, thumbnail: ThumbnailAsset) -> bool:
-        """Install one completed image into this card's portrait."""
-
-        return self.portrait.set_thumbnail(thumbnail)
-
-    def set_thumbnail_unavailable(self) -> None:
-        """Settle this card's image area when loading fails."""
-
-        self.portrait.set_thumbnail_unavailable()
-
-    def set_selected(self, selected: bool) -> None:
-        """Project an externally coordinated exclusive choice onto the portrait."""
-
-        self.portrait.set_selected(selected)
-
-    def _set_selected(self, selected: bool) -> None:
-        """Project selection onto the card frame and notify the presenter."""
-
-        self.setProperty("selected", selected)
-        self.style().unpolish(self)
-        self.style().polish(self)
-        self.update()
-        self.selection_changed.emit(self._version_id, selected)
+_CURATED_CARD_COUNT = 8
+_GRID_COLUMNS = 5
 
 
 class ModelRecommendationPage(OnboardingPageFrame):
-    """Show three large portrait recommendations for one missing family."""
+    """Show eight curated models and two coherent family choices in a 5×2 grid."""
 
     selection_changed = Signal(int, bool)
     link_requested = Signal(str)
     own_model_changed = Signal(bool)
+    model_links_requested = Signal(object, tuple)
+    imported_models_accepted = Signal(tuple)
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        """Build recommendations and one coherent no-download selection."""
+        """Build the stable family picker and its contained import workflow."""
 
         super().__init__(
-            title=app_text("Popular models this month"),
+            title=app_text("Choose models"),
             description=app_text(
-                "Choose a recommended model or tell Substitute that you will provide your own."
+                "Choose a model to download, explore CivitAI, or bring your own."
             ),
             icon=FIF.PHOTO,
             parent=parent,
         )
+        self.content_column.setMinimumWidth(1068)
+        self.content_column.setMaximumWidth(1068)
         self.setObjectName("OnboardingModelRecommendationPage")
         self._family_id: ModelFamilyId | None = None
+        self._current_page: FamilyRecommendationPage | None = None
         self._cards_by_version_id: dict[int, RecommendationCard] = {}
-        self.family_label = LocalizedBodyLabel("", self)
-        self.family_label.setObjectName("OnboardingRecommendationFamily")
-        self.body_layout.addWidget(self.family_label)
+        self._import_overlay: ModelLinkImportOverlay | None = None
         self.card_host = QWidget(self)
         self.card_grid = QGridLayout(self.card_host)
         self.card_grid.setContentsMargins(0, 0, 0, 0)
-        self.card_grid.setHorizontalSpacing(14)
+        self.card_grid.setHorizontalSpacing(10)
+        self.card_grid.setVerticalSpacing(10)
         self._loading_gallery = RecommendationLoadingGallery(
             host=self.card_host,
             grid=self.card_grid,
@@ -190,33 +117,16 @@ class ModelRecommendationPage(OnboardingPageFrame):
         self.body_layout.addWidget(self.loading_row)
         self.empty_label = LocalizedCaptionLabel(
             app_text(
-                "CivitAI did not return a safe portrait for this family. You can skip it or find your own models."
+                "CivitAI did not return enough safe previews. You can still browse CivitAI or bring your own model."
             ),
             self,
         )
         self.empty_label.setWordWrap(True)
         self.empty_label.hide()
         self.body_layout.addWidget(self.empty_label)
-        self.own_model_choice = QFrame(self)
-        self.own_model_choice.setObjectName("OnboardingRecommendationAlternative")
-        self.own_model_choice.setProperty("selected", False)
-        own_model_layout = QVBoxLayout(self.own_model_choice)
-        own_model_layout.setContentsMargins(16, 12, 16, 12)
-        own_model_layout.setSpacing(4)
-        self.own_model_checkbox = LocalizedCheckBox("", self.own_model_choice)
-        self.own_model_checkbox.setObjectName("OnboardingOwnModelChoice")
-        own_model_layout.addWidget(self.own_model_checkbox)
-        own_model_helper = LocalizedCaptionLabel(
-            app_text("Continue without downloading a model for this family."),
-            self.own_model_choice,
-        )
-        own_model_helper.setObjectName("OnboardingFieldHelper")
-        own_model_layout.addWidget(own_model_helper)
-        self.body_layout.addWidget(self.own_model_choice)
-        self.own_model_checkbox.toggled.connect(self._set_own_model_selected)
 
     def show_loading(self, family_id: ModelFamilyId) -> None:
-        """Show the final three-card composition while CivitAI responds."""
+        """Show the final ten-card composition while CivitAI responds."""
 
         self._clear_cards()
         self._set_family(family_id)
@@ -225,7 +135,6 @@ class ModelRecommendationPage(OnboardingPageFrame):
         self.loading_row.hide()
         self.card_host.show()
         self.empty_label.hide()
-        self.own_model_choice.hide()
 
     def show_failure(
         self,
@@ -242,7 +151,6 @@ class ModelRecommendationPage(OnboardingPageFrame):
         self.loading_row.show()
         self.card_host.hide()
         self.empty_label.hide()
-        self.own_model_choice.hide()
 
     def current_family(self) -> ModelFamilyId | None:
         """Return the family currently represented by the card grid."""
@@ -250,7 +158,7 @@ class ModelRecommendationPage(OnboardingPageFrame):
         return self._family_id
 
     def visible_cards(self) -> tuple[RecommendationCard, ...]:
-        """Return the currently rendered cards for qualification and accessibility."""
+        """Return currently rendered curated cards for qualification."""
 
         return tuple(self._cards_by_version_id.values())
 
@@ -261,20 +169,15 @@ class ModelRecommendationPage(OnboardingPageFrame):
         selected_version_ids: frozenset[int],
         use_own_model: bool,
     ) -> None:
-        """Replace cards with one missing-family page and retained selections."""
+        """Render one family as eight curated and two reusable special cards."""
 
         self._clear_cards()
+        self._current_page = page
         self._set_family(page.family_id)
         self.loading_ring.stop()
         self.loading_row.hide()
         self.card_host.show()
-        self.own_model_choice.show()
-        self.own_model_checkbox.blockSignals(True)
-        self.own_model_checkbox.setChecked(use_own_model)
-        self.own_model_checkbox.blockSignals(False)
-        self._style_own_model_choice(use_own_model)
-        rendered = 0
-        for index, card in enumerate(page.cards[:3]):
+        for index, card in enumerate(page.cards[:_CURATED_CARD_COUNT]):
             widget = RecommendationCard(
                 card,
                 selected=card.recommendation.version_id in selected_version_ids,
@@ -282,62 +185,55 @@ class ModelRecommendationPage(OnboardingPageFrame):
             )
             widget.selection_changed.connect(self.selection_changed)
             widget.link_requested.connect(self.link_requested)
-            self.card_grid.addWidget(widget, 0, index)
+            self._add_grid_widget(widget, index)
             self._cards_by_version_id[card.recommendation.version_id] = widget
-            rendered += 1
-        self.empty_label.setVisible(rendered == 0)
-
-    def _clear_cards(self) -> None:
-        """Remove prior cards before showing another family state."""
-
-        self._loading_gallery.clear()
-        _clear_layout(self.card_grid)
-        self.card_host.setMinimumHeight(0)
-        self._cards_by_version_id.clear()
-
-    def _set_family(self, family_id: ModelFamilyId) -> None:
-        """Render the family heading and corresponding no-download choice."""
-
-        self._family_id = family_id
-        presentation = model_family_presentation(family_id)
-        if family_id is ModelFamilyId.SDXL:
-            self.family_label.setText(app_text("Illustrious · SDXL compatible"))
-        else:
-            self.family_label.setText(presentation.name)
-        apply_application_text(
-            self.own_model_checkbox,
-            app_text("I'll provide my own %1 model", presentation.name),
+        for index in range(len(page.cards), _CURATED_CARD_COUNT):
+            self._add_grid_widget(
+                unavailable_recommendation_card(parent=self.card_host),
+                index,
+            )
+        self.import_card = civitai_action_card(parent=self.card_host)
+        self.import_card.activated.connect(self._open_import_overlay)
+        self._set_import_card_copy(page.imported_cards)
+        self._add_grid_widget(self.import_card, 8)
+        self.own_model_card = RecommendationActionCard(
+            title=app_text("No thanks,\nI’ll bring my own"),
+            helper="",
+            icon=FIF.FOLDER,
+            object_name="OnboardingOwnModelChoice",
+            parent=self.card_host,
         )
+        self.own_model_card.set_selected(use_own_model)
+        self.own_model_card.activated.connect(
+            lambda: self._set_own_model_selected(
+                not bool(self.own_model_card.property("selected"))
+            )
+        )
+        self._add_grid_widget(self.own_model_card, 9)
+        self.empty_label.setVisible(len(page.cards) < _CURATED_CARD_COUNT)
+
+    def show_import_results(
+        self, results: tuple[RecommendationLinkResult, ...]
+    ) -> None:
+        """Project asynchronous link validation into the contained overlay."""
+
+        if self._import_overlay is not None:
+            self._import_overlay.set_results(results)
 
     def clear_model_selections(self) -> None:
-        """Clear visible download cards after choosing the exclusive alternative."""
+        """Clear visible curated choices after choosing the exclusive alternative."""
 
         for card in self._cards_by_version_id.values():
             card.set_selected(False)
 
     def clear_own_model_choice(self) -> None:
-        """Clear the exclusive alternative after choosing a download card."""
+        """Clear the exclusive alternative after choosing any downloadable model."""
 
-        self.own_model_checkbox.blockSignals(True)
-        self.own_model_checkbox.setChecked(False)
-        self.own_model_checkbox.blockSignals(False)
-        self._style_own_model_choice(False)
-
-    def _set_own_model_selected(self, selected: bool) -> None:
-        """Style and publish the inline no-download selection."""
-
-        self._style_own_model_choice(selected)
-        self.own_model_changed.emit(selected)
-
-    def _style_own_model_choice(self, selected: bool) -> None:
-        """Refresh the alternative card's explicit selected treatment."""
-
-        self.own_model_choice.setProperty("selected", selected)
-        self.own_model_choice.style().unpolish(self.own_model_choice)
-        self.own_model_choice.style().polish(self.own_model_choice)
+        if hasattr(self, "own_model_card"):
+            self.own_model_card.set_selected(False)
 
     def set_thumbnail(self, version_id: int, thumbnail: ThumbnailAsset) -> bool:
-        """Install a completed thumbnail when its card is currently visible."""
+        """Install a completed thumbnail when its curated card is visible."""
 
         card = self._cards_by_version_id.get(version_id)
         return card.set_thumbnail(thumbnail) if card is not None else False
@@ -351,14 +247,76 @@ class ModelRecommendationPage(OnboardingPageFrame):
         card.set_thumbnail_unavailable()
         return True
 
+    def _add_grid_widget(self, widget: QWidget, index: int) -> None:
+        """Place one equal-size choice in the stable centered 5×2 grid."""
 
-def _clear_layout(layout: QGridLayout) -> None:
-    """Delete every prior recommendation card before rendering another family."""
+        self.card_grid.addWidget(widget, index // _GRID_COLUMNS, index % _GRID_COLUMNS)
 
-    while layout.count():
-        item = layout.takeAt(0)
-        if item is None:
-            continue
-        widget = item.widget()
-        if widget is not None:
-            widget.deleteLater()
+    def _clear_cards(self) -> None:
+        """Remove prior cards before showing another family state."""
+
+        self._loading_gallery.clear()
+        while self.card_grid.count():
+            item = self.card_grid.takeAt(0)
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                widget.hide()
+                widget.setParent(None)
+                widget.deleteLater()
+        self.card_host.setMinimumHeight(0)
+        self._cards_by_version_id.clear()
+
+    def _set_family(self, family_id: ModelFamilyId) -> None:
+        """Put catalog-owned family identity in the page title."""
+
+        self._family_id = family_id
+        presentation = model_family_presentation(family_id)
+        apply_application_text(
+            self.hero_panel.title_label,
+            app_text("Popular %1 models", presentation.recommendation_name),
+        )
+
+    def _set_own_model_selected(self, selected: bool) -> None:
+        """Style and publish the exclusive bring-your-own choice."""
+
+        self.own_model_card.set_selected(selected)
+        self.own_model_changed.emit(selected)
+
+    def _open_import_overlay(self) -> None:
+        """Open the link workflow as a child overlay of the installer window."""
+
+        page = self._current_page
+        if page is None:
+            return
+        window_host = self.window()
+        styled_root = window_host.findChild(QWidget, "OnboardingRoot")
+        host = styled_root if styled_root is not None else window_host
+        if self._import_overlay is None or self._import_overlay.parent() is not host:
+            self._import_overlay = ModelLinkImportOverlay(host=host)
+            self._import_overlay.validation_requested.connect(
+                self.model_links_requested
+            )
+            self._import_overlay.models_accepted.connect(self.imported_models_accepted)
+            self._import_overlay.browse_requested.connect(self.link_requested)
+        self._import_overlay.open_for(
+            page.family_id,
+            model_family_presentation(page.family_id),
+            page.imported_cards,
+        )
+
+    def _set_import_card_copy(self, cards: tuple[RecommendationCardAsset, ...]) -> None:
+        """Summarize retained imported models on the ninth card."""
+
+        if cards:
+            self.import_card.set_copy(
+                (
+                    app_text("1 model added")
+                    if len(cards) == 1
+                    else app_text("%1 models added", len(cards))
+                ),
+                app_text("Review or add more CivitAI links."),
+            )
+        self.import_card.set_previews(cards)
+
+
+__all__ = ["ModelRecommendationPage"]

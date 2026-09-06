@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
@@ -35,8 +35,8 @@ from tools.install_experience_scenarios import (
     InstallExperienceScenario,
 )
 from tools.install_experience_capture import (
+    capture_onboarding_checkpoint as _capture,
     prepare_opaque_dark_capture_surface,
-    save_opaque_dark_widget_capture,
 )
 from tools.install_experience_setup import SetupSideEffectAudit
 from tools.install_experience_model_evidence import recommendation_identity
@@ -309,6 +309,59 @@ def _drive_model_recommendations(
             f"recommendations-{family.value}",
             evidence,
         )
+        _require_current_page_to_fit(
+            window,
+            f"recommendations-{family.value}",
+        )
+        if scenario.slug == "managed-sdxl-and-anima" and family == missing_families[0]:
+            _click(window, "OnboardingCivitaiImportCard")
+            link_input = window.findChild(QWidget, "OnboardingModelLinkInput")
+            if link_input is None or not hasattr(link_input, "setPlainText"):
+                raise RuntimeError(
+                    "CivitAI import overlay did not expose its link input."
+                )
+            link_input.setPlainText("https://civitai.com/models/101")
+            _click(window, "OnboardingModelLinkCheckButton")
+            overlay = window.findChild(
+                QWidget,
+                "OnboardingModelLinkImportOverlay",
+            )
+            panel = window.findChild(
+                QWidget,
+                "OnboardingModelLinkImportPanel",
+            )
+            if (
+                overlay is None
+                or panel is None
+                or overlay.isWindow()
+                or not overlay.rect().contains(panel.geometry())
+            ):
+                raise RuntimeError(
+                    "CivitAI import workflow escaped its contained installer surface."
+                )
+            _capture(
+                window,
+                artifact_root,
+                scenario.slug,
+                f"recommendations-{family.value}-civitai-import",
+                evidence,
+            )
+            _require_current_page_to_fit(
+                window,
+                f"recommendations-{family.value}-civitai-import",
+            )
+            _click(window, "OnboardingModelLinkAddButton")
+            _capture(
+                window,
+                artifact_root,
+                scenario.slug,
+                f"recommendations-{family.value}-civitai-imported",
+                evidence,
+            )
+            _require_current_page_to_fit(
+                window,
+                f"recommendations-{family.value}-civitai-imported",
+            )
         if scenario.slug == "managed-sdxl-and-anima" and family == missing_families[0]:
             settled_pages = window._controller.model_session.state.recommendation_pages
             settled_identity = recommendation_identity(window)
@@ -333,8 +386,12 @@ def _drive_model_recommendations(
                 evidence,
             )
         if family in scenario.selected_families:
-            version_id = (100 if family.value == "sdxl" else 200) * 10 + 1
-            _click(window, f"OnboardingRecommendationSelect_{version_id}")
+            if scenario.slug == "managed-existing-unsupported":
+                for card in window.model_recommendation_page.visible_cards():
+                    card.checkbox.click()
+            else:
+                version_id = (100 if family.value == "sdxl" else 200) * 10 + 1
+                _click(window, f"OnboardingRecommendationSelect_{version_id}")
             _click(window, "OnboardingPrimaryButton")
             selected_any = True
             continue
@@ -345,6 +402,34 @@ def _drive_model_recommendations(
         _capture(
             window, artifact_root, scenario.slug, "model-download-review", evidence
         )
+        if scenario.slug == "managed-existing-unsupported":
+            review_page = window.model_download_review_page
+            summary_top = review_page.summary_panel.mapToGlobal(
+                review_page.summary_panel.rect().topLeft()
+            ).y()
+            if window.page_stage.verticalScrollBar().maximum() != 0:
+                raise RuntimeError(
+                    "The model review page escaped into outer scrolling."
+                )
+            review_scrollbar = review_page.cards_scroll.verticalScrollBar()
+            if review_scrollbar.maximum() <= 0:
+                raise RuntimeError("The large model cart did not own its scrolling.")
+            review_scrollbar.setValue(review_scrollbar.maximum())
+            QApplication.processEvents()
+            if (
+                review_page.summary_panel.mapToGlobal(
+                    review_page.summary_panel.rect().topLeft()
+                ).y()
+                != summary_top
+            ):
+                raise RuntimeError("The model download summary scrolled out of view.")
+            _capture(
+                window,
+                artifact_root,
+                scenario.slug,
+                "model-download-review-scrolled",
+                evidence,
+            )
         _click(window, "OnboardingPrimaryButton")
 
 
@@ -354,7 +439,7 @@ def _assert_recommendation_page(
     *,
     allow_unavailable: bool = False,
 ) -> None:
-    """Require three real, initially unchecked portrait cards."""
+    """Require the centered eight-model grid and two coherent special choices."""
 
     from PySide6.QtWidgets import QCheckBox
 
@@ -374,48 +459,43 @@ def _assert_recommendation_page(
         for checkbox in card.findChildren(QCheckBox)
         if checkbox.objectName().startswith("OnboardingRecommendationSelect_")
     ]
-    if len(selectable) != 3 or any(card.isChecked() for card in selectable):
+    if len(selectable) != 8 or any(card.isChecked() for card in selectable):
         raise RuntimeError(
-            f"{family} recommendation cards are not three unchecked choices."
+            f"{family} recommendation cards are not eight unchecked choices."
         )
     portraits = [
         portrait
         for card in card_widgets
         for portrait in card.findChildren(RecommendationPortrait)
     ]
-    if len(portraits) != 3 or any(
+    if len(portraits) != 8 or any(
         portrait.source_size().height() < 960
         and not (allow_unavailable and portrait.thumbnail_is_unavailable())
         for portrait in portraits
     ):
         raise RuntimeError(f"{family} recommendations lack real prepared thumbnails.")
-
-
-def _capture(
-    window: OnboardingWindow,
-    artifact_root: Path,
-    scenario: str,
-    checkpoint: str,
-    evidence: list[dict[str, object]],
-    capture_widget: QWidget | None = None,
-) -> None:
-    """Capture one production page and its stable semantic identity."""
-
-    QApplication.processEvents()
-    path = artifact_root / "comfy-setup" / scenario / f"{checkpoint}.png"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    save_opaque_dark_widget_capture(capture_widget or window, path)
-    current = window.page_stack.currentWidget()
-    evidence.append(
-        {
-            "scenario": f"comfy-setup/{scenario}/{checkpoint}",
-            "surface": "comfy-setup",
-            "route": scenario,
-            "page": current.objectName() if current is not None else "",
-            "primary_action": window.primary_button.text(),
-            "screenshot": str(path),
-        }
-    )
+    if len(card_widgets) != 10:
+        raise RuntimeError(
+            f"{family} recommendation grid does not contain ten choices."
+        )
+    for index, _widget_item in enumerate(card_widgets):
+        row, column, _row_span, _column_span = cast(
+            tuple[int, int, int, int],
+            window.model_recommendation_page.card_grid.getItemPosition(index),
+        )
+        if (row, column) != (index // 5, index % 5):
+            raise RuntimeError(f"{family} recommendation grid is not 5 by 2.")
+    for card, portrait in zip(card_widgets[:8], portraits, strict=True):
+        card_center = card.mapToGlobal(card.rect().center()).x()
+        portrait_center = portrait.mapToGlobal(portrait.rect().center()).x()
+        if abs(card_center - portrait_center) > 1:
+            raise RuntimeError(f"{family} recommendation thumbnail is not centered.")
+    left = min(card.geometry().left() for card in card_widgets)
+    right = max(card.geometry().right() for card in card_widgets)
+    grid_center = (left + right) // 2
+    host_center = window.model_recommendation_page.card_host.rect().center().x()
+    if abs(grid_center - host_center) > 1:
+        raise RuntimeError(f"{family} recommendation grid is not centered.")
 
 
 def _require_current_page_to_fit(
@@ -445,12 +525,12 @@ def _merge_audit(target: SetupSideEffectAudit, source: SetupSideEffectAudit) -> 
 
 
 def _synthetic_directory_chooser(root: Path) -> Callable[[QWidget, str, str], str]:
-    """Return an inert existing-model directory chooser for headless scenarios."""
+    """Return one deterministic shared models directory for headless scenarios."""
 
     def choose(_parent: QWidget, _title: str, _initial: str) -> str:
         """Return a deterministic path without opening native UI."""
 
-        return str(root / "existing-models")
+        return str(root / "webui" / "models")
 
     return choose
 

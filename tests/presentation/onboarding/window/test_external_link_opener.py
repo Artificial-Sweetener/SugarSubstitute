@@ -22,7 +22,9 @@ import pytest
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 
+from substitute.domain.model_recommendations import ModelFamilyId
 from substitute.presentation.onboarding.external_link_opener import (
+    civitai_model_search_url,
     open_civitai_model_page,
 )
 
@@ -48,6 +50,10 @@ def test_opener_accepts_only_civitai_https_model_pages(
 
     assert open_civitai_model_page("https://civitai.com/models/123/example")
     assert open_civitai_model_page("https://www.civitai.com/models")
+    assert open_civitai_model_page(
+        "https://civitai.red/models/934764/miaomiao-harem?modelVersionId=1142097"
+    )
+    assert open_civitai_model_page(civitai_model_search_url(ModelFamilyId.SDXL))
     assert not open_civitai_model_page("http://civitai.com/models/123")
     assert not open_civitai_model_page("https://civitai.example/models/123")
     assert not open_civitai_model_page("https://civitai.com:444/models/123")
@@ -56,4 +62,21 @@ def test_opener_accepts_only_civitai_https_model_pages(
     assert opened == [
         "https://civitai.com/models/123/example",
         "https://www.civitai.com/models",
+        "https://civitai.red/models/934764/miaomiao-harem?modelVersionId=1142097",
+        (
+            "https://civitai.com/search/models?baseModel=Illustrious"
+            "&baseModel=NoobAI&baseModel=Playground+v2&baseModel=Pony"
+            "&baseModel=SDXL+0.9&baseModel=SDXL+1.0"
+            "&baseModel=SDXL+1.0+LCM&baseModel=SDXL+Distilled"
+            "&baseModel=SDXL+Hyper&baseModel=SDXL+Lightning"
+            "&baseModel=SDXL+Turbo&modelType=Checkpoint"
+        ),
     ]
+
+
+def test_search_url_uses_each_family_provider_mapping() -> None:
+    """Open browse actions on the compatible checkpoint catalog."""
+
+    assert civitai_model_search_url(ModelFamilyId.ANIMA) == (
+        "https://civitai.com/search/models?baseModel=Anima&modelType=Checkpoint"
+    )

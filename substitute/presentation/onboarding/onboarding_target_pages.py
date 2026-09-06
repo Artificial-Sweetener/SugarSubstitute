@@ -256,6 +256,18 @@ class ManagedLocalPage(OnboardingPageFrame):
         )
         self.content_height_changed.emit()
 
+    def collapse_advanced_settings(self) -> None:
+        """Restore the managed setup page to its concise initial state."""
+
+        if self.advanced_content.isHidden():
+            return
+        self.advanced_content.hide()
+        set_localized_text(self.advanced_button, "Advanced settings")
+        self.settings_section.content_layout.invalidate()
+        self.settings_section.updateGeometry()
+        self.updateGeometry()
+        self.content_height_changed.emit()
+
 
 class AttachedLocalPage(OnboardingPageFrame):
     """Collect the launch details for an existing local ComfyUI setup."""

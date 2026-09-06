@@ -26,6 +26,9 @@ from sugarsubstitute_shared.presentation.localization import apply_application_t
 from substitute.application.model_recommendations import (
     FamilyRecommendationPage,
     ModelInstallRecipePlanner,
+    RecommendationCardAsset,
+    RecommendationLinkResult,
+    RecommendationLinkStatus,
 )
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import (
@@ -48,9 +51,10 @@ from substitute.presentation.onboarding.onboarding_existing_model_page import (
 )
 from substitute.presentation.onboarding.onboarding_model_download_review_page import (
     ModelDownloadReviewPage,
+    download_action_text,
 )
 from substitute.presentation.onboarding.onboarding_models import OnboardingPageId
-from substitute.presentation.onboarding.onboarding_preference_pages import (
+from substitute.presentation.onboarding.onboarding_folder_setup_page import (
     FolderSetupPage,
 )
 from substitute.presentation.onboarding.onboarding_recommendation_pages import (
@@ -94,18 +98,24 @@ class ModelOnboardingPresenter:
         self._waiting_for_scan = False
         self._waiting_for_recommendations = False
         self._recommendation_failed = False
+        self._pending_import_urls: tuple[str, ...] = ()
         folder_page.managed_model_root_edit.textChanged.connect(
             self._model_root_text_changed
         )
         recommendation_page.selection_changed.connect(self._set_version_selected)
         recommendation_page.link_requested.connect(self._open_model_page)
         recommendation_page.own_model_changed.connect(self._set_use_own_model)
+        recommendation_page.model_links_requested.connect(self._resolve_model_links)
+        recommendation_page.imported_models_accepted.connect(
+            self._accept_imported_models
+        )
         review_page.remove_requested.connect(self._remove_review_model)
         if coordinator is not None:
             coordinator.scan_finished.connect(self._scan_finished)
             coordinator.recommendation_finished.connect(self._recommendations_finished)
             coordinator.thumbnail_finished.connect(self._thumbnail_finished)
             coordinator.thumbnail_failed.connect(self._thumbnail_failed)
+            coordinator.link_import_finished.connect(self._link_import_finished)
             coordinator.task_failed.connect(self._task_failed)
 
     @property
@@ -122,17 +132,10 @@ class ModelOnboardingPresenter:
         if page_id is OnboardingPageId.EXISTING_MODELS:
             return
         elif page_id is OnboardingPageId.FOLDERS:
-            has_existing_folder = self._session.state.has_existing_folder is True
-            self._folder_page.set_model_picker_visible(
-                has_existing_folder,
-                allow_default=False,
-            )
+            self._folder_page.configure_model_picker(allow_default=True)
             self._folder_page.reset_scan_status()
             self._refresh_height()
-            self._primary_button.setEnabled(
-                not has_existing_folder
-                or bool(self._folder_page.managed_model_root_edit.text().strip())
-            )
+            self._primary_button.setEnabled(True)
         elif page_id is OnboardingPageId.MODEL_RECOMMENDATIONS:
             self._render_current_recommendations()
         elif page_id is OnboardingPageId.MODEL_DOWNLOAD_REVIEW:
@@ -182,10 +185,11 @@ class ModelOnboardingPresenter:
         return False
 
     def confirm_existing_folder_path(self, selected: bool) -> None:
-        """Enable continuation only after the directory chooser was confirmed."""
+        """Keep the optional external-library choice from blocking continuation."""
 
         if self._session.state.has_existing_folder is True:
-            self._primary_button.setEnabled(selected)
+            self._primary_button.setEnabled(True)
+        _ = selected
 
     def _advance_folders(self) -> bool:
         """Scan a chosen folder or request every supported family after No."""
@@ -198,7 +202,10 @@ class ModelOnboardingPresenter:
             return True
         root = self._controller.draft.managed_model_root
         coordinator = self._coordinator
-        if root is None or coordinator is None:
+        if root is None:
+            self._start_recommendations(frozenset())
+            return True
+        if coordinator is None:
             self._show_folder_failure(
                 app_text("Choose an accessible existing models folder.")
             )
@@ -214,6 +221,15 @@ class ModelOnboardingPresenter:
         """Commit one direct folder branch and advance immediately."""
 
         self._session.answer_existing_folder(answer)
+        if not answer:
+            self._controller.update_folder_preferences(
+                managed_model_root=self._controller.draft.managed_model_root,
+                managed_model_root_uses_default=(
+                    self._controller.draft.managed_model_root_uses_default
+                ),
+                output_root=self._controller.draft.output_root,
+                output_root_uses_default=self._controller.draft.output_root_uses_default,
+            )
         if self._coordinator is not None:
             self._coordinator.cancel()
         if answer:
@@ -222,10 +238,11 @@ class ModelOnboardingPresenter:
             self._start_recommendations(frozenset())
 
     def _model_root_text_changed(self, text: str) -> None:
-        """Enable folder confirmation after an explicit inline path is present."""
+        """Keep the shared models folder editable without gating the page."""
 
         if self._session.state.has_existing_folder is True:
-            self._primary_button.setEnabled(bool(text.strip()))
+            self._primary_button.setEnabled(True)
+        _ = text
 
     def _scan_finished(self, _generation: int, result: object) -> None:
         """Recommend exactly the supported families absent from a completed scan."""
@@ -330,6 +347,17 @@ class ModelOnboardingPresenter:
                     "CivitAI recommendations could not be loaded. Try again or go back."
                 )
             )
+        elif operation == "link_import" and self._pending_import_urls:
+            self._recommendation_page.show_import_results(
+                tuple(
+                    RecommendationLinkResult(
+                        url,
+                        RecommendationLinkStatus.UNAVAILABLE,
+                    )
+                    for url in self._pending_import_urls
+                )
+            )
+            self._pending_import_urls = ()
         _ = error
 
     def _show_recommendation_failure(self, message: ApplicationText) -> None:
@@ -384,6 +412,55 @@ class ModelOnboardingPresenter:
             self._session.current_family_has_selection()
             or self._session.current_family_is_declined()
         )
+
+    def _resolve_model_links(
+        self,
+        family_id: object,
+        urls: tuple[str, ...],
+    ) -> None:
+        """Validate explicit CivitAI links through the generation-safe coordinator."""
+
+        if not isinstance(family_id, ModelFamilyId):
+            return
+        coordinator = self._coordinator
+        if coordinator is None:
+            self._recommendation_page.show_import_results(
+                tuple(
+                    RecommendationLinkResult(url, RecommendationLinkStatus.UNAVAILABLE)
+                    for url in urls
+                )
+            )
+            return
+        self._pending_import_urls = urls
+        coordinator.start_link_import(
+            family_id,
+            urls,
+            excluded_version_ids=frozenset(
+                card.recommendation.version_id
+                for page in self._session.state.recommendation_pages
+                for card in page.cards
+            ),
+        )
+
+    def _link_import_finished(self, _generation: int, result: object) -> None:
+        """Show typed link results without changing selections until acceptance."""
+
+        if not isinstance(result, tuple) or any(
+            not isinstance(item, RecommendationLinkResult) for item in result
+        ):
+            return
+        self._pending_import_urls = ()
+        self._recommendation_page.show_import_results(result)
+
+    def _accept_imported_models(
+        self,
+        cards: tuple[RecommendationCardAsset, ...],
+    ) -> None:
+        """Commit validated imports to session state and the editable checkout."""
+
+        if self._session.replace_current_family_imports(cards):
+            self._recommendation_page.clear_own_model_choice()
+            self._render_current_recommendations()
 
     def _advance_recommendation_page(self) -> None:
         """Advance to the next missing family or finish recommendation selection."""
@@ -448,7 +525,7 @@ class ModelOnboardingPresenter:
         self._review_page.set_plan(plan, self._session.selected_cards())
         apply_application_text(
             self._primary_button,
-            app_text("Download %1 models", len(plan.files)),
+            download_action_text(plan),
         )
         self._primary_button.setEnabled(bool(plan.files) and plan.has_sufficient_space)
         self._refresh_height()

@@ -57,6 +57,7 @@ class ExistingModelFamilyScanner:
         self,
         *,
         catalog: SupportedModelFamilyCatalog = SUPPORTED_MODEL_FAMILIES,
+        scan_roots_resolver: Callable[[Path], tuple[Path, ...]] | None = None,
         maximum_files: int = 5_000,
         timeout_seconds: float = 20.0,
         monotonic: Callable[[], float] = time.monotonic,
@@ -68,6 +69,7 @@ class ExistingModelFamilyScanner:
         if timeout_seconds <= 0:
             raise ValueError("Model scan timeout must be positive.")
         self._catalog = catalog
+        self._scan_roots_resolver = scan_roots_resolver
         self._maximum_files = maximum_files
         self._timeout_seconds = timeout_seconds
         self._monotonic = monotonic
@@ -97,7 +99,27 @@ class ExistingModelFamilyScanner:
         unreadable = 0
         unknown = 0
         try:
-            for path in _iter_safetensors(selected_root):
+            scan_roots = (
+                self._scan_roots_resolver(selected_root)
+                if self._scan_roots_resolver is not None
+                else (selected_root,)
+            )
+        except ValueError as error:
+            return ModelFamilyScanResult(
+                selected_root,
+                ModelFamilyScanStatus.FAILED,
+                (),
+                0,
+                0,
+                0,
+                str(error),
+            )
+        try:
+            for path in (
+                candidate
+                for scan_root in scan_roots
+                for candidate in _iter_safetensors(scan_root)
+            ):
                 if cancellation is not None and cancellation.is_cancelled:
                     return _result(
                         selected_root,

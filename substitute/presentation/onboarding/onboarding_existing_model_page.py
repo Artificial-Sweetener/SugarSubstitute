@@ -37,7 +37,8 @@ class ExistingModelsFolderQuestionPage(OnboardingPageFrame):
         super().__init__(
             title=app_text("Do you have an existing models folder?"),
             description=app_text(
-                "Substitute can scan a folder you already use without changing its contents."
+                "Use an existing ComfyUI, AUTOMATIC1111 WebUI, Forge, reForge, or "
+                "NeoForge models folder without moving its files."
             ),
             icon=FIF.FOLDER,
             parent=parent,

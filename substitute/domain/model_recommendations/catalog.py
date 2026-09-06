@@ -44,6 +44,15 @@ class SupportedModelFamilyCatalog:
             raise ValueError("Model family identifiers must be unique.")
         if len(orders) != len(set(orders)):
             raise ValueError("Model family catalog orders must be unique.")
+        if any(
+            not family.civitai.linked_base_models
+            or family.civitai.recommendation_base_model
+            not in family.civitai.linked_base_models
+            for family in ordered
+        ):
+            raise ValueError(
+                "Each recommendation base model must be accepted for linked models."
+            )
         self._families = ordered
         self._by_id = {family.family_id: family for family in ordered}
 
@@ -82,6 +91,21 @@ SUPPORTED_MODEL_FAMILIES = SupportedModelFamilyCatalog(
             civitai=CivitaiFamilyMapping(
                 recommendation_base_model="Illustrious",
                 model_type="Checkpoint",
+                linked_base_models=frozenset(
+                    {
+                        "Illustrious",
+                        "NoobAI",
+                        "Playground v2",
+                        "Pony",
+                        "SDXL 0.9",
+                        "SDXL 1.0",
+                        "SDXL 1.0 LCM",
+                        "SDXL Distilled",
+                        "SDXL Hyper",
+                        "SDXL Lightning",
+                        "SDXL Turbo",
+                    }
+                ),
             ),
             detection=FamilyDetectionPolicy(
                 artifact_kind=ModelArtifactKind.CHECKPOINTS,
@@ -123,6 +147,7 @@ SUPPORTED_MODEL_FAMILIES = SupportedModelFamilyCatalog(
             civitai=CivitaiFamilyMapping(
                 recommendation_base_model="Anima",
                 model_type="Checkpoint",
+                linked_base_models=frozenset({"Anima"}),
             ),
             detection=FamilyDetectionPolicy(
                 artifact_kind=ModelArtifactKind.DIFFUSION_MODELS,

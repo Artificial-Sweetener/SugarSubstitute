@@ -513,7 +513,7 @@ def _parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--live-model-capture",
         action="store_true",
-        help="Capture real read-only CivitAI recommendations and 1024px thumbnails.",
+        help="Capture real read-only CivitAI recommendations and bounded thumbnails.",
     )
     parser.add_argument(
         "--surface",

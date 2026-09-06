@@ -28,6 +28,8 @@ from substitute.application.model_recommendations.onboarding_service import (
     FamilyRecommendationPage,
     ModelOnboardingApplicationService,
     RecommendationCardAsset,
+    RecommendationLinkResult,
+    RecommendationLinkStatus,
 )
 from substitute.application.model_recommendations.install_service import (
     ModelInstallRecipePlanner,
@@ -43,5 +45,7 @@ __all__ = [
     "ModelInstallRecipePlanner",
     "ModelInstallService",
     "RecommendationCardAsset",
+    "RecommendationLinkResult",
+    "RecommendationLinkStatus",
     "model_family_presentation",
 ]

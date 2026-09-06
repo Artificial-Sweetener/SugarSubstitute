@@ -22,6 +22,8 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
+from substitute.domain.civitai import CivitaiThumbnailSafetyPolicy
+from substitute.domain.model_metadata import CivitaiThumbnailPolicy
 from substitute.domain.model_recommendations import (
     ModelFamilyId,
     ModelRecommendationQuery,
@@ -32,6 +34,19 @@ from substitute.infrastructure.model_recommendations import (
 )
 
 _HASH = "a" * 64
+_SDXL_LINK_BASE_MODELS = (
+    "Illustrious",
+    "NoobAI",
+    "Playground v2",
+    "Pony",
+    "SDXL 0.9",
+    "SDXL 1.0",
+    "SDXL 1.0 LCM",
+    "SDXL Distilled",
+    "SDXL Hyper",
+    "SDXL Lightning",
+    "SDXL Turbo",
+)
 
 
 def _model(
@@ -97,11 +112,13 @@ class _RecordedProvider:
         pages: list[dict[str, object]],
         *,
         fallback_images: dict[int, list[dict[str, object]]] | None = None,
+        base_models: tuple[str, ...] = ("Illustrious", "Anima"),
     ) -> None:
         """Store pages and expose requested URLs for exact query assertions."""
 
         self.pages = pages
         self.fallback_images = fallback_images or {}
+        self.base_models = base_models
         self.urls: list[str] = []
 
     def __call__(self, url: str, **_kwargs: object) -> object:
@@ -109,7 +126,7 @@ class _RecordedProvider:
 
         self.urls.append(url)
         if url.endswith("/enums"):
-            return {"BaseModel": ["Illustrious", "Anima"]}
+            return {"BaseModel": list(self.base_models)}
         if urlparse(url).path.endswith("/images"):
             version_id = int(parse_qs(urlparse(url).query)["modelVersionId"][0])
             return {"items": self.fallback_images.get(version_id, [])}
@@ -212,6 +229,33 @@ def test_gateway_accepts_current_civitai_sfw_level_when_boolean_is_absent() -> N
     assert len(cards) == 1
 
 
+def test_gateway_uses_current_thumbnail_content_preference() -> None:
+    """Apply the user's saved safety choice to recommendation previews."""
+
+    model = _model(1, base_model="Illustrious")
+    versions = model["modelVersions"]
+    assert isinstance(versions, list)
+    version = versions[0]
+    assert isinstance(version, dict)
+    images = version["images"]
+    assert isinstance(images, list)
+    image = images[0]
+    assert isinstance(image, dict)
+    image["nsfwLevel"] = 2
+    default = CivitaiFamilyRecommendationGateway(
+        fetch_json=_RecordedProvider([{"items": [model]}])
+    ).discover(ModelRecommendationQuery(ModelFamilyId.SDXL), limit=1)
+    allowed = CivitaiFamilyRecommendationGateway(
+        fetch_json=_RecordedProvider([{"items": [model]}]),
+        thumbnail_policy_provider=lambda: CivitaiThumbnailPolicy(
+            CivitaiThumbnailSafetyPolicy.ALLOW_SOFT
+        ),
+    ).discover(ModelRecommendationQuery(ModelFamilyId.SDXL), limit=1)
+
+    assert default == ()
+    assert len(allowed) == 1
+
+
 def test_gateway_fetches_a_large_portrait_when_model_payload_has_no_preview() -> None:
     """Use the version image endpoint so sparse model results still render real cards."""
 
@@ -247,7 +291,7 @@ def test_gateway_fetches_a_large_portrait_when_model_payload_has_no_preview() ->
     assert len(cards) == 1
     assert cards[0].thumbnail_image_id == 701
     assert cards[0].thumbnail_url == (
-        "https://image.civitai.com/x/width=1024/portrait.jpeg"
+        "https://image.civitai.com/x/width=512/portrait.jpeg"
     )
     image_query = parse_qs(urlparse(provider.urls[-1]).query)
     assert image_query["modelVersionId"] == ["70"]
@@ -323,6 +367,116 @@ def test_gateway_rank_tracks_provider_position_across_duplicates_and_pages() -> 
     )
 
     assert [(card.model_id, card.popularity_rank) for card in cards] == [(1, 1), (2, 3)]
+
+
+def test_gateway_resolves_model_and_version_links_against_the_requested_family() -> (
+    None
+):
+    """Accept trusted model pages while honoring an explicitly linked version."""
+
+    model = _model(42, base_model="Anima")
+    versions = model["modelVersions"]
+    assert isinstance(versions, list)
+    first = versions[0]
+    assert isinstance(first, dict)
+    second = dict(first)
+    second["id"] = 421
+    second["name"] = "Exact linked version"
+    versions.insert(0, second)
+    alternate_model = _model(934764, base_model="Anima")
+    alternate_versions = alternate_model["modelVersions"]
+    assert isinstance(alternate_versions, list)
+    alternate_version = alternate_versions[0]
+    assert isinstance(alternate_version, dict)
+    alternate_version["id"] = 1142097
+    furrytoonmix = _model(97479, base_model="Illustrious")
+    furrytoonmix_versions = furrytoonmix["modelVersions"]
+    assert isinstance(furrytoonmix_versions, list)
+    furrytoonmix_version = furrytoonmix_versions[0]
+    assert isinstance(furrytoonmix_version, dict)
+    furrytoonmix_version["id"] = 3209518
+    provider = _RecordedProvider([model, model, alternate_model, furrytoonmix])
+    gateway = CivitaiFamilyRecommendationGateway(fetch_json=provider)
+
+    default = gateway.resolve_model_page(
+        ModelFamilyId.ANIMA,
+        "https://civitai.com/models/42/example",
+    )
+    exact = gateway.resolve_model_page(
+        ModelFamilyId.ANIMA,
+        "https://www.civitai.com/models/42?modelVersionId=420",
+    )
+    alternate_host = gateway.resolve_model_page(
+        ModelFamilyId.ANIMA,
+        "https://civitai.red/models/934764/miaomiao-harem?modelVersionId=1142097",
+    )
+    versionless_sdxl = gateway.resolve_model_page(
+        ModelFamilyId.SDXL,
+        "https://civitai.com/models/97479/furrytoonmix",
+    )
+
+    assert default is not None and default.version_id == 421
+    assert exact is not None and exact.version_id == 420
+    assert alternate_host is not None and alternate_host.version_id == 1142097
+    assert versionless_sdxl is not None and versionless_sdxl.version_id == 3209518
+
+
+@pytest.mark.parametrize("base_model", _SDXL_LINK_BASE_MODELS)
+def test_gateway_accepts_every_civitai_sdxl_compatible_link_family(
+    base_model: str,
+) -> None:
+    """Accept every researched CivitAI SDXL lineage for pasted checkpoint links."""
+
+    provider = _RecordedProvider(
+        [_model(42, base_model=base_model)],
+        base_models=(base_model,),
+    )
+
+    card = CivitaiFamilyRecommendationGateway(fetch_json=provider).resolve_model_page(
+        ModelFamilyId.SDXL,
+        "https://civitai.com/models/42/example",
+    )
+
+    assert card is not None
+    assert card.family_id is ModelFamilyId.SDXL
+
+
+@pytest.mark.parametrize("base_model", ("Anima", "Flux.1 D", "Pony V7", "SD 1.5"))
+def test_gateway_rejects_non_sdxl_link_families(base_model: str) -> None:
+    """Keep unrelated and AuraFlow-based checkpoints out of the SDXL flow."""
+
+    provider = _RecordedProvider(
+        [_model(42, base_model=base_model)],
+        base_models=(base_model, "Illustrious"),
+    )
+
+    card = CivitaiFamilyRecommendationGateway(fetch_json=provider).resolve_model_page(
+        ModelFamilyId.SDXL,
+        "https://civitai.com/models/42/example",
+    )
+
+    assert card is None
+
+
+@pytest.mark.parametrize(
+    "url",
+    (
+        "http://civitai.com/models/1",
+        "https://example.com/models/1",
+        "https://civitai.com/images/1",
+        "https://civitai.com/models/nope",
+    ),
+)
+def test_gateway_rejects_untrusted_or_non_model_links(url: str) -> None:
+    """Never send malformed or cross-origin user input to the provider."""
+
+    with pytest.raises(ValueError):
+        CivitaiFamilyRecommendationGateway(
+            fetch_json=lambda *_a, **_k: {}
+        ).resolve_model_page(
+            ModelFamilyId.SDXL,
+            url,
+        )
 
 
 def test_gateway_uses_bounded_trusted_pagination_and_caches_enum_validation() -> None:

@@ -44,6 +44,7 @@ from substitute.application.onboarding.managed_runtime_state_recorder import (
 )
 from substitute.application.onboarding.flow_contracts import (
     AttachedWorkspaceProvisioner,
+    ExternalModelLibraryConfiguratorProtocol,
     ManagedWorkspaceProvisioner,
     OnboardingBundleFactory,
     OnboardingCompletionResult,
@@ -115,6 +116,9 @@ class OnboardingFlowService:
         OnboardingRuntimeLaunchPlanner()
     )
     model_installer: OnboardingModelInstaller | None = None
+    external_model_library_configurator: (
+        ExternalModelLibraryConfiguratorProtocol | None
+    ) = None
 
     def load_draft(self, installation_root: Path) -> OnboardingDraftState:
         """Load onboarding draft state from persisted config or defaults."""
@@ -161,6 +165,14 @@ class OnboardingFlowService:
         prompt_preferences = bundle.prompt_editor_preference_service.load_preferences()
         danbooru_preferences = bundle.danbooru_preference_service.load_preferences()
         civitai_preferences = bundle.civitai_preference_service.load_preferences()
+        connected_models_root = (
+            self.external_model_library_configurator.load_models_root(
+                managed_workspace_path
+            )
+            if self.external_model_library_configurator is not None
+            and context.comfy_target.mode is not ComfyTargetMode.REMOTE
+            else None
+        )
         return OnboardingDraftState(
             installation_root=context.install_root,
             target_mode=context.comfy_target.mode.value,
@@ -169,11 +181,17 @@ class OnboardingFlowService:
             managed_workspace_path=managed_workspace_path,
             attached_workspace_path=context.comfy_target.workspace_path,
             attached_python_binding=context.comfy_target.python_binding,
-            managed_model_root=(reported_model_root or default_model_root),
+            managed_model_root=(
+                connected_models_root or reported_model_root or default_model_root
+            ),
             managed_model_root_uses_default=(
-                model_root_status.uses_default
-                if model_root_status is not None
-                else True
+                False
+                if connected_models_root is not None
+                else (
+                    model_root_status.uses_default
+                    if model_root_status is not None
+                    else True
+                )
             ),
             output_root=output_root,
             output_root_uses_default=(
@@ -372,6 +390,15 @@ class OnboardingFlowService:
                         transaction_id=transaction.transaction_id,
                     ),
                 )
+                self._configure_shared_model_library(
+                    pending_context.comfy_target.workspace_path
+                    or pending_context.managed_comfy_dir,
+                    (
+                        draft.managed_model_root
+                        if not draft.managed_model_root_uses_default
+                        else None
+                    ),
+                )
                 progress.transition(
                     SetupTaskId.COMFY_WORKSPACE,
                     SetupTaskState.COMPLETED,
@@ -544,6 +571,14 @@ class OnboardingFlowService:
                     configure_model_root=True,
                     on_status=on_status,
                     on_log=on_log,
+                )
+                self._configure_shared_model_library(
+                    draft.attached_workspace_path,
+                    (
+                        draft.managed_model_root
+                        if not draft.managed_model_root_uses_default
+                        else None
+                    ),
                 )
                 progress.transition(
                     SetupTaskId.COMFY_WORKSPACE,
@@ -787,6 +822,18 @@ class OnboardingFlowService:
         if not draft.managed_model_root_uses_default:
             return draft.managed_model_root
         return None
+
+    def _configure_shared_model_library(
+        self,
+        workspace: Path,
+        models_root: Path | None,
+    ) -> None:
+        """Expose a selected shared model library after Comfy exists."""
+
+        configurator = self.external_model_library_configurator
+        if configurator is None:
+            return
+        configurator.configure(workspace, models_root)
 
     @staticmethod
     def _build_readiness_failure(

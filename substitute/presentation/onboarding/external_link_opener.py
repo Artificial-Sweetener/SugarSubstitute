@@ -18,13 +18,38 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 
+from substitute.domain.model_recommendations import (
+    ModelFamilyId,
+    SUPPORTED_MODEL_FAMILIES,
+)
 from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("presentation.onboarding.external_link_opener")
-_CIVITAI_HOSTS = frozenset({"civitai.com", "www.civitai.com"})
+_CIVITAI_HOSTS = frozenset(
+    {"civitai.com", "www.civitai.com", "civitai.red", "www.civitai.red"}
+)
+
+
+def civitai_model_search_url(family_id: ModelFamilyId) -> str:
+    """Return the family-filtered CivitAI checkpoint search page."""
+
+    mapping = SUPPORTED_MODEL_FAMILIES.get(family_id).civitai
+    additional_base_models = sorted(
+        mapping.linked_base_models - {mapping.recommendation_base_model}
+    )
+    query = urlencode(
+        [
+            ("baseModel", mapping.recommendation_base_model),
+            *(("baseModel", value) for value in additional_base_models),
+            ("modelType", mapping.model_type),
+        ]
+    )
+    return f"https://civitai.com/search/models?{query}"
 
 
 def open_civitai_model_page(url: str) -> bool:
@@ -37,7 +62,9 @@ def open_civitai_model_page(url: str) -> bool:
         or parsed.host().casefold() not in _CIVITAI_HOSTS
         or parsed.userInfo()
         or parsed.port(-1) not in {-1, 443}
-        or not (path == "/models" or path.startswith("/models/"))
+        or not (
+            path == "/models" or path.startswith("/models/") or path == "/search/models"
+        )
     ):
         log_warning(
             _LOGGER,
@@ -55,4 +82,4 @@ def open_civitai_model_page(url: str) -> bool:
     return True
 
 
-__all__ = ["open_civitai_model_page"]
+__all__ = ["civitai_model_search_url", "open_civitai_model_page"]

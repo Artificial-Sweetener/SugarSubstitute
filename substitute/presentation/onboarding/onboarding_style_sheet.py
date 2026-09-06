@@ -100,14 +100,46 @@ def build_onboarding_style_sheet() -> str:
             border: 1px solid rgba(__WASH_RGB__, 0.07);
             border-radius: 18px;
         }
-        QFrame#OnboardingRecommendationAlternative {
+        QFrame#OnboardingCivitaiImportCard,
+        QFrame#OnboardingOwnModelChoice,
+        QFrame#OnboardingUnavailableRecommendationCard {
             background-color: rgba(__WASH_RGB__, 0.028);
             border: 1px solid rgba(__WASH_RGB__, 0.07);
-            border-radius: 14px;
+            border-radius: 18px;
         }
-        QFrame#OnboardingRecommendationAlternative[selected="true"] {
+        QFrame#OnboardingOwnModelChoice[selected="true"] {
             background-color: rgba(__ACCENT_RGB__, 0.10);
             border: 1px solid rgba(__ACCENT_RGB__, 0.55);
+        }
+        QFrame#OnboardingModelLinkImportOverlay {
+            background-color: rgba(0, 0, 0, 0.62);
+            border: none;
+        }
+        QFrame#OnboardingModelLinkImportPanel {
+            background-color: rgba(28, 28, 30, 0.99);
+            border: 1px solid rgba(__WASH_RGB__, 0.13);
+            border-radius: 20px;
+        }
+        QFrame#OnboardingModelLinkResults {
+            background-color: rgba(__WASH_RGB__, 0.035);
+            border: 1px solid rgba(__WASH_RGB__, 0.07);
+            border-radius: 12px;
+        }
+        QScrollArea#OnboardingModelLinkResultScroll,
+        QWidget#OnboardingModelLinkResultViewport {
+            background-color: transparent;
+            border: none;
+        }
+        QFrame#OnboardingModelLinkReadyRow {
+            background-color: rgba(__WASH_RGB__, 0.035);
+            border: 1px solid rgba(__WASH_RGB__, 0.055);
+            border-radius: 9px;
+        }
+        QLabel#OnboardingModelLinkThumbnail,
+        QLabel#OnboardingRecommendationMosaicImage {
+            background-color: rgba(__WASH_RGB__, 0.06);
+            border: none;
+            border-radius: 5px;
         }
         QFrame#OnboardingRecommendationLoadingCard {
             background-color: rgba(__WASH_RGB__, 0.022);
@@ -164,7 +196,6 @@ def build_onboarding_style_sheet() -> str:
             color: rgba(__TEXT_RGB__, 0.74);
         }
         CaptionLabel#OnboardingDownloadReviewFileName,
-        CaptionLabel#OnboardingDownloadDestination,
         CaptionLabel#OnboardingDownloadSummaryLabel {
             color: rgba(__TEXT_RGB__, 0.66);
         }
@@ -200,7 +231,7 @@ def build_onboarding_style_sheet() -> str:
             font-weight: 600;
         }
         BodyLabel#OnboardingDownloadSummaryValue {
-            font-size: 20px;
+            font-size: 16px;
             font-weight: 600;
         }
         BodyLabel#OnboardingProgressStatus {

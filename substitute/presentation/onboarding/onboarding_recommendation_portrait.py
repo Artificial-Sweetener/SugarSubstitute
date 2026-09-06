@@ -42,7 +42,7 @@ from substitute.presentation.localization import (
     LocalizedCaptionLabel,
     LocalizedCheckBox,
 )
-from substitute.presentation.onboarding.onboarding_recommendation_loading import (
+from substitute.presentation.onboarding.onboarding_recommendation_geometry import (
     PORTRAIT_HEIGHT,
     PORTRAIT_WIDTH,
 )
@@ -50,7 +50,7 @@ from substitute.shared.qt_thumbnail_codec import image_from_qt_thumbnail_payload
 
 
 class RecommendationPortrait(QWidget):
-    """Paint one full-bleed 4:5 model image with an overlaid title wash."""
+    """Paint one full-bleed model image with an overlaid title wash."""
 
     selection_changed = Signal(bool)
 
@@ -62,6 +62,7 @@ class RecommendationPortrait(QWidget):
         thumbnail_failed: bool,
         selected: bool,
         accessible_name: str,
+        metadata: str = "",
         portrait_size: QSize | None = None,
         selectable: bool = True,
         parent: QWidget,
@@ -73,6 +74,7 @@ class RecommendationPortrait(QWidget):
             raise ValueError("Recommendation portrait cannot use a null image.")
         self._pixmap = pixmap
         self._title = title
+        self._metadata = metadata
         self._hovered = False
         self._selectable = selectable
         self.setObjectName("OnboardingRecommendationPortrait")
@@ -83,6 +85,8 @@ class RecommendationPortrait(QWidget):
         if selectable:
             self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setAccessibleName(accessible_name)
+        if metadata:
+            self.setAccessibleDescription(metadata)
         self.busy_ring = IndeterminateProgressRing(self, start=pixmap is None)
         self.busy_ring.setObjectName("OnboardingRecommendationThumbnailBusy")
         self.busy_ring.setFixedSize(34, 34)
@@ -187,11 +191,12 @@ class RecommendationPortrait(QWidget):
         gradient.setColorAt(1.0, QColor(6, 9, 14, 232))
         painter.fillRect(bounds, gradient)
         painter.setPen(QColor(248, 249, 252))
-        font = QFont(self.font())
-        font.setPointSizeF(15.5)
-        font.setWeight(QFont.Weight.Bold)
-        painter.setFont(font)
-        title_bounds = bounds.adjusted(16, 16, -16, -15)
+        title_font = QFont(self.font())
+        title_font.setPointSizeF(13.0)
+        title_font.setWeight(QFont.Weight.Bold)
+        painter.setFont(title_font)
+        title_bottom_margin = 34 if self._metadata else 15
+        title_bounds = bounds.adjusted(16, 16, -16, -title_bottom_margin)
         painter.drawText(
             title_bounds,
             Qt.AlignmentFlag.AlignLeft
@@ -199,6 +204,17 @@ class RecommendationPortrait(QWidget):
             | Qt.TextFlag.TextWordWrap,
             self._title,
         )
+        if self._metadata:
+            metadata_font = QFont(self.font())
+            metadata_font.setPointSizeF(9.5)
+            metadata_font.setWeight(QFont.Weight.Medium)
+            painter.setFont(metadata_font)
+            painter.setPen(QColor(248, 249, 252, 210))
+            painter.drawText(
+                bounds.adjusted(16, 16, -16, -12),
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom,
+                self._metadata,
+            )
 
     def enterEvent(self, event: QEnterEvent) -> None:  # noqa: N802
         """Strengthen the title wash while the portrait is hovered."""
@@ -258,14 +274,15 @@ class RecommendationPortrait(QWidget):
     def _position_thumbnail_status(self) -> None:
         """Center pending or failed state without covering the title."""
 
+        status_center_y = int(self.height() * 0.32)
         self.busy_ring.move(
             (self.width() - self.busy_ring.width()) // 2,
-            (self.height() - self.busy_ring.height()) // 2 - 10,
+            status_center_y - (self.busy_ring.height() // 2),
         )
         self.unavailable_label.setGeometry(16, 0, self.width() - 32, self.height() - 34)
         self.loading_label.setGeometry(
             16,
-            (self.height() // 2) + 18,
+            status_center_y + 20,
             self.width() - 32,
             28,
         )

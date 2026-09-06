@@ -22,6 +22,12 @@ governed by the Qt Trademark Usage Guidelines.
 
 Qt is a registered trademark of The Qt Company Ltd. and its subsidiaries.
 
+## CivitAI Badge
+
+The CivitAI badge is adapted from CivitAI's official brand package under the
+Apache License 2.0. CivitAI's mark identifies the linked model provider and
+does not imply endorsement.
+
 ## Font Awesome Free Brand Icons
 
 The Windows, Apple, and Linux SVG marks used in installation guidance are

@@ -18,28 +18,23 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage
-from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     IndeterminateProgressRing,
     RadioButton,
+    TransparentToolButton,
 )
 
 from substitute.application.model_recommendations import (
     FamilyRecommendationPage,
     RecommendationCardAsset,
 )
-from sugarsubstitute_shared.model_discovery import ModelArtifactKind
 from sugarsubstitute_shared.localization import app_text
 from substitute.domain.model_metadata import ThumbnailAsset
 from substitute.domain.model_recommendations import (
     ModelFamilyId,
-    ModelInstallFile,
-    ModelInstallPlan,
     ModelRecommendation,
 )
 from substitute.presentation.onboarding.model_onboarding_session import (
@@ -47,10 +42,6 @@ from substitute.presentation.onboarding.model_onboarding_session import (
 )
 from substitute.presentation.onboarding.onboarding_existing_model_page import (
     ExistingModelsFolderQuestionPage,
-)
-from substitute.presentation.onboarding.onboarding_model_download_review_page import (
-    DownloadCartCard,
-    ModelDownloadReviewPage,
 )
 from substitute.presentation.onboarding.onboarding_recommendation_pages import (
     ModelRecommendationPage,
@@ -61,7 +52,7 @@ from substitute.presentation.onboarding.onboarding_recommendation_portrait impor
 from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingSectionPanel,
 )
-from substitute.presentation.onboarding.onboarding_preference_pages import (
+from substitute.presentation.onboarding.onboarding_folder_setup_page import (
     FolderSetupPage,
 )
 from substitute.presentation.onboarding.onboarding_models import (
@@ -84,52 +75,53 @@ def test_existing_folder_question_leaves_branch_actions_to_stable_footer() -> No
     assert question.findChildren(QCheckBox) == []
     assert question.content_column.maximumWidth() == 520
 
-    folder.set_model_picker_visible(True, allow_default=False)
+    folder.configure_model_picker(allow_default=True)
     folder.managed_model_browse_button.click()
 
     assert browse_requests == [True]
-    assert folder.managed_model_default_button.isHidden()
+    assert not folder.managed_model_default_button.isHidden()
     folder.close()
     question.close()
 
 
-def test_existing_model_question_copy_does_not_assume_comfyui_layout() -> None:
-    """Describe a neutral existing models folder for future linked layouts."""
+def test_existing_model_question_names_supported_shared_folder_layouts() -> None:
+    """Name every supported shared models-folder source without extra controls."""
 
     ensure_qt_application()
     existing = ExistingModelsFolderQuestionPage()
     assert existing.findChildren(RadioButton) == []
     assert existing.findChildren(OnboardingSectionPanel) == []
-    assert "ComfyUI models folder" not in existing.hero_panel.description_label.text()
+    assert existing.hero_panel.description_label.text() == (
+        "Use an existing ComfyUI, AUTOMATIC1111 WebUI, Forge, reForge, or NeoForge "
+        "models folder without moving its files."
+    )
     existing.close()
 
 
-def test_no_existing_models_removes_entire_model_folder_section() -> None:
-    """Reflow the folder page to output-only content without an orphan panel."""
+def test_folder_page_exposes_one_shared_models_folder_choice() -> None:
+    """Keep WebUI detection behind the single models-folder field."""
 
     ensure_qt_application()
     folder = FolderSetupPage()
 
-    folder.set_model_picker_visible(False, allow_default=False)
+    folder.configure_model_picker(allow_default=True)
 
-    assert folder.managed_model_section.isHidden()
-    assert folder.model_path_block.isHidden()
+    assert not folder.managed_model_section.isHidden()
+    assert not folder.model_path_block.isHidden()
     assert not folder.output_section.isHidden()
+    assert folder.findChild(QWidget, "OnboardingWebUiModelsRootEdit") is None
     assert folder.hero_panel.description_label.text() == (
-        "Substitute saves finished images here. The default keeps them with your "
-        "Substitute files."
+        "Use the suggested models folder or choose one already used by another WebUI."
     )
     folder.close()
 
 
-def test_recommendation_page_renders_three_large_portrait_cards_and_own_model_choice() -> (
-    None
-):
-    """Show three portrait cards and one coherent provide-your-own choice."""
+def test_recommendation_page_renders_centered_five_by_two_family_choices() -> None:
+    """Show eight compact models plus import and bring-your-own choices."""
 
     ensure_qt_application()
     page = ModelRecommendationPage()
-    cards = tuple(_card(ModelFamilyId.SDXL, rank) for rank in range(1, 4))
+    cards = tuple(_card(ModelFamilyId.SDXL, rank) for rank in range(1, 9))
 
     page.set_recommendations(
         FamilyRecommendationPage(ModelFamilyId.SDXL, cards),
@@ -143,104 +135,39 @@ def test_recommendation_page_renders_three_large_portrait_cards_and_own_model_ch
         if checkbox.objectName().startswith("OnboardingRecommendationSelect_")
     ]
     portraits = page.findChildren(RecommendationPortrait)
-    assert len(checkboxes) == 3
+    assert len(checkboxes) == 8
     assert not any(checkbox.isChecked() for checkbox in checkboxes)
     assert all(checkbox.accessibleName() for checkbox in checkboxes)
-    assert len(portraits) == 3
+    assert len(portraits) == 8
     assert not any(portrait.thumbnail_is_loading() for portrait in portraits)
-    assert all(portrait.width() * 5 == portrait.height() * 4 for portrait in portraits)
+    assert all(portrait.width() == 184 for portrait in portraits)
+    assert all(portrait.height() == 206 for portrait in portraits)
     assert all(portrait.source_size().height() >= 960 for portrait in portraits)
-    assert page.own_model_checkbox.text() == "I'll provide my own SDXL model"
-    assert not page.own_model_checkbox.isChecked()
-    assert "Illustrious" in page.family_label.text()
+    assert page.card_grid.count() == 10
+    import_item = page.card_grid.itemAtPosition(1, 3)
+    own_item = page.card_grid.itemAtPosition(1, 4)
+    assert import_item is not None and import_item.widget() is page.import_card
+    assert own_item is not None and own_item.widget() is page.own_model_card
+    assert page.own_model_card.title_label.text() == "No thanks,\nI’ll bring my own"
+    assert not bool(page.own_model_card.property("selected"))
+    assert page.hero_panel.title_label.text() == "Popular Illustrious SDXL models"
+    assert page.findChild(QWidget, "OnboardingRecommendationFamily") is None
+    provider_buttons = [card.link_button for card in page.visible_cards()]
+    assert all(isinstance(button, TransparentToolButton) for button in provider_buttons)
+    assert all(not button.icon().isNull() for button in provider_buttons)
+    assert all(
+        bool(button.property("onboardingProviderAction")) for button in provider_buttons
+    )
+    assert all(
+        button.cursor().shape() == Qt.CursorShape.PointingHandCursor
+        for button in provider_buttons
+    )
     card_text = " ".join(
         label.text() for label in page.card_host.findChildren(QLabel) if label.text()
     )
     assert "creator" not in card_text
     assert "popular this month" not in card_text
     assert "version" not in card_text
-    page.close()
-
-
-def test_recommendation_choices_are_keyboard_operable() -> None:
-    """Toggle portrait model choices with the keyboard through native controls."""
-
-    application = ensure_qt_application()
-    recommendations = ModelRecommendationPage()
-    recommendations.set_recommendations(
-        FamilyRecommendationPage(
-            ModelFamilyId.ANIMA,
-            tuple(_card(ModelFamilyId.ANIMA, rank) for rank in range(1, 4)),
-        ),
-        selected_version_ids=frozenset(),
-        use_own_model=False,
-    )
-    recommendations.show()
-    choice = recommendations.findChild(
-        QCheckBox,
-        "OnboardingRecommendationSelect_2010",
-    )
-    assert choice is not None
-    choice.setFocus()
-    QTest.keyClick(choice, Qt.Key.Key_Space)
-    application.processEvents()
-
-    assert choice.isChecked()
-    assert "anima" in choice.accessibleName().casefold()
-    recommendations.close()
-
-
-def test_recommendation_no_download_path_is_a_selection_not_an_action_button() -> None:
-    """Keep the provide-my-own path inside the choice model and out of page actions."""
-
-    ensure_qt_application()
-    page = ModelRecommendationPage()
-    page.set_recommendations(
-        FamilyRecommendationPage(
-            ModelFamilyId.SDXL,
-            tuple(_card(ModelFamilyId.SDXL, rank) for rank in range(1, 4)),
-        ),
-        selected_version_ids=frozenset(),
-        use_own_model=True,
-    )
-
-    assert page.own_model_checkbox.isChecked()
-    assert page.findChild(QWidget, "OnboardingRecommendationSkipButton") is None
-    assert page.findChild(QWidget, "OnboardingFindOwnModelsButton") is None
-    page.close()
-
-
-def test_recommendation_cards_show_immediately_while_thumbnails_load() -> None:
-    """Keep all choices usable while each portrait image arrives independently."""
-
-    ensure_qt_application()
-    page = ModelRecommendationPage()
-    loaded_cards = tuple(_card(ModelFamilyId.SDXL, rank) for rank in range(1, 4))
-    pending_cards = tuple(
-        RecommendationCardAsset(card.recommendation) for card in loaded_cards
-    )
-
-    page.set_recommendations(
-        FamilyRecommendationPage(ModelFamilyId.SDXL, pending_cards),
-        selected_version_ids=frozenset(),
-        use_own_model=False,
-    )
-
-    portraits = page.findChildren(RecommendationPortrait)
-    first_thumbnail = loaded_cards[0].thumbnail
-    assert first_thumbnail is not None
-    assert len(portraits) == 3
-    assert all(portrait.thumbnail_is_loading() for portrait in portraits)
-    assert all(not portrait.loading_label.isHidden() for portrait in portraits)
-    assert all(portrait.source_size().isEmpty() for portrait in portraits)
-    assert page.set_thumbnail(1010, first_thumbnail)
-    assert not portraits[0].thumbnail_is_loading()
-    assert portraits[0].loading_label.isHidden()
-    assert portraits[0].source_size().height() >= 960
-    assert page.set_thumbnail_unavailable(1020)
-    assert portraits[1].thumbnail_is_unavailable()
-    assert portraits[1].loading_label.isHidden()
-    assert portraits[2].thumbnail_is_loading()
     page.close()
 
 
@@ -261,8 +188,8 @@ def test_recommendation_page_owns_provider_loading_and_recovery_states() -> None
         IndeterminateProgressRing,
         "OnboardingRecommendationLoadingBusy",
     )
-    assert len(loading_cards) == 3
-    assert len(loading_rings) == 3
+    assert len(loading_cards) == 10
+    assert len(loading_rings) == 10
     assert all(not ring.isHidden() for ring in loading_rings)
     assert all(
         ring.accessibleName() == "Loading recommendations…" for ring in loading_rings
@@ -277,95 +204,7 @@ def test_recommendation_page_owns_provider_loading_and_recovery_states() -> None
 
     assert page.loading_ring.isHidden()
     assert "could not be loaded" in page.loading_status.text()
-    assert page.own_model_choice.isHidden()
-    page.close()
-
-
-def test_download_review_is_an_editable_thumbnail_cart() -> None:
-    """Present selected models as removable exact-thumbnail checkout cards."""
-
-    ensure_qt_application()
-    page = ModelDownloadReviewPage()
-    model_root = Path("E:/models")
-    plan = ModelInstallPlan(
-        model_root=model_root,
-        files=(
-            _install_file(
-                display_name="One obsession",
-                file_name="oneObsession_v24.safetensors",
-                size_bytes=6_500_000_000,
-                destination_dir=model_root / "checkpoints",
-            ),
-        ),
-        available_bytes=244_800_000_000,
-    )
-
-    card = _card(ModelFamilyId.SDXL, 1)
-    page.set_plan(plan, (card,))
-
-    rows = page.findChildren(DownloadCartCard)
-    visible_text = " ".join(
-        label.text() for label in page.findChildren(QLabel) if label.text()
-    )
-    assert len(rows) == 1
-    assert "Required components" not in visible_text
-    assert "E:/models" not in visible_text
-    assert "E:\\models" not in visible_text
-    assert page.summary_panel.total_label.text() == "6.1 GiB"
-    assert not page.summary_panel.isHidden()
-    page.close()
-
-
-def test_two_model_checkout_centers_cards_and_portraits_without_overflow() -> None:
-    """Keep the common two-model cart centered and internally aligned."""
-
-    application = ensure_qt_application()
-    page = ModelDownloadReviewPage()
-    page.resize(980, 520)
-    model_root = Path("E:/models")
-    plan = ModelInstallPlan(
-        model_root=model_root,
-        files=(
-            _install_file(
-                display_name="One obsession",
-                file_name="oneObsession_v24.safetensors",
-                size_bytes=6_500_000_000,
-                destination_dir=model_root / "checkpoints",
-            ),
-            _install_file(
-                family=ModelFamilyId.ANIMA,
-                model_id=201,
-                version_id=2010,
-                display_name="Anima",
-                file_name="anima.safetensors",
-                size_bytes=3_900_000_000,
-                destination_dir=model_root / "diffusion_models",
-            ),
-        ),
-        available_bytes=244_800_000_000,
-    )
-    page.set_plan(
-        plan,
-        (
-            _card(ModelFamilyId.SDXL, 1),
-            _card(ModelFamilyId.ANIMA, 1),
-        ),
-    )
-    page.show()
-    application.processEvents()
-
-    cards = page.findChildren(DownloadCartCard)
-    assert len(cards) == 2
-    for card in cards:
-        card_center = card.mapToGlobal(card.rect().center()).x()
-        portrait_center = card.portrait.mapToGlobal(card.portrait.rect().center()).x()
-        assert abs(card_center - portrait_center) <= 1
-    cards_left = cards[0].mapToGlobal(cards[0].rect().topLeft()).x()
-    cards_right = cards[-1].mapToGlobal(cards[-1].rect().topRight()).x()
-    card_group_center = (cards_left + cards_right) // 2
-    page_center = page.mapToGlobal(page.rect().center()).x()
-    assert abs(card_group_center - page_center) <= 1
-    assert page.sizeHint().height() <= 520
+    assert page.card_host.isHidden()
     page.close()
 
 
@@ -494,6 +333,42 @@ def test_shared_model_page_versions_keep_selections_and_thumbnails_independent()
     assert session.selected_recommendations() == (sdxl.recommendation,)
 
 
+def test_imported_models_persist_per_family_and_join_the_editable_checkout() -> None:
+    """Retain accepted CivitAI links across family navigation and review ordering."""
+
+    session = ModelOnboardingSession(
+        flow_mode=OnboardingFlowMode.FIRST_RUN,
+        target_mode=OnboardingTargetMode.MANAGED_LOCAL,
+    )
+    session.answer_existing_folder(False)
+    session.select_missing_families(frozenset())
+    pages = (
+        FamilyRecommendationPage(
+            ModelFamilyId.SDXL,
+            tuple(_card(ModelFamilyId.SDXL, rank) for rank in range(1, 9)),
+        ),
+        FamilyRecommendationPage(
+            ModelFamilyId.ANIMA,
+            tuple(_card(ModelFamilyId.ANIMA, rank) for rank in range(1, 9)),
+        ),
+    )
+    assert session.accept_recommendations(pages)
+    imported = _card_with_identity(
+        family=ModelFamilyId.SDXL,
+        model_id=999,
+        version_id=9990,
+    )
+
+    assert session.replace_current_family_imports((imported,))
+    session.set_page_index(1)
+    session.set_page_index(0)
+
+    assert session.state.recommendation_pages[0].imported_cards == (imported,)
+    assert session.state.recommendation_pages[1].imported_cards == ()
+    assert session.state.selected_version_ids == {9990}
+    assert session.selected_cards() == (imported,)
+
+
 def _card(family: ModelFamilyId, rank: int) -> RecommendationCardAsset:
     """Return one Qt-ready deterministic recommendation card."""
 
@@ -563,30 +438,4 @@ def _thumbnail(family: ModelFamilyId, rank: int) -> ThumbnailAsset:
         bytes_per_line=prepared.bytes_per_line,
         content_format=prepared.content_format,
         payload=prepared.payload,
-    )
-
-
-def _install_file(
-    *,
-    family: ModelFamilyId = ModelFamilyId.SDXL,
-    model_id: int = 101,
-    version_id: int = 1010,
-    display_name: str,
-    file_name: str,
-    size_bytes: int,
-    destination_dir: Path,
-) -> ModelInstallFile:
-    """Return one exact planned file for download-review presentation tests."""
-
-    return ModelInstallFile(
-        family_id=family,
-        artifact_kind=ModelArtifactKind.CHECKPOINTS,
-        model_id=model_id,
-        version_id=version_id,
-        display_name=display_name,
-        file_name=file_name,
-        source_url="https://example.invalid/model",
-        sha256="0" * 64,
-        size_bytes=size_bytes,
-        destination_dir=destination_dir,
     )

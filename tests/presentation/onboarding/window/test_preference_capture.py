@@ -66,7 +66,7 @@ def test_onboarding_window_reads_folder_fields_before_navigation(
     )
     monkeypatch.setattr(window, "_show_page", lambda _page_id: None)
     window._current_page = OnboardingPageId.FOLDERS
-    model_root = tmp_path / "Models"
+    model_root = tmp_path / "WebUI" / "models"
     output_root = tmp_path / "Images"
 
     window.folder_setup_page.managed_model_root_edit.setText(str(model_root))

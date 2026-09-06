@@ -88,6 +88,19 @@ def test_thumbnail_decode_lane_is_isolated_and_burst_tolerant() -> None:
     assert thumbnail_config.queue_capacity == 64
 
 
+def test_onboarding_model_thumbnails_have_an_isolated_burst_lane() -> None:
+    """Keep two recommendation families from starving interactive model work."""
+
+    thumbnail_config = next(
+        config
+        for config in DEFAULT_EXECUTION_LANE_CONFIGS
+        if config.name == "onboarding_model_thumbnails"
+    )
+
+    assert thumbnail_config.max_workers == 4
+    assert thumbnail_config.queue_capacity == 64
+
+
 def test_execution_runtime_scope_routes_callbacks_by_owner_dispatcher() -> None:
     """Owner scopes should stamp context and publish through their dispatcher."""
 
