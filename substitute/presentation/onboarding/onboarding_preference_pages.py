@@ -164,15 +164,17 @@ class IntegrationsPage(OnboardingPageFrame):
 
         choices_layout = QVBoxLayout()
         choices_layout.setContentsMargins(0, 0, 0, 0)
-        choices_layout.setSpacing(14)
+        choices_layout.setSpacing(10)
 
         danbooru_section = OnboardingSectionPanel(self)
+        danbooru_section.content_layout.setContentsMargins(18, 10, 18, 10)
         danbooru_section.content_layout.addWidget(
             self._section_title("Danbooru", danbooru_section)
         )
         danbooru_section.content_layout.addWidget(self.danbooru_details)
 
         civitai_section = OnboardingSectionPanel(self)
+        civitai_section.content_layout.setContentsMargins(18, 10, 18, 10)
         civitai_section.content_layout.addWidget(
             self._section_title("CivitAI", civitai_section)
         )
