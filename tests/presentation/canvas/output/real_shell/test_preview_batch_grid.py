@@ -405,7 +405,10 @@ def _seed_batched_text_outputs(
         )
     else:
         harness.wait_until(lambda: len(harness.fingerprint().presented_image_ids) == 1)
-    return harness.output_ids("alpha")
+    return harness.output_ids_for_scene_source(
+        scene_key="",
+        source_key="alpha:text",
+    )
 
 
 def _scene_source_ids(
