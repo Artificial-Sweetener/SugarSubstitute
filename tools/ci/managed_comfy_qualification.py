@@ -38,6 +38,18 @@ from substitute.infrastructure.comfy.managed_validation import (
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 
 
+_SIMPLE_SYRUP_NODE_CLASSES = frozenset(
+    {
+        "SimpleSyrup.ResizeImageToTarget",
+        "SimpleSyrup.ScaleFactor",
+        "SimpleSyrup.VAEDecodeOptions",
+        "SimpleSyrup.VAEEncodeOptions",
+    }
+)
+_REQUIRED_NODE_CLASSES = _SIMPLE_SYRUP_NODE_CLASSES | {"UpscaleModelLoader"}
+_OPTIONAL_TRITON_IMPORT_FAILURE = "/custom_nodes/SimpleSyrup: No module named 'triton'"
+
+
 def assert_real_managed_comfy(
     *,
     install_root: Path,
@@ -68,13 +80,10 @@ def assert_real_managed_comfy(
             "Live managed Comfy system metadata is incomplete."
         )
     object_info = _get_json(f"{base_url}/object_info")
-    required_node_classes = {
-        "SimpleSyrup.ResizeImageToTarget",
-        "SimpleSyrup.ScaleFactor",
-        "SimpleSyrup.VAEDecodeOptions",
-        "SimpleSyrup.VAEEncodeOptions",
-        "UpscaleModelLoader",
-    }
+    required_node_classes = _required_node_classes(
+        install_root=install_root,
+        plan=plan,
+    )
     missing = sorted(required_node_classes.difference(object_info))
     if missing:
         raise InstallerLifecycleError(
@@ -111,6 +120,33 @@ def assert_real_managed_comfy(
         raise InstallerLifecycleError(
             "Managed process ownership state was not created."
         )
+
+
+def _required_node_classes(
+    *,
+    install_root: Path,
+    plan: InstallerQualificationPlan,
+) -> frozenset[str]:
+    """Relax only SimpleSyrup nodes blocked by optional Triton in CPU CI."""
+
+    if not plan.force_cpu_mode:
+        return _REQUIRED_NODE_CLASSES
+    startup_log = install_root / "managed-comfy-startup.log"
+    try:
+        normalized_log = startup_log.read_text(
+            encoding="utf-8",
+            errors="replace",
+        ).replace("\\", "/")
+    except OSError:
+        return _REQUIRED_NODE_CLASSES
+    has_exact_optional_failure = any(
+        "Error while calling comfy_entrypoint in " in line
+        and _OPTIONAL_TRITON_IMPORT_FAILURE in line
+        for line in normalized_log.splitlines()
+    )
+    if not has_exact_optional_failure:
+        return _REQUIRED_NODE_CLASSES
+    return _REQUIRED_NODE_CLASSES - _SIMPLE_SYRUP_NODE_CLASSES
 
 
 def terminate_owned_managed_comfy(install_root: Path) -> None:
