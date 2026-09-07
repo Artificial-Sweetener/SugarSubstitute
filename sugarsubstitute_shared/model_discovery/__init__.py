@@ -14,50 +14,46 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Expose shared model-onboarding discovery contracts and planning."""
+"""Expose shared technical model discovery and acquisition contracts."""
 
 from sugarsubstitute_shared.model_discovery.civitai_client import (
     CivitaiDiscoveryClient,
     CivitaiDiscoveryError,
 )
 from sugarsubstitute_shared.model_discovery.destination_policy import (
-    CategoryModelDestinationPolicy,
+    ModelArtifactDestinationPolicy,
 )
 from sugarsubstitute_shared.model_discovery.models import (
-    CubeModelCapability,
     DiscoveredModel,
     LocalModel,
-    ModelCategory,
+    ModelArtifactKind,
     ModelDiscoveryCard,
     ModelDiscoveryPlan,
-    ModelOnboardingEligibility,
 )
 from sugarsubstitute_shared.model_discovery.planner import (
+    EmptyPickerModelDiscoveryPlanner,
     ModelDestinationPolicy,
     ModelDiscoveryGateway,
-    ModelDiscoveryPlanner,
     ModelInventory,
 )
-from sugarsubstitute_shared.model_discovery.onboarding_service import (
-    ModelOnboardingService,
+from sugarsubstitute_shared.model_discovery.service import (
+    EmptyPickerModelDiscoveryService,
     model_card_identity,
 )
 
 __all__ = [
     "CivitaiDiscoveryClient",
     "CivitaiDiscoveryError",
-    "CategoryModelDestinationPolicy",
-    "CubeModelCapability",
     "DiscoveredModel",
+    "EmptyPickerModelDiscoveryPlanner",
+    "EmptyPickerModelDiscoveryService",
     "LocalModel",
-    "ModelCategory",
+    "ModelArtifactDestinationPolicy",
+    "ModelArtifactKind",
     "ModelDestinationPolicy",
     "ModelDiscoveryCard",
     "ModelDiscoveryGateway",
     "ModelDiscoveryPlan",
-    "ModelDiscoveryPlanner",
     "ModelInventory",
-    "ModelOnboardingEligibility",
-    "ModelOnboardingService",
     "model_card_identity",
 ]

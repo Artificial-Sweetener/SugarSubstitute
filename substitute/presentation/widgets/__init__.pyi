@@ -26,6 +26,7 @@ from .anchored_row_picker import AnchoredRowPickerView as AnchoredRowPickerView
 from .combo_box import ComboBox as ComboBox
 from .link_selector_combo_box import LinkSelectorComboBox as LinkSelectorComboBox
 from .menu_buttons import ToggleDropDownToolButton as ToggleDropDownToolButton
+from .menu_buttons import ToggleDropDownPushButton as ToggleDropDownPushButton
 from .menu_buttons import TogglePrimarySplitPushButton as TogglePrimarySplitPushButton
 from .menu_buttons import ToggleSplitToolButton as ToggleSplitToolButton
 from .menu_buttons import (
@@ -53,6 +54,7 @@ __all__ = [
     "SeedBox",
     "SpinBox",
     "ToggleDropDownToolButton",
+    "ToggleDropDownPushButton",
     "TogglePrimarySplitPushButton",
     "ToggleSplitToolButton",
     "ToggleTransparentDropDownToolButton",

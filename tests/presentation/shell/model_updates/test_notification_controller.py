@@ -30,7 +30,7 @@ from substitute.presentation.shell.model_update_notification_controller import (
     ModelUpdateNotificationController,
 )
 from sugarsubstitute_shared.model_acquisition import ModelAcquisitionService
-from sugarsubstitute_shared.model_discovery import DiscoveredModel, ModelCategory
+from sugarsubstitute_shared.model_discovery import DiscoveredModel, ModelArtifactKind
 from sugarsubstitute_shared.model_updates import (
     ModelUpdateAcquisitionService,
     ModelUpdateProposal,
@@ -88,12 +88,12 @@ class _Updates:
         *,
         model_id: int,
         current_version_id: int,
-        category: ModelCategory,
+        artifact_kind: ModelArtifactKind,
         base_model: str | None,
     ) -> DiscoveredModel | None:
         """Return the prepared candidate."""
 
-        _ = (model_id, current_version_id, category, base_model)
+        _ = (model_id, current_version_id, artifact_kind, base_model)
         self.calls += 1
         return self._candidate
 
@@ -124,7 +124,7 @@ def _records(tmp_path: Path) -> tuple[ModelUsageRecord, DiscoveredModel, bytes]:
     current = ModelUsageRecord(
         sha256="a" * 64,
         path=tmp_path / "models" / "checkpoints" / "old.safetensors",
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         model_id=3,
         version_id=4,
         base_model="SDXL",
@@ -132,7 +132,7 @@ def _records(tmp_path: Path) -> tuple[ModelUsageRecord, DiscoveredModel, bytes]:
         last_used_at=datetime(2026, 8, 31, tzinfo=UTC),
     )
     candidate = DiscoveredModel(
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         model_id=3,
         version_id=5,
         model_name="Updated",

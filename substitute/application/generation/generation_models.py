@@ -18,8 +18,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from substitute.application.recipes.recipe_io_service import (
         WorkflowLike as RecipeWorkflowLike,
     )
+    from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
 
 
 @dataclass(frozen=True)
@@ -55,11 +56,29 @@ class PreparedGenerationRequest:
     workflow: RecipeWorkflowLike | None = None
     output_run_number: int | None = None
     output_job_started_at: datetime | None = None
+    output_session_id: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None
     scene_order: int | None = None
     scene_count: int | None = None
+
+
+@dataclass(frozen=True)
+class GenerationRequest:
+    """Capture immutable request inputs for one generation dispatch."""
+
+    workflow_id: WorkflowId
+    workflow_name: str
+    workflow: RecipeWorkflowLike
+    enabled_node_keys_by_alias: Mapping[str, tuple[str, ...]] = field(
+        default_factory=dict
+    )
+    disabled_node_keys_by_alias: Mapping[str, tuple[str, ...]] = field(
+        default_factory=dict
+    )
+    global_override_scopes: Mapping[str, GlobalOverrideSerializationScope] | None = None
+    output_session_id: str | None = None
 
 
 @dataclass(frozen=True)

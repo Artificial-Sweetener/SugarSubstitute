@@ -21,8 +21,9 @@ from __future__ import annotations
 from sugarsubstitute_shared.localization import ApplicationText
 from sugarsubstitute_shared.presentation.localization import app_text
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
+from uuid import uuid4
 
 from substitute.application.execution import (
     ExecutionContext,
@@ -304,12 +305,14 @@ class WorkspaceGenerationController:
         callbacks = self._build_generation_callbacks(bindings)
         if self._job_queue_service is not None:
             batch_count = self._effective_batch_count(bindings)
+            output_session_id = uuid4().hex
             if bindings.capture_queued_generation_preparation is not None:
                 self._submit_queued_generation_preparation_batches(
                     bindings=bindings,
                     callbacks=callbacks,
                     batch_count=batch_count,
                     operation="queue_generation",
+                    output_session_id=output_session_id,
                 )
                 return
             for _batch_index in range(batch_count):
@@ -326,7 +329,10 @@ class WorkspaceGenerationController:
                 self._enqueue_snapshot_entry_batch(
                     tuple(
                         GenerationQueueBatchEntry(
-                            snapshot=snapshot,
+                            snapshot=replace(
+                                snapshot,
+                                output_session_id=output_session_id,
+                            ),
                             callbacks=callbacks,
                         )
                         for snapshot in snapshots
@@ -345,7 +351,7 @@ class WorkspaceGenerationController:
             )
             return
         self._generation_service.run_single_generation(
-            request=request,
+            request=replace(request, output_session_id=uuid4().hex),
             callbacks=callbacks,
         )
 
@@ -479,7 +485,11 @@ class WorkspaceGenerationController:
                 ),
             )
 
-        snapshots = self._build_queued_generation_snapshots(bindings)
+        output_session_id = uuid4().hex
+        snapshots = tuple(
+            replace(snapshot, output_session_id=output_session_id)
+            for snapshot in self._build_queued_generation_snapshots(bindings)
+        )
         if not snapshots:
             raise GenerationPreflightError(
                 workflow_id="queue",
@@ -517,6 +527,7 @@ class WorkspaceGenerationController:
         batch_count: int,
         operation: str,
         continuous: bool = False,
+        output_session_id: str | None = None,
     ) -> None:
         """Capture queue preparation jobs and submit them to execution."""
 
@@ -533,6 +544,7 @@ class WorkspaceGenerationController:
                     "Generation queue preparation bindings are unavailable."
                 ),
             )
+        resolved_output_session_id = output_session_id or uuid4().hex
         for batch_index in range(batch_count):
             try:
                 preparation_job = capture_preparation()
@@ -559,6 +571,7 @@ class WorkspaceGenerationController:
                     preparation_job=job,
                     result=result,
                     continuous=continuous,
+                    output_session_id=resolved_output_session_id,
                 )
 
             def on_preparation_failed(
@@ -588,12 +601,16 @@ class WorkspaceGenerationController:
         preparation_job: QueuedGenerationPreparationJob,
         result: GenerationPreparationResult,
         continuous: bool,
+        output_session_id: str,
     ) -> None:
         """Enqueue task-prepared snapshots on the UI thread."""
 
         if self._job_queue_service is None:
             return
-        snapshots = preparation_job.on_prepared(result)
+        snapshots = tuple(
+            replace(snapshot, output_session_id=output_session_id)
+            for snapshot in preparation_job.on_prepared(result)
+        )
         if continuous and not snapshots:
             self._stop_continuous_after_terminal_failure(bindings)
             bindings.on_failure(

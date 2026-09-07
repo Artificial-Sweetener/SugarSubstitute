@@ -40,6 +40,7 @@ from tests.presentation.shell.generation.controller.support import (
     _BindingRecorder,
     _build_bindings,
     _snapshot,
+    _without_output_sessions,
 )
 
 
@@ -77,7 +78,12 @@ def test_handle_generate_clicked_enqueues_snapshot_when_queue_is_available() -> 
 
     assert fake_service.single_call_args == []
     assert len(fake_queue.enqueue_calls) == 1
-    assert fake_queue.enqueue_calls[0]["snapshot"] == snapshot
+    queued_snapshot = cast(
+        GenerationJobSnapshot,
+        fake_queue.enqueue_calls[0]["snapshot"],
+    )
+    assert _without_output_sessions([queued_snapshot]) == [snapshot]
+    assert queued_snapshot.output_session_id
     assert isinstance(fake_queue.enqueue_calls[0]["callbacks"], GenerationCallbacks)
 
 
@@ -149,7 +155,12 @@ def test_handle_generate_clicked_submits_captured_preparation_without_blocking()
 
     assert prepare_runs == 1
     assert prepared_hooks == 1
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [snapshot]
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == [snapshot]
 
 
 def test_captured_preparation_enqueues_multi_scene_result_as_one_batch() -> None:
@@ -207,12 +218,15 @@ def test_captured_preparation_enqueues_multi_scene_result_as_one_batch() -> None
     fake_executor.complete(0)
 
     assert len(fake_queue.batch_entry_calls) == 1
-    assert [entry.snapshot for entry in fake_queue.batch_entry_calls[0]] == list(
-        scene_snapshots
-    )
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == list(
-        scene_snapshots
-    )
+    assert _without_output_sessions(
+        [entry.snapshot for entry in fake_queue.batch_entry_calls[0]]
+    ) == list(scene_snapshots)
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == list(scene_snapshots)
 
 
 def test_handle_generate_clicked_enqueues_independent_batch_snapshots() -> None:
@@ -251,11 +265,17 @@ def test_handle_generate_clicked_enqueues_independent_batch_snapshots() -> None:
     controller.handle_generate_clicked(current_mode="generate", bindings=bindings)
 
     assert build_calls == 3
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [
+    queued_snapshots = [
+        cast(GenerationJobSnapshot, call["snapshot"])
+        for call in fake_queue.enqueue_calls
+    ]
+    assert _without_output_sessions(queued_snapshots) == [
         _snapshot("Batch 1"),
         _snapshot("Batch 2"),
         _snapshot("Batch 3"),
     ]
+    assert len({snapshot.output_session_id for snapshot in queued_snapshots}) == 1
+    assert queued_snapshots[0].output_session_id
 
 
 def test_handle_generate_clicked_multiplies_scene_snapshots_by_batch_count() -> None:
@@ -299,14 +319,19 @@ def test_handle_generate_clicked_multiplies_scene_snapshots_by_batch_count() -> 
     assert build_calls == 3
     assert len(fake_queue.batch_entry_calls) == 3
     assert [
-        [entry.snapshot for entry in entries]
+        _without_output_sessions([entry.snapshot for entry in entries])
         for entries in fake_queue.batch_entry_calls
     ] == [
         [_snapshot("Batch 1 scene A"), _snapshot("Batch 1 scene B")],
         [_snapshot("Batch 2 scene A"), _snapshot("Batch 2 scene B")],
         [_snapshot("Batch 3 scene A"), _snapshot("Batch 3 scene B")],
     ]
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == [
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == [
         _snapshot("Batch 1 scene A"),
         _snapshot("Batch 1 scene B"),
         _snapshot("Batch 2 scene A"),
@@ -357,10 +382,15 @@ def test_handle_generate_clicked_enqueues_queued_snapshots_in_order() -> None:
 
     assert fake_service.single_call_args == []
     assert len(fake_queue.batch_entry_calls) == 1
-    assert [entry.snapshot for entry in fake_queue.batch_entry_calls[0]] == list(
-        snapshots
-    )
-    assert [call["snapshot"] for call in fake_queue.enqueue_calls] == list(snapshots)
+    assert _without_output_sessions(
+        [entry.snapshot for entry in fake_queue.batch_entry_calls[0]]
+    ) == list(snapshots)
+    assert _without_output_sessions(
+        [
+            cast(GenerationJobSnapshot, call["snapshot"])
+            for call in fake_queue.enqueue_calls
+        ]
+    ) == list(snapshots)
     assert all(
         isinstance(call["callbacks"], GenerationCallbacks)
         for call in fake_queue.enqueue_calls

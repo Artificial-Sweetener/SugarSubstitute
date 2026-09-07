@@ -24,7 +24,7 @@ from typing import cast
 from substitute.application.model_discovery import BackendModelInventory
 from substitute.application.model_metadata.ports import BackendModelMetadataGateway
 from substitute.domain.model_metadata import BackendModelCatalogEntry, FingerprintStatus
-from sugarsubstitute_shared.model_discovery import ModelCategory
+from sugarsubstitute_shared.model_discovery import ModelArtifactKind
 from tests.application.model_metadata.catalog_service.support import _entry
 
 
@@ -73,7 +73,7 @@ def test_inventory_uses_backend_visible_roots_and_only_ready_hashes() -> None:
 
     models = BackendModelInventory(
         cast(BackendModelMetadataGateway, gateway)
-    ).list_models({ModelCategory.CHECKPOINTS, ModelCategory.LORAS})
+    ).list_models({ModelArtifactKind.CHECKPOINTS, ModelArtifactKind.LORAS})
 
     assert gateway.kinds == ("checkpoints", "loras")
     assert str(models[0].path).replace("\\", "/") == "managed/base/model.safetensors"

@@ -14,13 +14,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Expose application adapters for shared model discovery planning."""
+"""Expose application adapters for technical model discovery."""
 
 from substitute.application.model_discovery.backend_inventory import (
     BackendModelInventory,
 )
-from substitute.application.model_discovery.cube_capabilities import (
-    cube_model_capabilities,
-)
 
-__all__ = ["BackendModelInventory", "cube_model_capabilities"]
+__all__ = ["BackendModelInventory"]

@@ -134,6 +134,7 @@ def test_lazy_model_thumbnail_store_cache_calls_do_not_evaluate_type_only_names(
             source_path: str | None = None,
             source_width: int | None = None,
             source_height: int | None = None,
+            selection_policy: str = "user_selected_output_canvas",
         ) -> object:
             """Return the local thumbnail sentinel."""
 
@@ -145,6 +146,7 @@ def test_lazy_model_thumbnail_store_cache_calls_do_not_evaluate_type_only_names(
                 source_path,
                 source_width,
                 source_height,
+                selection_policy,
             )
             return local_result
 

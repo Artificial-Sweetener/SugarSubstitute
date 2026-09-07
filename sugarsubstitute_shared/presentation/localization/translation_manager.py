@@ -111,6 +111,9 @@ class TranslationManager(QObject):
         self._ui_languages_provider = ui_languages_provider
         self._manifest = manifest or load_language_manifest()
         self._font_adapter = font_adapter
+        self._initial_locale = QLocale()
+        self._initial_font = QFont(application.font())
+        self._initial_direction = application.layoutDirection()
         self._initial_font_adapter_state = (
             font_adapter.snapshot() if font_adapter is not None else None
         )
@@ -193,11 +196,14 @@ class TranslationManager(QObject):
         self._application.removeEventFilter(self)
         self._application.removeTranslator(self._composite_translator)
         self._composite_translator.replace_delegates(())
+        QLocale.setDefault(self._initial_locale)
+        self._application.setLayoutDirection(self._initial_direction)
+        self._application.setFont(self._initial_font)
+        if self._font_adapter is not None:
+            self._font_adapter.restore(self._initial_font_adapter_state)
         if self._active_bundle is not None:
             self._active_bundle.release()
             self._active_bundle = None
-        if self._font_adapter is not None:
-            self._font_adapter.restore(self._initial_font_adapter_state)
 
     def _switch_language(
         self,

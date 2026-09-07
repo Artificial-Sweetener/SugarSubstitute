@@ -205,6 +205,21 @@ vendored_files = [
 ]
 
 [[component]]
+name = "CivitAI Badge"
+license = "Apache-2.0"
+license_file = "third_party/licenses/civitai.LICENSE.txt"
+source = "https://github.com/civitai/civitai"
+revision = "e695de5aae91508df8a4465a86200d5cfa9c05f5"
+source_paths = [
+  "packages/civitai-brand/src/paths.ts",
+  "packages/civitai-brand/src/gradients.ts",
+  "packages/civitai-brand/src/svg.ts",
+]
+vendored_files = [
+  "substitute/presentation/resources/icons/CivitaiBadge.svg",
+]
+
+[[component]]
 name = "Font Awesome Free Brand Icons"
 license = "CC BY 4.0"
 license_file = "third_party/licenses/font-awesome-free.LICENSE.txt"

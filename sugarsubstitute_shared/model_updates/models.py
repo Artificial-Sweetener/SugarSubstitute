@@ -24,7 +24,7 @@ from pathlib import Path
 
 from sugarsubstitute_shared.model_discovery.models import (
     DiscoveredModel,
-    ModelCategory,
+    ModelArtifactKind,
 )
 
 
@@ -41,7 +41,7 @@ class ModelUsageRecord:
 
     sha256: str
     path: Path
-    category: ModelCategory
+    artifact_kind: ModelArtifactKind
     model_id: int | None
     version_id: int | None
     base_model: str | None

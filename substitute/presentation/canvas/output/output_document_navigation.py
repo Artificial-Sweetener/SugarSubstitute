@@ -75,6 +75,9 @@ from substitute.presentation.canvas.output.output_compare_presenter import (
 from substitute.presentation.canvas.output.output_compare_navigation_chrome import (
     sync_output_comparison_navigation_buttons,
 )
+from substitute.presentation.canvas.output.output_preview_navigation_presenter import (
+    preview_source_grid_image_ids,
+)
 from substitute.presentation.canvas.shared.canvas_nav_picker import CanvasNavPickerItem
 
 if TYPE_CHECKING:
@@ -211,6 +214,7 @@ class OutputDocumentNavigation:
         if self.host.active_scene_overview:
             for scene in self._scene_groups().values():
                 if image_id in {scene.preview_image_id, scene.primary_image_id}:
+                    self.host.release_preview_navigation()
                     select_output_scene(
                         self.host,
                         scene.scene_key,
@@ -420,6 +424,23 @@ class OutputDocumentNavigation:
         """Apply one source tab or picker choice through product navigation policy."""
 
         source = self._visible_sources().get(source_key)
+        preview_grid_ids = (
+            ()
+            if source is None or self.host.active_set_index != 0
+            else preview_source_grid_image_ids(source, self.host._preview_registry)
+        )
+        if preview_grid_ids:
+            self.host.release_preview_navigation()
+            select_output_source(
+                self.host,
+                source_key,
+                source_groups_by_key=self._visible_sources(),
+                update_tabbar_container=lambda: update_output_tabbar_container(
+                    self.host
+                ),
+            )
+            self.host.present_preview_grid(preview_grid_ids)
+            return
         item = (
             None
             if source is None
@@ -466,20 +487,22 @@ class OutputDocumentNavigation:
         projection = self.host._output_projection
         if projection is None or self.host.active_scene_overview:
             return {}
-        lanes = self._preview_lanes()
+        scene_groups = self._scene_groups()
+        active_scene = (
+            scene_groups.get(self.host.active_scene_key)
+            if self.host.active_scene_key
+            else None
+        )
+        if active_scene is not None:
+            return {source.source_key: source for source in active_scene.sources}
         if self.host.scene_count <= 1:
             sources = overlay_preview_sources(
                 projection.sources,
-                lanes,
+                self._preview_lanes(),
                 scene_key=None,
             )
             return {source.source_key: source for source in sources}
-        scene = self._scene_groups().get(self.host.active_scene_key or "")
-        return (
-            {}
-            if scene is None
-            else {source.source_key: source for source in scene.sources}
-        )
+        return {}
 
     def _scene_groups(self) -> dict[str, OutputCanvasSceneGroup]:
         """Return current final scene groups keyed by their stable workflow identity."""

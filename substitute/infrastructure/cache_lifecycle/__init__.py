@@ -14,13 +14,36 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Expose persistent-cache filesystem lifecycle adapters."""
+"""Expose persistent-cache adapters without import-time dependency cycles."""
 
-from substitute.infrastructure.cache_lifecycle.file_storage import (
-    FilePersistentCacheStorage,
-)
-from substitute.infrastructure.cache_lifecycle.semantic_fingerprint import (
-    SemanticSourceFingerprintService,
-)
+from __future__ import annotations
+
+from importlib import import_module
+from typing import Any
+
+
+_EXPORTS = {
+    "FilePersistentCacheStorage": (
+        "substitute.infrastructure.cache_lifecycle.file_storage",
+        "FilePersistentCacheStorage",
+    ),
+    "SemanticSourceFingerprintService": (
+        "substitute.infrastructure.cache_lifecycle.semantic_fingerprint",
+        "SemanticSourceFingerprintService",
+    ),
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Load one public adapter only when a consumer requests it."""
+
+    try:
+        module_name, attribute_name = _EXPORTS[name]
+    except KeyError as error:
+        raise AttributeError(name) from error
+    value = getattr(import_module(module_name), attribute_name)
+    globals()[name] = value
+    return value
+
 
 __all__ = ["FilePersistentCacheStorage", "SemanticSourceFingerprintService"]

@@ -25,6 +25,176 @@ from tests.support.real_output_canvas.harness import RealShellOutputCanvasHarnes
 from tests.support.real_output_canvas.models import OutputSpec, SceneSpec
 
 
+def test_first_new_run_preview_replaces_the_complete_previous_scene_run(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Hand the canvas to a new run at its first presentable preview."""
+
+    harness.add_workflow("alpha", activate=True)
+    harness.show_canvas("Output")
+    previous_run_id = "previous-scene-run"
+    previous_run = harness.start_run(
+        "alpha",
+        run_index=1,
+        output_session_id=previous_run_id,
+    )
+    for order, scene_key in enumerate(("old-1", "old-2")):
+        harness.emit_output(
+            previous_run,
+            OutputSpec(
+                "alpha:text",
+                "Text to Image",
+                (80 + order * 40, 90, 120),
+                scene=SceneSpec(
+                    run_id=previous_run_id,
+                    key=scene_key,
+                    title=f"Old {order + 1}",
+                    order=order,
+                    count=2,
+                ),
+            ),
+        )
+    harness.wait_for_output_count("alpha", 2)
+
+    next_run_id = "next-scene-run"
+    next_run = harness.start_run(
+        "alpha",
+        run_index=2,
+        output_session_id=next_run_id,
+        preview_source_keys=frozenset({"alpha:text"}),
+    )
+    harness.shell.output_scene_run_service.start_scene_run(
+        scene_run_id=next_run_id,
+        workflow_id="workflow-alpha",
+        workflow_name="alpha",
+        scenes=(("new-1", "New 1", 0), ("new-2", "New 2", 1)),
+    )
+    harness.emit_preview(
+        next_run,
+        OutputSpec(
+            "alpha:text",
+            "Text to Image",
+            (210, 35, 75),
+            scene=SceneSpec(
+                run_id=next_run_id,
+                key="new-1",
+                title="New 1",
+                order=0,
+                count=2,
+            ),
+        ),
+    )
+    harness.process_events()
+    harness.shell.generation_feedback_dispatcher.flush_now()
+    harness.process_events()
+    preview_state = harness.fingerprint()
+    assert len(preview_state.preview_image_ids) == 2, preview_state
+
+    handed_off = harness.fingerprint()
+    assert handed_off.workflow_output_image_ids["workflow-alpha"] == ()
+    assert handed_off.document_image_ids == handed_off.preview_image_ids
+    assert handed_off.active_image_rgb == (210, 35, 75)
+    assert handed_off.workflow_output_focus_modes["workflow-alpha"] == "automatic"
+
+
+def test_programmatic_multi_source_follow_stays_automatic_until_user_navigation(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Keep projection-authored source changes from becoming manual navigation."""
+
+    harness.add_workflow("alpha", activate=True)
+    harness.show_canvas("Output")
+    scene_run_id = "scene-run-alpha"
+    first_scene = SceneSpec(
+        run_id=scene_run_id,
+        key="scene-1",
+        title="Scene 1",
+        order=0,
+        count=2,
+    )
+    first_run = harness.start_run(
+        "alpha",
+        run_index=1,
+        output_session_id=scene_run_id,
+    )
+    output_count = 0
+    for source_key, source_label, colors in (
+        (
+            "alpha:text",
+            "Text to Image",
+            ((200, 50, 50), (170, 40, 40)),
+        ),
+        (
+            "alpha:upscale",
+            "Diffusion Upscale",
+            ((60, 180, 100), (45, 150, 85)),
+        ),
+    ):
+        for batch_index, color in enumerate(colors):
+            harness.emit_output(
+                first_run,
+                OutputSpec(
+                    source_key,
+                    source_label,
+                    color,
+                    batch_index=batch_index,
+                    scene=first_scene,
+                ),
+            )
+            output_count += 1
+            harness.wait_for_output_count("alpha", output_count)
+            assert (
+                harness.fingerprint().workflow_output_focus_modes["workflow-alpha"]
+                == "automatic"
+            )
+            if batch_index == 1:
+                harness.wait_until(
+                    lambda: len(harness.fingerprint().grid_target_frames) == 2
+                )
+
+    harness.wait_until(
+        lambda: harness.fingerprint().active_source_tab_key == "alpha:upscale"
+    )
+    followed_first_scene = harness.fingerprint()
+    assert followed_first_scene.active_source_tab_key == "alpha:upscale"
+    assert followed_first_scene.workflow_output_focus_modes["workflow-alpha"] == (
+        "automatic"
+    )
+
+    second_run = harness.start_run(
+        "alpha",
+        run_index=2,
+        output_session_id=scene_run_id,
+    )
+    harness.emit_output(
+        second_run,
+        OutputSpec(
+            "alpha:text",
+            "Text to Image",
+            (45, 90, 190),
+            scene=SceneSpec(
+                run_id=scene_run_id,
+                key="scene-2",
+                title="Scene 2",
+                order=1,
+                count=2,
+            ),
+        ),
+    )
+    harness.wait_for_output_count("alpha", 5)
+    harness.wait_until(
+        lambda: (
+            harness.fingerprint().workflow_output_routes["workflow-alpha"][1] is True
+        )
+    )
+
+    overview = harness.fingerprint()
+    assert overview.workflow_output_focus_modes["workflow-alpha"] == "automatic"
+    assert overview.workflow_output_routes["workflow-alpha"][1] is True
+    assert overview.scene_selector_hidden is False
+    assert overview.set_selector_hidden is True
+
+
 def test_scene_batch_outputs_project_as_scene_composition(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
@@ -76,7 +246,11 @@ def test_automatic_scene_follow_promotes_only_populated_views_and_honors_drilldo
         order=0,
         count=2,
     )
-    first_run = harness.start_run("alpha", run_index=1)
+    first_run = harness.start_run(
+        "alpha",
+        run_index=1,
+        output_session_id="scene-run-alpha",
+    )
     first_colors = ((210, 40, 40), (40, 210, 40), (40, 40, 210))
     for batch_index, color in enumerate(first_colors):
         harness.emit_output(
@@ -110,7 +284,11 @@ def test_automatic_scene_follow_promotes_only_populated_views_and_honors_drilldo
         order=1,
         count=2,
     )
-    second_run = harness.start_run("alpha", run_index=2)
+    second_run = harness.start_run(
+        "alpha",
+        run_index=2,
+        output_session_id="scene-run-alpha",
+    )
     harness.emit_output(
         second_run,
         OutputSpec(
@@ -253,7 +431,20 @@ def test_generation_session_follows_terminal_cube_then_honors_manual_navigation(
     harness.wait_until(
         lambda: harness.fingerprint().active_source_tab_key == "alpha:upscale"
     )
-    harness.assert_showing_workflow("alpha", color=(65, 185, 105))
+    projection = harness.shell.output_canvas._output_projection
+    assert projection is not None
+    source_ids = {
+        source.source_key: tuple(
+            item.image_id for _set_index, item in sorted(source.images_by_set.items())
+        )
+        for source in projection.sources
+    }
+    harness.wait_until(
+        lambda: (
+            tuple(frame[1] for frame in harness.fingerprint().grid_target_frames)
+            == (source_ids["alpha:upscale"][0], source_ids["alpha:draft"][1])
+        )
+    )
 
     harness.select_output_source("alpha:draft")
     harness.wait_until(

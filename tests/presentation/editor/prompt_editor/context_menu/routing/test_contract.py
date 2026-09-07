@@ -48,8 +48,8 @@ from substitute.presentation.editor.prompt_editor import PromptEditor
 from substitute.presentation.editor.prompt_editor.features import (
     PromptContextMenuAction,
 )
-from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
-    _PromptEditorTextEditMenu,
+from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
+    PromptTextMenu,
 )
 from substitute.presentation.editor.prompt_editor.projection.surface import (
     PromptProjectionSurface,
@@ -305,7 +305,7 @@ def test_phase24_1_context_menu_read_only_suppresses_mutation_rows(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    menu = _PromptEditorTextEditMenu(
+    menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         trigger_word_actions=(

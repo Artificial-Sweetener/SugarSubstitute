@@ -125,6 +125,7 @@ class FinalImageEventHandler:
                     artifact_height=(
                         positive_int_or_none(artifact.height) or persisted.height
                     ),
+                    output_session_id=event.output_session_id,
                     scene_run_id=event.scene.run_id,
                     scene_key=event.scene.key,
                     scene_title=event.scene.title,

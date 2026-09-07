@@ -23,12 +23,13 @@ import json
 from pathlib import Path
 
 from sugarsubstitute_shared.launcher_update.persistence import write_json_atomic
-from sugarsubstitute_shared.model_discovery.models import ModelCategory
+from sugarsubstitute_shared.model_discovery.models import ModelArtifactKind
 from sugarsubstitute_shared.model_updates.models import (
     ModelUsageRecord,
 )
 
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
+_SUPPORTED_SCHEMA_VERSIONS = frozenset({1, _SCHEMA_VERSION})
 
 
 class ModelUpdateStateError(RuntimeError):
@@ -49,13 +50,17 @@ class FileModelUsageRepository:
         if not self._path.exists():
             return ()
         payload = _read_object(self._path)
-        if payload.get("schema_version") != _SCHEMA_VERSION:
+        schema_version = payload.get("schema_version")
+        if schema_version not in _SUPPORTED_SCHEMA_VERSIONS:
             raise ModelUpdateStateError("Unsupported model usage schema.")
         raw_records = payload.get("records")
         if not isinstance(raw_records, list):
             raise ModelUpdateStateError("Model usage records must be a list.")
         try:
-            return tuple(_parse_usage(record) for record in raw_records)
+            return tuple(
+                _parse_usage(record, schema_version=schema_version)
+                for record in raw_records
+            )
         except (TypeError, ValueError, KeyError) as error:
             raise ModelUpdateStateError("Model usage state is invalid.") from error
 
@@ -92,8 +97,8 @@ def _read_object(path: Path) -> dict[str, object]:
     return {str(key): value for key, value in payload.items()}
 
 
-def _parse_usage(value: object) -> ModelUsageRecord:
-    """Parse one strict usage record."""
+def _parse_usage(value: object, *, schema_version: object) -> ModelUsageRecord:
+    """Parse one strict usage record from a supported schema."""
 
     if not isinstance(value, dict):
         raise TypeError("Usage record must be an object.")
@@ -110,7 +115,9 @@ def _parse_usage(value: object) -> ModelUsageRecord:
     return ModelUsageRecord(
         sha256=_sha256(_string(value, "sha256")),
         path=Path(_string(value, "path")),
-        category=ModelCategory(_string(value, "category")),
+        artifact_kind=ModelArtifactKind(
+            _string(value, "category" if schema_version == 1 else "artifact_kind")
+        ),
         model_id=_optional_positive_int(value.get("model_id")),
         version_id=_optional_positive_int(value.get("version_id")),
         base_model=_optional_string(value.get("base_model")),
@@ -125,7 +132,7 @@ def _usage_payload(record: ModelUsageRecord) -> dict[str, object]:
     return {
         "sha256": _sha256(record.sha256),
         "path": str(record.path),
-        "category": record.category.value,
+        "artifact_kind": record.artifact_kind.value,
         "model_id": record.model_id,
         "version_id": record.version_id,
         "base_model": record.base_model,

@@ -28,14 +28,16 @@ from cutecanvas import ExecutionRuntime, OutboundMimeProvider
 
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteSessionBoundaryPort,
-    OutputRouteScope,
 )
 from substitute.application.workflows.output_canvas_route_scope import (
-    output_route_scope_members,
+    build_output_route_scope,
 )
 from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
     OutputCanvasSourceGroup,
+)
+from substitute.application.workflows.output_automatic_frontier_projection import (
+    automatic_frontier_image_ids,
 )
 from substitute.application.workflows.output_canvas_session import (
     OutputCanvasSession,
@@ -55,6 +57,7 @@ from substitute.application.workflows.output_preview_registry import (
 from substitute.application.workflows.output_preview_results import (
     OutputPreviewAcceptance,
 )
+from substitute.domain.workflow import OutputFocusMode
 from substitute.presentation.canvas.output.output_canvas_chrome import (
     install_output_navigation_chrome_theme_refresh,
 )
@@ -365,10 +368,17 @@ class OutputCanvas(QWidget):
     ) -> None:
         """Retire preview compositions replaced by one final Output image."""
 
+        if identity.batch_index in {None, 0}:
+            self._preview_navigation.release_automatic_follow()
         close_result = self._preview_registry.close_final_output_lane(identity)
         self._preview_presenter.close_final_output_preview_lane(
             close_result.closed_preview_ids
         )
+
+    def release_automatic_preview_follow(self) -> None:
+        """Let the newest final output replace transient Automatic preview focus."""
+
+        self._preview_navigation.release_automatic_follow()
 
     def clear_previews(self, source_key: str | None = None) -> None:
         """Retire transient preview compositions without affecting final content."""
@@ -385,6 +395,8 @@ class OutputCanvas(QWidget):
 
         previous_source_key = self.active_source_key
         previous_set_index = self.active_set_index
+        previous_scene_key = self.active_scene_key
+        previous_scene_overview = self.active_scene_overview
         retired_preview_ids = self._preview_registry.rebind_workflow_session(session)
         self._preview_presenter.close_final_output_preview_lane(retired_preview_ids)
         self._output_session = session
@@ -396,6 +408,8 @@ class OutputCanvas(QWidget):
         self.active_source_key = projection.active_source_key
         self.active_set_index = projection.active_set_index
         self._preview_navigation.restore_selection(
+            previous_scene_key,
+            previous_scene_overview,
             previous_source_key,
             previous_set_index,
         )
@@ -403,12 +417,11 @@ class OutputCanvas(QWidget):
             self.last_real_set_index = self.active_set_index
         self.set_count = projection.set_count
         self._route_projector.bind(
-            OutputRouteScope(
+            build_output_route_scope(
                 session=session,
-                allowed_image_ids=session.allowed_image_ids,
-                allowed_source_keys=session.allowed_source_keys,
-                allowed_scene_keys=session.allowed_scene_keys,
-                allowed_composition_ids=session.allowed_composition_ids,
+                preview_lanes=self._preview_registry.lanes_for_session(session),
+                active_scene_overview=self.active_scene_overview,
+                active_scene_key=self.active_scene_key,
             )
         )
         self.document.set_detail_inspection_groups(
@@ -453,7 +466,7 @@ class OutputCanvas(QWidget):
                     orientation=compare_state.orientation,
                 ):
                     return
-        if projection.active_scene_overview:
+        if self.active_scene_overview:
             self.document.present_grid(
                 scene_overview_image_ids(
                     projection,
@@ -462,17 +475,25 @@ class OutputCanvas(QWidget):
             )
             return
         sources = tuple(self._document_navigation.visible_sources().values())
-        if projection.active_set_index == 0:
+        if self.active_set_index == 0:
             source = next(
                 (
                     source
                     for source in sources
-                    if source.source_key == projection.active_source_key
+                    if source.source_key == self.active_source_key
                 ),
                 None,
             )
             if source is not None:
-                self.document.present_grid(_source_image_ids(source))
+                image_ids = (
+                    automatic_frontier_image_ids(
+                        sources,
+                        source_key=source.source_key,
+                    )
+                    if projection.focus_mode is OutputFocusMode.AUTOMATIC
+                    else _source_image_ids(source)
+                )
+                self.document.present_grid(image_ids)
                 return
         if self._preview_navigation.present_active_item(projection):
             return
@@ -487,26 +508,20 @@ class OutputCanvas(QWidget):
     def _bind_preview_scope(self) -> None:
         """Refresh authorized document members after preview registry mutation."""
 
+        if self._output_session is None:
+            return
+        self._document_navigation.synchronize_projection()
         session = self._output_session
         if session is None:
             return
-        members = output_route_scope_members(
-            session=session,
-            route=session.active_route,
-            preview_lanes=self._preview_registry.lanes_for_session(session),
-            active_scene_overview=self.active_scene_overview,
-            active_scene_key=self.active_scene_key,
-        )
         self._route_projector.bind(
-            OutputRouteScope(
+            build_output_route_scope(
                 session=session,
-                allowed_image_ids=members.image_ids,
-                allowed_source_keys=members.source_keys,
-                allowed_scene_keys=members.scene_keys,
-                allowed_composition_ids=members.composition_ids,
+                preview_lanes=self._preview_registry.lanes_for_session(session),
+                active_scene_overview=self.active_scene_overview,
+                active_scene_key=self.active_scene_key,
             )
         )
-        self._document_navigation.synchronize_projection()
 
     def present_preview_selection(self, preview_id: UUID) -> None:
         """Present one user-selected placeholder and preserve it across final refreshes."""

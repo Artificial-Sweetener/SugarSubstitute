@@ -23,7 +23,7 @@ from pathlib import Path
 
 from substitute.application.model_metadata.ports import BackendModelMetadataGateway
 from substitute.domain.model_metadata import FingerprintStatus
-from sugarsubstitute_shared.model_discovery import LocalModel, ModelCategory
+from sugarsubstitute_shared.model_discovery import LocalModel, ModelArtifactKind
 
 
 class BackendModelInventory:
@@ -36,26 +36,28 @@ class BackendModelInventory:
 
     def list_models(
         self,
-        categories: Collection[ModelCategory],
+        artifact_kinds: Collection[ModelArtifactKind],
     ) -> tuple[LocalModel, ...]:
         """Return visible models without exposing or reconstructing absolute roots."""
 
-        ordered_categories = tuple(
-            category for category in ModelCategory if category in categories
+        ordered_artifact_kinds = tuple(
+            artifact_kind
+            for artifact_kind in ModelArtifactKind
+            if artifact_kind in artifact_kinds
         )
-        if not ordered_categories:
+        if not ordered_artifact_kinds:
             return ()
         entries = self._gateway.list_models(
-            tuple(category.value for category in ordered_categories)
+            tuple(artifact_kind.value for artifact_kind in ordered_artifact_kinds)
         )
-        allowed = set(ordered_categories)
+        allowed = set(ordered_artifact_kinds)
         models: list[LocalModel] = []
         for entry in entries:
             try:
-                category = ModelCategory(entry.kind)
+                artifact_kind = ModelArtifactKind(entry.kind)
             except ValueError:
                 continue
-            if category not in allowed:
+            if artifact_kind not in allowed:
                 continue
             sha256 = (
                 entry.fingerprint.sha256
@@ -64,7 +66,7 @@ class BackendModelInventory:
             )
             models.append(
                 LocalModel(
-                    category=category,
+                    artifact_kind=artifact_kind,
                     path=Path(entry.source.root_id) / entry.source.relative_path,
                     sha256=sha256,
                 )

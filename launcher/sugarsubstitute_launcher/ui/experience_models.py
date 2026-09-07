@@ -20,18 +20,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
-
-from sugarsubstitute_shared.model_discovery.models import ModelCategory
 
 
 class ExperiencePage(str, Enum):
     """Identify one production page in the setup and recovery experience."""
 
+    LANGUAGE = "language"
     INSTALL_LOCATION = "install_location"
     REPAIR_SCOPE = "repair_scope"
-    MODEL_INTERESTS = "model_interests"
-    MODEL_GALLERY = "model_gallery"
     REVIEW = "review"
     PROGRESS = "progress"
     COMPLETE = "complete"
@@ -46,30 +42,6 @@ class RepairChoice(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
-class ModelCardPresentation:
-    """Describe safe model metadata rendered by one selectable card."""
-
-    category: ModelCategory
-    model_name: str
-    version_name: str
-    creator: str | None
-    base_model: str | None
-    size_bytes: int
-    destination: Path
-    thumbnail_url: str | None = None
-    selected: bool = False
-    provider_identity: str | None = None
-
-    @property
-    def identity(self) -> str:
-        """Return a stable presentation identity for selection and evidence."""
-
-        return self.provider_identity or (
-            f"{self.category.value}:{self.model_name}:{self.version_name}"
-        )
-
-
-@dataclass(frozen=True, slots=True)
 class ExperienceSnapshot:
     """Capture semantic UI evidence without relying on pixels."""
 
@@ -78,14 +50,10 @@ class ExperienceSnapshot:
     primary_action: str
     secondary_action: str | None
     repair_choice: RepairChoice | None
-    selected_categories: tuple[ModelCategory, ...]
-    visible_models: tuple[str, ...]
-    selected_models: tuple[str, ...]
 
 
 __all__ = [
     "ExperiencePage",
     "ExperienceSnapshot",
-    "ModelCardPresentation",
     "RepairChoice",
 ]

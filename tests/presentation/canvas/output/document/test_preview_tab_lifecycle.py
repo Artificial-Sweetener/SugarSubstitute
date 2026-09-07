@@ -148,6 +148,7 @@ def test_matching_final_replaces_preview_without_adding_a_second_tab(
                 client_id="client",
                 node_id="preview-node",
                 list_index=0,
+                batch_index=0,
                 scene_run_id=None,
                 scene_key=None,
                 scene_title=None,

@@ -26,8 +26,8 @@ from PySide6.QtWidgets import QWidget
 from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-untyped]
     RoundMenu,
 )
-from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
-    _PromptEditorTextEditMenu,
+from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
+    PromptTextMenu,
 )
 from substitute.presentation.editor.prompt_editor.features.prompt_segment_preset_models import (
     PromptSegmentPresetMenuItem,
@@ -82,7 +82,7 @@ def test_prompt_editor_context_menu_adds_save_segment_for_selection(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
@@ -103,7 +103,7 @@ def test_prompt_editor_context_menu_groups_prompt_utilities_before_rich_renderin
     editor = create_prompt_editor(prompt_widgets)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
 
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,

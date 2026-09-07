@@ -62,6 +62,41 @@ def test_registry_closes_only_matching_final_output_preview_lanes() -> None:
     assert tuple(registry.images_by_id()) == (UUID(int=2),)
 
 
+def test_registry_keeps_preview_until_first_tensor_batch_member_finishes() -> None:
+    """A later batch member must not retire the preview occupying batch slot zero."""
+
+    registry = OutputPreviewRegistry(_uuid_factory=uuid_sequence())
+    session = build_registry_session(source_keys=("wf:save",))
+    registry.accept_preview(
+        build_preview_event(source_key="wf:save"),
+        session=session,
+        active_workflow_id="wf",
+        authorize_preview=lambda _identity: True,
+    )
+
+    later_member = registry.close_final_output_lane(
+        build_close_identity(
+            source_key="wf:save",
+            image_id=UUID(int=98),
+            batch_index=1,
+        )
+    )
+
+    assert later_member.closed_preview_ids == ()
+    assert tuple(registry.images_by_id()) == (UUID(int=1),)
+
+    first_member = registry.close_final_output_lane(
+        build_close_identity(
+            source_key="wf:save",
+            image_id=UUID(int=99),
+            batch_index=0,
+        )
+    )
+
+    assert first_member.closed_preview_ids == (UUID(int=1),)
+    assert registry.images_by_id() == {}
+
+
 def test_registry_retires_every_lane_for_preview_id() -> None:
     """Preview-id retirement should remove all lanes represented by that image."""
 

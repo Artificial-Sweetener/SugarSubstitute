@@ -1186,9 +1186,9 @@ def _build_main_window_dependencies(
         CivitaiDiscoveryClient,
     )
     from sugarsubstitute_shared.model_discovery import (
-        CategoryModelDestinationPolicy,
-        ModelDiscoveryPlanner,
-        ModelOnboardingService,
+        EmptyPickerModelDiscoveryPlanner,
+        EmptyPickerModelDiscoveryService,
+        ModelArtifactDestinationPolicy,
     )
     from sugarsubstitute_shared.model_updates import (
         CivitaiCompatibleUpdateGateway,
@@ -1936,14 +1936,14 @@ def _build_main_window_dependencies(
         if model_update_model_root is not None
         else None
     )
-    empty_model_picker_onboarding_service = (
-        ModelOnboardingService(
-            planner=ModelDiscoveryPlanner(
+    empty_model_picker_discovery_service = (
+        EmptyPickerModelDiscoveryService(
+            planner=EmptyPickerModelDiscoveryPlanner(
                 inventory=BackendModelInventory(model_metadata_backend),
                 discovery=CivitaiDiscoveryClient(
                     api_key_provider=civitai_credential_service.load_api_key,
                 ),
-                destinations=CategoryModelDestinationPolicy(model_update_model_root),
+                destinations=ModelArtifactDestinationPolicy(model_update_model_root),
             ),
             acquisition=ModelAcquisitionService(
                 allowed_roots=(model_update_model_root,),
@@ -2587,7 +2587,7 @@ def _build_main_window_dependencies(
         model_update_service=model_update_service,
         model_update_model_root=model_update_model_root,
         model_update_acquisition_service=model_update_acquisition_service,
-        empty_model_picker_onboarding_service=(empty_model_picker_onboarding_service),
+        empty_model_picker_discovery_service=(empty_model_picker_discovery_service),
         model_choice_resolver=model_choice_resolver,
         thumbnail_asset_repository=model_metadata_store,
         model_metadata_context_action_handler=model_metadata_context_action_handler,

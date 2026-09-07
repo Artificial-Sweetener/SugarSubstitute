@@ -93,6 +93,20 @@ def test_controller_advances_to_target_specific_page(
         is OnboardingPageId.INTEGRATIONS
     )
 
+    controller.update_target_mode(OnboardingTargetMode.MANAGED_LOCAL)
+    assert (
+        controller.next_page(OnboardingPageId.MANAGED_LOCAL)
+        is OnboardingPageId.EXISTING_MODELS
+    )
+    assert (
+        controller.next_page(OnboardingPageId.EXISTING_MODELS)
+        is OnboardingPageId.FOLDERS
+    )
+    assert (
+        controller.previous_page(OnboardingPageId.FOLDERS)
+        is OnboardingPageId.EXISTING_MODELS
+    )
+
 
 def test_controller_tracks_attached_workspace_default_model_root(
     tmp_path: Path,

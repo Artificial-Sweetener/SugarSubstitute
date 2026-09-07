@@ -31,6 +31,9 @@ from substitute.application.workflows.output_canvas_projection import (
     OutputCanvasProjection,
 )
 from substitute.application.workflows.output_preview_registry import OutputPreviewLane
+from substitute.application.workflows.canvas_route_projector_port import (
+    OutputRouteScope,
+)
 from substitute.domain.workflow import CanvasKind, CanvasRouteIdentity
 
 
@@ -120,6 +123,31 @@ def output_route_scope_members(
     )
 
 
+def build_output_route_scope(
+    *,
+    session: OutputCanvasSession,
+    preview_lanes: Iterable[OutputPreviewLane],
+    active_scene_overview: bool,
+    active_scene_key: str | None,
+) -> OutputRouteScope:
+    """Build an active Output scope that retains accepted preview authority."""
+
+    members = output_route_scope_members(
+        session=session,
+        route=session.active_route,
+        preview_lanes=preview_lanes,
+        active_scene_overview=active_scene_overview,
+        active_scene_key=active_scene_key,
+    )
+    return OutputRouteScope(
+        session=session,
+        allowed_image_ids=members.image_ids,
+        allowed_source_keys=members.source_keys,
+        allowed_scene_keys=members.scene_keys,
+        allowed_composition_ids=members.composition_ids,
+    )
+
+
 def output_route_identity_for_projection_scope(
     projection: OutputCanvasProjection,
 ) -> CanvasRouteIdentity:
@@ -157,6 +185,7 @@ def scene_overview_route_identity(
 
 __all__ = [
     "OutputRouteScopeMembers",
+    "build_output_route_scope",
     "output_route_identity_for_projection_scope",
     "output_route_scope_members",
     "route_source_and_scene",

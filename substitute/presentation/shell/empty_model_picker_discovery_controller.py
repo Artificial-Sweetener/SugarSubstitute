@@ -29,14 +29,24 @@ from qfluentwidgets import InfoBar  # type: ignore[import-untyped]
 from substitute.presentation.model_discovery import ModelDiscoveryModal
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 from sugarsubstitute_shared.model_discovery import (
-    ModelCategory,
+    EmptyPickerModelDiscoveryService,
+    ModelArtifactKind,
     ModelDiscoveryPlan,
-    ModelOnboardingService,
 )
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
 
 _LOGGER = logging.getLogger(__name__)
+_DISCOVERABLE_ARTIFACT_KINDS = frozenset(
+    {
+        ModelArtifactKind.CHECKPOINTS,
+        ModelArtifactKind.DIFFUSION_MODELS,
+        ModelArtifactKind.LORAS,
+        ModelArtifactKind.VAE,
+        ModelArtifactKind.CONTROLNET,
+        ModelArtifactKind.UPSCALE_MODELS,
+    }
+)
 PlanChooser = Callable[[ModelDiscoveryPlan, QWidget], tuple[str, ...]]
 Feedback = Callable[[str, str], None]
 
@@ -86,7 +96,7 @@ class EmptyModelPickerDiscoveryController(QObject):
         self,
         *,
         parent_widget: QWidget,
-        service: ModelOnboardingService | None,
+        service: EmptyPickerModelDiscoveryService | None,
         catalog: ModelCatalogInvalidator,
         chooser: PlanChooser | None = None,
         feedback: Feedback | None = None,
@@ -101,7 +111,7 @@ class EmptyModelPickerDiscoveryController(QObject):
         self._feedback = feedback or self._show_feedback
         self._thread: QThread | None = None
         self._task: _DiscoveryTask | None = None
-        self._category: ModelCategory | None = None
+        self._artifact_kind: ModelArtifactKind | None = None
         self._after_release: Callable[[], None] | None = None
 
     @property
@@ -111,14 +121,19 @@ class EmptyModelPickerDiscoveryController(QObject):
         return self._thread is not None
 
     def request_for_empty_picker(self, model_kind: str) -> bool:
-        """Start shared discovery for one known empty model category."""
+        """Start discovery for one known empty model artifact kind."""
 
         if self.running:
             return False
         try:
-            category = ModelCategory(model_kind)
+            artifact_kind = ModelArtifactKind(model_kind)
         except ValueError:
             _LOGGER.warning("Ignored unknown empty model picker kind: %s", model_kind)
+            return False
+        if artifact_kind not in _DISCOVERABLE_ARTIFACT_KINDS:
+            _LOGGER.warning(
+                "Ignored unsupported empty model picker kind: %s", model_kind
+            )
             return False
         service = self._service
         if service is None:
@@ -131,9 +146,9 @@ class EmptyModelPickerDiscoveryController(QObject):
                 ),
             )
             return False
-        self._category = category
+        self._artifact_kind = artifact_kind
         return self._start(
-            lambda: service.plan_empty_picker(category),
+            lambda: service.plan_empty_picker(artifact_kind),
             on_succeeded=self._handle_plan,
             operation="discover",
         )
@@ -190,16 +205,16 @@ class EmptyModelPickerDiscoveryController(QObject):
 
     @Slot(object)
     def _handle_downloads(self, value: object) -> None:
-        """Invalidate the category and report verified completion."""
+        """Invalidate the artifact kind and report verified completion."""
 
         if not isinstance(value, tuple):
             self._feedback(
                 "error", _text(app_text("Model downloads returned invalid results."))
             )
             return
-        category = self._category
-        if category is not None:
-            self._catalog.invalidate(category.value)
+        artifact_kind = self._artifact_kind
+        if artifact_kind is not None:
+            self._catalog.invalidate(artifact_kind.value)
         self._feedback(
             "success",
             _text(

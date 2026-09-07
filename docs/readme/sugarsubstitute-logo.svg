@@ -11,9 +11,7 @@
     </g>
     <filter id="drop-shadow" x="-15%" y="-60%" width="130%" height="220%" color-interpolation-filters="sRGB">
       <feGaussianBlur in="SourceAlpha" stdDeviation="11" result="blur"/>
-      <feComponentTransfer in="blur" result="scaled-blur">
-        <feFuncA type="linear" slope="3.5"/>
-      </feComponentTransfer>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 3.5 0" result="scaled-blur"/>
       <feFlood flood-color="#000000" flood-opacity="0.75" result="shadow-color"/>
       <feComposite in="shadow-color" in2="scaled-blur" operator="in"/>
     </filter>

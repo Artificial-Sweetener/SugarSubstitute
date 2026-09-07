@@ -14,19 +14,6 @@ next_limit = 2430
 debt = "SS-ARCH-002"
 
 [[waivers]]
-id = "SS-WAIVER-R003"
-owner = "execution runtime"
-rule = "STRUCT003"
-path = "substitute/app/bootstrap/execution_runtime.py"
-kind = "remediation"
-justification = "The assessed file mixes execution-lane configuration policy and validation, process-lifetime dispatcher and long-lived task registries, feature-specific lane facade, owner-scoped submission and cancellation adapters. Extract lane configuration and scoped submission adapters from the process-lifetime runtime registry."
-issue = "chore:SS-ARCH-003"
-review_by = 2026-12-15
-max_lines = 554
-next_limit = 500
-debt = "SS-ARCH-003"
-
-[[waivers]]
 id = "SS-WAIVER-R004"
 owner = "managed compatibility recovery"
 rule = "STRUCT003"
@@ -139,7 +126,7 @@ kind = "remediation"
 justification = "The assessed file mixes prompt dispatch and request validation, listener lifecycle and preview routing, input asset staging, output preparation and generation diagnostics. Extract listener lifecycle and output routing from prompt dispatch and asset-staging orchestration."
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
-  max_lines = 754
+  max_lines = 746
 next_limit = 613
 debt = "SS-ARCH-012"
 
@@ -152,7 +139,7 @@ kind = "remediation"
 justification = "The assessed file mixes pending-job ordering and batch bookkeeping, output run-number reservation and commit, dispatch and Comfy interruption lifecycle, live progress and output projection, observer publication and terminal history. Extract output-run allocation and live-result projection from queue ordering and dispatch lifecycle."
 issue = "chore:SS-ARCH-013"
 review_by = 2026-12-15
-max_lines = 1566
+max_lines = 1558
 next_limit = 1261
 debt = "SS-ARCH-013"
 
@@ -188,11 +175,11 @@ owner = "onboarding flow"
 rule = "STRUCT003"
 path = "substitute/application/onboarding/flow_service.py"
 kind = "remediation"
-justification = "The assessed file mixes onboarding draft loading and validation, preference persistence across independent domains, workspace provisioning transactions, runtime launch and completion routing. Extract preference application and runtime launch from provisioning transaction orchestration."
+justification = "The assessed file mixes draft-state loading and recovery coordination, managed, attached, and remote provisioning transaction orchestration, external model-library configuration coordination, readiness and provisioning failure classification. Extract target-specific provisioning strategies, external model-library configuration, and failure classifiers from the shared transaction sequence."
 issue = "chore:SS-ARCH-016"
 review_by = 2026-12-15
-max_lines = 1390
-next_limit = 1110
+max_lines = 1253
+next_limit = 1075
 debt = "SS-ARCH-016"
 
 [[waivers]]
@@ -409,10 +396,10 @@ owner = "output navigation"
 rule = "STRUCT003"
 path = "substitute/presentation/canvas/output/output_canvas_navigation_controller.py"
 kind = "remediation"
-justification = "The assessed file mixes navigation-bar geometry and measurement adapter, set, source, scene, grid, and item activation, selection restoration policy, selector presentation synchronization, host adapter discovery and signal dispatch. Extract layout measurement and selector synchronization from navigation intents and selection policy."
+justification = "The assessed file mixes navigation-bar responsive placement, set, source, scene, grid, and item activation, selection restoration policy, selector presentation synchronization, host adapter discovery and signal dispatch. Extract responsive bar placement and selector synchronization from navigation intents and selection policy."
 issue = "chore:SS-ARCH-037"
 review_by = 2026-12-15
-max_lines = 938
+max_lines = 825
 next_limit = 750
 debt = "SS-ARCH-037"
 
@@ -487,10 +474,10 @@ owner = "dimension row actions"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/menus/dimension_row_actions.py"
 kind = "remediation"
-justification = "The assessed file mixes dimension-row widget discovery and binding, saved-dimension persistence actions, aspect-ratio and orientation calculation, context-menu tree construction, submenu event-filter behavior. Extract pure dimension transforms and saved-dimension commands from Qt menu construction and binding."
+justification = "The assessed file mixes dimension-row widget discovery and binding, saved-dimension persistence actions, aspect-ratio and orientation calculation, and semantic dimension-action tree projection. Extract pure dimension transforms and saved-dimension commands from Qt menu construction and binding."
 issue = "chore:SS-ARCH-044"
 review_by = 2026-12-15
-max_lines = 667
+max_lines = 648
 next_limit = 533
 debt = "SS-ARCH-044"
 
@@ -500,10 +487,10 @@ owner = "editor node-card construction"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/node_card_builder.py"
 kind = "remediation"
-justification = "The assessed file mixes node-card and field-row construction, icon, title, and link-endpoint presentation, prompt and standard input-field routing, collapsible card animation and layout registration, and build timing diagnostics. Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
+justification = "The assessed file mixes node-card and field-row construction, icon, title, and link-endpoint presentation, prompt and standard input-field routing, field-action contribution collection and title-menu routing, collapsible card animation and layout registration, and build timing diagnostics. Extract title, icon, and link-endpoint composition from node-card and field-row assembly."
 issue = "chore:SS-ARCH-045"
 review_by = 2026-12-15
-max_lines = 1394
+max_lines = 1405
 next_limit = 1137
 debt = "SS-ARCH-045"
 
@@ -604,11 +591,11 @@ owner = "editor field rows"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/widgets/field_row.py"
 kind = "remediation"
-justification = "The assessed file mixes scalar and grouped row construction, field label/control sizing policy, field visibility application, divider styling, dynamic relayout event filtering and parent invalidation. Extract relayout observation and sizing policy from field-row construction."
+justification = "The assessed file mixes scalar and grouped row construction, field label/control sizing policy, field visibility application, divider styling, and semantic field-action source discovery. Extract field sizing policy and visibility registration from row construction."
 issue = "chore:SS-ARCH-053"
 review_by = 2026-12-15
-max_lines = 726
-next_limit = 580
+max_lines = 545
+next_limit = 435
 debt = "SS-ARCH-053"
 
 [[waivers]]
@@ -729,28 +716,15 @@ next_limit = 1128
 debt = "SS-ARCH-062"
 
 [[waivers]]
-id = "SS-WAIVER-R063"
-owner = "prompt context menus"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/shell/context_menu_controller.py"
-kind = "remediation"
-justification = "The assessed file mixes context-event routing and insert state, native text edit actions, diagnostic menu projection, prompt mutation and scene actions, prompt segment and utility menu construction, inline LoRA menu routing. Extract menu catalog construction from context-event and insertion-state coordination."
-issue = "chore:SS-ARCH-063"
-review_by = 2026-12-15
-max_lines = 673
-next_limit = 538
-debt = "SS-ARCH-063"
-
-[[waivers]]
 id = "SS-WAIVER-R064"
 owner = "prompt editor shell"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/widget.py"
 kind = "remediation"
-justification = "The assessed file mixes QFluent text-edit host compatibility, projection surface composition and lifecycle, keyboard, clipboard, drag/drop, context-menu, and focus routing, autocomplete, diagnostics, reorder, and weight feature coordination, prompt state and metadata publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and host event routing from the QFluent shell and projection composition boundary."
+justification = "The assessed file mixes QFluent text-edit host compatibility, projection surface composition and lifecycle, keyboard, clipboard, drag/drop, context-menu, and focus routing, autocomplete, diagnostics, reorder, and weight feature coordination, prompt state, metadata, and semantic-action publication, chrome, scrolling, sizing, and editor-panel integration. Extract feature coordination and host event routing from the QFluent shell and projection composition boundary."
 issue = "chore:SS-ARCH-064"
 review_by = 2026-12-15
-max_lines = 1754
+max_lines = 1766
 next_limit = 1403
 debt = "SS-ARCH-064"
 
@@ -768,42 +742,16 @@ next_limit = 549
 debt = "SS-ARCH-065"
 
 [[waivers]]
-id = "SS-WAIVER-R066"
-owner = "onboarding presentation flow"
-rule = "STRUCT003"
-path = "substitute/presentation/onboarding/onboarding_controller.py"
-kind = "remediation"
-justification = "The assessed file mixes onboarding page and selection state, readiness issue projection, background provisioning execution, progress-event adaptation, completion, failure, and shutdown routing. Extract provisioning execution and progress adaptation from page-flow and selection-state coordination."
-issue = "chore:SS-ARCH-066"
-review_by = 2026-12-15
-max_lines = 777
-next_limit = 621
-debt = "SS-ARCH-066"
-
-[[waivers]]
-id = "SS-WAIVER-R067"
-owner = "onboarding pages"
-rule = "STRUCT003"
-path = "substitute/presentation/onboarding/onboarding_pages.py"
-kind = "remediation"
-justification = "The assessed file mixes shared onboarding layout primitives, install-root and target-mode pages, managed, attached, and remote target pages, folder and integration preference pages, provisioning and completion pages. Split independently changing onboarding pages into focused modules while retaining shared page primitives."
-issue = "chore:SS-ARCH-067"
-review_by = 2026-12-15
-max_lines = 1305
-next_limit = 1044
-debt = "SS-ARCH-067"
-
-[[waivers]]
 id = "SS-WAIVER-R068"
 owner = "onboarding window"
 rule = "STRUCT003"
 path = "substitute/presentation/onboarding/onboarding_window.py"
 kind = "remediation"
-justification = "The assessed file mixes window chrome, layout, and navigation rail, page flow and dynamic height, draft, issue, progress, and completion presentation, attached Python discovery and recovery, observed-process termination, filesystem browsing and default-path policy. Extract environment recovery, process termination, and path selection from onboarding window presentation."
+justification = "The assessed file mixes shared installer-shell composition and drag routing, page navigation and route-dependent action state, draft, folder-selection, issue, completion, and model-flow interaction routing, and preflight and attached Python recovery interaction routing. Extract page-navigation, folder-selection, and route-action coordination from shell composition and environment recovery interactions."
 issue = "chore:SS-ARCH-068"
 review_by = 2026-12-15
-max_lines = 1520
-next_limit = 1212
+max_lines = 1142
+next_limit = 900
 debt = "SS-ARCH-068"
 
 [[waivers]]
@@ -1023,7 +971,7 @@ kind = "remediation"
 justification = "The assessed file mixes output focus and navigation mutation, external editor and asset reveal actions, generated and loaded output ingestion, output preparation and authorization, canvas host visibility and error presentation. Split external actions and output ingestion from output-navigation commands."
 issue = "chore:SS-ARCH-085"
 review_by = 2026-12-15
-max_lines = 833
+max_lines = 819
 next_limit = 732
 debt = "SS-ARCH-085"
 
@@ -1214,17 +1162,6 @@ review_by = 2026-12-15
 max_lines = 603
 
 [[waivers]]
-id = "SS-WAIVER-S012"
-owner = "output preview registry"
-rule = "STRUCT003"
-path = "substitute/application/workflows/output_preview_registry.py"
-kind = "structural"
-justification = "OutputPreviewRegistry is one in-memory aggregate for preview-lane admission, identity, lookup, generation-session rebinding, and retirement. Its acceptance predicates and mutations enforce the same lane-consistency invariant: a lane belongs to one workflow run and one current canvas-session revision. Separating session transition from lane storage would create two owners for registry consistency."
-issue = "chore:SS-WAIVER-S012"
-review_by = 2026-12-15
-max_lines = 553
-
-[[waivers]]
 id = "SS-WAIVER-S013"
 owner = "subgraph wrapper definition projection"
 rule = "STRUCT003"
@@ -1310,7 +1247,7 @@ kind = "structural"
 justification = "The module is the single explicit versioned JSON contract for workspace snapshots. Paired encoders and decoders for nested snapshot values must evolve atomically to preserve round-trip and backward-read invariants; splitting by nested type would distribute ownership of one persisted schema."
 issue = "chore:SS-WAIVER-S020"
 review_by = 2026-12-15
-max_lines = 1086
+max_lines = 1088
 
 [[waivers]]
 id = "SS-WAIVER-S021"
@@ -1805,7 +1742,7 @@ kind = "structural"
 justification = "WorkspaceGenerationController owns one UI generation lifecycle across single, batch, queued, and continuous activation. Preparation submission, queue admission, callbacks, cancellation/skip, backend availability, continuous rescheduling, and terminal recovery share one active-generation state."
 issue = "chore:SS-WAIVER-S068"
 review_by = 2026-12-15
-max_lines = 803
+max_lines = 820
 
 [[waivers]]
 id = "SS-WAIVER-S069"
@@ -1934,7 +1871,7 @@ kind = "remediation"
 justification = "The assessed file mixes native Windows process and structure bindings, installer and onboarding UI automation, historical shell and diagnostic evidence collection, isolated desktop launch and process termination, command-line orchestration. Extract native process/desktop control and historical evidence projection from installer UI workflow automation."
 issue = "chore:SS-ARCH-096"
 review_by = 2026-12-15
-max_lines = 703
+max_lines = 706
 next_limit = 564
 debt = "SS-ARCH-096"
 
@@ -2004,7 +1941,7 @@ kind = "structural"
 justification = "This module owns one atomic managed-ready application launch transaction. Its local application, runtime-service boundary, scheduler, splash, shell, readiness, compatibility, warmup, restore, and cleanup doubles share one deterministic event trace that proves activation after the event loop, timer ordering before shell construction, readiness before backend-ready, restoration before reveal, splash closure before showing the shell, and terminal resource cleanup. Splitting those local participants would fragment the trace owner, duplicate callback and timer identity, or weaken the complete route's fault sensitivity."
 issue = "chore:SS-WAIVER-S150"
 review_by = 2026-12-15
-max_lines = 616
+max_lines = 619
 
 [[waivers]]
 id = "SS-WAIVER-S104"
@@ -2015,7 +1952,7 @@ kind = "structural"
 justification = "This module owns one terminal shutdown state machine. Cleanup ordering, duplicate requests, delayed progress, retry, recovery choice, force close, UI-thread updates, responsiveness, and final close authorization all transition the same single shutdown attempt and its owned dialogs."
 issue = "chore:SS-WAIVER-S104"
 review_by = 2026-12-15
-max_lines = 791
+max_lines = 789
 
 [[waivers]]
 id = "SS-WAIVER-S108"
@@ -2070,7 +2007,7 @@ kind = "structural"
 justification = "This module owns one user-level driver for the real-shell output canvas. Harness-safe shell construction, workflow and output seeding, preview and final delivery, route selection, rendered control interaction, workflow lifecycle, projection waiting, and snapshot capture are operations over the same mounted shell and active output session."
 issue = "chore:SS-WAIVER-S120"
 review_by = 2026-12-15
-max_lines = 631
+max_lines = 670
 
 [[waivers]]
 id = "SS-WAIVER-S126"
@@ -2136,7 +2073,7 @@ kind = "structural"
 justification = "This module owns one user-requested metadata refresh transaction. Backend identity and fingerprint lookup, CivitAI policy and response handling, metadata association, thumbnail preservation or download, cache persistence, update publication, cancellation, and failure preservation all produce one refreshed model record."
 issue = "chore:SS-WAIVER-S138"
 review_by = 2026-12-15
-max_lines = 547
+max_lines = 539
 
 [[waivers]]
 id = "SS-WAIVER-S140"

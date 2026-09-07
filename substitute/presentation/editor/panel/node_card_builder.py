@@ -50,6 +50,7 @@ from substitute.domain.localization import (
     FieldPresentation as LocalizedFieldPresentation,
     NodePresentation,
 )
+from substitute.presentation.editor.field_actions import FieldActionContribution
 from .node_card.accordion_motion import (
     AccordionChevronWidget,
     AccordionContentClip,
@@ -127,6 +128,8 @@ from substitute.presentation.editor.panel.widgets.field_row import (
     EDITOR_ROW_ICON_SIZE,
     EDITOR_ROW_SPACING,
     FieldRowBuilder,
+)
+from substitute.presentation.editor.panel.widgets.field_relayout import (
     bind_field_widget_card_relayout,
 )
 from substitute.presentation.editor.panel.widgets.node_card import (
@@ -482,6 +485,7 @@ class NodeCardBuilder:
         )
         node_card_variant = resolve_node_card_variant(resolved_behavior)
         is_subgraph_wrapper_card = self._is_subgraph_wrapper_card(field_specs)
+        field_action_contributions: list[FieldActionContribution] = []
         if is_subgraph_wrapper_card:
             log_debug(
                 _LOGGER,
@@ -593,6 +597,9 @@ class NodeCardBuilder:
                             contribution=contribution,
                         )
                         presentation_binding.add_field_targets(built_row.text_targets)
+                        field_action_contributions.extend(
+                            built_row.action_contributions
+                        )
                     continue
 
                 key = key_group[0]
@@ -666,6 +673,7 @@ class NodeCardBuilder:
                     content_layout=content_layout,
                 )
                 presentation_binding.add_field_targets(built_row.text_targets)
+                field_action_contributions.extend(built_row.action_contributions)
             _log_node_card_build_timing(
                 "node_card.build_fields",
                 started_at=fields_started_at,
@@ -732,6 +740,7 @@ class NodeCardBuilder:
             parent=node_card,
             node_presentation=node_presentation,
             advanced_input_binding=advanced_input_binding,
+            field_action_contributions=tuple(field_action_contributions),
         )
         _log_node_card_build_timing(
             "node_card.create_title_row",
@@ -1274,6 +1283,7 @@ class NodeCardBuilder:
         field_specs: Mapping[str, ResolvedFieldSpec] | None = None,
         node_presentation: NodePresentation,
         advanced_input_binding: AdvancedInputCardBinding | None = None,
+        field_action_contributions: tuple[FieldActionContribution, ...] = (),
     ) -> tuple[QWidget, AccordionChevronWidget | None]:
         """Build the title row from resolved card behavior."""
 
@@ -1412,6 +1422,7 @@ class NodeCardBuilder:
                 dialog_parent=self._preset_dialog_parent,
                 is_connection=is_connection if callable(is_connection) else None,
                 advanced_inputs=advanced_input_binding,
+                field_action_contributions=field_action_contributions,
             )
 
         if no_chevron:

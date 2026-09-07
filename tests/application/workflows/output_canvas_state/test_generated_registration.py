@@ -88,6 +88,7 @@ def test_register_generated_output_preserves_backend_metadata_and_result_identit
     assert result.preview_close_identity is not None
     assert result.preview_close_identity.node_id == "save-node"
     assert result.preview_close_identity.list_index == 2
+    assert result.preview_close_identity.batch_index == 0
     assert workflow.output_image_uuids == [image_id]
     assert registry.payload_for(image_id) is image
 
@@ -117,6 +118,48 @@ def test_register_generated_output_preserves_backend_metadata_and_result_identit
         registry.metadata_for_ids(workflow.output_image_uuids),
     )
     assert projection.sources[0].images_by_set[1].image_id == image_id
+
+
+def test_first_final_replaces_the_previous_run_when_previews_are_disabled() -> None:
+    """Hand the canvas to a new run when its first presentable result is final."""
+
+    previous_id = uuid.uuid4()
+    generated_id = uuid.uuid4()
+    registry = CanvasImageRegistry()
+    registry.store(
+        previous_id,
+        payload=object(),
+        metadata=replace(build_live_image_meta(), output_session_id="old-run"),
+    )
+    state_service = OutputCanvasStateService(
+        image_registry=registry,
+        uuid_factory=lambda: generated_id,
+    )
+    service = OutputGeneratedResultService(
+        image_registry=registry,
+        output_state_service=state_service,
+        navigation_session_service=OutputNavigationSessionService(),
+    )
+    workflow = WorkflowState(output_image_uuids=[previous_id])
+    event = build_live_final_event()
+    event = replace(
+        event,
+        identity=replace(event.identity, output_session_id="new-run"),
+    )
+    image_meta = replace(build_live_image_meta(), output_session_id="new-run")
+
+    result = service.commit_generated_output(
+        {"wf": workflow},
+        active_workflow_id="wf",
+        event=event,
+        image=object(),
+        image_meta=image_meta,
+    )
+
+    assert result.registered is True
+    assert result.retired_image_ids == (previous_id,)
+    assert workflow.output_image_uuids == [generated_id]
+    assert workflow.output_focus_mode is OutputFocusMode.AUTOMATIC
 
 
 def test_register_generated_output_preserves_manual_focus() -> None:

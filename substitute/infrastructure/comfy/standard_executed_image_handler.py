@@ -46,6 +46,7 @@ class StandardExecutedImageContext:
     client_id: str
     workflow_payload: dict[str, object]
     scene: FinalImageScene
+    output_session_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +94,7 @@ class StandardExecutedImageHandler:
                 ),
                 artifacts=artifacts,
                 list_index=0,
+                output_session_id=self.context.output_session_id,
                 scene=self.context.scene,
             )
         )

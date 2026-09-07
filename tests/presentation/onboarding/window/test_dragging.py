@@ -124,9 +124,9 @@ def test_onboarding_window_does_not_start_drag_from_content_widgets(
 
     fake_handle = _FakeHandle()
     monkeypatch.setattr(window, "windowHandle", lambda: fake_handle)
-    monkeypatch.setattr(window, "childAt", lambda _: window.flow_title_label)
-    label_center = window.flow_title_label.rect().center()
-    label_point = window.flow_title_label.mapTo(window.identity_rail, label_center)
+    monkeypatch.setattr(window, "childAt", lambda _: window.brand_bar.wordmark)
+    label_center = window.brand_bar.wordmark.rect().center()
+    label_point = window.brand_bar.wordmark.mapTo(window.identity_rail, label_center)
     mouse_press = QMouseEvent(
         QEvent.Type.MouseButtonPress,
         QPointF(float(label_point.x()), float(label_point.y())),

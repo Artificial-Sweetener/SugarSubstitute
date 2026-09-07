@@ -21,6 +21,10 @@ from __future__ import annotations
 import pytest
 from PySide6.QtWidgets import QWidget
 
+from substitute.presentation.editor.panel.node_card.action_menu import (
+    NodeCardActionMenuButton,
+)
+from tests.presentation.editor.node_card.support import title_row_for
 from tests.presentation.editor.node_card.visibility.support import (
     create_visibility_scenario,
 )
@@ -60,6 +64,7 @@ def test_empty_card_with_activation_switch_is_visible(
         assert isinstance(wrapper, QWidget)
         assert wrapper.property("has_title_controls") is True
         assert wrapper.property("base_card_visible") is True
+        assert title_row_for(wrapper).findChildren(NodeCardActionMenuButton) == []
     finally:
         scenario.destroy(wrapper)
 

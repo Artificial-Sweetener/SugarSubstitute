@@ -111,6 +111,7 @@ class OutputCanvasProjectionCoordinator:
         self._projected_workflow_id: str | None = None
         self._last_sync_signature: _OutputProjectionSyncSignature | None = None
         self._last_output_session: OutputCanvasSession | None = None
+        self._preview_ids_pending_retirement: dict[str, set[UUID]] = {}
 
     def project_workflow(
         self,
@@ -177,6 +178,7 @@ class OutputCanvasProjectionCoordinator:
                 self._clear_previews()
 
         self._sync_projection(output_session)
+        self._retire_preview_images_after_projection(active_workflow_id)
         log_debug(
             _LOGGER,
             "output canvas project workflow completed",
@@ -198,13 +200,14 @@ class OutputCanvasProjectionCoordinator:
             workflow_id,
             active_workflow,
         )
-        if not active_workflow.output_image_uuids:
-            return
-        prune_result = self._output_canvas_state_service.clear_output_for_workflow(
-            workflows,
-            workflow_id,
-        )
-        self._content_synchronizer.retire_unreferenced(prune_result.removed_image_ids)
+        if active_workflow.output_image_uuids:
+            prune_result = self._output_canvas_state_service.clear_output_for_workflow(
+                workflows,
+                workflow_id,
+            )
+            self._content_synchronizer.retire_unreferenced(
+                prune_result.removed_image_ids
+            )
         if workflow_id != self._projected_workflow_id:
             log_debug(
                 _LOGGER,
@@ -227,6 +230,29 @@ class OutputCanvasProjectionCoordinator:
         """Retire document content released by an atomic result replacement."""
 
         self._content_synchronizer.retire_unreferenced(image_ids)
+
+    def retire_preview_images_after_projection(
+        self,
+        workflow_id: str,
+        image_ids: tuple[UUID, ...],
+    ) -> None:
+        """Retire completed previews after their replacement session is mounted."""
+
+        if not image_ids:
+            return
+        if workflow_id != self._projected_workflow_id:
+            self._content_synchronizer.retire_unreferenced(image_ids)
+            return
+        self._preview_ids_pending_retirement.setdefault(workflow_id, set()).update(
+            image_ids
+        )
+
+    def _retire_preview_images_after_projection(self, workflow_id: str) -> None:
+        """Retire previews whose final replacement has finished projecting."""
+
+        image_ids = self._preview_ids_pending_retirement.pop(workflow_id, set())
+        if image_ids:
+            self._content_synchronizer.retire_unreferenced(tuple(image_ids))
 
     def prune_closed_workflow_images(
         self,
@@ -344,6 +370,7 @@ class OutputCanvasProjectionCoordinator:
             projection.active_scene_overview,
             projection.scene_count,
             cls._compare_state_signature(projection.compare_state),
+            projection.focus_mode,
         )
 
     @classmethod

@@ -35,8 +35,8 @@ from substitute.application.prompt_editor.lora.scheduled import (
 from substitute.presentation.editor.prompt_editor.interactions import (
     PromptTriggerWordActionAdapter,
 )
-from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
-    _PromptEditorTextEditMenu,
+from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
+    PromptTextMenu,
 )
 from tests.presentation.editor.prompt_editor.context_menu.mounting import (
     create_lora_prompt_editor,
@@ -67,7 +67,7 @@ def test_prompt_editor_lora_context_menu_preserves_qfluent_text_actions(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(editor, schedule_lora=lambda: None)
     menu.exec(editor.mapToGlobal(editor.rect().center()))
 
@@ -110,7 +110,7 @@ def test_prompt_editor_general_context_menu_nests_single_trigger_action(
 
     monkeypatch.setattr(RoundMenu, "exec", fake_exec)
 
-    menu_type = _PromptEditorTextEditMenu
+    menu_type = PromptTextMenu
     menu = menu_type(
         editor,
         schedule_lora=lambda: None,
@@ -170,7 +170,7 @@ def test_phase24_1_context_menu_groups_multiple_trigger_actions(
     )
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
 
-    menu = _PromptEditorTextEditMenu(
+    menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         trigger_word_actions=(first_action, second_action),

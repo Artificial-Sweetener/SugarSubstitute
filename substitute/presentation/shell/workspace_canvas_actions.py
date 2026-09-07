@@ -35,10 +35,9 @@ from substitute.application.errors import (
     SubstituteOperationContext,
 )
 from substitute.application.ports.file_manager_gateway import FileRevealResult
-from substitute.application.ports import GenerationVisualIdentity, OutputImageUpdate
+from substitute.application.ports import OutputImageUpdate
 from substitute.application.workflows.output_preview_registry import (
     OutputPreviewRegistry,
-    OutputPreviewRejectionReason,
 )
 from substitute.application.workflows.output_preview_results import (
     OutputPreviewAcceptance,
@@ -61,6 +60,7 @@ from substitute.presentation.shell.output_image_commit_pipeline import (
     FailedOutputImagePreparation,
     OutputImageCommitRequest,
     PreparedOutputImage,
+    generation_visual_identity_for_commit,
 )
 from substitute.presentation.shell.generation_feedback_presenter import (
     generation_feedback_presenter_for,
@@ -128,6 +128,9 @@ class OutputCanvasProtocol(Protocol):
         identity: OutputPreviewCloseIdentity,
     ) -> None:
         """Close the transient preview lane replaced by a final output."""
+
+    def release_automatic_preview_follow(self) -> None:
+        """Let a newly arrived final output become the Automatic frontier."""
 
 
 class CanvasHostProtocol(Protocol):
@@ -208,6 +211,7 @@ class CanvasIoServiceProtocol(Protocol):
         list_index: int | None = None,
         batch_index: int | None = None,
         generation_run_id: str | None = None,
+        output_session_id: str | None = None,
         prompt_id: str | None = None,
         client_id: str | None = None,
         scene_run_id: str | None = None,
@@ -337,6 +341,13 @@ class OutputProjectionCoordinatorProtocol(Protocol):
     def retire_replaced_output_images(self, image_ids: tuple[uuid.UUID, ...]) -> None:
         """Retire replaced Output document content."""
 
+    def retire_preview_images_after_projection(
+        self,
+        workflow_id: str,
+        image_ids: tuple[uuid.UUID, ...],
+    ) -> None:
+        """Retire completed preview content after its final is presented."""
+
 
 class CubeStateProtocol(Protocol):
     """Describe cube state data consumed by canvas actions."""
@@ -406,6 +417,7 @@ class WorkspaceCanvasActionView(Protocol):
     workflow_session_service: WorkflowSessionServiceProtocol
     workflow_tabbar: WorkflowTabBarProtocol
     canvas_host: CanvasHostProtocol
+    output_canvas: OutputCanvasProtocol
     canvas_io_service: CanvasIoServiceProtocol
     output_canvas_state_service: OutputCanvasStateServiceProtocol
     output_canvas_focus_service: OutputCanvasFocusServiceProtocol
@@ -666,6 +678,7 @@ class WorkspaceCanvasActions:
             source_key=request.source_key,
             source_label=request.source_label,
             generation_run_id=request.generation_run_id,
+            output_session_id=request.output_session_id,
             prompt_id=request.prompt_id,
             client_id=request.client_id,
             scene_run_id=request.scene_run_id,
@@ -719,7 +732,7 @@ class WorkspaceCanvasActions:
         self,
         result: OutputImageRegistrationResult,
     ) -> None:
-        """Close matching preview lanes after final registration."""
+        """Close matching preview lanes while their final projection is pending."""
 
         identity = result.preview_close_identity
         if identity is None:
@@ -728,19 +741,18 @@ class WorkspaceCanvasActions:
         close_result = view.output_preview_registry.close_final_output_lane(identity)
         if result.workflow_id != view.workflow_session_service.active_workflow_id:
             return
+        if identity.batch_index in {None, 0}:
+            view.output_canvas.release_automatic_preview_follow()
         if not close_result.closed:
             return
-        output_canvas = view.canvas_host.canvas_for("Output")
-        apply_preview = getattr(output_canvas, "apply_preview_acceptance", None)
-        if callable(apply_preview):
-            apply_preview(
-                OutputPreviewAcceptance.rejected(
-                    OutputPreviewRejectionReason.COMPLETED_LANE,
-                    retired_preview_ids=close_result.closed_preview_ids,
-                )
-            )
-        else:
-            self._log_missing_output_canvas(result.workflow_id)
+        coordinator = getattr(view, "output_canvas_projection_coordinator", None)
+        defer_retirement = getattr(
+            coordinator,
+            "retire_preview_images_after_projection",
+            None,
+        )
+        if callable(defer_retirement):
+            defer_retirement(result.workflow_id, close_result.closed_preview_ids)
 
     def _log_missing_output_canvas(self, workflow_id: str) -> None:
         """Log missing output canvas state through the feedback presenter."""
@@ -773,32 +785,8 @@ class WorkspaceCanvasActions:
         authorize = getattr(authorization, "authorize_final_output", None)
         if not callable(authorize):
             return True
-        if (
-            not request.generation_run_id
-            or not request.prompt_id
-            or not request.client_id
-            or not request.source_key
-            or not request.source_label
-        ):
-            return False
-        return bool(
-            authorize(
-                GenerationVisualIdentity(
-                    workflow_id=request.workflow_id,
-                    generation_run_id=request.generation_run_id,
-                    prompt_id=request.prompt_id,
-                    client_id=request.client_id,
-                    source_key=request.source_key,
-                    source_label=request.source_label,
-                    scene_run_id=request.scene_run_id,
-                    scene_key=request.scene_key,
-                    scene_title=request.scene_title,
-                    scene_order=request.scene_order,
-                    scene_count=request.scene_count,
-                    node_id=request.node_id,
-                )
-            )
-        )
+        identity = generation_visual_identity_for_commit(request)
+        return identity is not None and bool(authorize(identity))
 
     def _cube_execution_duration_for_commit(
         self,

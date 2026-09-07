@@ -83,6 +83,7 @@ def test_parse_cube_output_event_reads_v2_substitute_identity() -> None:
         "schemaVersion": 1,
         "workflowId": "wf-1",
         "generationRunId": "run-1",
+        "outputSessionId": "generate-click-1",
         "clientId": "client-1",
         "sourceKey": "wf-1:node-1",
         "sourceLabel": "Demo",
@@ -96,6 +97,7 @@ def test_parse_cube_output_event_reads_v2_substitute_identity() -> None:
     assert event.substitute is not None
     assert event.substitute.workflow_id == "wf-1"
     assert event.substitute.generation_run_id == "run-1"
+    assert event.substitute.output_session_id == "generate-click-1"
     assert event.substitute.client_id == "client-1"
     assert event.substitute.source_key == "wf-1:node-1"
     assert event.substitute.scene_key == "portrait"

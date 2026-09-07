@@ -39,7 +39,7 @@ from substitute.infrastructure.comfy.managed_shutdown import kill_managed_comfy
 from substitute.infrastructure.comfy.workspace_python_discovery import (
     WorkspacePythonGateway,
 )
-from substitute.presentation.onboarding.onboarding_controller import (
+from substitute.presentation.onboarding.provisioning_executor import (
     OnboardingFlowServiceLike,
 )
 from tests.onboarding_automation.external_comfy_fixture import (

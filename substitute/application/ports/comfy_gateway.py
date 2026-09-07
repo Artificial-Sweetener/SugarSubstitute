@@ -124,6 +124,7 @@ class GenerationVisualIdentity:
     client_id: str
     source_key: str
     source_label: str
+    output_session_id: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None
@@ -159,6 +160,7 @@ class PreviewImageUpdate:
     real_node_id: str | None = None
     source_key: str = ""
     source_label: str = ""
+    output_session_id: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None
@@ -185,6 +187,7 @@ class OutputImageUpdate:
     batch_index: int | None = 0
     artifact_width: int | None = None
     artifact_height: int | None = None
+    output_session_id: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None
@@ -225,6 +228,7 @@ class QueueVisualRunContext:
     workflow_id: WorkflowId
     generation_run_id: str
     client_id: str
+    output_session_id: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None
@@ -244,6 +248,8 @@ class QueueVisualRunContext:
                 str(node_id): dict(source) for node_id, source in self.sources.items()
             },
         }
+        if self.output_session_id is not None:
+            payload["outputSessionId"] = self.output_session_id
         scene_payload: dict[str, object] = {}
         if self.scene_run_id is not None:
             scene_payload["runId"] = self.scene_run_id
@@ -334,6 +340,7 @@ class ListenerStartRequest:
     workflow_name: str
     output_run_number: int | None = None
     output_save_plan: OutputSavePlan | None = None
+    output_session_id: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None

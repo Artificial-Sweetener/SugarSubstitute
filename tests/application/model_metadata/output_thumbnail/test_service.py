@@ -155,10 +155,11 @@ class _Thumbnails:
         source_path: str | None = None,
         source_width: int | None = None,
         source_height: int | None = None,
+        selection_policy: str = "local_default",
     ) -> ThumbnailStoreResult | None:
         """Record local thumbnail cache requests and return configured result."""
 
-        _ = (source_width, source_height)
+        _ = (source_width, source_height, selection_policy)
         self.local_calls.append((sha256, image, source, source_label, source_path))
         return self.result
 

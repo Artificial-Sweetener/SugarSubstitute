@@ -85,6 +85,7 @@ def build_preview_event(
     generation_run_id: str = "run",
     prompt_id: str = "prompt",
     client_id: str = "client",
+    output_session_id: str = "",
     scene_run_id: str | None = None,
     scene_key: str | None = None,
     scene_title: str | None = None,
@@ -100,6 +101,7 @@ def build_preview_event(
             generation_run_id=generation_run_id,
             prompt_id=prompt_id,
             client_id=client_id,
+            output_session_id=output_session_id or None,
             node_id="preview-node",
             source_key=source_key,
             source_label=source_label or source_key,
@@ -119,6 +121,7 @@ def build_close_identity(
     source_key: str,
     image_id: UUID,
     source_label: str | None = None,
+    batch_index: int | None = 0,
 ) -> OutputPreviewCloseIdentity:
     """Build final-output preview close identity for registry tests."""
 
@@ -132,6 +135,7 @@ def build_close_identity(
         client_id="client",
         node_id="save",
         list_index=0,
+        batch_index=batch_index,
         scene_run_id=None,
         scene_key=None,
         scene_title=None,

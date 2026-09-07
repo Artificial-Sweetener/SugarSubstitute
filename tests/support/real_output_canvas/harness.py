@@ -172,6 +172,24 @@ class RealShellOutputCanvasHarness:
         self._input.click(row, subject=f"output source picker row {source_key}")
         self.process_events()
 
+    def select_output_scene(self, scene_key: str) -> None:
+        """Select an Output scene through the production popup widget."""
+
+        self._input.click(
+            self.shell.output_canvas.scene_selector_button,
+            subject="output scene selector",
+        )
+        self.process_events()
+        picker = self._visible_output_scene_picker()
+        row = picker.row_for_key(scene_key)
+        if row is None:
+            raise AssertionError(
+                f"output scene picker does not contain {scene_key}: "
+                f"{picker.item_keys()}"
+            )
+        self._input.click(row, subject=f"output scene picker row {scene_key}")
+        self.process_events()
+
     def project_workflow_directly(self, alias: str) -> None:
         """Project one workflow through the narrow Output coordinator only."""
 
@@ -195,10 +213,20 @@ class RealShellOutputCanvasHarness:
         run_index: int = 1,
         *,
         output_session_id: str | None = None,
+        preview_source_keys: frozenset[str] = frozenset(),
     ) -> GenerationRunHandle:
         """Register an authorized generation run through dispatcher ingress."""
 
         workflow = self.workflows[alias]
+        existing_source_keys = frozenset(
+            image_meta.source_key
+            for image_id in self.shell.workflow_session_service.workflows[
+                workflow.workflow_id
+            ].output_image_uuids
+            if (image_meta := self.shell.canvas_image_registry.metadata_for(image_id))
+            is not None
+            and image_meta.source_key
+        )
         run = GenerationRunHandle(
             workflow=workflow,
             generation_run_id=f"{workflow.workflow_id}-run-{run_index}",
@@ -215,6 +243,7 @@ class RealShellOutputCanvasHarness:
                 output_session_id=run.output_session_id,
                 prompt_id=run.prompt_id,
                 client_id=run.client_id,
+                preview_source_keys=preview_source_keys or existing_source_keys,
             )
         )
         self.process_events()
@@ -272,6 +301,7 @@ class RealShellOutputCanvasHarness:
                 file_path=path,
                 node_id=spec.node_id,
                 generation_run_id=run.generation_run_id,
+                output_session_id=run.output_session_id,
                 prompt_id=run.prompt_id,
                 client_id=run.client_id,
                 source_key=spec.source_key,
@@ -297,6 +327,7 @@ class RealShellOutputCanvasHarness:
                 workflow_id=run.workflow.workflow_id,
                 image=solid_image(spec.color, width=spec.width, height=spec.height),
                 generation_run_id=run.generation_run_id,
+                output_session_id=run.output_session_id,
                 prompt_id=run.prompt_id,
                 client_id=run.client_id,
                 node_id=spec.node_id,
@@ -507,6 +538,18 @@ class RealShellOutputCanvasHarness:
         picker = flyout.findChild(AnchoredRowPickerView)
         if picker is None:
             raise AssertionError("output set picker view was not mounted")
+        return picker
+
+    def _visible_output_scene_picker(self) -> AnchoredRowPickerView:
+        """Return the visible production output-scene picker view."""
+
+        picker_adapter = self.shell.output_canvas._scene_picker
+        flyout = picker_adapter._picker._flyout
+        if not isinstance(flyout, QWidget):
+            raise AssertionError("output scene picker flyout is not visible")
+        picker = flyout.findChild(AnchoredRowPickerView)
+        if picker is None:
+            raise AssertionError("output scene picker view was not mounted")
         return picker
 
     def _visible_output_source_picker(self) -> AnchoredRowPickerView:

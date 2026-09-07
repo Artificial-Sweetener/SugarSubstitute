@@ -48,6 +48,14 @@ def build_launcher_data_files(
     crashpad_target = (target or detect_launcher_bundle_target()).key.replace("_", "-")
     return (
         (str(app_icon_path.resolve()), "launcher_assets"),
+        (
+            str(
+                (
+                    resolved_root / "docs" / "readme" / "sugarsubstitute-logo.svg"
+                ).resolve()
+            ),
+            "launcher_assets",
+        ),
         (resolved_uv, "launcher_assets"),
         (
             str(resolved_root / "launcher" / "sugarsubstitute_launcher" / "i18n"),

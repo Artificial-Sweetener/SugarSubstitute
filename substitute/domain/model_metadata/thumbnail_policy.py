@@ -71,6 +71,14 @@ class CivitaiThumbnailPolicy:
             policy=self.selection_policy,
         )
 
+    def allows_image(self, image: CivitaiImage) -> bool:
+        """Return whether one normalized provider image may be displayed."""
+
+        return (
+            self._safety_policy is not CivitaiThumbnailSafetyPolicy.DISABLED
+            and self._image_is_allowed(image)
+        )
+
     def _image_is_allowed(self, image: CivitaiImage) -> bool:
         """Return whether one CivitAI image is allowed by active policy."""
 

@@ -256,6 +256,7 @@ class SessionSnapshotCaptureAdapter:
                         source_label=image_meta.source_label,
                         node_id=image_meta.node_id,
                         generation_run_id=image_meta.generation_run_id,
+                        output_session_id=image_meta.output_session_id,
                         prompt_id=image_meta.prompt_id,
                         client_id=image_meta.client_id,
                         list_index=image_meta.list_index,

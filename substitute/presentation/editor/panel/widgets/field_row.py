@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Final, Mapping
+from typing import Any, Callable, Mapping
 
-from PySide6.QtCore import QEvent, QObject, QSize, QTimer, Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 from qfluentwidgets import CaptionLabel  # type: ignore[import-untyped]
 from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
@@ -38,6 +38,10 @@ from substitute.application.node_behavior import (
     LabelMode,
     RowMode,
 )
+from substitute.presentation.editor.field_actions import (
+    FieldActionContribution,
+    FieldActionSource,
+)
 from substitute.presentation.editor.panel.dimension_presets import (
     DimensionPresetCatalogSource,
 )
@@ -48,12 +52,6 @@ from substitute.presentation.editor.panel.menus.dimension_row_actions import (
     DimensionRowActions,
     bind_dimension_row_actions,
 )
-from substitute.presentation.editor.panel.node_card.body_layout import (
-    CardBodyLayoutState,
-    apply_card_body_layout_state,
-    ensure_card_body_layout_state,
-    resolve_card_body_expanded_height,
-)
 from substitute.presentation.widgets.tooltips import (
     bind_fluent_tooltip,
     tooltip_from_input_metadata,
@@ -63,8 +61,6 @@ from substitute.application.display_labels import beautify_label
 from substitute.presentation.qt_label_text import literal_label_text
 
 _WIDE_ROW_FIELD_WIDGET_CLASSES = frozenset({"ModelPickerField"})
-_MAX_WIDGET_HEIGHT: Final[int] = 16_777_215
-
 EDITOR_ROW_HEIGHT = 33
 EDITOR_ROW_HORIZONTAL_MARGINS = (10, 0, 10, 0)
 EDITOR_ROW_ICON_SIZE = 20
@@ -78,33 +74,6 @@ EDITOR_FULL_WIDTH_ROW_MARGINS = (
     EDITOR_ROW_BODY_SPACING,
 )
 GROUPED_FIELD_DIVIDER_WIDTH = 1
-_RELAYOUT_EVENT_TYPES: Final[tuple[QEvent.Type, ...]] = (
-    QEvent.Type.LayoutRequest,
-    QEvent.Type.Resize,
-    QEvent.Type.Show,
-)
-_OPTIONAL_LAYOUT_SIGNAL_NAMES: Final[tuple[str, ...]] = (
-    "resized",
-    "layoutInvalidated",
-    "contentSizeChanged",
-)
-
-try:
-    from shiboken6 import isValid as _runtime_is_valid
-except ImportError:  # pragma: no cover - test-stub fallback only
-
-    def is_valid_widget(widget: object) -> bool:
-        """Treat test doubles as valid when shiboken is unavailable."""
-
-        _ = widget
-        return True
-
-else:
-
-    def is_valid_widget(widget: object) -> bool:
-        """Return whether one QWidget/QObject reference is still alive."""
-
-        return bool(_runtime_is_valid(widget))
 
 
 class ScalarFieldRowWidget(QWidget):
@@ -211,6 +180,7 @@ class BuiltFieldRow:
     row: QWidget
     text_targets: tuple[FieldRowTextTarget, ...] = ()
     dimension_actions: DimensionRowActions | None = None
+    action_contributions: tuple[FieldActionContribution, ...] = ()
 
 
 class FieldRowBuilder:
@@ -285,6 +255,9 @@ class FieldRowBuilder:
         field_tooltip = tooltip_from_input_metadata(input_metadata)
         field_key = self._field_key_from_metadata(input_metadata)
         leaf_field_key = self._leaf_field_key_from_metadata(input_metadata)
+        action_contributions = _field_action_contributions(
+            ((leaf_field_key or label, widget),)
+        )
         if field_behavior.row_mode == RowMode.FULL_WIDTH:
             padded = QWidget(panel)
             padded_layout = QVBoxLayout(padded)
@@ -317,6 +290,7 @@ class FieldRowBuilder:
                 )
                 if leaf_field_key is not None
                 else (),
+                action_contributions=action_contributions,
             )
 
         row = ScalarFieldRowWidget(panel)
@@ -385,6 +359,7 @@ class FieldRowBuilder:
             )
             if leaf_field_key is not None
             else (),
+            action_contributions=action_contributions,
         )
 
     def add_n_column_row(
@@ -531,6 +506,21 @@ class FieldRowBuilder:
             column_widgets=column_widgets,
             dimension_preset_source=self._dimension_preset_source,
         )
+        action_sources: list[tuple[str, object]] = []
+        if dimension_actions is not None:
+            action_sources.append(
+                (
+                    ".".join(key for key, _widget in fields),
+                    dimension_actions,
+                )
+            )
+        action_sources.extend(
+            (
+                key,
+                widget,
+            )
+            for key, widget in fields
+        )
         unique_tooltips = set(column_tooltips)
         bind_fluent_tooltip(
             row_container,
@@ -543,6 +533,7 @@ class FieldRowBuilder:
             row=row_container,
             text_targets=tuple(text_targets),
             dimension_actions=dimension_actions,
+            action_contributions=_field_action_contributions(tuple(action_sources)),
         )
 
     @staticmethod
@@ -580,6 +571,22 @@ class FieldRowBuilder:
             or (isinstance(field_key, tuple) and field_key[-1] in hidden_keys)
             or (isinstance(field_key, str) and field_key in hidden_keys)
         )
+
+
+def _field_action_contributions(
+    sources: tuple[tuple[str, object], ...],
+) -> tuple[FieldActionContribution, ...]:
+    """Adapt semantic field-action sources into node-menu contributions."""
+
+    return tuple(
+        FieldActionContribution(
+            contribution_id=f"field.{field_key}",
+            availability_factory=source.field_actions_available,
+            entries_factory=source.field_action_entries,
+        )
+        for field_key, source in sources
+        if isinstance(source, FieldActionSource)
+    )
 
 
 def _is_wide_row_field(widget: QWidget) -> bool:
@@ -647,226 +654,6 @@ def _field_alignment_for_field(widget: QWidget) -> Qt.AlignmentFlag:
     return Qt.AlignmentFlag.AlignVCenter
 
 
-class _FieldWidgetRelayoutFilter(QObject):
-    """Defer row/card relayout after one field widget changes its layout needs."""
-
-    def __init__(
-        self,
-        *,
-        field_widget: QWidget,
-        content_body: QWidget,
-        content_layout: QVBoxLayout,
-        allow_unbounded_height: bool,
-    ) -> None:
-        """Store field-widget and card-body references for deferred relayout."""
-
-        super().__init__(field_widget)
-        self._field_widget = field_widget
-        self._content_body = content_body
-        self._content_layout = content_layout
-        self._allow_unbounded_height = allow_unbounded_height
-        self._update_pending = False
-        self._applying_relayout = False
-        self._force_geometry_refresh_pending = False
-        self._last_field_geometry_signature: tuple[int, int, int, int] | None = None
-
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        """Schedule one deferred relayout when the watched field widget changes."""
-
-        event_type = event.type()
-        if (
-            not self._applying_relayout
-            and watched is self._field_widget
-            and event_type in _RELAYOUT_EVENT_TYPES
-        ):
-            if (
-                event_type == QEvent.Type.LayoutRequest
-                and self._layout_request_is_settled()
-            ):
-                return super().eventFilter(watched, event)
-            self.schedule_relayout(
-                force_geometry_refresh=event_type != QEvent.Type.LayoutRequest,
-                reason=f"event:{event_type.name}",
-            )
-        return super().eventFilter(watched, event)
-
-    def schedule_relayout(
-        self, *, force_geometry_refresh: bool = False, reason: str = "explicit"
-    ) -> None:
-        """Coalesce repeated geometry changes into one deferred relayout pass."""
-
-        if force_geometry_refresh:
-            self._force_geometry_refresh_pending = True
-        if self._update_pending:
-            return
-        self._update_pending = True
-        _ = reason
-        QTimer.singleShot(0, self._apply_relayout)
-
-    def _apply_relayout(self) -> None:
-        """Invalidate the row and card body after one field-widget size change."""
-
-        self._update_pending = False
-        force_geometry_refresh = self._force_geometry_refresh_pending
-        self._force_geometry_refresh_pending = False
-        if not is_valid_widget(self._field_widget) or not is_valid_widget(
-            self._content_body
-        ):
-            return
-
-        self._applying_relayout = True
-        try:
-            field_geometry_signature = self._field_geometry_signature()
-            field_geometry_changed = (
-                field_geometry_signature != self._last_field_geometry_signature
-            )
-            if force_geometry_refresh or field_geometry_changed:
-                self._invalidate_parent_chain(self._field_widget.parentWidget())
-            else:
-                self._invalidate_parent_layouts(self._field_widget.parentWidget())
-            self._content_layout.invalidate()
-            expanded_height = resolve_card_body_expanded_height(
-                content_layout=self._content_layout,
-                allow_unbounded_height=self._allow_unbounded_height,
-            )
-            existing_state = _card_body_layout_state(self._content_body)
-            if (
-                existing_state is not None
-                and not field_geometry_changed
-                and existing_state.expanded_height == expanded_height
-                and self._card_body_layout_is_applied(existing_state)
-            ):
-                self._last_field_geometry_signature = field_geometry_signature
-                return
-            self._invalidate_parent_chain(self._field_widget.parentWidget())
-            state = ensure_card_body_layout_state(
-                content_body=self._content_body,
-                expanded_height=expanded_height,
-            )
-            apply_card_body_layout_state(
-                content_body=self._content_body,
-                state=state,
-                allow_unbounded_height=self._allow_unbounded_height,
-                preserve_animation_height=True,
-            )
-            self._content_body.updateGeometry()
-            self._invalidate_parent_chain(self._content_body.parentWidget())
-            self._notify_owner_section()
-            self._last_field_geometry_signature = field_geometry_signature
-        finally:
-            self._applying_relayout = False
-
-    def _field_geometry_signature(self) -> tuple[int, int, int, int]:
-        """Return field geometry values that affect parent layout sizing."""
-
-        return (
-            self._field_widget.minimumHeight(),
-            self._field_widget.maximumHeight(),
-            self._field_widget.sizeHint().height(),
-            self._field_widget.height(),
-        )
-
-    def _layout_request_is_settled(self) -> bool:
-        """Return whether a LayoutRequest cannot change card-body geometry."""
-
-        existing_state = _card_body_layout_state(self._content_body)
-        return (
-            existing_state is not None
-            and self._last_field_geometry_signature == self._field_geometry_signature()
-            and self._card_body_layout_is_applied(existing_state)
-        )
-
-    def _card_body_layout_is_applied(self, state: CardBodyLayoutState) -> bool:
-        """Return whether the current body geometry already reflects the state."""
-
-        if state.collapsed or state.forced_collapsed:
-            return self._content_body.maximumHeight() == 0
-        if self._allow_unbounded_height:
-            return self._content_body.maximumHeight() == _MAX_WIDGET_HEIGHT
-        return self._content_body.maximumHeight() == state.expanded_height
-
-    def _invalidate_parent_chain(self, widget: QWidget | None) -> None:
-        """Invalidate layouts from the supplied widget upward through parent widgets."""
-
-        current = widget
-        while current is not None and is_valid_widget(current):
-            layout = current.layout()
-            if layout is not None:
-                layout.invalidate()
-            current.updateGeometry()
-            current = current.parentWidget()
-
-    def _invalidate_parent_layouts(self, widget: QWidget | None) -> None:
-        """Invalidate parent layouts without requesting new widget geometry."""
-
-        current = widget
-        while current is not None and is_valid_widget(current):
-            layout = current.layout()
-            if layout is not None:
-                layout.invalidate()
-            current = current.parentWidget()
-
-    def _notify_owner_section(self) -> None:
-        """Ask the nearest cube-section owner to settle geometry after relayout."""
-
-        current = self._content_body.parentWidget()
-        while current is not None and is_valid_widget(current):
-            finalize = getattr(current, "finalize_layout_after_child_relayout", None)
-            if callable(finalize):
-                finalize(reason="field_relayout")
-                return
-            update_height = getattr(current, "update_cube_height", None)
-            if callable(update_height):
-                update_height()
-                return
-            current = current.parentWidget()
-
-
-def _card_body_layout_state(content_body: QWidget) -> CardBodyLayoutState | None:
-    """Return existing card-body layout state without mutating it."""
-
-    state = getattr(content_body, "_card_body_layout_state", None)
-    return state if isinstance(state, CardBodyLayoutState) else None
-
-
-def bind_field_widget_card_relayout(
-    *,
-    field_widget: QWidget,
-    content_body: QWidget,
-    content_layout: QVBoxLayout,
-    allow_unbounded_height: bool,
-) -> None:
-    """Attach generic row/card relayout behavior to one field widget."""
-
-    relayout_filter = _FieldWidgetRelayoutFilter(
-        field_widget=field_widget,
-        content_body=content_body,
-        content_layout=content_layout,
-        allow_unbounded_height=allow_unbounded_height,
-    )
-    field_widget.installEventFilter(relayout_filter)
-    for signal_name in _OPTIONAL_LAYOUT_SIGNAL_NAMES:
-        signal = getattr(field_widget, signal_name, None)
-        if signal is None:
-            continue
-        try:
-            signal.connect(
-                lambda *_args, signal_name=signal_name: (
-                    relayout_filter.schedule_relayout(
-                        force_geometry_refresh=True,
-                        reason=f"signal:{signal_name}",
-                    )
-                )
-            )
-        except TypeError:
-            continue
-    setattr(field_widget, "_card_field_relayout_filter", relayout_filter)
-    relayout_filter.schedule_relayout(
-        force_geometry_refresh=True,
-        reason="initial_bind",
-    )
-
-
 __all__ = [
     "BuiltFieldRow",
     "EDITOR_FIELD_ROW_HEIGHT",
@@ -882,5 +669,4 @@ __all__ = [
     "ScalarFieldRowWidget",
     "apply_editor_control_height",
     "apply_editor_row_height",
-    "bind_field_widget_card_relayout",
 ]

@@ -185,8 +185,12 @@ class AdvancedInputCardBinding(QObject):
     def toggle(self) -> None:
         """Persist and apply the inverse per-node disclosure state."""
 
+        self.set_shown(not self.shown)
+
+    def set_shown(self, shown: bool) -> None:
+        """Persist and apply an explicit per-node disclosure state."""
+
         node_name = self._node_identity[1]
-        shown = not self._state_service.is_shown(self._editor_state, node_name)
         self._state_service.set_shown(self._editor_state, node_name, shown)
         shown_registry = getattr(self._panel, "shown_advanced_input_nodes", None)
         if isinstance(shown_registry, set):

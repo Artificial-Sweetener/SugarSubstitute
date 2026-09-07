@@ -33,13 +33,13 @@ def model_update_identity(proposal: ModelUpdateProposal) -> str:
 
     candidate = proposal.candidate
     return (
-        f"{candidate.category.value}:{candidate.model_id}:"
+        f"{candidate.artifact_kind.value}:{candidate.model_id}:"
         f"{candidate.version_id}:{candidate.sha256.casefold()}"
     )
 
 
 class ModelUpdateAcquisitionService:
-    """Own safe category destinations for side-by-side model updates."""
+    """Own safe artifact destinations for side-by-side model updates."""
 
     def __init__(
         self,
@@ -69,7 +69,7 @@ class ModelUpdateAcquisitionService:
                 self._acquisition.acquire(
                     proposal.candidate,
                     destination_dir=(
-                        self._model_root / proposal.candidate.category.value
+                        self._model_root / proposal.candidate.artifact_kind.value
                     ),
                 )
             )
