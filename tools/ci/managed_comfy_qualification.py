@@ -82,7 +82,6 @@ def assert_real_managed_comfy(
     object_info = _get_json(f"{base_url}/object_info")
     required_node_classes = _required_node_classes(
         install_root=install_root,
-        plan=plan,
     )
     missing = sorted(required_node_classes.difference(object_info))
     if missing:
@@ -125,12 +124,9 @@ def assert_real_managed_comfy(
 def _required_node_classes(
     *,
     install_root: Path,
-    plan: InstallerQualificationPlan,
 ) -> frozenset[str]:
-    """Relax only SimpleSyrup nodes blocked by optional Triton in CPU CI."""
+    """Relax only SimpleSyrup nodes blocked by an exact optional-Triton error."""
 
-    if not plan.force_cpu_mode:
-        return _REQUIRED_NODE_CLASSES
     startup_log = install_root / "managed-comfy-startup.log"
     try:
         normalized_log = startup_log.read_text(
