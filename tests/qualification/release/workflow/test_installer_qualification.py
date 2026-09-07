@@ -62,6 +62,9 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     ui_qualification_text = (
         PROJECT_ROOT / "tools" / "ci" / "installer_ui_qualification.py"
     ).read_text(encoding="utf-8")
+    current_installer_text = (
+        PROJECT_ROOT / "tools" / "ci" / "current_installer_execution.py"
+    ).read_text(encoding="utf-8")
     historical_qualification_text = (
         PROJECT_ROOT / "tools" / "ci" / "historical_install_qualification.py"
     ).read_text(encoding="utf-8")
@@ -69,7 +72,7 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert "set_update_manifest" in lifecycle_text
     assert "install_candidate_over_historical_install" in lifecycle_text
     assert "INSTALLER_QUALIFICATION_PLAN_ENV" in ui_qualification_text
-    current_installer_path = ui_qualification_text.split(
+    current_installer_path = current_installer_text.split(
         "def run_current_installer_ui", maxsplit=1
     )[1].split("\ndef ", maxsplit=1)[0]
     assert '"--headless-install"' not in current_installer_path
