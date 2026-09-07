@@ -195,7 +195,7 @@ def test_installer_qualification_clicks_visible_production_install_action(
     click_count = 0
 
     def _record_click() -> None:
-        """Count the production button signal emitted by QTest."""
+        """Count production activations and require pre-click evidence."""
 
         nonlocal click_count
         click_count += 1
@@ -203,6 +203,12 @@ def test_installer_qualification_clicks_visible_production_install_action(
             window._ui_state = LauncherUiState.PREPARE_INSTALL
             window.view.show_install_location()
             window._refresh_primary_button()
+            return
+        recorded_events = [
+            json.loads(line)["event"]
+            for line in event_log_path.read_text(encoding="utf-8").splitlines()
+        ]
+        assert recorded_events[-1] == "installer.install.clicked"
 
     window.view.primary_requested.connect(_record_click)
     window.show()
