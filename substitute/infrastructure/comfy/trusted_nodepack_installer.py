@@ -35,26 +35,36 @@ def install_trusted_nodepack_repository(
     repository_url: str,
     target_path: Path,
     display_name: str,
+    tag: str | None = None,
     on_log: LogCallback | None = None,
     repositories: RepositoryService | None = None,
 ) -> None:
-    """Clone one application-owned trusted nodepack into an empty target path."""
+    """Clone one trusted nodepack and select its approved release when specified."""
 
     if target_path.exists():
         raise RuntimeError(
             f"Could not install {display_name}: target already exists at {target_path}."
         )
     target_path.parent.mkdir(parents=True, exist_ok=True)
+    selected = repositories or repository_service()
     try:
-        (repositories or repository_service()).clone(
+        selected.clone(
             repository_url,
             target_path,
             on_progress=on_log,
         )
+        if tag is not None:
+            selected.fetch_tag(
+                target_path,
+                repository_url=repository_url,
+                tag=tag,
+                on_progress=on_log,
+            )
+            selected.checkout_revision(target_path, tag)
     except RepositoryOperationError as error:
         _remove_partial_clone(target_path)
         raise RuntimeError(
-            f"Could not clone the trusted {display_name} repository."
+            f"Could not install the trusted {display_name} repository."
         ) from error
 
 

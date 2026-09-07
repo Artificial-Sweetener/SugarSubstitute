@@ -75,3 +75,60 @@ def test_trusted_nodepack_install_refuses_existing_target(tmp_path: Path) -> Non
             display_name="Example",
             repositories=RecordingRepositoryService(),
         )
+
+
+def test_trusted_nodepack_install_checks_out_approved_tag(tmp_path: Path) -> None:
+    """A versioned trusted nodepack should finish at its approved release tag."""
+
+    target = tmp_path / "custom_nodes" / "Example"
+
+    def materialize(_repository_url: str, target_path: Path) -> None:
+        """Materialize the cloned repository fixture."""
+
+        target_path.mkdir(parents=True)
+
+    repositories = RecordingRepositoryService(clone_callback=materialize)
+    repository_url = "https://example.invalid/Example.git"
+
+    install_trusted_nodepack_repository(
+        repository_url=repository_url,
+        target_path=target,
+        display_name="Example",
+        tag="v1.6.0",
+        repositories=repositories,
+    )
+
+    assert repositories.calls == [
+        ("clone", (repository_url, target)),
+        ("fetch_tag", (target, repository_url, "v1.6.0")),
+        ("checkout_revision", (target, "v1.6.0")),
+    ]
+
+
+def test_trusted_nodepack_install_removes_clone_when_tag_checkout_fails(
+    tmp_path: Path,
+) -> None:
+    """A failed approved-release checkout should leave a retryable empty target."""
+
+    target = tmp_path / "custom_nodes" / "Example"
+
+    def materialize(_repository_url: str, target_path: Path) -> None:
+        """Materialize the cloned repository fixture."""
+
+        target_path.mkdir(parents=True)
+
+    repositories = RecordingRepositoryService(
+        clone_callback=materialize,
+        failing_operations={"checkout_revision"},
+    )
+
+    with pytest.raises(RuntimeError, match="trusted Example repository"):
+        install_trusted_nodepack_repository(
+            repository_url="https://example.invalid/Example.git",
+            target_path=target,
+            display_name="Example",
+            tag="v1.6.0",
+            repositories=repositories,
+        )
+
+    assert not target.exists()

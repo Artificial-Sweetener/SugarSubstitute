@@ -70,6 +70,7 @@ class SugarCubesNodepackInstallCandidate:
 
     source_url: str
     target_folder_name: str
+    tag: str | None = None
 
 
 SUGARCUBES_BASE_NODEPACK_INSTALLS: Mapping[
@@ -91,6 +92,7 @@ SUGARCUBES_BASE_NODEPACK_INSTALLS: Mapping[
         SugarCubesNodepackInstallCandidate(
             source_url="https://github.com/Artificial-Sweetener/SimpleSyrup.git",
             target_folder_name="SimpleSyrup",
+            tag="v1.6.0",
         ),
     ),
     "comfyui-prompt-control": (

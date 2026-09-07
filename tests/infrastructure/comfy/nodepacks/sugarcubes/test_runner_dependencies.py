@@ -208,6 +208,19 @@ def test_run_sugarcubes_baseline_maintenance_installs_reported_nodepacks(
         "https://github.com/Artificial-Sweetener/SimpleSyrup.git",
         "https://github.com/asagi4/comfyui-prompt-control.git",
     ]
+    simple_syrup_path = tmp_path / "custom_nodes" / "SimpleSyrup"
+    assert (
+        "fetch_tag",
+        (
+            simple_syrup_path,
+            "https://github.com/Artificial-Sweetener/SimpleSyrup.git",
+            "v1.6.0",
+        ),
+    ) in repositories.calls
+    assert (
+        "checkout_revision",
+        (simple_syrup_path, "v1.6.0"),
+    ) in repositories.calls
     assert (tmp_path / "custom_nodes" / "seedvr2_videoupscaler").is_dir()
     assert not (tmp_path / "custom_nodes" / "ComfyUI-SeedVR2_VideoUpscaler").exists()
 
