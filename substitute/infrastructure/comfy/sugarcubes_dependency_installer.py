@@ -154,7 +154,6 @@ def _install_nodepack_candidate(
                 repository_url=candidate.source_url,
                 target_path=target_path,
                 display_name=node_id,
-                tag=candidate.tag,
                 on_log=on_log,
                 repositories=repositories,
             )
