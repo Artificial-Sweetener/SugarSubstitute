@@ -133,11 +133,24 @@ def test_terminal_onboarding_click_does_not_enter_nested_event_wait(
     """The Open action should return directly to the outer application event loop."""
 
     clicks: list[tuple[object, object, object]] = []
+    waits: list[str] = []
     center = object()
     control = SimpleNamespace(rect=lambda: SimpleNamespace(center=lambda: center))
+
+    def wait_until(predicate: object, description: str) -> None:
+        """Require the terminal control to become visible before its final click."""
+
+        assert callable(predicate)
+        assert predicate() is True
+        waits.append(description)
+
     driver = cast(
         OnboardingQualificationDriver,
-        SimpleNamespace(_clickable_control=lambda _name: control),
+        SimpleNamespace(
+            _clickable_control=lambda _name: control,
+            _control_is_clickable=lambda _name: True,
+            _wait_until=wait_until,
+        ),
     )
     monkeypatch.setattr(
         "substitute.presentation.onboarding.installer_qualification.QTest.mouseClick",
@@ -157,6 +170,7 @@ def test_terminal_onboarding_click_does_not_enter_nested_event_wait(
     )
 
     assert len(clicks) == 1
+    assert waits == ["clickable control OnboardingPrimaryButton"]
     clicked_control, _button, click_position = clicks[0]
     assert clicked_control is control
     assert click_position is center
