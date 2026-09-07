@@ -17,9 +17,11 @@
 """Verify socket transport shutdown behavior shared by Linux and macOS."""
 
 import socket
+import threading
 
 from sugarsubstitute_shared.application_instance_socket import (
     SocketInstanceConnection,
+    SocketInstanceListener,
 )
 
 
@@ -34,3 +36,29 @@ def test_connection_close_wakes_peer_blocked_on_receive() -> None:
         assert peer_socket.recv(1) == b""
     finally:
         peer_socket.close()
+
+
+def test_listener_accept_returns_periodically_while_idle() -> None:
+    """Let the broker observe shutdown even when native close cannot wake accept."""
+
+    listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener_socket.bind(("127.0.0.1", 0))
+    listener_socket.listen(1)
+    listener = SocketInstanceListener(listener_socket)
+    completed = threading.Event()
+
+    def accept_once() -> None:
+        """Record the listener's bounded idle poll."""
+
+        try:
+            listener.accept()
+        except TimeoutError:
+            completed.set()
+
+    accept_thread = threading.Thread(target=accept_once, daemon=True)
+    accept_thread.start()
+    returned_while_idle = completed.wait(1.0)
+    listener.close()
+    accept_thread.join(timeout=1.0)
+
+    assert returned_while_idle
