@@ -193,7 +193,7 @@ class OnboardingQualificationDriver(QObject):
             )
             if self._window._controller.completion is None:
                 raise RuntimeError("Remote setup did not reach its review action.")
-            self._click("OnboardingPrimaryButton")
+            self._activate_page_transition("OnboardingPrimaryButton")
             self._wait_for_page("OnboardingCompletionPage")
             if self._window._controller.completion is None:
                 raise RuntimeError(
@@ -273,6 +273,12 @@ class OnboardingQualificationDriver(QObject):
         )
         control = self._widget(QAbstractButton, object_name)
         QTimer.singleShot(0, lambda: self._activate_terminal_action(control))
+
+    def _activate_page_transition(self, object_name: str) -> None:
+        """Activate a reused button without carrying a mouse release to its next page."""
+
+        control = cast(QAbstractButton, self._clickable_control(object_name))
+        control.click()
 
     def _activate_terminal_action(self, control: QAbstractButton) -> None:
         """Record and activate the close-owning action after automation returns."""

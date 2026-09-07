@@ -37,11 +37,11 @@ from sugarsubstitute_shared.installer_qualification import (
 from substitute.presentation.onboarding.installer_qualification import (
     qualification_preflight_action,
 )
+from tools.ci.current_installer_execution import run_current_installer_ui
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.installer_ui_qualification import (
     assert_qualification_event_sequence,
     prepare_qualification_evidence,
-    run_current_installer_ui,
 )
 from tools.ci.verify_installer_lifecycle import verify_clean_install
 
@@ -195,7 +195,7 @@ def test_current_qualification_launches_normal_installer_ui(
         )()
 
     monkeypatch.setattr(
-        "tools.ci.installer_ui_qualification.subprocess.run",
+        "tools.ci.current_installer_execution.subprocess.run",
         _run,
     )
     installer = tmp_path / "SugarSubstitute Setup.exe"
@@ -214,6 +214,13 @@ def test_current_qualification_launches_normal_installer_ui(
     ]
     assert "--headless-install" not in captured_command
     assert captured_kwargs["timeout"] == 3_600.0
+    assert "capture_output" not in captured_kwargs
+    assert captured_kwargs["stdin"] is subprocess.DEVNULL
+    assert captured_kwargs["stderr"] is subprocess.STDOUT
+    output_stream = captured_kwargs["stdout"]
+    assert getattr(output_stream, "name", "").endswith(
+        ".installed-installer-output.log"
+    )
 
 
 def test_clean_qualification_uses_live_external_comfy_boundary(
@@ -289,7 +296,7 @@ def test_timed_out_current_installer_reports_process_bound_evidence(
         )
 
     monkeypatch.setattr(
-        "tools.ci.installer_ui_qualification.subprocess.run",
+        "tools.ci.current_installer_execution.subprocess.run",
         _timeout,
     )
 
@@ -330,7 +337,7 @@ def test_failed_current_installer_reports_process_bound_evidence(
     launcher_log.write_text("launcher rejected archive\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        "tools.ci.installer_ui_qualification.subprocess.run",
+        "tools.ci.current_installer_execution.subprocess.run",
         lambda *_args, **_kwargs: SimpleNamespace(
             returncode=1,
             stdout="installer output",

@@ -195,3 +195,21 @@ def test_terminal_onboarding_action_runs_on_outer_event_loop(
         "onboarding.open_substitute.clicked",
         "control.click",
     ]
+
+
+def test_completion_transition_uses_direct_button_activation() -> None:
+    """A reused primary button must finish its current page before another click."""
+
+    activations: list[str] = []
+    control = SimpleNamespace(click=lambda: activations.append("control.click"))
+    driver = cast(
+        OnboardingQualificationDriver,
+        SimpleNamespace(_clickable_control=lambda _name: control),
+    )
+
+    OnboardingQualificationDriver._activate_page_transition(
+        driver,
+        "OnboardingPrimaryButton",
+    )
+
+    assert activations == ["control.click"]

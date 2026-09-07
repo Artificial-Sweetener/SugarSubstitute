@@ -53,9 +53,9 @@ from tools.ci.installer_lifecycle_errors import InstallerLifecycleError  # noqa:
 from tools.ci.external_comfy_readiness_server import (  # noqa: E402
     ExternalComfyReadinessServer,
 )
+from tools.ci.current_installer_execution import run_current_installer_ui  # noqa: E402
 from tools.ci.installer_ui_qualification import (  # noqa: E402
     prepare_qualification_evidence,
-    run_current_installer_ui,
     verify_main_shell_evidence,
 )
 from tools.ci.installed_version_evidence import assert_installed_version  # noqa: E402

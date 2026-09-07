@@ -1881,11 +1881,11 @@ owner = "installer UI qualification"
 rule = "STRUCT003"
 path = "tools/ci/installer_ui_qualification.py"
 kind = "remediation"
-justification = "The assessed file mixes qualification evidence preparation, current installer execution, installed candidate launch, shell and event-sequence verification, cross-platform process termination, readiness receipt and startup trace interpretation. Extract installed-process lifecycle and evidence/trace verification from qualification workflow orchestration; process identity diagnostics and durable installed-version evidence now have independent owners."
+justification = "The assessed file mixes qualification evidence preparation, installed candidate launch, shell and event-sequence verification, cross-platform process termination, readiness receipt and startup trace interpretation. Current packaged-installer execution now has an independent owner; next extract installed-candidate process lifecycle and evidence/trace verification from qualification workflow orchestration."
 issue = "chore:SS-ARCH-097"
 review_by = 2026-12-15
-max_lines = 632
-next_limit = 558
+max_lines = 560
+next_limit = 500
 debt = "SS-ARCH-097"
 
 [[waivers]]
