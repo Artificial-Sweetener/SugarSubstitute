@@ -28,6 +28,9 @@ from sugarsubstitute_shared.launcher_update.targets import (
     LauncherBundleTarget,
     detect_launcher_bundle_target,
 )
+from sugarsubstitute_shared.presentation.installer_resources import (
+    INSTALLER_WORDMARK_SOURCE_RELATIVE_PATH,
+)
 
 
 PyInstallerDataFile = tuple[str, str]
@@ -49,11 +52,7 @@ def build_launcher_data_files(
     return (
         (str(app_icon_path.resolve()), "launcher_assets"),
         (
-            str(
-                (
-                    resolved_root / "docs" / "readme" / "sugarsubstitute-logo.svg"
-                ).resolve()
-            ),
+            str((resolved_root / INSTALLER_WORDMARK_SOURCE_RELATIVE_PATH).resolve()),
             "launcher_assets",
         ),
         (resolved_uv, "launcher_assets"),

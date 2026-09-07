@@ -115,6 +115,9 @@ def test_release_payload_contains_required_runtime_roots(tmp_path: Path) -> None
     assert "substitute/app/__init__.py" in archive_names
     assert "substitute/app/bootstrap/startup.py" in archive_names
     assert "sugarsubstitute_shared/__init__.py" in archive_names
+    assert (
+        "sugarsubstitute_shared/presentation/resources/sugarsubstitute-logo.svg"
+    ) in archive_names
     assert "third_party/manifest.toml" in archive_names
     assert set(RUNTIME_REQUIRED_ROOTS).issuperset(
         {archive_name.split("/", maxsplit=1)[0] for archive_name in archive_names}
@@ -488,6 +491,10 @@ def _write_fixture_repo(tmp_path: Path) -> Path:
     _write_file(
         repo_root / "sugarsubstitute_shared" / "__init__.py",
         '"""Shared infrastructure package."""\n',
+    )
+    _write_file(
+        repo_root / "docs" / "readme" / "sugarsubstitute-logo.svg",
+        "<svg/>\n",
     )
     _write_file(repo_root / "substitute" / "app" / "__init__.py", '"""Bootstrap."""\n')
     _write_file(
