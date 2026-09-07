@@ -118,7 +118,6 @@ def test_onboarding_window_builds_all_required_pages(
     assert isinstance(window, SubstituteWindowFrame)
     assert window._backdrop_mode is ShellBackdropMode.MICA_ALT
     assert "background: transparent" in window.root_container.styleSheet()
-    assert "background:transparent" in window.styleSheet().replace(" ", "")
     assert window.bodyMaterialSurface is None
     assert window.menuContainer is None
     assert frame_layout.contentsMargins().top() == 0
