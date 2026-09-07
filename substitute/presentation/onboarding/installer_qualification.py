@@ -268,6 +268,10 @@ class OnboardingQualificationDriver(QObject):
     def _click_terminal_action(self, object_name: str) -> None:
         """Click the final action without entering another nested Qt event wait."""
 
+        self._wait_until(
+            lambda: self._control_is_clickable(object_name),
+            f"clickable control {object_name}",
+        )
         control = self._clickable_control(object_name)
         QTest.mouseClick(
             control,
@@ -279,13 +283,19 @@ class OnboardingQualificationDriver(QObject):
         """Return one enabled, visible production control for qualification."""
 
         control = self._widget(QWidget, object_name)
-        if not control.isEnabled() or not control.isVisible():
+        if not self._control_is_clickable(object_name):
             raise RuntimeError(
                 "Installed onboarding control is not clickable: "
                 f"{object_name} enabled={control.isEnabled()} "
                 f"visible={control.isVisible()}."
             )
         return control
+
+    def _control_is_clickable(self, object_name: str) -> bool:
+        """Return whether one production control has completed visibility changes."""
+
+        control = self._widget(QWidget, object_name)
+        return control.isEnabled() and control.isVisible()
 
     def _mouse_click(self, control: QWidget) -> None:
         """Send a real Qt mouse click and service resulting queued work."""
