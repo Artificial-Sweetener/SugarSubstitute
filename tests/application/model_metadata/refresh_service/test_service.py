@@ -282,6 +282,7 @@ class _FakeThumbnails:
         source_path: str | None = None,
         source_width: int | None = None,
         source_height: int | None = None,
+        selection_policy: str = "local_default",
     ) -> ThumbnailStoreResult | None:
         """Ignore local thumbnail requests in provider refresh tests."""
 
@@ -293,6 +294,7 @@ class _FakeThumbnails:
             source_path,
             source_width,
             source_height,
+            selection_policy,
         )
         return None
 

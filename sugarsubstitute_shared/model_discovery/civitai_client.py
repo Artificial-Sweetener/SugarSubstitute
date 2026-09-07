@@ -27,18 +27,18 @@ from urllib.parse import urlencode, urlparse
 
 from sugarsubstitute_shared.model_discovery.models import (
     DiscoveredModel,
-    ModelCategory,
+    ModelArtifactKind,
 )
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 _MODELS_URL = "https://civitai.com/api/v1/models"
 _CIVITAI_TYPES = {
-    ModelCategory.CHECKPOINTS: "Checkpoint",
-    ModelCategory.DIFFUSION_MODELS: "Checkpoint",
-    ModelCategory.LORAS: "LORA",
-    ModelCategory.VAE: "VAE",
-    ModelCategory.CONTROLNET: "Controlnet",
-    ModelCategory.UPSCALE_MODELS: "Upscaler",
+    ModelArtifactKind.CHECKPOINTS: "Checkpoint",
+    ModelArtifactKind.DIFFUSION_MODELS: "Checkpoint",
+    ModelArtifactKind.LORAS: "LORA",
+    ModelArtifactKind.VAE: "VAE",
+    ModelArtifactKind.CONTROLNET: "Controlnet",
+    ModelArtifactKind.UPSCALE_MODELS: "Upscaler",
 }
 JsonFetcher = Callable[..., object]
 
@@ -65,7 +65,7 @@ class CivitaiDiscoveryClient:
 
     def discover_monthly_popular(
         self,
-        category: ModelCategory,
+        artifact_kind: ModelArtifactKind,
         *,
         limit: int,
     ) -> tuple[DiscoveredModel, ...]:
@@ -76,7 +76,7 @@ class CivitaiDiscoveryClient:
         query = urlencode(
             {
                 "limit": str(limit),
-                "types": _CIVITAI_TYPES[category],
+                "types": _CIVITAI_TYPES[artifact_kind],
                 "sort": "Most Downloaded",
                 "period": "Month",
                 "nsfw": "false",
@@ -107,8 +107,8 @@ class CivitaiDiscoveryClient:
         for provider_rank, item in enumerate(payload["items"], start=1):
             candidate = _parse_candidate(
                 item,
-                category=category,
-                expected_type=_CIVITAI_TYPES[category],
+                artifact_kind=artifact_kind,
+                expected_type=_CIVITAI_TYPES[artifact_kind],
                 provider_rank=provider_rank,
             )
             if candidate is not None:
@@ -119,7 +119,7 @@ class CivitaiDiscoveryClient:
         self,
         *,
         model_id: int,
-        category: ModelCategory,
+        artifact_kind: ModelArtifactKind,
     ) -> tuple[DiscoveredModel, ...]:
         """Return safe versions in provider order for compatible update checks."""
 
@@ -144,8 +144,8 @@ class CivitaiDiscoveryClient:
             ) from error
         candidates = _parse_candidates(
             payload,
-            category=category,
-            expected_type=_CIVITAI_TYPES[category],
+            artifact_kind=artifact_kind,
+            expected_type=_CIVITAI_TYPES[artifact_kind],
         )
         if payload is not None and not isinstance(payload, dict):
             raise CivitaiDiscoveryError(
@@ -175,7 +175,7 @@ def _fetch_json(
 def _parse_candidate(
     value: object,
     *,
-    category: ModelCategory,
+    artifact_kind: ModelArtifactKind,
     expected_type: str,
     provider_rank: int,
 ) -> DiscoveredModel | None:
@@ -183,7 +183,7 @@ def _parse_candidate(
 
     candidates = _parse_candidates(
         value,
-        category=category,
+        artifact_kind=artifact_kind,
         expected_type=expected_type,
         provider_rank=provider_rank,
     )
@@ -193,7 +193,7 @@ def _parse_candidate(
 def _parse_candidates(
     value: object,
     *,
-    category: ModelCategory,
+    artifact_kind: ModelArtifactKind,
     expected_type: str,
     provider_rank: int = 1,
 ) -> tuple[DiscoveredModel, ...]:
@@ -236,7 +236,7 @@ def _parse_candidates(
         ) = parsed
         candidates.append(
             DiscoveredModel(
-                category=category,
+                artifact_kind=artifact_kind,
                 model_id=model_id,
                 version_id=version_id,
                 model_name=model_name,

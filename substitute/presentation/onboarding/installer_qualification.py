@@ -149,13 +149,38 @@ class OnboardingQualificationDriver(QObject):
                 self._configure_remote_target()
             self._process_events()
             self._click("OnboardingPrimaryButton")
-            self._wait_for_page("OnboardingFolderSetupPage")
-            if self._plan.managed_model_root is not None:
+            if self._plan.target_mode != "remote":
+                self._wait_for_page("OnboardingExistingModelsQuestionPage")
+                self._click(
+                    "OnboardingYesExistingModelsButton"
+                    if self._plan.managed_model_root is not None
+                    else "OnboardingNoExistingModelsButton"
+                )
+            if (
+                self._plan.target_mode == "remote"
+                or self._plan.managed_model_root is not None
+            ):
+                self._wait_for_page("OnboardingFolderSetupPage")
+            if (
+                self._plan.target_mode != "remote"
+                and self._plan.managed_model_root is not None
+            ):
                 self._widget(LineEdit, "OnboardingManagedModelRootEdit").setText(
                     str(self._plan.managed_model_root)
                 )
                 self._process_events()
-            self._click("OnboardingPrimaryButton")
+            if (
+                self._plan.target_mode == "remote"
+                or self._plan.managed_model_root is not None
+            ):
+                self._click("OnboardingPrimaryButton")
+            if self._plan.target_mode != "remote":
+                self._wait_for_page("OnboardingModelRecommendationPage")
+                for _family_index in range(2):
+                    self._click("OnboardingOwnModelChoice")
+                    self._click("OnboardingPrimaryButton")
+                    if self._current_page() != "OnboardingModelRecommendationPage":
+                        break
             self._wait_for_page("OnboardingIntegrationsPage")
             self._click("OnboardingPrimaryButton")
             self._wait_for_page("OnboardingProvisioningPage")

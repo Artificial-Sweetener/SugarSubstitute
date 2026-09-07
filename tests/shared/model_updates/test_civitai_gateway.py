@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from sugarsubstitute_shared.model_discovery.models import (
     DiscoveredModel,
-    ModelCategory,
+    ModelArtifactKind,
 )
 from sugarsubstitute_shared.model_updates.civitai_gateway import (
     CivitaiCompatibleUpdateGateway,
@@ -45,7 +45,7 @@ def _version(identifier: int, base_model: str) -> DiscoveredModel:
     """Build one safe version candidate."""
 
     return DiscoveredModel(
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         model_id=1,
         version_id=identifier,
         model_name="Model",
@@ -72,7 +72,7 @@ def test_gateway_selects_newest_compatible_version_before_current() -> None:
     candidate = gateway.latest_compatible(
         model_id=1,
         current_version_id=2,
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         base_model="sdxl",
     )
 
@@ -91,7 +91,7 @@ def test_gateway_returns_none_when_current_version_is_not_observed() -> None:
         gateway.latest_compatible(
             model_id=1,
             current_version_id=2,
-            category=ModelCategory.CHECKPOINTS,
+            artifact_kind=ModelArtifactKind.CHECKPOINTS,
             base_model="SDXL",
         )
         is None

@@ -4,62 +4,42 @@
   <context>
     <name>LauncherMainWindow</name>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="535"></location>
-      <source>%1 GB</source>
-      <translation>%1 GB（ギガバイト）</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="537"></location>
-      <source>%1 MB</source>
-      <translation>%1 MB（メガバイト）</translation>
-    </message>
-    <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_errors.py" line="42"></location>
       <source>%1 could not use this long Windows path even though SugarSubstitute can: %2. Choose a shorter folder for this operation, or enable Win32 long paths in Windows, then try again.</source>
       <translation>SugarSubstitute では処理できるこの長い Windows パスを、%1 は使用できませんでした: %2。この操作には短いフォルダーを選択するか、Windows で Win32 の長いパスを有効にしてから、もう一度お試しください。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/model_onboarding_controller.py" line="182"></location>
-      <source>%1 model file(s) downloaded and verified. You can continue setup.</source>
-      <translation>%1 個のモデルファイルをダウンロードして検証しました。セットアップを続行できます。</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="78"></location>
+      <source>Also rebuild installer-owned ComfyUI and its Python environment.</source>
+      <translation>インストーラーが管理する ComfyUI とその Python 環境も再構築します。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="394"></location>
-      <source>%1 • %2</source>
-      <translation>%1 • %2</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="92"></location>
-      <source>Also rebuild installer-owned ComfyUI core and its Python environment. Models, user data, inputs, outputs, and third-party custom nodes are preserved.</source>
-      <translation>インストーラー管理の ComfyUI コアと Python 環境も再構築します。モデル、ユーザーデータ、入力、出力、サードパーティ製カスタムノードは保持されます。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="109"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="94"></location>
       <source>Always preserved</source>
       <translation>常に保持されるもの</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="437"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="470"></location>
       <source>App entrypoint: %1</source>
       <translation>アプリのエントリーポイント：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="293"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="357"></location>
+      <source>Application language</source>
+      <translation>アプリの言語</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="179"></location>
       <source>Back</source>
       <translation>戻る</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="396"></location>
-      <source>Base model not listed</source>
-      <translation>ベースモデル未記載</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="513"></location>
+      <source>Browse…</source>
+      <translation>参照…</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="505"></location>
-      <source>Browse...</source>
-      <translation>参照...</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="129"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="114"></location>
       <source>Cancel</source>
       <translation>キャンセル</translation>
     </message>
@@ -69,82 +49,47 @@
       <translation>SugarSubstitute のアップデートを確認しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="514"></location>
-      <source>Checkpoint models</source>
-      <translation>チェックポイントモデル</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="324"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="521"></location>
       <source>Choose SugarSubstitute install directory</source>
       <translation>SugarSubstitute のインストール先を選択</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="388"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="182"></location>
       <source>Choose a folder</source>
       <translation>フォルダーを選択</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="373"></location>
-      <source>Choose a folder and connect Substitute to ComfyUI.</source>
-      <translation>フォルダーを選択し、Substitute を ComfyUI に接続します。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/model_onboarding_controller.py" line="99"></location>
-      <source>Choose at least one model type, or skip model setup.</source>
-      <translation>モデルの種類を1つ以上選ぶか、モデル設定をスキップしてください。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="232"></location>
-      <source>Choose models</source>
-      <translation>モデルを選択</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="269"></location>
-      <source>Choose models to download</source>
-      <translation>ダウンロードするモデルを選択</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="186"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="171"></location>
       <source>Choose repair</source>
       <translation>修復方法を選択</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="469"></location>
-      <source>Choose where Substitute should keep its setup</source>
-      <translation>Substitute のセットアップを保存する場所を選択</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="507"></location>
+      <source>Choose where Substitute should live</source>
+      <translation>Substitute のインストール先を選択</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="405"></location>
-      <source>Confirm the details</source>
-      <translation>内容を確認</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="495"></location>
+      <source>Choose your language</source>
+      <translation>言語を選択</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="51"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="50"></location>
       <source>Continue</source>
       <translation>続行</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="360"></location>
-      <source>Continue setup</source>
-      <translation>セットアップを続行</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="157"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="168"></location>
       <source>Continuing install from installed launcher.</source>
       <translation>インストール済みのランチャーからインストールを続行しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="518"></location>
-      <source>ControlNet guidance models</source>
-      <translation>ControlNet ガイダンスモデル</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="451"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="484"></location>
       <source>Could not install the Python runtime.</source>
       <translation>Python ランタイムをインストールできませんでした。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="454"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="487"></location>
       <source>Could not start SugarSubstitute setup.</source>
       <translation>SugarSubstitute のセットアップを起動できませんでした。</translation>
     </message>
@@ -154,82 +99,47 @@
       <translation>インストール先のルートフォルダーを作成しました：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="411"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="437"></location>
       <source>Details: %1</source>
       <translation>詳細：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="515"></location>
-      <source>Diffusion models</source>
-      <translation>拡散モデル</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="301"></location>
-      <source>Download selected</source>
-      <translation>選択項目をダウンロード</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="417"></location>
-      <source>Download this model</source>
-      <translation>このモデルをダウンロード</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/model_onboarding_controller.py" line="159"></location>
-      <source>Downloading %1 selected model file(s). Existing files will not be overwritten.</source>
-      <translation>選択した %1 個のモデルファイルをダウンロードしています。既存ファイルは上書きされません。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="232"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="273"></location>
       <source>Downloading and verifying this installer's exact release. Your active installation has not been changed yet.</source>
       <translation>このインストーラーに対応する正確なリリースをダウンロードして検証しています。現在のインストールはまだ変更されていません。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="358"></location>
-      <source>Downloading models...</source>
-      <translation>モデルをダウンロード中...</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="409"></location>
+      <source>Getting things ready…</source>
+      <translation>準備しています…</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="295"></location>
-      <source>Explore more on CivitAI</source>
-      <translation>CivitAI でもっと探す</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="489"></location>
+      <source>Hide details</source>
+      <translation>詳細を隠す</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="202"></location>
-      <source>Find popular models</source>
-      <translation>人気モデルを探す</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="243"></location>
-      <source>Finding models...</source>
-      <translation>モデルを検索中...</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/model_onboarding_controller.py" line="104"></location>
-      <source>Finding safe popular models from the last month...</source>
-      <translation>先月の安全な人気モデルを検索中...</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="405"></location>
-      <source>Finish setup</source>
-      <translation>セットアップを完了</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="497"></location>
-      <source>Folder</source>
-      <translation>フォルダー</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="49"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="52"></location>
       <source>Install</source>
       <translation>インストール</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="355"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="443"></location>
+      <source>Install application</source>
+      <translation>アプリをインストール</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="512"></location>
+      <source>Install folder</source>
+      <translation>インストール先フォルダー</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="372"></location>
       <source>Install root is not prepared yet.</source>
       <translation>インストール先のルートフォルダーはまだ準備されていません。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="53"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="56"></location>
       <source>Install runtime</source>
       <translation>ランタイムをインストール</translation>
     </message>
@@ -239,7 +149,7 @@
       <translation>SugarSubstitute %1 をインストールしました。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="431"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="464"></location>
       <source>Installed app payload version: %1</source>
       <translation>インストールしたアプリのバージョン：%1</translation>
     </message>
@@ -249,14 +159,19 @@
       <translation>ランチャーをインストールしました：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="421"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="454"></location>
       <source>Installer returned an invalid layout.</source>
       <translation>インストーラーから無効なディレクトリ構成が返されました。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="369"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="386"></location>
       <source>Installing Python runtime and app dependencies.</source>
       <translation>Python ランタイムとアプリの依存関係をインストールしています。</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="144"></location>
+      <source>Installing SugarSubstitute</source>
+      <translation>SugarSubstitute をインストールしています</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="29"></location>
@@ -279,152 +194,107 @@
       <translation>SugarSubstitute の依存関係のインストールに通常より時間がかかっています</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="534"></location>
-      <source>Live Output</source>
-      <translation>リアルタイム出力</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="161"></location>
+      <source>Language</source>
+      <translation>言語</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="516"></location>
-      <source>LoRA styles and characters</source>
-      <translation>LoRA のスタイルとキャラクター</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/model_onboarding_controller.py" line="204"></location>
-      <source>Model downloads did not finish. Existing models were unchanged. Details: %1</source>
-      <translation>モデルのダウンロードが完了しませんでした。既存モデルは変更されていません。詳細: %1</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/model_onboarding_controller.py" line="177"></location>
-      <source>Model downloads returned invalid results.</source>
-      <translation>モデルのダウンロードから無効な結果が返されました。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="209"></location>
-      <source>Model setup is optional and can be skipped.</source>
-      <translation>モデル設定は任意で、スキップできます。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="96"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="81"></location>
       <source>More thorough</source>
       <translation>より徹底的</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/model_onboarding_controller.py" line="136"></location>
-      <source>No safe downloadable matches are available right now. You can skip or explore CivitAI.</source>
-      <translation>現在、安全にダウンロードできる候補はありません。スキップするか CivitAI を探索できます。</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="57"></location>
+      <source>Nothing else was changed. Review the report, then try this step again.</source>
+      <translation>ほかの内容は変更されていません。レポートを確認して、この手順をもう一度お試しください。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="233"></location>
-      <source>Nothing is downloaded until you confirm.</source>
-      <translation>確認するまで何もダウンロードされません。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="55"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="58"></location>
       <source>Open setup</source>
       <translation>セットアップを開く</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="175"></location>
-      <source>Optional model setup</source>
-      <translation>任意のモデル設定</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="510"></location>
+      <source>Pick a folder with room for the app, ComfyUI, and models.</source>
+      <translation>アプリ、ComfyUI、モデルに十分な空き容量があるフォルダーを選択してください。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="405"></location>
-      <source>Pick a setup</source>
-      <translation>セットアップ方法を選択</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="65"></location>
+      <source>Platform: %1</source>
+      <translation>プラットフォーム: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="208"></location>
-      <source>Pick interests</source>
-      <translation>関心分野を選択</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="321"></location>
+      <source>Prepare repair</source>
+      <translation>修復を準備</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="476"></location>
-      <source>Pick the main folder for Substitute's files. If you let Substitute install ComfyUI for you, it will place that there too by default.</source>
-      <translation>Substitute のファイルを保存するメインフォルダーを選択します。Substitute に ComfyUI のインストールを任せる場合、デフォルトでは ComfyUI もこのフォルダーに配置されます。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/model_onboarding_controller.py" line="196"></location>
-      <source>Popular models could not be loaded. You can retry or skip. Details: %1</source>
-      <translation>人気モデルを読み込めませんでした。再試行またはスキップできます。詳細: %1</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="268"></location>
-      <source>Popular this month</source>
-      <translation>今月の人気</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="290"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="340"></location>
       <source>Preparing SugarSubstitute install.</source>
       <translation>SugarSubstitute のインストールを準備しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="153"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="138"></location>
       <source>Preparing repair...</source>
       <translation>修復を準備中...</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="113"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="98"></location>
       <source>Projects • outputs • autosaves • settings • models • inputs • ComfyUI user data • third-party custom nodes</source>
       <translation>プロジェクト • 出力 • 自動保存 • 設定 • モデル • 入力 • ComfyUI ユーザーデータ • サードパーティ製カスタムノード</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="72"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="60"></location>
       <source>Put Substitute back in a fresh state</source>
       <translation>Substitute をクリーンな状態に戻す</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="154"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="165"></location>
       <source>Ready.</source>
       <translation>準備ができました。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="87"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="73"></location>
       <source>Recommended</source>
       <translation>推奨</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="71"></location>
-      <source>Recovery suite</source>
-      <translation>復旧スイート</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="69"></location>
+      <source>Refresh Substitute, its launcher, and runtime. Managed installs also refresh Substitute's ComfyUI nodes.</source>
+      <translation>Substitute、ランチャー、ランタイムを更新します。管理対象のインストールでは、Substitute の ComfyUI ノードも更新されます。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="81"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="68"></location>
       <source>Repair Substitute</source>
       <translation>Substitute を修復</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="91"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="77"></location>
       <source>Repair Substitute and managed ComfyUI</source>
       <translation>Substitute と管理対象 ComfyUI を修復</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="273"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="314"></location>
       <source>Repair could not be prepared. Nothing in the active installation was changed. Details: %1</source>
       <translation>修復を準備できませんでした。現在のインストールは変更されていません。詳細: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="73"></location>
-      <source>Repair installs the exact version carried by this installer. Your projects, outputs, models, inputs, and ComfyUI user data stay in place.</source>
-      <translation>修復では、このインストーラーに含まれる正確なバージョンをインストールします。プロジェクト、出力、モデル、入力、ComfyUI ユーザーデータはそのまま保持されます。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="262"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="303"></location>
       <source>Repair is ready. Closing this window to replace app files.</source>
       <translation>修復の準備ができました。アプリファイルを置き換えるため、このウィンドウを閉じます。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="160"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="171"></location>
       <source>Repair mode requested.</source>
       <translation>修復モードが要求されました。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="82"></location>
-      <source>Replace the app, launcher, Python runtime, and app state. When this installation owns managed ComfyUI, its Substitute Backend and SugarCubes nodes are refreshed too.</source>
-      <translation>アプリ、ランチャー、Python ランタイム、アプリ状態を置き換えます。このインストールが ComfyUI を管理している場合、Substitute Backend と SugarCubes ノードも更新します。</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="61"></location>
+      <source>Restore installer-owned files. Your work and models stay in place.</source>
+      <translation>インストーラーが管理するファイルを復元します。作品とモデルはそのまま保持されます。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="131"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="116"></location>
       <source>Review repair</source>
       <translation>修復内容を確認</translation>
     </message>
@@ -434,34 +304,39 @@
       <translation>ランタイムの準備ができました：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="410"></location>
-      <source>Saves to %1</source>
-      <translation>保存先: %1</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="407"></location>
+      <source>Setting up SugarSubstitute</source>
+      <translation>SugarSubstitute をセットアップしています</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="368"></location>
-      <source>Setup</source>
-      <translation>セットアップ</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="360"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="377"></location>
       <source>Setup command is not available yet.</source>
       <translation>セットアップコマンドはまだ使用できません。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="409"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="56"></location>
+      <source>Setup could not continue</source>
+      <translation>セットアップを続行できませんでした</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="440"></location>
+      <source>Setup could not continue. Review the details and try again.</source>
+      <translation>セットアップを続行できませんでした。詳細を確認して、もう一度お試しください。</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="435"></location>
       <source>Setup failed. Check the details below and try again.</source>
       <translation>セットアップに失敗しました。以下の詳細を確認して、もう一度お試しください。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="56"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="59"></location>
       <source>Setup started</source>
       <translation>セットアップを開始しました</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="199"></location>
-      <source>Skip model setup</source>
-      <translation>モデル設定をスキップ</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="423"></location>
+      <source>Show details</source>
+      <translation>詳細を表示</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="145"></location>
@@ -469,9 +344,14 @@
       <translation>ソースから実行されたランチャーを検出したため、実行ファイルの自己コピーを省略しました。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="465"></location>
-      <source>Start here</source>
-      <translation>ここから開始</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="76"></location>
+      <source>Stage</source>
+      <translation>段階</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="64"></location>
+      <source>Stage: %1</source>
+      <translation>段階: %1</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="91"></location>
@@ -484,14 +364,9 @@
       <translation>SugarSubstitute のセットアップを起動しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="309"></location>
-      <source>Step %1 of %2</source>
-      <translation>%2 ステップ中 %1</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="383"></location>
-      <source>Step 1 of 4</source>
-      <translation>4 ステップ中 1</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="477"></location>
+      <source>Step %1 of %2 · %3</source>
+      <translation>%2 ステップ中 %1 · %3</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="34"></location>
@@ -509,19 +384,19 @@
       <translation>SugarSubstitute ランチャーを %1 に引き続き更新しています—ネットワークまたは低速なストレージにより遅延している可能性があります</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="177"></location>
-      <source>Substitute found cubes that can use these model types, but no compatible models are installed. Choose interests to see three popular picks from the last month. Nothing is selected or downloaded automatically.</source>
-      <translation>これらのモデル種類を使える Cube が見つかりましたが、互換モデルはインストールされていません。関心分野を選ぶと先月の人気候補を3つ表示します。自動で選択またはダウンロードされることはありません。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="511"></location>
-      <source>Substitute will place the desktop launcher, source app payload, local runtime, settings, and user data under this folder.</source>
-      <translation>Substitute は、デスクトップランチャー、アプリ本体のソース、ローカルランタイム、設定、ユーザーデータをこのフォルダーに保存します。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="184"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="202"></location>
       <source>SugarSubstitute Setup</source>
       <translation>SugarSubstitute セットアップ</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="497"></location>
+      <source>SugarSubstitute will use this language during setup.</source>
+      <translation>SugarSubstitute はセットアップ中にこの言語を使用します。</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="67"></location>
+      <source>Technical details:</source>
+      <translation>技術的な詳細:</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="409"></location>
@@ -529,22 +404,12 @@
       <translation>アップデートを完了するため、ランチャーを再起動します。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="270"></location>
-      <source>These files passed the provider's safety metadata checks. Review file size and destination, then select only what you want.</source>
-      <translation>これらのファイルは提供元の安全性メタデータ検査に合格しています。サイズと保存先を確認し、必要なものだけを選んでください。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="371"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="388"></location>
       <source>This can take a while the first time.</source>
       <translation>初回は時間がかかることがあります。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="404"></location>
-      <source>Unknown creator</source>
-      <translation>不明な作成者</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="167"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="178"></location>
       <source>Update check disabled for this launch.</source>
       <translation>今回の起動では更新の確認が無効になっています。</translation>
     </message>
@@ -557,11 +422,6 @@
       <location filename="../launcher/sugarsubstitute_launcher/update_activity.py" line="64"></location>
       <source>Updating the SugarSubstitute launcher to %1 is taking longer than usual</source>
       <translation>SugarSubstitute ランチャーの %1 への更新に通常より時間がかかっています</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="519"></location>
-      <source>Upscaling models</source>
-      <translation>アップスケールモデル</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_errors.py" line="64"></location>
@@ -579,24 +439,9 @@
       <translation>~/Applications/SugarSubstitute など、ホームディレクトリ内の書き込み可能なフォルダーを使用してください。システムの「アプリケーション」フォルダーでは、更新やランタイムのセットアップに管理者権限が必要になる場合があります。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="187"></location>
-      <source>User files and models stay in place.</source>
-      <translation>ユーザーファイルとモデルはそのまま保持されます。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="517"></location>
-      <source>VAE color and decoding models</source>
-      <translation>VAE カラー・デコードモデル</translation>
-    </message>
-    <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="92"></location>
       <source>Waiting for the setup window to open.</source>
       <translation>セットアップウィンドウが開くのを待っています。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="176"></location>
-      <source>Which models are you interested in using?</source>
-      <translation>どのモデルを使ってみたいですか？</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_errors.py" line="36"></location>
@@ -604,7 +449,7 @@
       <translation>Windows では、各ファイル名またはフォルダー名は 255 文字までに制限されています。%1 にある名前を短くしてから、もう一度お試しください。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="288"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="338"></location>
       <source>Working...</source>
       <translation>処理中...</translation>
     </message>
@@ -612,16 +457,6 @@
       <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="154"></location>
       <source>Wrote launcher config: %1</source>
       <translation>ランチャー設定を書き込みました：%1</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="394"></location>
-      <source>You can change the ComfyUI connection later.</source>
-      <translation>ComfyUI への接続は後で変更できます。</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="404"></location>
-      <source>by %1</source>
-      <translation>作成者: %1</translation>
     </message>
   </context>
   <context>
@@ -736,6 +571,11 @@
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="105"></location>
       <source>Substitute operation context</source>
       <translation>Substitute の操作コンテキスト</translation>
+    </message>
+    <message>
+      <location filename="../sugarsubstitute_shared/presentation/installer_surface.py" line="140"></location>
+      <source>SugarSubstitute</source>
+      <translation>SugarSubstitute</translation>
     </message>
     <message>
       <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="49"></location>

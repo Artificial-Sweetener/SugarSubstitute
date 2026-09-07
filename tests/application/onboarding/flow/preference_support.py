@@ -133,6 +133,25 @@ class _CivitaiCredentialService:
 
 
 @dataclass
+class _ExternalModelLibraryConfigurator:
+    """Return and record one connected WebUI model library for flow tests."""
+
+    models_root: Path | None = None
+    calls: list[tuple[Path, Path | None]] = field(default_factory=list)
+
+    def configure(self, workspace: Path, models_root: Path | None) -> None:
+        """Record one requested external model-library mapping."""
+
+        self.calls.append((workspace, models_root))
+
+    def load_models_root(self, workspace: Path) -> Path | None:
+        """Return the configured external root without touching the workspace."""
+
+        _ = workspace
+        return self.models_root
+
+
+@dataclass
 class _PreferenceSetupService:
     """Record onboarding preference and credential saves for flow tests."""
 

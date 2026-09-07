@@ -459,7 +459,7 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
     )
     assert empty_picker_controller.kwargs["parent_widget"] is shell
     assert empty_picker_controller.kwargs["service"] is (
-        dependency_bundle.empty_model_picker_onboarding_service
+        dependency_bundle.empty_model_picker_discovery_service
     )
     assert empty_picker_controller.kwargs["catalog"] is (
         dependency_bundle.model_catalog_service

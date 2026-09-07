@@ -84,7 +84,7 @@ if TYPE_CHECKING:
         ModelUpdateAcquisitionService,
         ModelUpdateService,
     )
-    from sugarsubstitute_shared.model_discovery import ModelOnboardingService
+    from sugarsubstitute_shared.model_discovery import EmptyPickerModelDiscoveryService
     from substitute.application.localization import NodePresentationService
     from substitute.application.node_behavior import NodeBehaviorService
     from substitute.application.onboarding import ComfyConnectionSettingsService
@@ -335,7 +335,7 @@ class MainWindowDependencies:
     control_binding_service: ControlBindingService | None = None
     model_update_model_root: Path | None = None
     model_update_acquisition_service: ModelUpdateAcquisitionService | None = None
-    empty_model_picker_onboarding_service: ModelOnboardingService | None = None
+    empty_model_picker_discovery_service: EmptyPickerModelDiscoveryService | None = None
 
 
 __all__ = ["InstallationPathBundle", "MainWindowDependencies"]

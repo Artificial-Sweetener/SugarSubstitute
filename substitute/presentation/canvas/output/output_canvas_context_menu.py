@@ -38,7 +38,6 @@ from substitute.application.workflows.output_compare_resolution import (
 )
 from substitute.presentation.canvas.shared.types import OutputImageMeta
 from substitute.presentation.resources.fluent_app_icon import AppIcon
-from substitute.presentation.widgets.menu_icons import transparent_menu_icon
 from substitute.presentation.widgets.menu_model import (
     MenuEntry,
     MenuItem,
@@ -202,7 +201,6 @@ class OutputCanvasContextMenu:
             checkable=True,
             checked=compare_enabled,
             checked_callback=self.set_compare_enabled,
-            icon=(FIF.ACCEPT.icon() if compare_enabled else transparent_menu_icon()),
         )
 
     def _current_asset_has_path(self) -> bool:

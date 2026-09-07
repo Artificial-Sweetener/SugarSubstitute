@@ -982,7 +982,7 @@ def compose_runtime_controllers(
     )
     empty_model_picker_discovery_controller = EmptyModelPickerDiscoveryController(
         parent_widget=shell,
-        service=dependencies.empty_model_picker_onboarding_service,
+        service=dependencies.empty_model_picker_discovery_service,
         catalog=dependencies.model_catalog_service,
     )
     shell.shell_resource_lifecycle.register(

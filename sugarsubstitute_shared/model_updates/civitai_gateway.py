@@ -23,7 +23,7 @@ from sugarsubstitute_shared.model_discovery.civitai_client import (
 )
 from sugarsubstitute_shared.model_discovery.models import (
     DiscoveredModel,
-    ModelCategory,
+    ModelArtifactKind,
 )
 
 
@@ -40,7 +40,7 @@ class CivitaiCompatibleUpdateGateway:
         *,
         model_id: int,
         current_version_id: int,
-        category: ModelCategory,
+        artifact_kind: ModelArtifactKind,
         base_model: str | None,
     ) -> DiscoveredModel | None:
         """Return the newest safe compatible version only when current is observed."""
@@ -48,7 +48,7 @@ class CivitaiCompatibleUpdateGateway:
         candidate: DiscoveredModel | None = None
         for version in self._client.discover_model_versions(
             model_id=model_id,
-            category=category,
+            artifact_kind=artifact_kind,
         ):
             if version.version_id == current_version_id:
                 return candidate

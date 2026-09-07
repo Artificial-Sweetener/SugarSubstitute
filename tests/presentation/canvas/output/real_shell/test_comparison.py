@@ -42,7 +42,11 @@ def test_restored_comparison_chrome_identifies_each_rendered_side(
     harness.show_canvas("Output")
     expected_output_count = 0
     for scene_index in range(2):
-        run = harness.start_run("alpha", run_index=scene_index + 1)
+        run = harness.start_run(
+            "alpha",
+            run_index=scene_index + 1,
+            output_session_id="scene-run-alpha",
+        )
         scene = SceneSpec(
             run_id="scene-run-alpha",
             key=f"scene{scene_index + 1}",
@@ -255,7 +259,7 @@ def test_scene_preview_to_final_during_resize_keeps_final_grid_content(
     """A final should replace its live scene tile while resize work is pending."""
 
     harness.add_workflow("alpha", activate=True)
-    run = harness.start_run("alpha")
+    run = harness.start_run("alpha", output_session_id="scene-run")
     first_scene = SceneSpec("scene-run", "scene-1", "Scene 1", 0, 2)
     second_scene = SceneSpec("scene-run", "scene-2", "Scene 2", 1, 2)
     harness.emit_output(
@@ -273,7 +277,11 @@ def test_scene_preview_to_final_during_resize_keeps_final_grid_content(
         ),
     )
     harness.wait_for_output_count("alpha", 2)
-    preview_run = harness.start_run("alpha", run_index=2)
+    preview_run = harness.start_run(
+        "alpha",
+        run_index=2,
+        output_session_id="scene-run",
+    )
     harness.emit_preview(
         preview_run,
         OutputSpec(
@@ -310,7 +318,13 @@ def test_scene_preview_to_final_during_resize_keeps_final_grid_content(
     )
     harness.wait_for_output_count("alpha", 3)
     harness.wait_for_preview_count(0)
-    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 2)
+    harness.wait_until(
+        lambda: (
+            len(harness.fingerprint().grid_target_frames) == 2
+            and {placement[1] for placement in harness.fingerprint().grid_target_frames}
+            <= set(harness.output_ids("alpha"))
+        )
+    )
     final_grid = harness.fingerprint()
 
     final_image_ids = {placement[1] for placement in final_grid.grid_target_frames}

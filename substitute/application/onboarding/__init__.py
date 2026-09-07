@@ -32,12 +32,12 @@ if TYPE_CHECKING:
     from substitute.application.onboarding.comfy_target_service import (
         ComfyTargetService,
     )
-    from substitute.application.onboarding.flow_service import (
+    from substitute.application.onboarding.flow_contracts import (
         OnboardingCompletionResult,
         OnboardingDraftState,
-        OnboardingFlowService,
         OnboardingProvisioningFailure,
     )
+    from substitute.application.onboarding.flow_service import OnboardingFlowService
     from substitute.application.onboarding.installation_service import (
         InstallationService,
     )
@@ -120,7 +120,7 @@ _LAZY_EXPORTS = {
         "NoOpManagedRuntimeStateRecorder",
     ),
     "OnboardingCompletionResult": (
-        "substitute.application.onboarding.flow_service",
+        "substitute.application.onboarding.flow_contracts",
         "OnboardingCompletionResult",
     ),
     "OnboardingCredentialDraft": (
@@ -128,7 +128,7 @@ _LAZY_EXPORTS = {
         "OnboardingCredentialDraft",
     ),
     "OnboardingDraftState": (
-        "substitute.application.onboarding.flow_service",
+        "substitute.application.onboarding.flow_contracts",
         "OnboardingDraftState",
     ),
     "OnboardingFlowService": (
@@ -148,7 +148,7 @@ _LAZY_EXPORTS = {
         "OnboardingPreferenceSetupService",
     ),
     "OnboardingProvisioningFailure": (
-        "substitute.application.onboarding.flow_service",
+        "substitute.application.onboarding.flow_contracts",
         "OnboardingProvisioningFailure",
     ),
     "OnboardingService": (

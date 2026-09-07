@@ -200,7 +200,7 @@ def test_output_document_retains_inactive_workflow_detail_groups(
 def test_output_document_preview_admission_preserves_source_and_scene_routes(
     execution_runtime: ExecutionRuntime,
 ) -> None:
-    """Represent accepted live previews as locked document compositions."""
+    """Admit live previews without promoting one presentable scene to All."""
 
     _app()
     final_id = uuid4()
@@ -238,8 +238,8 @@ def test_output_document_preview_admission_preserves_source_and_scene_routes(
 
         scene_composition = canvas.document.composition_id_for(scene_preview_id)
         assert scene_composition is not None
-        assert canvas.active_scene_overview is True
-        assert scene_composition in canvas.workspace.session.presentation.target_ids
+        assert canvas.active_scene_overview is False
+        assert canvas.workspace.session.presentation.target_ids == (source_composition,)
     finally:
         canvas.close()
         destroy_qt_object(canvas)
@@ -394,11 +394,14 @@ def test_streaming_preview_tab_does_not_steal_focus_after_source_navigation(
         assert canvas.active_source_key == "upscale"
 
         selected_finals: list[str] = []
+        selected_grids: list[str] = []
         canvas.activeOutputChanged.connect(selected_finals.append)
+        canvas.activeOutputGridChanged.connect(selected_grids.append)
         canvas.tabbar.setCurrentItem("source")
         app.processEvents()
         assert canvas.active_source_key == "source"
-        assert selected_finals == [str(final_id)]
+        assert selected_finals == []
+        assert selected_grids == ["source"]
 
         replacement = registry.accept_preview(
             _live_preview_event(_image("blue"), source_key="upscale"),
@@ -411,11 +414,13 @@ def test_streaming_preview_tab_does_not_steal_focus_after_source_navigation(
         assert replacement.created_preview_ids == ()
         canvas.apply_preview_acceptance(replacement)
         assert canvas.active_source_key == "source"
-        assert selected_finals == [str(final_id)]
+        assert selected_finals == []
+        assert selected_grids == ["source"]
 
         canvas.tabbar.setCurrentItem("upscale")
         app.processEvents()
         assert canvas.active_source_key == "upscale"
+        assert selected_grids == ["source", "upscale"]
         preview_composition = canvas.document.composition_id_for(preview_id)
         assert preview_composition is not None
         assert canvas.workspace.session.presentation.target_ids == (

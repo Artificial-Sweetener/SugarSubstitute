@@ -106,24 +106,44 @@ def test_unscened_single_image_cube_output_tabs_change_visible_document(
         harness.assert_active_target_rendered(expected_colors[source_key])
 
 
-def test_cube_output_tab_replaces_live_preview_with_selected_final(
+def test_manual_cube_output_selection_is_not_stolen_by_later_preview(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
-    """A mouse-selected Cube-output tab must replace an active live preview."""
+    """Keep a concrete manual selection until the user chooses another cube."""
 
     source_ids = _seed_unscened_sources(
         harness,
         "alpha",
         {"text": 1, "upscale": 1},
     )
+    harness.click_output_source_tab("alpha:upscale")
     harness.click_output_source_tab("alpha:text")
-    run = harness.start_run("alpha", run_index=10)
+    harness.wait_until(
+        lambda: (
+            harness.fingerprint().workflow_output_focus_modes["workflow-alpha"]
+            == "manual"
+        )
+    )
+    run = harness.start_run(
+        "alpha",
+        run_index=10,
+        output_session_id="workflow-alpha-run-1",
+    )
     harness.emit_preview(
         run,
         OutputSpec("alpha:text", "Text", (15, 215, 90)),
     )
     harness.wait_for_preview_count(1)
-    harness.assert_preview_displayed(color=(15, 215, 90))
+    _assert_route(
+        harness,
+        alias="alpha",
+        scene_key="",
+        source_key="alpha:text",
+        set_index=1,
+        image_id=source_ids["alpha:text"][0],
+        visible_ids=source_ids["alpha:text"],
+    )
+    harness.assert_active_target_rendered((40, 40, 180))
 
     harness.click_output_source_tab("alpha:upscale")
 

@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Define provider-neutral model inventory and onboarding discovery values."""
+"""Define provider-neutral artifact discovery values for empty model pickers."""
 
 from __future__ import annotations
 
@@ -23,11 +23,12 @@ from enum import Enum
 from pathlib import Path
 
 
-class ModelCategory(str, Enum):
-    """Identify model kinds supported by cube model-picker contracts."""
+class ModelArtifactKind(str, Enum):
+    """Identify a ComfyUI artifact role and its storage destination."""
 
     CHECKPOINTS = "checkpoints"
     DIFFUSION_MODELS = "diffusion_models"
+    TEXT_ENCODERS = "text_encoders"
     LORAS = "loras"
     VAE = "vae"
     CONTROLNET = "controlnet"
@@ -35,18 +36,10 @@ class ModelCategory(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
-class CubeModelCapability:
-    """Declare model categories exposed by one available cube."""
-
-    cube_id: str
-    categories: frozenset[ModelCategory]
-
-
-@dataclass(frozen=True, slots=True)
 class LocalModel:
-    """Describe one locally available model visible to a supported cube."""
+    """Describe one locally available artifact visible to a model picker."""
 
-    category: ModelCategory
+    artifact_kind: ModelArtifactKind
     path: Path
     sha256: str | None = None
 
@@ -55,7 +48,7 @@ class LocalModel:
 class DiscoveredModel:
     """Describe one provider-validated downloadable model file."""
 
-    category: ModelCategory
+    artifact_kind: ModelArtifactKind
     model_id: int
     version_id: int
     model_name: str
@@ -72,22 +65,6 @@ class DiscoveredModel:
 
 
 @dataclass(frozen=True, slots=True)
-class ModelOnboardingEligibility:
-    """Explain whether zero-compatible-model onboarding should be presented."""
-
-    supported_categories: tuple[ModelCategory, ...]
-    compatible_local_model_count: int
-
-    @property
-    def should_offer(self) -> bool:
-        """Return whether at least one supported category has zero local models overall."""
-
-        return (
-            bool(self.supported_categories) and self.compatible_local_model_count == 0
-        )
-
-
-@dataclass(frozen=True, slots=True)
 class ModelDiscoveryCard:
     """Present one candidate with explicit destination and unchecked selection."""
 
@@ -98,25 +75,26 @@ class ModelDiscoveryCard:
 
 @dataclass(frozen=True, slots=True)
 class ModelDiscoveryPlan:
-    """Describe category interests and up to three cards for each selection."""
+    """Describe provider-ranked cards for one empty artifact picker."""
 
-    eligibility: ModelOnboardingEligibility
-    selected_categories: tuple[ModelCategory, ...]
     cards: tuple[ModelDiscoveryCard, ...]
     explore_url: str
 
-    def cards_for(self, category: ModelCategory) -> tuple[ModelDiscoveryCard, ...]:
-        """Return provider-ranked cards for one selected category."""
+    def cards_for(
+        self,
+        artifact_kind: ModelArtifactKind,
+    ) -> tuple[ModelDiscoveryCard, ...]:
+        """Return provider-ranked cards for one artifact kind."""
 
-        return tuple(card for card in self.cards if card.model.category is category)
+        return tuple(
+            card for card in self.cards if card.model.artifact_kind is artifact_kind
+        )
 
 
 __all__ = [
-    "CubeModelCapability",
     "DiscoveredModel",
     "LocalModel",
-    "ModelCategory",
+    "ModelArtifactKind",
     "ModelDiscoveryCard",
     "ModelDiscoveryPlan",
-    "ModelOnboardingEligibility",
 ]

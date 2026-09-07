@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import json
 from pathlib import Path
 
 import pytest
@@ -27,7 +28,7 @@ from substitute.infrastructure.model_updates import (
     FileModelUsageRepository,
     ModelUpdateStateError,
 )
-from sugarsubstitute_shared.model_discovery.models import ModelCategory
+from sugarsubstitute_shared.model_discovery.models import ModelArtifactKind
 from sugarsubstitute_shared.model_updates import (
     ModelUsageRecord,
 )
@@ -42,7 +43,7 @@ def test_usage_round_trips_under_authoritative_user_settings(
     record = ModelUsageRecord(
         sha256="a" * 64,
         path=tmp_path / "models" / "model.safetensors",
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         model_id=1,
         version_id=2,
         base_model="SDXL",
@@ -64,3 +65,41 @@ def test_corrupt_usage_is_not_silently_replaced_with_empty_state(
 
     with pytest.raises(ModelUpdateStateError, match="unreadable"):
         FileModelUsageRepository(tmp_path).load()
+
+
+def test_version_one_category_state_loads_and_saves_as_version_two(
+    tmp_path: Path,
+) -> None:
+    """Preserve authoritative usage while migrating its technical field name."""
+
+    path = tmp_path / "model_usage.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "records": [
+                    {
+                        "sha256": "b" * 64,
+                        "path": str(tmp_path / "models" / "legacy.safetensors"),
+                        "category": "checkpoints",
+                        "model_id": 1,
+                        "version_id": 2,
+                        "base_model": "SDXL",
+                        "usage_count": 4,
+                        "last_used_at": "2026-08-31T00:00:00+00:00",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    repository = FileModelUsageRepository(tmp_path)
+
+    records = repository.load()
+    repository.save(records)
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert records[0].artifact_kind is ModelArtifactKind.CHECKPOINTS
+    assert payload["schema_version"] == 2
+    assert payload["records"][0]["artifact_kind"] == "checkpoints"
+    assert "category" not in payload["records"][0]

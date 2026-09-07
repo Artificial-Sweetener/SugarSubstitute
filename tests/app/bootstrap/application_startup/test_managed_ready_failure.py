@@ -94,6 +94,11 @@ class _FakeApp:
 
         self.quit_calls += 1
 
+    def request_quit(self) -> None:
+        """Model the queued application-exit boundary."""
+
+        self.quit()
+
 
 class _FakeSignal:
     """Store one signal callback for deterministic timer delivery."""

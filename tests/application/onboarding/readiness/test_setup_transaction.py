@@ -37,7 +37,7 @@ from substitute.application.onboarding import (
     RuntimeService,
     SetupTransactionService,
 )
-from substitute.application.onboarding.flow_service import OnboardingBundleProtocol
+from substitute.application.onboarding.flow_contracts import OnboardingBundleProtocol
 from substitute.application.onboarding.preference_setup_service import (
     OnboardingCredentialDraft,
     OnboardingPreferenceSetupDraft,

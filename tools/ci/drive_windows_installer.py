@@ -375,6 +375,12 @@ def _complete_historical_onboarding(
     )
     _wait_for_visible_control(
         onboarding,
+        "OnboardingYesExistingModelsButton",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _invoke_choice(onboarding, "OnboardingYesExistingModelsButton")
+    _wait_for_visible_control(
+        onboarding,
         "OnboardingManagedModelRootEdit",
         _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
     )
@@ -389,6 +395,12 @@ def _complete_historical_onboarding(
     )
     _wait_for_visible_control(
         onboarding,
+        "OnboardingFindOwnModelsButton",
+        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+    )
+    _invoke_choice(onboarding, "OnboardingFindOwnModelsButton")
+    _wait_for_visible_control(
+        onboarding,
         "OnboardingCivitaiApiKeyEdit",
         _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
     )
@@ -401,19 +413,10 @@ def _complete_historical_onboarding(
         "OnboardingProgressStatus",
         _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
     )
-    _wait_for_primary_action(
-        onboarding,
-        "Review setup",
-        _phase_deadline(deadline, _PROVISIONING_TIMEOUT_SECONDS),
-    )
-    _invoke_primary(
-        onboarding,
-        deadline=_phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
-    )
     _wait_for_visible_control(
         onboarding,
         "OnboardingCompletionSurface",
-        _phase_deadline(deadline, _UI_PHASE_TIMEOUT_SECONDS),
+        _phase_deadline(deadline, _PROVISIONING_TIMEOUT_SECONDS),
     )
     _wait_for_primary_action(
         onboarding,

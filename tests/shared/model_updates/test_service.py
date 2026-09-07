@@ -23,7 +23,7 @@ from pathlib import Path
 
 from sugarsubstitute_shared.model_discovery.models import (
     DiscoveredModel,
-    ModelCategory,
+    ModelArtifactKind,
 )
 from sugarsubstitute_shared.model_updates import (
     ModelUpdatePreferences,
@@ -71,7 +71,7 @@ def _candidate() -> DiscoveredModel:
     """Return a safe side-by-side update candidate."""
 
     return DiscoveredModel(
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         model_id=1,
         version_id=3,
         model_name="Model",
@@ -107,7 +107,7 @@ def test_recent_used_known_model_receives_compatible_update_proposal() -> None:
             ModelUsageRecord(
                 sha256="a" * 64,
                 path=Path("models/current.safetensors"),
-                category=ModelCategory.CHECKPOINTS,
+                artifact_kind=ModelArtifactKind.CHECKPOINTS,
                 model_id=1,
                 version_id=2,
                 base_model="SDXL",
@@ -138,7 +138,7 @@ def test_stale_unknown_and_same_hash_models_do_not_alert() -> None:
             ModelUsageRecord(
                 sha256="b" * 64,
                 path=Path("models/current.safetensors"),
-                category=ModelCategory.CHECKPOINTS,
+                artifact_kind=ModelArtifactKind.CHECKPOINTS,
                 model_id=1,
                 version_id=2,
                 base_model="SDXL",
@@ -148,7 +148,7 @@ def test_stale_unknown_and_same_hash_models_do_not_alert() -> None:
             ModelUsageRecord(
                 sha256="c" * 64,
                 path=Path("models/unknown.safetensors"),
-                category=ModelCategory.CHECKPOINTS,
+                artifact_kind=ModelArtifactKind.CHECKPOINTS,
                 model_id=None,
                 version_id=None,
                 base_model=None,
@@ -186,7 +186,7 @@ def test_record_usage_counts_generate_dispatch_and_preserves_known_identity() ->
     service.record_usage(
         sha256="a" * 64,
         path=Path("models/model.safetensors"),
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         model_id=1,
         version_id=2,
         base_model="SDXL",
@@ -194,7 +194,7 @@ def test_record_usage_counts_generate_dispatch_and_preserves_known_identity() ->
     updated = service.record_usage(
         sha256="a" * 64,
         path=Path("models/model.safetensors"),
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         model_id=None,
         version_id=None,
         base_model=None,

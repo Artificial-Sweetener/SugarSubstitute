@@ -22,7 +22,7 @@ from typing import Any, cast
 
 import pytest
 from PySide6.QtGui import QTextCursor
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QListWidgetItem, QStyleOptionViewItem, QWidget
 from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-untyped]
     RoundMenu,
 )
@@ -30,8 +30,8 @@ from qfluentwidgets.components.widgets.menu import (  # type: ignore[import-unty
 from substitute.presentation.editor.prompt_editor.features import (
     PromptContextMenuAction,
 )
-from substitute.presentation.editor.prompt_editor.shell.context_menu_controller import (
-    _PromptEditorTextEditMenu,
+from substitute.presentation.editor.prompt_editor.shell.prompt_text_menu import (
+    PromptTextMenu,
 )
 from tests.presentation.editor.prompt_editor.context_menu.menu_rows import (
     visible_menu_rows,
@@ -45,12 +45,12 @@ def test_context_menu_adds_checked_rich_rendering_action(
     monkeypatch: pytest.MonkeyPatch,
     prompt_widgets: list[QWidget],
 ) -> None:
-    """Expose rich rendering with a stateful icon-column action."""
+    """Expose rich rendering with one row-owned check and no manual tick icon."""
 
     editor = create_prompt_editor(prompt_widgets)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
 
-    menu = _PromptEditorTextEditMenu(editor, schedule_lora=lambda: None)
+    menu = PromptTextMenu(editor, schedule_lora=lambda: None)
     menu.exec(editor.mapToGlobal(editor.rect().center()))
 
     action = next(
@@ -60,11 +60,15 @@ def test_context_menu_adds_checked_rich_rendering_action(
     )
     assert action.isCheckable() is True
     assert action.isChecked() is True
-    assert action.icon().isNull() is False
-    assert cast(Any, action.property("item")).icon().isNull() is False
-    assert menu.view.itemDelegate().__class__.__name__ == "ShortcutMenuItemDelegate"
+    assert action.icon().isNull() is True
+    option = QStyleOptionViewItem()
+    menu.view.itemDelegate().initStyleOption(
+        option, menu.view.indexFromItem(cast(QListWidgetItem, action.property("item")))
+    )
+    assert option.features & QStyleOptionViewItem.ViewItemFeature.HasCheckIndicator
+    assert not option.features & QStyleOptionViewItem.ViewItemFeature.HasDecoration
 
-    unchecked_menu = _PromptEditorTextEditMenu(
+    unchecked_menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         rich_prompt_rendering_enabled=False,
@@ -76,8 +80,7 @@ def test_context_menu_adds_checked_rich_rendering_action(
         if action.text() == "Rich prompt rendering"
     )
     assert unchecked_action.isChecked() is False
-    assert unchecked_action.icon().isNull() is False
-    assert cast(Any, unchecked_action.property("item")).icon().isNull() is False
+    assert unchecked_action.icon().isNull() is True
 
 
 def test_context_menu_adds_disabled_diagnostic_explainer(
@@ -89,7 +92,7 @@ def test_context_menu_adds_disabled_diagnostic_explainer(
     editor = create_prompt_editor(prompt_widgets)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
 
-    menu = _PromptEditorTextEditMenu(
+    menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         diagnostic_actions=(
@@ -125,7 +128,7 @@ def test_context_menu_aligns_enabled_diagnostic_actions(
     triggered: list[str] = []
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
 
-    menu = _PromptEditorTextEditMenu(
+    menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         diagnostic_actions=(
@@ -160,7 +163,7 @@ def test_context_menu_rich_rendering_action_toggles_editor(
 
     editor = create_prompt_editor(prompt_widgets)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu = _PromptEditorTextEditMenu(
+    menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         rich_prompt_rendering_enabled=editor.richPromptRenderingEnabled(),
@@ -177,7 +180,7 @@ def test_context_menu_rich_rendering_action_toggles_editor(
 
     assert editor.richPromptRenderingEnabled() is False
 
-    menu = _PromptEditorTextEditMenu(
+    menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         rich_prompt_rendering_enabled=editor.richPromptRenderingEnabled(),
@@ -206,7 +209,7 @@ def test_context_menu_rich_rendering_action_preserves_selection(
     cursor.setPosition(10, QTextCursor.MoveMode.KeepAnchor)
     editor.setTextCursor(cursor)
     monkeypatch.setattr(RoundMenu, "exec", lambda *_args, **_kwargs: None)
-    menu = _PromptEditorTextEditMenu(
+    menu = PromptTextMenu(
         editor,
         schedule_lora=lambda: None,
         rich_prompt_rendering_enabled=editor.richPromptRenderingEnabled(),

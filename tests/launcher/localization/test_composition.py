@@ -108,22 +108,24 @@ def test_launcher_runtime_installs_spanish_before_window_construction(
             "https://example.invalid/manifest.json"
         ),
         workflow_factory=_unused_workflow_factory,
+        localization_manager=runtime.manager,
     )
 
     try:
         assert runtime.initial_snapshot.effective_language_identifier == "es"
         assert window.windowTitle() == "Instalación de SugarSubstitute"
-        assert window.view.progress_title_label.text() == "Elige una carpeta"
+        assert window.view.language_title_label.text() == "Elige tu idioma"
+        assert window.view.language_combo.isHidden() is False
         assert QCoreApplication.translate("SwitchButton", "On") == "Activado"
     finally:
         window.close()
         runtime.manager.close()
 
 
-def test_launcher_uses_startup_locale_without_exposing_a_language_selector(
+def test_launcher_exposes_language_first_and_retranslates_immediately(
     tmp_path: Path,
 ) -> None:
-    """Keep installer locale automatic and omit user-selectable installer UI."""
+    """Let the first installer decision change every launcher-owned label."""
 
     application = _application()
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
@@ -141,12 +143,20 @@ def test_launcher_uses_startup_locale_without_exposing_a_language_selector(
             "https://example.invalid/manifest.json"
         ),
         workflow_factory=_unused_workflow_factory,
+        localization_manager=runtime.manager,
     )
 
     try:
         assert window.windowTitle() == "SugarSubstitute 安装程序"
-        assert window.view.progress_title_label.text() == "选择文件夹"
-        assert window.findChild(QWidget, "LauncherLanguageSelector") is None
+        selector = window.findChild(QWidget, "LauncherLanguageSelector")
+        assert selector is window.view.language_combo
+        assert window.view.language_title_label.text() == "选择你的语言"
+        japanese_index = window.view.language_combo.findData("ja")
+        assert japanese_index >= 0
+        window.view.language_combo.setCurrentIndex(japanese_index)
+        application.processEvents()
+        assert window.windowTitle() == "SugarSubstitute セットアップ"
+        assert window.view.language_title_label.text() == "言語を選択"
     finally:
         window.close()
         runtime.manager.close()

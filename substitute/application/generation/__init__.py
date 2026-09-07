@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from substitute.application.generation.generation_models import (
         GenerationCallbacks,
         GenerationFailure,
+        GenerationRequest,
         GenerationRunStarted,
         GenerationStartResult,
         PreparedGenerationRequest,
@@ -53,7 +54,6 @@ if TYPE_CHECKING:
         LiveGenerationResultLookup,
     )
     from substitute.application.generation.generation_service import (
-        GenerationRequest,
         GenerationService,
         find_unresolved_uuid_class_types,
     )
@@ -208,7 +208,7 @@ _LAZY_EXPORTS = {
     "GenerationQueueChangeKind": "substitute.application.generation.queue_models",
     "GenerationQueueJob": "substitute.domain.generation",
     "GenerationQueueStateChange": ("substitute.application.generation.queue_models"),
-    "GenerationRequest": "substitute.application.generation.generation_service",
+    "GenerationRequest": "substitute.application.generation.generation_models",
     "GenerationResultSnapshotBuildResult": (
         "substitute.application.generation.generation_result_snapshot_service"
     ),

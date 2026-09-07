@@ -186,7 +186,7 @@ class ModelUpdateModal(QDialog):
         )
         details.setWordWrap(True)
         card_layout.addWidget(details)
-        destination = self._model_root / candidate.category.value
+        destination = self._model_root / candidate.artifact_kind.value
         destination_label = QLabel(
             _text(app_text("New file destination: %1", str(destination))),
             card,
