@@ -197,19 +197,26 @@ def test_terminal_onboarding_action_runs_on_outer_event_loop(
     ]
 
 
-def test_completion_transition_uses_direct_button_activation() -> None:
-    """A reused primary button must finish its current page before another click."""
+def test_successful_provisioning_observes_automatic_completion_transition() -> None:
+    """Qualification must not click the reused primary action after provisioning."""
 
-    activations: list[str] = []
-    control = SimpleNamespace(click=lambda: activations.append("control.click"))
+    events: list[str] = []
+    completion = object()
     driver = cast(
         OnboardingQualificationDriver,
-        SimpleNamespace(_clickable_control=lambda _name: control),
+        SimpleNamespace(
+            _window=SimpleNamespace(_controller=SimpleNamespace(completion=completion)),
+            _wait_until=lambda predicate, description: events.extend(
+                [description, f"ready={predicate()}"]
+            ),
+            _wait_for_page=lambda page: events.append(page),
+        ),
     )
 
-    OnboardingQualificationDriver._activate_page_transition(
-        driver,
-        "OnboardingPrimaryButton",
-    )
+    OnboardingQualificationDriver._wait_for_completion_page(driver)
 
-    assert activations == ["control.click"]
+    assert events == [
+        "onboarding completion",
+        "ready=True",
+        "OnboardingCompletionPage",
+    ]
