@@ -124,6 +124,7 @@ def test_sugarcubes_nodepack_manifest_contains_trusted_install_fallbacks() -> No
         SUGARCUBES_BASE_NODEPACK_INSTALLS["seedvr2_videoupscaler"][0].target_folder_name
         == "seedvr2_videoupscaler"
     )
+    assert SUGARCUBES_BASE_NODEPACK_INSTALLS["SimpleSyrup"][0].tag == "v1.6.0"
     assert SUGARCUBES_COMPANION_NODEPACKS == {
         "SimpleSyrup": ("comfyui-prompt-control",),
     }
