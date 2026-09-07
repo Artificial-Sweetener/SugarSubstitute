@@ -78,6 +78,10 @@ def test_build_launcher_data_files_includes_every_runtime_owner(
 
     assert data_files == (
         (str(icon_path.resolve()), "launcher_assets"),
+        (
+            str(repo_root.resolve() / "docs" / "readme" / "sugarsubstitute-logo.svg"),
+            "launcher_assets",
+        ),
         (str(tmp_path / "uv"), "launcher_assets"),
         (
             str(repo_root.resolve() / "launcher" / "sugarsubstitute_launcher" / "i18n"),

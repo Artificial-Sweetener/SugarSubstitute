@@ -27,6 +27,9 @@ from sugarsubstitute_shared.external_path_failure import (
 from sugarsubstitute_shared.windows_long_paths import WindowsPathComponentTooLongError
 
 import pytest
+from sugarsubstitute_shared.model_acquisition import (
+    ModelAcquisitionCredentialRequired,
+)
 
 from substitute.application.onboarding import (
     OnboardingDraftState,
@@ -204,3 +207,30 @@ def test_flow_service_maps_specific_managed_failures_to_specific_copy(
 
     assert failure.headline == expected_headline
     assert "try again" in failure.remediation_steps[-1].lower()
+
+
+def test_flow_service_preserves_plan_with_civitai_credential_recovery(
+    tmp_path: Path,
+) -> None:
+    """Explain how to resume a reviewed model plan after an authenticated response."""
+
+    failure = OnboardingFlowService._build_provisioning_failure(
+        draft=OnboardingDraftState(
+            installation_root=tmp_path,
+            target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
+            endpoint_host="127.0.0.1",
+            endpoint_port=8188,
+            managed_workspace_path=tmp_path / "comfyui",
+            attached_workspace_path=None,
+        ),
+        target_mode=ComfyTargetMode.MANAGED_LOCAL,
+        error=ModelAcquisitionCredentialRequired("CivitAI API key required"),
+    )
+
+    assert failure.headline == "This CivitAI model needs an API key"
+    assert "still selected" in failure.user_message
+    assert failure.remediation_steps == (
+        "Go back to Integrations.",
+        "Add your CivitAI API key.",
+        "Return to setup and try again.",
+    )

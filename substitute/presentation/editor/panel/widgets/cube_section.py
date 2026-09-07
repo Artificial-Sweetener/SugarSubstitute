@@ -797,7 +797,7 @@ class CubeSectionBuilder:
             parent=header_bar,
             indicatorType=MenuIndicatorType.CHECK,
         )
-        reveal_button.setMenu(reveal_menu)
+        reveal_button.set_popup_menu(reveal_menu)
         header_layout.addWidget(reveal_button)
         self._cube_visibility_buttons[route_key] = reveal_button
         self._cube_visibility_menus[route_key] = reveal_menu

@@ -32,7 +32,7 @@ from substitute.presentation.localization import LocalizedBodyLabel, LocalizedPu
 from pathlib import Path
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QHBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon as FIF,
 )
@@ -67,7 +67,6 @@ class ComfyPreflightPage(OnboardingPageFrame):
                 )
             ),
             icon=FIF.SYNC,
-            eyebrow=app_text("Environment safety check"),
             parent=parent,
         )
         self.setObjectName("OnboardingComfyPreflightPage")
@@ -156,7 +155,6 @@ class AttachedPythonChoicePage(OnboardingPageFrame):
                 )
             ),
             icon=FIF.HELP,
-            eyebrow=app_text("Find ComfyUI's Python environment"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedPythonChoicePage")
@@ -185,6 +183,11 @@ class AttachedPythonChoicePage(OnboardingPageFrame):
         )
         self.manual_button.setObjectName("OnboardingAttachedPythonManualChoice")
         self.manual_button.clicked.connect(self.manual_selection_requested.emit)
+        for button in (self.process_button, self.manual_button):
+            button.setSizePolicy(
+                QSizePolicy.Policy.Ignored,
+                QSizePolicy.Policy.Fixed,
+            )
         choices.addWidget(self.manual_button, 1)
         section.content_layout.addLayout(choices)
         self.body_layout.addWidget(section)
@@ -208,7 +211,6 @@ class AttachedPythonProcessPage(OnboardingPageFrame):
                 )
             ),
             icon=FIF.HELP,
-            eyebrow=app_text("Detect ComfyUI's Python environment"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedPythonProcessPage")
@@ -310,7 +312,6 @@ class AttachedPythonManualPage(OnboardingPageFrame):
                 )
             ),
             icon=FIF.HELP,
-            eyebrow=app_text("Select ComfyUI's Python environment"),
             parent=parent,
         )
         self.setObjectName("OnboardingAttachedPythonManualPage")

@@ -69,7 +69,10 @@ class OutputCanvasSourceTabsController:
         active_tabbar = self.tabbar()
         if not tab_plan.rebuild_required:
             if tab_plan.active_source_key is not None:
-                self._set_current_item(active_tabbar, tab_plan.active_source_key)
+                self._set_current_item_without_notification(
+                    active_tabbar,
+                    tab_plan.active_source_key,
+                )
             self.sync_source_selector()
             return
 
@@ -165,6 +168,17 @@ class OutputCanvasSourceTabsController:
         connect = getattr(signal, "connect", None)
         if callable(connect):
             connect(self.on_tab_changed)
+
+    def _set_current_item_without_notification(
+        self,
+        tabbar: object,
+        key: str,
+    ) -> None:
+        """Project a tab selection without reporting it as user navigation."""
+
+        self._disconnect_tab_changed(tabbar)
+        self._set_current_item(tabbar, key)
+        self._connect_tab_changed(tabbar)
 
     @staticmethod
     def _add_item(tabbar: object, key: str, label: str) -> None:

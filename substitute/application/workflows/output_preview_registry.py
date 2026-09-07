@@ -36,6 +36,11 @@ from substitute.application.workflows.output_preview_results import (
     OutputPreviewAcceptance,
     OutputPreviewCloseResult,
 )
+from substitute.application.workflows.output_preview_authorization import (
+    OutputPreviewRejectionReason,
+    preview_can_follow_session,
+    preview_rejection_reason,
+)
 from substitute.application.workflows.output_visual_events import (
     LivePreviewEvent,
     OutputSceneIdentity,
@@ -54,21 +59,6 @@ class OutputPreviewLanePlacement(StrEnum):
     SCENE = "scene"
 
 
-class OutputPreviewRejectionReason(StrEnum):
-    """Describe why a live preview cannot update visible Output preview state."""
-
-    STRICT_EVENT_REQUIRED = "strict_event_required"
-    EMPTY_IMAGE = "empty_image"
-    AUTHORIZATION_REQUIRED = "authorization_required"
-    INACTIVE_WORKFLOW = "inactive_workflow"
-    UNAUTHORIZED_RUN = "unauthorized_run"
-    STALE_PROMPT_CLIENT = "stale_prompt_client"
-    SOURCE_OUTSIDE_SESSION = "source_outside_session"
-    SCENE_OUTSIDE_SESSION = "scene_outside_session"
-    STALE_SESSION_REVISION = "stale_session_revision"
-    COMPLETED_LANE = "completed_lane"
-
-
 @dataclass(frozen=True, slots=True)
 class OutputPreviewLaneKey:
     """Identify one transient preview lane using backend and session identity."""
@@ -77,6 +67,7 @@ class OutputPreviewLaneKey:
     generation_run_id: str
     prompt_id: str
     source_key: str
+    output_session_id: str
     scene_run_id: str | None
     scene_key: str | None
     placement: OutputPreviewLanePlacement
@@ -89,6 +80,7 @@ class OutputPreviewLaneKey:
         generation_run_id: str,
         prompt_id: str,
         source_key: str,
+        output_session_id: str = "",
         scene_run_id: str | None = None,
         scene_key: str | None = None,
     ) -> "OutputPreviewLaneKey":
@@ -99,6 +91,7 @@ class OutputPreviewLaneKey:
             generation_run_id=generation_run_id,
             prompt_id=prompt_id,
             source_key=source_key,
+            output_session_id=output_session_id,
             scene_run_id=scene_run_id,
             scene_key=scene_key,
             placement=OutputPreviewLanePlacement.SOURCE,
@@ -112,6 +105,7 @@ class OutputPreviewLaneKey:
         generation_run_id: str,
         prompt_id: str,
         source_key: str,
+        output_session_id: str = "",
         scene_run_id: str,
         scene_key: str,
     ) -> "OutputPreviewLaneKey":
@@ -122,6 +116,7 @@ class OutputPreviewLaneKey:
             generation_run_id=generation_run_id,
             prompt_id=prompt_id,
             source_key=source_key,
+            output_session_id=output_session_id,
             scene_run_id=scene_run_id,
             scene_key=scene_key,
             placement=OutputPreviewLanePlacement.SCENE,
@@ -168,56 +163,19 @@ class OutputPreviewRegistry:
     ) -> OutputPreviewAcceptance:
         """Accept one strict preview when backend and session authority agree."""
 
-        if not isinstance(event, LivePreviewEvent):
-            return OutputPreviewAcceptance.rejected(
-                OutputPreviewRejectionReason.STRICT_EVENT_REQUIRED
-            )
-        identity = event.identity
-        if _is_null_image(event.image):
-            return OutputPreviewAcceptance.rejected(
-                OutputPreviewRejectionReason.EMPTY_IMAGE
-            )
-        if identity.workflow_id != active_workflow_id:
-            return self._reject(
-                event,
-                OutputPreviewRejectionReason.INACTIVE_WORKFLOW,
-            )
-        if identity.workflow_id != session.workflow_id.value:
-            return self._reject(
-                event,
-                OutputPreviewRejectionReason.INACTIVE_WORKFLOW,
-            )
-        visual_identity = _generation_visual_identity(event)
-        if not callable(authorize_preview):
-            return self._reject(
-                event,
-                OutputPreviewRejectionReason.AUTHORIZATION_REQUIRED,
-            )
-        if not authorize_preview(visual_identity):
-            return self._reject(
-                event,
-                OutputPreviewRejectionReason.UNAUTHORIZED_RUN,
-            )
-        if not _source_is_allowed(identity.source_key, session) and not (
-            callable(is_valid_source_placeholder)
-            and is_valid_source_placeholder(visual_identity)
-        ):
-            return self._reject(
-                event,
-                OutputPreviewRejectionReason.SOURCE_OUTSIDE_SESSION,
-            )
-        scene = identity.scene
-        if isinstance(scene, OutputSceneIdentity) and not _scene_is_allowed(
-            scene,
-            session,
-            event=event,
-            visual_identity=visual_identity,
+        rejection_reason = self.preview_rejection_reason(
+            event,
+            session=session,
+            active_workflow_id=active_workflow_id,
+            authorize_preview=authorize_preview,
+            is_valid_source_placeholder=is_valid_source_placeholder,
             is_valid_scene_placeholder=is_valid_scene_placeholder,
-        ):
-            return self._reject(
-                event,
-                OutputPreviewRejectionReason.SCENE_OUTSIDE_SESSION,
-            )
+        )
+        if rejection_reason is not None:
+            if isinstance(event, LivePreviewEvent):
+                return self._reject(event, rejection_reason)
+            return OutputPreviewAcceptance.rejected(rejection_reason)
+        assert isinstance(event, LivePreviewEvent)
 
         retired_ids = self.retire_old_sessions(session)
         lanes = self._lanes_for_event(event, session=session)
@@ -236,6 +194,44 @@ class OutputPreviewRegistry:
             lanes=accepted_lanes,
             created_preview_ids=created_preview_ids,
             retired_preview_ids=retired_ids,
+        )
+
+    def preview_rejection_reason(
+        self,
+        event: object,
+        *,
+        session: OutputCanvasSession,
+        active_workflow_id: str,
+        authorize_preview: Callable[[GenerationVisualIdentity], bool] | None,
+        is_valid_source_placeholder: Callable[[GenerationVisualIdentity], bool]
+        | None = None,
+        is_valid_scene_placeholder: Callable[
+            [OutputSceneIdentity, GenerationVisualIdentity], bool
+        ]
+        | None = None,
+    ) -> OutputPreviewRejectionReason | None:
+        """Validate a preview without mutating lanes or canvas ownership."""
+
+        return preview_rejection_reason(
+            event,
+            session=session,
+            active_workflow_id=active_workflow_id,
+            authorize_preview=authorize_preview,
+            is_valid_source_placeholder=is_valid_source_placeholder,
+            is_valid_scene_placeholder=is_valid_scene_placeholder,
+        )
+
+    def has_lanes_outside_output_session(
+        self,
+        workflow_id: str,
+        output_session_id: str,
+    ) -> bool:
+        """Return whether visible previews belong to another generation session."""
+
+        return any(
+            key.workflow_id == workflow_id
+            and key.output_session_id != output_session_id
+            for key in self._lanes
         )
 
     def close_final_output_lane(
@@ -291,7 +287,13 @@ class OutputPreviewRegistry:
         for key, lane in tuple(self._lanes.items()):
             if key.workflow_id != session.workflow_id.value:
                 continue
-            if not _lane_can_follow_session(lane, session):
+            if not preview_can_follow_session(
+                generation_run_id=lane.key.generation_run_id,
+                prompt_id=lane.key.prompt_id,
+                client_id=lane.client_id,
+                output_session_id=lane.key.output_session_id,
+                session=session,
+            ):
                 retired_keys.append(key)
                 continue
             if lane.session_revision == session.revision:
@@ -419,6 +421,7 @@ class OutputPreviewRegistry:
                         generation_run_id=identity.generation_run_id,
                         prompt_id=identity.prompt_id,
                         source_key=identity.source_key,
+                        output_session_id=identity.output_session_id,
                     ),
                     preview_id=self._preview_id_for_key(
                         OutputPreviewLaneKey.source(
@@ -426,6 +429,7 @@ class OutputPreviewRegistry:
                             generation_run_id=identity.generation_run_id,
                             prompt_id=identity.prompt_id,
                             source_key=identity.source_key,
+                            output_session_id=identity.output_session_id,
                         )
                     ),
                     image=event.image,
@@ -439,6 +443,7 @@ class OutputPreviewRegistry:
             generation_run_id=identity.generation_run_id,
             prompt_id=identity.prompt_id,
             source_key=identity.source_key,
+            output_session_id=identity.output_session_id,
             scene_run_id=scene.run_id,
             scene_key=scene.key,
         )
@@ -447,6 +452,7 @@ class OutputPreviewRegistry:
             generation_run_id=identity.generation_run_id,
             prompt_id=identity.prompt_id,
             source_key=identity.source_key,
+            output_session_id=identity.output_session_id,
             scene_run_id=scene.run_id,
             scene_key=scene.key,
         )
@@ -524,70 +530,6 @@ class OutputPreviewRegistry:
         return OutputPreviewAcceptance.rejected(reason)
 
 
-def _generation_visual_identity(event: LivePreviewEvent) -> GenerationVisualIdentity:
-    """Return generation authorization identity for one strict preview."""
-
-    scene = event.identity.scene
-    if isinstance(scene, OutputSceneIdentity):
-        return GenerationVisualIdentity(
-            workflow_id=event.identity.workflow_id,
-            generation_run_id=event.identity.generation_run_id,
-            prompt_id=event.identity.prompt_id,
-            client_id=event.identity.client_id,
-            source_key=event.identity.source_key,
-            source_label=event.identity.source_label,
-            scene_run_id=scene.run_id,
-            scene_key=scene.key,
-            scene_title=scene.title,
-            scene_order=scene.order,
-            scene_count=scene.count,
-            node_id=event.node_identity.resolved_node_id,
-            display_node_id=event.node_identity.display_node_id,
-        )
-    return GenerationVisualIdentity(
-        workflow_id=event.identity.workflow_id,
-        generation_run_id=event.identity.generation_run_id,
-        prompt_id=event.identity.prompt_id,
-        client_id=event.identity.client_id,
-        source_key=event.identity.source_key,
-        source_label=event.identity.source_label,
-        node_id=event.node_identity.resolved_node_id,
-        display_node_id=event.node_identity.display_node_id,
-    )
-
-
-def _source_is_allowed(source_key: str, session: OutputCanvasSession) -> bool:
-    """Return whether the active session can accept the preview source."""
-
-    return source_key in session.allowed_source_keys
-
-
-def _scene_is_allowed(
-    scene: OutputSceneIdentity,
-    session: OutputCanvasSession,
-    *,
-    event: LivePreviewEvent,
-    visual_identity: GenerationVisualIdentity,
-    is_valid_scene_placeholder: Callable[
-        [OutputSceneIdentity, GenerationVisualIdentity], bool
-    ]
-    | None,
-) -> bool:
-    """Return whether a scene preview belongs to the active session."""
-
-    if scene.key in session.allowed_scene_keys:
-        return True
-    if (
-        scene.count <= 1
-        or not scene.run_id
-        or not scene.key
-        or event.identity.workflow_id != session.workflow_id.value
-        or is_valid_scene_placeholder is None
-    ):
-        return False
-    return is_valid_scene_placeholder(scene, visual_identity)
-
-
 def _preview_can_update_source_view(
     projection: OutputCanvasProjection,
     scene_key: str,
@@ -605,7 +547,10 @@ def _final_matches_lane(
     identity: OutputPreviewCloseIdentity,
     lane: OutputPreviewLane,
 ) -> bool:
-    """Return whether one final output supersedes one preview lane."""
+    """Return whether a first batch member supersedes one preview lane."""
+
+    if identity.batch_index not in {None, 0}:
+        return False
 
     key = lane.key
     if key.workflow_id != identity.workflow_id:
@@ -621,30 +566,6 @@ def _final_matches_lane(
     if key.scene_key != (identity.scene_key or None):
         return False
     return key.source_key == identity.source_key
-
-
-def _lane_can_follow_session(
-    lane: OutputPreviewLane,
-    session: OutputCanvasSession,
-) -> bool:
-    """Return whether a preview belongs to the run represented by a new session."""
-
-    generation = session.generation_identity
-    if generation is None:
-        return True
-    key = lane.key
-    return (
-        key.generation_run_id == generation.generation_run_id
-        and key.prompt_id == generation.prompt_id
-        and lane.client_id == generation.client_id
-    )
-
-
-def _is_null_image(image: object) -> bool:
-    """Return whether a preview image is absent or explicitly null."""
-
-    is_null = getattr(image, "isNull", None)
-    return image is None or (callable(is_null) and bool(is_null()))
 
 
 __all__ = [

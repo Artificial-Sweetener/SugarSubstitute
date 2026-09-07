@@ -202,7 +202,7 @@ def _emit_about_to_hide_during_left_press(
 ) -> None:
     """Emit menu closure while the application reports a left-button press."""
 
-    import substitute.presentation.shell.menu_button_controller as controller_module
+    import substitute.presentation.widgets.menu_button_controller as controller_module
 
     monkeypatch.setattr(
         controller_module,

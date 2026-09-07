@@ -47,6 +47,7 @@ from substitute.domain.onboarding import (
 from .preference_support import (
     _Bundle,
     _CivitaiCredentialService,
+    _ExternalModelLibraryConfigurator,
     _ModelRootProvider,
     _OutputPreferenceService,
 )
@@ -121,8 +122,9 @@ def test_flow_service_load_draft_includes_folder_and_preference_state(
     """Draft loading should include folder defaults and safe helper preferences."""
 
     context = _build_context(tmp_path, ComfyTargetMode.MANAGED_LOCAL)
-    custom_models = tmp_path / "Models"
+    webui_models = tmp_path / "WebUI" / "models"
     custom_outputs = tmp_path / "Images"
+    external_models = _ExternalModelLibraryConfigurator(models_root=webui_models)
     bundle = _Bundle(
         onboarding_service=_StaticOnboardingService(context),
         runtime_service=_FakeRuntimeLaunchService(),
@@ -135,8 +137,8 @@ def test_flow_service_load_draft_includes_folder_and_preference_state(
             status=ComfyModelRootStatus(
                 schema_version=1,
                 default_model_root=str(context.managed_comfy_dir / "models"),
-                configured_model_root=str(custom_models),
-                active_model_root=str(custom_models),
+                configured_model_root=str(tmp_path / "Models"),
+                active_model_root=str(tmp_path / "Models"),
                 uses_default=False,
                 restart_required=False,
             )
@@ -153,11 +155,12 @@ def test_flow_service_load_draft_includes_folder_and_preference_state(
         service_bundle_factory=lambda _root: bundle,
         managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
         entrypoint_path=tmp_path / "main.py",
+        external_model_library_configurator=external_models,
     )
 
     draft = service.load_draft(tmp_path)
 
-    assert draft.managed_model_root == custom_models
+    assert draft.managed_model_root == webui_models
     assert draft.managed_model_root_uses_default is False
     assert draft.output_root == custom_outputs
     assert draft.output_root_uses_default is False

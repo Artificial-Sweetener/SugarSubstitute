@@ -27,6 +27,7 @@ from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 class LauncherUiState(Enum):
     """Identify the user action currently owned by the primary button."""
 
+    SELECT_LANGUAGE = "select_language"
     PREPARE_INSTALL = "prepare_install"
     INSTALL_APP = "install_app"
     INSTALL_RUNTIME = "install_runtime"
@@ -45,6 +46,8 @@ class InstallerPrimaryAction:
 def primary_action_for(state: LauncherUiState) -> InstallerPrimaryAction:
     """Return the primary action rendered for one installer state."""
 
+    if state is LauncherUiState.SELECT_LANGUAGE:
+        return InstallerPrimaryAction(launcher_text("Continue"), True)
     if state is LauncherUiState.PREPARE_INSTALL:
         return InstallerPrimaryAction(launcher_text("Install"), True)
     if state is LauncherUiState.INSTALL_APP:

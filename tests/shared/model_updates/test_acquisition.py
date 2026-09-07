@@ -24,7 +24,7 @@ import hashlib
 from pathlib import Path
 
 from sugarsubstitute_shared.model_acquisition import ModelAcquisitionService
-from sugarsubstitute_shared.model_discovery import DiscoveredModel, ModelCategory
+from sugarsubstitute_shared.model_discovery import DiscoveredModel, ModelArtifactKind
 from sugarsubstitute_shared.model_updates import (
     ModelUpdateAcquisitionService,
     ModelUpdateProposal,
@@ -63,7 +63,7 @@ def test_selected_update_is_verified_and_current_file_remains_byte_identical(
     current_path.write_bytes(b"current")
     payload = b"new-version"
     candidate = DiscoveredModel(
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         model_id=7,
         version_id=9,
         model_name="Model",
@@ -82,7 +82,7 @@ def test_selected_update_is_verified_and_current_file_remains_byte_identical(
         current=ModelUsageRecord(
             sha256="a" * 64,
             path=current_path,
-            category=ModelCategory.CHECKPOINTS,
+            artifact_kind=ModelArtifactKind.CHECKPOINTS,
             model_id=7,
             version_id=8,
             base_model="SDXL",
@@ -118,7 +118,7 @@ def test_selected_update_is_verified_and_current_file_remains_byte_identical(
 
 
 def test_unreviewed_identity_cannot_start_update_download(tmp_path: Path) -> None:
-    """A forged UI identity must not create a category destination."""
+    """A forged UI identity must not create a artifact_kind destination."""
 
     service = ModelUpdateAcquisitionService(
         model_root=tmp_path / "models",

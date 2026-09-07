@@ -46,7 +46,7 @@ def test_onboarding_window_shows_completion_page_after_provisioning(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Provisioning completion should enable the completion review step."""
+    """Provisioning completion should route directly to its finished summary."""
 
     ensure_qt_application()
     monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
@@ -67,10 +67,47 @@ def test_onboarding_window_shows_completion_page_after_provisioning(
 
     window._show_page(OnboardingPageId.PROVISIONING)
 
-    assert window.primary_button.text() == "Review setup"
-    assert window.completion_page.command_surface.isHidden() is False
+    assert window._current_page is OnboardingPageId.COMPLETION
+    assert window.primary_button.text() == "Close"
+    assert window.completion_page.command_surface.isHidden() is True
     assert "python main.py" == window.completion_page.command_label.text()
-    assert window.completion_page.hero_panel.title_label.text() == "Substitute is ready"
+    assert window.completion_page.hero_panel.title_label.text() == "You're ready"
+    window.completion_page.details_button.click()
+    ensure_qt_application().processEvents()
+    assert window.completion_page.command_surface.isHidden() is False
+    window._emit_close_requested_on_close = False
+    window.close()
+
+
+def test_completed_provisioning_page_cannot_reopen_as_disabled_working_state(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Redirect any completed provisioning revisit to the completion page."""
+
+    ensure_qt_application()
+    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
+    draft = OnboardingDraft(
+        installation_root=tmp_path,
+        target_mode=OnboardingTargetMode.MANAGED_LOCAL,
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        managed_workspace_path=tmp_path / "comfyui",
+        attached_workspace_path=None,
+    )
+    window = OnboardingWindow(
+        controller=cast(
+            OnboardingController,
+            _FakeController(draft, OnboardingFlowMode.RECONFIGURE),
+        )
+    )
+
+    window._show_page(OnboardingPageId.PROVISIONING)
+    window._show_page(OnboardingPageId.PROVISIONING)
+
+    assert window._current_page is OnboardingPageId.COMPLETION
+    assert window.primary_button.text() == "Close"
+    assert window.primary_button.isEnabled()
     window._emit_close_requested_on_close = False
     window.close()
 
@@ -263,7 +300,7 @@ def test_provisioning_live_output_stays_inside_status_panel(
 ) -> None:
     """Setup live output should remain bounded inside the status card."""
 
-    ensure_qt_application()
+    application = ensure_qt_application()
     monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
@@ -280,22 +317,29 @@ def test_provisioning_live_output_stays_inside_status_panel(
         )
     )
     window.resize(1220, 900)
-    window._show_page(OnboardingPageId.PROVISIONING)
+    window._current_page = OnboardingPageId.PROVISIONING
+    window.page_stack.setCurrentWidget(window.provisioning_page)
+    window.page_stage.refresh_current_page_height()
+    window.provisioning_page.set_model_download_progress(
+        completed_bytes=1024,
+        total_bytes=2048,
+        current_item="Test model",
+    )
     window.provisioning_page.append_log(
         "Downloading torch-2.14.0.dev20260620%2Bcu130-cp312-cp312-win_amd64.whl "
         "(1969.5 MB)"
     )
+    assert window.provisioning_page.details_container.isHidden() is True
     window.show()
+    application.processEvents()
     activate_widget_layouts(
         window,
         window.page_stack,
         window.provisioning_page,
         window.provisioning_page.status_panel,
-        window.provisioning_page.details_surface,
     )
 
     status_panel = window.provisioning_page.status_panel
-    details_surface = window.provisioning_page.details_surface
     status_layout = status_panel.layout()
     assert status_layout is not None
     status_margins = status_layout.contentsMargins()
@@ -305,15 +349,23 @@ def test_provisioning_live_output_stays_inside_status_panel(
         -status_margins.right(),
         -status_margins.bottom(),
     )
-
-    assert status_contents.contains(details_surface.geometry().topLeft())
-    assert status_contents.contains(details_surface.geometry().bottomRight())
-    assert details_surface.contentsRect().contains(
-        details_surface.log_view.geometry().topLeft()
+    assert status_contents.contains(
+        window.provisioning_page.show_log_button.geometry().bottomRight()
     )
-    assert details_surface.contentsRect().contains(
-        details_surface.log_view.geometry().bottomRight()
-    )
+    window.page_stage.refresh_current_page_height()
+    application.processEvents()
+    page_height_before = window.provisioning_page.height()
 
+    window.provisioning_page.show_log_button.click()
+    application.processEvents()
+    assert not window.provisioning_page.details_container.isHidden()
+    assert window.provisioning_page.show_log_button.text() == "Hide setup log"
+    assert window.provisioning_page.height() > page_height_before
+    assert window.page_stage.verticalScrollBar().maximum() > 0
+
+    window.provisioning_page.show_log_button.click()
+    application.processEvents()
+    assert window.provisioning_page.details_container.isHidden()
+    assert window.provisioning_page.show_log_button.text() == "Show setup log"
     window._emit_close_requested_on_close = False
     window.close()

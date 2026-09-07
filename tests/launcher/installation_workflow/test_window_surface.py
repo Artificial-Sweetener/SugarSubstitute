@@ -21,7 +21,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtWidgets import QFrame, QWidget
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import (
@@ -32,7 +33,16 @@ from launcher.sugarsubstitute_launcher.ui.installer_qualification import (
     InstallerQualificationDriver,
 )
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
+from launcher.sugarsubstitute_launcher.ui.installer_presentation import LauncherUiState
 from sugarsubstitute_shared.installer_qualification import InstallerQualificationPlan
+from sugarsubstitute_shared.presentation.installer_surface import (
+    INSTALLER_BRAND_BAR_HEIGHT,
+    INSTALLER_WORDMARK_OPTICAL_Y_OFFSET,
+    INSTALLER_WINDOW_HEIGHT,
+    INSTALLER_WINDOW_WIDTH,
+    InstallerBrandBar,
+    InstallerBodyMaterialSurface,
+)
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
 from tests.launcher.support import launcher_test_application
 from tests.launcher.installation_workflow.support import (
@@ -48,6 +58,7 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
 ) -> None:
     """The downloaded setup UI should present itself as onboarding step one."""
 
+    application = launcher_test_application()
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     window = LauncherMainWindow(
         initial_layout=layout,
@@ -57,24 +68,69 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
         initial_release_source=release_source_for_test(),
         workflow_factory=workflow_factory(),
     )
+    window.show()
+    application.processEvents()
 
-    assert window.width() == 1260
-    assert window.height() == 800
+    assert window.width() == INSTALLER_WINDOW_WIDTH
+    assert window.height() == INSTALLER_WINDOW_HEIGHT
     assert window.titleBar.minBtn.isHidden() is True
     assert window.titleBar.maxBtn.isHidden() is True
-    assert window.view.progress_count_label.text() == "Step 1 of 4"
-    assert window.view.progress_title_label.text() == "Choose a folder"
-    assert len(window.view.step_items) == 4
-    assert window.view.step_items[0].property("stepState") == "active"
-    assert window.view.step_items[1].property("stepState") == "inactive"
+    assert window.titleBar.height() == INSTALLER_BRAND_BAR_HEIGHT
+    assert window.titleBar.closeBtn.geometry().top() == 0
+    assert window.titleBar.closeBtn.geometry().right() == window.titleBar.rect().right()
+    assert window.titleBar.canDrag(QPoint(600, INSTALLER_BRAND_BAR_HEIGHT - 8))
+    assert window.ui_state.name == LauncherUiState.SELECT_LANGUAGE.name
+    assert window.view.progress_count_label.text() == "Step 1 of 5 · Language"
+    assert isinstance(window.view.brand_bar, InstallerBrandBar)
+    assert isinstance(window.view.content_panel, InstallerBodyMaterialSurface)
+    assert window.view.brand_bar.wordmark.isVisible() is True
+    wordmark_top = window.view.brand_bar.wordmark.mapTo(
+        window.view.brand_bar,
+        QPoint(0, 0),
+    ).y()
+    centered_wordmark_top = (
+        window.view.brand_bar.height() - window.view.brand_bar.wordmark.height()
+    ) // 2
+    assert wordmark_top == centered_wordmark_top + INSTALLER_WORDMARK_OPTICAL_Y_OFFSET
+    assert window.view.language_combo.objectName() == "LauncherLanguageSelector"
+    viewport_center = window.view.page_stage.viewport().mapToGlobal(
+        window.view.page_stage.viewport().rect().center()
+    )
+    page_center = window.view.language_page.mapToGlobal(
+        window.view.language_page.rect().center()
+    )
+    combo_center = window.view.language_combo.mapToGlobal(
+        window.view.language_combo.rect().center()
+    )
+    language_badge = window.view.language_page.findChild(
+        QFrame,
+        "OnboardingHeroBadge",
+    )
+    assert language_badge is not None
+    visible_left = language_badge.mapToGlobal(language_badge.rect().topLeft()).x()
+    visible_right = window.view.language_description_label.mapToGlobal(
+        window.view.language_description_label.rect().topRight()
+    ).x()
+    visible_center = (visible_left + visible_right) // 2
+    assert abs(page_center.x() - viewport_center.x()) <= 1
+    assert abs(combo_center.x() - viewport_center.x()) <= 1
+    assert abs(visible_center - viewport_center.x()) <= 1
+    assert window.view.language_description_label.height() == (
+        window.view.language_description_label.sizeHint().height()
+    )
+    assert window.view.primary_button.text() == "Continue"
+    assert window.view.findChild(QWidget, "OnboardingStepItem") is None
+    window.view.primary_button.click()
+    assert window.ui_state is LauncherUiState.PREPARE_INSTALL
+    assert window.view.progress_count_label.text() == "Step 2 of 5 · Choose a folder"
     assert window.view.install_path_edit.text() == str(layout.root)
     assert window.view.install_path_edit.isEnabled() is True
     assert window.view.browse_button is not None
     assert window.view.browse_button.isEnabled() is True
     assert window.view.primary_button.text() == "Install"
     assert isinstance(window.view.progress_log, TerminalOutputView)
-    assert window.view.progress_log.log_view.minimumHeight() == 260
-    assert window.view.progress_log.log_view.maximumHeight() == 340
+    assert window.view.progress_log.log_view.minimumHeight() == 220
+    assert window.view.progress_log.log_view.maximumHeight() == 280
     guidance = window.view.install_location_guidance_label.text()
     target = detect_launcher_target()
     if target.operating_system is LauncherOperatingSystem.WINDOWS:
@@ -86,8 +142,36 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
     assert "Ready." in window.view.progress_log.log_view.toPlainText()
     assert window.view.status_panel is not None
     assert window.view.status_panel.isHidden() is True
-    assert "OnboardingIdentityRail" in window.styleSheet()
-    assert "OnboardingSectionPanel" in window.styleSheet()
+    assert "InstallerContentWash" in window.view.styleSheet()
+    assert "InstallerBrandBar" in window.view.styleSheet()
+    assert "OnboardingSectionPanel" in window.view.styleSheet()
+    assert "background: transparent" in window.view.styleSheet()
+    assert window.view.testAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+    assert window.view.brand_bar.testAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+    header_pixel = window.view.grab().toImage().pixelColor(600, 60)
+    body_pixel = window.view.grab().toImage().pixelColor(600, 300)
+    assert header_pixel.alpha() == 0
+    assert body_pixel.alpha() > 0
+    close_and_delete_launcher_window(window)
+
+
+def test_fresh_launcher_window_is_centered_on_its_assigned_screen(
+    tmp_path: Path,
+) -> None:
+    """Center a new setup journey when no process handoff supplied geometry."""
+
+    window = LauncherMainWindow(
+        initial_layout=InstallLayout.from_root(tmp_path / "SugarSubstitute"),
+        continue_install=False,
+        repair=False,
+        update_check_enabled=True,
+        initial_release_source=release_source_for_test(),
+        workflow_factory=workflow_factory(),
+    )
+
+    screen = window.screen()
+    assert screen is not None
+    assert window.frameGeometry().center() == screen.availableGeometry().center()
     close_and_delete_launcher_window(window)
 
 
@@ -107,7 +191,7 @@ def test_installer_qualification_clicks_visible_production_install_action(
         initial_release_source=release_source_for_test(),
         workflow_factory=workflow_factory(),
     )
-    window.view.primary_requested.disconnect()
+    window.view.primary_requested.disconnect(window._handle_primary_clicked)
     click_count = 0
 
     def _record_click() -> None:
@@ -115,6 +199,10 @@ def test_installer_qualification_clicks_visible_production_install_action(
 
         nonlocal click_count
         click_count += 1
+        if click_count == 1:
+            window._ui_state = LauncherUiState.PREPARE_INSTALL
+            window.view.show_install_location()
+            window._refresh_primary_button()
 
     window.view.primary_requested.connect(_record_click)
     window.show()
@@ -132,14 +220,18 @@ def test_installer_qualification_clicks_visible_production_install_action(
     )
 
     driver.schedule()
-    wait_for_launcher_condition(application, lambda: click_count == 1)
+    wait_for_launcher_condition(application, lambda: click_count == 2)
 
-    assert click_count == 1
+    assert click_count == 2
     events = [
         json.loads(line)["event"]
         for line in event_log_path.read_text(encoding="utf-8").splitlines()
     ]
-    assert events == ["installer.window.ready", "installer.install.clicked"]
+    assert events == [
+        "installer.language.ready",
+        "installer.window.ready",
+        "installer.install.clicked",
+    ]
     close_and_delete_launcher_window(window)
 
 
@@ -163,18 +255,23 @@ def test_launcher_page_fits_fixed_window_with_live_output_visible(
     try:
         page_stage = window.findChild(QWidget, "OnboardingPageStage")
         page_stack = window.findChild(QWidget, "OnboardingPageStack")
-        page = window.findChild(QWidget, "OnboardingPageFrame")
         assert page_stage is not None
         assert page_stack is not None
-        assert page is not None
 
         for live_output_visible in (False, True):
             if live_output_visible:
                 window.view.show_status_output()
                 application.processEvents()
+            page = window.view.page_stack.currentWidget()
+            assert page is not None
 
             assert page.sizeHint().height() <= page_stage.contentsRect().height()
             assert page_stage.contentsRect().contains(page_stack.geometry())
             assert page_stack.contentsRect().contains(page.geometry())
+            top_gap = page_stack.geometry().top() - page_stage.contentsRect().top()
+            bottom_gap = (
+                page_stage.contentsRect().bottom() - page_stack.geometry().bottom()
+            )
+            assert abs(top_gap - bottom_gap) <= 2
     finally:
         close_and_delete_launcher_window(window)

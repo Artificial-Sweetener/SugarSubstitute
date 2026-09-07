@@ -22,7 +22,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QEvent, QTranslator
 
-from substitute.presentation.onboarding.onboarding_window import (
+from substitute.presentation.onboarding.onboarding_shell_presentation import (
     OnboardingIssuePanel,
 )
 from sugarsubstitute_shared.localization import app_text
@@ -48,19 +48,25 @@ def test_onboarding_issue_panel_retains_semantic_copy_across_language_change() -
     assert app.installTranslator(chinese)
     panel = OnboardingIssuePanel()
     panel.set_issue_content(
-        title=app_text("Setup in progress"),
-        body=app_text("All set"),
+        title=app_text("Finishing your setup"),
+        body=app_text("Open Substitute"),
         detail="python.exe --technical-detail",
     )
     try:
-        assert panel.text() == "正在设置\n全部就绪\npython.exe --technical-detail"
+        assert (
+            panel.text()
+            == "正在完成设置\n打开 Substitute\npython.exe --technical-detail"
+        )
 
         assert app.removeTranslator(chinese)
         assert app.installTranslator(japanese)
         for widget in (panel, panel.title_label, panel.body_label):
             app.sendEvent(widget, QEvent(QEvent.Type.LanguageChange))
 
-        assert panel.text() == "セットアップ中\n準備完了\npython.exe --technical-detail"
+        assert (
+            panel.text()
+            == "セットアップを完了しています\nSubstitute を開く\npython.exe --technical-detail"
+        )
         assert panel.toolTip() == "python.exe --technical-detail"
     finally:
         app.removeTranslator(japanese)

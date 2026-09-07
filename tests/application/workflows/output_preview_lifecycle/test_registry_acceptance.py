@@ -19,18 +19,23 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from substitute.application.ports import PreviewImageUpdate
 from substitute.application.generation import VisualAuthorizationService
 from substitute.application.workflows import (
+    OutputCanvasImageItem,
+    OutputCanvasProjection,
+    OutputCanvasSourceGroup,
     OutputPreviewLanePlacement,
     OutputPreviewRegistry,
     OutputPreviewRejectionReason,
+    bind_output_canvas_session,
 )
 from substitute.domain.workflow import (
     CanvasGenerationIdentity,
     CanvasSessionBoundary,
+    ImageMeta,
 )
 
 
@@ -289,6 +294,78 @@ def test_registry_rebind_retires_preview_from_superseded_generation() -> None:
     assert acceptance.accepted
     assert retired_ids == (UUID(int=1),)
     assert registry.images_by_id() == {}
+
+
+def test_registry_rebind_keeps_next_job_preview_in_same_output_session() -> None:
+    """Keep a later queued job preview while prior-job finals reproject."""
+
+    registry = OutputPreviewRegistry(_uuid_factory=uuid_sequence())
+    boundary = CanvasSessionBoundary()
+    final_id = uuid4()
+    image_meta = ImageMeta(
+        workflow_name="Workflow",
+        cube_name="Text to Image",
+        image_number=1,
+        suffix="",
+        path="E:/outputs/final.png",
+        source_key="wf:text",
+        source_label="Text to Image",
+        generation_run_id="run-1",
+        output_session_id="output-session-1",
+    )
+    projection = OutputCanvasProjection(
+        sources=(
+            OutputCanvasSourceGroup(
+                source_key="wf:text",
+                label="Text to Image",
+                images_by_set={
+                    1: OutputCanvasImageItem(
+                        image_id=final_id,
+                        image_meta=image_meta,
+                        set_index=1,
+                    )
+                },
+            ),
+        ),
+        active_source_key="wf:text",
+        active_set_index=1,
+        active_uuid=final_id,
+        set_count=1,
+    )
+    first_session = bind_output_canvas_session(
+        boundary,
+        workflow_id="wf",
+        projection=projection,
+        image_metadata_lookup={final_id: image_meta},
+    )
+    acceptance = registry.accept_preview(
+        build_preview_event(
+            source_key="wf:text",
+            generation_run_id="run-2",
+            prompt_id="prompt-2",
+            client_id="client-2",
+            output_session_id="output-session-1",
+        ),
+        session=first_session,
+        active_workflow_id="wf",
+        authorize_preview=lambda _identity: True,
+        is_valid_source_placeholder=lambda _identity: True,
+    )
+    next_session = bind_output_canvas_session(
+        boundary,
+        workflow_id="wf",
+        projection=projection,
+        image_metadata_lookup={final_id: image_meta},
+    )
+
+    retired_ids = registry.rebind_workflow_session(next_session)
+
+    assert acceptance.accepted
+    assert retired_ids == ()
+    assert tuple(registry.images_by_id()) == (UUID(int=1),)
+    assert registry.lanes_for_session(next_session)[0].session_revision == (
+        next_session.revision
+    )
 
 
 def test_registry_accepts_in_progress_scene_placeholder_for_same_workflow_run() -> None:

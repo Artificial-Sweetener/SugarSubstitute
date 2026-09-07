@@ -69,15 +69,17 @@ def test_output_preview_registry_requires_registry_for_concrete_widget() -> None
 
 
 def test_output_revision_cache_reuses_existing_cache() -> None:
-    """Revision-cache adapter should preserve an installed cache."""
+    """Revision-cache adapter should preserve and rebind an installed cache."""
 
+    session = object()
     cache = OutputCanvasRevisionCache(
         registry=OutputPreviewRegistry(),
         session=None,
     )
-    host = SimpleNamespace(_revision_cache=cache)
+    host = SimpleNamespace(_revision_cache=cache, _output_session=session)
 
     assert output_revision_cache(host) is cache
+    assert cache.session is session
 
 
 def test_output_revision_cache_creates_cache_from_registry() -> None:

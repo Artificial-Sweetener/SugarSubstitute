@@ -88,6 +88,7 @@ def test_onboarding_pages_fit_fixed_window_layout_budget(
         window.page_stage,
         window.page_stack,
     )
+    window._provisioning_started = True
 
     page_height_budget = window.page_stage.contentsRect().height()
     for page_id, page in window._pages.items():
@@ -102,19 +103,32 @@ def test_onboarding_pages_fit_fixed_window_layout_budget(
                 window.page_stack,
                 page,
             )
-            return window.page_stage.contentsRect().contains(
-                window.page_stack.geometry()
-            ) and window.page_stack.contentsRect().contains(page.geometry())
+            window.page_stage.refresh_current_page_height()
+            return (
+                window.page_stack.currentWidget() is page
+                and window.page_stack.height() == page.sizeHint().height()
+                and window.page_stack.contentsRect().contains(page.geometry())
+            )
 
-        wait_for_qt_condition(page_layout_has_converged)
+        wait_for_qt_condition(
+            page_layout_has_converged,
+            description=f"{page_id.value} layout to converge",
+        )
 
         assert page.sizeHint().height() <= page_height_budget, (
             f"{page_id.value} requests {page.sizeHint().height()}px from a "
             f"{page_height_budget}px page stage"
         )
-        assert window.page_stage.contentsRect().contains(
-            window.page_stack.geometry()
-        ), f"{page_id.value} page stack leaves the fixed page stage"
+        assert window.page_stage.verticalScrollBar().maximum() == 0, (
+            f"{page_id.value} creates an installer scrollbar"
+        )
+        stack_rect = QRect(
+            window.page_stack.mapTo(window.page_stage.viewport(), QPoint(0, 0)),
+            window.page_stack.size(),
+        )
+        assert window.page_stage.viewport().contentsRect().contains(stack_rect), (
+            f"{page_id.value} page stack leaves the fixed page stage"
+        )
         assert window.page_stack.contentsRect().contains(page.geometry()), (
             f"{page_id.value} page leaves its stack"
         )
@@ -151,10 +165,12 @@ def test_onboarding_window_stylesheet_refreshes_after_qfluent_theme_switch(
                 _FakeController(draft, OnboardingFlowMode.REPAIR),
             )
         )
-        dark_style = window.styleSheet()
+        dark_style = window.root_container.styleSheet()
 
         with fluent_theme(Theme.LIGHT):
-            wait_for_qt_condition(lambda: window.styleSheet() != dark_style)
+            wait_for_qt_condition(
+                lambda: window.root_container.styleSheet() != dark_style
+            )
 
-            assert window.styleSheet() != dark_style
-            assert "rgba(0, 0, 0, 0.74)" in window.styleSheet()
+            assert window.root_container.styleSheet() != dark_style
+            assert "rgba(0, 0, 0, 0.74)" in window.root_container.styleSheet()

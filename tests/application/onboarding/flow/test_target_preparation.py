@@ -37,9 +37,7 @@ from substitute.domain.onboarding import (
     ReadinessIssueCode,
 )
 
-from .preference_support import (
-    _Bundle,
-)
+from .preference_support import _Bundle, _ExternalModelLibraryConfigurator
 from .runtime_support import (
     _FakeRuntimeLaunchService,
     _FakeSetupTransactionService,
@@ -59,7 +57,8 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
     context = _build_context(tmp_path, ComfyTargetMode.ATTACHED_LOCAL)
     provisioner_kwargs: list[dict[str, object]] = []
     workspace = tmp_path / "ExternalComfy"
-    custom_models = tmp_path / "SharedModels"
+    custom_models = tmp_path / "WebUI" / "models"
+    external_models = _ExternalModelLibraryConfigurator()
 
     def _record_provisioning(**kwargs: object) -> ComfyPythonBinding:
         """Record existing-local workspace preparation arguments."""
@@ -80,6 +79,7 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
         managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
         attached_workspace_provisioner=_record_provisioning,
         entrypoint_path=tmp_path / "main.py",
+        external_model_library_configurator=external_models,
     )
     result = service.provision(
         draft=OnboardingDraftState(
@@ -103,6 +103,7 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
     assert provisioner_kwargs[0]["python_binding"] == _python_binding(workspace)
     assert provisioner_kwargs[0]["model_root"] == custom_models
     assert provisioner_kwargs[0]["configure_model_root"] is True
+    assert external_models.calls == [(workspace, custom_models)]
 
 
 def test_flow_service_rejects_existing_local_without_workspace(

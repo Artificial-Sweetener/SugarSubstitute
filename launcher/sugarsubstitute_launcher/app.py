@@ -257,9 +257,6 @@ def _run_launcher_window(
     from launcher.sugarsubstitute_launcher.application.installation.composition import (
         build_installation_workflow,
     )
-    from launcher.sugarsubstitute_launcher.application.model_onboarding import (
-        build_installer_model_onboarding,
-    )
     from launcher.sugarsubstitute_launcher.localization import (
         build_launcher_localization_runtime,
     )
@@ -275,7 +272,7 @@ def _run_launcher_window(
     if application is None:
         application = QApplication(sys.argv[:1])
     application = cast(QApplication, application)
-    build_launcher_localization_runtime(
+    localization_runtime = build_launcher_localization_runtime(
         application,
         layout=startup_plan.layout,
         locale_override=args.locale_override,
@@ -292,9 +289,7 @@ def _run_launcher_window(
                 output_callback=output_callback,
                 process_starter=start_installed_launcher_handoff,
             ),
-            model_onboarding_service_factory=lambda model_root: (
-                build_installer_model_onboarding(model_root=model_root)
-            ),
+            localization_manager=localization_runtime.manager,
             handoff_geometry=args.handoff_geometry,
         )
         if owns_application:

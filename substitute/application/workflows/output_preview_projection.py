@@ -38,7 +38,7 @@ def overlay_preview_sources(
     *,
     scene_key: str | None,
 ) -> tuple[OutputCanvasSourceGroup, ...]:
-    """Overlay set-one preview slots while preserving final source and set order."""
+    """Overlay previews at their queued-run positions without hiding prior batches."""
 
     sources = list(final_sources)
     source_indices = {source.source_key: index for index, source in enumerate(sources)}
@@ -57,7 +57,7 @@ def overlay_preview_sources(
             continue
         current = sources[source_index]
         images_by_set = dict(current.images_by_set)
-        images_by_set[1] = preview_item
+        images_by_set[_preview_set_index(current, lane)] = preview_item
         sources[source_index] = OutputCanvasSourceGroup(
             source_key=current.source_key,
             label=current.label,
@@ -65,6 +65,30 @@ def overlay_preview_sources(
             label_is_default=current.label_is_default,
         )
     return tuple(sources)
+
+
+def _preview_set_index(
+    source: OutputCanvasSourceGroup,
+    lane: OutputPreviewLane,
+) -> int:
+    """Return the first batch slot owned by the preview's generation run."""
+
+    generation_run_id = lane.key.generation_run_id
+    if not generation_run_id:
+        return 1
+    matching_items = tuple(
+        (set_index, item)
+        for set_index, item in source.images_by_set.items()
+        if item.image_meta.generation_run_id == generation_run_id
+    )
+    if matching_items:
+        return min(
+            set_index - (item.position.batch_index if item.position is not None else 0)
+            for set_index, item in matching_items
+        )
+    if any(item.image_meta.generation_run_id for item in source.images_by_set.values()):
+        return max(source.images_by_set, default=0) + 1
+    return 1
 
 
 def overlay_preview_scenes(

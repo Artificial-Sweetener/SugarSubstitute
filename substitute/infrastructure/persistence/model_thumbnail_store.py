@@ -180,6 +180,7 @@ class ModelThumbnailStore:
         source_path: str | None = None,
         source_width: int | None = None,
         source_height: int | None = None,
+        selection_policy: str = "user_selected_output_canvas",
     ) -> ThumbnailStoreResult | None:
         """Cache a local image as the selected thumbnail for one model."""
 
@@ -221,7 +222,7 @@ class ModelThumbnailStore:
             variants.append(variant)
         return ThumbnailStoreResult(
             source=source,
-            selection_policy="user_selected_output_canvas",
+            selection_policy=selection_policy,
             source_image_url=source_label,
             source_image_id=None,
             nsfw=None,

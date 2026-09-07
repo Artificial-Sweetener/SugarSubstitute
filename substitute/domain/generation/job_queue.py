@@ -56,6 +56,7 @@ class GenerationJobSnapshot:
     )
     direct_workflow_plan: DirectWorkflowGenerationPlan | None = None
     positive_prompt_preview: str | None = None
+    output_session_id: str | None = None
     scene_run_id: str | None = None
     scene_key: str | None = None
     scene_title: str | None = None

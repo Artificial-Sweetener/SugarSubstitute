@@ -37,10 +37,8 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QWidget
 
 
-from substitute.app.bootstrap.execution_runtime import (
-    ExecutionLaneConfig,
-    ExecutionRuntime,
-)
+from substitute.app.bootstrap.execution_lane_configs import ExecutionLaneConfig
+from substitute.app.bootstrap.execution_runtime import ExecutionRuntime
 
 
 from substitute.app.bootstrap.lifecycle import (

@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass, field
 from datetime import datetime
 from inspect import signature
 from pathlib import Path
@@ -62,7 +61,6 @@ from substitute.application.workflows.input_asset_diagnostics import (
 from substitute.domain.common import WorkflowId
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.recipes import parse_sugar_script_document
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
 from substitute.domain.workflow import active_cube_aliases
 from substitute.application.generation.asset_staging_service import (
     ComfyAssetStagingResult,
@@ -70,6 +68,7 @@ from substitute.application.generation.asset_staging_service import (
 from substitute.application.generation.generation_models import (
     GenerationCallbacks,
     GenerationFailure,
+    GenerationRequest,
     GenerationStartResult,
     PreparedGenerationRequest,
     generation_failure_from_listener,
@@ -118,22 +117,6 @@ class _DefaultGenerationPreviewMethodResolver:
         """Return SugarSubstitute's default Comfy preview method."""
 
         return "latent2rgb"
-
-
-@dataclass(frozen=True)
-class GenerationRequest:
-    """Capture immutable request inputs for one generation dispatch."""
-
-    workflow_id: WorkflowId
-    workflow_name: str
-    workflow: RecipeWorkflowLike
-    enabled_node_keys_by_alias: Mapping[str, tuple[str, ...]] = field(
-        default_factory=dict
-    )
-    disabled_node_keys_by_alias: Mapping[str, tuple[str, ...]] = field(
-        default_factory=dict
-    )
-    global_override_scopes: Mapping[str, GlobalOverrideSerializationScope] | None = None
 
 
 class AssetStagingService(Protocol):
@@ -275,6 +258,7 @@ class GenerationService:
                     direct_workflow_plan=direct_plan,
                     workflow=workflow,
                     output_run_number=None,
+                    output_session_id=request.output_session_id,
                 )
                 return self._start_prepared_generation(
                     request=prepared_request,
@@ -309,6 +293,7 @@ class GenerationService:
                 sugar_script_text=sugar_script,
                 workflow=workflow,
                 output_run_number=None,
+                output_session_id=request.output_session_id,
             )
         except Exception as error:
             log_exception(
@@ -520,6 +505,7 @@ class GenerationService:
             workflow_id=request.workflow_id,
             generation_run_id=generation_run_id,
             client_id=run_client_id,
+            output_session_id=request.output_session_id,
             scene_run_id=request.scene_run_id,
             scene_key=request.scene_key,
             scene_title=request.scene_title,
@@ -611,7 +597,9 @@ class GenerationService:
             callbacks.on_run_started,
             workflow_id=request.workflow_id,
             generation_run_id=generation_run_id,
-            output_session_id=request.scene_run_id or generation_run_id,
+            output_session_id=(
+                request.output_session_id or request.scene_run_id or generation_run_id
+            ),
             prompt_id=prompt_id,
             client_id=run_client_id,
             visual_context=visual_context,
@@ -629,6 +617,7 @@ class GenerationService:
                 workflow_name=request.workflow_name,
                 output_run_number=request.output_run_number,
                 output_save_plan=output_save_plan,
+                output_session_id=request.output_session_id,
                 scene_run_id=request.scene_run_id,
                 scene_key=request.scene_key,
                 scene_title=request.scene_title,

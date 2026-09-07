@@ -22,6 +22,9 @@ from collections.abc import Mapping
 from typing import Protocol, cast
 from uuid import UUID
 
+from substitute.application.workflows.output_automatic_frontier_projection import (
+    automatic_frontier_image_ids,
+)
 from substitute.application.workflows.canvas_route_projector_port import (
     CanvasRouteIdentity,
 )
@@ -41,6 +44,7 @@ from substitute.application.workflows.output_preview_registry import (
 from substitute.application.workflows.output_scene_navigation_selection import (
     OutputSceneNavigationSelection,
 )
+from substitute.domain.workflow import OutputFocusMode
 from substitute.presentation.canvas.output.output_canvas_navigation_chrome import (
     update_output_tabbar_container,
 )
@@ -114,14 +118,22 @@ class OutputPreviewNavigationPresenter:
 
         self._host = cast(_OutputPreviewNavigationHost, host)
         self._locked = False
+        self._automatic_preview_id: UUID | None = None
 
     def restore_selection(
         self,
+        previous_scene_key: str | None,
+        previous_scene_overview: bool,
         previous_source_key: str | None,
         previous_set_index: int,
     ) -> None:
         """Preserve a user-selected placeholder across final projection refreshes."""
 
+        if self._restore_automatic_preview(
+            previous_scene_key=previous_scene_key,
+            previous_scene_overview=previous_scene_overview,
+        ):
+            return
         if not self._locked:
             return
         source = self._host._document_navigation.visible_sources().get(
@@ -134,6 +146,8 @@ class OutputPreviewNavigationPresenter:
             return
         self._host.active_source_key = previous_source_key
         self._host.active_set_index = previous_set_index
+        self._host.active_scene_key = previous_scene_key
+        self._host.active_scene_overview = previous_scene_overview
 
     def present_active_item(self, projection: OutputCanvasProjection) -> bool:
         """Present the active final or preview item from the overlaid projection."""
@@ -156,31 +170,48 @@ class OutputPreviewNavigationPresenter:
         return True
 
     def present_source_preview(self, preview_id: UUID, is_new: bool) -> None:
-        """Stream a placeholder without stealing deliberate earlier-source focus."""
+        """Follow an arriving source in Auto without stealing Manual navigation."""
 
         lane = self._host._preview_registry.lane_for_id(preview_id)
         if lane is None or self._host.active_scene_overview:
             return
         sources = self._host._document_navigation.visible_sources()
-        source_keys = tuple(sources)
-        if lane.key.source_key not in sources:
+        source = sources.get(lane.key.source_key)
+        if source is None:
             return
-        if self._host.active_source_key != lane.key.source_key:
-            source_index = source_keys.index(lane.key.source_key)
-            follows_current_tail = (
-                source_index == 0
-                and self._host.active_source_key is None
-                or source_index > 0
-                and self._host.active_source_key == source_keys[source_index - 1]
-            )
-            if (
-                not is_new
-                or not follows_current_tail
-                or self._host.active_set_index != 1
-            ):
-                return
+        preview_set_index = _source_set_index_for_image(source, preview_id)
+        if preview_set_index is None:
+            return
+        automatic = self._focus_mode() is OutputFocusMode.AUTOMATIC
+        same_source = self._host.active_source_key == lane.key.source_key
+        manual_preview_selection = (
+            same_source and self._host.active_set_index == preview_set_index
+        )
+        manual_batch_grid = (
+            same_source
+            and self._host.active_set_index == 0
+            and len(source.images_by_set) > 1
+        )
+        if not automatic and not (manual_preview_selection or manual_batch_grid):
+            return
+        if automatic and not is_new and not same_source:
+            return
+        automatic_image_ids = automatic_frontier_image_ids(
+            tuple(sources.values()),
+            source_key=source.source_key,
+        )
+        show_batch_grid = len(automatic_image_ids) > 1 and (
+            automatic or manual_batch_grid
+        )
+        if automatic:
+            self._automatic_preview_id = preview_id
             self._host.active_source_key = lane.key.source_key
+            self._host.active_set_index = 0 if show_batch_grid else preview_set_index
             self._host._document_navigation.synchronize_projection()
+            self._host._bind_preview_scope()
+        grid_ids = automatic_image_ids if automatic else _source_image_ids(source)
+        if show_batch_grid and self._host.document.present_grid(grid_ids):
+            return
         self._host.route_projector.apply_final_image_route(
             _preview_route(preview_id),
             preview_id,
@@ -204,6 +235,12 @@ class OutputPreviewNavigationPresenter:
         """Return navigation ownership to durable final outputs."""
 
         self._locked = False
+        self._automatic_preview_id = None
+
+    def release_automatic_follow(self) -> None:
+        """Let a final arriving after the preview become Auto's new frontier."""
+
+        self._automatic_preview_id = None
 
     def present_scene_previews(
         self,
@@ -216,18 +253,42 @@ class OutputPreviewNavigationPresenter:
         preview_scenes = self._host._document_navigation.scene_groups()
         if not preview_scenes:
             return False
-        reported_scene_count = max(
-            (lane.scene_count or 0 for lane in lanes),
-            default=0,
-        )
-        self._host.scene_count = max(
-            self._host.scene_count,
-            reported_scene_count,
-            len(preview_scenes),
-        )
-        if self._host.scene_count > 1 and self._host.active_scene_key is None:
+        self._host.scene_count = len(preview_scenes)
+        automatic = self._focus_mode() is OutputFocusMode.AUTOMATIC
+        if automatic:
+            lane = max(
+                lanes,
+                key=lambda candidate: (
+                    candidate.scene_order if candidate.scene_order is not None else -1
+                ),
+            )
+            self._automatic_preview_id = lane.preview_id
+            if self._host.scene_count == 1 and self._activate_automatic_scene_batch(
+                lane, preview_scenes
+            ):
+                self._host._document_navigation.synchronize_projection()
+                self._host._bind_preview_scope()
+                scene = preview_scenes.get(lane.key.scene_key or "")
+                source = _scene_source(preview_scenes, lane)
+                return (
+                    scene is not None
+                    and source is not None
+                    and self._host.document.present_grid(
+                        automatic_frontier_image_ids(
+                            scene.sources,
+                            source_key=source.source_key,
+                        )
+                    )
+                )
+            self._host.active_scene_key = lane.key.scene_key
+            self._host.active_scene_overview = self._host.scene_count > 1
+        elif self._host.active_scene_key not in preview_scenes:
             self._host.active_scene_key = next(iter(preview_scenes), None)
-            self._host.active_scene_overview = True
+        if automatic and self._host.active_scene_overview:
+            self._host.active_source_key = None
+            self._host.active_set_index = 1
+        self._host._document_navigation.synchronize_projection()
+        self._host._bind_preview_scope()
         if not self._host.active_scene_overview:
             return False
         self._host.document.present_grid(
@@ -236,8 +297,90 @@ class OutputPreviewNavigationPresenter:
                 preview_scenes=preview_scenes,
             )
         )
-        self._host._document_navigation.synchronize_projection()
         return True
+
+    def _restore_automatic_preview(
+        self,
+        *,
+        previous_scene_key: str | None,
+        previous_scene_overview: bool,
+    ) -> bool:
+        """Keep a newer live preview ahead of an older queued projection."""
+
+        preview_id = self._automatic_preview_id
+        if preview_id is None:
+            return False
+        if self._focus_mode() is not OutputFocusMode.AUTOMATIC:
+            self._automatic_preview_id = None
+            return False
+        lane = self._host._preview_registry.lane_for_id(preview_id)
+        if lane is None:
+            self._automatic_preview_id = None
+            return False
+        scenes = self._host._document_navigation.scene_groups()
+        if lane.key.scene_key is not None:
+            self._host.scene_count = len(scenes)
+            if len(scenes) == 1 and self._activate_automatic_scene_batch(lane, scenes):
+                return True
+            self._host.active_scene_overview = len(scenes) > 1
+            self._host.active_scene_key = lane.key.scene_key
+            if self._host.active_scene_overview:
+                self._host.active_source_key = None
+                self._host.active_set_index = 1
+                return True
+        else:
+            self._host.active_scene_overview = previous_scene_overview
+        sources = self._host._document_navigation.visible_sources()
+        source = sources.get(lane.key.source_key)
+        if source is None:
+            self._automatic_preview_id = None
+            return False
+        self._host.active_source_key = source.source_key
+        image_ids = automatic_frontier_image_ids(
+            tuple(sources.values()),
+            source_key=source.source_key,
+        )
+        self._host.active_set_index = (
+            0
+            if len(image_ids) > 1
+            else _source_set_index_for_image(source, preview_id) or 1
+        )
+        return True
+
+    def _activate_automatic_scene_batch(
+        self,
+        lane: OutputPreviewLane,
+        scenes: Mapping[str, OutputCanvasSceneGroup],
+    ) -> bool:
+        """Activate the complete batch route for a scene preview."""
+
+        scene = scenes.get(lane.key.scene_key or "")
+        if scene is None:
+            return False
+        source = _scene_source(scenes, lane)
+        if source is None:
+            return False
+        image_ids = automatic_frontier_image_ids(
+            scene.sources,
+            source_key=source.source_key,
+        )
+        if len(image_ids) <= 1:
+            return False
+        self._host.active_scene_key = scene.scene_key
+        self._host.active_scene_overview = False
+        self._host.active_source_key = source.source_key
+        self._host.active_set_index = 0
+        return True
+
+    def _focus_mode(self) -> OutputFocusMode:
+        """Return the durable navigation mode bound to the visible projection."""
+
+        projection = self._host._output_projection
+        return (
+            projection.focus_mode
+            if projection is not None
+            else OutputFocusMode.AUTOMATIC
+        )
 
     def select_scene(
         self,
@@ -303,14 +446,7 @@ class OutputPreviewNavigationPresenter:
             ),
             None,
         )
-        image_ids = (
-            ()
-            if source is None
-            else tuple(
-                item.image_id
-                for _set_index, item in sorted(source.images_by_set.items())
-            )
-        )
+        image_ids = () if source is None else _source_image_ids(source)
         if not any(
             self._host._preview_registry.lane_for_id(image_id) is not None
             for image_id in image_ids
@@ -318,6 +454,63 @@ class OutputPreviewNavigationPresenter:
             return False
         self.present_grid(image_ids)
         return True
+
+
+def _source_image_ids(source: OutputCanvasSourceGroup) -> tuple[UUID, ...]:
+    """Return one source's image identifiers in batch-position order."""
+
+    return tuple(
+        item.image_id for _set_index, item in sorted(source.images_by_set.items())
+    )
+
+
+def preview_source_grid_image_ids(
+    source: OutputCanvasSourceGroup,
+    registry: OutputPreviewRegistry,
+) -> tuple[UUID, ...]:
+    """Return a source grid only when it contains a transient preview."""
+
+    image_ids = _source_image_ids(source)
+    return (
+        image_ids
+        if any(registry.lane_for_id(image_id) is not None for image_id in image_ids)
+        else ()
+    )
+
+
+def _scene_source(
+    scenes: Mapping[str, OutputCanvasSceneGroup],
+    lane: OutputPreviewLane,
+) -> OutputCanvasSourceGroup | None:
+    """Return the overlaid scene source addressed by one preview lane."""
+
+    scene = scenes.get(lane.key.scene_key or "")
+    if scene is None:
+        return None
+    return next(
+        (
+            source
+            for source in scene.sources
+            if source.source_key == lane.key.source_key
+        ),
+        None,
+    )
+
+
+def _source_set_index_for_image(
+    source: OutputCanvasSourceGroup,
+    image_id: UUID,
+) -> int | None:
+    """Return the batch position occupied by one projected source image."""
+
+    return next(
+        (
+            set_index
+            for set_index, item in source.images_by_set.items()
+            if item.image_id == image_id
+        ),
+        None,
+    )
 
 
 def scene_overview_image_ids(
@@ -361,4 +554,8 @@ def _preview_route(preview_id: UUID) -> CanvasRouteIdentity:
     )
 
 
-__all__ = ["OutputPreviewNavigationPresenter", "scene_overview_image_ids"]
+__all__ = [
+    "OutputPreviewNavigationPresenter",
+    "preview_source_grid_image_ids",
+    "scene_overview_image_ids",
+]

@@ -14,20 +14,18 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify production recovery and zero-model onboarding page contracts."""
+"""Verify the production recovery page contract."""
 
 from pathlib import Path
 
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QLabel, QWidget
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.experience_models import (
     ExperiencePage,
-    ModelCardPresentation,
     RepairChoice,
 )
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
-from sugarsubstitute_shared.model_discovery.models import ModelCategory
 from tests.launcher.installation_workflow.support import (
     close_and_delete_launcher_window,
     release_source_for_test,
@@ -58,41 +56,6 @@ def test_explicit_repair_mode_opens_with_application_repair_selected(
     ).lower()
     assert "projects" in visible_copy
     assert "third-party custom nodes" in visible_copy
+    assert window.view.repair_page.findChildren(QWidget, "OnboardingHeroEyebrow") == []
     assert window.repair_execution.running is False
-    close_and_delete_launcher_window(window)
-
-
-def test_model_onboarding_starts_unchecked_and_records_explicit_selection(
-    tmp_path: Path,
-) -> None:
-    """Neither interests nor provider-ranked model files may be preselected."""
-
-    window = LauncherMainWindow(
-        initial_layout=InstallLayout.from_root(tmp_path / "SugarSubstitute"),
-        continue_install=False,
-        repair=False,
-        update_check_enabled=True,
-        initial_release_source=release_source_for_test(),
-        workflow_factory=workflow_factory(),
-    )
-    window.view.show_model_interests((ModelCategory.CHECKPOINTS, ModelCategory.LORAS))
-    assert window.view.experience_snapshot().selected_categories == ()
-
-    card = ModelCardPresentation(
-        category=ModelCategory.CHECKPOINTS,
-        model_name="Safe sample",
-        version_name="v1",
-        creator="Creator",
-        base_model="SDXL",
-        size_bytes=1024**3,
-        destination=tmp_path / "models" / "checkpoints",
-    )
-    window.view.show_model_gallery((card,))
-    unchecked = window.view.experience_snapshot()
-    assert unchecked.visible_models == (card.identity,)
-    assert unchecked.selected_models == ()
-
-    window.view.model_gallery_page.set_model_selected(card.identity, selected=True)
-
-    assert window.view.experience_snapshot().selected_models == (card.identity,)
     close_and_delete_launcher_window(window)

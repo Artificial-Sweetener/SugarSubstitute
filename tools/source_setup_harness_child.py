@@ -313,6 +313,8 @@ def _run_installed_onboarding(
     )
     process_events()
     click("OnboardingPrimaryButton")
+    wait_for_page("OnboardingExistingModelsQuestionPage")
+    click("OnboardingYesExistingModelsButton")
     wait_for_page("OnboardingFolderSetupPage")
 
     widget(LineEdit, "OnboardingManagedModelRootEdit").setText(
@@ -321,6 +323,12 @@ def _run_installed_onboarding(
     widget(LineEdit, "OnboardingOutputRootEdit").setText(str(install_root / "output"))
     process_events()
     click("OnboardingPrimaryButton")
+    wait_for_page("OnboardingModelRecommendationPage")
+    for _family_index in range(2):
+        click("OnboardingOwnModelChoice")
+        click("OnboardingPrimaryButton")
+        if current_page() != "OnboardingModelRecommendationPage":
+            break
     wait_for_page("OnboardingIntegrationsPage")
     click("OnboardingPrimaryButton")
     wait_for_page("OnboardingProvisioningPage")
@@ -341,7 +349,9 @@ def _run_installed_onboarding(
         if progress != last_progress:
             last_progress = progress
             print(f"HARNESS_PROGRESS {progress}", flush=True)
-        return window.primary_button.text() in {"Review setup", "Try again"}
+        return current_page() == "OnboardingCompletionPage" or (
+            window.primary_button.text() == "Try again"
+        )
 
     _wait_until(
         predicate=provisioning_finished,
@@ -349,7 +359,7 @@ def _run_installed_onboarding(
         description="managed provisioning terminal state",
         process_events=process_events,
     )
-    if window.primary_button.text() != "Review setup":
+    if current_page() != "OnboardingCompletionPage":
         raise SetupHarnessFailure(
             "Managed provisioning failed: "
             f"{window.provisioning_page.status_label.text()} | "
@@ -369,8 +379,6 @@ def _run_installed_onboarding(
             "seconds."
         )
 
-    click("OnboardingPrimaryButton")
-    wait_for_page("OnboardingCompletionPage")
     controller = window._controller
     completion = controller.completion
     if completion is None:

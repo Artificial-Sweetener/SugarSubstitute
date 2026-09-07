@@ -30,6 +30,10 @@ class ModelAcquisitionCancelled(ModelAcquisitionError):
     """Report explicit cancellation after partial artifacts are cleaned up."""
 
 
+class ModelAcquisitionCredentialRequired(ModelAcquisitionError):
+    """Report that a reviewed provider transfer needs an API credential."""
+
+
 @dataclass(frozen=True, slots=True)
 class AcquisitionProgress:
     """Describe verified transfer progress without exposing authentication data."""
@@ -52,5 +56,6 @@ __all__ = [
     "AcquisitionProgress",
     "AcquisitionResult",
     "ModelAcquisitionCancelled",
+    "ModelAcquisitionCredentialRequired",
     "ModelAcquisitionError",
 ]

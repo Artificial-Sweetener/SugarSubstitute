@@ -20,10 +20,12 @@ from sugarsubstitute_shared.model_acquisition.models import (
     AcquisitionProgress,
     AcquisitionResult,
     ModelAcquisitionCancelled,
+    ModelAcquisitionCredentialRequired,
     ModelAcquisitionError,
 )
 from sugarsubstitute_shared.model_acquisition.service import (
     CancellationProbe,
+    DownloadUrlValidator,
     ModelAcquisitionService,
 )
 
@@ -31,7 +33,9 @@ __all__ = [
     "AcquisitionProgress",
     "AcquisitionResult",
     "CancellationProbe",
+    "DownloadUrlValidator",
     "ModelAcquisitionCancelled",
+    "ModelAcquisitionCredentialRequired",
     "ModelAcquisitionError",
     "ModelAcquisitionService",
 ]

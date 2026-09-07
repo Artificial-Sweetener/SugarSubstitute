@@ -25,7 +25,7 @@ from typing import Protocol
 from substitute.application.model_metadata.model_catalog_service import (
     ModelCatalogItem,
 )
-from sugarsubstitute_shared.model_discovery.models import ModelCategory
+from sugarsubstitute_shared.model_discovery.models import ModelArtifactKind
 
 
 class ModelCatalogLookup(Protocol):
@@ -43,7 +43,7 @@ class ModelUsageSink(Protocol):
         *,
         sha256: str,
         path: Path,
-        category: ModelCategory,
+        artifact_kind: ModelArtifactKind,
         model_id: int | None,
         version_id: int | None,
         base_model: str | None,
@@ -70,7 +70,7 @@ class GenerationModelUsageRecorder:
 
         scalar_values = _scalar_strings(workflow_payload)
         recorded_hashes: set[str] = set()
-        for kind, category in _CATEGORIES_BY_KIND.items():
+        for kind, artifact_kind in _ARTIFACT_KINDS_BY_KIND.items():
             for item in self._catalog.list_models(kind):
                 sha256 = item.sha256
                 if (
@@ -82,7 +82,7 @@ class GenerationModelUsageRecorder:
                 self._usage.record_usage(
                     sha256=sha256,
                     path=Path(item.relative_path),
-                    category=category,
+                    artifact_kind=artifact_kind,
                     model_id=_optional_positive_int(item.provider_model_id),
                     version_id=_optional_positive_int(item.provider_model_version_id),
                     base_model=item.base_model,
@@ -116,13 +116,13 @@ def _optional_positive_int(value: str | None) -> int | None:
     return parsed if parsed > 0 else None
 
 
-_CATEGORIES_BY_KIND = {
-    "checkpoints": ModelCategory.CHECKPOINTS,
-    "diffusion_models": ModelCategory.DIFFUSION_MODELS,
-    "loras": ModelCategory.LORAS,
-    "vae": ModelCategory.VAE,
-    "controlnet": ModelCategory.CONTROLNET,
-    "upscale_models": ModelCategory.UPSCALE_MODELS,
+_ARTIFACT_KINDS_BY_KIND = {
+    "checkpoints": ModelArtifactKind.CHECKPOINTS,
+    "diffusion_models": ModelArtifactKind.DIFFUSION_MODELS,
+    "loras": ModelArtifactKind.LORAS,
+    "vae": ModelArtifactKind.VAE,
+    "controlnet": ModelArtifactKind.CONTROLNET,
+    "upscale_models": ModelArtifactKind.UPSCALE_MODELS,
 }
 
 

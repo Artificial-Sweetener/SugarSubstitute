@@ -26,17 +26,19 @@ from io import BytesIO
 from pathlib import Path
 from threading import Barrier
 import urllib.request
+import urllib.error
 
 import pytest
 
 from sugarsubstitute_shared.model_acquisition import (
     ModelAcquisitionCancelled,
+    ModelAcquisitionCredentialRequired,
     ModelAcquisitionError,
     ModelAcquisitionService,
 )
 from sugarsubstitute_shared.model_discovery.models import (
     DiscoveredModel,
-    ModelCategory,
+    ModelArtifactKind,
 )
 from sugarsubstitute_shared.model_acquisition import service as acquisition_service
 
@@ -89,7 +91,7 @@ def _model(
     """Build one safe discovered model matching supplied bytes."""
 
     model = DiscoveredModel(
-        category=ModelCategory.CHECKPOINTS,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
         model_id=10,
         version_id=20,
         model_name="Sample",
@@ -138,6 +140,36 @@ def test_acquisition_verifies_and_atomically_reveals_exact_file(tmp_path: Path) 
     assert not tuple(result.path.parent.glob("*.part"))
 
 
+def test_authentication_response_requests_a_credential_without_leaving_files(
+    tmp_path: Path,
+) -> None:
+    """Classify provider authentication as recoverable and clean reservations."""
+
+    root = tmp_path / "models"
+
+    def require_credential(*_args: object, **_kwargs: object) -> _Stream:
+        """Raise the provider response used for private downloads."""
+
+        raise urllib.error.HTTPError(
+            "https://civitai.com/api/download/models/20",
+            401,
+            "Unauthorized",
+            HTTPMessage(),
+            None,
+        )
+
+    service = ModelAcquisitionService(
+        allowed_roots=(root,),
+        stream_opener=require_credential,
+    )
+
+    with pytest.raises(ModelAcquisitionCredentialRequired):
+        service.acquire(_model(b"model"), destination_dir=root / "checkpoints")
+
+    assert not tuple(root.rglob("*.part"))
+    assert not tuple(root.rglob("*.safetensors"))
+
+
 def test_hash_mismatch_removes_partial_and_owned_reservation(tmp_path: Path) -> None:
     """Corrupt provider bytes must leave no visible model or partial artifact."""
 
@@ -153,6 +185,27 @@ def test_hash_mismatch_removes_partial_and_owned_reservation(tmp_path: Path) -> 
     with pytest.raises(ModelAcquisitionError, match="checksum"):
         service.acquire(_model(expected), destination_dir=destination)
 
+    assert tuple(destination.iterdir()) == ()
+
+
+def test_declared_response_length_mismatch_leaves_no_owned_files(
+    tmp_path: Path,
+) -> None:
+    """Reject provider length drift before writing a partial or final model."""
+
+    payload = b"trusted-model"
+    root = tmp_path / "models"
+    destination = root / "checkpoints"
+    stream = _Stream(payload, declared_length=len(payload) + 1)
+    service = ModelAcquisitionService(
+        allowed_roots=(root,),
+        stream_opener=lambda _url, _headers, _timeout: stream,
+    )
+
+    with pytest.raises(ModelAcquisitionError, match="response size"):
+        service.acquire(_model(payload), destination_dir=destination)
+
+    assert stream.closed
     assert tuple(destination.iterdir()) == ()
 
 

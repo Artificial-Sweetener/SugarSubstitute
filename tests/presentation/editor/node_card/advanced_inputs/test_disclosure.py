@@ -18,11 +18,14 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QAction
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QWidget
+from substitute.presentation.widgets.action_menu import ActionMenu
 
 from substitute.presentation.editor.panel.node_card.body_layout import (
     CardBodyLayoutState,
@@ -73,7 +76,7 @@ def _open_node_action_menu(
     assert button is not None
     button.click()
     binding = getattr(title_row, "_node_card_action_menu_binding", None)
-    menu = getattr(binding, "_active_menu", None)
+    menu = cast(Any, binding)._menu_controller.menu()
     assert menu is not None
     return menu
 
@@ -126,8 +129,11 @@ def test_mixed_card_hides_advanced_row_until_gear_menu_action_is_activated(
         }
 
         menu = _open_node_action_menu(monkeypatch, mounted.wrapper)
+        assert isinstance(menu, ActionMenu)
         actions = _menu_actions(menu)
         assert [action.text() for action in actions] == ["Show advanced inputs"]
+        assert actions[-1].isCheckable() is True
+        assert actions[-1].isChecked() is False
         actions[-1].trigger()
 
         assert advanced_surface.isHidden() is False
@@ -139,8 +145,13 @@ def test_mixed_card_hides_advanced_row_until_gear_menu_action_is_activated(
         }
         shown_menu = _open_node_action_menu(monkeypatch, mounted.wrapper)
         assert [action.text() for action in _menu_actions(shown_menu)] == [
-            "Hide advanced inputs"
+            "Show advanced inputs"
         ]
+        shown_action = _menu_actions(shown_menu)[-1]
+        assert shown_action.isChecked() is True
+        shown_action.trigger()
+        assert advanced_surface.isHidden() is True
+        assert mounted.cube_state.ui["advanced_input_visibility"] == {"sampler": False}
     finally:
         mounted.destroy()
 
@@ -167,8 +178,9 @@ def test_imported_comfy_disclosure_state_opens_card_without_mutating_values(
     try:
         menu = _open_node_action_menu(monkeypatch, mounted.wrapper)
         assert [action.text() for action in _menu_actions(menu)] == [
-            "Hide advanced inputs"
+            "Show advanced inputs"
         ]
+        assert _menu_actions(menu)[-1].isChecked() is True
         assert _field_surface(mounted.panel, ("A", "7", "cfg")).isHidden() is False
         assert "advanced_input_visibility" not in mounted.cube_state.ui
         assert mounted.cube_state.dirty is False
@@ -204,8 +216,9 @@ def test_advanced_disclosure_survives_card_rebuild_and_definition_refresh(
     try:
         menu = _open_node_action_menu(monkeypatch, mounted.wrapper)
         assert [action.text() for action in _menu_actions(menu)] == [
-            "Hide advanced inputs"
+            "Show advanced inputs"
         ]
+        assert _menu_actions(menu)[-1].isChecked() is True
         assert (
             _field_surface(mounted.panel, ("A", "sampler", "cfg")).isHidden() is False
         )

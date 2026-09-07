@@ -22,8 +22,8 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QPlainTextEdit
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtWidgets import QPlainTextEdit, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     LineEdit,
     PrimaryPushButton,
@@ -45,6 +45,12 @@ from substitute.presentation.onboarding.onboarding_window import (
 from substitute.presentation.shell.window_effects import ShellBackdropMode
 from substitute.presentation.shell.window_frame import SubstituteWindowFrame
 from substitute.presentation.widgets.spin_box import SpinBox
+from sugarsubstitute_shared.presentation.installer_surface import (
+    INSTALLER_BRAND_BAR_HEIGHT,
+    INSTALLER_WORDMARK_OPTICAL_Y_OFFSET,
+    InstallerBodyMaterialSurface,
+    InstallerBrandBar,
+)
 
 from tests.support.qt.lifecycle import ensure_qt_application
 
@@ -74,8 +80,8 @@ def test_onboarding_window_uses_handoff_geometry(tmp_path: Path) -> None:
 
     assert window.geometry().x() == 20
     assert window.geometry().y() == 30
-    assert window.width() == 1260
-    assert window.height() == 800
+    assert window.width() == 1180
+    assert window.height() == 760
     window._emit_close_requested_on_close = False
     window.close()
 
@@ -86,7 +92,7 @@ def test_onboarding_window_builds_all_required_pages(
 ) -> None:
     """Window should materialize every dedicated onboarding page."""
 
-    ensure_qt_application()
+    application = ensure_qt_application()
     monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
@@ -102,13 +108,16 @@ def test_onboarding_window_builds_all_required_pages(
             _FakeController(draft, OnboardingFlowMode.REPAIR),
         )
     )
+    window.show()
+    application.processEvents()
     frame_layout = window.layout()
     assert frame_layout is not None
     root_layout = window.root_container.layout()
     assert root_layout is not None
 
     assert isinstance(window, SubstituteWindowFrame)
-    assert window._backdrop_mode is ShellBackdropMode.MICA
+    assert window._backdrop_mode is ShellBackdropMode.MICA_ALT
+    assert "background: transparent" in window.root_container.styleSheet()
     assert window.bodyMaterialSurface is None
     assert window.menuContainer is None
     assert frame_layout.contentsMargins().top() == 0
@@ -118,16 +127,32 @@ def test_onboarding_window_builds_all_required_pages(
     assert window.titleBar.minBtn.isHidden() is True
     assert window.titleBar.maxBtn.isHidden() is True
     assert window.titleBar.closeBtn.isHidden() is False
+    assert window.titleBar.height() == INSTALLER_BRAND_BAR_HEIGHT
+    assert window.titleBar.closeBtn.geometry().top() == 0
+    assert window.titleBar.closeBtn.geometry().right() == window.titleBar.rect().right()
+    for drag_point in (
+        QPoint(80, 20),
+        QPoint(180, INSTALLER_BRAND_BAR_HEIGHT // 2),
+        QPoint(600, INSTALLER_BRAND_BAR_HEIGHT - 8),
+        QPoint(980, INSTALLER_BRAND_BAR_HEIGHT // 2),
+    ):
+        assert window.titleBar.canDrag(drag_point)
     assert not window.windowIcon().isNull()
-    assert isinstance(window.app_icon, QLabel)
-    assert window.app_icon.pixmap() is not None
-    assert not window.app_icon.pixmap().isNull()
+    assert window.brand_bar.wordmark.renderer().isValid()
+    wordmark_top = window.brand_bar.wordmark.mapTo(
+        window.brand_bar,
+        QPoint(0, 0),
+    ).y()
+    centered_wordmark_top = (
+        window.brand_bar.height() - window.brand_bar.wordmark.height()
+    ) // 2
+    assert wordmark_top == centered_wordmark_top + INSTALLER_WORDMARK_OPTICAL_Y_OFFSET
     close_hit = window.titleBar.closeBtn.mapTo(
         window, window.titleBar.closeBtn.rect().center()
     )
     assert window.childAt(close_hit) is window.titleBar.closeBtn
-    assert window.page_stack.count() == 13
-    assert window.page_stack.parentWidget() is window.page_stage
+    assert window.page_stack.count() == 16
+    assert window.page_stack.parentWidget() is window.page_scroll_content
     assert (
         window.attached_python_choice_page.objectName()
         == "OnboardingAttachedPythonChoicePage"
@@ -143,11 +168,23 @@ def test_onboarding_window_builds_all_required_pages(
     assert window.folder_setup_page.objectName() == "OnboardingFolderSetupPage"
     assert window.integrations_page.objectName() == "OnboardingIntegrationsPage"
     assert isinstance(window.install_root_page.install_root_edit, LineEdit)
-    assert len(window.step_items) == 4
-    assert window.flow_title_label.text() == "Repair"
-    assert window.progress_count_label.text() == "Step 1 of 4"
-    assert window.progress_title_label.text() == "Choose a folder"
+    assert isinstance(window.brand_bar, InstallerBrandBar)
+    assert isinstance(window.content_panel, InstallerBodyMaterialSurface)
+    assert window.brand_bar.progress_caption.text() == "Step 2 of 5 · Choose a folder"
+    assert window.findChild(QWidget, "OnboardingRailTitle") is None
+    assert window.findChild(QWidget, "OnboardingStepItem") is None
+    assert window.findChildren(QWidget, "OnboardingHeroEyebrow") == []
     assert window.identity_rail.styleSheet() == ""
+    assert window.root_container.testAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+    assert window.content_surface.testAttribute(
+        Qt.WidgetAttribute.WA_NoSystemBackground
+    )
+    assert window.identity_rail.testAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+    assert window.brand_bar.testAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+    header_pixel = window.root_container.grab().toImage().pixelColor(600, 60)
+    body_pixel = window.root_container.grab().toImage().pixelColor(600, 300)
+    assert header_pixel.alpha() == 0
+    assert body_pixel.alpha() > 0
     assert len(window.target_mode_page.mode_cards) == 3
     assert window.target_mode_page.findChildren(SegmentedWidget) == []
     managed_card = window.target_mode_page.mode_cards[
@@ -171,8 +208,10 @@ def test_onboarding_window_builds_all_required_pages(
     assert log_view.toPlainText() == ""
     assert log_view.horizontalScrollBarPolicy() is Qt.ScrollBarPolicy.ScrollBarAlwaysOff
     assert not hasattr(window.provisioning_page, "progress_bar")
-    assert log_view.maximumHeight() == 390
-    assert log_view.minimumHeight() == 320
+    assert window.provisioning_page.details_container.isHidden() is True
+    assert window.provisioning_page.overall_progress_bar.maximum() == 100
+    assert log_view.maximumHeight() == 280
+    assert log_view.minimumHeight() == 220
     assert (
         window.integrations_page.danbooru_image_policy_combo.currentData()
         == "safe_only"

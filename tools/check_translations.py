@@ -48,9 +48,13 @@ _LAUNCHER_CONTEXT = "LauncherMainWindow"
 _IDENTITY_ALLOWED = frozenset(
     {
         "ComfyUI",
+        "Anima",
+        "FLUX.2",
+        "Illustrious SDXL",
         "PySide6",
         "PySide6-Fluent-Widgets",
         "QPane",
+        "SDXL",
         "Qt for Python",
         "Python: %1",
         "Sugar-DSL",

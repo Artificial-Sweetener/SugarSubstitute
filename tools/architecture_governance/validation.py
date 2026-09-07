@@ -72,6 +72,11 @@ def validate_repository(
     )
 
     diagnostics.extend(validate_crash_boundary_policy(root, policy))
+    from tools.architecture_governance.menu_button_policy import (
+        validate_menu_button_policy,
+    )
+
+    diagnostics.extend(validate_menu_button_policy(root, policy))
     if (root / "substitute/app/bootstrap/persistent_cache_catalog.py").is_file():
         from tools.cache_governance.validation import validate_cache_governance
 
