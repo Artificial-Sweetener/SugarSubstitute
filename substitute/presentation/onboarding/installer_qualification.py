@@ -25,7 +25,7 @@ from typing import Literal, TypeAlias, TypeVar, cast
 
 from PySide6.QtCore import QCoreApplication, QObject, QTimer, Qt, Slot
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QAbstractButton, QApplication, QWidget
 from qfluentwidgets import LineEdit, RadioButton  # type: ignore[import-untyped]
 
 from substitute.presentation.onboarding.onboarding_window import OnboardingWindow
@@ -201,7 +201,6 @@ class OnboardingQualificationDriver(QObject):
                 )
             self._plan.record("onboarding.completion.ready")
             self._click_terminal_action("OnboardingPrimaryButton")
-            self._plan.record("onboarding.open_substitute.clicked")
         except Exception as error:
             self._record_failure(error)
 
@@ -266,18 +265,20 @@ class OnboardingQualificationDriver(QObject):
         self._mouse_click(control)
 
     def _click_terminal_action(self, object_name: str) -> None:
-        """Click the final action without entering another nested Qt event wait."""
+        """Schedule the final action on the outer Qt event loop."""
 
         self._wait_until(
             lambda: self._control_is_clickable(object_name),
             f"clickable control {object_name}",
         )
-        control = self._clickable_control(object_name)
-        QTest.mouseClick(
-            control,
-            Qt.MouseButton.LeftButton,
-            pos=control.rect().center(),
-        )
+        control = self._widget(QAbstractButton, object_name)
+        QTimer.singleShot(0, lambda: self._activate_terminal_action(control))
+
+    def _activate_terminal_action(self, control: QAbstractButton) -> None:
+        """Record and activate the close-owning action after automation returns."""
+
+        self._plan.record("onboarding.open_substitute.clicked")
+        control.click()
 
     def _clickable_control(self, object_name: str) -> QWidget:
         """Return one enabled, visible production control for qualification."""
