@@ -18,9 +18,6 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPaintEvent, QPainter
 from PySide6.QtSvgWidgets import QSvgWidget
@@ -38,6 +35,9 @@ from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
 )
 
 from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.installer_resources import (
+    installer_wordmark_path,
+)
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
 
@@ -67,28 +67,6 @@ def expose_native_material(widget: QWidget) -> None:
     widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
     widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
     widget.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
-
-
-def installer_wordmark_path() -> Path:
-    """Return the README wordmark from source or a frozen launcher bundle."""
-
-    packaged_path = (
-        Path(getattr(sys, "_MEIPASS", ""))
-        / "launcher_assets"
-        / "sugarsubstitute-logo.svg"
-    )
-    if packaged_path.is_file():
-        return packaged_path
-
-    source_path = (
-        Path(__file__).resolve().parents[2]
-        / "docs"
-        / "readme"
-        / "sugarsubstitute-logo.svg"
-    )
-    if source_path.is_file():
-        return source_path
-    raise FileNotFoundError(f"Installer wordmark is missing: {source_path}")
 
 
 def center_installer_window(window: QWidget) -> bool:
