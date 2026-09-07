@@ -116,7 +116,14 @@ def test_manual_cube_output_selection_is_not_stolen_by_later_preview(
         "alpha",
         {"text": 1, "upscale": 1},
     )
+    harness.click_output_source_tab("alpha:upscale")
     harness.click_output_source_tab("alpha:text")
+    harness.wait_until(
+        lambda: (
+            harness.fingerprint().workflow_output_focus_modes["workflow-alpha"]
+            == "manual"
+        )
+    )
     run = harness.start_run(
         "alpha",
         run_index=10,
