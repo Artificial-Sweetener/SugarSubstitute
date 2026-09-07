@@ -24,6 +24,7 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
+from PySide6.QtWidgets import QAbstractButton
 
 
 from sugarsubstitute_shared.installer_qualification import (
@@ -127,15 +128,17 @@ def test_managed_qualification_applies_explicit_cpu_choice(tmp_path: Path) -> No
     }
 
 
-def test_terminal_onboarding_click_does_not_enter_nested_event_wait(
+def test_terminal_onboarding_action_runs_on_outer_event_loop(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The Open action should return directly to the outer application event loop."""
+    """The Open action should not destroy its widget during a synthetic mouse event."""
 
-    clicks: list[tuple[object, object, object]] = []
+    events: list[str] = []
     waits: list[str] = []
-    center = object()
-    control = SimpleNamespace(rect=lambda: SimpleNamespace(center=lambda: center))
+    control = SimpleNamespace(click=lambda: events.append("control.click"))
+    plan = SimpleNamespace(
+        record=lambda event: events.append(event),
+    )
 
     def wait_until(predicate: object, description: str) -> None:
         """Require the terminal control to become visible before its final click."""
@@ -144,17 +147,34 @@ def test_terminal_onboarding_click_does_not_enter_nested_event_wait(
         assert predicate() is True
         waits.append(description)
 
+    def activate_terminal(candidate: object) -> None:
+        """Invoke the production activation helper from the scheduled callback."""
+
+        OnboardingQualificationDriver._activate_terminal_action(
+            driver,
+            cast(QAbstractButton, candidate),
+        )
+
+    def schedule_terminal(_delay: int, callback: object) -> None:
+        """Run the captured callback after recording its event-loop handoff."""
+
+        assert callable(callback)
+        events.append("scheduled")
+        callback()
+
     driver = cast(
         OnboardingQualificationDriver,
         SimpleNamespace(
-            _clickable_control=lambda _name: control,
+            _activate_terminal_action=activate_terminal,
             _control_is_clickable=lambda _name: True,
             _wait_until=wait_until,
+            _widget=lambda _type, _name: control,
+            _plan=plan,
         ),
     )
     monkeypatch.setattr(
-        "substitute.presentation.onboarding.installer_qualification.QTest.mouseClick",
-        lambda clicked, button, *, pos: clicks.append((clicked, button, pos)),
+        "substitute.presentation.onboarding.installer_qualification.QTimer.singleShot",
+        schedule_terminal,
     )
     monkeypatch.setattr(
         OnboardingQualificationDriver,
@@ -169,8 +189,9 @@ def test_terminal_onboarding_click_does_not_enter_nested_event_wait(
         "OnboardingPrimaryButton",
     )
 
-    assert len(clicks) == 1
     assert waits == ["clickable control OnboardingPrimaryButton"]
-    clicked_control, _button, click_position = clicks[0]
-    assert clicked_control is control
-    assert click_position is center
+    assert events == [
+        "scheduled",
+        "onboarding.open_substitute.clicked",
+        "control.click",
+    ]
