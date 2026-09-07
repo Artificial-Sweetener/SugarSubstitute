@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QCoreApplication, QObject, QTimer, Qt, Slot
 from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QAbstractButton
 
 from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationPlan,
@@ -112,14 +113,15 @@ class InstallerQualificationDriver(QObject):
                 title=self._window.windowTitle(),
                 primary_action=button.text(),
             )
-            QTest.mouseClick(
-                button,
-                Qt.MouseButton.LeftButton,
-                pos=button.rect().center(),
-            )
-            self._plan.record("installer.install.clicked")
+            QTimer.singleShot(0, lambda: self._activate_install_action(button))
         except Exception as error:
             self._record_driver_failure(error)
+
+    def _activate_install_action(self, control: QAbstractButton) -> None:
+        """Record and activate the handoff-owning action outside a mouse event."""
+
+        self._plan.record("installer.install.clicked")
+        control.click()
 
     def _record_driver_failure(self, error: Exception) -> None:
         """Record one automation-contract failure and stop qualification."""

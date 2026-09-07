@@ -160,76 +160,6 @@ def prepare_qualification_evidence(
     )
 
 
-def run_current_installer_ui(
-    *,
-    installer_path: Path,
-    install_root: Path,
-    manifest_url: str | None,
-    environment: dict[str, str],
-    timeout_seconds: float = _INSTALL_TIMEOUT_SECONDS,
-) -> None:
-    """Launch packaged setup normally and let its real Install action run."""
-
-    command = [
-        str(installer_path.resolve()),
-        f"--install-root={install_root.resolve()}",
-    ]
-    if manifest_url is not None:
-        command.append(f"--manifest-url={manifest_url}")
-    try:
-        result = subprocess.run(
-            command,
-            cwd=installer_path.resolve().parent,
-            env=environment,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout_seconds,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as error:
-        diagnostics = _installer_failure_diagnostics(
-            install_root=install_root,
-            environment=environment,
-        )
-        raise InstallerLifecycleError(
-            f"Installer UI did not complete within {timeout_seconds:g} seconds.\n"
-            f"stdout:\n{_timeout_output(error.stdout)}\n"
-            f"stderr:\n{_timeout_output(error.stderr)}\n"
-            f"{diagnostics}"
-        ) from error
-    if result.returncode != 0:
-        diagnostics = _installer_failure_diagnostics(
-            install_root=install_root,
-            environment=environment,
-        )
-        raise InstallerLifecycleError(
-            f"Installer UI exited with {result.returncode}.\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}\n"
-            f"{diagnostics}"
-        )
-
-
-def _installer_failure_diagnostics(
-    *,
-    install_root: Path,
-    environment: dict[str, str],
-) -> str:
-    """Expose token-bound UI events and launcher logs after a failed install."""
-
-    plan = InstallerQualificationPlan.from_environment(environment)
-    event_log = (
-        diagnostic_tail(plan.event_log_path)
-        if plan is not None
-        else "Qualification plan was not inherited."
-    )
-    launcher_log = diagnostic_tail(
-        InstallLayout.from_root(install_root).logs_dir / "launcher.log"
-    )
-    return f"qualification events:\n{event_log}\nlauncher log:\n{launcher_log}"
-
-
 def launch_installed_candidate(
     *,
     install_root: Path,
@@ -470,16 +400,6 @@ def diagnostic_tail(path: Path, *, maximum_lines: int = 80) -> str:
     return "\n".join(lines[-maximum_lines:])
 
 
-def _timeout_output(output: bytes | str | None) -> str:
-    """Render bounded subprocess timeout output without losing byte diagnostics."""
-
-    if output is None:
-        return "<no output>"
-    if isinstance(output, bytes):
-        return output.decode("utf-8", errors="replace")
-    return output
-
-
 def _wait_for_readiness_receipt(
     *,
     readiness_path: Path,
@@ -714,7 +634,6 @@ __all__ = [
     "launch_installed_candidate",
     "prepare_qualification_evidence",
     "process_tree_diagnostics",
-    "run_current_installer_ui",
     "terminate_verified_process",
     "verify_main_shell_evidence",
 ]

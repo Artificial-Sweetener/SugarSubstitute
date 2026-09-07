@@ -1373,15 +1373,14 @@ next_extraction = "Extract native process/desktop control and historical evidenc
 id = "SS-ARCH-097"
 owner = "installer UI qualification"
 paths = ["tools/ci/installer_ui_qualification.py"]
-fingerprint = "sha256:e45336aefb7e3c6689a7ab4960fea36f1bec280c72fa289f7e53496dd6b4c54b"
+fingerprint = "sha256:95b3a0139186c4194f8a97f790f6bd1a30b66af3e95883d5e5f8fa128a80b665"
 issue = "chore:SS-ARCH-097"
 review_by = 2026-12-15
 responsibilities = [
   "qualification evidence preparation",
-  "current installer execution",
   "installed candidate launch",
   "shell and event-sequence verification",
   "cross-platform process termination",
   "readiness receipt and startup trace interpretation",
 ]
-next_extraction = "Extract installed-process lifecycle and evidence/trace verification from qualification workflow orchestration; durable installed-version evidence now has an independent owner."
+next_extraction = "Extract installed-candidate process lifecycle and evidence/trace verification from qualification workflow orchestration."
