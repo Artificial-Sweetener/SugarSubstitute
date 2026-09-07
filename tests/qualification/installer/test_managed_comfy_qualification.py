@@ -74,13 +74,15 @@ def test_fresh_install_rejects_multiple_setup_evidence_generations(
         assert_real_managed_comfy(install_root=plan.install_root, plan=plan)
 
 
-def test_cpu_qualification_accepts_exact_optional_triton_import_failure(
+@pytest.mark.parametrize("force_cpu_mode", (False, True))
+def test_qualification_accepts_exact_optional_triton_import_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    force_cpu_mode: bool,
 ) -> None:
-    """CPU CI should not require SimpleSyrup nodes after its optional Triton error."""
+    """CI should not require SimpleSyrup nodes after its optional Triton error."""
 
-    plan = _managed_plan(tmp_path)
+    plan = _managed_plan(tmp_path, force_cpu_mode=force_cpu_mode)
     _write_managed_runtime(plan)
     _write_setup_records(plan, "candidate")
     (plan.install_root / "managed-comfy-startup.log").write_text(
@@ -105,7 +107,7 @@ def test_cpu_qualification_accepts_exact_optional_triton_import_failure(
         "/tmp/comfyui/custom_nodes/SimpleSyrup: unrelated failure\n",
     ),
 )
-def test_cpu_qualification_rejects_other_missing_simple_syrup_nodes(
+def test_qualification_rejects_other_missing_simple_syrup_nodes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     startup_log: str,
@@ -129,7 +131,11 @@ def test_cpu_qualification_rejects_other_missing_simple_syrup_nodes(
         assert_real_managed_comfy(install_root=plan.install_root, plan=plan)
 
 
-def _managed_plan(tmp_path: Path) -> InstallerQualificationPlan:
+def _managed_plan(
+    tmp_path: Path,
+    *,
+    force_cpu_mode: bool = True,
+) -> InstallerQualificationPlan:
     """Build one managed-local qualification plan."""
 
     return InstallerQualificationPlan(
@@ -142,7 +148,7 @@ def _managed_plan(tmp_path: Path) -> InstallerQualificationPlan:
         target_mode="managed_local",
         managed_workspace_path=(tmp_path / "comfyui").resolve(),
         managed_model_root=(tmp_path / "models").resolve(),
-        force_cpu_mode=True,
+        force_cpu_mode=force_cpu_mode,
     )
 
 
