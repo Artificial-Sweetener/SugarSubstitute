@@ -29,6 +29,9 @@ from sugarsubstitute_shared.application_instance_protocol import (
 )
 
 
+_ACCEPT_POLL_SECONDS = 0.25
+
+
 class SocketInstanceConnection:
     """Frame messages over one local stream socket."""
 
@@ -93,11 +96,13 @@ class SocketInstanceListener:
         """Retain an already-listening socket."""
 
         self._listener = listener
+        self._listener.settimeout(_ACCEPT_POLL_SECONDS)
 
     def accept(self) -> ApplicationInstanceConnection:
         """Accept and authorize one same-user local connection."""
 
         connection, _address = self._listener.accept()
+        connection.settimeout(None)
         wrapped = SocketInstanceConnection(connection)
         if not wrapped.peer_is_current_user():
             wrapped.close()

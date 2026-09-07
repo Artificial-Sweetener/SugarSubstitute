@@ -184,25 +184,24 @@ class OnboardingQualificationDriver(QObject):
             self._wait_for_page("OnboardingIntegrationsPage")
             self._click("OnboardingPrimaryButton")
             self._wait_for_page("OnboardingProvisioningPage")
-            self._wait_until(
-                lambda: self._widget(
-                    QWidget,
-                    "OnboardingPrimaryButton",
-                ).isEnabled(),
-                "remote provisioning result",
-            )
-            if self._window._controller.completion is None:
-                raise RuntimeError("Remote setup did not reach its review action.")
-            self._activate_page_transition("OnboardingPrimaryButton")
-            self._wait_for_page("OnboardingCompletionPage")
-            if self._window._controller.completion is None:
-                raise RuntimeError(
-                    "Completion did not retain its ready application handoff."
-                )
+            self._wait_for_completion_page()
             self._plan.record("onboarding.completion.ready")
             self._click_terminal_action("OnboardingPrimaryButton")
         except Exception as error:
             self._record_failure(error)
+
+    def _wait_for_completion_page(self) -> None:
+        """Observe provisioning's automatic completion transition without advancing it."""
+
+        self._wait_until(
+            lambda: self._window._controller.completion is not None,
+            "onboarding completion",
+        )
+        self._wait_for_page("OnboardingCompletionPage")
+        if self._window._controller.completion is None:
+            raise RuntimeError(
+                "Completion did not retain its ready application handoff."
+            )
 
     def _configure_managed_target(self) -> None:
         """Enter the real managed workspace and endpoint selected for qualification."""
@@ -273,12 +272,6 @@ class OnboardingQualificationDriver(QObject):
         )
         control = self._widget(QAbstractButton, object_name)
         QTimer.singleShot(0, lambda: self._activate_terminal_action(control))
-
-    def _activate_page_transition(self, object_name: str) -> None:
-        """Activate a reused button without carrying a mouse release to its next page."""
-
-        control = cast(QAbstractButton, self._clickable_control(object_name))
-        control.click()
 
     def _activate_terminal_action(self, control: QAbstractButton) -> None:
         """Record and activate the close-owning action after automation returns."""
