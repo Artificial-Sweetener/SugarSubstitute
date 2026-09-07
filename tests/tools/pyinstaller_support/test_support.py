@@ -34,6 +34,9 @@ from tools.pyinstaller_support import (
     exclude_foreign_windows_icu_binaries,
     resolve_uv_executable,
 )
+from sugarsubstitute_shared.presentation.installer_resources import (
+    INSTALLER_WORDMARK_SOURCE_RELATIVE_PATH,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -79,7 +82,7 @@ def test_build_launcher_data_files_includes_every_runtime_owner(
     assert data_files == (
         (str(icon_path.resolve()), "launcher_assets"),
         (
-            str(repo_root.resolve() / "docs" / "readme" / "sugarsubstitute-logo.svg"),
+            str(repo_root.resolve() / INSTALLER_WORDMARK_SOURCE_RELATIVE_PATH),
             "launcher_assets",
         ),
         (str(tmp_path / "uv"), "launcher_assets"),
