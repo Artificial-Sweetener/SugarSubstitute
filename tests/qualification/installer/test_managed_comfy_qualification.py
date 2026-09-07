@@ -74,6 +74,61 @@ def test_fresh_install_rejects_multiple_setup_evidence_generations(
         assert_real_managed_comfy(install_root=plan.install_root, plan=plan)
 
 
+def test_cpu_qualification_accepts_exact_optional_triton_import_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CPU CI should not require SimpleSyrup nodes after its optional Triton error."""
+
+    plan = _managed_plan(tmp_path)
+    _write_managed_runtime(plan)
+    _write_setup_records(plan, "candidate")
+    (plan.install_root / "managed-comfy-startup.log").write_text(
+        "[WARNING] Error while calling comfy_entrypoint in "
+        "/tmp/comfyui/custom_nodes/SimpleSyrup: No module named 'triton'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        managed_comfy_qualification,
+        "_get_json",
+        lambda url: _managed_response(url, plan, include_simple_syrup=False),
+    )
+
+    assert_real_managed_comfy(install_root=plan.install_root, plan=plan)
+
+
+@pytest.mark.parametrize(
+    "startup_log",
+    (
+        "",
+        "[WARNING] Error while calling comfy_entrypoint in "
+        "/tmp/comfyui/custom_nodes/SimpleSyrup: unrelated failure\n",
+    ),
+)
+def test_cpu_qualification_rejects_other_missing_simple_syrup_nodes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    startup_log: str,
+) -> None:
+    """Keep arbitrary SimpleSyrup import failures blocking release qualification."""
+
+    plan = _managed_plan(tmp_path)
+    _write_managed_runtime(plan)
+    _write_setup_records(plan, "candidate")
+    (plan.install_root / "managed-comfy-startup.log").write_text(
+        startup_log,
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        managed_comfy_qualification,
+        "_get_json",
+        lambda url: _managed_response(url, plan, include_simple_syrup=False),
+    )
+
+    with pytest.raises(InstallerLifecycleError, match="SimpleSyrup"):
+        assert_real_managed_comfy(install_root=plan.install_root, plan=plan)
+
+
 def _managed_plan(tmp_path: Path) -> InstallerQualificationPlan:
     """Build one managed-local qualification plan."""
 
@@ -131,6 +186,8 @@ def _write_setup_records(
 def _managed_response(
     url: str,
     plan: InstallerQualificationPlan,
+    *,
+    include_simple_syrup: bool = True,
 ) -> dict[str, object]:
     """Return complete live managed-Comfy evidence for one endpoint route."""
 
@@ -138,16 +195,17 @@ def _managed_response(
     if url.endswith("/system_stats"):
         return {"system": {"comfyui_version": "0.28.2"}}
     if url.endswith("/object_info"):
-        return {
-            name: {}
-            for name in (
-                "SimpleSyrup.ResizeImageToTarget",
-                "SimpleSyrup.ScaleFactor",
-                "SimpleSyrup.VAEDecodeOptions",
-                "SimpleSyrup.VAEEncodeOptions",
-                "UpscaleModelLoader",
+        node_classes = ["UpscaleModelLoader"]
+        if include_simple_syrup:
+            node_classes.extend(
+                (
+                    "SimpleSyrup.ResizeImageToTarget",
+                    "SimpleSyrup.ScaleFactor",
+                    "SimpleSyrup.VAEDecodeOptions",
+                    "SimpleSyrup.VAEEncodeOptions",
+                )
             )
-        }
+        return {name: {} for name in node_classes}
     if url.endswith("/substitute/v1/capabilities"):
         return {
             "extensionVersion": SUBSTITUTE_BACKEND_REQUIRED_VERSION,
