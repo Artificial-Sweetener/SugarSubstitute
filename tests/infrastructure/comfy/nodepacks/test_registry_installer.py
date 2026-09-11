@@ -27,7 +27,10 @@ from substitute.application.comfy_nodepacks.core_nodepack_reconciliation_plan im
     RegistryInstallOutcome,
 )
 from substitute.domain.comfy_manager import ComfyManagerKind, ComfyManagerRuntime
-from substitute.infrastructure.comfy.nodepack_manifest import CORE_COMFY_NODEPACKS
+from substitute.infrastructure.comfy.nodepack_manifest import (
+    CORE_COMFY_NODEPACKS,
+    CoreComfyNodepack,
+)
 from substitute.infrastructure.comfy.nodepack_registry_installer import (
     ComfyNodepackRegistryInstaller,
 )
@@ -128,6 +131,57 @@ def test_integrated_manager_module_is_used_when_comfy_cli_is_absent(
 
     assert result.outcome is RegistryInstallOutcome.INSTALLED
     assert observed[1:5] == ["-m", "cm_cli", "install", "--exit-on-fail"]
+
+
+@pytest.mark.parametrize("nodepack", CORE_COMFY_NODEPACKS)
+def test_silent_registry_install_reports_named_elapsed_progress(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    nodepack: CoreComfyNodepack,
+) -> None:
+    """Keep both first-party Registry waits visibly alive during child silence."""
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.comfy_manager_runtime.ComfyManagerCommandRunner._module_available",
+        lambda self, module_name: True,
+    )
+    observed_interval: list[float] = []
+
+    def fake_stream(
+        command: list[str],
+        **kwargs: Any,
+    ) -> tuple[int, tuple[str, ...]]:
+        """Drive two long-wait samples through the production callback."""
+
+        _ = command
+        observed_interval.append(kwargs["silence_notification_interval_seconds"])
+        on_silence = kwargs["on_silence"]
+        on_silence(30.0)
+        on_silence(150.0)
+        return 0, (f"[INSTALLED] {nodepack.registry_id}",)
+
+    monkeypatch.setattr(
+        "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
+        fake_stream,
+    )
+    logs: list[str] = []
+
+    ComfyNodepackRegistryInstaller().install_exact(
+        manager_runtime=_runtime(tmp_path, tmp_path / "python.exe"),
+        nodepack=nodepack,
+        on_log=logs.append,
+        env={},
+    )
+
+    node_spec = f"{nodepack.registry_id}@{nodepack.required_version}"
+    assert observed_interval == [30.0]
+    assert logs == [
+        f"[ComfyNodepacks] Asking Comfy Registry for {node_spec}.",
+        f"[ComfyNodepacks] Registry install still running for {node_spec} "
+        "(elapsed=30s).",
+        f"[ComfyNodepacks] Registry install still running for {node_spec} "
+        "(elapsed=2m 30s).",
+    ]
 
 
 @pytest.mark.parametrize(
