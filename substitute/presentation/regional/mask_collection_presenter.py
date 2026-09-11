@@ -25,11 +25,13 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QWidget
 
 from substitute.domain.common import MaskAssociationKey
-from substitute.domain.workflow import WorkflowState
+from substitute.presentation.editor.panel.panel_workflow_projection import (
+    workflow_for_panel,
+)
+from substitute.presentation.regional.color_provider import authored_region_color
 from substitute.presentation.regional.mask_editor_projection import (
     RegionalMaskEditorProjector,
 )
-from substitute.presentation.regional.color_provider import authored_region_color
 
 type _MaskColorProvider = Callable[[int, int], QColor]
 
@@ -39,8 +41,9 @@ class _RegionalPreviewCoordinator(Protocol):
 
     def bind_regional_collection(
         self,
-        workflow: WorkflowState,
         association_key: MaskAssociationKey,
+        *,
+        panel: QWidget,
     ) -> bool:
         """Mount every available CuteCanvas preview for one mask collection."""
 
@@ -52,7 +55,6 @@ class RegionalMaskCollectionPresenter:
         self,
         *,
         input_document: object,
-        active_workflow: Callable[[], WorkflowState | None],
         active_panel: Callable[[], object | None],
         mask_color: _MaskColorProvider,
         preview_coordinator: _RegionalPreviewCoordinator | None = None,
@@ -60,7 +62,6 @@ class RegionalMaskCollectionPresenter:
         """Capture authoritative workflow and linked view boundaries."""
 
         self._input_document = input_document
-        self._active_workflow = active_workflow
         self._active_panel = active_panel
         self._mask_color = mask_color
         self._preview_coordinator = preview_coordinator
@@ -69,7 +70,10 @@ class RegionalMaskCollectionPresenter:
     def refresh(self, association_key: MaskAssociationKey) -> None:
         """Project one current collection without relying on widget-local state."""
 
-        workflow = self._active_workflow()
+        panel = self._active_panel()
+        if not isinstance(panel, QWidget):
+            return
+        workflow = workflow_for_panel(panel)
         if workflow is None:
             return
         collection = workflow.canvas.regional_mask_collection(association_key)
@@ -93,14 +97,11 @@ class RegionalMaskCollectionPresenter:
                         self._mask_color(index, len(materialized_entries)),
                     ),
                 )
-        panel = self._active_panel()
-        if not isinstance(panel, QWidget):
-            return
         self._editor_projector.project_panel(panel, workflow, association_key)
         if self._preview_coordinator is not None:
             self._preview_coordinator.bind_regional_collection(
-                workflow,
                 association_key,
+                panel=panel,
             )
 
 

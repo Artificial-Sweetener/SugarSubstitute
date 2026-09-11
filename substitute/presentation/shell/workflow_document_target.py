@@ -88,11 +88,25 @@ class WorkflowDocumentTargetResolver:
 def _is_blank_default_workflow(workflow: object | None, tab_label: str) -> bool:
     """Return whether a workflow can safely receive a loaded document in place."""
 
+    canvas = getattr(workflow, "canvas", None)
     return bool(
         workflow is not None
         and not getattr(workflow, "stack_order", ())
         and not getattr(workflow, "cubes", {})
         and getattr(workflow, "direct_workflow", None) is None
+        and not getattr(workflow, "global_overrides", {})
+        and not getattr(workflow, "global_override_selections", {})
+        and not getattr(workflow, "override_control_states", {})
+        and not getattr(workflow, "output_image_uuids", ())
+        and getattr(workflow, "active_output_uuid", None) is None
+        and getattr(workflow, "active_output_source_key", None) is None
+        and getattr(workflow, "active_output_scene_key", None) is None
+        and not getattr(canvas, "image_entries", {})
+        and not getattr(canvas, "mask_entries", {})
+        and not getattr(canvas, "regional_mask_collections", {})
+        and not getattr(canvas, "mask_visual_opacities", {})
+        and getattr(canvas, "input_image_uuid", None) is None
+        and getattr(canvas, "active_input_mask_uuid", None) is None
         and is_default_workflow_tab_label(tab_label)
     )
 

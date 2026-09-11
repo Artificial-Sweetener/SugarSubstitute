@@ -56,6 +56,9 @@ class _FluentToolTip(Protocol):
     def adjustSize(self) -> None:
         """Refresh tooltip geometry."""
 
+    def hide(self) -> None:
+        """Hide the tooltip window."""
+
     def size(self) -> QSize:
         """Return current tooltip size."""
 
@@ -98,7 +101,7 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
             id(owner): ref(owner)
         }
         self._hovered_widget_ids: set[int] = set()
-        self._hover_guard_timer = QTimer(self)
+        self._hover_guard_timer: QTimer | None = QTimer(self)
         self._hover_guard_timer.setInterval(_HOVER_GUARD_INTERVAL_MS)
         self._hover_guard_timer.timeout.connect(self._dismiss_if_pointer_outside)
 
@@ -164,7 +167,9 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
         tooltip = self._live_tooltip()
         if tooltip is None:
             return
-        self._hover_guard_timer.start()
+        hover_guard_timer = self._hover_guard_timer
+        if hover_guard_timer is not None and isValid(hover_guard_timer):
+            hover_guard_timer.start()
         configure_tooltip_bounds(tooltip)
         tooltip.adjustSize()
         if self._cursor_anchor:
@@ -262,9 +267,16 @@ class FluentToolTipFilter(ToolTipFilter):  # type: ignore[misc]
     def _dismiss_tooltip(self) -> None:
         """Stop every presentation timer and hide the shared tooltip window."""
 
-        self._hover_guard_timer.stop()
-        self._live_tooltip()
-        super().hideToolTip()
+        hover_guard_timer = self._hover_guard_timer
+        if hover_guard_timer is not None and isValid(hover_guard_timer):
+            hover_guard_timer.stop()
+        tooltip = self._live_tooltip()
+        if isValid(self.timer):
+            super().hideToolTip()
+        else:
+            self.isEnter = False
+            if tooltip is not None:
+                tooltip.hide()
         self.isEnter = bool(self._hovered_widget_ids)
 
     def _live_tooltip(self) -> _FluentToolTip | None:

@@ -200,7 +200,7 @@ Prompt preview:
       <translation>已下载并验证 %1 个模型文件。请重新打开选择器以使用它们。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="66"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="79"></location>
       <source>%1 model recommendation</source>
       <translation>%1 个模型推荐</translation>
     </message>
@@ -215,7 +215,7 @@ Prompt preview:
       <translation>已添加 %1 个模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2161"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2152"></location>
       <source>%1 of %2</source>
       <translation>%1 / %2</translation>
     </message>
@@ -320,7 +320,7 @@ Prompt preview:
       <translation>%1 · %2 · 有可用更新</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_rows.py" line="70"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_rows.py" line="78"></location>
       <source>%1 · by %2 · %3 GiB</source>
       <translation>%1 · 作者 %2 · %3 GiB</translation>
     </message>
@@ -440,7 +440,7 @@ Prompt preview:
       <translation>文件或文件夹名称对于 Windows 来说过长</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="110"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="101"></location>
       <source>A fluent design widgets library for PySide6</source>
       <translation>适用于 PySide6 的 Fluent Design 控件库</translation>
     </message>
@@ -490,7 +490,7 @@ Prompt preview:
       <translation>API 密钥（可选）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="189"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="191"></location>
       <source>API key already saved</source>
       <translation>API 密钥已保存</translation>
     </message>
@@ -535,12 +535,12 @@ Prompt preview:
       <translation>添加</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="372"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="385"></location>
       <source>Add %1 models</source>
       <translation>添加 %1 个模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="370"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="383"></location>
       <source>Add 1 model</source>
       <translation>添加 1 个模型</translation>
     </message>
@@ -575,12 +575,12 @@ Prompt preview:
       <translation>添加自定义标签并隐藏不需要的标签建议。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="153"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="166"></location>
       <source>Add models</source>
       <translation>添加模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="85"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="98"></location>
       <source>Add models from CivitAI</source>
       <translation>从 CivitAI 添加模型</translation>
     </message>
@@ -625,7 +625,7 @@ Prompt preview:
       <translation>全部</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="268"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="270"></location>
       <source>All ratings</source>
       <translation>所有分级</translation>
     </message>
@@ -635,7 +635,7 @@ Prompt preview:
       <translation>所有设置任务均已完成。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="293"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="295"></location>
       <source>Allow all</source>
       <translation>全部允许</translation>
     </message>
@@ -650,7 +650,7 @@ Prompt preview:
       <translation>允许在缺少模型时提供经 CivitAI 验证的下载项。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="289"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="291"></location>
       <source>Allow soft</source>
       <translation>允许软限制内容</translation>
     </message>
@@ -845,7 +845,7 @@ Prompt preview:
       <translation>浏览</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="105"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="118"></location>
       <source>Browse CivitAI</source>
       <translation>浏览 CivitAI</translation>
     </message>
@@ -935,12 +935,12 @@ Prompt preview:
       <translation>已取消 - 未保存任何输出</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2156"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2147"></location>
       <source>Cancelling download...</source>
       <translation>正在取消下载...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2114"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2105"></location>
       <source>Cancelling the model download.</source>
       <translation>正在取消模型下载。</translation>
     </message>
@@ -980,7 +980,7 @@ Prompt preview:
       <translation>检查 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="112"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="125"></location>
       <source>Check links</source>
       <translation>检查链接</translation>
     </message>
@@ -1040,7 +1040,7 @@ Prompt preview:
       <translation>正在检查运行中的 ComfyUI…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="204"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="217"></location>
       <source>Checking model links…</source>
       <translation>正在检查模型链接…</translation>
     </message>
@@ -1135,7 +1135,7 @@ Prompt preview:
       <translation>请先选择模型文件夹，再查看下载内容。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="142"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="153"></location>
       <source>Choose a new size for the Input canvas and its masks</source>
       <translation>为输入画布及其遮罩选择新尺寸</translation>
     </message>
@@ -1185,7 +1185,7 @@ Prompt preview:
       <translation>选择文件夹</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="271"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="284"></location>
       <source>Choose from CivitAI</source>
       <translation>从 CivitAI 选择</translation>
     </message>
@@ -1425,7 +1425,7 @@ Prompt preview:
       <translation>CivitAI 缓存用量</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="315"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="328"></location>
       <source>CivitAI could not check this link right now</source>
       <translation>CivitAI 目前无法检查此链接</translation>
     </message>
@@ -1445,7 +1445,7 @@ Prompt preview:
       <translation>CivitAI 下载整理设置已保存。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="176"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="189"></location>
       <source>CivitAI is a library of community-made image models. Browse it, then paste the links you want below—we'll check that they work with %1.</source>
       <translation>CivitAI 是社区创作的图像模型库。浏览后，将所需链接粘贴到下方；我们会检查它们能否与 %1 配合使用。</translation>
     </message>
@@ -2170,7 +2170,7 @@ Prompt preview:
       <translation>无法安装立方体库所需的节点。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="949"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="954"></location>
       <source>Could not load image: %1</source>
       <translation>无法加载图片：%1</translation>
     </message>
@@ -2225,7 +2225,7 @@ Prompt preview:
       <translation>Cube Library 依赖项已是最新状态。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="546"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="550"></location>
       <source>Cube Library is not available yet. Wait for Substitute BackEnd to finish starting, then try again.</source>
       <translation>立方体库尚不可用。请等待 Substitute 后端完成启动，然后重试。</translation>
     </message>
@@ -2325,7 +2325,7 @@ Prompt preview:
       <translation>立方体库</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="544"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="548"></location>
       <source>Cube picker failed</source>
       <translation>立方体选择器失败</translation>
     </message>
@@ -2588,7 +2588,7 @@ Install these nodes now?</source>
       <translation>下载并打开配方</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2158"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2149"></location>
       <source>Download failed.</source>
       <translation>下载失败。</translation>
     </message>
@@ -2618,7 +2618,7 @@ Install these nodes now?</source>
       <translation>下载此模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1440"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1431"></location>
       <source>Downloading %1</source>
       <translation>正在下载 %1</translation>
     </message>
@@ -2648,7 +2648,7 @@ Install these nodes now?</source>
       <translation>正在下载所选模型文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2160"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2151"></location>
       <source>Downloading...</source>
       <translation>正在下载...</translation>
     </message>
@@ -2843,7 +2843,7 @@ Install these nodes now?</source>
       <translation>导出为 ComfyUI 工作流...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="844"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="816"></location>
       <source>Export workflow failed</source>
       <translation>导出工作流失败</translation>
     </message>
@@ -2883,23 +2883,23 @@ Install these nodes now?</source>
       <translation>无法分配输出运行编号。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="146"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="142"></location>
       <source>Failed to capture Input canvas content for generation.</source>
       <translation>无法捕获用于生成的输入画布内容。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="498"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="155"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="510"></location>
       <source>Failed to connect generation listener session</source>
       <translation>无法连接生成监听会话</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="845"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="817"></location>
       <source>Failed to export workflow: %1</source>
       <translation>无法导出工作流：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="585"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="589"></location>
       <source>Failed to list available cubes. Please verify your cube packages and try again.</source>
       <translation>无法列出可用立方体。请验证立方体包后重试。</translation>
     </message>
@@ -2914,12 +2914,12 @@ Install these nodes now?</source>
       <translation>无法加载生成的图像。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1412"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1403"></location>
       <source>Failed to load recipe: %1</source>
       <translation>无法加载配方：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="1048"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="1041"></location>
       <source>Failed to queue one or more staged cubes. Please try again.</source>
       <translation>无法将一个或多个暂存立方体加入队列。请重试。</translation>
     </message>
@@ -2949,13 +2949,13 @@ Install these nodes now?</source>
       <translation>增量插入立方体后无法刷新编辑器可见性</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="423"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>无法暂存工作流资源 %1.%2：%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="641"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="402"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="656"></location>
       <source>Failed to start generation listener</source>
       <translation>无法启动生成监听</translation>
@@ -3066,7 +3066,7 @@ Install these nodes now?</source>
       <translation>GNU 通用公共许可证 v3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="442"></location>
+      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="444"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>此会话中无法重启 GUI。</translation>
     </message>
@@ -3081,7 +3081,7 @@ Install these nodes now?</source>
       <translation>生成场景时找不到可运行的场景：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="961"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="966"></location>
       <source>Generated image load failed</source>
       <translation>加载生成的图像失败</translation>
     </message>
@@ -3101,7 +3101,7 @@ Install these nodes now?</source>
       <translation>生成行为和生成的文件。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="162"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="158"></location>
       <source>Generation cannot run because every cube has a runtime error.</source>
       <translation>无法生成，因为每个立方体都有运行时错误。</translation>
     </message>
@@ -3296,7 +3296,7 @@ Install these nodes now?</source>
       <translation>隐藏设置日志</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="103"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="94"></location>
       <source>High-performance PySide6 image viewer</source>
       <translation>高性能 PySide6 图像查看器</translation>
     </message>
@@ -3476,7 +3476,7 @@ Install these nodes now?</source>
       <translation>交互</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="309"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="322"></location>
       <source>Invalid CivitAI model link</source>
       <translation>无效的 CivitAI 模型链接</translation>
     </message>
@@ -3686,12 +3686,12 @@ Install these nodes now?</source>
       <translation>LoRA 触发词</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="953"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="958"></location>
       <source>Load Error</source>
       <translation>加载错误</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1411"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1402"></location>
       <source>Load recipe failed</source>
       <translation>加载配方失败</translation>
     </message>
@@ -3736,7 +3736,7 @@ Install these nodes now?</source>
       <translation>正在加载...</translation>
     </message>
     <message>
-      <location filename="../substitute/application/cubes/cube_picker_models.py" line="531"></location>
+      <location filename="../substitute/application/cubes/cube_picker_models.py" line="534"></location>
       <source>Local cubes</source>
       <translation>本地方块</translation>
     </message>
@@ -3876,12 +3876,12 @@ Install these nodes now?</source>
       <translation>手动刷新元数据需要模型类型和值。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="680"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="677"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>无法验证蒙版尺寸</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="617"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="614"></location>
       <source>Mask dimensions do not match</source>
       <translation>蒙版尺寸不匹配</translation>
     </message>
@@ -3971,7 +3971,7 @@ Install these nodes now?</source>
       <translation>模型查找返回了无效结果。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1705"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1696"></location>
       <source>Model download failed</source>
       <translation>模型下载失败</translation>
     </message>
@@ -4673,22 +4673,22 @@ I’ll bring my own</source>
       <translation>粘贴类似 https://github.com/owner/repository 的 URL。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="272"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="285"></location>
       <source>Paste and preview model links.</source>
       <translation>粘贴并预览模型链接。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="221"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="234"></location>
       <source>Paste at least one CivitAI model link.</source>
       <translation>请至少粘贴一个 CivitAI 模型链接。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="137"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="150"></location>
       <source>Paste links above to preview compatible models.</source>
       <translation>在上方粘贴链接以预览兼容模型。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="99"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="112"></location>
       <source>Paste one CivitAI model or version link per line</source>
       <translation>每行粘贴一个 CivitAI 模型或版本链接</translation>
     </message>
@@ -4848,7 +4848,7 @@ I’ll bring my own</source>
       <translation>正在准备应用界面。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2108"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2099"></location>
       <source>Preparing the download.</source>
       <translation>正在准备下载。</translation>
     </message>
@@ -4913,7 +4913,7 @@ I’ll bring my own</source>
       <translation>预览类型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="283"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="296"></location>
       <source>Preview unavailable</source>
       <translation>预览不可用</translation>
     </message>
@@ -4968,7 +4968,7 @@ I’ll bring my own</source>
       <translation>正在配置 ComfyUI-Manager。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="116"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="107"></location>
       <source>PySide6</source>
       <translation>PySide6</translation>
     </message>
@@ -4978,7 +4978,7 @@ I’ll bring my own</source>
       <translation>PySide6 项目网站</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="109"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="100"></location>
       <source>PySide6-Fluent-Widgets</source>
       <translation>PySide6-Fluent-Widgets</translation>
     </message>
@@ -5023,7 +5023,7 @@ I’ll bring my own</source>
       <translation>Python：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="102"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="93"></location>
       <source>QPane</source>
       <translation>QPane</translation>
     </message>
@@ -5038,7 +5038,7 @@ I’ll bring my own</source>
       <translation>Qt WebEngine 不可用，因此无法在此处打开 ComfyUI 设置。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="117"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="108"></location>
       <source>Qt for Python</source>
       <translation>Qt for Python</translation>
     </message>
@@ -5148,7 +5148,7 @@ I’ll bring my own</source>
       <translation>重新停靠画布</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="231"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="239"></location>
       <source>Referenced local image file does not exist.</source>
       <translation>引用的本地图像文件不存在。</translation>
     </message>
@@ -5186,6 +5186,11 @@ I’ll bring my own</source>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1543"></location>
       <source>Refreshing...</source>
       <translation>正在刷新...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="658"></location>
+      <source>Region %1</source>
+      <translation>区域 %1</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_startup_diagnostics/remediation.py" line="220"></location>
@@ -5402,7 +5407,7 @@ No known extension claimant.</source>
       <translation>所需的自定义节点均已安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="203"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="211"></location>
       <source>Required image input has no selected image.</source>
       <translation>必需的图像输入尚未选择图像。</translation>
     </message>
@@ -5692,17 +5697,17 @@ No known extension claimant.</source>
       <translation>SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="285"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="287"></location>
       <source>SFW only</source>
       <translation>仅 SFW</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="264"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="266"></location>
       <source>Safe and questionable</source>
       <translation>安全及存疑</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="260"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="262"></location>
       <source>Safe only</source>
       <translation>仅安全</translation>
     </message>
@@ -6212,12 +6217,12 @@ No known extension claimant.</source>
       <translation>已正常关闭。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="334"></location>
+      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="325"></location>
       <source>Shutdown returned an invalid cleanup result.</source>
       <translation>关闭过程返回了无效的清理结果。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="472"></location>
+      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="458"></location>
       <source>Shutdown timed out before cleanup could finish.</source>
       <translation>清理完成前关闭操作已超时。</translation>
     </message>
@@ -6302,7 +6307,7 @@ No known extension claimant.</source>
       <translation>阶段：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="1046"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="1039"></location>
       <source>Staged cube queue failed</source>
       <translation>暂存立方体队列失败</translation>
     </message>
@@ -6352,7 +6357,7 @@ No known extension claimant.</source>
       <translation>正在开始设置…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2110"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2101"></location>
       <source>Starting the model download.</source>
       <translation>正在开始下载模型。</translation>
     </message>
@@ -6532,7 +6537,7 @@ No known extension claimant.</source>
       <translation>Substitute 无法仅凭 ComfyUI 文件夹识别 Python 环境。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="153"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="149"></location>
       <source>Substitute could not load required live Comfy node definitions.</source>
       <translation>Substitute 无法加载所需的实时 Comfy 节点定义。</translation>
     </message>
@@ -6772,15 +6777,10 @@ No known extension claimant.</source>
       <translation>Substitute 已保存的文件夹设置需要修复</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2798"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2805"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
-    </message>
-    <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="93"></location>
-      <source>Sugar-DSL</source>
-      <translation>Sugar-DSL</translation>
     </message>
     <message>
       <location filename="../substitute/application/about/about_info_service.py" line="86"></location>
@@ -7213,7 +7213,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>托管的 ComfyUI 尚未准备就绪。请继续修复以完成安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2116"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2107"></location>
       <source>The model download failed.</source>
       <translation>模型下载失败。</translation>
     </message>
@@ -7223,7 +7223,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>此目标无法使用模型下载服务。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2112"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2103"></location>
       <source>The model has finished downloading.</source>
       <translation>模型下载已完成。</translation>
     </message>
@@ -7303,11 +7303,6 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>已保存的 ComfyUI 运行环境需要更新扩展</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="94"></location>
-      <source>The scripting language for composing ComfyUI workflows with SugarCubes</source>
-      <translation>使用 SugarCubes 组合 ComfyUI 工作流的脚本语言</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="901"></location>
       <source>The selected Comfy server does not expose environment management.</source>
       <translation>所选 Comfy 服务器不提供环境管理功能。</translation>
@@ -7323,12 +7318,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>所选文件夹不是完整的 ComfyUI 安装。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="682"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="679"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>无法根据已加载的输入图像验证所选蒙版尺寸。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="619"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="616"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>所选蒙版尺寸与已加载的输入图像不匹配。</translation>
     </message>
@@ -7448,12 +7443,12 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>这是该 ComfyUI 地址使用的端口号。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="313"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="326"></location>
       <source>This model is already in your list</source>
       <translation>此模型已在你的列表中</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="311"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="324"></location>
       <source>This model is not compatible with the current family</source>
       <translation>此模型与当前系列不兼容</translation>
     </message>
@@ -7678,7 +7673,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>未知基础模型</translation>
     </message>
     <message>
-      <location filename="../substitute/application/cubes/cube_picker_models.py" line="543"></location>
+      <location filename="../substitute/application/cubes/cube_picker_models.py" line="546"></location>
       <source>Unknown source</source>
       <translation>未知来源</translation>
     </message>
@@ -7818,7 +7813,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>正在更新计划更改的顺序。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2154"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2145"></location>
       <source>Updating the recipe...</source>
       <translation>正在更新配方...</translation>
     </message>
@@ -7998,7 +7993,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>版本：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="103"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="116"></location>
       <source>View %1 on CivitAI</source>
       <translation>在 CivitAI 上查看 %1</translation>
     </message>
@@ -8043,7 +8038,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>正在等待 ComfyUI 准备就绪…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2152"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2143"></location>
       <source>Waiting for the download to start...</source>
       <translation>正在等待下载开始...</translation>
     </message>
@@ -8323,7 +8318,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>托管的 ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2145"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2136"></location>
       <source>model</source>
       <translation>模型</translation>
     </message>
@@ -8343,7 +8338,7 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="545"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="204"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="556"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>提交提示词后未返回 prompt_id</translation>

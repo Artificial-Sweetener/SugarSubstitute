@@ -86,6 +86,7 @@ def test_workflow_tab_signals_route_events_and_tab_structure_autosave(
     events: list[tuple[str, object]] = []
     autosaves: list[SessionAutosaveRequestCategory] = []
     delegated: list[dict[str, object]] = []
+    scheduled: list[object] = []
 
     def reopen_latest_closed_workflow() -> bool:
         """Record a successful reopen request."""
@@ -93,14 +94,22 @@ def test_workflow_tab_signals_route_events_and_tab_structure_autosave(
         events.append(("reopen", None))
         return True
 
-    def materialize_loaded_cube_input_canvas(
+    def duplicate_workflow_input_canvas(
         view: object,
-        workflow_id: str,
-        cube_alias: str,
+        source_workflow_id: str,
+        target_workflow_id: str,
+        *,
+        schedule_next: object,
     ) -> None:
-        """Record the materialization adapter call."""
+        """Record the whole-workflow canvas duplication adapter call."""
 
-        events.append(("materialize", (view, workflow_id, cube_alias)))
+        scheduled.append(schedule_next)
+        events.append(
+            (
+                "duplicate_canvas",
+                (view, source_workflow_id, target_workflow_id),
+            )
+        )
 
     def duplicate_workflow_tab_for_view(**kwargs: object) -> None:
         """Record direct duplicate-owner routing from signal binding."""
@@ -115,8 +124,8 @@ def test_workflow_tab_signals_route_events_and_tab_structure_autosave(
     )
     monkeypatch.setattr(
         signal_binder_mod,
-        "materialize_loaded_cube_input_canvas_for_view",
-        materialize_loaded_cube_input_canvas,
+        "duplicate_workflow_input_canvas_for_view",
+        duplicate_workflow_input_canvas,
     )
     workflow_duplicate_service = SimpleNamespace(name="duplicate-service")
     shell = SimpleNamespace(
@@ -176,11 +185,15 @@ def test_workflow_tab_signals_route_events_and_tab_structure_autosave(
     assert delegated[0]["workflow_workspace"] is shell.workflow_workspace
     assert delegated[0]["workflow_duplicate_service"] is workflow_duplicate_service
     assert delegated[0]["workflow_id"] == "wf-d"
-    materialize = delegated[0]["materialize_loaded_cube_input_canvas"]
-    assert callable(materialize)
-    materialize("wf-copy", "CubeA")
-    assert events[-1] == ("materialize", (shell, "wf-copy", "CubeA"))
-    assert callable(delegated[0]["schedule_rehydration"])
+    rehydrate = delegated[0]["rehydrate_duplicated_input_canvas"]
+    assert callable(rehydrate)
+    rehydrate("wf-d", "wf-copy")
+    assert events[-1] == (
+        "duplicate_canvas",
+        (shell, "wf-d", "wf-copy"),
+    )
+    assert len(scheduled) == 1
+    assert callable(scheduled[0])
 
 
 def test_reopen_closed_workflow_autosaves_only_after_restore() -> None:

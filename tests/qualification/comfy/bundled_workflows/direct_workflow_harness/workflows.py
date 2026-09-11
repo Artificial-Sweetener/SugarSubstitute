@@ -39,6 +39,7 @@ from substitute.presentation.editor.panel.cube_section_build_session import (
 from substitute.presentation.editor.panel.projection_coordinator import (
     EditorPanelProjectionCoordinator,
 )
+from tests.support.passthrough_cube_analysis import PassthroughCubeWorkflowAnalyzer
 from substitute.presentation.editor.panel.widgets.cube_section import CubeSectionView
 from tests.qualification.comfy.bundled_workflows.direct_workflow_harness.shell import (
     DirectWorkflowShell,
@@ -85,6 +86,7 @@ def load_direct_workflow_and_wait(
     shell.shell.node_definition_gateway.install_recorded_definitions(node_definitions)
     service = DirectWorkflowLoadService(
         ComfyWorkflowDocumentRepository(),
+        PassthroughCubeWorkflowAnalyzer(),
         node_definition_gateway=shell.shell.node_definition_gateway,
     )
     workflow = shell.shell.workflow_session_service.get_workflow(

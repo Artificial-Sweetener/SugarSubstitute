@@ -23,6 +23,7 @@ from typing import Mapping, Protocol
 
 from substitute.application.ports import NodeDefinitionGateway, NodeDefinitionHydrator
 from substitute.domain.comfy_workflow import (
+    CanonicalCubeGraphAnalysis,
     ComfyWorkflowConverter,
     DirectWorkflowState,
     executable_node_classes,
@@ -43,18 +44,27 @@ class DirectWorkflowRepository(Protocol):
         """Return one decoded workflow object."""
 
 
+class CubeWorkflowAnalyzer(Protocol):
+    """Normalize Cube-owned regions and analyze topology through SugarCubes."""
+
+    def analyze(self, workflow: JsonObject) -> CanonicalCubeGraphAnalysis:
+        """Return one lossless normalized workflow and Cube-only projection."""
+
+
 class DirectWorkflowLoadService:
     """Build editor-ready direct workflow state from a repository document."""
 
     def __init__(
         self,
         repository: DirectWorkflowRepository,
+        cube_workflow_analyzer: CubeWorkflowAnalyzer,
         converter: ComfyWorkflowConverter | None = None,
         node_definition_gateway: NodeDefinitionGateway | None = None,
     ) -> None:
         """Store filesystem and pure graph conversion collaborators."""
 
         self._repository = repository
+        self._cube_workflow_analyzer = cube_workflow_analyzer
         self._converter = converter or ComfyWorkflowConverter()
         self._node_definition_gateway = node_definition_gateway
 
@@ -62,14 +72,17 @@ class DirectWorkflowLoadService:
         """Load, validate, normalize, and detach one Comfy workflow document."""
 
         source_path = path.resolve()
-        workflow = self._repository.load(source_path)
-        if not _looks_like_ui_workflow(workflow):
+        loaded_workflow = self._repository.load(source_path)
+        if not _looks_like_ui_workflow(loaded_workflow):
             raise ValueError(
                 "JSON is not a Comfy UI workflow: expected top-level nodes and links."
             )
+        analysis = self._cube_workflow_analyzer.analyze(loaded_workflow)
+        workflow = analysis.workflow
         buffer = self._converter.convert(
             workflow,
             node_definitions=self._load_node_definitions(workflow),
+            allow_empty=bool(analysis.instances),
         )
         nodes = buffer.get("nodes")
         node_count = len(nodes) if isinstance(nodes, Mapping) else 0
@@ -83,6 +96,7 @@ class DirectWorkflowLoadService:
             source_path=source_path,
             source_workflow=workflow,
             buffer=buffer,
+            cube_analysis=analysis,
         )
 
     def can_load(self, path: Path) -> bool:
@@ -123,4 +137,8 @@ def _looks_like_ui_workflow(payload: Mapping[str, object]) -> bool:
     )
 
 
-__all__ = ["DirectWorkflowLoadService", "DirectWorkflowRepository"]
+__all__ = [
+    "CubeWorkflowAnalyzer",
+    "DirectWorkflowLoadService",
+    "DirectWorkflowRepository",
+]

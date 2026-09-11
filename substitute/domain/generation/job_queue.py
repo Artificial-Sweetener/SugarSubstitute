@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Literal
 from sugarsubstitute_shared.localization import ApplicationText
 
 from substitute.domain.comfy_workflow import DirectWorkflowGenerationPlan
+from substitute.domain.common import JsonObject
 
 if TYPE_CHECKING:
     from substitute.domain.workflow.models import WorkflowState
@@ -44,11 +45,12 @@ GenerationJobStatus = Literal[
 
 @dataclass(frozen=True)
 class GenerationJobSnapshot:
-    """Store detached workflow inputs captured when Generate was clicked."""
+    """Store a detached generation graph captured when Generate was clicked."""
 
     workflow_id: str
     workflow_name: str
-    sugar_script_text: str
+    cube_workflow: JsonObject | None = None
+    persistence_sugar_script: str | None = None
     workflow: WorkflowState | None = field(
         default=None,
         compare=False,

@@ -22,6 +22,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from substitute.application.ports.comfy_gateway import ListenerOutputSource
+from substitute.infrastructure.comfy.comfy_image_artifact_parser import (
+    parse_comfy_image_artifacts,
+)
 from substitute.infrastructure.comfy.final_image_event import (
     FinalImageEvent,
     FinalImageScene,
@@ -30,7 +33,6 @@ from substitute.infrastructure.comfy.final_image_event import (
 from substitute.infrastructure.comfy.final_image_event_handler import (
     FinalImageEventHandler,
 )
-from substitute.infrastructure.comfy.image_artifact import ComfyImageArtifact
 from substitute.shared.logging.logger import get_logger, log_warning
 
 _LOGGER = get_logger("infrastructure.comfy.standard_executed_image_handler")
@@ -66,7 +68,7 @@ class StandardExecutedImageHandler:
         if data.get("prompt_id") != self.context.prompt_id:
             return False
         source = self.sources_by_node[node_id]
-        artifacts = _parse_image_artifacts(data.get("output"))
+        artifacts = parse_comfy_image_artifacts(data.get("output"))
         if artifacts is None:
             log_warning(
                 _LOGGER,
@@ -99,43 +101,6 @@ class StandardExecutedImageHandler:
             )
         )
         return True
-
-
-def _parse_image_artifacts(output: object) -> tuple[ComfyImageArtifact, ...] | None:
-    """Parse canonical ``executed.output.images`` artifact references."""
-
-    if output is None:
-        return ()
-    if not isinstance(output, Mapping):
-        return None
-    raw_images = output.get("images")
-    if raw_images is None:
-        return ()
-    if not isinstance(raw_images, list):
-        return None
-    artifacts: list[ComfyImageArtifact] = []
-    for raw_image in raw_images:
-        if not isinstance(raw_image, Mapping):
-            return None
-        filename = raw_image.get("filename")
-        artifact_type = raw_image.get("type")
-        subfolder = raw_image.get("subfolder", "")
-        if (
-            not isinstance(filename, str)
-            or not filename
-            or not isinstance(artifact_type, str)
-            or not artifact_type
-            or not isinstance(subfolder, str)
-        ):
-            return None
-        artifacts.append(
-            ComfyImageArtifact(
-                filename=filename,
-                subfolder=subfolder,
-                type=artifact_type,
-            )
-        )
-    return tuple(artifacts)
 
 
 def _optional_node_id(value: object) -> str | None:

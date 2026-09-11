@@ -136,7 +136,7 @@ def test_monitor_reports_connection_and_disconnection_edges() -> None:
     assert websocket_client.connect_urls[0].startswith(
         "ws://127.0.0.1:8188/ws?clientId=substitute-health-"
     )
-    assert websocket_client.timeout == 5.0
+    assert websocket_client.timeout == 0.5
     assert websocket_client.closed is True
 
 

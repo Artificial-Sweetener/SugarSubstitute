@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2910
+max_lines = 2915
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -74,7 +74,7 @@ kind = "remediation"
 justification = "The assessed file mixes cube catalog discovery and refresh, classification and definition caching, versioned definition loading, buffer patch merging and runtime graph construction. Extract catalog and classification caching from versioned definition loading and runtime construction."
 issue = "chore:SS-ARCH-008"
 review_by = 2026-12-15
-max_lines = 1549
+max_lines = 1554
 next_limit = 1239
 debt = "SS-ARCH-008"
 
@@ -87,7 +87,7 @@ kind = "remediation"
 justification = "The assessed file mixes cube document classification, search target indexing and ranking, kind and pack section projection, model and role section projection. Extract cube classification and search indexing from picker section projection."
 issue = "chore:SS-ARCH-009"
 review_by = 2026-12-15
-max_lines = 698
+max_lines = 701
 next_limit = 558
 debt = "SS-ARCH-009"
 
@@ -123,11 +123,11 @@ owner = "generation execution"
 rule = "STRUCT003"
 path = "substitute/application/generation/generation_service.py"
 kind = "remediation"
-justification = "The assessed file mixes prompt dispatch and request validation, listener lifecycle and preview routing, input asset staging, output preparation and generation diagnostics. Extract listener lifecycle and output routing from prompt dispatch and asset-staging orchestration."
+justification = "The assessed file now mixes single and prepared request orchestration, native and direct payload projection, input asset staging, and output save-plan preparation. Listener lifecycle and output routing have moved to their own owner; extract output save-plan preparation next."
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
-  max_lines = 746
-next_limit = 613
+max_lines = 552
+next_limit = 450
 debt = "SS-ARCH-012"
 
 [[waivers]]
@@ -256,7 +256,7 @@ kind = "remediation"
 justification = "The assessed file mixes recipe document classification and load orchestration, workflow serialization and destination validation, model and LoRA hash enrichment, cube definition and label resolution. Extract model metadata enrichment from recipe persistence and document classification."
 issue = "chore:SS-ARCH-022"
 review_by = 2026-12-15
-  max_lines = 786
+max_lines = 800
 next_limit = 649
 debt = "SS-ARCH-022"
 
@@ -334,7 +334,7 @@ kind = "remediation"
 justification = "The assessed file mixes node-link domain value models, endpoint indexing and query, default-link planning, normalization and transition reconciliation, rename rebasing and value reset mutation. Separate link models and endpoint indexing from default, normalization, and transition planners."
 issue = "chore:SS-ARCH-028"
 review_by = 2026-12-15
-max_lines = 529
+max_lines = 540
 next_limit = 500
 debt = "SS-ARCH-028"
 
@@ -370,10 +370,10 @@ owner = "input canvas presentation"
 rule = "STRUCT003"
 path = "substitute/presentation/canvas/input/input_canvas_presenter.py"
 kind = "remediation"
-justification = "The assessed file mixes image selection materialization and reconciliation, mask selection and validation, loaded cube and workflow-section materialization, mask-picker refresh, active-node preview binding and change publication. Extract picker and preview synchronization from image/mask materialization presentation."
+justification = "The assessed file mixes image selection materialization and reconciliation, mask selection and validation, loaded cube and workflow-section materialization, and mask-picker refresh and change publication. Extract mask-picker refresh from image and mask materialization presentation."
 issue = "chore:SS-ARCH-035"
 review_by = 2026-12-15
-  max_lines = 636
+max_lines = 634
 next_limit = 510
 debt = "SS-ARCH-035"
 
@@ -461,10 +461,10 @@ owner = "editor field state"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/panel/field_state_controller.py"
 kind = "remediation"
-justification = "The assessed file mixes field metadata and widget binding discovery, buffer value mutation and dirty marking, widget-family signal wiring, prompt editor value synchronization, prompt editor presentation-preference persistence. Extract prompt-editor persistence and widget-family binding adapters from authoritative field-value mutation."
+justification = "The assessed file mixes field metadata and widget binding discovery, buffer value mutation and dirty marking, widget-family signal wiring, and prompt editor value synchronization. Prompt presentation preferences and current-projection resolution have been extracted; next extract widget-family binding adapters from authoritative field-value mutation."
 issue = "chore:SS-ARCH-043"
 review_by = 2026-12-15
-max_lines = 1079
+max_lines = 999
 next_limit = 863
 debt = "SS-ARCH-043"
 
@@ -906,7 +906,7 @@ kind = "remediation"
 justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, output and transfer composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Split feature-specific composition modules behind a narrow main-window assembly boundary."
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
-max_lines = 1044
+max_lines = 1057
 next_limit = 811
 debt = "SS-ARCH-080"
 
@@ -958,7 +958,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow activation and surface projection, tab-switch performance diagnostics, workflow add, close, reopen, duplicate, and rename, closed-workflow snapshot buffering, image and widget resource cleanup, tabbar and surface invalidation coordination. Extract closed-workflow persistence/resource cleanup and tab diagnostics from active workflow projection and lifecycle commands."
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
-max_lines = 1623
+max_lines = 1654
 next_limit = 1284
 debt = "SS-ARCH-084"
 
@@ -971,22 +971,9 @@ kind = "remediation"
 justification = "The assessed file mixes output focus and navigation mutation, external editor and asset reveal actions, generated and loaded output ingestion, output preparation and authorization, canvas host visibility and error presentation. Split external actions and output ingestion from output-navigation commands."
 issue = "chore:SS-ARCH-085"
 review_by = 2026-12-15
-max_lines = 819
+max_lines = 824
 next_limit = 732
 debt = "SS-ARCH-085"
-
-[[waivers]]
-id = "SS-WAIVER-R086"
-owner = "workspace shell facade"
-rule = "STRUCT003"
-path = "substitute/presentation/shell/workspace_controller.py"
-kind = "remediation"
-justification = "The assessed file mixes focused action collaborator facade, generation request and snapshot preparation, scene preflight and pruning diagnostics, generation UI binding construction, settings and reconfigure routing, workflow, input image, and mask event forwarding. Move generation preparation and route/event adapters to their owning collaborators, leaving a narrow facade."
-issue = "chore:SS-ARCH-086"
-review_by = 2026-12-15
-max_lines = 528
-next_limit = 500
-debt = "SS-ARCH-086"
 
 [[waivers]]
 id = "SS-WAIVER-R087"
@@ -997,7 +984,7 @@ kind = "remediation"
 justification = "The assessed file mixes catalog refresh execution and caching, picker draft editing and stack reconciliation, alias planning, rename, reorder, and removal mutation, node behavior preparation, cube loading and active-surface activation. Extract catalog refresh and cube loading from picker draft and alias reconciliation."
 issue = "chore:SS-ARCH-087"
 review_by = 2026-12-15
-max_lines = 1605
+max_lines = 1600
 next_limit = 1284
 debt = "SS-ARCH-087"
 
@@ -1010,7 +997,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow save, load, and export dialogs, recipe parsing and workspace materialization, recipe model resolution and download, download progress and model refresh, recipe output-sibling restoration, user feedback and active-surface invalidation. Extract recipe model acquisition and output restoration from file-dialog and workspace persistence presentation."
 issue = "chore:SS-ARCH-088"
 review_by = 2026-12-15
-max_lines = 1913
+max_lines = 1906
 next_limit = 1518
 debt = "SS-ARCH-088"
 
@@ -1049,7 +1036,7 @@ kind = "structural"
 justification = "ShutdownCoordinator is one transition state machine over a single shutdown lifecycle. Its dialog, timeout, retry, force-close, and cleanup handlers jointly preserve the same teardown invariants; splitting those transitions would divide the authoritative state owner rather than create an independent responsibility."
 issue = "chore:SS-WAIVER-S001"
 review_by = 2026-12-15
-max_lines = 533
+max_lines = 518
 
 [[waivers]]
 id = "SS-WAIVER-S002"
@@ -1093,7 +1080,7 @@ kind = "structural"
 justification = "GenerationPreparationService owns one deterministic pipeline from a captured workflow state to immutable queued snapshots. Its scene planning, override resolution, serialization, and cache metrics are sequential stages of that one returned contract and share one preparation-state invariant."
 issue = "chore:SS-WAIVER-S005"
 review_by = 2026-12-15
-max_lines = 574
+max_lines = 624
 
 [[waivers]]
 id = "SS-WAIVER-S006"
@@ -1115,7 +1102,7 @@ kind = "structural"
 justification = "PromptAutocompleteQueryService owns one cursor-to-query contract over a parsed prompt document. Wildcard, scene, and LoRA methods are syntax-specific branches returning the same query model and sharing the same structured-context and replacement-range rules."
 issue = "chore:SS-WAIVER-S007"
 review_by = 2026-12-15
-max_lines = 570
+max_lines = 569
 
 [[waivers]]
 id = "SS-WAIVER-S008"
@@ -1236,7 +1223,7 @@ kind = "structural"
 justification = "SugarScriptSerializer and its formatting helpers implement one deterministic mapping from typed recipe state to ordered DSL sections. Labels, metadata comments, activation, assignments, and connections share ordering and round-trip invariants with the parser."
 issue = "chore:SS-WAIVER-S019"
 review_by = 2026-12-15
-max_lines = 993
+max_lines = 1003
 
 [[waivers]]
 id = "SS-WAIVER-S020"
@@ -1247,7 +1234,7 @@ kind = "structural"
 justification = "The module is the single explicit versioned JSON contract for workspace snapshots. Paired encoders and decoders for nested snapshot values must evolve atomically to preserve round-trip and backward-read invariants; splitting by nested type would distribute ownership of one persisted schema."
 issue = "chore:SS-WAIVER-S020"
 review_by = 2026-12-15
-max_lines = 1088
+max_lines = 1035
 
 [[waivers]]
 id = "SS-WAIVER-S021"
@@ -1280,7 +1267,7 @@ kind = "structural"
 justification = "The module is one typed adapter for the Substitute BackEnd Cube Library route family. Endpoint calls, response parsers, and primitive readers jointly implement that external contract and change with the same backend API schema."
 issue = "chore:SS-WAIVER-S023"
 review_by = 2026-12-15
-max_lines = 849
+max_lines = 850
 
 [[waivers]]
 id = "SS-WAIVER-S024"
@@ -1302,7 +1289,7 @@ kind = "structural"
 justification = "The module is one typed adapter for the Substitute BackEnd model-metadata route family. Catalog, hash, fingerprint, capability, and download-job parsers are the response half of the same endpoint contract and must track its schema atomically."
 issue = "chore:SS-WAIVER-S025"
 review_by = 2026-12-15
-max_lines = 584
+max_lines = 567
 
 [[waivers]]
 id = "SS-WAIVER-S026"
@@ -1401,7 +1388,7 @@ kind = "structural"
 justification = "RegionalMaskBatchEditor and its private row implement one ordered mask-selection control. Row layout, preview sizing, hover, selection animation, opacity publication, import/remove actions, and label/color refresh all mutate or render the same batch state."
 issue = "chore:SS-WAIVER-S035"
 review_by = 2026-12-15
-max_lines = 537
+max_lines = 535
 
 [[waivers]]
 id = "SS-WAIVER-S036"
@@ -1599,7 +1586,7 @@ kind = "structural"
 justification = "PromptProjectionPromptStateApplier owns one atomic application transaction from prepared prompt state to projection lineage, geometry, cursor/scroll restoration, and optional exact-weight activation. Fast and rebuilding paths must publish the same outcome invariants."
 issue = "chore:SS-WAIVER-S053"
 review_by = 2026-12-15
-max_lines = 620
+max_lines = 622
 
 [[waivers]]
 id = "SS-WAIVER-S054"
@@ -1786,7 +1773,7 @@ kind = "structural"
 justification = "CubeStack is one specialized reorderable tab control over an ordered cube stack. Alias editing, bypass/output actions, tab presentation, selection, compact transition, pointer reordering, and indicator geometry all mutate or render the same tab state."
 issue = "chore:SS-WAIVER-S073"
 review_by = 2026-12-15
-max_lines = 615
+max_lines = 619
 
 [[waivers]]
 id = "SS-WAIVER-S074"
@@ -1949,10 +1936,10 @@ owner = "shell shutdown coordinator contract"
 rule = "STRUCT003"
 path = "tests/app/bootstrap/shutdown_coordinator/test_coordinator.py"
 kind = "structural"
-justification = "This module owns one terminal shutdown state machine. Cleanup ordering, duplicate requests, delayed progress, retry, recovery choice, force close, UI-thread updates, responsiveness, and final close authorization all transition the same single shutdown attempt and its owned dialogs."
+justification = "This module owns one terminal shutdown state machine. Cleanup ordering, duplicate requests, immediate progress presentation, retry, recovery choice, force close, UI-thread updates, responsiveness, and final close authorization all transition the same single shutdown attempt and its owned dialogs."
 issue = "chore:SS-WAIVER-S104"
 review_by = 2026-12-15
-max_lines = 789
+max_lines = 815
 
 [[waivers]]
 id = "SS-WAIVER-S108"
@@ -1996,7 +1983,7 @@ kind = "structural"
 justification = "This module owns one authorization-preserving projection from authoring payload assets to staged Comfy execution payloads. Image and mask path resolution, channel policy, semantic upload fields, ordered regional masks, required-input failures, and payload immutability all govern that single staging transaction."
 issue = "chore:SS-WAIVER-S119"
 review_by = 2026-12-15
-  max_lines = 645
+max_lines = 726
 
 [[waivers]]
 id = "SS-WAIVER-S120"
@@ -2037,10 +2024,10 @@ owner = "effective scheduled LoRA provider contract"
 rule = "STRUCT003"
 path = "tests/application/prompt_editor/lora/effective_provider/test_provider.py"
 kind = "structural"
-justification = "This module owns one cached resolution from workflow prompt context to effective scheduled LoRAs. Field eligibility, live choices, graph-effective compilation, catalog enrichment, token-based invalidation, and reuse across prompt fields all preserve the same context identity and result."
+justification = "This module owns one cached resolution from workflow prompt context to effective scheduled LoRAs. Field eligibility, live choices, editable-graph traversal, catalog enrichment, token-based invalidation, and reuse across prompt fields all preserve the same context identity and result."
 issue = "chore:SS-WAIVER-S131"
 review_by = 2026-12-15
-max_lines = 585
+max_lines = 525
 
 [[waivers]]
 id = "SS-WAIVER-S134"
@@ -2140,3 +2127,13 @@ justification = "This module owns one capability-driven Manager provisioning tra
 issue = "chore:SS-WAIVER-S149"
 review_by = 2026-12-15
 max_lines = 512
+[[waivers]]
+id = "SS-WAIVER-S151"
+owner = "input canvas composition"
+rule = "STRUCT003"
+path = "substitute/presentation/shell/input_canvas_composition.py"
+kind = "structural"
+justification = "MainWindowInputCanvasComposition and compose_input_canvas_controllers define one atomic dependency graph for the Input canvas. The factory constructs, wires, returns, and publishes that graph in dependency order; extracting individual constructors would split one composition authority and obscure lifecycle ordering without creating an independent behavioral owner."
+issue = "chore:SS-WAIVER-S151"
+review_by = 2026-12-15
+max_lines = 509

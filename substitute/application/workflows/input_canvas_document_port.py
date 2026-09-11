@@ -58,6 +58,9 @@ class InputCanvasDocumentPort(Protocol):
     def contains_mask(self, image_id: UUID, mask_id: UUID) -> bool:
         """Return whether an exact mask identity belongs to one Input image."""
 
+    def export_mask_image(self, mask_id: UUID) -> object | None:
+        """Return an immutable payload for one live editable mask."""
+
     def remove_mask_from_image(self, image_id: UUID, mask_id: UUID) -> bool:
         """Remove one mask association from an explicitly named input image."""
 

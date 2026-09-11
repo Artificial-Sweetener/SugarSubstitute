@@ -206,9 +206,10 @@ class NodeCardBuildTransaction:
 
         if not isinstance(registry, set):
             return
-        registry.difference_update(
+        owned_identities = {
             identity for identity in registry if self._is_owned_field_identity(identity)
-        )
+        }
+        registry.difference_update(owned_identities)
 
     def _remove_node_field_keys(self, registry: object) -> int:
         """Remove mapping keys identifying fields from this node card."""

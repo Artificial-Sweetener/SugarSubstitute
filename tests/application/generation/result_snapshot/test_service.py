@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-from collections import OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
@@ -31,8 +30,7 @@ from substitute.domain.generation import (
     SeedControlState,
     SeedMode,
 )
-from substitute.domain.recipes.sugar_ast import ParsedSugarScript
-from substitute.domain.workflow import OutputFocusMode
+from substitute.domain.workflow import CubeState, OutputFocusMode, WorkflowState
 from substitute.domain.common import JsonObject
 from substitute.domain.comfy_workflow import (
     DirectWorkflowGenerationPlan,
@@ -61,7 +59,6 @@ def test_generation_result_snapshot_service_builds_workspace_with_outputs() -> N
     )
     service = GenerationResultSnapshotService(
         live_results=_LiveResults(job=job, outputs=outputs),
-        recipe_parser=_RecipeParser(),
     )
 
     result = service.build_for_live_job("job-1")
@@ -110,7 +107,6 @@ def test_generation_result_snapshot_service_reports_missing_job() -> None:
 
     service = GenerationResultSnapshotService(
         live_results=_LiveResults(job=None, outputs=()),
-        recipe_parser=_RecipeParser(),
     )
 
     result = service.build_for_live_job("missing")
@@ -132,7 +128,6 @@ def test_generation_result_snapshot_service_restores_direct_graph_without_sugar(
         snapshot=GenerationJobSnapshot(
             workflow_id="workflow-direct",
             workflow_name="Direct Workflow",
-            sugar_script_text="",
             direct_workflow_plan=DirectWorkflowGenerationPlan(
                 authored_api_graph=graph,
                 output_manifest=DirectWorkflowOutputManifest(
@@ -147,7 +142,6 @@ def test_generation_result_snapshot_service_restores_direct_graph_without_sugar(
     )
     service = GenerationResultSnapshotService(
         live_results=_LiveResults(job=job, outputs=()),
-        recipe_parser=_FailingRecipeParser(),
     )
 
     result = service.build_for_live_job("job-direct")
@@ -157,15 +151,6 @@ def test_generation_result_snapshot_service_restores_direct_graph_without_sugar(
     assert workflow.direct_workflow is not None
     assert workflow.direct_workflow.buffer == {"nodes": graph}
     assert workflow.cubes == {}
-
-
-class _FailingRecipeParser:
-    """Fail if direct result replay incorrectly enters Sugar parsing."""
-
-    def parse_recipe_script(self, sugar_script_text: str) -> ParsedSugarScript:
-        """Reject every unexpected recipe parse call."""
-
-        raise AssertionError(f"Unexpected Sugar parse: {sugar_script_text!r}")
 
 
 class _LiveResults:
@@ -198,37 +183,6 @@ class _LiveResults:
         return tuple(output for output in self._outputs if output.job_id == job_id)
 
 
-class _RecipeParser:
-    """Return one deterministic parsed Sugar workflow."""
-
-    def parse_recipe_script(self, sugar_script_text: str) -> ParsedSugarScript:
-        """Parse fake script text."""
-
-        assert sugar_script_text == "sugar text"
-        return ParsedSugarScript(
-            buffers=OrderedDict(
-                {
-                    "Base": OrderedDict(
-                        {
-                            "cube_id": "cube.load",
-                            "version": "1",
-                            "nodes": {},
-                        }
-                    )
-                }
-            ),
-            global_overrides={"seed": {"value": 1234}},
-            global_override_selections={"seed": True},
-            field_control_states_by_alias={
-                "Base": {"ksampler": {"seed": SeedControlState(SeedMode.FIXED)}}
-            },
-            override_control_states={"seed": SeedControlState(SeedMode.FIXED)},
-            model_hashes_by_field={},
-            prompt_lora_hashes_by_field={},
-            project_name=None,
-        )
-
-
 def _job(job_id: str) -> GenerationQueueJob:
     """Build one fake queue job."""
 
@@ -237,10 +191,31 @@ def _job(job_id: str) -> GenerationQueueJob:
         snapshot=GenerationJobSnapshot(
             workflow_id="workflow-1",
             workflow_name="Portrait Workflow",
-            sugar_script_text="sugar text",
+            persistence_sugar_script="sugar text",
+            workflow=_workflow(),
         ),
         created_at=datetime(2026, 5, 8, tzinfo=timezone.utc),
         status="completed",
+    )
+
+
+def _workflow() -> WorkflowState:
+    """Build the detached editable workflow retained by the queued job."""
+
+    cube = CubeState(
+        cube_id="cube.load",
+        version="1",
+        alias="Base",
+        original_cube={"nodes": {}},
+        buffer={"nodes": {}},
+        field_control_states={"ksampler": {"seed": SeedControlState(SeedMode.FIXED)}},
+    )
+    return WorkflowState(
+        cubes={"Base": cube},
+        stack_order=["Base"],
+        global_overrides={"seed": {"value": 1234}},
+        global_override_selections={"seed": True},
+        override_control_states={"seed": SeedControlState(SeedMode.FIXED)},
     )
 
 

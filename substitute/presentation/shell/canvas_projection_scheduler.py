@@ -28,9 +28,11 @@ from PySide6.QtCore import QObject, QTimer
 from substitute.presentation.ui_load_activity import (
     default_prompt_projection_ui_load_activity,
 )
+from substitute.shared.logging.logger import get_logger, log_debug
 
 _DEFAULT_INTERVAL_MS = 16
 _DEFAULT_ACTIVE_PROMPT_INTERVAL_MS = 33
+_LOGGER = get_logger("presentation.shell.canvas_projection_scheduler")
 
 
 class ProjectionReason(str, Enum):
@@ -118,7 +120,22 @@ class CanvasProjectionScheduler(QObject):
                 reason=reason,
                 registered_image_id=registered_image_id,
             )
-        if self._can_project_pending(workflow_id):
+        is_active = self._is_active_workflow(workflow_id)
+        output_visible = self._output_canvas_visible() if is_active else False
+        log_debug(
+            _LOGGER,
+            "Output canvas projection requested",
+            operation="request_output_projection",
+            workflow_id=workflow_id,
+            active_workflow_id=self._active_workflow_id(),
+            projection_reason=reason.value,
+            output_canvas_visible=output_visible,
+            registered_image_id=(
+                str(registered_image_id) if registered_image_id is not None else ""
+            ),
+            decision="scheduled" if is_active else "retained_for_inactive_workflow",
+        )
+        if is_active:
             self._schedule_flush()
 
     def flush(self) -> None:
@@ -126,6 +143,18 @@ class CanvasProjectionScheduler(QObject):
 
         active_workflow_id = self._active_workflow_id()
         if not self._can_project_pending(active_workflow_id):
+            log_debug(
+                _LOGGER,
+                "Output canvas projection flush deferred",
+                operation="flush_output_projection",
+                workflow_id=active_workflow_id,
+                output_canvas_visible=(
+                    self._output_canvas_visible() if active_workflow_id else False
+                ),
+                pending_generated_count=len(self._pending_generated),
+                pending_deferred_count=len(self._pending_deferred),
+                decision="deferred",
+            )
             return
         has_pending = active_workflow_id in self._pending_generated
         deferred_projection = self._pending_deferred.pop(active_workflow_id, None)
@@ -133,12 +162,14 @@ class CanvasProjectionScheduler(QObject):
         if active_workflow_id and has_pending:
             self._project_workflow(active_workflow_id, registered_image_id)
             self._mark_output_activity("generated_canvas_projection_flush")
+            self._log_projection(active_workflow_id, "generated_output")
         elif active_workflow_id and deferred_projection is not None:
             registered_image_id = deferred_projection.registered_image_id
             self._project_workflow(active_workflow_id, registered_image_id)
             self._mark_output_activity(
                 f"canvas_projection_{deferred_projection.reason.value}_flush"
             )
+            self._log_projection(active_workflow_id, deferred_projection.reason.value)
 
     def flush_pending_for_workflow(self, workflow_id: str) -> None:
         """Force any pending projection for one workflow."""
@@ -194,10 +225,28 @@ class CanvasProjectionScheduler(QObject):
     def _can_project_pending(self, workflow_id: str) -> bool:
         """Return whether coalesced projection should run now."""
 
-        return bool(
-            workflow_id
-            and workflow_id == self._active_workflow_id()
-            and self._output_canvas_visible()
+        if not self._is_active_workflow(workflow_id):
+            return False
+        if workflow_id in self._pending_generated:
+            return True
+        return self._output_canvas_visible()
+
+    def _is_active_workflow(self, workflow_id: str) -> bool:
+        """Return whether one projection belongs to the selected workflow."""
+
+        return bool(workflow_id and workflow_id == self._active_workflow_id())
+
+    @staticmethod
+    def _log_projection(workflow_id: str, reason: str) -> None:
+        """Record one completed projection without exposing image content."""
+
+        log_debug(
+            _LOGGER,
+            "Output canvas projection flushed",
+            operation="flush_output_projection",
+            workflow_id=workflow_id,
+            projection_reason=reason,
+            decision="projected",
         )
 
     def _current_interval_ms(self) -> int:

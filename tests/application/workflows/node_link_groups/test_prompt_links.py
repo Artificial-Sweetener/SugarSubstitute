@@ -106,8 +106,10 @@ def test_manual_node_selection_preserves_local_values_until_unlinked() -> None:
     assert linked_node["inputs"]["value"] == "local"
 
 
-def test_reconcile_transition_rebases_prompt_anchor_and_resets_followers() -> None:
-    """Prompt-style reset values should preserve old anchor text across reorder."""
+def test_reconcile_transition_preserves_prompt_relation_and_values_across_reorder() -> (
+    None
+):
+    """Cube presentation order must not rewrite prompt relation authority."""
 
     service = _service()
     cubes = {
@@ -137,10 +139,43 @@ def test_reconcile_transition_rebases_prompt_anchor_and_resets_followers() -> No
 
     node_b = cubes["B"].buffer["nodes"]["positive_prompt"]
     node_a = cubes["A"].buffer["nodes"]["positive_prompt"]
-    assert _node_link_payload(node_b) == {"from_cube": None, "from_node": None}
-    assert node_b["inputs"]["value"] == "shared"
-    assert _node_link_payload(node_a) == {
+    assert _node_link_payload(node_b) == {
+        "from_cube": "A",
+        "from_node": "positive_prompt",
+    }
+    assert node_b["inputs"]["value"] == "dormant"
+    assert _node_link_payload(node_a) == {"from_cube": None, "from_node": None}
+    assert node_a["inputs"]["value"] == "shared"
+
+
+def test_manual_node_selection_allows_relation_to_later_cube() -> None:
+    """Value relations may point either way because they are not graph edges."""
+
+    service = _service()
+    cubes = {
+        "A": _cube_state(
+            {"nodes": {"positive_prompt": _node("String", {"value": "local"})}},
+        ),
+        "B": _cube_state(
+            {"nodes": {"positive_prompt": _node("String", {"value": "shared"})}},
+        ),
+    }
+    identity = (
+        _NodeLinkEndpointProvider()
+        .build_node_link_endpoint_index(cubes, ["A", "B"])
+        .identities_for_cube("A")[0]
+    )
+
+    service.apply_manual_selection(
+        cube_states=cubes,
+        stack_order=["A", "B"],
+        cube_alias="A",
+        identity=identity,
+        from_cube="B",
+        from_node="positive_prompt",
+    )
+
+    assert _node_link_payload(cubes["A"].buffer["nodes"]["positive_prompt"]) == {
         "from_cube": "B",
         "from_node": "positive_prompt",
     }
-    assert node_a["inputs"]["value"] == ""

@@ -33,6 +33,111 @@ _TEXT_SOURCE = "alpha:text"
 _UPSCALE_SOURCE = "alpha:upscale"
 
 
+def test_two_cube_preview_sequence_displays_final_without_source_switch(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Display the final upscale immediately after both Cube previews settle."""
+
+    harness.add_workflow("alpha", activate=True)
+    harness.show_canvas("Output")
+    run = harness.start_run(
+        "alpha",
+        output_session_id="two-cube-generate",
+        preview_source_keys=frozenset({_TEXT_SOURCE, _UPSCALE_SOURCE}),
+    )
+    harness.emit_preview(
+        run,
+        OutputSpec(_TEXT_SOURCE, "Text to Image", (40, 120, 180)),
+    )
+    harness.emit_preview(
+        run,
+        OutputSpec(_UPSCALE_SOURCE, "Diffusion Upscale", (180, 120, 40)),
+    )
+    _flush_preview(harness)
+
+    harness.emit_output(
+        run,
+        OutputSpec(_TEXT_SOURCE, "Text to Image", (60, 180, 90)),
+    )
+    harness.emit_output(
+        run,
+        OutputSpec(_UPSCALE_SOURCE, "Diffusion Upscale", (190, 60, 150)),
+    )
+    harness.wait_for_output_count("alpha", 2)
+    harness.wait_until(lambda: harness.preview_count() == 0)
+    harness.wait_until(lambda: harness.fingerprint().active_image_rgb == (190, 60, 150))
+
+    state = harness.fingerprint()
+    assert state.active_source_tab_key == _UPSCALE_SOURCE
+    assert state.active_image_rgb == (190, 60, 150)
+
+
+def test_two_cube_out_of_order_batches_replace_the_last_preview(
+    harness: RealShellOutputCanvasHarness,
+) -> None:
+    """Replace a Cube preview when two final batches arrive out of order."""
+
+    harness.add_workflow("alpha", activate=True)
+    harness.show_canvas("Output")
+    run = harness.start_run(
+        "alpha",
+        output_session_id="two-cube-batch-generate",
+        preview_source_keys=frozenset({_TEXT_SOURCE, _UPSCALE_SOURCE}),
+    )
+    harness.emit_preview(
+        run,
+        OutputSpec(_TEXT_SOURCE, "Text to Image", (40, 120, 180)),
+    )
+    harness.emit_preview(
+        run,
+        OutputSpec(_UPSCALE_SOURCE, "Diffusion Upscale", (180, 120, 40)),
+    )
+    _flush_preview(harness)
+
+    for source_key, label, colors in (
+        (
+            _TEXT_SOURCE,
+            "Text to Image",
+            ((60, 180, 90), (90, 60, 180)),
+        ),
+        (
+            _UPSCALE_SOURCE,
+            "Diffusion Upscale",
+            ((190, 60, 150), (60, 190, 150)),
+        ),
+    ):
+        harness.emit_output(
+            run,
+            OutputSpec(
+                source_key,
+                label,
+                colors[1],
+                list_index=0,
+                batch_index=1,
+            ),
+        )
+        harness.emit_output(
+            run,
+            OutputSpec(
+                source_key,
+                label,
+                colors[0],
+                list_index=0,
+                batch_index=0,
+            ),
+        )
+
+    harness.wait_for_output_count("alpha", 4)
+    harness.wait_until(lambda: harness.preview_count() == 0)
+    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 2)
+
+    state = harness.fingerprint()
+    assert state.active_source_tab_key == _UPSCALE_SOURCE
+    assert {frame[1] for frame in state.grid_target_frames}.issubset(
+        set(harness.output_ids("alpha"))
+    )
+
+
 def test_same_run_batch_preview_keeps_later_member_until_both_finals_arrive(
     harness: RealShellOutputCanvasHarness,
 ) -> None:
@@ -64,8 +169,6 @@ def test_same_run_batch_preview_keeps_later_member_until_both_finals_arrive(
     )
     harness.wait_for_output_count("alpha", 1)
     later_member_id = harness.output_ids("alpha")[0]
-    harness.shell.output_image_pipeline.flush_visible_output_projection()
-    harness.process_events()
     harness.wait_until(
         lambda: _mounted_grid_ids(harness) == (preview_id, later_member_id)
     )

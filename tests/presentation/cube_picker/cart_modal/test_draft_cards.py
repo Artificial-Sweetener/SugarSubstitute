@@ -33,6 +33,7 @@ from substitute.presentation.cube_picker.cube_picker_card import (
     CUBE_PICKER_CARD_HEIGHT,
     CUBE_PICKER_CARD_WIDTH,
 )
+from substitute.presentation.cube_picker.cube_staging_stack import CubeDraftStackCard
 from substitute.presentation.cube_picker import CubeStagingDrawer
 
 
@@ -100,6 +101,36 @@ def test_cart_modal_library_cards_use_hover_and_press_visual_state() -> None:
     assert hovered_state.pressed is False
     assert pressed_state.hovered is True
     assert pressed_state.pressed is True
+
+
+def test_cart_modal_cards_use_authoritative_target_model_pills() -> None:
+    """Library and staged cards must project one catalog target-model identity."""
+
+    _app()
+    cube_id = "Artificial-Sweetener/Base-Cubes/Anima/Prompt by Region.cube"
+    modal = CubeStackCartModal(
+        records=[
+            CubeCatalogRecord(
+                cube_id=cube_id,
+                version="4.3.0",
+                display_name="Anima/Prompt by Region",
+                target_model="Anima",
+            )
+        ],
+        initial_draft=CubeStackDraft(entries=()),
+        icon_factory=_IconFactory(),
+        parent=QWidget(),
+    )
+
+    library_state = modal._cards[cube_id]._visual_state()
+    modal._cards[cube_id].activated.emit(cube_id)
+    staged_card = modal._staging_stack.findChild(CubeDraftStackCard)
+
+    assert library_state.primary_text == "Prompt by Region"
+    assert library_state.target_model == "Anima"
+    assert staged_card is not None
+    assert staged_card._visual_state().primary_text == "Prompt by Region"
+    assert staged_card._visual_state().target_model == "Anima"
 
 
 def test_cart_modal_starts_from_initial_workflow_draft_and_reset_restores_it() -> None:

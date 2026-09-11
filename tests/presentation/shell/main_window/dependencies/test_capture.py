@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import fields
+from types import SimpleNamespace
 
 import pytest
 
@@ -26,6 +27,7 @@ from substitute.presentation.shell import main_window_composition
 from substitute.presentation.shell.main_window_dependencies import (
     MainWindowDependencies,
 )
+from substitute.domain.onboarding import ComfyEndpoint
 
 
 class _PromptInteractionActivityTracker:
@@ -214,6 +216,11 @@ def _dependencies() -> MainWindowDependencies:
     dependencies = object.__new__(MainWindowDependencies)
     for dependency_field in fields(MainWindowDependencies):
         object.__setattr__(dependencies, dependency_field.name, object())
+    object.__setattr__(
+        dependencies,
+        "comfy_target",
+        SimpleNamespace(endpoint=ComfyEndpoint("127.0.0.1", 8188)),
+    )
     return dependencies
 
 

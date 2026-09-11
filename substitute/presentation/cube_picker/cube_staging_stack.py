@@ -238,6 +238,7 @@ class CubeDraftStackCard(QFrame):
         return CubeCardVisualState(
             primary_text=self._planned_alias,
             secondary_text=self.entry.secondary_text,
+            target_model=self.entry.target_model,
             icon=self._icon,
             selected=True,
             hovered=self._hovered or self.hasFocus(),

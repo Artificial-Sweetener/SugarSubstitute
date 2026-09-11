@@ -585,6 +585,8 @@ class PromptProjectionPromptStateApplier:
                     document_view=document_view,
                     render_plan=render_plan,
                     previous_render_plan=previous_fast_render_plan,
+                    selection_start=min(host.cursor_position, host.anchor_position),
+                    selection_end=max(host.cursor_position, host.anchor_position),
                 )
             if not fast_insert_applied and not scheduled_incremental_applied:
                 host._rebuild_projection()

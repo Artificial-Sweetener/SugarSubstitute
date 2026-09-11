@@ -22,6 +22,8 @@ from collections.abc import Sequence
 from time import perf_counter
 from typing import Protocol
 
+from shiboken6 import isValid
+
 from substitute.shared.logging.logger import get_logger, log_debug, log_info
 
 from .projection_preparation import (
@@ -297,6 +299,12 @@ class ProjectedWidgetBuilder:
             return
 
         self._projection_lifecycle.clear_alias_scoped_panel_registries(cube_alias)
+        try:
+            final_widget_is_live = bool(isValid(final_widget))
+        except TypeError:
+            final_widget_is_live = True
+        if not final_widget_is_live:
+            return
         set_parent = getattr(final_widget, "setParent", None)
         if callable(set_parent):
             set_parent(None)

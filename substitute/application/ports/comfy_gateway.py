@@ -42,6 +42,9 @@ class QueuePromptResult:
     payload: object | None
     error: str | None
     error_report: ErrorReport | None = None
+    output_sources: tuple[ListenerOutputSource, ...] = ()
+    execution_sources: tuple[ListenerOutputSource, ...] = ()
+    execution_prompt: JsonObject | None = None
 
 
 @dataclass(frozen=True)
@@ -235,6 +238,7 @@ class QueueVisualRunContext:
     scene_order: int | None = None
     scene_count: int | None = None
     sources: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+    cube_presentations: Mapping[str, str] = field(default_factory=dict)
 
     def to_payload(self) -> dict[str, object]:
         """Return the versioned queue payload consumed by Substitute BackEnd."""
@@ -248,6 +252,11 @@ class QueueVisualRunContext:
                 str(node_id): dict(source) for node_id, source in self.sources.items()
             },
         }
+        if self.cube_presentations:
+            payload["cubePresentations"] = {
+                str(instance_id): label
+                for instance_id, label in self.cube_presentations.items()
+            }
         if self.output_session_id is not None:
             payload["outputSessionId"] = self.output_session_id
         scene_payload: dict[str, object] = {}
@@ -335,7 +344,7 @@ class ListenerStartRequest:
     listener_session: ListenerSessionHandle
     output_dir: Path
     workflow_payload: JsonObject
-    sugar_script: str
+    persistence_sugar_script: str | None
     workflow_id: WorkflowId
     workflow_name: str
     output_run_number: int | None = None
@@ -347,6 +356,14 @@ class ListenerStartRequest:
     scene_order: int | None = None
     scene_count: int | None = None
     standard_output_sources: tuple[ListenerOutputSource, ...] = ()
+    execution_node_sources: tuple[ListenerOutputSource, ...] = ()
+    execution_prompt_payload: JsonObject | None = None
+
+    @property
+    def execution_payload(self) -> JsonObject:
+        """Return the exact prompt Comfy executes when the queue owner supplies it."""
+
+        return self.execution_prompt_payload or self.workflow_payload
 
 
 @dataclass
@@ -403,6 +420,17 @@ class ComfyGateway(Protocol):
         visual_context: QueueVisualRunContext | None = None,
     ) -> QueuePromptResult:
         """Queue workflow payload and return prompt identifier details."""
+
+    def queue_cube_workflow(
+        self,
+        workflow: JsonObject,
+        *,
+        client_id: str,
+        preview_method: str | None = None,
+        visual_context: QueueVisualRunContext,
+        persistence_sugar_script: str | None = None,
+    ) -> QueuePromptResult:
+        """Queue a canonical workflow through SugarCubes' native execution owner."""
 
     def start_listener(
         self,

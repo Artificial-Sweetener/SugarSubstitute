@@ -30,6 +30,7 @@ from .render_plan_ranges import render_plan_ranges_match_after_source_edit
 from .semantic_transition_strategy import PromptSemanticTransitionStrategy
 from .source_text_edit import single_source_text_edit
 from .trailing_edit_strategy import PromptTrailingEditStrategy
+from .wildcard_edit_expansion import PromptWildcardEditExpansion
 
 
 class PromptStateProjectionStrategy:
@@ -42,6 +43,7 @@ class PromptStateProjectionStrategy:
         trailing_strategy: PromptTrailingEditStrategy,
         reflow_strategy: PromptIncrementalReflowStrategy,
         publication: PromptEditPublication,
+        wildcard_edit_expansion: PromptWildcardEditExpansion,
     ) -> None:
         """Store focused mechanisms used by prepared prompt-state catch-up."""
 
@@ -49,6 +51,7 @@ class PromptStateProjectionStrategy:
         self._trailing_strategy = trailing_strategy
         self._reflow_strategy = reflow_strategy
         self._publication = publication
+        self._wildcard_edit_expansion = wildcard_edit_expansion
 
     def try_trailing_insert(
         self,
@@ -83,6 +86,8 @@ class PromptStateProjectionStrategy:
         document_view: PromptDocumentView,
         render_plan: PromptSyntaxRenderPlan,
         previous_render_plan: PromptSyntaxRenderPlan,
+        selection_start: int,
+        selection_end: int,
     ) -> bool:
         """Apply scheduled safe typing through local reflow strategies."""
 
@@ -91,6 +96,11 @@ class PromptStateProjectionStrategy:
         if edit is None:
             if previous_text != next_text:
                 return False
+            self._wildcard_edit_expansion.preserve_editable_selection(
+                document_view,
+                selection_start=selection_start,
+                selection_end=selection_end,
+            )
             semantic_result = self._semantic_transition.try_apply(
                 document_view=document_view,
                 render_plan=render_plan,

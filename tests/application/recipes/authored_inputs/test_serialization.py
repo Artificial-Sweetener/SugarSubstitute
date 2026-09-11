@@ -139,7 +139,7 @@ def test_recipe_serialization_omits_cube_boundary_implementation_values() -> Non
     assert "@binding" not in script
     assert "set Upscale.upscale_by_factor.image" not in script
     assert "set Upscale.upscale_by_factor.value = 1.2" in script
-    assert "connect Source.output.image to Upscale.input.value" in script
+    assert "connect " not in script
 
 
 def test_recipe_serialization_preserves_declared_ordered_mask_lists() -> None:

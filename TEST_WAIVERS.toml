@@ -34,7 +34,7 @@ disposition = "intentional_real_time"
 rule = "WAIT001"
 candidates = ["WAIT001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>.ManagedComfyDirectOutputHarness._wait_until_ready:wait:time.sleep:1"]
 paths = ["tests/qualification/comfy/managed_runtime/direct_output_harness.py"]
-fingerprint = "sha256:82d46f2863134822d717a36ae1a252418fd0685141f6bef19d50a5c363156b9d"
+fingerprint = "sha256:65f8513a76e1d80e41a40d9a353c02d493e7b7ed27ede534f2fef8780bfc9f03"
 rationale = "tests/qualification/comfy/managed_runtime/direct_output_harness.py drives a real external application or managed Comfy process whose lifecycle is intentionally outside the in-process scheduler. The bounded polling delay belongs to qualification orchestration, returns immediately when the external state appears, and preserves timeout diagnostics."
 issue = "chore:SS-TEST-WAIVER-C0173"
 review_by = 2026-12-15
@@ -89,7 +89,7 @@ candidates = [
   "POLL001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>.ManagedComfyDirectOutputHarness._wait_until_ready:wall-clock-poll:1",
 ]
 paths = ["tests/qualification/comfy/managed_runtime/direct_output_harness.py"]
-fingerprint = "sha256:82d46f2863134822d717a36ae1a252418fd0685141f6bef19d50a5c363156b9d"
+fingerprint = "sha256:65f8513a76e1d80e41a40d9a353c02d493e7b7ed27ede534f2fef8780bfc9f03"
 rationale = "This qualification harness starts and communicates with a real isolated Comfy process over HTTP and WebSocket boundaries. Its clock bounds external startup and response failure, while each loop returns immediately on the required protocol or readiness state."
 issue = "chore:SS-TEST-WAIVER-C0183"
 review_by = 2026-12-15
@@ -1214,7 +1214,7 @@ disposition = "framework_infrastructure"
 rule = "PROCESS001"
 candidates = ["PROCESS001|tests/qualification/comfy/managed_runtime/direct_output_harness.py|<module>:unscoped-child-process:1"]
 paths = ["tests/qualification/comfy/managed_runtime/direct_output_harness.py"]
-fingerprint = "sha256:82d46f2863134822d717a36ae1a252418fd0685141f6bef19d50a5c363156b9d"
+fingerprint = "sha256:65f8513a76e1d80e41a40d9a353c02d493e7b7ed27ede534f2fef8780bfc9f03"
 rationale = "The context-managed qualification harness retains one real managed Comfy process while exercising HTTP, WebSocket, and output contracts. Its __exit__ owner terminates the child on every path, waits with a fifteen-second bound, escalates to kill with a second bound, closes its log, and cleans the temporary workspace."
 issue = "chore:SS-TEST-WAIVER-C0272"
 review_by = 2026-12-15

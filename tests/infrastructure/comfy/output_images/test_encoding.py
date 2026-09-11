@@ -52,7 +52,7 @@ def test_canonical_png_keeps_recipe_and_optional_jpeg_is_same_stem(
             jpeg=JpegOutputSettings(enabled=True, quality=82),
         ),
         workflow_payload={"workflow": {"nodes": [{"id": 1}]}},
-        sugar_script="use cube as Main",
+        persistence_sugar_script="use cube as Main",
         cube_numbers_by_alias={},
     )
 
@@ -71,6 +71,44 @@ def test_canonical_png_keeps_recipe_and_optional_jpeg_is_same_stem(
     with Image.open(jpeg_path) as jpeg:
         assert jpeg.format == "JPEG"
         assert jpeg.size == (64, 48)
+
+
+def test_native_cube_png_keeps_workflow_without_empty_sugarscript(
+    tmp_path: Path,
+) -> None:
+    """Graph-native output must reload as Comfy state instead of an empty recipe."""
+
+    workflow = {
+        "version": 0.4,
+        "nodes": [{"id": 1, "type": "Cube"}],
+        "links": [],
+        "definitions": {"subgraphs": []},
+    }
+    persistence = OutputImagePersistence(
+        output_save_plan=OutputSavePlan(
+            output_root=tmp_path,
+            path_pattern="native",
+            workflow_name="Native Workflow",
+            output_run_number=1,
+            job_started_at=datetime(2026, 9, 7),
+        ),
+        workflow_payload=workflow,
+        persistence_sugar_script=None,
+        cube_numbers_by_alias={},
+    )
+
+    result = persistence.persist_output_image(
+        image_bytes=build_png_bytes(),
+        source_identity=build_source_identity("Main"),
+    )
+
+    assert result.file_path is not None
+    with Image.open(result.file_path) as png:
+        assert "sugar_script" not in png.info
+        assert (
+            png.info["workflow"]
+            == '{"version":0.4,"nodes":[{"id":1,"type":"Cube"}],"links":[],"definitions":{"subgraphs":[]}}'
+        )
 
 
 def test_target_size_jpeg_encoder_produces_bounded_derivative(
@@ -92,7 +130,7 @@ def test_target_size_jpeg_encoder_produces_bounded_derivative(
             ),
         ),
         workflow_payload={},
-        sugar_script="recipe",
+        persistence_sugar_script="recipe",
         cube_numbers_by_alias={},
     )
 

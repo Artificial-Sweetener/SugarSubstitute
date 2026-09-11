@@ -80,10 +80,10 @@ def test_core_nodepack_manifest_contains_expected_install_identities() -> None:
     assert by_project["substitute-backend"].fallback_repository_url == (
         "https://github.com/Artificial-Sweetener/Substitute-BackEnd.git"
     )
-    assert by_project["substitute-backend"].required_version == "1.9.1"
+    assert by_project["substitute-backend"].required_version == "1.10.0"
     assert by_project["substitute-backend"].fallback_archive_url == (
         "https://github.com/Artificial-Sweetener/Substitute-BackEnd/archive/refs/tags/"
-        "v1.9.1.zip"
+        "v1.10.0.zip"
     )
     assert by_project["substitute-backend"].expected_folder == (
         Path("custom_nodes") / "substitute-backend"
@@ -99,10 +99,10 @@ def test_core_nodepack_manifest_contains_expected_install_identities() -> None:
     assert by_project["SugarCubes"].local_source_environment_variable == (
         "SUGARSUBSTITUTE_SUGARCUBES_SOURCE"
     )
-    assert by_project["SugarCubes"].required_version == "0.12.0"
+    assert by_project["SugarCubes"].required_version == "0.13.0"
     assert by_project["SugarCubes"].fallback_archive_url == (
         "https://github.com/Artificial-Sweetener/SugarCubes/archive/refs/tags/"
-        "v0.12.0.zip"
+        "v0.13.0.zip"
     )
     assert by_project["SugarCubes"].expected_folder == (
         Path("custom_nodes") / "SugarCubes"

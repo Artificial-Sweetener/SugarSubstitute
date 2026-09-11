@@ -52,7 +52,7 @@ def test_integrated_cli_installs_exact_registry_release_without_manager_deps(
 
         observed["command"] = command
         observed.update(kwargs)
-        return 0, ("[INSTALLED] substitute-backend [1.9.1]",)
+        return 0, ("[INSTALLED] substitute-backend [1.10.0]",)
 
     monkeypatch.setattr(
         "substitute.infrastructure.comfy.comfy_manager_runtime.stream_command_collecting_output",
@@ -78,7 +78,7 @@ def test_integrated_cli_installs_exact_registry_release_without_manager_deps(
         "install",
         "--exit-on-fail",
         "--no-deps",
-        "substitute-backend@1.9.1",
+        "substitute-backend@1.10.0",
         "--mode",
         "remote",
     ]

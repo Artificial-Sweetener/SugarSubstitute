@@ -37,6 +37,7 @@ from substitute.presentation.shell.workflow_surface_invalidation import (
     WorkflowSurface,
     WorkflowSurfaceInvalidationService,
 )
+from tests.support.passthrough_cube_analysis import PassthroughCubeWorkflowAnalyzer
 
 
 class _TabItem:
@@ -102,7 +103,10 @@ def _actions(
     """Build file actions against the real loading service."""
     return DirectWorkflowFileActions(
         view=view,
-        load_service=DirectWorkflowLoadService(ComfyWorkflowDocumentRepository()),
+        load_service=DirectWorkflowLoadService(
+            ComfyWorkflowDocumentRepository(),
+            PassthroughCubeWorkflowAnalyzer(),
+        ),
         add_workflow_tab=add_workflow_tab,
         refresh_active_workflow=refresh_active_workflow,
     )

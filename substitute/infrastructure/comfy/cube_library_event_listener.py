@@ -45,6 +45,7 @@ from substitute.shared.logging.logger import (
 EVENT_TYPE = "substitute_cube_library_changed"
 _SUPPORTED_SCHEMA_VERSION = 1
 _DEFAULT_BACKOFF_SECONDS = (1.0, 2.0, 5.0, 15.0)
+_DEFAULT_RECEIVE_TIMEOUT_SECONDS = 0.5
 _LOGGER = get_logger("infrastructure.comfy.cube_library_event_listener")
 
 
@@ -91,7 +92,7 @@ class CubeLibraryEventListener:
         websocket_factory: WebSocketFactory | None = None,
         task_factory: ListenerTaskFactory | None = None,
         backoff_seconds: tuple[float, ...] = _DEFAULT_BACKOFF_SECONDS,
-        receive_timeout_seconds: float = 5.0,
+        receive_timeout_seconds: float = _DEFAULT_RECEIVE_TIMEOUT_SECONDS,
     ) -> None:
         """Store endpoint and callback dependencies for background listening."""
 

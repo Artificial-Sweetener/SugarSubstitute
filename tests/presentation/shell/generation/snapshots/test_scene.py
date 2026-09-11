@@ -30,6 +30,10 @@ from tests.presentation.shell.generation.snapshots.support import (
     SeedRandomizationRecorder,
     replace_seed_randomizer,
 )
+from tests.support.native_cube_workflow import (
+    native_cube_workflow_input,
+    native_cube_workflow_stub,
+)
 from substitute.presentation.shell import workspace_controller as mod
 
 
@@ -39,35 +43,28 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
     """Single-scene snapshot capture should serialize only the requested scene."""
 
     order: list[str] = []
-    workflow = SimpleNamespace(
-        stack_order=["Text"],
-        cubes={
-            "Text": SimpleNamespace(
-                buffer={
-                    "nodes": {
-                        "positive_prompt": {
-                            "class_type": "String",
-                            "inputs": {
-                                "prompt_template": (
-                                    "quality\n\n"
-                                    "**portrait\n"
-                                    "studio portrait\n\n"
-                                    "**cafe\n"
-                                    "sitting in a cafe"
-                                ),
-                            },
-                        },
-                        "negative_prompt": {
-                            "class_type": "String",
-                            "inputs": {
-                                "prompt_template": (
-                                    "bad anatomy\n\n**portrait\nextra fingers"
-                                ),
-                            },
-                        },
+    workflow = native_cube_workflow_stub(
+        buffer={
+            "nodes": {
+                "positive_prompt": {
+                    "class_type": "String",
+                    "inputs": {
+                        "prompt_template": (
+                            "quality\n\n"
+                            "**portrait\n"
+                            "studio portrait\n\n"
+                            "**cafe\n"
+                            "sitting in a cafe"
+                        ),
                     },
                 },
-            ),
+                "negative_prompt": {
+                    "class_type": "String",
+                    "inputs": {
+                        "prompt_template": ("bad anatomy\n\n**portrait\nextra fingers"),
+                    },
+                },
+            },
         },
     )
     behavior_snapshot = EditorBehaviorSnapshot(
@@ -183,7 +180,7 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
 
     snapshot = controller.build_scene_generation_snapshot("portrait")
 
-    assert order == ["reconcile", "capture", "randomize", "serialize"]
+    assert order == ["reconcile", "capture", "randomize"]
     assert snapshot.workflow_name == "Recipe - portrait"
     assert snapshot.positive_prompt_preview == "quality studio portrait"
     assert snapshot.scene_run_id is not None
@@ -191,6 +188,20 @@ def test_build_scene_generation_snapshot_materializes_selected_scene(
     assert snapshot.scene_title == "portrait"
     assert snapshot.scene_order == 0
     assert snapshot.scene_count == 2
-    assert serialized_prompts == [
-        ("quality\n\nstudio portrait", "bad anatomy\n\nextra fingers")
-    ]
+    assert serialized_prompts == []
+    assert (
+        native_cube_workflow_input(
+            snapshot.cube_workflow,
+            node_name="positive_prompt",
+            input_name="prompt_template",
+        )
+        == "quality\n\nstudio portrait"
+    )
+    assert (
+        native_cube_workflow_input(
+            snapshot.cube_workflow,
+            node_name="negative_prompt",
+            input_name="prompt_template",
+        )
+        == "bad anatomy\n\nextra fingers"
+    )

@@ -60,6 +60,8 @@ class SeedFieldStateController:
         control: SeedModeControl,
         cube_state: object,
         binding: SeedFieldBinding,
+        *,
+        state_resolver: Callable[[], object] | None = None,
     ) -> None:
         """Restore and persist one seed control's random/fixed mode."""
 
@@ -76,7 +78,10 @@ class SeedFieldStateController:
         def on_mode_changed(mode: object) -> None:
             """Persist one semantic seed-mode change."""
 
-            self.set_mode(cube_state, binding, seed_mode_from_value(mode))
+            current_state = (
+                state_resolver() if state_resolver is not None else cube_state
+            )
+            self.set_mode(current_state, binding, seed_mode_from_value(mode))
 
         signal.connect(on_mode_changed)
 

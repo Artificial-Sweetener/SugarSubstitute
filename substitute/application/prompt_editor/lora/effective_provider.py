@@ -20,9 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-import hashlib
-from pathlib import Path
-from typing import Any, Hashable, Protocol, cast
+from typing import Hashable, Protocol
 
 from substitute.application.model_metadata import RichChoiceContext, RichChoiceResolver
 from substitute.application.node_behavior import (
@@ -31,17 +29,7 @@ from substitute.application.node_behavior import (
     extract_live_list_options,
 )
 from substitute.application.ports import NodeDefinitionGateway
-from substitute.application.recipes.recipe_io_service import WorkflowLike
-from substitute.application.recipes.workflow_payload_nodes import (
-    executable_prompt_nodes,
-)
-from substitute.domain.common import (
-    GlobalOverrideMap,
-    GlobalOverrideSelectionMap,
-    JsonObject,
-    JsonValue,
-)
-from substitute.shared.logging.logger import get_logger, log_warning
+from substitute.domain.common import JsonValue
 
 from substitute.application.prompt_editor.document.projector import (
     PromptDocumentProjector,
@@ -56,11 +44,8 @@ from substitute.application.prompt_editor.lora.scheduled import (
     scheduled_lora_from_model_catalog_item,
 )
 from substitute.application.prompt_editor.features.workflow_graph import (
-    prompt_node_ids,
-    upstream_node_ids,
+    upstream_node_ids_from_nodes,
 )
-
-_LOGGER = get_logger("application.prompt_editor.lora.effective_provider")
 
 
 class ScheduledLoraProvider(Protocol):
@@ -78,25 +63,6 @@ class ScheduledLoraProvider(Protocol):
         """Return effective scheduled LoRAs for the supplied prompt field."""
 
 
-class RecipeWorkflowSerializer(Protocol):
-    """Serialize workflow-like state to Sugar script text."""
-
-    def serialize_workflow_to_sugar_script(self, workflow: WorkflowLike) -> str:
-        """Serialize workflow state into Sugar script text."""
-
-
-class WorkflowPayloadCompiler(Protocol):
-    """Compile Sugar script text into a Comfy artifact payload."""
-
-    def compile_workflow_payload(
-        self,
-        *,
-        sugar_script_text: str,
-        output_dir: Path,
-    ) -> JsonObject:
-        """Compile Sugar script text into a workflow payload artifact."""
-
-
 @dataclass(frozen=True, slots=True)
 class WorkflowPromptContext:
     """Carry workflow state required for effective prompt-context resolution."""
@@ -108,46 +74,24 @@ class WorkflowPromptContext:
     cache_token: tuple[Hashable, ...] = ()
 
 
-@dataclass(slots=True)
-class _WorkflowForRecipe:
-    """Adapt editor-panel state to RecipeIoService's workflow protocol."""
-
-    stack_order: list[str]
-    cubes: Mapping[str, Any]
-    global_overrides: GlobalOverrideMap
-    global_override_selections: GlobalOverrideSelectionMap
-    override_control_states: Mapping[str, Any]
-
-
 class EffectiveScheduledLoraProvider:
     """Resolve inline, cube-field, and graph-effective scheduled LoRAs."""
 
     def __init__(
         self,
         *,
-        recipe_io_service: RecipeWorkflowSerializer,
-        workflow_export_service: WorkflowPayloadCompiler,
         prompt_scheduled_lora_service: PromptScheduledLoraService,
         prompt_lora_catalog_service: PromptLoraCatalogLookup,
         rich_choice_resolver: RichChoiceResolver,
         node_definition_gateway: NodeDefinitionGateway,
-        output_dir: Path,
     ) -> None:
         """Store collaborators used for effective scheduled-LoRA resolution."""
 
-        self._recipe_io_service = recipe_io_service
-        self._workflow_export_service = workflow_export_service
         self._prompt_scheduled_lora_service = prompt_scheduled_lora_service
         self._prompt_lora_catalog_service = prompt_lora_catalog_service
         self._rich_choice_resolver = rich_choice_resolver
         self._node_definition_gateway = node_definition_gateway
-        self._output_dir = output_dir
         self._document_projector = PromptDocumentProjector()
-        self._graph_cache: dict[
-            tuple[str, str | None, str, str],
-            tuple[PromptScheduledLora, ...],
-        ] = {}
-        self._compiled_workflow_cache: dict[str, JsonObject | None] = {}
         self._cube_field_cache: dict[
             tuple[tuple[Hashable, ...], str | None],
             tuple[PromptScheduledLora, ...],
@@ -350,129 +294,50 @@ class EffectiveScheduledLoraProvider:
         prompt_node_name: str,
         prompt_field_key: str,
     ) -> tuple[PromptScheduledLora, ...]:
-        """Return LoRA scheduler nodes feeding the compiled prompt graph path."""
+        """Return LoRA scheduler nodes feeding the editable prompt graph path."""
 
         if cube_alias is None:
             return ()
-        try:
-            sugar_script_text = (
-                self._recipe_io_service.serialize_workflow_to_sugar_script(
-                    _WorkflowForRecipe(
-                        stack_order=list(workflow_context.stack_order),
-                        cubes=workflow_context.cube_states,
-                        global_overrides=cast(
-                            GlobalOverrideMap,
-                            dict(workflow_context.workflow_overrides),
-                        ),
-                        global_override_selections={},
-                        override_control_states={},
-                    )
-                )
-            )
-        except (RuntimeError, TypeError, ValueError) as error:
-            log_warning(
-                _LOGGER,
-                "Failed to serialize workflow for scheduled LoRA analysis",
-                cube_alias=cube_alias,
-                prompt_node_name=prompt_node_name,
-                prompt_field_key=prompt_field_key,
-                error=repr(error),
-            )
+        cube = workflow_context.cube_states.get(cube_alias)
+        buffer = getattr(cube, "buffer", None)
+        nodes = buffer.get("nodes") if isinstance(buffer, Mapping) else None
+        if not isinstance(nodes, Mapping):
             return ()
-        script_hash = hashlib.sha256(sugar_script_text.encode("utf-8")).hexdigest()
-        cache_key = (script_hash, cube_alias, prompt_node_name, prompt_field_key)
-        cached = self._graph_cache.get(cache_key)
-        if cached is not None:
-            return cached
-        workflow_payload = self._compiled_workflow_payload(
-            script_hash=script_hash,
-            sugar_script_text=sugar_script_text,
-            cube_alias=cube_alias,
-            prompt_node_name=prompt_node_name,
-            prompt_field_key=prompt_field_key,
-        )
-        if workflow_payload is None:
-            self._graph_cache[cache_key] = ()
-            return ()
-
-        graph_loras = self._analyze_compiled_graph_for_prompt(
-            workflow_payload=workflow_payload,
-            cube_alias=cube_alias,
+        return self._analyze_cube_graph_for_prompt(
+            workflow_nodes=nodes,
             prompt_node_name=prompt_node_name,
         )
-        self._graph_cache[cache_key] = graph_loras
-        return graph_loras
 
-    def _compiled_workflow_payload(
+    def _analyze_cube_graph_for_prompt(
         self,
         *,
-        script_hash: str,
-        sugar_script_text: str,
-        cube_alias: str,
-        prompt_node_name: str,
-        prompt_field_key: str,
-    ) -> JsonObject | None:
-        """Return one compiled workflow payload cached by Sugar script hash."""
-
-        if script_hash in self._compiled_workflow_cache:
-            return self._compiled_workflow_cache[script_hash]
-        try:
-            workflow_payload = self._workflow_export_service.compile_workflow_payload(
-                sugar_script_text=sugar_script_text,
-                output_dir=self._output_dir,
-            )
-        except (RuntimeError, TypeError, ValueError, OSError) as error:
-            log_warning(
-                _LOGGER,
-                "Failed to compile workflow for scheduled LoRA analysis",
-                cube_alias=cube_alias,
-                prompt_node_name=prompt_node_name,
-                prompt_field_key=prompt_field_key,
-                error=repr(error),
-            )
-            self._compiled_workflow_cache[script_hash] = None
-            return None
-        self._compiled_workflow_cache[script_hash] = workflow_payload
-        return workflow_payload
-
-    def _analyze_compiled_graph_for_prompt(
-        self,
-        *,
-        workflow_payload: Mapping[str, JsonValue],
-        cube_alias: str,
+        workflow_nodes: Mapping[str, JsonValue],
         prompt_node_name: str,
     ) -> tuple[PromptScheduledLora, ...]:
-        """Walk the compiled prompt branch and collect effective LoRA nodes."""
+        """Walk one Cube prompt branch and collect effective LoRA nodes."""
 
-        workflow_nodes = executable_prompt_nodes(workflow_payload)
-        prompt_ids = prompt_node_ids(
-            workflow_payload=workflow_nodes,
-            cube_alias=cube_alias,
-            prompt_node_name=prompt_node_name,
-        )
-        if not prompt_ids:
+        if prompt_node_name not in workflow_nodes:
             return ()
         visited: set[str] = set()
         scheduled_loras: list[PromptScheduledLora] = []
-        for prompt_node_id in prompt_ids:
-            for node_id in upstream_node_ids(
-                workflow_payload=workflow_nodes,
-                start_node_id=prompt_node_id,
-                visited=visited,
-            ):
-                node = workflow_nodes.get(node_id)
-                if not isinstance(node, Mapping) or not _is_lora_node(node):
-                    continue
-                scheduled_lora = self._scheduled_lora_from_compiled_node(node)
-                if scheduled_lora is not None:
-                    scheduled_loras.append(scheduled_lora)
+        for node_id in upstream_node_ids_from_nodes(
+            workflow_nodes=workflow_nodes,
+            start_node_id=prompt_node_name,
+            visited=visited,
+        ):
+            node = workflow_nodes.get(node_id)
+            if not isinstance(node, Mapping) or not _is_lora_node(node):
+                continue
+            scheduled_lora = self._scheduled_lora_from_graph_node(node)
+            if scheduled_lora is not None:
+                scheduled_loras.append(scheduled_lora)
         return tuple(scheduled_loras)
 
-    def _scheduled_lora_from_compiled_node(
+    def _scheduled_lora_from_graph_node(
         self,
         node: Mapping[str, JsonValue],
     ) -> PromptScheduledLora | None:
-        """Resolve a compiled LoRA scheduler node into catalog metadata."""
+        """Resolve one editable LoRA scheduler node into catalog metadata."""
 
         inputs = node.get("inputs", {})
         if not isinstance(inputs, Mapping):
@@ -509,8 +374,6 @@ def _is_lora_node(node: Mapping[str, JsonValue]) -> bool:
 
 __all__ = [
     "EffectiveScheduledLoraProvider",
-    "RecipeWorkflowSerializer",
     "ScheduledLoraProvider",
-    "WorkflowPayloadCompiler",
     "WorkflowPromptContext",
 ]

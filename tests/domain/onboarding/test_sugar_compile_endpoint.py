@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify endpoint construction for backend Sugar compilation."""
+"""Verify endpoint construction for SugarCubes SugarScript authoring."""
 
 from __future__ import annotations
 
@@ -22,10 +22,32 @@ from substitute.domain.onboarding import ComfyEndpoint
 
 
 def test_endpoint_builds_sugar_compile_url() -> None:
-    """Expose the Substitute BackEnd compile route from a Comfy endpoint."""
+    """Expose the SugarCubes authoring route from a Comfy endpoint."""
     endpoint = ComfyEndpoint(host="10.0.0.2", port=8189)
 
     assert (
-        endpoint.substitute_sugar_compile_url()
-        == "http://10.0.0.2:8189/substitute/v1/sugar/compile"
+        endpoint.sugarcubes_sugarscript_compile_url()
+        == "http://10.0.0.2:8189/sugarcubes/v2/sugarscript/compile"
+    )
+
+
+def test_endpoint_builds_sugarcubes_workflow_analysis_url() -> None:
+    """Expose canonical graph analysis from the selected Comfy endpoint."""
+
+    endpoint = ComfyEndpoint(host="10.0.0.2", port=8189)
+
+    assert (
+        endpoint.sugarcubes_workflow_analysis_url()
+        == "http://10.0.0.2:8189/sugarcubes/v2/workflows/analyze"
+    )
+
+
+def test_endpoint_builds_sugarcubes_cube_graph_creation_url() -> None:
+    """Expose one-request legacy stack migration from the selected target."""
+
+    endpoint = ComfyEndpoint(host="10.0.0.2", port=8189)
+
+    assert (
+        endpoint.sugarcubes_workflow_cube_create_url()
+        == "http://10.0.0.2:8189/sugarcubes/v2/workflows/cubes/create"
     )

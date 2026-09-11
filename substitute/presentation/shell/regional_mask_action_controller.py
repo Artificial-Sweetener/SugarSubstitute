@@ -123,6 +123,9 @@ class RegionalMaskActionController:
         workflow = self._active_workflow()
         if workflow is None:
             return False
+        image_id = workflow.canvas.input_image_uuid
+        if image_id is None or not workflow.canvas.owns_mask(mask_id, image_id):
+            return False
         selected_key: tuple[str, str] | None = None
         selected_region_id: UUID | None = None
         for (

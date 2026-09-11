@@ -68,6 +68,9 @@ from substitute.application.workspace_state import (
 
 
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
+from substitute.presentation.shell.shutdown_progress_dialog import (
+    ShutdownProgressDialog,
+)
 
 
 TDialog = TypeVar("TDialog")
@@ -353,14 +356,12 @@ def _wait_for_cleanup_task_completion(coordinator: ShutdownCoordinator) -> None:
     wait_for_queued_qt_turn()
 
 
-def test_shutdown_coordinator_fast_success_stays_invisible(
-    monkeypatch: pytest.MonkeyPatch,
+def test_shutdown_coordinator_fast_success_shows_immediate_progress(
     cleanup_submitter: TaskSubmitter,
 ) -> None:
-    """Fast successful cleanup should not instantiate any shutdown UI."""
+    """Every accepted shutdown should acknowledge the request with modal progress."""
 
-    monkeypatch.setattr(shutdown_module, "_SLOW_SHUTDOWN_THRESHOLD_MS", 100)
-    qt_app = QApplication.instance() or QApplication([])
+    qt_app = cast(QApplication, QApplication.instance() or QApplication([]))
     app = _FakeApp()
     progress_dialogs: list[_FakeProgressDialog] = []
     recovery_dialogs: list[_FakeRecoveryDialog] = []
@@ -382,9 +383,55 @@ def test_shutdown_coordinator_fast_success_stays_invisible(
     coordinator.request_shutdown()
     _wait_for(lambda: app.quit_calls == 1, qt_app)
 
-    assert progress_dialogs == []
+    assert len(progress_dialogs) == 1
+    assert progress_dialogs[0].actions[:3] == [
+        "progress.show",
+        "progress.raise",
+        "progress.activate",
+    ]
+    assert "progress.allow_close" in progress_dialogs[0].actions
+    assert "progress.close" in progress_dialogs[0].actions
     assert recovery_dialogs == []
     assert coordinator.shutdown_in_progress is False
+
+
+def test_shutdown_coordinator_presents_real_modal_before_cleanup_finishes(
+    cleanup_submitter: TaskSubmitter,
+) -> None:
+    """The production progress dialog should be visible throughout active cleanup."""
+
+    qt_app = cast(QApplication, QApplication.instance() or QApplication([]))
+    app = _FakeApp()
+    cleanup_started = threading.Event()
+    cleanup_release = threading.Event()
+
+    def cleanup() -> ManagedComfyCleanupResult:
+        cleanup_started.set()
+        assert cleanup_release.wait(timeout=2.0)
+        return _cleanup_result(ManagedComfyCleanupOutcome.CONFIRMED_SUCCESS)
+
+    coordinator = ShutdownCoordinator(
+        app=app,
+        cleanup=cleanup,
+        cleanup_submitter=cleanup_submitter,
+    )
+
+    coordinator.request_shutdown()
+    progress_dialog = next(
+        widget
+        for widget in qt_app.topLevelWidgets()
+        if isinstance(widget, ShutdownProgressDialog)
+    )
+
+    assert progress_dialog.isVisible() is True
+    assert progress_dialog.isModal() is True
+    assert cleanup_started.wait(timeout=2.0) is True
+    assert app.quit_calls == 0
+
+    cleanup_release.set()
+    _wait_for(lambda: app.quit_calls == 1, qt_app)
+
+    assert progress_dialog.isVisible() is False
 
 
 def test_shutdown_coordinator_success_enables_direct_close_before_quit(
@@ -542,13 +589,11 @@ def test_shutdown_coordinator_continues_cleanup_when_before_hook_fails(
     assert events == ["before_cleanup", "cleanup"]
 
 
-def test_shutdown_coordinator_slow_success_shows_progress_after_threshold(
-    monkeypatch: pytest.MonkeyPatch,
+def test_shutdown_coordinator_long_running_success_keeps_progress_visible(
     cleanup_submitter: TaskSubmitter,
 ) -> None:
-    """Slow successful cleanup should show exactly one delayed progress dialog."""
+    """Long successful cleanup should keep exactly one progress dialog visible."""
 
-    monkeypatch.setattr(shutdown_module, "_SLOW_SHUTDOWN_THRESHOLD_MS", 25)
     qt_app = QApplication.instance() or QApplication([])
     app = _FakeApp()
     progress_dialogs: list[_FakeProgressDialog] = []
@@ -586,12 +631,10 @@ def test_shutdown_coordinator_slow_success_shows_progress_after_threshold(
 
 
 def test_shutdown_coordinator_ignores_duplicate_close_requests(
-    monkeypatch: pytest.MonkeyPatch,
     cleanup_submitter: TaskSubmitter,
 ) -> None:
     """Repeated shutdown requests should not start a second cleanup task."""
 
-    monkeypatch.setattr(shutdown_module, "_SLOW_SHUTDOWN_THRESHOLD_MS", 250)
     qt_app = QApplication.instance() or QApplication([])
     app = _FakeApp()
     cleanup_started = threading.Event()
@@ -619,12 +662,10 @@ def test_shutdown_coordinator_ignores_duplicate_close_requests(
 
 
 def test_shutdown_coordinator_duplicate_close_while_progress_visible_only_refocuses(
-    monkeypatch: pytest.MonkeyPatch,
     cleanup_submitter: TaskSubmitter,
 ) -> None:
-    """A second close request during the slow path should only refocus progress UI."""
+    """A second close request should only refocus the active progress UI."""
 
-    monkeypatch.setattr(shutdown_module, "_SLOW_SHUTDOWN_THRESHOLD_MS", 25)
     qt_app = QApplication.instance() or QApplication([])
     app = _FakeApp()
     cleanup_started = threading.Event()
@@ -760,12 +801,10 @@ def test_shutdown_coordinator_failed_cleanup_shows_one_recovery_dialog(
 
 
 def test_shutdown_coordinator_closes_progress_before_showing_recovery(
-    monkeypatch: pytest.MonkeyPatch,
     cleanup_submitter: TaskSubmitter,
 ) -> None:
     """The progress surface should close before the recovery dialog appears."""
 
-    monkeypatch.setattr(shutdown_module, "_SLOW_SHUTDOWN_THRESHOLD_MS", 25)
     qt_app = QApplication.instance() or QApplication([])
     app = _FakeApp()
     event_log: list[str] = []
@@ -879,12 +918,10 @@ def test_shutdown_coordinator_force_close_exits_without_another_cleanup_attempt(
 
 
 def test_shutdown_coordinator_updates_dialogs_only_on_ui_thread(
-    monkeypatch: pytest.MonkeyPatch,
     cleanup_submitter: TaskSubmitter,
 ) -> None:
     """All progress and recovery dialog mutations should stay on the main thread."""
 
-    monkeypatch.setattr(shutdown_module, "_SLOW_SHUTDOWN_THRESHOLD_MS", 25)
     qt_app = QApplication.instance() or QApplication([])
     app = _FakeApp()
     cleanup_thread_names: list[str] = []
@@ -928,7 +965,6 @@ def test_shutdown_coordinator_times_out_cleanup_and_ignores_late_success(
 ) -> None:
     """Timeout recovery should appear without letting late cleanup auto-quit the app."""
 
-    monkeypatch.setattr(shutdown_module, "_SLOW_SHUTDOWN_THRESHOLD_MS", 25)
     monkeypatch.setattr(shutdown_module, "_CLEANUP_ATTEMPT_TIMEOUT_MS", 60)
     qt_app = QApplication.instance() or QApplication([])
     app = _FakeApp()
@@ -975,7 +1011,6 @@ def test_shutdown_coordinator_ignores_retry_while_timed_out_task_still_active(
 ) -> None:
     """Retry should not start a second cleanup task while timed-out cleanup is stuck."""
 
-    monkeypatch.setattr(shutdown_module, "_SLOW_SHUTDOWN_THRESHOLD_MS", 25)
     monkeypatch.setattr(shutdown_module, "_CLEANUP_ATTEMPT_TIMEOUT_MS", 60)
     qt_app = QApplication.instance() or QApplication([])
     app = _FakeApp()
