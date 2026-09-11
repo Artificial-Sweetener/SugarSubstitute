@@ -271,7 +271,7 @@ def _snapshot(
     return GenerationJobSnapshot(
         workflow_id=f"wf-{name.lower()}",
         workflow_name=name,
-        sugar_script_text=f'use "cube" as {name}',
+        persistence_sugar_script=f'use "cube" as {name}',
         positive_prompt_preview=positive_prompt_preview,
         scene_run_id=scene_run_id,
         scene_key=scene_key,

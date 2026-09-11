@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from PySide6.QtCore import QEvent, QSize, Qt, Signal
@@ -29,8 +28,6 @@ from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
-    QLabel,
-    QPushButton,
     QSizePolicy,
     QStyle,
     QStyleOptionFocusRect,
@@ -39,6 +36,7 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import PushButton  # type: ignore[import-untyped]
 from sugarsubstitute_shared.presentation.localization import (
+    ApplicationText,
     app_text,
     translate_application_text,
 )
@@ -53,6 +51,7 @@ from substitute.presentation.editor.panel.widgets.fields.regional_mask_selection
     RegionalMaskSelectionAnimationTarget,
     RegionalMaskSelectionAnimator,
 )
+from substitute.presentation import localization
 from substitute.presentation.regional import region_color
 
 _SELECTED_PREVIEW_WIDTH = 288
@@ -82,12 +81,12 @@ class _RegionalMaskPreview(Protocol):
         """Schedule Qt-owned preview deletion."""
 
 
-class _RegionalMaskRow(QPushButton):
+class _RegionalMaskRow(localization.LocalizedNativePushButton):
     """Own one selectable label and one shared thumbnail preview surface."""
 
     hoverChanged = Signal(int, bool)
 
-    def __init__(self, label: str, index: int, parent: QWidget) -> None:
+    def __init__(self, label: ApplicationText, index: int, parent: QWidget) -> None:
         """Create one normal-text row with its immutable ordered position."""
 
         super().__init__(parent)
@@ -107,7 +106,7 @@ class _RegionalMaskRow(QPushButton):
         self._layout.setContentsMargins(10, 6, 8, 6)
         self._layout.setHorizontalSpacing(8)
         self._layout.setVerticalSpacing(5)
-        self._label = QLabel(label, self)
+        self._label = localization.LocalizedLabel(label, self)
         self._label.setObjectName("regionalMaskLabel")
         self._label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self._label.setSizePolicy(
@@ -129,7 +128,7 @@ class _RegionalMaskRow(QPushButton):
 
         return self._region_index
 
-    def set_label(self, label: str) -> None:
+    def set_label(self, label: ApplicationText) -> None:
         """Replace the compact row label without rebuilding its live preview."""
 
         self._label.setText(label)
@@ -650,14 +649,13 @@ def _normalized_labels(
     return [source[index] if index < len(source) else None for index in range(count)]
 
 
-def _row_label(value: str, index: int, region_name: str | None) -> str:
-    """Prefer an authored SEP name and otherwise preserve the mask's existing label."""
+def _row_label(_value: str, index: int, region_name: str | None) -> ApplicationText:
+    """Prefer an authored SEP name and otherwise identify the ordered region."""
 
     authored_name = "" if region_name is None else region_name.strip()
     if authored_name:
         return authored_name
-    stem = Path(value).stem.strip()
-    return stem or f"#{index + 1}"
+    return app_text("Region %1", index + 1)
 
 
 __all__ = ["RegionalMaskBatchEditor"]

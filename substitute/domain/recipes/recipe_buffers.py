@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Iterable, Mapping
+from copy import deepcopy
 from typing import Any, Protocol, cast
 
 from substitute.domain.common import JsonObject, JsonValue
@@ -74,6 +75,13 @@ def strip_recipe_buffers(
         buffer_data["save_outputs"] = (
             getattr(cube_state, "output_persistence_enabled", True) is not False
         )
+        canonical_cube = getattr(cube_state, "original_cube", {})
+        for key in ("surface", "flavors"):
+            canonical_value = (
+                canonical_cube.get(key) if isinstance(canonical_cube, Mapping) else None
+            )
+            if key not in cube_state.buffer and canonical_value is not None:
+                buffer_data[key] = deepcopy(canonical_value)
         for key, value in cube_state.buffer.items():
             if key == "definitions":
                 continue

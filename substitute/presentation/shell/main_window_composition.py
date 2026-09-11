@@ -47,6 +47,9 @@ from substitute.application.workflows.workflow_activity_service import (
 )
 from substitute.application.workflows.unsaved_work_service import UnsavedWorkService
 from substitute.application.cubes import CubeStackService
+from substitute.application.cubes.graph_backed_cube_stack_service import (
+    GraphBackedCubeStackService,
+)
 from substitute.presentation.editor.panel.lora_metadata_refresh_controller import (
     PanelLoraMetadataRefreshController,
 )
@@ -54,6 +57,9 @@ from substitute.presentation.errors import ErrorPresenter
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
 from substitute.infrastructure.comfy.workflow_document_repository import (
     ComfyWorkflowDocumentRepository,
+)
+from substitute.infrastructure.external.sugarcubes_workflow_analysis_client import (
+    SugarCubesWorkflowAnalysisClient,
 )
 
 from .canvas_route_controller import canvas_route_controller_for
@@ -326,6 +332,12 @@ def capture_dependencies(
     shell.workspace_generation_controller = dependencies.workspace_generation_controller
     shell.path_bundle = dependencies.path_bundle
     shell.node_definition_gateway = dependencies.node_definition_gateway
+    shell.cube_graph_gateway = SugarCubesWorkflowAnalysisClient(
+        dependencies.comfy_target.endpoint
+    )
+    shell.cube_stack_service = CubeStackService(
+        GraphBackedCubeStackService(shell.cube_graph_gateway)
+    )
     shell.prompt_autocomplete_gateway = dependencies.prompt_autocomplete_gateway
     shell.prompt_wildcard_catalog_gateway = dependencies.prompt_wildcard_catalog_gateway
     shell.danbooru_url_import_service = dependencies.danbooru_url_import_service
@@ -450,6 +462,7 @@ def capture_dependencies(
     direct_workflow_repository = ComfyWorkflowDocumentRepository()
     direct_workflow_load_service = DirectWorkflowLoadService(
         direct_workflow_repository,
+        shell.cube_graph_gateway,
         node_definition_gateway=shell.node_definition_gateway,
     )
     direct_workflow_file_actions = DirectWorkflowFileActions(
@@ -803,7 +816,7 @@ def compose_shell_controllers(shell: Any) -> MainWindowControllerComposition:
     workspace_layout_controller = WorkspaceLayoutController(shell)
     composition = MainWindowControllerComposition(
         workflow_issue_state=WorkflowIssueState(),
-        cube_stack_service=CubeStackService(),
+        cube_stack_service=cast(CubeStackService, shell.cube_stack_service),
         shell_chrome_controller=ShellChromeController(shell),
         shell_layout_restore_controller=ShellLayoutRestoreController(shell),
         workspace_layout_controller=workspace_layout_controller,

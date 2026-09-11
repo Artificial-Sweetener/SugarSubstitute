@@ -20,14 +20,8 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, replace
-from typing import Protocol
 
-from substitute.application.cubes import LoadedCubeDefinition, LoadedCubeRuntime
-from substitute.application.cubes.cube_instance_state_transfer import (
-    structural_patch_keys,
-)
-from substitute.application.node_behavior import NodeBehaviorRuntimeState
-from substitute.domain.common import JsonObject
+from substitute.application.cubes import LoadedCubeDefinition
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.domain.workspace_snapshot import (
     EditorViewportSnapshot,
@@ -42,64 +36,18 @@ from substitute.shared.logging.logger import (
 )
 from substitute.shared.startup_trace import trace_mark, trace_span
 
-_LOGGER = get_logger("application.workspace_state.workspace_runtime_hydration_service")
-_RUNTIME_OWNED_CUBE_UI_KEYS = frozenset(
-    {
-        "artifact_label",
-        "canonical_cube",
-        "catalog_revision",
-        "content_hash",
-        "cube_icon",
-        "node_behavior_runtime",
-        "path",
-        "schema_version",
-        "source",
-    }
+from .cube_runtime_hydrator import (
+    CubeRuntimeHydrator,
+    CubeRuntimeLoadServiceProtocol,
+    NodeBehaviorRuntimeServiceProtocol,
+    restore_cube_buffer_patch,
+)
+from .native_graph_restore_service import (
+    CubeWorkflowAnalyzerProtocol,
+    NativeGraphRestoreService,
 )
 
-
-class CubeRuntimeLoadServiceProtocol(Protocol):
-    """Describe cube runtime loading operations required by restore hydration."""
-
-    def load_cube_definition(
-        self,
-        cube_id: str,
-        *,
-        cube_load_trace_id: str = "",
-    ) -> LoadedCubeDefinition:
-        """Return one loaded cube definition for runtime hydration."""
-
-    def load_cube_definition_version(
-        self,
-        cube_id: str,
-        version: str,
-        *,
-        cube_load_trace_id: str = "",
-    ) -> LoadedCubeDefinition:
-        """Return one versioned loaded cube definition for runtime hydration."""
-
-    def build_loaded_cube_runtime(
-        self,
-        cube_id: str,
-        alias_name: str,
-        *,
-        buffer_patch: object | None,
-        runtime_state: object | None,
-        loaded_cube_definition: LoadedCubeDefinition | None = None,
-        cube_load_trace_id: str = "",
-    ) -> LoadedCubeRuntime:
-        """Return a canonical live cube runtime state."""
-
-
-class NodeBehaviorRuntimeServiceProtocol(Protocol):
-    """Describe node behavior runtime preparation required by restore hydration."""
-
-    def prepare_runtime_state(
-        self,
-        loaded_cube: LoadedCubeDefinition,
-        alias_name: str,
-    ) -> NodeBehaviorRuntimeState:
-        """Return one node behavior runtime state for a loaded cube."""
+_LOGGER = get_logger("application.workspace_state.workspace_runtime_hydration_service")
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,12 +66,20 @@ class WorkspaceRuntimeHydrationService:
         *,
         cube_load_service: CubeRuntimeLoadServiceProtocol,
         node_behavior_service: NodeBehaviorRuntimeServiceProtocol,
+        cube_workflow_analyzer: CubeWorkflowAnalyzerProtocol | None = None,
         preserve_cube_keys: frozenset[tuple[str, str]] = frozenset(),
     ) -> None:
         """Store services used to canonicalize restored cube runtime state."""
 
-        self._cube_load_service = cube_load_service
-        self._node_behavior_service = node_behavior_service
+        self._cube_runtime_hydrator = CubeRuntimeHydrator(
+            cube_load_service=cube_load_service,
+            node_behavior_service=node_behavior_service,
+        )
+        self._native_graph_restore = (
+            NativeGraphRestoreService(cube_workflow_analyzer)
+            if cube_workflow_analyzer is not None
+            else None
+        )
         self._preserve_cube_keys = preserve_cube_keys
 
     def hydrate(self, snapshot: WorkspaceSnapshot) -> WorkspaceRuntimeHydrationResult:
@@ -197,8 +153,18 @@ class WorkspaceRuntimeHydrationService:
         """Return one workflow snapshot with hydrated cube runtime state."""
 
         workflow = snapshot.workflow
-        if workflow.is_direct_workflow:
-            return replace(snapshot, active_cube_alias=None)
+        if workflow.direct_workflow is not None:
+            if self._native_graph_restore is None:
+                return replace(snapshot, active_cube_alias=None)
+            result = self._native_graph_restore.restore(snapshot)
+            if result.warning is not None:
+                warnings.append(result.warning)
+                return result.snapshot
+            return self._hydrate_graph_workflow(
+                result.snapshot,
+                loaded_definitions=loaded_definitions,
+                warnings=warnings,
+            )
         hydrated_cubes: dict[str, CubeState] = {}
         hydrated_stack_order: list[str] = []
         for alias in workflow.stack_order:
@@ -228,7 +194,7 @@ class WorkspaceRuntimeHydrationService:
                     cube_version=cube_state.version,
                 )
                 continue
-            hydrated_cube = self._hydrate_cube(
+            hydrated_cube = self._cube_runtime_hydrator.hydrate(
                 workflow_id=snapshot.workflow_id,
                 cube_state=cube_state,
                 loaded_definitions=loaded_definitions,
@@ -243,7 +209,7 @@ class WorkspaceRuntimeHydrationService:
             if snapshot.active_cube_alias in hydrated_cubes
             else (hydrated_stack_order[0] if hydrated_stack_order else None)
         )
-        return replace(
+        hydrated_snapshot = replace(
             snapshot,
             workflow=_replace_cube_runtime(
                 workflow,
@@ -257,154 +223,59 @@ class WorkspaceRuntimeHydrationService:
                 active_cube_alias=active_cube_alias,
             ),
         )
+        if self._native_graph_restore is None:
+            return hydrated_snapshot
+        migration = self._native_graph_restore.migrate_legacy(hydrated_snapshot)
+        if migration.warning is not None:
+            warnings.append(migration.warning)
+        return migration.snapshot
 
-    def _hydrate_cube(
+    def _hydrate_graph_workflow(
         self,
+        snapshot: WorkflowSnapshot,
         *,
-        workflow_id: str,
-        cube_state: CubeState,
         loaded_definitions: dict[tuple[str, str], LoadedCubeDefinition],
         warnings: list[str],
-    ) -> CubeState | None:
-        """Return one restored cube rebuilt through the canonical runtime path."""
+    ) -> WorkflowSnapshot:
+        """Hydrate graph projections while the canonical graph remains authoritative."""
 
-        cube_id = cube_state.cube_id.strip()
-        alias = cube_state.alias.strip() or cube_state.alias
-        version = cube_state.version.strip()
-        trace_mark(
-            "workspace_runtime_hydration.cube.start",
-            workflow_id=workflow_id,
-            cube_alias=alias,
-            cube_id=cube_id,
+        workflow = snapshot.workflow
+        direct = workflow.direct_workflow
+        if direct is None:
+            raise ValueError("Graph Cube hydration requires a canonical workflow.")
+        hydrated_cubes: dict[str, CubeState] = {}
+        for alias in workflow.stack_order:
+            cube = workflow.cubes[alias]
+            if (snapshot.workflow_id, alias) in self._preserve_cube_keys:
+                hydrated_cubes[alias] = copy.deepcopy(cube)
+                continue
+            hydrated = self._cube_runtime_hydrator.hydrate(
+                workflow_id=snapshot.workflow_id,
+                cube_state=cube,
+                loaded_definitions=loaded_definitions,
+                warnings=warnings,
+            )
+            if hydrated is not None:
+                hydrated_cubes[alias] = hydrated
+        workflow.install_canonical_graph(
+            direct,
+            projection_sources=hydrated_cubes,
         )
-        if not cube_id:
-            warning = (
-                f"Skipped restored cube alias {cube_state.alias} in workflow "
-                f"{workflow_id} because its cube id is empty."
-            )
-            warnings.append(warning)
-            log_warning(
-                _LOGGER,
-                "restore runtime hydration skipped empty cube id",
-                workflow_id=workflow_id,
-                cube_alias=cube_state.alias,
-            )
-            return None
-        if not version:
-            warning = (
-                f"Skipped restored cube {alias} in workflow {workflow_id} because "
-                f"cube {cube_id} has no persisted cube version."
-            )
-            warnings.append(warning)
-            log_warning(
-                _LOGGER,
-                "restore runtime hydration skipped cube without version",
-                workflow_id=workflow_id,
-                cube_alias=alias,
-                cube_id=cube_id,
-            )
-            return None
-        try:
-            definition_key = (cube_id, version)
-            loaded_cube = loaded_definitions.get(definition_key)
-            if loaded_cube is None:
-                with trace_span(
-                    "workspace_runtime_hydration.cube.load_definition",
-                    workflow_id=workflow_id,
-                    cube_alias=alias,
-                    cube_id=cube_id,
-                    cube_version=version,
-                ):
-                    loaded_cube = self._cube_load_service.load_cube_definition_version(
-                        cube_id,
-                        version,
-                        cube_load_trace_id=f"restore:{workflow_id}:{alias}",
-                    )
-                loaded_definitions[definition_key] = loaded_cube
-            else:
-                trace_mark(
-                    "workspace_runtime_hydration.cube.definition_cache_hit",
-                    workflow_id=workflow_id,
-                    cube_alias=alias,
-                    cube_id=cube_id,
-                    cube_version=version,
-                )
-            with trace_span(
-                "workspace_runtime_hydration.cube.prepare_node_behavior",
-                workflow_id=workflow_id,
-                cube_alias=alias,
-                cube_id=cube_id,
-            ):
-                runtime_state = self._node_behavior_service.prepare_runtime_state(
-                    loaded_cube,
-                    alias,
-                )
-            with trace_span(
-                "workspace_runtime_hydration.cube.build_runtime",
-                workflow_id=workflow_id,
-                cube_alias=alias,
-                cube_id=cube_id,
-            ):
-                loaded_runtime = self._cube_load_service.build_loaded_cube_runtime(
-                    cube_id,
-                    alias,
-                    buffer_patch=restore_cube_buffer_patch(cube_state),
-                    runtime_state=runtime_state,
-                    loaded_cube_definition=loaded_cube,
-                    cube_load_trace_id=f"restore:{workflow_id}:{alias}",
-                )
-        except (LookupError, OSError, RuntimeError, TypeError, ValueError) as error:
-            trace_mark(
-                "workspace_runtime_hydration.cube.preserve_restored_state",
-                workflow_id=workflow_id,
-                cube_alias=alias,
-                cube_id=cube_id,
-                error=repr(error),
-            )
-            warning = (
-                f"Preserved restored cube {alias} in workflow {workflow_id} because "
-                f"runtime hydration failed for cube {cube_id}."
-            )
-            warnings.append(warning)
-            log_warning(
-                _LOGGER,
-                "restore runtime hydration preserved restored cube state",
-                workflow_id=workflow_id,
-                cube_alias=alias,
-                cube_id=cube_id,
-                error=error,
-            )
-            return copy.deepcopy(cube_state)
-        trace_mark(
-            "workspace_runtime_hydration.cube.end",
-            workflow_id=workflow_id,
-            cube_alias=alias,
-            cube_id=cube_id,
+        active_cube_alias = (
+            snapshot.active_cube_alias
+            if snapshot.active_cube_alias in workflow.cubes
+            else (workflow.stack_order[0] if workflow.stack_order else None)
         )
-        return _merge_persistent_cube_state(
-            hydrated_cube=loaded_runtime.cube_state,
-            restored_cube=cube_state,
+        return replace(
+            snapshot,
+            workflow=workflow,
+            active_cube_alias=active_cube_alias,
+            editor_viewport=_repair_editor_viewport_anchor(
+                snapshot.editor_viewport,
+                hydrated_aliases=set(workflow.cubes),
+                active_cube_alias=active_cube_alias,
+            ),
         )
-
-
-def restore_cube_buffer_patch(cube_state: CubeState) -> JsonObject:
-    """Return loader patch data from a persisted restored cube state."""
-
-    patch: JsonObject = {
-        "cube_id": cube_state.cube_id,
-        "version": cube_state.version,
-    }
-    buffer = cube_state.buffer
-    for key, value in buffer.items():
-        if key in {
-            "cube_id",
-            "version",
-            *structural_patch_keys(),
-        }:
-            continue
-        if isinstance(key, str):
-            patch[key] = copy.deepcopy(value)
-    return patch
 
 
 def _repair_editor_viewport_anchor(
@@ -420,34 +291,6 @@ def _repair_editor_viewport_anchor(
     if viewport.anchor_cube_alias in hydrated_aliases:
         return viewport
     return replace(viewport, anchor_cube_alias=active_cube_alias)
-
-
-def _merge_persistent_cube_state(
-    *,
-    hydrated_cube: CubeState,
-    restored_cube: CubeState,
-) -> CubeState:
-    """Preserve restored workflow-owned cube state after runtime hydration."""
-
-    hydrated_cube.update_policy = restored_cube.update_policy
-    hydrated_cube.bypassed = restored_cube.bypassed
-    hydrated_cube.output_persistence_enabled = restored_cube.output_persistence_enabled
-    restored_ui = restored_cube.ui
-    if not isinstance(restored_ui, dict):
-        return hydrated_cube
-    durable_ui = {
-        key: copy.deepcopy(value)
-        for key, value in restored_ui.items()
-        if key not in _RUNTIME_OWNED_CUBE_UI_KEYS
-    }
-    if not durable_ui:
-        return hydrated_cube
-    hydrated_ui = (
-        copy.deepcopy(hydrated_cube.ui) if isinstance(hydrated_cube.ui, dict) else {}
-    )
-    hydrated_ui.update(durable_ui)
-    hydrated_cube.ui = hydrated_ui
-    return hydrated_cube
 
 
 def _replace_cube_runtime(
@@ -489,6 +332,7 @@ def _workflow_hydration_order(
 
 
 __all__ = [
+    "CubeWorkflowAnalyzerProtocol",
     "CubeRuntimeLoadServiceProtocol",
     "NodeBehaviorRuntimeServiceProtocol",
     "WorkspaceRuntimeHydrationResult",

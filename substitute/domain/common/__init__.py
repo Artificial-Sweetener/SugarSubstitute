@@ -23,6 +23,10 @@ from substitute.domain.common.errors import (
     StackPolicyError,
     WorkflowStateError,
 )
+from substitute.domain.common.global_override_scope import (
+    GlobalOverrideFieldKey,
+    GlobalOverrideScope,
+)
 from substitute.domain.common.value_objects import (
     CubeAlias,
     CubeBaseName,
@@ -50,6 +54,8 @@ __all__ = [
     "DomainError",
     "FieldKey",
     "GlobalOverrideMap",
+    "GlobalOverrideFieldKey",
+    "GlobalOverrideScope",
     "GlobalOverrideSelectionMap",
     "GlobalOverrideValue",
     "ImageIdentity",

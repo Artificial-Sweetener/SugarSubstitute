@@ -34,6 +34,7 @@ from substitute.presentation.shell.workflow_surface_registry import (
     WorkflowSurfaceOwnership,
     WorkflowSurfaceRegistry,
 )
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow
 
 
 class _ProjectionAwareEditorPanel:
@@ -129,6 +130,27 @@ def test_registry_treats_direct_editor_without_stack_as_fully_materialized() -> 
     )
 
     assert registry.workflow_ui_materialized("wf-direct")
+
+
+def test_registry_requires_stack_for_graph_backed_cube_workflow() -> None:
+    """A canonical graph containing Cubes is not materialized without its stack."""
+
+    workflow = graph_backed_cube_workflow("First", "Second")
+    without_stack = WorkflowSurfaceRegistry(
+        editor_panels={"wf-cubes": object()},
+        cube_stacks={},
+        override_managers={"wf-cubes": object()},
+        workflows={"wf-cubes": workflow},
+    )
+    with_stack = WorkflowSurfaceRegistry(
+        editor_panels={"wf-cubes": object()},
+        cube_stacks={"wf-cubes": object()},
+        override_managers={"wf-cubes": object()},
+        workflows={"wf-cubes": workflow},
+    )
+
+    assert not without_stack.workflow_ui_materialized("wf-cubes")
+    assert with_stack.workflow_ui_materialized("wf-cubes")
 
 
 def test_registry_distinguishes_unprojected_editor_from_clean_editor() -> None:

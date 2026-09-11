@@ -184,7 +184,7 @@ def test_mask_batch_editor_prefers_sep_names_without_large_button_titles() -> No
 
     assert [label.text() for label in labels if label is not None] == [
         "Character",
-        "background",
+        "Region 2",
     ]
     assert all(row.text() == "" for row in rows)
     assert all(
@@ -210,7 +210,7 @@ def test_regional_prompt_text_change_routes_current_sep_names_to_coordinator() -
         "global\n[SEP|Subject]\nregion",
         panel,
     )
-    calls: list[tuple[QWidget, str, str, str]] = []
+    calls: list[tuple[QWidget, str, str, str, str]] = []
     cast(Any, panel).mainwindow = SimpleNamespace(
         regional_interaction_coordinator=SimpleNamespace(
             handle_prompt_text_changed=lambda *args: calls.append(args)
@@ -225,7 +225,15 @@ def test_regional_prompt_text_change_routes_current_sep_names_to_coordinator() -
 
     widget.textChanged.emit()
 
-    assert calls == [(panel, "Region", "positive", "global\n[SEP|Subject]\nregion")]
+    assert calls == [
+        (
+            panel,
+            "Region",
+            "positive",
+            "global\n[SEP|Subject]\nregion",
+            "global\n[SEP|Subject]\nregion",
+        )
+    ]
     destroy_qt_object(panel)
 
 
@@ -311,6 +319,10 @@ def test_materialization_publishes_authoritative_initial_regions_to_editor() -> 
         asset_ref=ProjectMaskAssetRef("second.png"),
     )
     collection.select(second.region_id)
+    cast(Any, panel).mainwindow = SimpleNamespace(
+        editor_panels={"workflow": panel},
+        workflow_session_service=SimpleNamespace(workflows={"workflow": workflow}),
+    )
     activated: list[object] = []
 
     def activate_mask(_workflow: WorkflowState, mask_id: UUID) -> bool:
@@ -323,7 +335,6 @@ def test_materialization_publishes_authoritative_initial_regions_to_editor() -> 
         input_document=SimpleNamespace(
             set_mask_properties=lambda *_args, **_kwargs: None
         ),
-        active_workflow=lambda: workflow,
         active_panel=lambda: panel,
         mask_color=lambda index, total: QColor(index, total, 0),
     )
@@ -332,6 +343,7 @@ def test_materialization_publishes_authoritative_initial_regions_to_editor() -> 
             set_mask_properties=lambda *_args, **_kwargs: None
         ),
         active_workflow=lambda: workflow,
+        active_panel=lambda: panel,
         mask_color=lambda index, total: QColor(index, total, 0),
         refresh_scalar_mask=lambda *_args: None,
         refresh_ordered_mask=collection_presenter.refresh,
@@ -435,9 +447,12 @@ def test_node_and_canvas_selection_share_authoritative_region_state(
         input_document=SimpleNamespace(
             set_mask_properties=lambda *_args, **_kwargs: None
         ),
-        active_workflow=lambda: workflow,
         active_panel=lambda: panel,
         mask_color=lambda index, total: QColor(index, total, 0),
+    )
+    cast(Any, panel).mainwindow = SimpleNamespace(
+        editor_panels={"workflow": panel},
+        workflow_session_service=SimpleNamespace(workflows={"workflow": workflow}),
     )
 
     def activate_mask(
@@ -511,4 +526,43 @@ def test_canvas_mask_selection_is_ignored_during_restore(tmp_path: Path) -> None
     )
 
     assert controller.select_canvas_mask(mask_id) is False
+    assert activation_calls == []
+
+
+def test_canvas_mask_selection_ignores_unadopted_materialization_layer(
+    tmp_path: Path,
+) -> None:
+    """A document-created mask cannot become intent before workflow adoption."""
+
+    workflow = WorkflowState()
+    image_id = uuid4()
+    workflow.canvas.bind_image("Region:image", image_id)
+    workflow.canvas.input_image_uuid = image_id
+    activation_calls: list[UUID] = []
+
+    def accept_mask(
+        _workflow_id: str,
+        _workflow: WorkflowState,
+        mask_id: UUID,
+    ) -> bool:
+        """Record and accept one active-mask transition."""
+
+        activation_calls.append(mask_id)
+        return True
+
+    controller = RegionalMaskActionController(
+        active_workflow=lambda: workflow,
+        active_workflow_id=lambda: "workflow",
+        workflow_name=lambda _workflow_id: "Recipe",
+        projects_dir=lambda: tmp_path,
+        workflow_service=cast(WorkflowInputCanvasService, SimpleNamespace()),
+        state_service=cast(
+            InputCanvasStateService,
+            SimpleNamespace(set_active_workflow_mask=accept_mask),
+        ),
+        presenter=cast(RegionalMaskCollectionPresenter, SimpleNamespace()),
+        accept_canvas_selection=lambda: True,
+    )
+
+    assert controller.select_canvas_mask(uuid4()) is False
     assert activation_calls == []

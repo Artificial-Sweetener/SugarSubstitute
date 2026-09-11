@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import ast
+from dataclasses import replace
 from pathlib import Path
 from typing import Mapping
 
@@ -212,6 +213,41 @@ def test_listener_event_runtime_builds_engine_callbacks_and_progress_sink() -> N
     ]
 
 
+def test_listener_event_runtime_uses_queue_owner_execution_prompt() -> None:
+    """Progress topology should follow the exact prompt validated by SugarCubes."""
+
+    request = _request()
+    request = replace(
+        request,
+        execution_prompt_payload={
+            "lowered-sampler": {"class_type": "KSampler", "inputs": {}}
+        },
+    )
+
+    runtime = build_listener_event_runtime(
+        request=request,
+        callbacks=_callbacks([]),
+        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
+        progress_context=ListenerProgressContext(
+            workflow_id="wf-1",
+            generation_run_id="run-1",
+            prompt_id="pid-1",
+            client_id="client-1",
+        ),
+        source_identity_resolver=lambda node_id: OutputSourceIdentity(
+            node_id=node_id,
+            source_key=f"source-{node_id}",
+            source_label=f"Source {node_id}",
+            cube_alias="Cube",
+        ),
+        source_metadata_resolver=lambda _source_node_id, _all_node_ids: (None, None),
+        cube_output_handler=_CubeOutputHandler(),
+        trace_factory=_TraceRecorder,
+    )
+
+    assert runtime.all_node_ids == {"lowered-sampler"}
+
+
 def _request() -> ListenerStartRequest:
     """Build a listener request with one valid and one malformed prompt node."""
 
@@ -230,7 +266,7 @@ def _request() -> ListenerStartRequest:
             "1": {"class_type": "KSampler"},
             "malformed": object(),
         },
-        sugar_script="line one",
+        persistence_sugar_script="line one",
         workflow_id="wf-1",
         workflow_name="Workflow",
     )

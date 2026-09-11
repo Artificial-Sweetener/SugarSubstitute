@@ -47,8 +47,8 @@ from substitute.presentation.shell.cube_stack_presenter import (
     CubeStackPresenter,
 )
 from substitute.presentation.resources.cube_icon_resolver import CubeIconResolver
-from substitute.presentation.shell.cube_duplication_link_reconciler import (
-    DeferredCubeDuplicationLinkReconciler,
+from substitute.presentation.shell.deferred_workflow_link_reconciler import (
+    DeferredWorkflowLinkReconciler,
 )
 from substitute.presentation.shell.cube_surface_projection_coordinator import (
     CubeSurfaceProjectionCoordinator,
@@ -204,8 +204,11 @@ def compose_workspace_controller_collaborators(
         ),
     )
     cube_duplication_service = CubeDuplicationService(
-        cube_stack_service=CubeStackService(),
-        link_reconciler=DeferredCubeDuplicationLinkReconciler(views.cube),
+        cube_stack_service=cast(
+            CubeStackService,
+            getattr(host, "cube_stack_service"),
+        ),
+        link_reconciler=DeferredWorkflowLinkReconciler(views.cube),
     )
     cube_stack_actions = WorkspaceCubeStackActions(
         cast(WorkspaceCubeStackActionView, views.cube),

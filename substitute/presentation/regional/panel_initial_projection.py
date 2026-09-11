@@ -45,11 +45,35 @@ def project_regional_panel_widget(
     workflow = workflow_for_panel(panel)
     if workflow is None:
         return False
-    return RegionalMaskEditorProjector().project_editor(
+    _normalize_prompt_names(panel, cube_alias, node_name)
+    projected = RegionalMaskEditorProjector().project_editor(
         widget,
         workflow,
         (cube_alias, node_name),
     )
+    if projected:
+        _bind_active_node_previews(panel)
+    return projected
+
+
+def _bind_active_node_previews(panel: object) -> None:
+    """Bind this exact panel after projection makes its rows addressable."""
+
+    mainwindow = getattr(panel, "mainwindow", None)
+    preview_coordinator = getattr(mainwindow, "input_node_preview_coordinator", None)
+    bind_panel = getattr(preview_coordinator, "bind_panel", None)
+    if callable(bind_panel):
+        bind_panel(panel)
+
+
+def _normalize_prompt_names(panel: object, cube_alias: str, node_name: str) -> None:
+    """Normalize related canonical prompt values before projecting mask labels."""
+
+    mainwindow = getattr(panel, "mainwindow", None)
+    coordinator = getattr(mainwindow, "regional_interaction_coordinator", None)
+    normalize = getattr(coordinator, "normalize_prompt_names_for_mask", None)
+    if callable(normalize):
+        normalize(panel, cube_alias, node_name)
 
 
 __all__ = ["project_regional_panel_widget"]

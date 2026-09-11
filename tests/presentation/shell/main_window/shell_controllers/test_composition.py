@@ -83,6 +83,7 @@ class _Shell:
         self.canvas_host_container = object()
         self.cube_stack_container = object()
         self.cube_stacks: dict[str, object] = {}
+        self.cube_stack_service = object()
         self.cubeStackModeButton = object()
         self.workspace_body_material_surface = object()
         self.request_session_autosave: Callable[[], None] = lambda: None

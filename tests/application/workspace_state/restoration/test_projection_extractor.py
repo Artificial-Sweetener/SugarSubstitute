@@ -32,6 +32,7 @@ from substitute.domain.workspace_snapshot import WorkflowSnapshot, WorkspaceSnap
 from substitute.application.workspace_state.restored_editor_projection import (
     RestoredEditorProjectionCacheExtractor,
 )
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow_from_states
 
 
 def test_restored_editor_projection_extractor_captures_qt_free_artifact() -> None:
@@ -150,6 +151,51 @@ def test_restored_editor_projection_extractor_captures_direct_document() -> None
     assert cached.direct_workflow.section.field_order == {"1": ("seed",)}
     assert artifact.node_definition_fingerprints.keys() == {"KSampler"}
     assert artifact.cube_definition_fingerprints == {}
+
+
+def test_restored_editor_projection_extractor_captures_graph_backed_cubes() -> None:
+    """Cache graph-backed editor sections under the Cube projection contract."""
+
+    cube_snapshot = _workspace().workflows[0]
+    cube = cube_snapshot.workflow.cubes["Scene"]
+    graph_workflow = graph_backed_cube_workflow_from_states(cube)
+    snapshot = WorkspaceSnapshot(
+        schema_version="1",
+        workflows=(
+            WorkflowSnapshot(
+                workflow_id="workflow-a",
+                tab_label="Workflow A",
+                workflow=graph_workflow,
+                active_cube_alias="Scene",
+            ),
+        ),
+        tab_order=("workflow-a",),
+        active_route="editor",
+        active_workflow_id="workflow-a",
+    )
+    panel = SimpleNamespace(
+        _last_behavior_snapshot=SimpleNamespace(
+            field_specs_by_alias={},
+            card_decisions_by_alias={},
+        )
+    )
+
+    artifact = RestoredEditorProjectionCacheExtractor().capture(
+        snapshot=snapshot,
+        target_key="target",
+        editor_panels={"workflow-a": panel},
+        node_definition_gateway=_NodeDefinitionGateway({}),
+    )
+    restored = restore_projection_artifact_from_json(
+        restore_projection_artifact_to_json(artifact)
+    )
+
+    cached = restored.workflows[0]
+    assert cached.document_kind.value == "comfy_cube_graph"
+    assert cached.cube_stack is not None
+    assert cached.direct_workflow is None
+    assert cached.cube_stack.stack_order == ("Scene",)
+    assert cached.cube_stack.cubes[0].alias == "Scene"
 
 
 class _NodeDefinitionGateway:

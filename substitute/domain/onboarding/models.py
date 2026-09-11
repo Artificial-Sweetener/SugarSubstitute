@@ -62,10 +62,10 @@ class ComfyEndpoint:
 
         return self._http_url("/substitute/v1/prompt/queue")
 
-    def substitute_sugar_compile_url(self) -> str:
-        """Return the Substitute BackEnd Sugar compile URL."""
+    def sugarcubes_sugarscript_compile_url(self) -> str:
+        """Return SugarCubes' persistence-language authoring URL."""
 
-        return self._http_url("/substitute/v1/sugar/compile")
+        return self._http_url("/sugarcubes/v2/sugarscript/compile")
 
     def substitute_local_asset_authorize_url(self) -> str:
         """Return the Substitute BackEnd local asset authorization URL."""
@@ -76,6 +76,41 @@ class ComfyEndpoint:
         """Return the Substitute BackEnd capability endpoint URL."""
 
         return self._http_url("/substitute/v1/capabilities")
+
+    def sugarcubes_execution_capabilities_url(self) -> str:
+        """Return the canonical SugarCubes execution capability URL."""
+
+        return self._http_url("/sugarcubes/v2/executions/capabilities")
+
+    def sugarcubes_execution_queue_url(self) -> str:
+        """Return the canonical SugarCubes native graph queue URL."""
+
+        return self._http_url("/sugarcubes/v2/executions/queue")
+
+    def sugarcubes_workflow_analysis_url(self) -> str:
+        """Return the SugarCubes canonical graph analysis URL."""
+
+        return self._http_url("/sugarcubes/v2/workflows/analyze")
+
+    def sugarcubes_workflow_reorder_url(self) -> str:
+        """Return the SugarCubes atomic Cube graph reorder URL."""
+
+        return self._http_url("/sugarcubes/v2/workflows/reorder")
+
+    def sugarcubes_workflow_cube_append_url(self) -> str:
+        """Return the SugarCubes atomic Cube append URL."""
+
+        return self._http_url("/sugarcubes/v2/workflows/cubes/append")
+
+    def sugarcubes_workflow_cube_create_url(self) -> str:
+        """Return the SugarCubes one-request Cube graph creation URL."""
+
+        return self._http_url("/sugarcubes/v2/workflows/cubes/create")
+
+    def sugarcubes_workflow_cube_remove_url(self) -> str:
+        """Return the SugarCubes atomic Cube removal URL."""
+
+        return self._http_url("/sugarcubes/v2/workflows/cubes/remove")
 
     def interrupt_url(self) -> str:
         """Return the interrupt endpoint URL."""

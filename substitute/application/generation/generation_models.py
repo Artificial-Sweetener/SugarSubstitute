@@ -35,23 +35,24 @@ from substitute.application.ports.comfy_gateway import (
     PreviewImageUpdate,
     ProgressUpdate,
 )
-from substitute.domain.common import WorkflowId
+from substitute.domain.common import JsonObject, WorkflowId
 from substitute.domain.comfy_workflow import DirectWorkflowGenerationPlan
 
 if TYPE_CHECKING:
     from substitute.application.recipes.recipe_io_service import (
         WorkflowLike as RecipeWorkflowLike,
     )
-    from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+    from substitute.domain.common import GlobalOverrideScope
 
 
 @dataclass(frozen=True)
 class PreparedGenerationRequest:
-    """Capture generation-ready recipe text independent from live workflow state."""
+    """Capture a detached generation graph and persistence metadata."""
 
     workflow_id: WorkflowId
     workflow_name: str
-    sugar_script_text: str
+    cube_workflow: JsonObject | None = None
+    persistence_sugar_script: str | None = None
     direct_workflow_plan: DirectWorkflowGenerationPlan | None = None
     workflow: RecipeWorkflowLike | None = None
     output_run_number: int | None = None
@@ -77,7 +78,7 @@ class GenerationRequest:
     disabled_node_keys_by_alias: Mapping[str, tuple[str, ...]] = field(
         default_factory=dict
     )
-    global_override_scopes: Mapping[str, GlobalOverrideSerializationScope] | None = None
+    global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None
     output_session_id: str | None = None
 
 

@@ -24,7 +24,7 @@ from typing import Any, cast
 
 from _pytest.logging import LogCaptureFixture
 from substitute.application.recipes import RecipeIoService
-from substitute.domain.recipes import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 
 from .support import (
     _FakeNodeDefinitionGateway,
@@ -131,7 +131,7 @@ def test_recipe_io_service_forwards_global_override_scopes() -> None:
     recipe_text = service.serialize_workflow_to_sugar_script(
         workflow,
         global_override_scopes={
-            "sampler_name": GlobalOverrideSerializationScope(
+            "sampler_name": GlobalOverrideScope(
                 override_key="sampler_name",
                 value="heun",
                 mode="global",
@@ -201,7 +201,7 @@ def test_recipe_io_service_omits_blank_model_override_scope() -> None:
     recipe_text = service.serialize_workflow_to_sugar_script(
         workflow,
         global_override_scopes={
-            "ckpt_name": GlobalOverrideSerializationScope(
+            "ckpt_name": GlobalOverrideScope(
                 override_key="ckpt_name",
                 value="",
                 mode="global",

@@ -671,9 +671,9 @@ cuda-pathfinder==1.7.0 ; python_full_version < '3.15' and sys_platform == 'linux
 cuda-toolkit==13.0.3.0 ; sys_platform == 'linux' \
     --hash=sha256:d693caaa261214ddd7dbb60d68e71cbed884e68c2be7509778f3051da0b91c3f
     # via torch
-cutecanvas==1.0.6 \
-    --hash=sha256:5a819da67149c363c19880a4b1f6c6ebdecca66134bebf29511cdd2ae4d45953 \
-    --hash=sha256:d8c72ce8bb568a3b9cc32441d78b7a7c925d1dfd932854ffb8f1a3d4a0d88557
+cutecanvas==1.0.7 \
+    --hash=sha256:111baf0637a001cb4bb1af593490d2ecf728458d52ba525a4d81779abfce474b \
+    --hash=sha256:43e7a2b9df4033190924b4eb30cbe4b469ccd22d0fb4ca28fd36e519430cf295
     # via -r requirements.txt
 cyclonedx-python-lib==11.12.0 \
     --hash=sha256:0e807521a921a5c3cb8ce1153f8a61d29eedfe76a46aac2796b7c6b573391a54 \
@@ -951,6 +951,7 @@ jeepney==0.9.0 ; sys_platform == 'linux' \
     --hash=sha256:97e5714520c16fc0a45695e5365a2e11b81ea79bba796e26f9f1d178cb182683 \
     --hash=sha256:cf0e9e845622b81e4a28df94c40345400256ec608d0e55bb8a3feaa9163f5732
     # via
+    #   -r requirements.txt
     #   keyring
     #   secretstorage
 jinja2==3.1.6 \

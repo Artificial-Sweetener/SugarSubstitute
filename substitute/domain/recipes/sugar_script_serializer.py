@@ -34,7 +34,7 @@ from substitute.domain.generation.seed_control import SeedMode
 from substitute.domain.cube_library import CubeUpdatePolicy
 from substitute.domain.recipes.authored_inputs import AuthoredRecipeInputsByAlias
 from substitute.domain.recipes.recipe_buffers import recipe_buffer_update_policy
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from substitute.domain.recipes.sugar_literal_codec import SugarLiteralCodec
 from substitute.domain.recipes.sugar_links import node_reference
 from substitute.domain.recipes.sugar_path_codec import SugarPathCodec
@@ -81,6 +81,16 @@ class SugarScriptSerializationError(ValueError):
     """Report invalid state at the Sugar serialization boundary."""
 
 
+@dataclass(frozen=True, slots=True)
+class SugarScriptCubeConnection:
+    """Persist one explicit Cube boundary edge from canonical graph analysis."""
+
+    source_alias: str
+    source_binding: str
+    target_alias: str
+    target_binding: str
+
+
 @dataclass(frozen=True)
 class SugarScriptSerializationRequest:
     """Carry all state required for one deterministic Sugar serialization."""
@@ -92,7 +102,7 @@ class SugarScriptSerializationRequest:
     global_override_selections: GlobalOverrideSelectionMap = field(default_factory=dict)
     enabled_node_keys_by_alias: Mapping[str, Iterable[str]] | None = None
     disabled_node_keys_by_alias: Mapping[str, Iterable[str]] | None = None
-    global_override_scopes: Mapping[str, GlobalOverrideSerializationScope] | None = None
+    global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None
     label_resolver: SugarScriptLabelResolver | None = None
     model_hashes_by_field: Mapping[tuple[str, str, str], str] | None = None
     prompt_lora_hashes_by_field: (
@@ -102,6 +112,7 @@ class SugarScriptSerializationRequest:
         Mapping[str, Mapping[str, Mapping[str, SeedControlState]]] | None
     ) = None
     override_control_states: Mapping[str, SeedControlState] | None = None
+    explicit_connections: tuple[SugarScriptCubeConnection, ...] = ()
 
 
 @dataclass
@@ -165,6 +176,22 @@ class SugarScriptSerializer:
             if not isinstance(cube_id, str) or not cube_id.strip():
                 raise SugarScriptSerializationError(
                     f"Sugar serialization alias '{alias}' has no cube ID."
+                )
+        for connection in request.explicit_connections:
+            if connection.source_alias not in seen_aliases:
+                raise SugarScriptSerializationError(
+                    "Sugar serialization connection has an unknown source alias."
+                )
+            if connection.target_alias not in seen_aliases:
+                raise SugarScriptSerializationError(
+                    "Sugar serialization connection has an unknown target alias."
+                )
+            if (
+                not connection.source_binding.strip()
+                or not connection.target_binding.strip()
+            ):
+                raise SugarScriptSerializationError(
+                    "Sugar serialization connection bindings must be non-empty."
                 )
 
     def _write_use_statements(
@@ -610,41 +637,26 @@ class SugarScriptSerializer:
         request: SugarScriptSerializationRequest,
         state: _SerializationState,
     ) -> None:
-        """Connect adjacent active cubes using their public endpoints."""
+        """Persist only explicit Cube edges reported by SugarCubes analysis."""
 
-        active_aliases = [
-            alias
-            for alias in request.ordered_aliases
-            if not state.alias_bypassed[alias]
-        ]
-        for index in range(len(active_aliases) - 1):
-            from_alias = active_aliases[index]
-            to_alias = active_aliases[index + 1]
-            from_outputs = request.buffers[from_alias].get("outputs", {})
-            to_inputs = request.buffers[to_alias].get("inputs", {})
-            if not isinstance(from_outputs, dict) or not isinstance(to_inputs, dict):
-                continue
-            for from_output in from_outputs:
-                endpoint_from = format_connect_endpoint(
-                    state.alias_tokens[from_alias],
-                    _endpoint_label_for_script(
-                        label_resolver=request.label_resolver,
-                        alias=from_alias,
-                        endpoint_key=from_output,
-                    ),
-                )
-                for to_input in to_inputs:
-                    endpoint_to = format_connect_endpoint(
-                        state.alias_tokens[to_alias],
-                        _endpoint_label_for_script(
-                            label_resolver=request.label_resolver,
-                            alias=to_alias,
-                            endpoint_key=to_input,
-                        ),
-                    )
-                    state.connect_lines.append(
-                        f"connect {endpoint_from} to {endpoint_to}"
-                    )
+        for connection in request.explicit_connections:
+            endpoint_from = format_connect_endpoint(
+                state.alias_tokens[connection.source_alias],
+                _endpoint_label_for_script(
+                    label_resolver=request.label_resolver,
+                    alias=connection.source_alias,
+                    endpoint_key=connection.source_binding,
+                ),
+            )
+            endpoint_to = format_connect_endpoint(
+                state.alias_tokens[connection.target_alias],
+                _endpoint_label_for_script(
+                    label_resolver=request.label_resolver,
+                    alias=connection.target_alias,
+                    endpoint_key=connection.target_binding,
+                ),
+            )
+            state.connect_lines.append(f"connect {endpoint_from} to {endpoint_to}")
 
     def _assemble_sections(self, state: _SerializationState) -> str:
         """Join non-empty sections in the persisted Sugar document order."""
@@ -1141,6 +1153,7 @@ def _is_authored_bypass_node(node: Mapping[str, object]) -> bool:
 
 
 __all__ = [
+    "SugarScriptCubeConnection",
     "SugarScriptLabelResolver",
     "SugarScriptSerializationError",
     "SugarScriptSerializationRequest",

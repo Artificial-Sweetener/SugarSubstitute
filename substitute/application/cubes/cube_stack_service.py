@@ -19,10 +19,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
-from typing import Protocol
+from typing import Any, Protocol, cast
 
+from substitute.domain.workflow import WorkflowState
 from substitute.domain.workflow import StackManager
+
+from .graph_backed_cube_stack_service import GraphBackedCubeStackService
 
 
 class WorkflowCanvasStateProtocol(Protocol):
@@ -59,6 +61,14 @@ class CubeRenameResolution:
 class CubeStackService:
     """Coordinate workflow-explicit cube alias and ordering mutations."""
 
+    def __init__(
+        self,
+        graph_backed_service: GraphBackedCubeStackService | None = None,
+    ) -> None:
+        """Capture the specialized owner for graph-backed stack mutations."""
+
+        self._graph_backed_service = graph_backed_service
+
     def resolve_unique_alias(
         self,
         workflow: WorkflowStateProtocol,
@@ -81,6 +91,13 @@ class CubeStackService:
         cube_state: Any,
     ) -> None:
         """Add cube alias to a target workflow state."""
+
+        if (
+            isinstance(workflow, WorkflowState)
+            and self._graph_backed_service is not None
+        ):
+            self._graph_backed_service.add_cube(workflow, cast(Any, cube_state))
+            return
 
         if getattr(workflow, "direct_workflow", None) is not None:
             raise ValueError("Direct Comfy workflows cannot be mixed with cubes.")
@@ -115,6 +132,12 @@ class CubeStackService:
     ) -> None:
         """Synchronize reordered cube aliases into target workflow state."""
 
+        if getattr(workflow, "is_graph_backed_cube_workflow", False) is True:
+            self._graph_backed().apply_reordered_aliases(
+                cast(WorkflowState, workflow),
+                new_order,
+            )
+            return
         manager = self._manager_for_workflow(workflow)
         manager.stack_order = list(new_order)
         workflow.stack_order = list(manager.stack_order)
@@ -126,6 +149,9 @@ class CubeStackService:
     ) -> None:
         """Remove one cube alias from target workflow state."""
 
+        if getattr(workflow, "is_graph_backed_cube_workflow", False) is True:
+            self._graph_backed().remove_cube(cast(WorkflowState, workflow), alias_name)
+            return
         manager = self._manager_for_workflow(workflow)
         manager.remove_cube(alias_name)
         workflow.cubes.pop(alias_name, None)
@@ -142,6 +168,12 @@ class CubeStackService:
         cube_state = workflow.cubes.get(alias_name)
         if cube_state is None:
             return False
+        if getattr(workflow, "is_graph_backed_cube_workflow", False) is True:
+            return self._graph_backed().set_bypassed(
+                cast(WorkflowState, workflow),
+                alias_name,
+                bypassed,
+            )
         previous = getattr(cube_state, "bypassed", False) is True
         if previous == bypassed:
             return False
@@ -159,7 +191,7 @@ class CubeStackService:
         if cube_state is None:
             return False
         next_value = getattr(cube_state, "bypassed", False) is not True
-        setattr(cube_state, "bypassed", next_value)
+        self.set_cube_bypassed(workflow, alias_name, next_value)
         return next_value
 
     def toggle_cube_output_persistence(
@@ -186,8 +218,16 @@ class CubeStackService:
         """Rename one cube alias in target workflow state."""
 
         resolution = self.resolve_cube_rename(workflow, old_alias, requested_alias)
-        manager = self._manager_for_workflow(workflow)
+        if getattr(workflow, "is_graph_backed_cube_workflow", False) is True:
+            self._graph_backed().rename(
+                cast(WorkflowState, workflow),
+                old_alias,
+                resolution.resolved_alias,
+            )
+            workflow.canvas.rename_section(old_alias, resolution.resolved_alias)
+            return resolution
         workflow.canvas.rename_section(old_alias, resolution.resolved_alias)
+        manager = self._manager_for_workflow(workflow)
         manager.rename_cube(old_alias, resolution.resolved_alias)
         cube_state = workflow.cubes.pop(old_alias, None)
         if cube_state is not None:
@@ -195,6 +235,13 @@ class CubeStackService:
             workflow.cubes[resolution.resolved_alias] = cube_state
         workflow.stack_order = list(manager.stack_order)
         return resolution
+
+    def _graph_backed(self) -> GraphBackedCubeStackService:
+        """Return the configured graph mutation service for canonical workflows."""
+
+        if self._graph_backed_service is None:
+            raise ValueError("Graph-backed Cube operations are not configured.")
+        return self._graph_backed_service
 
     def _manager_for_workflow(self, workflow: WorkflowStateProtocol) -> StackManager:
         """Build a short-lived stack manager from one workflow snapshot."""

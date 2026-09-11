@@ -67,6 +67,9 @@ from substitute.infrastructure.comfy.prompt_liveness import (
     ComfyPromptLivenessProbe,
     PromptLivenessProbe,
 )
+from substitute.infrastructure.comfy.prompt_history_output_recovery import (
+    PromptHistoryOutputRecovery,
+)
 from substitute.infrastructure.comfy.websocket_transport import (
     PreconnectedComfyWebsocketSession,
     is_disconnect_error,
@@ -86,6 +89,7 @@ class ListenerRuntimeComposition:
     output_source_resolver: ListenerOutputSourceResolver
     cube_output_handler: CubeOutputEventHandler
     standard_output_handler: StandardExecutedImageHandler
+    history_output_recovery: PromptHistoryOutputRecovery
     model_load_source_metadata_resolver: ListenerModelLoadSourceMetadataResolver
     binary_event_router: BinaryWebsocketEventRouter
     cube_output_node_ids: set[str]
@@ -147,7 +151,7 @@ def build_listener_runtime_composition(
         on_cube_output_diagnostic=diagnostics.cube_output,
     )
     model_load_source_metadata_resolver = ListenerModelLoadSourceMetadataResolver(
-        workflow_payload=request.workflow_payload,
+        workflow_payload=request.execution_payload,
         workflow_id=request.workflow_id,
         prompt_id=request.prompt_id,
         on_diagnostic=diagnostics.model_load_source_metadata,
@@ -173,6 +177,7 @@ def build_listener_runtime_composition(
         output_source_resolver=output_pipeline.output_source_resolver,
         cube_output_handler=output_pipeline.cube_output_handler,
         standard_output_handler=output_pipeline.standard_output_handler,
+        history_output_recovery=output_pipeline.history_output_recovery,
         model_load_source_metadata_resolver=model_load_source_metadata_resolver,
         binary_event_router=binary_event_runtime.binary_event_router,
         cube_output_node_ids=output_pipeline.cube_output_node_ids,

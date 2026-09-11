@@ -93,3 +93,43 @@ def test_wire_integer_lineedit_state_persists_python_integer() -> None:
     assert stored_value == 18_446_744_073_709_551_615
     assert isinstance(stored_value, int)
     assert cube_state.dirty is True
+
+
+def test_widget_change_resolves_current_projected_cube_instead_of_stale_binding() -> (
+    None
+):
+    """A rebuilt graph projection must replace the state captured by old widgets."""
+
+    lineedit = _LineEditDouble(
+        {
+            "cube_alias": "CubeA",
+            "node_name": "Prompt",
+            "key": "value",
+            "type": "STRING",
+        },
+        text="initial",
+    )
+    stale = SimpleNamespace(
+        buffer={"nodes": {"Prompt": {"inputs": {"value": "initial"}}}},
+        dirty=False,
+    )
+    current = SimpleNamespace(
+        buffer={"nodes": {"Prompt": {"inputs": {"value": "canonical"}}}},
+        dirty=False,
+    )
+    host = SimpleNamespace(
+        cube_widgets={},
+        _cube_states={"CubeA": stale},
+        refresh_prompt_scene_diagnostics=lambda: None,
+    )
+    controller = EditorPanelFieldStateController(cast(Any, host))
+    controller.wire_lineedit_state(cast(Any, lineedit), stale)
+    host._cube_states = {"CubeA": current}
+
+    lineedit.setText("edited")
+    lineedit.editingFinished.emit()
+
+    assert current.buffer["nodes"]["Prompt"]["inputs"]["value"] == "edited"
+    assert current.dirty is True
+    assert stale.buffer["nodes"]["Prompt"]["inputs"]["value"] == "initial"
+    assert stale.dirty is False

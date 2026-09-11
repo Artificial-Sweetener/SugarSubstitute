@@ -27,6 +27,9 @@ from tests.qualification.comfy.bundled_workflows.headless_workflow_corpus_harnes
 from tests.qualification.comfy.managed_runtime.direct_output_harness import (
     ManagedComfyDirectOutputHarness,
 )
+from tests.qualification.comfy.managed_runtime.workflow_template_catalog import (
+    load_workflow_template_paths,
+)
 
 
 def run_real_comfy_input_asset_corpus_harness(
@@ -36,11 +39,11 @@ def run_real_comfy_input_asset_corpus_harness(
 
     repository_root = repository_root.resolve()
     with ManagedComfyDirectOutputHarness(repository_root) as managed_comfy:
-        template_root = managed_comfy.image_template_root()
+        template_root = managed_comfy.workflow_template_root()
         return HeadlessComfyWorkflowCorpusHarness(
             template_root=template_root,
             node_definitions=managed_comfy.node_definitions(),
-        ).run()
+        ).run(load_workflow_template_paths(template_root))
 
 
 if __name__ == "__main__":

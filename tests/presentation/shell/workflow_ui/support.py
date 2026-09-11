@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -59,6 +59,7 @@ class FakeCubeStack:
         self.cubeMoved = Signal()
         self.currentCubeChanged = Signal()
         self.movable_calls: list[bool] = []
+        self.reorder_segment_calls: list[tuple[tuple[str, ...], ...]] = []
         self.maximum_width_calls: list[int] = []
         self.close_button_modes: list[object] = []
         self.deleted = False
@@ -66,6 +67,14 @@ class FakeCubeStack:
     def setMovable(self, movable: bool) -> None:
         """Record movable configuration."""
         self.movable_calls.append(movable)
+
+    def setReorderSegments(self, segments: object) -> None:
+        """Record graph-owned reorder segment configuration."""
+
+        typed_segments = cast(tuple[tuple[object, ...], ...], segments)
+        self.reorder_segment_calls.append(
+            tuple(tuple(str(alias) for alias in segment) for segment in typed_segments)
+        )
 
     def setTabMaximumWidth(self, width: int) -> None:
         """Record tab maximum width configuration."""

@@ -84,6 +84,32 @@ def test_scheduler_generated_output_projection_uses_latest_registered_image() ->
     assert calls == [("wf", second_image_id)]
 
 
+def test_scheduler_rechecks_transiently_hidden_active_output_without_route_change() -> (
+    None
+):
+    """Do not strand a final when visibility settles after registration."""
+
+    _app()
+    calls: list[tuple[str, object]] = []
+    visible = False
+
+    def project(workflow_id: str, image_id: object = None) -> None:
+        calls.append((workflow_id, image_id))
+
+    scheduler = CanvasProjectionScheduler(
+        project_workflow=project,
+        active_workflow_id=lambda: "wf",
+        output_canvas_visible=lambda: visible,
+    )
+
+    scheduler.request_projection("wf", reason=ProjectionReason.GENERATED_OUTPUT)
+
+    assert scheduler._timer.isActive()
+    visible = True
+    scheduler.flush()
+    assert calls == [("wf", None)]
+
+
 def test_scheduler_marks_output_activity_after_generated_projection_flush() -> None:
     """Generated canvas projection should mark recent output activity after work lands."""
 
@@ -268,8 +294,10 @@ def test_scheduler_user_selection_clears_pending_deferred_projection() -> None:
     assert calls == [("wf", selected_image_id)]
 
 
-def test_scheduler_defers_hidden_generated_projection_until_visible() -> None:
-    """Generated projection should wait when the output canvas is hidden."""
+def test_scheduler_projects_generated_output_independently_of_route_visibility() -> (
+    None
+):
+    """Durable finals must converge Output state without a route-change trigger."""
 
     _app()
     calls: list[tuple[str, object]] = []
@@ -285,11 +313,6 @@ def test_scheduler_defers_hidden_generated_projection_until_visible() -> None:
     )
 
     scheduler.request_projection("wf", reason=ProjectionReason.GENERATED_OUTPUT)
-    scheduler.flush()
-
-    assert calls == []
-
-    visible = True
     scheduler.flush()
 
     assert calls == [("wf", None)]

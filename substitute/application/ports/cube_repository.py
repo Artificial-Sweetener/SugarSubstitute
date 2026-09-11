@@ -39,6 +39,7 @@ class CubeCatalogRecord:
     icon: CubeIconDescriptor | None = None
     description: str = ""
     source: CubeSourceMetadata | None = None
+    target_model: str = ""
     supported_models: tuple[str, ...] = ()
     content_hash: str = ""
     updated_at: str = ""

@@ -62,7 +62,7 @@ def test_run_preserves_cube_output_source_scene_and_list_index(
     assert failures == []
     assert len(completed) == 1
     assert len(output_events) == 1
-    assert output_events[0].source_key == "wf-1:output-node"
+    assert output_events[0].source_key == "cube:CubeA"
     assert output_events[0].source_label == "CubeA"
     assert output_events[0].scene_run_id == "scene-run-1"
     assert output_events[0].scene_key == "scene-b"

@@ -573,7 +573,7 @@
       <translation>Substitute の操作コンテキスト</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/presentation/installer_surface.py" line="140"></location>
+      <location filename="../sugarsubstitute_shared/presentation/installer_surface.py" line="118"></location>
       <source>SugarSubstitute</source>
       <translation>SugarSubstitute</translation>
     </message>

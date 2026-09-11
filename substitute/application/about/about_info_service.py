@@ -88,15 +88,6 @@ _SUGAR_CUBES_INFO = _VersionComponentInfo(
     authors="Artificial Sweetener",
     external_url="https://github.com/Artificial-Sweetener/SugarCubes",
 )
-_SUGAR_DSL_INFO = _VersionComponentInfo(
-    key="SugarDSL",
-    label=app_text("Sugar-DSL"),
-    subtitle=app_text(
-        "The scripting language for composing ComfyUI workflows with SugarCubes"
-    ),
-    authors="Artificial Sweetener",
-    external_url="https://github.com/Artificial-Sweetener/Sugar-DSL",
-)
 _QPANE_INFO = _VersionComponentInfo(
     key="QPane",
     label=app_text("QPane"),
@@ -188,7 +179,6 @@ class AboutInfoService:
                 self._comfyui_version_row(runtime_info),
                 self._sugar_cubes_version_row(capabilities),
                 self._backend_version_row(capabilities),
-                self._sugar_dsl_version_row(capabilities),
                 self._local_version_row(
                     _QPANE_INFO,
                     QPANE_DISTRIBUTION_NAMES,
@@ -249,11 +239,6 @@ class AboutInfoService:
                     _BACKEND_INFO,
                     value=_NOT_CONNECTED,
                     status=AboutVersionStatus.NOT_CONNECTED,
-                ),
-                _version_row(
-                    _SUGAR_DSL_INFO,
-                    value=_UNKNOWN,
-                    status=AboutVersionStatus.UNKNOWN,
                 ),
                 _version_row(
                     _QPANE_INFO,
@@ -346,48 +331,6 @@ class AboutInfoService:
         return _version_row(
             _SUGAR_CUBES_INFO,
             value=cube_library.sugar_cubes_version,
-            status=AboutVersionStatus.AVAILABLE,
-        )
-
-    def _sugar_dsl_version_row(
-        self,
-        capabilities: BackendCapabilities | None,
-    ) -> AboutVersionRow:
-        """Return the Sugar-DSL version row from Backend capabilities."""
-
-        if capabilities is None:
-            return _version_row(
-                _SUGAR_DSL_INFO,
-                value=_NOT_CONNECTED,
-                status=AboutVersionStatus.NOT_CONNECTED,
-            )
-        sugar_compile = capabilities.sugar_compile
-        if (
-            sugar_compile.schema_version == 0
-            and not sugar_compile.available
-            and not sugar_compile.unavailable_reason
-        ):
-            return _version_row(
-                _SUGAR_DSL_INFO,
-                value=_UNKNOWN,
-                status=AboutVersionStatus.UNKNOWN,
-            )
-        if not sugar_compile.available:
-            return _version_row(
-                _SUGAR_DSL_INFO,
-                value=_UNAVAILABLE,
-                status=AboutVersionStatus.UNAVAILABLE,
-                detail=sugar_compile.unavailable_reason,
-            )
-        if not sugar_compile.sugar_dsl_version:
-            return _version_row(
-                _SUGAR_DSL_INFO,
-                value=_UNKNOWN,
-                status=AboutVersionStatus.UNKNOWN,
-            )
-        return _version_row(
-            _SUGAR_DSL_INFO,
-            value=sugar_compile.sugar_dsl_version,
             status=AboutVersionStatus.AVAILABLE,
         )
 

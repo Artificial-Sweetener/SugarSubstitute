@@ -36,11 +36,10 @@ from substitute.domain.common import (
     GlobalOverrideSelectionMap,
     JsonValue,
 )
+from substitute.domain.comfy_workflow import CanonicalCubeGraphAnalysis
 from substitute.domain.generation.seed_control import SeedControlState
-from substitute.domain.recipes.sugar_ast import (
-    GlobalOverrideSerializationScope,
-    ParsedSugarScript,
-)
+from substitute.domain.common import GlobalOverrideScope
+from substitute.domain.recipes.sugar_ast import ParsedSugarScript
 from substitute.domain.recipes.sugar_script_parser import parse_sugar_script_document
 from substitute.domain.recipes.recipe_buffers import strip_recipe_buffers
 from substitute.domain.recipes.sugar_script_serializer import (
@@ -76,6 +75,10 @@ from substitute.application.recipes.recipe_serialization_context import (
     RecipeSerializationContext,
     RecipeSerializationPlan,
     buffers_with_prompt_field_overrides,
+)
+from substitute.application.recipes.recipe_graph_loader import RecipeGraphLoader
+from substitute.application.recipes.sugarscript_graph_projection import (
+    explicit_sugarscript_connections,
 )
 from substitute.shared.util.path_safety import (
     ensure_within_root,
@@ -159,6 +162,7 @@ class ParsedRecipeDocument:
 
     loaded_document: LoadedRecipeDocument
     parsed_script: ParsedSugarScript
+    cube_graph_analysis: CanonicalCubeGraphAnalysis | None = None
 
 
 @dataclass(frozen=True)
@@ -191,6 +195,7 @@ class RecipeIoService:
         prompt_lora_hash_lookup: PromptLoraHashLookup | None = None,
         sugar_script_serializer: SugarScriptSerializer | None = None,
         authored_input_projector: RecipeAuthoredInputProjector | None = None,
+        recipe_graph_loader: RecipeGraphLoader | None = None,
     ) -> None:
         """Create service with an injected recipe repository port implementation."""
 
@@ -205,6 +210,7 @@ class RecipeIoService:
         self._authored_input_projector = (
             authored_input_projector or RecipeAuthoredInputProjector()
         )
+        self._recipe_graph_loader = recipe_graph_loader
 
     def serialize_workflow_to_sugar_script(
         self,
@@ -212,8 +218,7 @@ class RecipeIoService:
         *,
         enabled_node_keys_by_alias: Mapping[str, Iterable[str]] | None = None,
         disabled_node_keys_by_alias: Mapping[str, Iterable[str]] | None = None,
-        global_override_scopes: Mapping[str, GlobalOverrideSerializationScope]
-        | None = None,
+        global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None,
         serialization_context: RecipeSerializationContext | None = None,
         serialization_plan: RecipeSerializationPlan | None = None,
         prompt_field_overrides: RecipePromptFieldOverrides | None = None,
@@ -282,6 +287,9 @@ class RecipeIoService:
                     prepared_buffers,
                     ordered_aliases,
                     serialization_context=serialization_context,
+                ),
+                explicit_connections=explicit_sugarscript_connections(
+                    getattr(workflow, "direct_workflow", None)
                 ),
             )
         )
@@ -352,8 +360,7 @@ class RecipeIoService:
         *,
         workflow_name: str,
         workflow: WorkflowLike,
-        global_override_scopes: Mapping[str, GlobalOverrideSerializationScope]
-        | None = None,
+        global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None,
     ) -> None:
         """Serialize and persist workflow recipe text to destination file path."""
 
@@ -397,8 +404,7 @@ class RecipeIoService:
         workflow: WorkflowLike,
         sugar_scripts_dir: Path,
         *,
-        global_override_scopes: Mapping[str, GlobalOverrideSerializationScope]
-        | None = None,
+        global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None,
     ) -> Path:
         """Save the workflow recipe to its canonical script path and return that path."""
 
@@ -738,6 +744,14 @@ class RecipeIoService:
         return ParsedRecipeDocument(
             loaded_document=loaded_document,
             parsed_script=parsed_script,
+            cube_graph_analysis=(
+                self._recipe_graph_loader.load(
+                    sugar_script_text=loaded_document.sugar_script_text,
+                    source_path=loaded_document.source_path,
+                )
+                if self._recipe_graph_loader is not None
+                else None
+            ),
         )
 
 
@@ -764,10 +778,10 @@ def _without_blank_model_global_overrides(
 
 
 def _without_blank_model_override_scopes(
-    scopes: Mapping[str, GlobalOverrideSerializationScope] | None,
+    scopes: Mapping[str, GlobalOverrideScope] | None,
     *,
     buffers: Mapping[str, Mapping[str, JsonValue]],
-) -> Mapping[str, GlobalOverrideSerializationScope] | None:
+) -> Mapping[str, GlobalOverrideScope] | None:
     """Omit blank scopes whose participants are all model-backed fields."""
 
     if scopes is None:

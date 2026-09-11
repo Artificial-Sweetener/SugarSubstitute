@@ -168,8 +168,6 @@ def test_backend_client_builds_urls_and_parses_catalog_and_jobs() -> None:
     assert capabilities.cube_library.available is True
     assert capabilities.cube_library.sugar_cubes_version == "0.9.0"
     assert capabilities.cube_library.versioned_dependency_readiness_supported is True
-    assert capabilities.sugar_compile.available is True
-    assert capabilities.sugar_compile.sugar_dsl_version == "0.2.0"
     assert capabilities.supported_model_kinds == ("checkpoints", "loras")
     assert capabilities.hash_lookup is True
     assert models[0].fingerprint.status is FingerprintStatus.MISSING

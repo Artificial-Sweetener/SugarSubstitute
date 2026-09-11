@@ -37,6 +37,9 @@ from substitute.infrastructure.comfy.final_image_event import (
 from substitute.infrastructure.comfy.final_image_event_handler import (
     FinalImageEventHandler,
 )
+from substitute.infrastructure.comfy.output_source_identity_resolver import (
+    OutputSourceIdentity,
+)
 
 
 @dataclass(frozen=True)
@@ -50,6 +53,7 @@ class CubeOutputEventHandler:
         [SubstituteVisualIdentity | None, str | None, str | None], bool
     ]
     on_diagnostic: Callable[[CubeOutputDiagnostic], None]
+    source_identity_resolver: Callable[[str], OutputSourceIdentity] | None = None
 
     def handle(self, data: Mapping[str, object]) -> None:
         """Handle one cube-output websocket payload."""
@@ -69,6 +73,9 @@ class CubeOutputEventHandler:
             return
 
         visual_identity = cube_output.substitute
+        source_identity: OutputSourceIdentity = route_result.source_identity
+        if self.source_identity_resolver is not None:
+            source_identity = self.source_identity_resolver(cube_output.node_id)
         self.final_image_handler.handle(
             FinalImageEvent(
                 workflow_id=visual_identity.workflow_id,
@@ -77,10 +84,10 @@ class CubeOutputEventHandler:
                 client_id=visual_identity.client_id,
                 workflow_payload=self.workflow_payload,
                 source=FinalImageSource(
-                    node_id=route_result.source_identity.node_id,
-                    source_key=route_result.source_identity.source_key,
-                    source_label=route_result.source_identity.source_label,
-                    cube_alias=route_result.source_identity.cube_alias,
+                    node_id=source_identity.node_id,
+                    source_key=source_identity.source_key,
+                    source_label=source_identity.source_label,
+                    cube_alias=source_identity.cube_alias,
                 ),
                 artifacts=cube_output.artifacts,
                 list_index=cube_output.list_index or 0,

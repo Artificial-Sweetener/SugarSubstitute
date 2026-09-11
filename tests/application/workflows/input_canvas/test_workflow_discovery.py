@@ -22,7 +22,7 @@ from pathlib import Path
 from substitute.application.workflows.editor_projection_service import (
     DIRECT_WORKFLOW_SECTION_KEY,
 )
-from substitute.domain.comfy_workflow import DirectWorkflowState
+from substitute.domain.comfy_workflow import ComfyWorkflowConverter, DirectWorkflowState
 from substitute.domain.common import JsonObject
 from substitute.domain.workflow import WorkflowState
 from typing import cast
@@ -131,26 +131,56 @@ def test_direct_workflow_materializes_image_and_bound_mask_through_shared_servic
     """Direct documents should use the same image, mask, and asset lifecycle as cubes."""
 
     selected_image_path = Path("images/selected.png")
-    graph: JsonObject = {
-        "nodes": {
-            "1": {
-                "class_type": "LoadImage",
-                "inputs": {"image": str(Path("images/source.png"))},
+    source_graph: JsonObject = {
+        "nodes": [
+            {
+                "id": 1,
+                "type": "LoadImage",
+                "inputs": [
+                    {
+                        "name": "image",
+                        "type": "IMAGEUPLOAD",
+                        "widget": {"name": "image"},
+                        "link": None,
+                    }
+                ],
+                "outputs": [{"name": "IMAGE", "type": "IMAGE", "links": [1]}],
+                "widgets_values": [str(Path("images/source.png"))],
             },
-            "2": {
-                "class_type": "LoadImageMask",
-                "inputs": {"image": ""},
+            {
+                "id": 2,
+                "type": "LoadImageMask",
+                "inputs": [
+                    {
+                        "name": "image",
+                        "type": "IMAGEUPLOAD",
+                        "widget": {"name": "image"},
+                        "link": None,
+                    }
+                ],
+                "outputs": [{"name": "MASK", "type": "MASK", "links": [2]}],
+                "widgets_values": [""],
             },
-            "3": {
-                "class_type": "Consumer",
-                "inputs": {"pixels": ["1", 0], "mask": ["2", 0]},
+            {
+                "id": 3,
+                "type": "Consumer",
+                "inputs": [
+                    {"name": "pixels", "type": "IMAGE", "link": 1},
+                    {"name": "mask", "type": "MASK", "link": 2},
+                ],
+                "outputs": [],
+                "widgets_values": [],
             },
-        }
+        ],
+        "links": [
+            [1, 1, 0, 3, 0, "IMAGE"],
+            [2, 2, 0, 3, 1, "MASK"],
+        ],
     }
     direct = DirectWorkflowState(
         source_path=tmp_path / "workflow.json",
-        source_workflow=graph,
-        buffer=graph,
+        source_workflow=source_graph,
+        buffer=ComfyWorkflowConverter().convert(source_graph),
     )
     workflow = WorkflowState(direct_workflow=direct)
     image_id = uuid4()
@@ -181,6 +211,9 @@ def test_direct_workflow_materializes_image_and_bound_mask_through_shared_servic
     nodes = cast(dict[str, JsonObject], direct.buffer["nodes"])
     assert cast(JsonObject, nodes["1"]["inputs"])["image"] == str(selected_image_path)
     assert cast(JsonObject, nodes["2"]["inputs"])["image"] == expected_mask.name
+    source_nodes = cast(list[JsonObject], direct.source_workflow["nodes"])
+    assert source_nodes[0]["widgets_values"] == [str(selected_image_path)]
+    assert source_nodes[1]["widgets_values"] == [expected_mask.name]
     assert direct.dirty is True
 
 

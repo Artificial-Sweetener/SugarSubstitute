@@ -49,10 +49,17 @@ def test_layout_resolves_runtime_and_template_package_without_host_assumptions(
         comfy_root
         / ".venv"
         / "packages"
-        / "comfyui_workflow_templates_media_image"
+        / "comfyui_workflow_templates_json"
         / "templates"
     )
     template_root.mkdir(parents=True)
+    (
+        comfy_root
+        / ".venv"
+        / "packages"
+        / "comfyui_workflow_templates_media_image"
+        / "templates"
+    ).mkdir(parents=True)
 
     layout = ManagedComfyHarnessLayout.resolve(
         tmp_path,
@@ -61,7 +68,7 @@ def test_layout_resolves_runtime_and_template_package_without_host_assumptions(
 
     assert layout.python_executable == python_executable.resolve()
     assert layout.environment_root == (comfy_root / ".venv").resolve()
-    assert layout.image_template_root() == template_root
+    assert layout.workflow_template_root() == template_root
 
 
 def test_layout_rejects_ambiguous_template_packages(tmp_path: Path) -> None:
@@ -78,10 +85,10 @@ def test_layout_rejects_ambiguous_template_packages(tmp_path: Path) -> None:
             comfy_root
             / ".venv"
             / parent
-            / "comfyui_workflow_templates_media_image"
+            / "comfyui_workflow_templates_json"
             / "templates"
         ).mkdir(parents=True)
     layout = ManagedComfyHarnessLayout.resolve(tmp_path, platform_name="posix")
 
     with pytest.raises(RuntimeError, match="resolve exactly once"):
-        layout.image_template_root()
+        layout.workflow_template_root()

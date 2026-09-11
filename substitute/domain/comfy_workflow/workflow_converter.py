@@ -31,10 +31,9 @@ from .editor_definitions import (
 )
 from .links import WorkflowLinkIndex
 from .node_roles import WorkflowNodeExecutionRole, known_execution_role
-from .widget_values import node_widget_values, proxy_widget_values
+from .widget_values import node_widget_projection, proxy_widget_projection
 
 NodeLinkValue = list[object]
-ResolvedInputValue = object
 _UNRESOLVED_INTERFACE = object()
 _NON_PROJECTED_ROLES = frozenset(
     {
@@ -49,14 +48,41 @@ class ComfyWorkflowConversionError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class _CanonicalValueOrigin:
+    """Locate one editor value in the canonical Comfy UI graph."""
+
+    definition_id: str | None
+    node_id: str
+    widget_slot: int | str
+
+    def payload(self) -> dict[str, object]:
+        """Return a JSON-safe locator retained with the editor projection."""
+
+        return {
+            "definition_id": self.definition_id,
+            "node_id": self.node_id,
+            "widget_slot": self.widget_slot,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class _ResolvedInput:
+    """Carry a projected input value and optional canonical source locator."""
+
+    value: object
+    origin: _CanonicalValueOrigin | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class _GraphScope:
     """Carry one root or subgraph LiteGraph scope during expansion."""
 
     nodes: tuple[Mapping[str, object], ...]
     links: WorkflowLinkIndex
     namespace: str
-    interface_values: Mapping[int, ResolvedInputValue]
-    proxy_overrides: Mapping[tuple[str, str], object]
+    definition_id: str | None
+    interface_values: Mapping[int, _ResolvedInput]
+    proxy_overrides: Mapping[tuple[str, str], _ResolvedInput]
     title_prefix: str
 
 
@@ -68,12 +94,13 @@ class ComfyWorkflowConverter:
         workflow: Mapping[str, object],
         *,
         node_definitions: Mapping[str, Mapping[str, object]] | None = None,
+        allow_empty: bool = False,
     ) -> JsonObject:
-        """Return an editable intermediate graph from one UI workflow document."""
+        """Return the ordinary-node projection from one UI workflow document."""
 
         return _ComfyWorkflowConversionSession(
             node_definitions=node_definitions or {},
-        ).convert(workflow)
+        ).convert(workflow, allow_empty=allow_empty)
 
 
 class _ComfyWorkflowConversionSession:
@@ -90,7 +117,12 @@ class _ComfyWorkflowConversionSession:
         self._definitions: dict[str, Mapping[str, object]] = {}
         self._expanded_nodes: dict[str, object] = {}
 
-    def convert(self, workflow: Mapping[str, object]) -> JsonObject:
+    def convert(
+        self,
+        workflow: Mapping[str, object],
+        *,
+        allow_empty: bool,
+    ) -> JsonObject:
         """Compile one UI workflow into the shared editable graph contract."""
 
         try:
@@ -101,6 +133,7 @@ class _ComfyWorkflowConversionSession:
                 nodes=root_nodes,
                 links=WorkflowLinkIndex(workflow.get("links", ())),
                 namespace="",
+                definition_id=None,
                 interface_values={},
                 proxy_overrides={},
                 title_prefix="",
@@ -108,24 +141,24 @@ class _ComfyWorkflowConversionSession:
             self._expand_scope(scope)
         except (KeyError, TypeError, ValueError) as error:
             raise ComfyWorkflowConversionError(str(error)) from error
-        if not self._expanded_nodes:
+        if not self._expanded_nodes and not allow_empty:
             raise ComfyWorkflowConversionError(
                 "Comfy workflow does not contain executable nodes."
             )
         return {"nodes": self._expanded_nodes}
 
-    def _expand_scope(self, scope: _GraphScope) -> dict[int, ResolvedInputValue]:
+    def _expand_scope(self, scope: _GraphScope) -> dict[int, _ResolvedInput]:
         """Expand a graph scope and return its interface output sources."""
 
         nodes_by_id = {str(node["id"]): node for node in scope.nodes}
-        subgraph_outputs: dict[str, dict[int, ResolvedInputValue]] = {}
+        subgraph_outputs: dict[str, dict[int, _ResolvedInput]] = {}
         expanding: set[str] = set()
 
         def expand_subgraph(
             origin_id: str,
             origin: Mapping[str, object],
             definition: Mapping[str, object],
-        ) -> dict[int, ResolvedInputValue]:
+        ) -> dict[int, _ResolvedInput]:
             """Expand one subgraph instance once within this graph scope."""
 
             if origin_id in expanding:
@@ -145,7 +178,7 @@ class _ComfyWorkflowConversionSession:
                     expanding.remove(origin_id)
             return subgraph_outputs[origin_id]
 
-        def source_for(origin_id: str, origin_slot: int) -> ResolvedInputValue:
+        def source_for(origin_id: str, origin_slot: int) -> _ResolvedInput | object:
             """Resolve a link source through standard or subgraph nodes."""
 
             if origin_id == "-10":
@@ -173,7 +206,9 @@ class _ComfyWorkflowConversionSession:
                 return source_for(link.origin_id, link.origin_slot)
             definition = self._definitions.get(origin_type)
             if definition is None:
-                return [_qualified_id(scope.namespace, origin_id), origin_slot]
+                return _ResolvedInput(
+                    [_qualified_id(scope.namespace, origin_id), origin_slot]
+                )
             outputs = expand_subgraph(origin_id, origin, definition)
             if origin_slot not in outputs:
                 raise ValueError(
@@ -193,12 +228,12 @@ class _ComfyWorkflowConversionSession:
                 source_for=source_for,
             )
 
-        outputs: dict[int, ResolvedInputValue] = {}
+        outputs: dict[int, _ResolvedInput] = {}
         for output_slot in _interface_slot_indexes(scope, output=True):
             link = scope.links.into_target("-20", output_slot)
             if link is not None:
                 resolved = source_for(link.origin_id, link.origin_slot)
-                if resolved is not _UNRESOLVED_INTERFACE:
+                if isinstance(resolved, _ResolvedInput):
                     outputs[output_slot] = resolved
         return outputs
 
@@ -209,15 +244,15 @@ class _ComfyWorkflowConversionSession:
         outer_node: Mapping[str, object],
         definition: Mapping[str, object],
         source_for: object,
-    ) -> dict[int, ResolvedInputValue]:
+    ) -> dict[int, _ResolvedInput]:
         """Expand one UUID-typed subgraph node into namespaced internal nodes."""
 
         if not callable(source_for):
             raise TypeError("Subgraph source resolver is not callable.")
-        interface_widgets, internal_overrides = proxy_widget_values(outer_node)
+        proxy_projection = proxy_widget_projection(outer_node)
         outer_inputs = _input_records(outer_node.get("inputs"))
         definition_inputs = _interface_records(definition.get("inputs"))
-        interface_values: dict[int, ResolvedInputValue] = {}
+        interface_values: dict[int, _ResolvedInput] = {}
         for slot, definition_input in enumerate(definition_inputs):
             input_name = str(definition_input.get("name", slot))
             outer_input = _input_by_name_or_slot(outer_inputs, input_name, slot)
@@ -227,9 +262,18 @@ class _ComfyWorkflowConversionSession:
                 else None
             )
             if link is not None:
-                interface_values[slot] = source_for(link.origin_id, link.origin_slot)
-            elif input_name in interface_widgets:
-                interface_values[slot] = deepcopy(interface_widgets[input_name])
+                resolved = source_for(link.origin_id, link.origin_slot)
+                if isinstance(resolved, _ResolvedInput):
+                    interface_values[slot] = resolved
+            elif input_name in proxy_projection.interface_values:
+                interface_values[slot] = _ResolvedInput(
+                    deepcopy(proxy_projection.interface_values[input_name]),
+                    _CanonicalValueOrigin(
+                        definition_id=outer_scope.definition_id,
+                        node_id=str(outer_node["id"]),
+                        widget_slot=proxy_projection.interface_slots[input_name],
+                    ),
+                )
 
         outer_id = str(outer_node["id"])
         outer_title = _subgraph_title(outer_node, definition)
@@ -238,8 +282,19 @@ class _ComfyWorkflowConversionSession:
             nodes=_node_records(definition.get("nodes")),
             links=WorkflowLinkIndex(definition.get("links", ())),
             namespace=namespace,
+            definition_id=str(definition["id"]),
             interface_values=interface_values,
-            proxy_overrides=internal_overrides,
+            proxy_overrides={
+                key: _ResolvedInput(
+                    deepcopy(value),
+                    _CanonicalValueOrigin(
+                        definition_id=outer_scope.definition_id,
+                        node_id=str(outer_node["id"]),
+                        widget_slot=proxy_projection.internal_slots[key],
+                    ),
+                )
+                for key, value in proxy_projection.internal_values.items()
+            },
             title_prefix=_joined_title(outer_scope.title_prefix, outer_title),
         )
         return self._expand_scope(nested_scope)
@@ -269,8 +324,10 @@ class _ComfyWorkflowConversionSession:
             )
             return
         node_definition = self._node_definitions.get(class_type)
-        widget_values = node_widget_values(node, node_definition)
+        widget_projection = node_widget_projection(node, node_definition)
+        widget_values = widget_projection.values
         inputs: dict[str, object] = {}
+        value_origins: dict[str, dict[str, object]] = {}
         input_metadata: list[dict[str, object]] = []
         for slot, input_record in enumerate(_input_records(node.get("inputs"))):
             input_name = str(input_record.get("name", slot))
@@ -280,21 +337,44 @@ class _ComfyWorkflowConversionSession:
             link = scope.links.by_id(link_id) if link_id is not None else None
             if link is not None:
                 resolved = source_for(link.origin_id, link.origin_slot)
-                if resolved is not _UNRESOLVED_INTERFACE:
-                    inputs[input_name] = resolved
+                if isinstance(resolved, _ResolvedInput):
+                    inputs[input_name] = deepcopy(resolved.value)
+                    if resolved.origin is not None:
+                        value_origins[input_name] = resolved.origin.payload()
                     continue
             proxy_key = (node_id, input_name)
             if proxy_key in scope.proxy_overrides:
-                inputs[input_name] = deepcopy(scope.proxy_overrides[proxy_key])
+                proxy_value = scope.proxy_overrides[proxy_key]
+                inputs[input_name] = deepcopy(proxy_value.value)
+                if proxy_value.origin is not None:
+                    value_origins[input_name] = proxy_value.origin.payload()
             elif input_name in widget_values:
                 inputs[input_name] = deepcopy(widget_values[input_name])
+                value_origins[input_name] = _CanonicalValueOrigin(
+                    definition_id=scope.definition_id,
+                    node_id=node_id,
+                    widget_slot=widget_projection.slots[input_name],
+                ).payload()
         for field_key, value in widget_values.items():
             inputs.setdefault(field_key, deepcopy(value))
+            value_origins.setdefault(
+                field_key,
+                _CanonicalValueOrigin(
+                    definition_id=scope.definition_id,
+                    node_id=node_id,
+                    widget_slot=widget_projection.slots[field_key],
+                ).payload(),
+            )
         title = _joined_title(scope.title_prefix, _node_title(node))
         workflow_metadata: dict[str, object] = {
             "inputs": input_metadata,
             "outputs": _output_metadata(node.get("outputs")),
             "execution_role": WorkflowNodeExecutionRole.EXECUTABLE.value,
+            "canonical_node_origin": {
+                "definition_id": scope.definition_id,
+                "node_id": node_id,
+            },
+            "canonical_value_origins": value_origins,
         }
         if type(node.get("showAdvanced")) is bool:
             workflow_metadata["show_advanced_inputs"] = node["showAdvanced"]
@@ -334,6 +414,17 @@ class _ComfyWorkflowConversionSession:
                 "execution_role": WorkflowNodeExecutionRole.VALUE_PROXY.value,
                 "editor_definition": editor_definition,
                 "value_field": field_key,
+                "canonical_node_origin": {
+                    "definition_id": scope.definition_id,
+                    "node_id": str(node["id"]),
+                },
+                "canonical_value_origins": {
+                    field_key: _CanonicalValueOrigin(
+                        definition_id=scope.definition_id,
+                        node_id=str(node["id"]),
+                        widget_slot=0,
+                    ).payload()
+                },
             },
         }
 

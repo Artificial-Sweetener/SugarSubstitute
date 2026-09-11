@@ -99,6 +99,7 @@ class CubePickerEntry:
     supported_models: tuple[str, ...]
     search_terms: tuple[str, ...]
     search_targets: tuple[CubeSearchTerm, ...]
+    target_model: str = ""
     content_hash: str = ""
     catalog_revision: str = ""
 
@@ -453,10 +454,11 @@ def _entry_from_record(
         alias=record.display_name,
         cube_id=record.cube_id,
         version=record.version,
+        target_model=record.target_model,
     )
     return CubePickerEntry(
         cube_id=record.cube_id,
-        display_name=record.display_name,
+        display_name=presentation.primary_text,
         version=record.version,
         description=record.description,
         secondary_text=presentation.secondary_text,
@@ -471,6 +473,7 @@ def _entry_from_record(
         ),
         search_terms=classification.search_terms,
         search_targets=classification.search_targets,
+        target_model=presentation.target_model,
         content_hash=record.content_hash,
         catalog_revision=record.catalog_revision,
     )

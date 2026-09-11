@@ -34,7 +34,7 @@ from substitute.presentation.shell.session_autosave_coordinator import (
     SessionAutosaveRequestCategory,
 )
 from substitute.presentation.shell.workspace_input_canvas_adapter import (
-    materialize_loaded_cube_input_canvas_for_view,
+    duplicate_workflow_input_canvas_for_view,
 )
 from substitute.presentation.shell.workflow_duplicate_controller import (
     duplicate_workflow_tab_for_view,
@@ -343,14 +343,16 @@ class MainWindowSignalBinder:
             workflow_workspace=self._shell.workflow_workspace,
             workflow_duplicate_service=self._shell.workflow_duplicate_service,
             workflow_id=workflow_id,
-            materialize_loaded_cube_input_canvas=lambda workflow_id, cube_alias: (
-                materialize_loaded_cube_input_canvas_for_view(
-                    self._shell,
-                    workflow_id,
-                    cube_alias,
+            rehydrate_duplicated_input_canvas=(
+                lambda source_workflow_id, target_workflow_id: (
+                    duplicate_workflow_input_canvas_for_view(
+                        self._shell,
+                        source_workflow_id,
+                        target_workflow_id,
+                        schedule_next=lambda callback: QTimer.singleShot(0, callback),
+                    )
                 )
             ),
-            schedule_rehydration=lambda callback: QTimer.singleShot(0, callback),
         )
 
     def _request_tab_structure_autosave(self) -> None:

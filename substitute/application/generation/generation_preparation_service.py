@@ -28,12 +28,19 @@ from uuid import uuid4
 from substitute.application.generation.generation_preparation_input import (
     CapturedGenerationRequest,
 )
+from substitute.application.generation.generation_document_routing import (
+    direct_generation_document,
+    uses_graph_backed_cube_execution,
+)
 from substitute.application.direct_workflows import (
     DirectWorkflowGenerationPlanService,
     DirectWorkflowScenePreparationService,
 )
 from substitute.application.generation.positive_prompt_preview import (
     positive_prompt_preview_from_prompt_overrides,
+)
+from substitute.application.generation.native_cube_workflow_builder import (
+    NativeCubeWorkflowBuilder,
 )
 from substitute.application.generation.prompt_scene_preparation_plan import (
     PromptScenePreparationPlan,
@@ -51,7 +58,6 @@ from substitute.application.recipes.recipe_serialization_context import (
 from substitute.domain.generation import GenerationJobSnapshot
 from substitute.domain.comfy_workflow import (
     DirectWorkflowGenerationPlan,
-    DirectWorkflowState,
 )
 from substitute.domain.links import PromptEndpointIndex
 from substitute.shared.logging.logger import get_logger, log_debug, log_timing
@@ -95,6 +101,7 @@ class GenerationPreparationService:
         ) = None,
         direct_workflow_graph_service: DirectWorkflowGenerationPlanService
         | None = None,
+        native_cube_workflow_builder: NativeCubeWorkflowBuilder | None = None,
     ) -> None:
         """Store application services used by generation preparation."""
 
@@ -106,6 +113,9 @@ class GenerationPreparationService:
         self._scene_plan_builder = PromptScenePreparationPlanBuilder()
         self._direct_workflow_graph_service = (
             direct_workflow_graph_service or DirectWorkflowGenerationPlanService()
+        )
+        self._native_cube_workflow_builder = (
+            native_cube_workflow_builder or NativeCubeWorkflowBuilder()
         )
         self._direct_scene_preparation_service = DirectWorkflowScenePreparationService(
             wildcard_preprocessor=prompt_wildcard_preprocessing_service
@@ -151,13 +161,13 @@ class GenerationPreparationService:
         """Prepare queued snapshots without presentation-thread logging concerns."""
 
         behavior_snapshot = request.behavior_snapshot
-        direct_document = getattr(request.workflow, "direct_workflow", None)
+        direct_document = direct_generation_document(request.workflow)
         direct_plan = (
             self._direct_workflow_graph_service.build(direct_document)
-            if isinstance(direct_document, DirectWorkflowState)
+            if direct_document is not None
             else None
         )
-        if isinstance(direct_document, DirectWorkflowState) and direct_plan is not None:
+        if direct_document is not None and direct_plan is not None:
             if behavior_snapshot is None:
                 return self._single_direct_result(request, direct_plan)
             scene_analysis = self._direct_scene_preparation_service.analyze(
@@ -214,8 +224,8 @@ class GenerationPreparationService:
         behavior_snapshot = request.behavior_snapshot
         if behavior_snapshot is None:
             raise ValueError("Scene generation requires a prompt endpoint index.")
-        direct_document = getattr(request.workflow, "direct_workflow", None)
-        if isinstance(direct_document, DirectWorkflowState):
+        direct_document = direct_generation_document(request.workflow)
+        if direct_document is not None:
             direct_plan = self._direct_workflow_graph_service.build(direct_document)
             resolved_analysis = scene_analysis or (
                 self._direct_scene_preparation_service.analyze(
@@ -290,8 +300,8 @@ class GenerationPreparationService:
         behavior_snapshot = request.behavior_snapshot
         if behavior_snapshot is None:
             raise ValueError("Scene generation requires a prompt endpoint index.")
-        direct_document = getattr(request.workflow, "direct_workflow", None)
-        if isinstance(direct_document, DirectWorkflowState):
+        direct_document = direct_generation_document(request.workflow)
+        if direct_document is not None:
             direct_plan = self._direct_workflow_graph_service.build(direct_document)
             direct_analysis = self._direct_scene_preparation_service.analyze(
                 document=direct_document,
@@ -351,7 +361,7 @@ class GenerationPreparationService:
             behavior_snapshot=request.behavior_snapshot,
             prompt_field_overrides=prompt_overrides,
         )
-        sugar_script_text = self._serialize(
+        persistence_sugar_script = self._persistence_sugar_script(
             request=request,
             preparation_state=preparation_state,
             prompt_field_overrides=prompt_overrides,
@@ -359,7 +369,11 @@ class GenerationPreparationService:
         snapshot = GenerationJobSnapshot(
             workflow_id=request.workflow_id,
             workflow_name=request.workflow_name,
-            sugar_script_text=sugar_script_text,
+            cube_workflow=self._build_native_workflow(
+                request=request,
+                prompt_field_overrides=prompt_overrides,
+            ),
+            persistence_sugar_script=persistence_sugar_script,
             workflow=request.workflow,
             positive_prompt_preview=positive_prompt_preview,
         )
@@ -383,7 +397,6 @@ class GenerationPreparationService:
                 GenerationJobSnapshot(
                     workflow_id=request.workflow_id,
                     workflow_name=request.workflow_name,
-                    sugar_script_text="",
                     workflow=request.workflow,
                     direct_workflow_plan=direct_plan,
                 ),
@@ -413,7 +426,7 @@ class GenerationPreparationService:
             behavior_snapshot=request.behavior_snapshot,
             prompt_field_overrides=resolved_prompt_overrides,
         )
-        sugar_script_text = self._serialize(
+        persistence_sugar_script = self._persistence_sugar_script(
             request=request,
             preparation_state=preparation_state,
             prompt_field_overrides=resolved_prompt_overrides,
@@ -421,7 +434,11 @@ class GenerationPreparationService:
         return GenerationJobSnapshot(
             workflow_id=request.workflow_id,
             workflow_name=f"{request.workflow_name} - {scene.title}",
-            sugar_script_text=sugar_script_text,
+            cube_workflow=self._build_native_workflow(
+                request=request,
+                prompt_field_overrides=resolved_prompt_overrides,
+            ),
+            persistence_sugar_script=persistence_sugar_script,
             workflow=request.workflow,
             positive_prompt_preview=positive_prompt_preview,
             scene_run_id=scene_run_id,
@@ -431,12 +448,32 @@ class GenerationPreparationService:
             scene_count=len(scene_analysis.scenes),
         )
 
+    def _build_native_workflow(
+        self,
+        *,
+        request: CapturedGenerationRequest,
+        prompt_field_overrides: Mapping[tuple[str, str, str], object],
+    ) -> dict[str, object]:
+        """Build one detached canonical graph from prepared convenience values."""
+
+        return self._native_cube_workflow_builder.build(
+            cast(Any, request.workflow),
+            global_override_scopes=request.global_override_scopes,
+            prompt_field_overrides=prompt_field_overrides,
+        )
+
     def _preparation_state(
         self,
         request: CapturedGenerationRequest,
     ) -> "_PreparationState":
         """Build request-scoped wildcard and serialization state."""
 
+        if uses_graph_backed_cube_execution(request.workflow):
+            return _PreparationState(
+                preprocessing_context=PromptWildcardPreprocessingContext(),
+                serialization_context=None,
+                serialization_plan=None,
+            )
         serialization_context = self._create_serialization_context()
         serialization_plan = self._build_serialization_plan(
             request=request,
@@ -486,6 +523,23 @@ class GenerationPreparationService:
             prompt_endpoint_index=None
             if request.behavior_snapshot is None
             else request.behavior_snapshot.prompt_endpoint_index,
+        )
+
+    def _persistence_sugar_script(
+        self,
+        *,
+        request: CapturedGenerationRequest,
+        preparation_state: "_PreparationState",
+        prompt_field_overrides: Mapping[tuple[str, str, str], object],
+    ) -> str | None:
+        """Serialize only stack-authored workflows for PNG persistence metadata."""
+
+        if uses_graph_backed_cube_execution(request.workflow):
+            return None
+        return self._serialize(
+            request=request,
+            preparation_state=preparation_state,
+            prompt_field_overrides=prompt_field_overrides,
         )
 
     def _serialize(

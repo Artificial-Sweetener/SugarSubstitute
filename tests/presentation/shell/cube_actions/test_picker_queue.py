@@ -61,8 +61,10 @@ def test_show_cube_picker_inserts_loading_tab_and_tracks_pending_cube() -> None:
         cube_stack_service=SimpleNamespace(
             resolve_unique_alias=lambda _workflow, seed: f"{seed} 2"
         ),
+        node_behavior_service=_EmptyNodeBehaviorService(),
         get_active_workflow=lambda: SimpleNamespace(cubes={}, stack_order=[]),
         _pending_cubes={},
+        active_workflow_surface_refresher=_surface_refresher(lambda: None),
         editor_busy=_EditorBusyRecorder(busy_calls),
     )
     actions = mod.WorkspaceCubePickerActions(
@@ -122,6 +124,7 @@ def test_show_cube_picker_inserts_loading_tab_and_tracks_pending_cube() -> None:
     queued_finish = queued[0]["on_load_finished"]
     assert callable(queued_finish)
     queued_finish("Loader")
+    assert view._pending_cubes == {}
     assert busy_calls == [
         ("begin", ("wf-a", "Loading")),
         ("end", "busy-token"),
@@ -238,6 +241,7 @@ def test_show_cube_picker_queues_multiple_staged_cube_loads_immediately() -> Non
     assert busy_calls == [("begin", ("wf-a", "Loading"))]
 
     _finish_queued_load(queued, stack, 2, "Shared 3")
+    assert view._pending_cubes == {}
     assert busy_calls == [
         ("begin", ("wf-a", "Loading")),
         ("end", "busy-token"),

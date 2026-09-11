@@ -4108,6 +4108,10 @@ I’ll bring my own</source>
       <translation>⟦Rëfrëshïng... ···⟧</translation>
     </message>
     <message>
+      <source>Region %1</source>
+      <translation>⟦Rëgïön %1 ···⟧</translation>
+    </message>
+    <message>
       <source>Reinstall the failing native dependency for this Python, PyTorch, CUDA, and Windows setup.</source>
       <translation>⟦Rëïnstàll thë fàïlïng nàtïvë dëpëndëncy för thïs Pythön, PyTörch, CÜDÅ, ànd Wïndöws sëtüp. ···⟧</translation>
     </message>
@@ -5380,10 +5384,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sügàr Sübstïtütë ···⟧</translation>
     </message>
     <message>
-      <source>Sugar-DSL</source>
-      <translation>⟦Sügàr-DSL ···⟧</translation>
-    </message>
-    <message>
       <source>SugarCubes</source>
       <translation>⟦SügàrCübës ···⟧</translation>
     </message>
@@ -5800,10 +5800,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>The saved ComfyUI runtime needs an extension update</source>
       <translation>⟦Thë sàvëd CömfyÜÏ rüntïmë nëëds àn ëxtënsïön üpdàtë ···⟧</translation>
-    </message>
-    <message>
-      <source>The scripting language for composing ComfyUI workflows with SugarCubes</source>
-      <translation>⟦Thë scrïptïng làngüàgë för cömpösïng CömfyÜÏ wörkflöws wïth SügàrCübës ···⟧</translation>
     </message>
     <message>
       <source>The selected Comfy server does not expose environment management.</source>

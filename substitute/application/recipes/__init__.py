@@ -58,8 +58,14 @@ from substitute.application.recipes.workflow_export_service import WorkflowExpor
 from substitute.application.recipes.workflow_payload_nodes import (
     executable_prompt_nodes,
 )
+from substitute.application.recipes.recipe_graph_loader import (
+    RecipeCubeGraphCompiler,
+    RecipeGraphLoader,
+)
 
 __all__ = [
+    "RecipeCubeGraphCompiler",
+    "RecipeGraphLoader",
     "ParsedRecipeDocument",
     "RecipeIoService",
     "LocalRecipeModel",

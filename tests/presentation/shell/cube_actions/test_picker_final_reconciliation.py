@@ -30,6 +30,9 @@ from substitute.application.cubes import (
     cube_stack_draft_result,
 )
 from substitute.application.ports import CubeCatalogRecord
+from substitute.presentation.shell.staged_cube_link_reconciliation import (
+    StagedCubeLinkReconciliationCoordinator,
+)
 
 
 from tests.presentation.shell.cube_actions.support import (
@@ -112,8 +115,14 @@ def test_show_cube_picker_reconciles_batch_after_restoring_final_draft_order(
 
     monkeypatch.setattr(
         mod,
-        "WorkflowLinkReconciliationService",
-        _RecordingLinkService,
+        "StagedCubeLinkReconciliationCoordinator",
+        lambda provider_owner: StagedCubeLinkReconciliationCoordinator(
+            provider_owner,
+            link_reconciler=_RecordingLinkService(
+                prompt_endpoint_provider=provider_owner.node_behavior_service,
+                node_link_endpoint_provider=provider_owner.node_behavior_service,
+            ),
+        ),
     )
     view = SimpleNamespace(
         active_cube_stack=stack,
@@ -196,3 +205,147 @@ def test_show_cube_picker_reconciles_batch_after_restoring_final_draft_order(
         ("end_busy", "busy-token"),
         ("activate", ("wf-a", "A", ["Existing", "A", "B"])),
     ]
+
+
+def test_show_cube_picker_reconciles_links_after_one_cube_is_added(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Single-Cube completion should establish links to the existing stack."""
+
+    mod = _import_module()
+    events: list[tuple[str, object]] = []
+    stack = _CubeStack()
+    stack.insertTab(0, routeKey="Prompt", text="Prompt")
+    record = CubeCatalogRecord(
+        cube_id="diffusion_upscale",
+        version="3.1.0",
+        display_name="Diffusion Upscale",
+    )
+    queued: list[dict[str, object]] = []
+    workflow = SimpleNamespace(
+        cubes={"Prompt": SimpleNamespace(cube_id="prompt", version="4.3.0")},
+        stack_order=["Prompt"],
+    )
+
+    class _RecordingLinkService:
+        """Record final link reconciliation without resolving endpoints."""
+
+        def __init__(
+            self,
+            *,
+            prompt_endpoint_provider: object,
+            node_link_endpoint_provider: object,
+        ) -> None:
+            """Accept the production endpoint-provider contract."""
+
+        def reconcile_transition(
+            self,
+            *,
+            previous_cube_states: object,
+            previous_stack_order: list[str] | None,
+            current_cube_states: object,
+            current_stack_order: list[str] | None,
+        ) -> None:
+            """Record the transition finalized after the async load."""
+
+            events.append(
+                (
+                    "reconcile",
+                    {
+                        "previous_order": list(previous_stack_order or []),
+                        "current_order": list(current_stack_order or []),
+                    },
+                )
+            )
+
+        def sanitize_current_state(
+            self,
+            *,
+            cube_states: object,
+            stack_order: list[str] | None,
+        ) -> None:
+            """Record normalization of the completed stack."""
+
+            events.append(("sanitize", list(stack_order or [])))
+
+    monkeypatch.setattr(
+        mod,
+        "StagedCubeLinkReconciliationCoordinator",
+        lambda provider_owner: StagedCubeLinkReconciliationCoordinator(
+            provider_owner,
+            link_reconciler=_RecordingLinkService(
+                prompt_endpoint_provider=provider_owner.node_behavior_service,
+                node_link_endpoint_provider=provider_owner.node_behavior_service,
+            ),
+        ),
+    )
+    view = SimpleNamespace(
+        active_cube_stack=stack,
+        workflow_session_service=SimpleNamespace(active_workflow_id="wf-a"),
+        cube_icon_factory=object(),
+        cube_load_service=SimpleNamespace(list_available_cubes=lambda: [record]),
+        cube_stack_service=CubeStackService(),
+        node_behavior_service=_EmptyNodeBehaviorService(),
+        get_active_workflow=lambda: workflow,
+        _pending_cubes={},
+        active_workflow_surface_refresher=_surface_refresher(
+            lambda: events.append(("refresh", list(workflow.stack_order)))
+        ),
+        editor_busy=SimpleNamespace(
+            begin=lambda *_args, **_kwargs: "busy", end=lambda _token: None
+        ),
+    )
+    actions = mod.WorkspaceCubePickerActions(
+        view,
+        build_cube_load_ui_callbacks=lambda: SimpleNamespace(),
+    )
+
+    class _Picker:
+        @staticmethod
+        def stage_cubes(**kwargs: object) -> object:
+            initial_draft = cast(CubeStackDraft, kwargs["initial_draft"])
+            return cube_stack_draft_result(
+                [
+                    initial_draft.entries[0],
+                    cube_stack_draft_entry_from_record(record, draft_id="upscale"),
+                ]
+            )
+
+    class _IconProvider:
+        class CLOSE:
+            @staticmethod
+            def icon() -> str:
+                return "close-icon"
+
+    actions.show_cube_picker(
+        cube_picker=_Picker,
+        icon_provider=_IconProvider,
+        cube_loader=lambda callbacks, cube_id, alias_name, placeholder_index, **kwargs: (
+            queued.append(
+                {
+                    "callbacks": callbacks,
+                    "cube_id": cube_id,
+                    "alias_name": alias_name,
+                    "placeholder_index": placeholder_index,
+                    **kwargs,
+                }
+            )
+        ),
+    )
+
+    workflow.cubes["Diffusion Upscale"] = SimpleNamespace(
+        cube_id="diffusion_upscale",
+        version="3.1.0",
+    )
+    workflow.stack_order = ["Prompt", "Diffusion Upscale"]
+    _finish_queued_load(queued, stack, 0, "Diffusion Upscale")
+
+    assert (
+        "reconcile",
+        {
+            "previous_order": ["Prompt"],
+            "current_order": ["Prompt", "Diffusion Upscale"],
+        },
+    ) in events
+    assert ("sanitize", ["Prompt", "Diffusion Upscale"]) in events
+    assert ("refresh", ["Prompt", "Diffusion Upscale"]) in events

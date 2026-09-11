@@ -235,6 +235,9 @@ class CanvasIoServicePort(Protocol):
     def create_blank_mask(self, *, destination: Path, size: object) -> bool:
         """Persist one blank mask file to disk."""
 
+    def save_mask_image(self, *, destination: Path, image: object) -> bool:
+        """Persist one exact live mask payload to disk."""
+
 
 class WorkflowAssetServicePort(Protocol):
     """Describe asset ownership writes used by Input canvas materialization."""

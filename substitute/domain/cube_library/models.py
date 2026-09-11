@@ -85,6 +85,7 @@ class CubeCatalogEntry:
     source: CubeSourceMetadata
     content_hash: str
     updated_at: str = ""
+    target_model: str = ""
     supported_models: tuple[str, ...] = ()
     icon: CubeIconDescriptor | None = None
 

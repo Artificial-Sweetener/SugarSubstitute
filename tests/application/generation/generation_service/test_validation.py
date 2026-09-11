@@ -17,13 +17,17 @@
 """Test unresolved UUID graph validation before dispatch."""
 
 from __future__ import annotations
-
-from __future__ import annotations
+from typing import cast
 from substitute.application.generation import (
     GenerationRequest,
+    PreparedGenerationRequest,
 )
 from substitute.application.ports import (
     QueuePromptResult,
+)
+from substitute.domain.comfy_workflow import (
+    DirectWorkflowGenerationPlan,
+    DirectWorkflowOutputManifest,
 )
 
 from tests.application.generation.generation_service.support import (
@@ -32,6 +36,7 @@ from tests.application.generation.generation_service.support import (
     _FakeWorkflowExportService,
     _FakeGateway,
     _build_generation_callbacks,
+    _as_json_object,
     _build_generation_service,
     _build_workflow,
 )
@@ -58,11 +63,19 @@ def test_run_single_generation_rejects_unresolved_uuid_wrapper_nodes() -> None:
         comfy_gateway=fake_gateway,
     )
 
-    result = service.run_single_generation(
-        request=GenerationRequest(
+    unresolved = {"1": {"class_type": "94f725d5-39bf-4060-be68-f573214a2055"}}
+    result = service.run_prepared_generation(
+        request=PreparedGenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1",
-            workflow=_build_workflow(),
+            direct_workflow_plan=DirectWorkflowGenerationPlan(
+                authored_api_graph=_as_json_object(unresolved),
+                output_manifest=DirectWorkflowOutputManifest(
+                    sources=(),
+                    hijacked_sink_node_ids=frozenset(),
+                    preserved_output_node_ids=(),
+                ),
+            ),
         ),
         callbacks=_build_generation_callbacks(recorder),
     )
@@ -74,8 +87,8 @@ def test_run_single_generation_rejects_unresolved_uuid_wrapper_nodes() -> None:
     assert fake_gateway.queue_calls == []
 
 
-def test_run_single_generation_rejects_wrapped_unresolved_uuid_nodes() -> None:
-    """UUID wrapper validation should inspect wrapped executable prompt nodes."""
+def test_run_single_generation_defers_embedded_cube_validation_to_sugarcubes() -> None:
+    """Substitute must not compile or validate Cube implementation internals."""
 
     recorder = _CallbackRecorder([], [], [], [], [], [])
     fake_gateway = _FakeGateway(
@@ -99,16 +112,20 @@ def test_run_single_generation_rejects_wrapped_unresolved_uuid_nodes() -> None:
         comfy_gateway=fake_gateway,
     )
 
+    workflow = _build_workflow()
+    workflow_buffer = cast(dict[str, object], workflow.cubes["A"].buffer)
+    workflow_buffer["nodes"] = {
+        "1": {"class_type": "94f725d5-39bf-4060-be68-f573214a2055", "inputs": {}}
+    }
     result = service.run_single_generation(
         request=GenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1",
-            workflow=_build_workflow(),
+            workflow=workflow,
         ),
         callbacks=_build_generation_callbacks(recorder),
     )
 
-    assert result.started is False
-    assert result.failure is not None
-    assert result.failure.stage == "build"
-    assert fake_gateway.queue_calls == []
+    assert result.started is True
+    assert result.failure is None
+    assert len(fake_gateway.queue_calls) == 1

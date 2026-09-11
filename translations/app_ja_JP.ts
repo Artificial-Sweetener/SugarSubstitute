@@ -200,7 +200,7 @@ Prompt preview:
       <translation>%1 個のモデルファイルをダウンロードして検証しました。使用するにはピッカーを開き直してください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="66"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="79"></location>
       <source>%1 model recommendation</source>
       <translation>モデル候補 %1 件</translation>
     </message>
@@ -215,7 +215,7 @@ Prompt preview:
       <translation>%1 個のモデルを追加済み</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2161"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2152"></location>
       <source>%1 of %2</source>
       <translation>%1 / %2</translation>
     </message>
@@ -320,7 +320,7 @@ Prompt preview:
       <translation>%1 · %2 · 更新あり</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_rows.py" line="70"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_rows.py" line="78"></location>
       <source>%1 · by %2 · %3 GiB</source>
       <translation>%1 · %2 作 · %3 GiB</translation>
     </message>
@@ -440,7 +440,7 @@ Prompt preview:
       <translation>ファイル名またはフォルダー名が Windows で長すぎます</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="110"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="101"></location>
       <source>A fluent design widgets library for PySide6</source>
       <translation>PySide6 用の Fluent Design ウィジェットライブラリ</translation>
     </message>
@@ -490,7 +490,7 @@ Prompt preview:
       <translation>APIキー（任意）</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="189"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="191"></location>
       <source>API key already saved</source>
       <translation>API キーは保存済みです</translation>
     </message>
@@ -535,12 +535,12 @@ Prompt preview:
       <translation>追加</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="372"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="385"></location>
       <source>Add %1 models</source>
       <translation>%1 個のモデルを追加</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="370"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="383"></location>
       <source>Add 1 model</source>
       <translation>1 個のモデルを追加</translation>
     </message>
@@ -575,12 +575,12 @@ Prompt preview:
       <translation>カスタムタグを追加し、不要なタグ候補を非表示にします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="153"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="166"></location>
       <source>Add models</source>
       <translation>モデルを追加</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="85"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="98"></location>
       <source>Add models from CivitAI</source>
       <translation>CivitAI からモデルを追加</translation>
     </message>
@@ -625,7 +625,7 @@ Prompt preview:
       <translation>すべて</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="268"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="270"></location>
       <source>All ratings</source>
       <translation>すべてのレーティング</translation>
     </message>
@@ -635,7 +635,7 @@ Prompt preview:
       <translation>すべてのセットアップタスクが完了しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="293"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="295"></location>
       <source>Allow all</source>
       <translation>すべて許可</translation>
     </message>
@@ -650,7 +650,7 @@ Prompt preview:
       <translation>不足モデルの解決時に、CivitAI で検証済みのダウンロードを提案します。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="289"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="291"></location>
       <source>Allow soft</source>
       <translation>Soft まで許可</translation>
     </message>
@@ -845,7 +845,7 @@ Prompt preview:
       <translation>参照</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="105"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="118"></location>
       <source>Browse CivitAI</source>
       <translation>CivitAI を見る</translation>
     </message>
@@ -935,12 +935,12 @@ Prompt preview:
       <translation>キャンセル済み - 保存された出力はありません</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2156"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2147"></location>
       <source>Cancelling download...</source>
       <translation>ダウンロードをキャンセルしています...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2114"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2105"></location>
       <source>Cancelling the model download.</source>
       <translation>モデルのダウンロードをキャンセルしています。</translation>
     </message>
@@ -980,7 +980,7 @@ Prompt preview:
       <translation>ComfyUI を確認</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="112"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="125"></location>
       <source>Check links</source>
       <translation>リンクを確認</translation>
     </message>
@@ -1040,7 +1040,7 @@ Prompt preview:
       <translation>実行中の ComfyUI を確認しています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="204"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="217"></location>
       <source>Checking model links…</source>
       <translation>モデルリンクを確認中…</translation>
     </message>
@@ -1135,7 +1135,7 @@ Prompt preview:
       <translation>ダウンロードを確認する前にモデルフォルダーを選んでください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="142"></location>
+      <location filename="../substitute/presentation/editor/panel/node_card/synthetic_resolution_contributor.py" line="153"></location>
       <source>Choose a new size for the Input canvas and its masks</source>
       <translation>入力キャンバスとマスクの新しいサイズを選択</translation>
     </message>
@@ -1185,7 +1185,7 @@ Prompt preview:
       <translation>フォルダーを選択</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="271"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="284"></location>
       <source>Choose from CivitAI</source>
       <translation>CivitAI から選ぶ</translation>
     </message>
@@ -1425,7 +1425,7 @@ Prompt preview:
       <translation>CivitAI キャッシュ使用量</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="315"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="328"></location>
       <source>CivitAI could not check this link right now</source>
       <translation>現在、このリンクを CivitAI で確認できません</translation>
     </message>
@@ -1445,7 +1445,7 @@ Prompt preview:
       <translation>CivitAI のダウンロード整理設定を保存しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="176"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="189"></location>
       <source>CivitAI is a library of community-made image models. Browse it, then paste the links you want below—we'll check that they work with %1.</source>
       <translation>CivitAI はコミュニティ製の画像モデルを集めたライブラリです。閲覧してリンクを下に貼り付けると、%1 で使えるか確認します。</translation>
     </message>
@@ -2170,7 +2170,7 @@ Prompt preview:
       <translation>キューブライブラリに必要なノードをインストールできませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="949"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="954"></location>
       <source>Could not load image: %1</source>
       <translation>画像を読み込めませんでした：%1</translation>
     </message>
@@ -2225,7 +2225,7 @@ Prompt preview:
       <translation>Cube Library の依存関係は最新です。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="546"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="550"></location>
       <source>Cube Library is not available yet. Wait for Substitute BackEnd to finish starting, then try again.</source>
       <translation>キューブライブラリはまだ利用できません。Substitute バックエンドの起動完了を待ってから、もう一度お試しください。</translation>
     </message>
@@ -2325,7 +2325,7 @@ Prompt preview:
       <translation>キューブライブラリ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="544"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="548"></location>
       <source>Cube picker failed</source>
       <translation>キューブピッカーでエラーが発生しました</translation>
     </message>
@@ -2588,7 +2588,7 @@ Install these nodes now?</source>
       <translation>レシピをダウンロードして開く</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2158"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2149"></location>
       <source>Download failed.</source>
       <translation>ダウンロードに失敗しました。</translation>
     </message>
@@ -2618,7 +2618,7 @@ Install these nodes now?</source>
       <translation>このモデルをダウンロード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1440"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1431"></location>
       <source>Downloading %1</source>
       <translation>%1 をダウンロードしています</translation>
     </message>
@@ -2648,7 +2648,7 @@ Install these nodes now?</source>
       <translation>選択したモデルファイルをダウンロードしています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2160"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2151"></location>
       <source>Downloading...</source>
       <translation>ダウンロードしています...</translation>
     </message>
@@ -2843,7 +2843,7 @@ Install these nodes now?</source>
       <translation>ComfyUI ワークフローとしてエクスポート...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="844"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="816"></location>
       <source>Export workflow failed</source>
       <translation>ワークフローをエクスポートできませんでした</translation>
     </message>
@@ -2883,23 +2883,23 @@ Install these nodes now?</source>
       <translation>出力の実行番号を割り当てられませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="146"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="142"></location>
       <source>Failed to capture Input canvas content for generation.</source>
       <translation>生成用の入力キャンバスの内容を取得できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="498"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="155"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="510"></location>
       <source>Failed to connect generation listener session</source>
       <translation>生成リスナーセッションに接続できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="845"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="817"></location>
       <source>Failed to export workflow: %1</source>
       <translation>ワークフローをエクスポートできませんでした：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="585"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="589"></location>
       <source>Failed to list available cubes. Please verify your cube packages and try again.</source>
       <translation>利用可能なキューブを一覧表示できませんでした。キューブパッケージを確認して、もう一度お試しください。</translation>
     </message>
@@ -2914,12 +2914,12 @@ Install these nodes now?</source>
       <translation>生成画像を読み込めませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1412"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1403"></location>
       <source>Failed to load recipe: %1</source>
       <translation>レシピを読み込めませんでした：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="1048"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="1041"></location>
       <source>Failed to queue one or more staged cubes. Please try again.</source>
       <translation>準備したキューブの一部をキューに追加できませんでした。もう一度お試しください。</translation>
     </message>
@@ -2949,13 +2949,13 @@ Install these nodes now?</source>
       <translation>キューブの差分挿入後にエディターの表示状態を更新できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="423"></location>
+      <location filename="../substitute/application/generation/generation_service.py" line="427"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="435"></location>
       <source>Failed to stage workflow asset %1.%2: %3</source>
       <translation>ワークフローアセット %1.%2 を準備できませんでした：%3</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="641"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="402"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="656"></location>
       <source>Failed to start generation listener</source>
       <translation>生成リスナーを開始できませんでした</translation>
@@ -3066,7 +3066,7 @@ Install these nodes now?</source>
       <translation>GNU 一般公衆利用許諾書バージョン3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="442"></location>
+      <location filename="../substitute/presentation/shell/main_window_signal_binder.py" line="444"></location>
       <source>GUI restart is not available in this session.</source>
       <translation>このセッションでは GUI を再起動できません。</translation>
     </message>
@@ -3081,7 +3081,7 @@ Install these nodes now?</source>
       <translation>生成可能なシーンが見つかりませんでした：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="961"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="966"></location>
       <source>Generated image load failed</source>
       <translation>生成画像の読み込みに失敗しました</translation>
     </message>
@@ -3101,7 +3101,7 @@ Install these nodes now?</source>
       <translation>生成方法と生成ファイル。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="162"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="158"></location>
       <source>Generation cannot run because every cube has a runtime error.</source>
       <translation>すべてのキューブにランタイムエラーがあるため、生成できません。</translation>
     </message>
@@ -3296,7 +3296,7 @@ Install these nodes now?</source>
       <translation>セットアップログを隠す</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="103"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="94"></location>
       <source>High-performance PySide6 image viewer</source>
       <translation>高性能な PySide6 画像ビューアー</translation>
     </message>
@@ -3476,7 +3476,7 @@ Install these nodes now?</source>
       <translation>操作</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="309"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="322"></location>
       <source>Invalid CivitAI model link</source>
       <translation>無効な CivitAI モデルリンク</translation>
     </message>
@@ -3686,12 +3686,12 @@ Install these nodes now?</source>
       <translation>LoRA トリガーワード</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="953"></location>
+      <location filename="../substitute/presentation/shell/workspace_canvas_actions.py" line="958"></location>
       <source>Load Error</source>
       <translation>読み込みエラー</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1411"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1402"></location>
       <source>Load recipe failed</source>
       <translation>レシピを読み込めませんでした</translation>
     </message>
@@ -3736,7 +3736,7 @@ Install these nodes now?</source>
       <translation>読み込み中...</translation>
     </message>
     <message>
-      <location filename="../substitute/application/cubes/cube_picker_models.py" line="531"></location>
+      <location filename="../substitute/application/cubes/cube_picker_models.py" line="534"></location>
       <source>Local cubes</source>
       <translation>ローカルキューブ</translation>
     </message>
@@ -3876,12 +3876,12 @@ Install these nodes now?</source>
       <translation>メタデータを手動更新するには、モデルの種類と値が必要です。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="680"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="677"></location>
       <source>Mask dimensions could not be verified</source>
       <translation>マスクのサイズを確認できませんでした</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="617"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="614"></location>
       <source>Mask dimensions do not match</source>
       <translation>マスクのサイズが一致しません</translation>
     </message>
@@ -3971,7 +3971,7 @@ Install these nodes now?</source>
       <translation>モデル検索から無効な結果が返されました。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1705"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1696"></location>
       <source>Model download failed</source>
       <translation>モデルのダウンロードに失敗しました</translation>
     </message>
@@ -4673,22 +4673,22 @@ I’ll bring my own</source>
       <translation>https://github.com/owner/repository のような URL を貼り付けてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="272"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="285"></location>
       <source>Paste and preview model links.</source>
       <translation>モデルリンクを貼り付けてプレビューします。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="221"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="234"></location>
       <source>Paste at least one CivitAI model link.</source>
       <translation>CivitAI モデルのリンクを 1 つ以上貼り付けてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="137"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="150"></location>
       <source>Paste links above to preview compatible models.</source>
       <translation>互換性のあるモデルをプレビューするには、上にリンクを貼り付けてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="99"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="112"></location>
       <source>Paste one CivitAI model or version link per line</source>
       <translation>CivitAI のモデルまたはバージョンのリンクを 1 行に 1 つ貼り付け</translation>
     </message>
@@ -4848,7 +4848,7 @@ I’ll bring my own</source>
       <translation>アプリケーション画面を準備しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2108"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2099"></location>
       <source>Preparing the download.</source>
       <translation>ダウンロードを準備しています。</translation>
     </message>
@@ -4913,7 +4913,7 @@ I’ll bring my own</source>
       <translation>プレビューの種類</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="283"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="296"></location>
       <source>Preview unavailable</source>
       <translation>プレビューを利用できません</translation>
     </message>
@@ -4968,7 +4968,7 @@ I’ll bring my own</source>
       <translation>ComfyUI-Manager を準備しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="116"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="107"></location>
       <source>PySide6</source>
       <translation>PySide6</translation>
     </message>
@@ -4978,7 +4978,7 @@ I’ll bring my own</source>
       <translation>PySide6 プロジェクトサイト</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="109"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="100"></location>
       <source>PySide6-Fluent-Widgets</source>
       <translation>PySide6-Fluent-Widgets</translation>
     </message>
@@ -5023,7 +5023,7 @@ I’ll bring my own</source>
       <translation>Python：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="102"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="93"></location>
       <source>QPane</source>
       <translation>QPane</translation>
     </message>
@@ -5038,7 +5038,7 @@ I’ll bring my own</source>
       <translation>Qt WebEngine を利用できないため、ここでは ComfyUI 設定を開けません。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="117"></location>
+      <location filename="../substitute/application/about/about_info_service.py" line="108"></location>
       <source>Qt for Python</source>
       <translation>Qt for Python</translation>
     </message>
@@ -5148,7 +5148,7 @@ I’ll bring my own</source>
       <translation>キャンバスを再度ドッキング</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="231"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="239"></location>
       <source>Referenced local image file does not exist.</source>
       <translation>参照しているローカル画像ファイルがありません。</translation>
     </message>
@@ -5186,6 +5186,11 @@ I’ll bring my own</source>
       <location filename="../substitute/presentation/cube_picker/cube_stack_cart_modal.py" line="1543"></location>
       <source>Refreshing...</source>
       <translation>更新中...</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/editor/panel/widgets/fields/regional_mask_batch.py" line="658"></location>
+      <source>Region %1</source>
+      <translation>領域 %1</translation>
     </message>
     <message>
       <location filename="../substitute/domain/comfy_startup_diagnostics/remediation.py" line="220"></location>
@@ -5402,7 +5407,7 @@ No known extension claimant.</source>
       <translation>必要なカスタムノードはすべてインストールされています。</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/asset_staging_service.py" line="203"></location>
+      <location filename="../substitute/application/generation/asset_staging_service.py" line="211"></location>
       <source>Required image input has no selected image.</source>
       <translation>必須の画像入力で画像が選択されていません。</translation>
     </message>
@@ -5692,17 +5697,17 @@ No known extension claimant.</source>
       <translation>SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="285"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="287"></location>
       <source>SFW only</source>
       <translation>SFW のみ</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="264"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="266"></location>
       <source>Safe and questionable</source>
       <translation>Safe と Questionable</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="260"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="262"></location>
       <source>Safe only</source>
       <translation>Safe のみ</translation>
     </message>
@@ -6212,12 +6217,12 @@ No known extension claimant.</source>
       <translation>正常に終了しました。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="334"></location>
+      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="325"></location>
       <source>Shutdown returned an invalid cleanup result.</source>
       <translation>シャットダウン処理から無効なクリーンアップ結果が返されました。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="472"></location>
+      <location filename="../substitute/app/bootstrap/shutdown_coordinator.py" line="458"></location>
       <source>Shutdown timed out before cleanup could finish.</source>
       <translation>クリーンアップが完了する前に、終了処理がタイムアウトしました。</translation>
     </message>
@@ -6302,7 +6307,7 @@ No known extension claimant.</source>
       <translation>ステージ：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="1046"></location>
+      <location filename="../substitute/presentation/shell/workspace_cube_picker_actions.py" line="1039"></location>
       <source>Staged cube queue failed</source>
       <translation>ステージ済みキューブのキュー登録に失敗しました</translation>
     </message>
@@ -6352,7 +6357,7 @@ No known extension claimant.</source>
       <translation>セットアップを開始しています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2110"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2101"></location>
       <source>Starting the model download.</source>
       <translation>モデルのダウンロードを開始しています。</translation>
     </message>
@@ -6532,7 +6537,7 @@ No known extension claimant.</source>
       <translation>Substitute は ComfyUI フォルダーだけでは Python 環境を特定できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_controller.py" line="153"></location>
+      <location filename="../substitute/presentation/shell/workspace_controller.py" line="149"></location>
       <source>Substitute could not load required live Comfy node definitions.</source>
       <translation>Substitute は必要なライブ Comfy ノード定義を読み込めませんでした。</translation>
     </message>
@@ -6772,15 +6777,10 @@ No known extension claimant.</source>
       <translation>Substitute に保存されたフォルダー設定を修正する必要があります</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2798"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2805"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
-    </message>
-    <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="93"></location>
-      <source>Sugar-DSL</source>
-      <translation>Sugar-DSL</translation>
     </message>
     <message>
       <location filename="../substitute/application/about/about_info_service.py" line="86"></location>
@@ -7213,7 +7213,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>管理対象の ComfyUI はまだ準備できていません。修復を続けてインストールしてください。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2116"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2107"></location>
       <source>The model download failed.</source>
       <translation>モデルのダウンロードに失敗しました。</translation>
     </message>
@@ -7223,7 +7223,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>この接続先ではモデルダウンロードサービスを利用できません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2112"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2103"></location>
       <source>The model has finished downloading.</source>
       <translation>モデルのダウンロードが完了しました。</translation>
     </message>
@@ -7303,11 +7303,6 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>保存された ComfyUI ランタイムの拡張機能を更新する必要があります</translation>
     </message>
     <message>
-      <location filename="../substitute/application/about/about_info_service.py" line="94"></location>
-      <source>The scripting language for composing ComfyUI workflows with SugarCubes</source>
-      <translation>SugarCubes で ComfyUI ワークフローを構成するためのスクリプト言語</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="901"></location>
       <source>The selected Comfy server does not expose environment management.</source>
       <translation>選択した Comfy サーバーは環境管理機能を提供していません。</translation>
@@ -7323,12 +7318,12 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>選択したフォルダーには、完全な ComfyUI がインストールされていません。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="682"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="679"></location>
       <source>The selected mask dimensions could not be verified against the loaded input image.</source>
       <translation>選択したマスクの寸法を、読み込まれた入力画像と照合できませんでした。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="619"></location>
+      <location filename="../substitute/presentation/canvas/input/input_canvas_presenter.py" line="616"></location>
       <source>The selected mask dimensions do not match the loaded input image.</source>
       <translation>選択したマスクの寸法が、読み込まれた入力画像と一致しません。</translation>
     </message>
@@ -7448,12 +7443,12 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>その ComfyUI アドレスで使用するポート番号です。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="313"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="326"></location>
       <source>This model is already in your list</source>
       <translation>このモデルはすでにリストにあります</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="311"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="324"></location>
       <source>This model is not compatible with the current family</source>
       <translation>このモデルは現在のファミリーと互換性がありません</translation>
     </message>
@@ -7678,7 +7673,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>不明なベースモデル</translation>
     </message>
     <message>
-      <location filename="../substitute/application/cubes/cube_picker_models.py" line="543"></location>
+      <location filename="../substitute/application/cubes/cube_picker_models.py" line="546"></location>
       <source>Unknown source</source>
       <translation>不明なソース</translation>
     </message>
@@ -7818,7 +7813,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>予定されている変更の順序を更新しています。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2154"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2145"></location>
       <source>Updating the recipe...</source>
       <translation>レシピを更新しています...</translation>
     </message>
@@ -7998,7 +7993,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>バージョン：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="103"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="116"></location>
       <source>View %1 on CivitAI</source>
       <translation>CivitAIで%1を見る</translation>
     </message>
@@ -8043,7 +8038,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>ComfyUI の準備が整うのを待っています…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2152"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2143"></location>
       <source>Waiting for the download to start...</source>
       <translation>ダウンロードの開始を待っています...</translation>
     </message>
@@ -8323,7 +8318,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>管理対象の ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2145"></location>
+      <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2136"></location>
       <source>model</source>
       <translation>モデル</translation>
     </message>
@@ -8343,7 +8338,7 @@ GNU 一般公衆利用許諾書バージョン3は、目的を問わず本プロ
       <translation>なし</translation>
     </message>
     <message>
-      <location filename="../substitute/application/generation/generation_service.py" line="545"></location>
+      <location filename="../substitute/application/generation/generation_execution_dispatcher.py" line="204"></location>
       <location filename="../substitute/application/generation/generation_service.py" line="556"></location>
       <source>queue_prompt did not return prompt_id</source>
       <translation>プロンプト送信後に prompt_id が返されませんでした</translation>

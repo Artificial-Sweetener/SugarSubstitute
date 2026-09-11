@@ -49,6 +49,18 @@ from substitute.infrastructure.comfy.managed_setup_cache_storage import (
 )
 
 _CACHE_EMERGENCY_EPOCH = 0
+RESTORE_PROJECTION_SEMANTIC_SOURCES = (
+    "substitute/application/workspace_state/restore_projection_models.py",
+    "substitute/application/workspace_state/restore_projection_codec.py",
+    "substitute/application/workspace_state/restored_editor_projection.py",
+    "substitute/application/workspace_state/restore_projection_validation.py",
+    "substitute/application/workspace_state/native_graph_restore_service.py",
+    "substitute/application/workspace_state/workspace_runtime_hydration_service.py",
+    "substitute/application/workspace_state/cube_runtime_hydrator.py",
+    "substitute/domain/workflow/models.py",
+    "substitute/application/cubes/cube_tab_presentation.py",
+    "substitute/application/cubes/cube_target_model.py",
+)
 
 
 def build_persistent_cache_catalog(
@@ -69,16 +81,11 @@ def build_persistent_cache_catalog(
             _derived_registration(
                 cache_id=CACHE_ID_RESTORE_PROJECTION,
                 namespace="restore/projection",
-                storage_schema="3",
-                semantic_epoch=1,
+                storage_schema="4",
+                semantic_epoch=2,
                 source_root=root,
                 fingerprints=fingerprints,
-                python_sources=(
-                    "substitute/application/workspace_state/restore_projection_models.py",
-                    "substitute/application/workspace_state/restore_projection_codec.py",
-                    "substitute/application/workspace_state/restored_editor_projection.py",
-                    "substitute/application/workspace_state/restore_projection_validation.py",
-                ),
+                python_sources=RESTORE_PROJECTION_SEMANTIC_SOURCES,
                 legacy_namespaces=("restore-projection-cache.json",),
             ),
             _rendered_registration(

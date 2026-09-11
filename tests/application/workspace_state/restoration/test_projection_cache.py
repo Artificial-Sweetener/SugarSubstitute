@@ -349,6 +349,56 @@ def test_fingerprints_are_stable_across_key_ordering() -> None:
     )
 
 
+def test_cube_fingerprint_uses_catalog_identity_over_authored_instance_graph() -> None:
+    """Authored Cube values must not make a matching definition cache look stale."""
+
+    pristine = LoadedCubeDefinition(
+        cube_id="cube",
+        version="1",
+        display_name="Cube",
+        graph={"nodes": {"prompt": {"inputs": {"text": "default"}}}},
+        ui_payload={
+            "content_hash": "definition-content",
+            "catalog_revision": "catalog-revision",
+        },
+    )
+    authored = LoadedCubeDefinition(
+        cube_id="cube",
+        version="1",
+        display_name="Cube",
+        graph={"nodes": {"prompt": {"inputs": {"text": "user-authored"}}}},
+        ui_payload={
+            "content_hash": "definition-content",
+            "catalog_revision": "catalog-revision",
+        },
+    )
+
+    assert cube_definition_fingerprint(pristine) == cube_definition_fingerprint(
+        authored
+    )
+
+
+def test_cube_fingerprint_falls_back_to_graph_without_catalog_identity() -> None:
+    """Uncatalogued definitions should still invalidate when structure changes."""
+
+    first = LoadedCubeDefinition(
+        cube_id="cube",
+        version="1",
+        display_name="Cube",
+        graph={"nodes": {"first": {}}},
+        ui_payload=None,
+    )
+    second = LoadedCubeDefinition(
+        cube_id="cube",
+        version="1",
+        display_name="Cube",
+        graph={"nodes": {"second": {}}},
+        ui_payload=None,
+    )
+
+    assert cube_definition_fingerprint(first) != cube_definition_fingerprint(second)
+
+
 def test_prompt_feature_profile_fingerprint_is_order_independent() -> None:
     """Prompt feature profiles should fingerprint by feature identity."""
 

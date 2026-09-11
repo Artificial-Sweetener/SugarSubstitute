@@ -228,6 +228,7 @@ def _catalog_records(catalog: CubeCatalog) -> list[CubeCatalogRecord]:
             description=entry.description,
             source=entry.source,
             icon=entry.icon,
+            target_model=entry.target_model,
             supported_models=entry.supported_models,
             content_hash=entry.content_hash,
             updated_at=entry.updated_at,
