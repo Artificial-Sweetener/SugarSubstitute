@@ -19,7 +19,7 @@
 from collections import OrderedDict
 
 
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from tests.domain.recipes.sugar.serialization_support import serialize_sugar_script
 
 
@@ -182,7 +182,7 @@ def test_full_encode_style_scope_serializes_wildcard_and_preserves_schedule_link
         ordered,
         global_overrides={"encode_style": {"value": "Comfy", "mode": "global"}},
         global_override_scopes={
-            "encode_style": GlobalOverrideSerializationScope(
+            "encode_style": GlobalOverrideScope(
                 override_key="encode_style",
                 value="Comfy",
                 mode="global",
@@ -225,7 +225,7 @@ def test_full_encode_style_scope_omits_stale_schedule_literal() -> None:
         ordered,
         global_overrides={"encode_style": {"value": "A1111", "mode": "global"}},
         global_override_scopes={
-            "encode_style": GlobalOverrideSerializationScope(
+            "encode_style": GlobalOverrideScope(
                 override_key="encode_style",
                 value="A1111",
                 mode="global",

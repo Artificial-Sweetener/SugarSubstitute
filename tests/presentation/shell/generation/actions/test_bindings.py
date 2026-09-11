@@ -29,7 +29,7 @@ from substitute.application.generation import (
 )
 from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.domain.generation.seed_control import SeedControlState, SeedMode
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.shell.workspace_generation_action_adapter import (
     GenerationActionBindingView,
@@ -151,7 +151,7 @@ def test_locking_after_generation_reuses_the_submitted_seed() -> None:
             workflow_name="Recipe A",
             workflow=cast(Any, workflow),
             global_override_scopes={
-                "seed": GlobalOverrideSerializationScope(
+                "seed": GlobalOverrideScope(
                     override_key="seed",
                     value=seed_value,
                     mode="global",

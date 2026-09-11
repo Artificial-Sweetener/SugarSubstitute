@@ -17,8 +17,7 @@
 """Test selected-input asset staging and staging failure behavior."""
 
 from __future__ import annotations
-
-from __future__ import annotations
+from typing import cast
 from substitute.application.generation import (
     ComfyAssetStagingResult,
     GenerationRequest,
@@ -87,7 +86,9 @@ def test_run_single_generation_queues_staged_payload_when_staging_is_configured(
     )
 
     assert result.started is True
-    assert asset_staging_service.calls[0]["workflow_payload"] == authoring_payload
+    unstaged_graph = asset_staging_service.calls[0]["workflow_payload"]
+    assert isinstance(unstaged_graph, dict)
+    assert unstaged_graph["version"] == 0.4
     run_client_id = fake_gateway.connect_calls[0].client_id
     assert len(fake_gateway.queue_calls) == 1
     (
@@ -102,9 +103,9 @@ def test_run_single_generation_queues_staged_payload_when_staging_is_configured(
     assert queued_client_id == run_client_id
     assert execution_targets is None
     assert preview_method == "latent2rgb"
-    assert sugar_script == 'use "cube" as A'
+    assert sugar_script is None
     assert visual_context is not None
-    assert visual_context.sources["1"]["sourceKey"] == "node:1"
+    assert visual_context.sources == {}
 
 
 def test_run_single_generation_queues_selected_image_not_cube_default() -> None:
@@ -150,19 +151,26 @@ def test_run_single_generation_queues_selected_image_not_cube_default() -> None:
         asset_staging_service=asset_staging_service,
     )
 
+    workflow = _build_workflow()
+    workflow_buffer = cast(dict[str, object], workflow.cubes["A"].buffer)
+    workflow_buffer["nodes"] = {
+        "1": {"class_type": "LoadImage", "inputs": {"image": selected_image}}
+    }
     result = service.run_single_generation(
         request=GenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1",
-            workflow=_build_workflow(),
+            workflow=workflow,
         ),
         callbacks=_build_generation_callbacks(recorder),
     )
 
     assert result.started is True
     queued_payload = fake_gateway.queue_calls[0][0]
-    assert queued_payload["1"]["inputs"]["image"] == staged_image
-    assert queued_payload["1"]["inputs"]["image"] != default_image
+    queued_node = cast(dict[str, object], queued_payload["1"])
+    queued_inputs = cast(dict[str, object], queued_node["inputs"])
+    assert queued_inputs["image"] == staged_image
+    assert queued_inputs["image"] != default_image
 
 
 def test_run_single_generation_staging_failure_skips_queue() -> None:

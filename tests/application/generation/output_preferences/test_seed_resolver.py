@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from substitute.application.generation.output_seed_resolver import resolve_output_seed
 
 
@@ -25,9 +27,7 @@ def test_resolver_prefers_global_override_seed() -> None:
     """Global seed overrides should win over workflow-local seed inputs."""
 
     seed = resolve_output_seed(
-        sugar_script_text=(
-            'use "Text To Image" as A\nset *.*.seed = 1234\nset A.sampler.seed = 999\n'
-        ),
+        workflow=SimpleNamespace(global_overrides={"seed": {"value": 1234}}),
         workflow_payload={"node": {"inputs": {"seed": 999}}},
     )
 
@@ -38,7 +38,7 @@ def test_resolver_uses_first_workflow_seed() -> None:
     """Workflow fallback should use the first exact seed input in node order."""
 
     seed = resolve_output_seed(
-        sugar_script_text='use "Text To Image" as A\n',
+        workflow=None,
         workflow_payload={
             "node-a": {"inputs": {"steps": 20}},
             "node-b": {"inputs": {"seed": 222}},
@@ -53,7 +53,7 @@ def test_resolver_supports_wrapped_prompt_payload() -> None:
     """Wrapped backend payloads should expose the prompt node mapping."""
 
     seed = resolve_output_seed(
-        sugar_script_text='use "Text To Image" as A\n',
+        workflow=None,
         workflow_payload={"prompt": {"1": {"inputs": {"seed": 444}}}},
     )
 
@@ -64,7 +64,7 @@ def test_resolver_ignores_non_exact_seed_names() -> None:
     """Only the exact seed input should contribute to the output token."""
 
     seed = resolve_output_seed(
-        sugar_script_text='use "Text To Image" as A\n',
+        workflow=None,
         workflow_payload={
             "1": {"inputs": {"noise_seed": 111, "main_seed": 222}},
         },
@@ -77,11 +77,11 @@ def test_resolver_preserves_zero_seed_values() -> None:
     """Zero is a valid seed token value and must not be treated as missing."""
 
     global_seed = resolve_output_seed(
-        sugar_script_text='use "Text To Image" as A\nset *.*.seed = 0\n',
+        workflow=SimpleNamespace(global_overrides={"seed": {"value": 0}}),
         workflow_payload={"1": {"inputs": {"seed": 999}}},
     )
     workflow_seed = resolve_output_seed(
-        sugar_script_text='use "Text To Image" as A\n',
+        workflow=None,
         workflow_payload={"1": {"inputs": {"seed": 0}}},
     )
 
@@ -93,7 +93,7 @@ def test_resolver_returns_empty_text_without_seed() -> None:
     """Missing seed data should render as an empty token value."""
 
     seed = resolve_output_seed(
-        sugar_script_text='use "Text To Image" as A\n',
+        workflow=None,
         workflow_payload={"1": {"inputs": {"steps": 20}}},
     )
 

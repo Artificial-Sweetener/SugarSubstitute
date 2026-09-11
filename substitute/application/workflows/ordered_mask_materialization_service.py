@@ -98,7 +98,21 @@ class OrderedMaskMaterializationService:
             image_id=image_id,
         )
         if not collection.entries:
-            collection.add_region(image_id)
+            authored_value = self._graph_section_service.input_value(
+                workflow,
+                section_key=binding.section_key,
+                node_name=binding.mask_node_name,
+                field_key=binding.mask_field_key,
+            )
+            authored_paths = _authored_paths(authored_value)
+            if authored_paths:
+                for path in authored_paths:
+                    collection.add_region(
+                        image_id,
+                        asset_ref=ProjectMaskAssetRef(path),
+                    )
+            else:
+                collection.add_region(image_id)
 
         results = tuple(
             result
@@ -442,6 +456,16 @@ def _first_authored_path(value: object) -> str | None:
     if isinstance(value, list):
         return next((item for item in value if isinstance(item, str) and item), None)
     return None
+
+
+def _authored_paths(value: object) -> tuple[str, ...]:
+    """Return every non-empty authored mask path in exact batch order."""
+
+    if isinstance(value, str):
+        return (value,) if value else ()
+    if isinstance(value, list):
+        return tuple(item for item in value if isinstance(item, str) and item)
+    return ()
 
 
 def _size_dimensions(size: object | None) -> tuple[int, int] | None:

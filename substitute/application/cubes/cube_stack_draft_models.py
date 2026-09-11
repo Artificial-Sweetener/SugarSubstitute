@@ -25,6 +25,7 @@ from uuid import uuid4
 from substitute.application.cubes.cube_tab_presentation import (
     build_cube_tab_presentation,
 )
+from substitute.application.cubes.cube_target_model import cube_target_model
 from substitute.application.ports import CubeCatalogRecord
 
 CubeStackDraftEntrySource = Literal["existing", "new"]
@@ -41,6 +42,7 @@ class CubeStackDraftEntry:
     secondary_text: str
     icon: object | None
     existing_alias: str | None = None
+    target_model: str = ""
     content_hash: str = ""
     catalog_revision: str = ""
 
@@ -96,6 +98,7 @@ def cube_stack_draft_from_workflow(workflow: object) -> CubeStackDraft:
             alias=alias,
             cube_id=cube_id,
             version=version,
+            target_model=_cube_state_target_model(cube_state),
         )
         entries.append(
             CubeStackDraftEntry(
@@ -106,6 +109,7 @@ def cube_stack_draft_from_workflow(workflow: object) -> CubeStackDraft:
                 secondary_text=presentation.secondary_text,
                 icon=_cube_state_icon_descriptor(cube_state),
                 existing_alias=alias,
+                target_model=presentation.target_model,
                 content_hash=_cube_state_ui_text(cube_state, "content_hash"),
                 catalog_revision=_cube_state_ui_text(cube_state, "catalog_revision"),
             )
@@ -124,15 +128,17 @@ def cube_stack_draft_entry_from_record(
         alias=record.display_name,
         cube_id=record.cube_id,
         version=record.version,
+        target_model=record.target_model,
     )
     return CubeStackDraftEntry(
         draft_id=draft_id or uuid4().hex,
         source="new",
         cube_id=record.cube_id,
-        display_name=record.display_name,
+        display_name=presentation.primary_text,
         secondary_text=presentation.secondary_text,
         icon=record.icon,
         existing_alias=None,
+        target_model=presentation.target_model,
         content_hash=record.content_hash,
         catalog_revision=record.catalog_revision,
     )
@@ -182,6 +188,12 @@ def _cube_state_icon_descriptor(cube_state: object) -> object | None:
     if isinstance(ui_payload, dict):
         return ui_payload.get("cube_icon")
     return None
+
+
+def _cube_state_target_model(cube_state: object) -> str:
+    """Return the canonical target model from one loaded Cube state."""
+
+    return cube_target_model(cube_state)
 
 
 def _cube_state_ui_text(cube_state: object, key: str) -> str:

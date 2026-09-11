@@ -55,6 +55,7 @@ from substitute.infrastructure.persistence import (
     FileWorkflowRepository,
 )
 from tests.support.node_behavior import build_behavior_snapshot
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow_from_states
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
@@ -102,6 +103,25 @@ class _QueueRecorderGateway:
             prompt_id="prompt-1",
             payload={"prompt_id": "prompt-1"},
             error=None,
+        )
+
+    def queue_cube_workflow(
+        self,
+        workflow: dict[str, object],
+        *,
+        client_id: str,
+        preview_method: str | None = None,
+        visual_context: QueueVisualRunContext,
+        persistence_sugar_script: str | None = None,
+    ) -> QueuePromptResult:
+        """Record native Cube dispatch through the shared test queue."""
+
+        del persistence_sugar_script
+        return self.queue_prompt(
+            workflow,
+            client_id=client_id,
+            preview_method=preview_method,
+            visual_context=visual_context,
         )
 
     def start_listener(
@@ -235,10 +255,7 @@ def _build_real_inpaint_workflow(
         original_cube=copy.deepcopy(cube_graph),
         buffer=cube_graph,
     )
-    workflow = WorkflowState(
-        cubes={"Inpaint": cube_state},
-        stack_order=["Inpaint"],
-    )
+    workflow = graph_backed_cube_workflow_from_states(cube_state)
     asset_service = WorkflowAssetService()
     associated = asset_service.associate_local_input_image(
         workflow,
@@ -394,10 +411,6 @@ def test_real_inpaint_generation_queues_selected_load_image_instead_of_default(
     }
     service = GenerationService(
         recipe_io_service=RecipeIoService(recipe_repository=FileRecipeRepository()),
-        workflow_export_service=WorkflowExportService(
-            workflow_repository=FileWorkflowRepository(),
-            workflow_payload_compiler=_StaticWorkflowCompiler(compiled_payload),
-        ),
         comfy_gateway=gateway,
         asset_staging_service=ComfyAssetStagingService.with_projects_dir(
             stager=LocalComfyAssetStager(
@@ -425,15 +438,22 @@ def test_real_inpaint_generation_queues_selected_load_image_instead_of_default(
             on_timing=lambda _event: None,
         ),
     )
+    queued_workflow = gateway.queue_calls[0]
+    definitions = cast(dict[str, object], queued_workflow["definitions"])
+    subgraphs = cast(list[dict[str, object]], definitions["subgraphs"])
+    extra = cast(dict[str, object], subgraphs[0]["extra"])
+    document = cast(dict[str, object], extra["sugarcubes_document"])
+    implementation = cast(dict[str, object], document["implementation"])
+    queued_nodes = cast(dict[str, object], implementation["nodes"])
     queued_load_image_nodes = [
         node
-        for node in gateway.queue_calls[0].values()
+        for node in queued_nodes.values()
         if isinstance(node, dict)
         and node.get("class_type") == "SubstituteBackendLoadImage"
     ]
     queued_load_mask_nodes = [
         node
-        for node in gateway.queue_calls[0].values()
+        for node in queued_nodes.values()
         if isinstance(node, dict)
         and node.get("class_type") == "SubstituteBackendLoadImageMask"
     ]

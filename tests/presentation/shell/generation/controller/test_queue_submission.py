@@ -57,7 +57,7 @@ def test_handle_generate_clicked_enqueues_snapshot_when_queue_is_available() -> 
     snapshot = GenerationJobSnapshot(
         workflow_id="wf-1",
         workflow_name="Workflow 1",
-        sugar_script_text="# queued script",
+        persistence_sugar_script="# queued script",
     )
     bindings = _build_bindings(recorder)
     bindings = GenerationUiBindings(
@@ -355,12 +355,12 @@ def test_handle_generate_clicked_enqueues_queued_snapshots_in_order() -> None:
         GenerationJobSnapshot(
             workflow_id="wf-1",
             workflow_name="Workflow 1 - portrait",
-            sugar_script_text="# portrait",
+            persistence_sugar_script="# portrait",
         ),
         GenerationJobSnapshot(
             workflow_id="wf-1",
             workflow_name="Workflow 1 - cafe",
-            sugar_script_text="# cafe",
+            persistence_sugar_script="# cafe",
         ),
     )
     bindings = _build_bindings(recorder)

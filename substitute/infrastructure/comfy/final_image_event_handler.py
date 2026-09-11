@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
@@ -86,6 +86,12 @@ class FinalImageEventHandler:
     artifact_fetcher: FinalImageArtifactFetcher
     output_persistence: FinalImagePersistence
     on_output_image: Callable[[OutputImageUpdate], None]
+    _delivered_artifacts: set[tuple[str, str, int, int, str, str, str]] = field(
+        default_factory=set,
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def handle(self, event: FinalImageEvent) -> None:
         """Persist and publish every batch artifact from one validated event."""
@@ -100,11 +106,23 @@ class FinalImageEventHandler:
             artifact for artifact in event.artifacts if artifact.media_kind == "image"
         )
         for batch_index, artifact in enumerate(image_artifacts):
+            delivery_key = (
+                event.prompt_id,
+                event.source.node_id,
+                event.list_index,
+                batch_index,
+                artifact.filename,
+                artifact.subfolder,
+                artifact.type,
+            )
+            if delivery_key in self._delivered_artifacts:
+                continue
             image_bytes = self.artifact_fetcher.fetch(artifact)
             persisted = self.output_persistence.persist_output_image(
                 image_bytes=image_bytes,
                 source_identity=source_identity,
             )
+            self._delivered_artifacts.add(delivery_key)
             self.on_output_image(
                 OutputImageUpdate(
                     workflow_id=event.workflow_id,

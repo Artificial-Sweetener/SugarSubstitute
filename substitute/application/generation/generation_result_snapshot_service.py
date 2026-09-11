@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from copy import deepcopy
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Protocol
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from substitute.domain.common import JsonObject
@@ -32,8 +32,7 @@ from substitute.domain.generation import (
     GenerationQueueJob,
     GenerationResultSnapshot,
 )
-from substitute.domain.recipes.sugar_ast import ParsedSugarScript
-from substitute.domain.workflow import CubeState, OutputFocusMode, WorkflowState
+from substitute.domain.workflow import OutputFocusMode, WorkflowState
 from substitute.domain.workspace_snapshot import (
     ImageMetaSnapshot,
     OutputImageReference,
@@ -46,13 +45,6 @@ from substitute.domain.workspace_snapshot.models import (
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 _LOGGER = get_logger("application.generation.generation_result_snapshot_service")
-
-
-class RecipeScriptParser(Protocol):
-    """Describe recipe parsing needed for generation result replay."""
-
-    def parse_recipe_script(self, sugar_script_text: str) -> ParsedSugarScript:
-        """Parse Sugar text into workflow buffers and global overrides."""
 
 
 class LiveGenerationResultLookup(Protocol):
@@ -83,12 +75,10 @@ class GenerationResultSnapshotService:
         self,
         *,
         live_results: LiveGenerationResultLookup,
-        recipe_parser: RecipeScriptParser,
     ) -> None:
-        """Store live queue and recipe parsing dependencies."""
+        """Store the live generation result source."""
 
         self._live_results = live_results
-        self._recipe_parser = recipe_parser
 
     def build_for_live_job(self, job_id: str) -> GenerationResultSnapshotBuildResult:
         """Build a restorable snapshot for one visible current-session job."""
@@ -111,11 +101,15 @@ class GenerationResultSnapshotService:
                 job_id=job_id,
                 graph=job.snapshot.direct_workflow_plan.authored_api_graph,
             )
+        elif job.snapshot.workflow is not None:
+            workflow = deepcopy(job.snapshot.workflow)
         else:
-            parsed_script = self._recipe_parser.parse_recipe_script(
-                job.snapshot.sugar_script_text
+            return GenerationResultSnapshotBuildResult(
+                snapshot=None,
+                warnings=(
+                    f"Generation job {job_id} has no restorable workflow state.",
+                ),
             )
-            workflow = self._workflow_from_script(parsed_script)
         output_references = tuple(
             self._output_reference(
                 job_id=job_id,
@@ -164,31 +158,6 @@ class GenerationResultSnapshotService:
             workflow_id=workflow_id,
         )
         return GenerationResultSnapshotBuildResult(snapshot=result, warnings=())
-
-    def _workflow_from_script(self, parsed_script: ParsedSugarScript) -> WorkflowState:
-        """Build workflow state from parsed Sugar buffers."""
-
-        workflow = WorkflowState()
-        workflow.global_overrides = parsed_script.global_overrides
-        workflow.global_override_selections = parsed_script.global_override_selections
-        workflow.override_control_states = dict(parsed_script.override_control_states)
-        for alias, buffer in parsed_script.buffers.items():
-            workflow.stack_order.append(alias)
-            workflow.cubes[alias] = CubeState(
-                cube_id=str(buffer.get("cube_id", "")),
-                version=str(buffer.get("version", "")),
-                alias=alias,
-                original_cube={},
-                buffer=cast(JsonObject, dict(buffer)),
-                field_control_states={
-                    str(node): dict(field_states)
-                    for node, field_states in parsed_script.field_control_states_by_alias.get(
-                        alias,
-                        {},
-                    ).items()
-                },
-            )
-        return workflow
 
     @staticmethod
     def _workflow_from_direct_graph(
@@ -331,5 +300,4 @@ __all__ = [
     "GenerationResultSnapshotBuildResult",
     "GenerationResultSnapshotService",
     "LiveGenerationResultLookup",
-    "RecipeScriptParser",
 ]

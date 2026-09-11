@@ -17,10 +17,7 @@
 """Test prepared generation execution and graph dispatch."""
 
 from __future__ import annotations
-
-from __future__ import annotations
 from datetime import datetime
-from pathlib import Path
 
 from substitute.application.generation import (
     GenerationRequest,
@@ -45,8 +42,10 @@ from tests.application.generation.generation_service.support import (
     _build_generation_callbacks,
     _as_json_object,
     _build_generation_service,
+    _build_native_workflow,
     _build_workflow,
 )
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow
 
 
 def test_run_single_generation_happy_path_queues_and_starts_listener() -> None:
@@ -95,15 +94,16 @@ def test_run_single_generation_happy_path_queues_and_starts_listener() -> None:
         sugar_script,
         visual_context,
     ) = fake_gateway.queue_calls[0]
-    assert queued_payload == workflow_payload
+    assert queued_payload["version"] == 0.4
+    assert len(queued_payload["nodes"]) == 1
     assert queued_client_id == run_client_id
     assert execution_targets is None
     assert preview_method == "latent2rgb"
-    assert sugar_script == 'use "cube" as A'
+    assert sugar_script is None
     assert visual_context is not None
     assert visual_context.workflow_id == "wf-1"
     assert visual_context.client_id == run_client_id
-    assert visual_context.sources["N1"]["sourceKey"] == "node:N1"
+    assert visual_context.sources == {}
     assert len(fake_gateway.listener_requests) == 1
     listener_request = fake_gateway.listener_requests[0]
     assert listener_request.workflow_id == "wf-1"
@@ -120,12 +120,8 @@ def test_run_single_generation_happy_path_queues_and_starts_listener() -> None:
     assert getattr(recorder.run_started[0], "output_session_id") == (
         listener_request.generation_run_id
     )
-    assert getattr(recorder.run_started[0], "preview_source_keys") == frozenset(
-        {"node:N1"}
-    )
-    assert workflow_export_service.calls[0]["output_dir"] == (
-        Path.cwd() / "user" / "projects"
-    )
+    assert getattr(recorder.run_started[0], "preview_source_keys") == frozenset()
+    assert workflow_export_service.calls == []
     assert len(service.active_listener_handles) == 1
 
     fake_gateway.listener_callbacks[0].on_preview(
@@ -141,8 +137,8 @@ def test_run_single_generation_happy_path_queues_and_starts_listener() -> None:
     assert len(recorder.previews) == 1
 
 
-def test_run_single_generation_passes_activation_overrides_to_serializer() -> None:
-    """Generation should serialize workflow snapshots with activation overrides."""
+def test_run_single_generation_never_serializes_sugarscript_for_execution() -> None:
+    """Native graph execution must not invoke the persistence-language serializer."""
 
     recorder = _CallbackRecorder([], [], [], [], [], [])
     fake_gateway = _FakeGateway(
@@ -175,12 +171,103 @@ def test_run_single_generation_passes_activation_overrides_to_serializer() -> No
         callbacks=_build_generation_callbacks(recorder),
     )
 
-    assert recipe_io_service.calls == [
+    assert recipe_io_service.calls == []
+
+
+def test_graph_backed_cube_generation_queues_native_graph_without_sugarscript() -> None:
+    """Canonical Cube graphs must bypass both direct prompt dispatch and SugarScript."""
+
+    recorder = _CallbackRecorder([], [], [], [], [], [])
+    fake_gateway = _FakeGateway(
+        queue_results=[
+            QueuePromptResult(
+                status="queued",
+                prompt_id="pid-graph",
+                payload={"prompt_id": "pid-graph"},
+                error=None,
+                output_sources=(
+                    ListenerOutputSource(
+                        node_id="native-output-1",
+                        source_key="cube:cube-1",
+                        source_label="First",
+                    ),
+                ),
+                execution_prompt={
+                    "cube-a:sampler": {
+                        "class_type": "KSampler",
+                        "inputs": {"steps": 20},
+                    }
+                },
+                execution_sources=(
+                    ListenerOutputSource(
+                        node_id="cube-a:sampler",
+                        source_key="cube:cube-1",
+                        source_label="First",
+                    ),
+                ),
+            )
+        ]
+    )
+    recipe_io_service = _FakeRecipeIoService()
+    workflow = graph_backed_cube_workflow("First", "Second")
+    assert workflow.direct_workflow is not None
+    nodes = workflow.direct_workflow.source_workflow["nodes"]
+    assert isinstance(nodes, list)
+    nodes.append(
         {
-            "enabled_node_keys_by_alias": {"Upscale": ("load_anima",)},
-            "disabled_node_keys_by_alias": {"Upscale": ("checkpoint",)},
+            "id": "ordinary",
+            "type": "Ordinary",
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
         }
-    ]
+    )
+    service = _build_generation_service(
+        recipe_io_service=recipe_io_service,
+        workflow_export_service=_FakeWorkflowExportService({}),
+        comfy_gateway=fake_gateway,
+    )
+
+    result = service.run_single_generation(
+        request=GenerationRequest(
+            workflow_id="wf-graph",
+            workflow_name="Graph workflow",
+            workflow=workflow,
+        ),
+        callbacks=_build_generation_callbacks(recorder),
+    )
+
+    assert result.started is True
+    assert recipe_io_service.calls == []
+    queued_payload, *_middle, sugar_script, context = fake_gateway.queue_calls[0]
+    assert sugar_script is None
+    assert context is not None
+    assert context.cube_presentations == {
+        "First": "First",
+        "Second": "Second",
+    }
+    assert [node["id"] for node in queued_payload["nodes"]] == [1, 2, "ordinary"]
+    assert fake_gateway.listener_requests[0].standard_output_sources == (
+        ListenerOutputSource(
+            node_id="native-output-1",
+            source_key="cube:cube-1",
+            source_label="First",
+        ),
+    )
+    assert fake_gateway.listener_requests[0].execution_prompt_payload == {
+        "cube-a:sampler": {"class_type": "KSampler", "inputs": {"steps": 20}}
+    }
+    assert fake_gateway.listener_requests[0].execution_node_sources == (
+        ListenerOutputSource(
+            node_id="cube-a:sampler",
+            source_key="cube:cube-1",
+            source_label="First",
+        ),
+    )
+    assert getattr(recorder.run_started[0], "preview_source_keys") == frozenset(
+        {"cube:cube-1"}
+    )
 
 
 def test_run_prepared_generation_passes_reserved_output_number_to_listener() -> None:
@@ -209,7 +296,8 @@ def test_run_prepared_generation_passes_reserved_output_number_to_listener() -> 
         request=PreparedGenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1",
-            sugar_script_text='use "cube" as A',
+            cube_workflow=_build_native_workflow(),
+            persistence_sugar_script='use "cube" as A',
             output_run_number=12,
             output_job_started_at=datetime(2026, 5, 12, 0, 0),
         ),
@@ -259,7 +347,6 @@ def test_run_prepared_generation_queues_direct_graph_without_compiler() -> None:
         request=PreparedGenerationRequest(
             workflow_id="wf-direct",
             workflow_name="Direct Workflow",
-            sugar_script_text="",
             direct_workflow_plan=DirectWorkflowGenerationPlan(
                 authored_api_graph=_as_json_object(graph),
                 output_manifest=DirectWorkflowOutputManifest(
@@ -275,7 +362,7 @@ def test_run_prepared_generation_queues_direct_graph_without_compiler() -> None:
     assert result.started is True
     assert exporter.calls == []
     assert fake_gateway.queue_calls[0][0] == graph
-    assert fake_gateway.queue_calls[0][4] == ""
+    assert fake_gateway.queue_calls[0][4] is None
 
 
 def test_direct_plan_queues_recovery_node_as_partial_execution_target() -> None:
@@ -319,7 +406,6 @@ def test_direct_plan_queues_recovery_node_as_partial_execution_target() -> None:
         request=PreparedGenerationRequest(
             workflow_id="wf-direct",
             workflow_name="Direct Workflow",
-            sugar_script_text="",
             direct_workflow_plan=DirectWorkflowGenerationPlan(
                 authored_api_graph=_as_json_object(graph),
                 output_manifest=manifest,
@@ -380,7 +466,8 @@ def test_run_prepared_generation_passes_scene_metadata_to_listener() -> None:
         request=PreparedGenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1 - Portrait",
-            sugar_script_text='use "cube" as A',
+            cube_workflow=_build_native_workflow(),
+            persistence_sugar_script='use "cube" as A',
             scene_run_id="run-1",
             scene_key="portrait",
             scene_title="Portrait",

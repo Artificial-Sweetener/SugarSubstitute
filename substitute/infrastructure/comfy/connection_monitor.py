@@ -41,6 +41,7 @@ from substitute.shared.logging.logger import (
 )
 
 _DEFAULT_BACKOFF_SECONDS = (0.3, 1.0, 2.0, 5.0)
+_DEFAULT_RECEIVE_TIMEOUT_SECONDS = 0.5
 _MONITOR_REQUEST_IDS = count(1)
 _LOGGER = get_logger("infrastructure.comfy.connection_monitor")
 
@@ -75,7 +76,7 @@ class ComfyConnectionMonitor:
         websocket_factory: WebSocketFactory | None = None,
         task_factory: MonitorTaskFactory | None = None,
         backoff_seconds: tuple[float, ...] = _DEFAULT_BACKOFF_SECONDS,
-        receive_timeout_seconds: float = 5.0,
+        receive_timeout_seconds: float = _DEFAULT_RECEIVE_TIMEOUT_SECONDS,
     ) -> None:
         """Store transport and task dependencies for persistent monitoring."""
 

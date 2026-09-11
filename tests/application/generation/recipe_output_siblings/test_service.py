@@ -147,6 +147,63 @@ def test_recipe_output_sibling_discovery_supports_default_cube_number_pattern(
     ]
 
 
+def test_recipe_output_sibling_discovery_groups_collision_suffixes_as_sets(
+    tmp_path: Path,
+) -> None:
+    """Collision ordinals should form sets without becoming output sources."""
+
+    selected = tmp_path / "001_02_scene_test_-_scene1_diffusion_upscale_002.png"
+    paths = (
+        tmp_path / "001_01_scene_test_-_scene1_text_to_image.png",
+        tmp_path / "001_01_scene_test_-_scene1_text_to_image_002.png",
+        tmp_path / "001_02_scene_test_-_scene1_diffusion_upscale.png",
+        selected,
+    )
+    for path in paths:
+        path.write_bytes(b"synthetic-image")
+    service = RecipeOutputSiblingDiscoveryService(
+        output_preferences=_OutputPreferences(
+            "{date}\\{run}_{cube#}_{workflow}_{source}"
+        ),
+    )
+
+    result = service.discover_for_recipe_png(
+        selected, workflow_name="Scene Test - Scene1"
+    )
+
+    assert [sibling.path for sibling in result.siblings] == list(paths)
+    assert [sibling.source_key for sibling in result.siblings] == [
+        "text_to_image",
+        "text_to_image",
+        "diffusion_upscale",
+        "diffusion_upscale",
+    ]
+    assert [sibling.source_label for sibling in result.siblings] == [
+        "Text To Image",
+        "Text To Image",
+        "Diffusion Upscale",
+        "Diffusion Upscale",
+    ]
+
+
+def test_recipe_output_sibling_discovery_preserves_unpaired_numeric_source_suffix(
+    tmp_path: Path,
+) -> None:
+    """A numeric source suffix should remain when no collision base exists."""
+
+    selected = tmp_path / "001_01_scene_test_model_002.png"
+    selected.write_bytes(b"synthetic-image")
+    service = RecipeOutputSiblingDiscoveryService(
+        output_preferences=_OutputPreferences(
+            "{date}\\{run}_{cube#}_{workflow}_{source}"
+        ),
+    )
+
+    result = service.discover_for_recipe_png(selected, workflow_name="Scene Test")
+
+    assert [sibling.source_key for sibling in result.siblings] == ["model_002"]
+
+
 def test_recipe_output_sibling_discovery_skips_unsupported_patterns(
     tmp_path: Path,
 ) -> None:

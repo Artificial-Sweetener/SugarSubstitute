@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from substitute.domain.comfy_workflow import DirectWorkflowState
+from substitute.domain.workflow import WorkflowState
 from tests.application.recipes.workflow_export.support import build_service
 
 
@@ -41,3 +43,34 @@ def test_workflow_export_service_compiles_and_persists_json() -> None:
     assert compiler.calls == [("use Cube as A", output_dir)]
     assert payload == expected_payload
     assert repository.saved == [(destination, expected_payload)]
+
+
+def test_graph_backed_export_persists_canonical_graph_without_sugarscript() -> None:
+    """Keep modern export on graph authority and leave the compiler untouched."""
+
+    service, repository, compiler = build_service({"legacy": {}})
+    destination = Path("recipes") / "native.json"
+    graph: dict[str, object] = {
+        "version": 0.4,
+        "nodes": [{"id": 1, "type": "Note", "widgets_values": ["exact"]}],
+        "links": [],
+    }
+    workflow = WorkflowState(
+        direct_workflow=DirectWorkflowState(
+            source_path=Path("native.json"),
+            source_workflow=graph,
+            buffer={"nodes": {}},
+        )
+    )
+
+    payload = service.export_workflow_json(
+        destination_path=destination,
+        sugar_script_text=None,
+        output_dir=Path("projects"),
+        workflow=workflow,
+    )
+
+    assert payload == graph
+    assert payload is not graph
+    assert compiler.calls == []
+    assert repository.saved == [(destination, payload)]

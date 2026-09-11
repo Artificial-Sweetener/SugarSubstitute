@@ -24,7 +24,6 @@ from datetime import datetime
 from inspect import signature
 from pathlib import Path
 from typing import Any, Callable, Protocol, cast
-from uuid import uuid4
 
 from sugarsubstitute_shared.localization import app_text
 
@@ -38,20 +37,14 @@ from substitute.application.ports.comfy_gateway import (
     ComfyQueueMutationResult,
     ComfyQueueSnapshot,
     InterruptResult,
-    ListenerCallbacks,
-    ListenerCompleted,
-    ListenerFailure,
     ListenerHandle,
     ListenerOutputSource,
-    ListenerSessionConnectRequest,
-    ListenerStartRequest,
     OutputSavePlan,
 )
 from substitute.application.recipes.recipe_io_service import (
     RecipeIoService,
     WorkflowLike as RecipeWorkflowLike,
 )
-from substitute.application.recipes.workflow_export_service import WorkflowExportService
 from substitute.application.recipes.workflow_payload_nodes import (
     executable_prompt_nodes,
 )
@@ -59,11 +52,12 @@ from substitute.application.workflows.input_asset_diagnostics import (
     log_generation_payload_assets,
 )
 from substitute.domain.common import WorkflowId
-from substitute.domain.comfy_workflow import DirectWorkflowState
-from substitute.domain.recipes import parse_sugar_script_document
 from substitute.domain.workflow import active_cube_aliases
 from substitute.application.generation.asset_staging_service import (
     ComfyAssetStagingResult,
+)
+from substitute.application.generation.generation_execution_dispatcher import (
+    GenerationExecutionDispatcher,
 )
 from substitute.application.generation.generation_models import (
     GenerationCallbacks,
@@ -71,10 +65,13 @@ from substitute.application.generation.generation_models import (
     GenerationRequest,
     GenerationStartResult,
     PreparedGenerationRequest,
-    generation_failure_from_listener,
 )
-from substitute.application.generation.generation_run_started_notifier import (
-    notify_generation_run_started,
+from substitute.application.generation.generation_document_routing import (
+    direct_generation_document,
+    uses_graph_backed_cube_execution,
+)
+from substitute.application.generation.native_cube_workflow_builder import (
+    NativeCubeWorkflowBuilder,
 )
 from substitute.application.generation.preview_preference_service import (
     GenerationPreviewMethodResolver,
@@ -147,7 +144,6 @@ class GenerationService:
         self,
         *,
         recipe_io_service: RecipeIoService,
-        workflow_export_service: WorkflowExportService,
         comfy_gateway: ComfyGateway,
         asset_staging_service: AssetStagingService | None = None,
         prompt_wildcard_preprocessing_service: (
@@ -161,18 +157,18 @@ class GenerationService:
         | None = None,
         visual_run_context_builder: VisualRunContextBuilder | None = None,
         model_usage_recorder: ModelUsageRecorder | None = None,
+        native_cube_workflow_builder: NativeCubeWorkflowBuilder | None = None,
         output_dir: Path = DEFAULT_PROJECTS_DIR,
         client_id: str = "substitute",
     ) -> None:
         """Initialize generation service dependencies and listener tracking state."""
         self._recipe_io_service = recipe_io_service
-        self._workflow_export_service = workflow_export_service
         self._comfy_gateway: ComfyGateway = comfy_gateway
         self._asset_staging_service = asset_staging_service
         self._prompt_wildcard_preprocessing_service = (
             prompt_wildcard_preprocessing_service
         )
-        self._preview_method_resolver = (
+        resolved_preview_method = (
             preview_method_resolver or _DefaultGenerationPreviewMethodResolver()
         )
         self._output_preference_service = output_preference_service
@@ -182,18 +178,26 @@ class GenerationService:
         self._direct_workflow_execution_projector = (
             direct_workflow_execution_projector or DirectWorkflowExecutionProjector()
         )
-        self._visual_run_context_builder = (
+        resolved_visual_context_builder = (
             visual_run_context_builder or VisualRunContextBuilder()
         )
-        self._model_usage_recorder = model_usage_recorder
+        self._native_cube_workflow_builder = (
+            native_cube_workflow_builder or NativeCubeWorkflowBuilder()
+        )
         self._output_dir = output_dir
-        self._client_id = client_id
-        self._active_listener_handles: list[ListenerHandle] = []
+        self._execution_dispatcher = GenerationExecutionDispatcher(
+            comfy_gateway=comfy_gateway,
+            preview_method_resolver=resolved_preview_method,
+            visual_run_context_builder=resolved_visual_context_builder,
+            output_dir=output_dir,
+            client_id=client_id,
+            model_usage_recorder=model_usage_recorder,
+        )
 
     @property
     def active_listener_handles(self) -> tuple[ListenerHandle, ...]:
         """Return a snapshot of listener handles currently tracked by the service."""
-        return tuple(self._active_listener_handles)
+        return self._execution_dispatcher.active_listener_handles
 
     def run_single_generation(
         self,
@@ -244,17 +248,16 @@ class GenerationService:
             if callbacks.randomize_seeds is not None:
                 callbacks.randomize_seeds()
             workflow = request.workflow
-            direct_document = getattr(workflow, "direct_workflow", None)
+            direct_document = direct_generation_document(workflow)
             direct_plan = (
                 self._direct_workflow_graph_service.build(direct_document)
-                if isinstance(direct_document, DirectWorkflowState)
+                if direct_document is not None
                 else None
             )
             if direct_plan is not None:
                 prepared_request = PreparedGenerationRequest(
                     workflow_id=request.workflow_id,
                     workflow_name=request.workflow_name,
-                    sugar_script_text="",
                     direct_workflow_plan=direct_plan,
                     workflow=workflow,
                     output_run_number=None,
@@ -271,26 +274,34 @@ class GenerationService:
                         workflow_id=request.workflow_id,
                     )
                 )
-            serialize = self._recipe_io_service.serialize_workflow_to_sugar_script
-            if request.global_override_scopes is not None and _call_accepts_keyword(
-                serialize, "global_override_scopes"
-            ):
-                sugar_script = serialize(
-                    workflow,
-                    enabled_node_keys_by_alias=request.enabled_node_keys_by_alias,
-                    disabled_node_keys_by_alias=request.disabled_node_keys_by_alias,
-                    global_override_scopes=request.global_override_scopes,
-                )
+            if uses_graph_backed_cube_execution(workflow):
+                sugar_script = None
             else:
-                sugar_script = serialize(
-                    workflow,
-                    enabled_node_keys_by_alias=request.enabled_node_keys_by_alias,
-                    disabled_node_keys_by_alias=request.disabled_node_keys_by_alias,
-                )
+                serialize = self._recipe_io_service.serialize_workflow_to_sugar_script
+                if request.global_override_scopes is not None and _call_accepts_keyword(
+                    serialize, "global_override_scopes"
+                ):
+                    sugar_script = serialize(
+                        workflow,
+                        enabled_node_keys_by_alias=request.enabled_node_keys_by_alias,
+                        disabled_node_keys_by_alias=request.disabled_node_keys_by_alias,
+                        global_override_scopes=request.global_override_scopes,
+                    )
+                else:
+                    sugar_script = serialize(
+                        workflow,
+                        enabled_node_keys_by_alias=request.enabled_node_keys_by_alias,
+                        disabled_node_keys_by_alias=request.disabled_node_keys_by_alias,
+                    )
+            native_cube_workflow = self._native_cube_workflow_builder.build(
+                cast(Any, workflow),
+                global_override_scopes=request.global_override_scopes,
+            )
             prepared_request = PreparedGenerationRequest(
                 workflow_id=request.workflow_id,
                 workflow_name=request.workflow_name,
-                sugar_script_text=sugar_script,
+                cube_workflow=native_cube_workflow,
+                persistence_sugar_script=sugar_script,
                 workflow=workflow,
                 output_run_number=None,
                 output_session_id=request.output_session_id,
@@ -323,7 +334,6 @@ class GenerationService:
     ) -> GenerationStartResult:
         """Start one prepared generation attempt and wire listener callbacks."""
         try:
-            sugar_script = request.sugar_script_text
             execution_targets: tuple[str, ...] | None = None
             standard_output_sources: tuple[ListenerOutputSource, ...] = ()
             if request.direct_workflow_plan is not None:
@@ -341,17 +351,11 @@ class GenerationService:
                     for recovery in direct_projection.recovery_outputs
                 )
             else:
-                if not _ordered_cube_aliases_from_script(sugar_script):
+                if request.cube_workflow is None:
                     raise RuntimeError(
-                        "Cannot generate because the workflow has no active cubes."
+                        "Cannot generate because no native Cube workflow was prepared."
                     )
-                workflow_payload = (
-                    self._workflow_export_service.compile_workflow_payload(
-                        sugar_script_text=sugar_script,
-                        output_dir=self._output_dir,
-                        workflow=request.workflow,
-                    )
-                )
+                workflow_payload = request.cube_workflow
             unresolved = find_unresolved_uuid_class_types(workflow_payload)
             log_generation_payload_assets(
                 workflow_payload,
@@ -438,7 +442,7 @@ class GenerationService:
 
         try:
             output_seed = resolve_output_seed(
-                sugar_script_text=sugar_script,
+                workflow=request.workflow,
                 workflow_payload=workflow_payload,
             )
             output_save_plan = self._create_output_save_plan(
@@ -465,191 +469,14 @@ class GenerationService:
                 ),
             )
 
-        generation_run_id = uuid4().hex
-        run_client_id = self._client_id_for_run(generation_run_id)
-        listener_session_result = self._comfy_gateway.connect_listener_session(
-            ListenerSessionConnectRequest(
-                workflow_id=request.workflow_id,
-                generation_run_id=generation_run_id,
-                client_id=run_client_id,
-            )
-        )
-        if (
-            not listener_session_result.connected
-            or listener_session_result.handle is None
-        ):
-            log_warning(
-                _LOGGER,
-                "Failed to connect generation listener session before queueing",
-                workflow_id=request.workflow_id,
-                workflow_name=request.workflow_name,
-                generation_run_id=generation_run_id,
-                client_id=run_client_id,
-                error=listener_session_result.error,
-            )
-            return self._notify_failure(
-                callbacks=callbacks,
-                failure=GenerationFailure(
-                    stage="listen",
-                    workflow_id=request.workflow_id,
-                    generation_run_id=generation_run_id,
-                    client_id=run_client_id,
-                    message=listener_session_result.error
-                    or app_text("Failed to connect generation listener session"),
-                ),
-            )
-        listener_session = listener_session_result.handle
-
-        visual_context = self._visual_run_context_builder.build(
+        return self._execution_dispatcher.dispatch(
+            request=request,
             workflow_payload=workflow_payload,
-            workflow_id=request.workflow_id,
-            generation_run_id=generation_run_id,
-            client_id=run_client_id,
-            output_session_id=request.output_session_id,
-            scene_run_id=request.scene_run_id,
-            scene_key=request.scene_key,
-            scene_title=request.scene_title,
-            scene_order=request.scene_order,
-            scene_count=request.scene_count,
-            explicit_sources=standard_output_sources,
-        )
-        queue_result = self._comfy_gateway.queue_prompt(
-            workflow_payload,
-            client_id=run_client_id,
+            output_save_plan=output_save_plan,
+            callbacks=callbacks,
+            native_cube_execution=request.direct_workflow_plan is None,
             execution_targets=execution_targets,
-            preview_method=self._preview_method_resolver.resolved_comfy_preview_method(),
-            sugar_script=sugar_script,
-            visual_context=visual_context,
-        )
-        prompt_id = queue_result.prompt_id
-        if prompt_id is None:
-            self._comfy_gateway.close_listener_session(listener_session)
-            log_warning(
-                _LOGGER,
-                "queue_prompt did not return prompt_id",
-                workflow_id=request.workflow_id,
-                generation_run_id=generation_run_id,
-                client_id=run_client_id,
-                queue_status=queue_result.status,
-                queue_error=queue_result.error,
-                queue_payload=queue_result.payload,
-            )
-            return self._notify_failure(
-                callbacks=callbacks,
-                failure=GenerationFailure(
-                    stage="queue",
-                    workflow_id=request.workflow_id,
-                    generation_run_id=generation_run_id,
-                    client_id=run_client_id,
-                    message=queue_result.error
-                    or app_text("queue_prompt did not return prompt_id"),
-                    error_report=queue_result.error_report,
-                ),
-            )
-        if self._model_usage_recorder is not None:
-            try:
-                self._model_usage_recorder.record_queued_payload(workflow_payload)
-            except (OSError, RuntimeError, TypeError, ValueError) as error:
-                log_exception(
-                    _LOGGER,
-                    "Failed to record queued generation model usage",
-                    workflow_id=request.workflow_id,
-                    prompt_id=prompt_id,
-                    error=error,
-                )
-        log_generation_payload_assets(
-            workflow_payload,
-            workflow_id=request.workflow_id,
-            workflow_name=request.workflow_name,
-            stage="queued",
-        )
-
-        handle_box: dict[str, ListenerHandle | None] = {"value": None}
-
-        def on_listener_failed(event: ListenerFailure) -> None:
-            callbacks.on_failure(
-                generation_failure_from_listener(
-                    event,
-                    client_id=run_client_id,
-                )
-            )
-
-        def on_listener_completed(event: ListenerCompleted) -> None:
-            handle = handle_box["value"]
-            if handle is not None:
-                try:
-                    self._active_listener_handles.remove(handle)
-                except ValueError:
-                    pass
-            if callbacks.on_completed is not None:
-                callbacks.on_completed(event)
-
-        listener_callbacks = ListenerCallbacks(
-            on_progress=callbacks.on_progress,
-            on_model_load_progress=callbacks.on_model_load_progress,
-            on_preview=callbacks.on_preview,
-            on_output_image=callbacks.on_output_image,
-            on_failed=on_listener_failed,
-            on_timing=callbacks.on_timing,
-            on_completed=on_listener_completed,
-        )
-        notify_generation_run_started(
-            callbacks.on_run_started,
-            workflow_id=request.workflow_id,
-            generation_run_id=generation_run_id,
-            output_session_id=(
-                request.output_session_id or request.scene_run_id or generation_run_id
-            ),
-            prompt_id=prompt_id,
-            client_id=run_client_id,
-            visual_context=visual_context,
-        )
-        listener_result = self._comfy_gateway.start_listener(
-            request=ListenerStartRequest(
-                prompt_id=prompt_id,
-                generation_run_id=generation_run_id,
-                client_id=run_client_id,
-                listener_session=listener_session,
-                output_dir=self._output_dir,
-                workflow_payload=workflow_payload,
-                sugar_script=sugar_script,
-                workflow_id=request.workflow_id,
-                workflow_name=request.workflow_name,
-                output_run_number=request.output_run_number,
-                output_save_plan=output_save_plan,
-                output_session_id=request.output_session_id,
-                scene_run_id=request.scene_run_id,
-                scene_key=request.scene_key,
-                scene_title=request.scene_title,
-                scene_order=request.scene_order,
-                scene_count=request.scene_count,
-                standard_output_sources=standard_output_sources,
-            ),
-            callbacks=listener_callbacks,
-        )
-        if not listener_result.started or listener_result.handle is None:
-            self._comfy_gateway.close_listener_session(listener_session)
-            return self._notify_failure(
-                callbacks=callbacks,
-                failure=GenerationFailure(
-                    stage="listen",
-                    workflow_id=request.workflow_id,
-                    generation_run_id=generation_run_id,
-                    prompt_id=prompt_id,
-                    client_id=run_client_id,
-                    message=listener_result.error
-                    or app_text("Failed to start generation listener"),
-                ),
-            )
-
-        handle_box["value"] = listener_result.handle
-        self._active_listener_handles.append(listener_result.handle)
-        return GenerationStartResult(
-            started=True,
-            prompt_id=prompt_id,
-            failure=None,
-            generation_run_id=generation_run_id,
-            client_id=run_client_id,
+            standard_output_sources=standard_output_sources,
         )
 
     def _create_output_save_plan(
@@ -684,11 +511,6 @@ class GenerationService:
             cube_numbers_by_alias=_cube_numbers_by_alias(request),
         )
 
-    def _client_id_for_run(self, generation_run_id: str) -> str:
-        """Return the Comfy sid used by the websocket and queue request for a run."""
-
-        return f"{self._client_id}:{generation_run_id}"
-
     @staticmethod
     def _notify_failure(
         *,
@@ -721,11 +543,11 @@ def find_unresolved_uuid_class_types(workflow_payload: dict[str, object]) -> lis
 
 
 def _cube_numbers_by_alias(request: PreparedGenerationRequest) -> dict[str, int]:
-    """Return lookup keys for cube order from workflow state or SugarScript text."""
+    """Return lookup keys for cube order from detached workflow state."""
 
     aliases = _ordered_cube_aliases_from_workflow(request.workflow)
     if aliases is None:
-        aliases = _ordered_cube_aliases_from_script(request.sugar_script_text)
+        aliases = ()
     numbers: dict[str, int] = {}
     for index, alias in enumerate(aliases, start=1):
         _add_cube_number_aliases(numbers, alias, index)
@@ -740,7 +562,7 @@ def _active_cube_aliases_for_request(
     aliases = _ordered_cube_aliases_from_workflow(request.workflow)
     if aliases is not None:
         return aliases
-    return _ordered_cube_aliases_from_script(request.sugar_script_text)
+    return ()
 
 
 def _muted_cube_aliases_for_request(
@@ -757,15 +579,7 @@ def _muted_cube_aliases_for_request(
             if isinstance(alias, str)
             and getattr(cube, "output_persistence_enabled", True) is False
         )
-    try:
-        parsed_script = parse_sugar_script_document(request.sugar_script_text)
-    except Exception:
-        return frozenset()
-    return frozenset(
-        alias
-        for alias, buffer in parsed_script.buffers.items()
-        if buffer.get("save_outputs") is False
-    )
+    return frozenset()
 
 
 def _ordered_cube_aliases_from_workflow(
@@ -784,25 +598,6 @@ def _ordered_cube_aliases_from_workflow(
             alias for alias in stack_order if isinstance(alias, str) and alias
         )
     return aliases if aliases else None
-
-
-def _ordered_cube_aliases_from_script(sugar_script_text: str) -> tuple[str, ...]:
-    """Parse SugarScript and return aliases in declaration order when possible."""
-
-    try:
-        parsed_script = parse_sugar_script_document(sugar_script_text)
-    except Exception as error:
-        log_warning(
-            _LOGGER,
-            "Failed to parse SugarScript for output cube numbering",
-            error=error,
-        )
-        return ()
-    return tuple(
-        alias
-        for alias, buffer in parsed_script.buffers.items()
-        if buffer.get("bypassed") is not True
-    )
 
 
 def _add_cube_number_aliases(

@@ -68,13 +68,6 @@ def _capabilities_payload() -> dict[str, object]:
             "versionedDependencyReadinessSupported": True,
             "syncDependencyOrchestrationSupported": True,
         },
-        "sugarCompile": {
-            "schemaVersion": 1,
-            "available": True,
-            "unavailableReason": "",
-            "compileRoute": "/substitute/v1/sugar/compile",
-            "sugarDslVersion": "0.2.0",
-        },
         "modelMetadata": {
             "schemaVersion": 1,
             "supportedModelKinds": ["checkpoints", "loras"],

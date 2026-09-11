@@ -20,11 +20,12 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
-from types import SimpleNamespace
 
 from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.domain.links.prompt_endpoints import PromptEndpointIndex
 from substitute.domain.node_behavior import NodeDisplayDecision
+from substitute.domain.workflow import WorkflowState
+from tests.support.native_cube_workflow import native_cube_workflow_stub
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
@@ -88,36 +89,27 @@ def _behavior_snapshot(
     )
 
 
-def _workflow() -> SimpleNamespace:
+def _workflow() -> WorkflowState:
     """Return a workflow-like object with activation defaults."""
 
-    return SimpleNamespace(
-        stack_order=["A"],
-        cubes={
-            "A": SimpleNamespace(
-                buffer={
-                    "nodes": {
-                        "enabled_from_bypass": {"mode": 4},
-                        "disabled_from_default": {},
-                    }
-                }
-            )
+    return native_cube_workflow_stub(
+        alias="A",
+        buffer={
+            "nodes": {
+                "enabled_from_bypass": {"mode": 4},
+                "disabled_from_default": {},
+            }
         },
     )
 
 
-def _prompt_workflow(prompt_text: str) -> SimpleNamespace:
+def _prompt_workflow(prompt_text: str) -> WorkflowState:
     """Return a workflow-like object with one positive prompt endpoint."""
 
-    return SimpleNamespace(
-        stack_order=["Text"],
-        cubes={
-            "Text": SimpleNamespace(
-                buffer={
-                    "nodes": {
-                        "positive_prompt": {"inputs": {"prompt_template": prompt_text}},
-                    }
-                }
-            )
+    return native_cube_workflow_stub(
+        buffer={
+            "nodes": {
+                "positive_prompt": {"inputs": {"prompt_template": prompt_text}},
+            }
         },
     )

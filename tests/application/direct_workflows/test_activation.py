@@ -21,7 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from substitute.application.node_behavior import NodeBehaviorService
-from substitute.domain.comfy_workflow import DirectWorkflowState
+from substitute.domain.comfy_workflow import ComfyWorkflowConverter, DirectWorkflowState
 
 
 class _NoNodeDefinitions:
@@ -40,13 +40,20 @@ class _NoNodeDefinitions:
 
 def _direct_state(*, mode: int | None = None) -> DirectWorkflowState:
     """Build a direct workflow containing one executable node."""
-    node: dict[str, object] = {"class_type": "PreviewImage", "inputs": {}}
+    node: dict[str, object] = {
+        "id": 9,
+        "type": "PreviewImage",
+        "inputs": [],
+        "outputs": [],
+        "widgets_values": [],
+    }
     if mode is not None:
         node["mode"] = mode
+    source_workflow: dict[str, object] = {"nodes": [node], "links": []}
     return DirectWorkflowState(
         source_path=Path("workflow.json"),
-        source_workflow={"nodes": [], "links": []},
-        buffer={"nodes": {"9": node}},
+        source_workflow=source_workflow,
+        buffer=ComfyWorkflowConverter().convert(source_workflow),
     )
 
 
@@ -57,6 +64,7 @@ def test_direct_workflow_activation_uses_comfy_mode() -> None:
     state.set_node_activation("9", enabled=False)
 
     assert state.buffer["nodes"]["9"]["mode"] == 4  # type: ignore[index]
+    assert state.source_workflow["nodes"][0]["mode"] == 4  # type: ignore[index]
     assert state.dirty is True
 
 
@@ -70,7 +78,9 @@ def test_shared_node_behavior_toggle_uses_direct_comfy_bypass_mode() -> None:
     node = state.buffer["nodes"]["9"]  # type: ignore[index]
     assert node["mode"] == 4
     assert "enabled" not in node
+    assert state.source_workflow["nodes"][0]["mode"] == 4  # type: ignore[index]
 
     service.toggle_node_activation_override(state, "9")
 
     assert node["mode"] == 0
+    assert state.source_workflow["nodes"][0]["mode"] == 0  # type: ignore[index]

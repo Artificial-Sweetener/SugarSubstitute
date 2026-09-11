@@ -4,7 +4,7 @@ schema_version = 1
 id = "SS-ARCH-002"
 owner = "application bootstrap"
 paths = ["substitute/app/bootstrap/composition.py"]
-  fingerprint = "sha256:e947a99898fd9524e419fbb275f931efed06e4126abf433ea869c73b68bd2680"
+fingerprint = "sha256:ad559d06bb345dd32b748704a59a8752a11cc7c9610d6873832265deee323f97"
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
 responsibilities = [
@@ -80,7 +80,7 @@ next_extraction = "Extract feature-specific warmup launchers behind one scheduli
 id = "SS-ARCH-008"
 owner = "cube loading"
 paths = ["substitute/application/cubes/cube_load_service.py"]
-fingerprint = "sha256:3e582828dc16171349ef1b1be3dd05dd7074158e12b7169805b80628138c07be"
+fingerprint = "sha256:ea104490664a8d139b7e657084ea604967fb89945653329ee19e2b23d40c3121"
 issue = "chore:SS-ARCH-008"
 review_by = 2026-12-15
 responsibilities = [
@@ -95,7 +95,7 @@ next_extraction = "Extract catalog and classification caching from versioned def
 id = "SS-ARCH-009"
 owner = "cube picker models"
 paths = ["substitute/application/cubes/cube_picker_models.py"]
-fingerprint = "sha256:b83abe0ae66e94fdb778bb25d252b7a121b41ab63242a868d3d5e554fe8ab703"
+fingerprint = "sha256:4e98b5e6ac583cecd769cc737d96a9eee3811432f05899a4b0c9d2c2c8d0db61"
 issue = "chore:SS-ARCH-009"
 review_by = 2026-12-15
 responsibilities = [
@@ -140,16 +140,16 @@ next_extraction = "Extract error payload interpretation and report rendering fro
 id = "SS-ARCH-012"
 owner = "generation execution"
 paths = ["substitute/application/generation/generation_service.py"]
-fingerprint = "sha256:27d42da58b53b4969922417c9794d5b9e5f1058da3c2bac010bdbd1f9c16ebe2"
+fingerprint = "sha256:15dbc4dbe1def646a262e9daf076cb7d9cfec0c48184c1cf1b63911532f35874"
 issue = "chore:SS-ARCH-012"
 review_by = 2026-12-15
 responsibilities = [
-  "prompt dispatch and request validation",
-  "listener lifecycle and preview routing",
+  "single and prepared request orchestration",
+  "native and direct payload projection",
   "input asset staging",
-  "output preparation and generation diagnostics",
+  "output save-plan preparation and generation diagnostics",
 ]
-next_extraction = "Extract listener lifecycle and output routing from prompt dispatch and asset-staging orchestration."
+next_extraction = "Extract output save-plan preparation from payload projection and asset-staging orchestration."
 
 [[debts]]
 id = "SS-ARCH-013"
@@ -217,7 +217,7 @@ next_extraction = "Extract target-specific provisioning strategies, external mod
 id = "SS-ARCH-017"
 owner = "pinned overrides"
 paths = ["substitute/application/overrides/pinned_override_service.py"]
-fingerprint = "sha256:188becda503151182315b986e867aea9d8a2c9ae29404906210fa88e449dd30f"
+fingerprint = "sha256:57991451d898fe5dcd75cbff3f37a9c903cf564180fd161e146b7948a7a5c769"
 issue = "chore:SS-ARCH-017"
 review_by = 2026-12-15
 responsibilities = [
@@ -297,7 +297,7 @@ next_extraction = "Separate model-field and prompt-LoRA resolution from external
 id = "SS-ARCH-022"
 owner = "recipe IO"
 paths = ["substitute/application/recipes/recipe_io_service.py"]
-  fingerprint = "sha256:53effee5cc3c27c1c1f8b1e20e27bc7a36c3f6637c83f0f2e8fe4f8f88157043"
+fingerprint = "sha256:9338656dffbd39b42816bc7a60f364649a5028b71f233eb20a76a2cdaef4108d"
 issue = "chore:SS-ARCH-022"
 review_by = 2026-12-15
 responsibilities = [
@@ -391,7 +391,7 @@ next_extraction = "Split operation families into focused timing modules behind t
 id = "SS-ARCH-028"
 owner = "node links"
 paths = ["substitute/domain/links/node_links.py"]
-fingerprint = "sha256:c93e8bbc3058ef93d17e53f2fa22850640b9b7a0bc89e978c993dd106144a9f7"
+fingerprint = "sha256:f453c00d0501393fbd9acf438a2716aa6e81298e62e1fa8f4a303eb53b9ade33"
 issue = "chore:SS-ARCH-028"
 review_by = 2026-12-15
 responsibilities = [
@@ -438,17 +438,16 @@ next_extraction = "Extract listener-session transport from queue mutation and in
 id = "SS-ARCH-035"
 owner = "input canvas presentation"
 paths = ["substitute/presentation/canvas/input/input_canvas_presenter.py"]
-  fingerprint = "sha256:b1fd7dbdf31db29e6773d60c18d1d8ef31c62f60827c87b1a552db8dbe636b9a"
+fingerprint = "sha256:e46a7c2c0918eb14eda621d1e75eda4b78086fdf60915a9d3ce1466181e958b7"
 issue = "chore:SS-ARCH-035"
 review_by = 2026-12-15
 responsibilities = [
   "image selection materialization and reconciliation",
   "mask selection and validation",
   "loaded cube and workflow-section materialization",
-  "mask-picker refresh",
-  "active-node preview binding and change publication",
+  "mask-picker refresh and change publication",
 ]
-next_extraction = "Extract picker and preview synchronization from image/mask materialization presentation."
+next_extraction = "Extract mask-picker refresh from image and mask materialization presentation."
 
 [[debts]]
 id = "SS-ARCH-036"
@@ -549,7 +548,7 @@ next_extraction = "Extract visibility-menu ownership from reveal geometry and sc
 id = "SS-ARCH-043"
 owner = "editor field state"
 paths = ["substitute/presentation/editor/panel/field_state_controller.py"]
-fingerprint = "sha256:ba7d183f133463ba607562482b32cb62f70c292bc9aa996b99c7ec940a30fb11"
+fingerprint = "sha256:ed1ff7bae1ca1ffc8fcc6b435ccd0a734b8989b5a6ddbc0fb84862e7918e6ba2"
 issue = "chore:SS-ARCH-043"
 review_by = 2026-12-15
 responsibilities = [
@@ -557,9 +556,8 @@ responsibilities = [
   "buffer value mutation and dirty marking",
   "widget-family signal wiring",
   "prompt editor value synchronization",
-  "prompt editor presentation-preference persistence",
 ]
-next_extraction = "Extract prompt-editor persistence and widget-family binding adapters from authoritative field-value mutation."
+next_extraction = "Extract widget-family binding adapters from authoritative field-value mutation."
 
 [[debts]]
 id = "SS-ARCH-044"
@@ -1108,7 +1106,7 @@ next_extraction = "Extract override/dependent-control refresh and callback adapt
 id = "SS-ARCH-080"
 owner = "main window composition"
 paths = ["substitute/presentation/shell/main_window_composition.py"]
-fingerprint = "sha256:60dffda50b5d00297151b1eef4f7dfb688136a6e2c9c189f1cfcb2be48723132"
+fingerprint = "sha256:f4e0849eff35fc4bedc56c7193461665d89f9775df7ad479971c7a52ac300d03"
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
 responsibilities = [
@@ -1175,7 +1173,7 @@ next_extraction = "Separate active feature refresh and legacy adaptation from di
 id = "SS-ARCH-084"
 owner = "workflow workspace lifecycle"
 paths = ["substitute/presentation/shell/workflow_workspace_coordinator.py"]
-fingerprint = "sha256:60da86d117b8b5cc54147439928bebe279ae6ff0fa22cc3100b58e326d0849b8"
+fingerprint = "sha256:1652a276c332901e950f554204b00a0b68abf4b87764afdf9c3c7cc0adde5ff2"
 issue = "chore:SS-ARCH-084"
 review_by = 2026-12-15
 responsibilities = [
@@ -1192,7 +1190,7 @@ next_extraction = "Extract closed-workflow persistence/resource cleanup and tab 
 id = "SS-ARCH-085"
 owner = "workspace canvas actions"
 paths = ["substitute/presentation/shell/workspace_canvas_actions.py"]
-fingerprint = "sha256:f7ffbfe74f62b8722ba3b2475c46876aa0bc6bdc17ab18a99cddd038c648d130"
+fingerprint = "sha256:c98eb272c713bdde8f00fec1117d028f5308335da19cd967cc4c678e0040bcd0"
 issue = "chore:SS-ARCH-085"
 review_by = 2026-12-15
 responsibilities = [
@@ -1205,27 +1203,10 @@ responsibilities = [
 next_extraction = "Split external actions and output ingestion from output-navigation commands."
 
 [[debts]]
-id = "SS-ARCH-086"
-owner = "workspace shell facade"
-paths = ["substitute/presentation/shell/workspace_controller.py"]
-fingerprint = "sha256:b6cff2d430cc2be03d233f5fa98aa561e3815fdd59ae12fed677bd644b6e3382"
-issue = "chore:SS-ARCH-086"
-review_by = 2026-12-15
-responsibilities = [
-  "focused action collaborator facade",
-  "generation request and snapshot preparation",
-  "scene preflight and pruning diagnostics",
-  "generation UI binding construction",
-  "settings and reconfigure routing",
-  "workflow, input image, and mask event forwarding",
-]
-next_extraction = "Move generation preparation and route/event adapters to their owning collaborators, leaving a narrow facade."
-
-[[debts]]
 id = "SS-ARCH-087"
 owner = "workspace cube picker actions"
 paths = ["substitute/presentation/shell/workspace_cube_picker_actions.py"]
-fingerprint = "sha256:273b1621e019fd912aa995835f467a3106e8af500aa2ae4acaa6dd38069247e4"
+fingerprint = "sha256:c5acc440ba04ceab7705be82c47bc94dd38640638d18f6944b9882dd192c4339"
 issue = "chore:SS-ARCH-087"
 review_by = 2026-12-15
 responsibilities = [
@@ -1241,7 +1222,7 @@ next_extraction = "Extract catalog refresh and cube loading from picker draft an
 id = "SS-ARCH-088"
 owner = "workspace file workflows"
 paths = ["substitute/presentation/shell/workspace_file_actions.py"]
-fingerprint = "sha256:36712c025d484a314dde9b3ea7079dc6e0477658a9f763a5bee217a6de6d74cd"
+fingerprint = "sha256:08dddc10bdebfa32840d2241a6bcec9234de3a130095cdc11638ed431262d0a2"
 issue = "chore:SS-ARCH-088"
 review_by = 2026-12-15
 responsibilities = [

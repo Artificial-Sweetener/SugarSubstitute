@@ -29,6 +29,9 @@ from substitute.application.workflows.regional_prompt_topology_service import (
 from substitute.application.workflows.regional_prompt_label_service import (
     RegionalPromptLabelService,
 )
+from substitute.application.workflows.regional_prompt_name_synchronization_service import (
+    RegionalPromptNameSynchronizationService,
+)
 from substitute.domain.common import MaskAssociationKey
 from substitute.domain.workflow import WorkflowState
 from substitute.presentation.editor.panel.widgets.fields.regional_mask_batch import (
@@ -39,6 +42,9 @@ from substitute.presentation.editor.prompt_editor.projection.surface import (
 )
 from substitute.presentation.regional.canvas_hover_presenter import (
     RegionalCanvasHoverPresenter,
+)
+from substitute.presentation.regional.prompt_name_coordinator import (
+    RegionalPromptNameCoordinator,
 )
 
 type _HoverSourceKey = tuple[str, int, str, str]
@@ -55,6 +61,7 @@ class RegionalInteractionCoordinator:
         canvas_hover: RegionalCanvasHoverPresenter,
         topology: RegionalPromptTopologyService | None = None,
         labels: RegionalPromptLabelService | None = None,
+        names: RegionalPromptNameSynchronizationService | None = None,
     ) -> None:
         """Store authoritative workflow, panel, topology, and canvas owners."""
 
@@ -62,7 +69,13 @@ class RegionalInteractionCoordinator:
         self._active_panel = active_panel
         self._canvas_hover = canvas_hover
         self._topology = topology or RegionalPromptTopologyService()
-        self._labels = labels or RegionalPromptLabelService(topology=self._topology)
+        self._prompt_names = RegionalPromptNameCoordinator(
+            workflow=workflow,
+            active_panel=active_panel,
+            topology=self._topology,
+            labels=labels,
+            names=names,
+        )
         self._source_key: _HoverSourceKey | None = None
         self._association_key: MaskAssociationKey | None = None
 
@@ -116,32 +129,38 @@ class RegionalInteractionCoordinator:
         panel: QWidget,
         cube_alias: str,
         node_name: str,
-        source_text: str,
+        previous_source_text: str,
+        current_source_text: str,
     ) -> None:
-        """Refresh related mask labels from committed prompt source immediately."""
+        """Synchronize a prompt transition and refresh every related live view."""
 
-        if panel is not self._active_panel():
-            return
-        workflow = self._workflow()
-        if workflow is None:
-            return
-        topology = self._topology.topology_for_prompt(
-            workflow,
+        self._prompt_names.handle_prompt_text_changed(
+            panel,
             cube_alias,
             node_name,
+            previous_source_text,
+            current_source_text,
         )
-        if topology is None:
-            return
-        collection = workflow.canvas.regional_mask_collection(topology.association_key)
-        if collection is None:
-            return
-        labels = self._labels.labels_for_mask(
-            workflow,
-            topology.association_key,
-            region_count=len(collection.entries),
-            prompt_text_overrides={node_name: source_text},
-        )
-        self._set_mask_editor_names(panel, topology.association_key, labels)
+
+    def normalize_prompt_names_for_prompt(
+        self,
+        panel: QWidget,
+        cube_alias: str,
+        node_name: str,
+    ) -> None:
+        """Normalize canonical regional names when one prompt editor is mounted."""
+
+        self._prompt_names.normalize_for_prompt(panel, cube_alias, node_name)
+
+    def normalize_prompt_names_for_mask(
+        self,
+        panel: QWidget,
+        cube_alias: str,
+        node_name: str,
+    ) -> None:
+        """Normalize canonical regional names when one ordered mask editor mounts."""
+
+        self._prompt_names.normalize_for_mask(panel, cube_alias, node_name)
 
     def clear(self) -> None:
         """Clear every transient regional hover publication."""
@@ -216,18 +235,6 @@ class RegionalInteractionCoordinator:
         for editor in panel.findChildren(RegionalMaskBatchEditor):
             if (editor.cube_alias, editor.node_name) == association_key:
                 editor.set_hovered_region(region_index)
-
-    @staticmethod
-    def _set_mask_editor_names(
-        panel: QWidget,
-        association_key: MaskAssociationKey,
-        labels: tuple[str | None, ...],
-    ) -> None:
-        """Apply current SEP names without rebuilding stable mask previews."""
-
-        for editor in panel.findChildren(RegionalMaskBatchEditor):
-            if (editor.cube_alias, editor.node_name) == association_key:
-                editor.set_region_names(list(labels))
 
     @staticmethod
     def _set_prompt_hover(

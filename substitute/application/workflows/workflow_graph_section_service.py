@@ -116,8 +116,16 @@ class WorkflowGraphSectionService:
         if inputs is None:
             return WorkflowGraphFieldMutation(changed=False)
         old_value = inputs.get(field_key)
-        inputs[field_key] = value
         state = self.section_state(workflow, section_key)
+        canonical_setter = getattr(state, "set_editor_value", None)
+        if callable(canonical_setter):
+            canonical_setter(
+                node_name,
+                field_key=field_key,
+                value=value,
+            )
+            return WorkflowGraphFieldMutation(changed=True, old_value=old_value)
+        inputs[field_key] = value
         if state is not None and hasattr(state, "dirty"):
             setattr(state, "dirty", True)
         return WorkflowGraphFieldMutation(changed=True, old_value=old_value)
@@ -146,14 +154,30 @@ class WorkflowGraphSectionService:
         changed_entries = tuple(entry for entry in resolved if entry[3] != entry[4])
         if not changed_entries:
             return WorkflowGraphBatchMutation(changed=True)
-        applied: list[tuple[dict[str, object], str, object]] = []
+        state = self.section_state(workflow, section_key)
+        canonical_setter = getattr(state, "set_editor_value", None)
+        applied: list[tuple[dict[str, object], str, str, object]] = []
         try:
-            for inputs, _node_name, field_key, value, old_value in changed_entries:
-                inputs[field_key] = value
-                applied.append((inputs, field_key, old_value))
+            for inputs, node_name, field_key, value, old_value in changed_entries:
+                if callable(canonical_setter):
+                    canonical_setter(
+                        node_name,
+                        field_key=field_key,
+                        value=value,
+                    )
+                else:
+                    inputs[field_key] = value
+                applied.append((inputs, node_name, field_key, old_value))
         except Exception as error:
-            for inputs, field_key, old_value in reversed(applied):
-                inputs[field_key] = old_value
+            for inputs, node_name, field_key, old_value in reversed(applied):
+                if callable(canonical_setter):
+                    canonical_setter(
+                        node_name,
+                        field_key=field_key,
+                        value=old_value,
+                    )
+                else:
+                    inputs[field_key] = old_value
             log_warning_exception(
                 _LOGGER,
                 "Rolled back atomic workflow graph input mutation",
@@ -163,7 +187,6 @@ class WorkflowGraphSectionService:
                 applied_field_count=len(applied),
             )
             raise
-        state = self.section_state(workflow, section_key)
         if state is not None and hasattr(state, "dirty"):
             setattr(state, "dirty", True)
         return WorkflowGraphBatchMutation(

@@ -104,6 +104,32 @@ class PromptSourceCommandService(Generic[TPayload]):
             prepared_state=PromptEditApplicationState(reset_scroll_to_top=True),
         )
 
+    def synchronize_source_text(
+        self,
+        text: str,
+        *,
+        replacements: tuple[tuple[int, int, str], ...] = (),
+    ) -> None:
+        """Apply an exact external source value without creating local undo history."""
+
+        session = self._execution.session
+        self._replace_document_source(
+            text,
+            cursor_position=_position_after_replacements(
+                session.cursor_position,
+                replacements,
+            ),
+            anchor_position=_position_after_replacements(
+                session.anchor_position,
+                replacements,
+            ),
+            exact_source=True,
+            record_undo=False,
+            clear_history=False,
+            reason="synchronize_source_text",
+            prepared_state=PromptEditApplicationState(),
+        )
+
     def replace_baseline_text(self, text: str, *, exact_source: bool = False) -> None:
         """Replace loaded source and make it the new undo baseline."""
 
@@ -239,6 +265,22 @@ class PromptSourceCommandService(Generic[TPayload]):
             clear_history=clear_history,
             prepared_state=prepared_state,
         )
+
+
+def _position_after_replacements(
+    position: int,
+    replacements: tuple[tuple[int, int, str], ...],
+) -> int:
+    """Map one source position through ordered non-overlapping replacements."""
+
+    offset = 0
+    for source_start, source_end, replacement_text in replacements:
+        if position <= source_start:
+            return position + offset
+        if position < source_end:
+            return source_start + offset + len(replacement_text)
+        offset += len(replacement_text) - (source_end - source_start)
+    return position + offset
 
 
 __all__ = ["PromptSourceCommandService"]

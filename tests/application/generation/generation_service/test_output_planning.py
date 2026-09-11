@@ -17,9 +17,6 @@
 """Test output-save plan seed and cube-number policy."""
 
 from __future__ import annotations
-
-from __future__ import annotations
-from types import SimpleNamespace
 from substitute.application.generation import (
     ComfyAssetStagingResult,
     PreparedGenerationRequest,
@@ -37,6 +34,8 @@ from tests.application.generation.generation_service.support import (
     _build_generation_callbacks,
     _as_json_object,
     _build_generation_service,
+    _build_native_workflow,
+    _build_workflow_with_aliases,
 )
 
 
@@ -62,11 +61,17 @@ def test_run_prepared_generation_output_save_plan_prefers_global_seed() -> None:
         comfy_gateway=fake_gateway,
     )
 
+    workflow = _build_workflow_with_aliases(
+        "A",
+        global_overrides={"seed": {"value": 1234, "selected": True}},
+    )
     result = service.run_prepared_generation(
         request=PreparedGenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1",
-            sugar_script_text='use "cube" as A\nset *.*.seed = 1234\n',
+            cube_workflow=_build_native_workflow(workflow),
+            persistence_sugar_script='use "cube" as A\nset *.*.seed = 1234\n',
+            workflow=workflow,
         ),
         callbacks=_build_generation_callbacks(recorder),
     )
@@ -99,13 +104,16 @@ def test_run_prepared_generation_output_save_plan_numbers_cubes_from_script() ->
         comfy_gateway=fake_gateway,
     )
 
+    workflow = _build_workflow_with_aliases("Text to Image", "Diffusion Upscale")
     result = service.run_prepared_generation(
         request=PreparedGenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1",
-            sugar_script_text=(
+            cube_workflow=_build_native_workflow(workflow),
+            persistence_sugar_script=(
                 'use "cube" as "Text to Image"\nuse "cube" as "Diffusion Upscale"\n'
             ),
+            workflow=workflow,
         ),
         callbacks=_build_generation_callbacks(recorder),
     )
@@ -139,16 +147,24 @@ def test_run_prepared_generation_output_save_plan_skips_bypassed_script_cubes() 
         comfy_gateway=fake_gateway,
     )
 
+    workflow = _build_workflow_with_aliases(
+        "A",
+        "B",
+        "C",
+        bypassed_aliases=frozenset({"B"}),
+    )
     result = service.run_prepared_generation(
         request=PreparedGenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1",
-            sugar_script_text=(
+            cube_workflow=_build_native_workflow(workflow),
+            persistence_sugar_script=(
                 'use "cube" as A\n'
                 '# bypass use "cube" as B\n'
                 'use "cube" as C\n'
                 "connect A.output.image to C.input.image\n"
             ),
+            workflow=workflow,
         ),
         callbacks=_build_generation_callbacks(recorder),
     )
@@ -185,19 +201,19 @@ def test_run_prepared_generation_output_save_plan_skips_bypassed_workflow_cubes(
         comfy_gateway=fake_gateway,
     )
 
+    workflow = _build_workflow_with_aliases(
+        "A",
+        "B",
+        "C",
+        bypassed_aliases=frozenset({"B"}),
+    )
     result = service.run_prepared_generation(
         request=PreparedGenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1",
-            sugar_script_text='use "cube" as A\nuse "cube" as C\n',
-            workflow=SimpleNamespace(
-                stack_order=["A", "B", "C"],
-                cubes={
-                    "A": SimpleNamespace(bypassed=False),
-                    "B": SimpleNamespace(bypassed=True),
-                    "C": SimpleNamespace(bypassed=False),
-                },
-            ),
+            cube_workflow=_build_native_workflow(workflow),
+            persistence_sugar_script='use "cube" as A\nuse "cube" as C\n',
+            workflow=workflow,
         ),
         callbacks=_build_generation_callbacks(recorder),
     )
@@ -235,14 +251,13 @@ def test_run_prepared_generation_fails_when_all_cubes_are_bypassed() -> None:
         request=PreparedGenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1",
-            sugar_script_text='# bypass use "cube" as Muted\n',
         ),
         callbacks=_build_generation_callbacks(recorder),
     )
 
     assert result.started is False
     assert export_service.calls == []
-    assert "no active cubes" in recorder.failures[0].message
+    assert "no native Cube workflow" in recorder.failures[0].message
 
 
 def test_run_prepared_generation_output_save_plan_uses_staged_workflow_seed() -> None:
@@ -275,11 +290,14 @@ def test_run_prepared_generation_output_save_plan_uses_staged_workflow_seed() ->
         asset_staging_service=asset_staging_service,
     )
 
+    workflow = _build_workflow_with_aliases("A")
     result = service.run_prepared_generation(
         request=PreparedGenerationRequest(
             workflow_id="wf-1",
             workflow_name="Workflow 1",
-            sugar_script_text='use "cube" as A\n',
+            cube_workflow=_build_native_workflow(workflow),
+            persistence_sugar_script='use "cube" as A\n',
+            workflow=workflow,
         ),
         callbacks=_build_generation_callbacks(recorder),
     )

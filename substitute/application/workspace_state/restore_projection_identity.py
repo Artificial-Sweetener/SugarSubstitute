@@ -24,7 +24,6 @@ import json
 
 from substitute.application.cubes import LoadedCubeDefinition
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
-from substitute.domain.workflow import WorkflowDocumentKind
 from substitute.domain.workspace_snapshot import WorkflowSnapshot, WorkspaceSnapshot
 
 
@@ -69,23 +68,31 @@ def workflow_projection_fingerprint(workflow: WorkflowSnapshot) -> str:
 
 
 def workflow_projection_identity(workflow: WorkflowSnapshot) -> dict[str, object]:
-    """Return the discriminated render identity for one workflow tab."""
+    """Return the durable authority identity for one workflow tab.
+
+    Native Comfy documents keep the graph authoritative before and after
+    SugarCubes hydration. Their derived Cube objects intentionally do not survive
+    serialization, so using those projections here would make a valid warm cache
+    differ from the same cold-restored session. Legacy Cube stacks continue to
+    identify their persisted Cube state directly.
+    """
 
     state = workflow.workflow
     identity: dict[str, object] = {
         "workflow_id": workflow.workflow_id,
         "tab_label": workflow.tab_label,
-        "document_kind": state.document_kind.value,
+        "storage_kind": (
+            "native_comfy_graph"
+            if state.direct_workflow is not None
+            else "legacy_cube_stack"
+        ),
         "global_overrides": state.global_overrides,
         "global_override_selections": state.global_override_selections,
     }
-    if state.document_kind is WorkflowDocumentKind.DIRECT_COMFY:
-        direct = state.direct_workflow
-        if direct is None:
-            raise ValueError(
-                "Direct workflow identity requires direct authoring state."
-            )
-        identity["direct_workflow"] = {
+    direct = state.direct_workflow
+    if direct is not None:
+        identity["native_comfy_graph"] = {
+            "source_workflow_fingerprint": fingerprint_json(direct.source_workflow),
             "buffer_fingerprint": fingerprint_json(direct.buffer),
             "durable_ui_fingerprint": fingerprint_json(
                 durable_direct_workflow_ui(direct.ui)
@@ -133,7 +140,15 @@ def durable_direct_workflow_ui(ui: Mapping[str, object]) -> dict[str, object]:
 
 
 def cube_definition_fingerprint(definition: LoadedCubeDefinition) -> str:
-    """Return a stable fingerprint for one live loaded cube definition."""
+    """Return the stable compatibility identity of one loaded Cube definition.
+
+    Catalogued Cube content is identified by its producer-owned content hash and
+    catalog revision. The graph attached to a restored graph-backed projection is
+    an authored instance document, so including it would reject every valid cache
+    as soon as a user changed a field. Uncatalogued definitions retain the graph
+    fallback so structural changes remain observable in tests and adapters that
+    cannot provide durable catalog identity.
+    """
 
     ui_payload = (
         definition.ui_payload if isinstance(definition.ui_payload, dict) else {}
@@ -144,15 +159,17 @@ def cube_definition_fingerprint(definition: LoadedCubeDefinition) -> str:
         if isinstance(canonical_cube, dict)
         else ""
     ) or definition.cube_id
-    return fingerprint_json(
-        {
-            "canonical_cube_id": canonical_cube_id,
-            "version": definition.version,
-            "content_hash": str(ui_payload.get("content_hash", "")),
-            "catalog_revision": str(ui_payload.get("catalog_revision", "")),
-            "graph": definition.graph,
-        }
-    )
+    content_hash = str(ui_payload.get("content_hash", ""))
+    catalog_revision = str(ui_payload.get("catalog_revision", ""))
+    identity: dict[str, object] = {
+        "canonical_cube_id": canonical_cube_id,
+        "version": definition.version,
+        "content_hash": content_hash,
+        "catalog_revision": catalog_revision,
+    }
+    if not content_hash and not catalog_revision:
+        identity["graph"] = definition.graph
+    return fingerprint_json(identity)
 
 
 def node_definition_fingerprint(payload: Mapping[str, object]) -> str:

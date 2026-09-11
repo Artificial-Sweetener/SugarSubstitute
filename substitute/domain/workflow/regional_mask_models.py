@@ -124,6 +124,18 @@ class RegionalMaskCollection:
         self.entries[index] = entry
         return entry
 
+    def set_authored_color(
+        self,
+        region_id: UUID,
+        authored_color: str | None,
+    ) -> RegionalMaskEntry:
+        """Replace one region's durable presentation color."""
+
+        index = self._index_of(region_id)
+        entry = replace(self.entries[index], authored_color=authored_color)
+        self.entries[index] = entry
+        return entry
+
     def select(self, region_id: UUID) -> None:
         """Select one region while preserving its ordered position."""
 

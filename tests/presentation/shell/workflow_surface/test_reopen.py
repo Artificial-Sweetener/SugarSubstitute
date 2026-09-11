@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 
 from substitute.application.workflows import (
@@ -29,6 +31,7 @@ from substitute.application.workflows import (
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.domain.workspace_snapshot import (
     WorkflowSnapshot,
+    WorkspaceSnapshot,
 )
 
 
@@ -171,3 +174,56 @@ def test_reopen_latest_closed_workflow_projects_once() -> None:
     mod.WorkflowWorkspaceCoordinator(view).reopen_latest_closed_workflow()
 
     assert view.calls.count("canvas:project:wf-closed") == 1
+
+
+def test_reopen_hydrates_graph_projection_before_creating_surfaces() -> None:
+    """Reopening should rebuild graph-derived Cube state before UI projection."""
+
+    mod = _import_module()
+    serialized = WorkflowState(cubes={}, stack_order=[])
+    hydrated = WorkflowState(
+        cubes={
+            "Demo": CubeState(
+                cube_id="demo",
+                version="1",
+                alias="Demo",
+                original_cube={},
+                buffer={"value": 1},
+            )
+        },
+        stack_order=["Demo"],
+    )
+    buffer = ClosedWorkflowBuffer()
+    buffer.push(_closed_record(workflow=serialized))
+    view = _build_view(closed_workflow_buffer=buffer)
+    operations: list[str] = []
+
+    def hydrate(
+        snapshot: WorkspaceSnapshot,
+        *,
+        operation: str,
+    ) -> WorkspaceSnapshot:
+        """Return the reconstructed graph projection for the closed workflow."""
+
+        operations.append(operation)
+        workflow_snapshot = snapshot.workflows[0]
+        return replace(
+            snapshot,
+            workflows=(
+                replace(
+                    workflow_snapshot,
+                    workflow=hydrated,
+                    active_cube_alias="Demo",
+                ),
+            ),
+        )
+
+    view.workspace_restore_controller = SimpleNamespace(
+        hydrate_restored_workspace_snapshot=hydrate
+    )
+
+    reopened = mod.WorkflowWorkspaceCoordinator(view).reopen_latest_closed_workflow()
+
+    assert reopened is True
+    assert operations == ["reopen_closed_workflow"]
+    assert view.workflow_session_service.workflows["wf-closed"].stack_order == ["Demo"]

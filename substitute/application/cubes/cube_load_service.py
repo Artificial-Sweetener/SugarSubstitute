@@ -1482,6 +1482,11 @@ class CubeLoadService:
             ui_payload=ui_payload,
         )
         cube_state.update_policy = _update_policy_from_buffer_patch(buffer_patch)
+        if isinstance(buffer_patch, Mapping):
+            cube_state.bypassed = buffer_patch.get("bypassed") is True
+            cube_state.output_persistence_enabled = (
+                buffer_patch.get("save_outputs") is not False
+            )
         log_debug(
             _LOGGER,
             "Cube load detail",

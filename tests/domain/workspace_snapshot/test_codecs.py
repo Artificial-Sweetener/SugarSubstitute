@@ -31,6 +31,7 @@ from substitute.domain.workspace_snapshot.codecs import (
 )
 from substitute.domain.workflow import CubeState, ProjectMaskAssetRef, WorkflowState
 from substitute.domain.comfy_workflow import DirectWorkflowState
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow
 
 
 def test_workflow_state_codec_round_trips_cube_version_identity() -> None:
@@ -146,6 +147,152 @@ def test_workflow_state_codec_round_trips_direct_comfy_document() -> None:
     assert restored.direct_workflow.source_path == Path("workflows/demo.json")
     assert restored.direct_workflow.buffer["nodes"]["1"]["mode"] == 4  # type: ignore[index]
     assert restored.direct_workflow.dirty is True
+
+
+def test_workflow_state_codec_persists_graph_backed_cubes_only_in_native_graph() -> (
+    None
+):
+    """Never snapshot derived Cube buffers or ordering beside their owning graph."""
+
+    state = graph_backed_cube_workflow("First", "Second")
+    first_nodes = state.cubes["First"].buffer["nodes"]
+    assert isinstance(first_nodes, dict)
+    first_nodes["sampler"] = {
+        "class_type": "KSampler",
+        "inputs": {"seed": 8675309},
+    }
+    state.cubes["First"].ui = {
+        **(state.cubes["First"].ui or {}),
+        "advanced_input_visibility": {"sampler": True},
+    }
+    state.cubes["First"].field_control_states = {
+        "sampler": {"seed": SeedControlState(SeedMode.FIXED)}
+    }
+
+    payload = workflow_state_to_json(state)
+    restored = workflow_state_from_json(payload)
+
+    assert payload["cubes"] == {}
+    assert payload["stack_order"] == []
+    assert restored.cubes == {}
+    assert restored.stack_order == []
+    assert restored.direct_workflow is not None
+    assert restored.direct_workflow.cube_projection_state["1"] == {
+        "display_name": "test/First.cube",
+        "undo_stack": [],
+        "redo_stack": [],
+        "dirty": False,
+        "ui": {"advanced_input_visibility": {"sampler": True}},
+        "field_control_states": {"sampler": {"seed": {"mode": "fixed"}}},
+        "update_policy": "pinned",
+        "output_persistence_enabled": True,
+    }
+    definitions = restored.direct_workflow.source_workflow["definitions"]
+    assert isinstance(definitions, dict)
+    subgraphs = definitions["subgraphs"]
+    assert isinstance(subgraphs, list)
+    first_definition = subgraphs[0]
+    assert isinstance(first_definition, dict)
+    extra = first_definition["extra"]
+    assert isinstance(extra, dict)
+    document = extra["sugarcubes_document"]
+    assert isinstance(document, dict)
+    implementation = document["implementation"]
+    assert isinstance(implementation, dict)
+    assert implementation["nodes"] == {
+        "sampler": {
+            "class_type": "KSampler",
+            "inputs": {"seed": 8675309},
+        }
+    }
+
+
+def test_workflow_state_codec_persists_canonical_value_without_rewriting_flavors() -> (
+    None
+):
+    """Keep instance values in the graph while retaining Cube flavor defaults."""
+
+    state = graph_backed_cube_workflow("Prompt")
+    direct = state.direct_workflow
+    assert direct is not None
+    document = _first_embedded_cube_document(direct.source_workflow)
+    document["implementation"] = {
+        "nodes": {
+            "positive_prompt": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {"text": "edited prompt"},
+            }
+        },
+        "inputs": {},
+        "outputs": {},
+    }
+    document["surface"] = {
+        "default_flavor_id": "default",
+        "controls": [
+            {
+                "control_id": "positive_prompt.text",
+                "symbol": "positive_prompt",
+                "input_name": "text",
+            }
+        ],
+    }
+    document["flavors"] = {
+        "authored": [
+            {
+                "id": "default",
+                "name": "Default",
+                "values": {"positive_prompt.text": ""},
+            }
+        ]
+    }
+
+    payload = workflow_state_to_json(state)
+
+    direct_payload = payload["direct_workflow"]
+    assert isinstance(direct_payload, dict)
+    persisted_graph = direct_payload["source_workflow"]
+    assert isinstance(persisted_graph, dict)
+    persisted_document = _first_embedded_cube_document(persisted_graph)
+    persisted_implementation = persisted_document.get("implementation")
+    assert isinstance(persisted_implementation, dict)
+    persisted_nodes = persisted_implementation.get("nodes")
+    assert isinstance(persisted_nodes, dict)
+    persisted_prompt = persisted_nodes.get("positive_prompt")
+    assert isinstance(persisted_prompt, dict)
+    assert persisted_prompt["inputs"] == {"text": "edited prompt"}
+    assert _default_flavor_values(persisted_document) == {"positive_prompt.text": ""}
+    assert _default_flavor_values(document) == {"positive_prompt.text": ""}
+
+
+def _first_embedded_cube_document(workflow: object) -> dict[str, object]:
+    """Return the first embedded Cube document from a test workflow."""
+
+    assert isinstance(workflow, dict)
+    definitions = workflow["definitions"]
+    assert isinstance(definitions, dict)
+    subgraphs = definitions["subgraphs"]
+    assert isinstance(subgraphs, list)
+    subgraph = subgraphs[0]
+    assert isinstance(subgraph, dict)
+    extra = subgraph["extra"]
+    assert isinstance(extra, dict)
+    document = extra["sugarcubes_document"]
+    assert isinstance(document, dict)
+    return document
+
+
+def _default_flavor_values(document: dict[str, object]) -> dict[str, object]:
+    """Return the first authored flavor's stable control values."""
+
+    flavors = document["flavors"]
+    assert isinstance(flavors, dict)
+    authored = flavors["authored"]
+    assert isinstance(authored, list)
+    flavor = authored[0]
+    assert isinstance(flavor, dict)
+    values = flavor["values"]
+    assert isinstance(values, dict)
+    return values
 
 
 def test_workflow_state_rejects_mixed_cube_and_direct_documents() -> None:

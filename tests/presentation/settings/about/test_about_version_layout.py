@@ -37,7 +37,6 @@ _VERSION_OBJECT_KEYS = (
     "ComfyUI",
     "SugarCubes",
     "SubstituteBackend",
-    "SugarDSL",
     "QPane",
     "PySide6FluentWidgets",
     "PySide6",
@@ -64,10 +63,9 @@ def test_about_version_group_uses_two_columns_when_wide(
     assert _card_position(page, layout, "ComfyUI") == (0, 1)
     assert _card_position(page, layout, "SugarCubes") == (1, 0)
     assert _card_position(page, layout, "SubstituteBackend") == (1, 1)
-    assert _card_position(page, layout, "SugarDSL") == (2, 0)
-    assert _card_position(page, layout, "QPane") == (2, 1)
-    assert _card_position(page, layout, "PySide6FluentWidgets") == (3, 0)
-    assert _card_position(page, layout, "PySide6") == (3, 1)
+    assert _card_position(page, layout, "QPane") == (2, 0)
+    assert _card_position(page, layout, "PySide6FluentWidgets") == (2, 1)
+    assert _card_position(page, layout, "PySide6") == (3, 0)
     assert _version_card(page, "QPane").height() == 80
     assert _version_card(page, "QPane").property("aboutVersionLayoutMode") == "wide"
 
@@ -98,7 +96,7 @@ def test_about_version_group_elides_subtitles_under_column_pressure(
     page = _shown_page(about_page_factory, width=940, height=720)
     group = _version_group(page)
     assert group.property("aboutVersionColumnCount") == 2
-    for object_key in ("ComfyUI", "SugarDSL"):
+    for object_key in ("ComfyUI", "SubstituteBackend"):
         card = _version_card(page, object_key)
         subtitle = _version_child_label(card, f"AboutVersionSubtitle-{object_key}")
         assert card.property("aboutVersionLayoutMode") == "wide"

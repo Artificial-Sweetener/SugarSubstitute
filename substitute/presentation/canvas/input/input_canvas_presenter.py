@@ -220,6 +220,7 @@ class InputCanvasPresenter:
         self._materialization_presenter = InputMaterializationPresenter(
             input_document=input_document,
             active_workflow=active_workflow_provider,
+            active_panel=active_editor_panel_provider,
             mask_color=mask_color_provider,
             refresh_scalar_mask=lambda cube_alias, node_name, projects_dir: (
                 self.refresh_mask_picker_from_asset_state(
@@ -419,7 +420,8 @@ class InputCanvasPresenter:
         )
         for result in results:
             self._materialization_presenter.apply(result, projects_dir=projects_dir)
-        self.bind_active_node_previews()
+        if self._preview_coordinator is not None:
+            self._preview_coordinator.bind_panel(self._active_editor_panel_provider())
         if results:
             self._mark_changed(workflow_id)
         log_info(
@@ -457,7 +459,8 @@ class InputCanvasPresenter:
         active_workflow = self._active_workflow_provider()
         if active_workflow is None or self._active_editor_panel_provider() is None:
             return
-        self.bind_active_node_previews()
+        if self._preview_coordinator is not None:
+            self._preview_coordinator.bind_panel(self._active_editor_panel_provider())
         projects_dir = self._projects_dir_provider()
         for cube_alias, node_name in scalar_mask_picker_identities(
             active_workflow,
@@ -468,13 +471,6 @@ class InputCanvasPresenter:
                 node_name,
                 projects_dir=projects_dir,
             )
-
-    def bind_active_node_previews(self) -> frozenset[tuple[str, str]]:
-        """Bind current panel previews from authoritative active workflow state."""
-        active_workflow = self._active_workflow_provider()
-        if active_workflow is None or self._preview_coordinator is None:
-            return frozenset()
-        return self._preview_coordinator.bind_workflow(active_workflow)
 
     def refresh_mask_picker_from_asset_state(
         self,
@@ -492,6 +488,7 @@ class InputCanvasPresenter:
         if (
             self._preview_coordinator is not None
             and self._preview_coordinator.mask_preview_mounted(
+                active_panel,
                 cube_alias,
                 node_name,
             )

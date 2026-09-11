@@ -112,8 +112,9 @@ def test_prompt_node_link_width_labels_include_reachable_targets_by_identity() -
 
     assert labels == (
         INDEPENDENT_LINK_LABEL,
-        link_target_label("SDXL/Text to Image"),
         link_target_label("SDXL/Automask Detailer"),
+        link_target_label("SDXL/Diffusion Upscale With Longer Name"),
+        link_target_label("SDXL/Text to Image"),
     )
 
 
@@ -187,10 +188,12 @@ def test_node_width_labels_group_by_node_link_identity() -> None:
     assert upscale_identity is not None
     assert labels_by_identity[vectorscope_identity.identity] == (
         INDEPENDENT_LINK_LABEL,
+        link_target_label("SDXL/Automask Detailer"),
         link_target_label("SDXL/Text to Image"),
     )
     assert labels_by_identity[upscale_identity.identity] == (
         INDEPENDENT_LINK_LABEL,
+        link_target_label("SDXL/Diffusion Upscale"),
         link_target_label("SDXL/Text to Image"),
     )
 

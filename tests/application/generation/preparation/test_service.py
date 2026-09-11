@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Mapping, cast
 
 from substitute.application.generation import (
@@ -30,6 +31,7 @@ from substitute.application.node_behavior import EditorBehaviorSnapshot
 from substitute.application.prompt_wildcards import PromptWildcardPreprocessingContext
 from substitute.application.workflows import DIRECT_WORKFLOW_SECTION_KEY
 from substitute.domain.links import PromptEndpoint, PromptEndpointIndex
+from substitute.domain.common import JsonObject
 from substitute.domain.node_behavior import PromptRole
 from substitute.domain.workflow import CubeState, WorkflowState
 from substitute.domain.comfy_workflow import DirectWorkflowState
@@ -39,6 +41,7 @@ from tests.application.generation.preparation.fixture_harness import (
 from tests.support.node_behavior.prompt_detection_fixtures import (
     deterministic_prompt_detection_fixtures,
 )
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow_from_states
 
 
 class _RecipeSerializer:
@@ -115,6 +118,35 @@ class _ResolvedWildcardPreprocessor:
         }
 
 
+class _DefinitionStrippingRecipeSerializer(_RecipeSerializer):
+    """Model the persistence plan that omits executable Cube definitions."""
+
+    def build_serialization_plan(
+        self,
+        workflow: object,
+        *,
+        enabled_node_keys_by_alias: Mapping[str, tuple[str, ...]] | None = None,
+        disabled_node_keys_by_alias: Mapping[str, tuple[str, ...]] | None = None,
+        serialization_context: object | None = None,
+    ) -> object:
+        """Return buffers stripped exactly at the SugarScript persistence boundary."""
+
+        _ = enabled_node_keys_by_alias, disabled_node_keys_by_alias
+        assert serialization_context is not None
+        self.plan_calls += 1
+        workflow_state = cast(Any, workflow)
+        return SimpleNamespace(
+            base_prepared_buffers={
+                alias: {
+                    key: value
+                    for key, value in workflow_state.cubes[alias].buffer.items()
+                    if key != "definitions"
+                }
+                for alias in workflow_state.stack_order
+            }
+        )
+
+
 def test_captured_generation_request_detaches_live_workflow() -> None:
     """Captured requests should not observe later edits to the live workflow."""
 
@@ -142,8 +174,8 @@ def test_captured_generation_request_detaches_live_workflow() -> None:
     assert captured_prompt.startswith("quality")
 
 
-def test_generation_preparation_service_reuses_plan_across_scene_snapshots() -> None:
-    """Multi-scene preparation should build one plan and serialize each scene."""
+def test_generation_preparation_service_avoids_recipe_plan_for_native_scenes() -> None:
+    """Multi-scene native preparation should edit complete detached graphs."""
 
     serializer = _RecipeSerializer()
     service = GenerationPreparationService(recipe_io_service=serializer)
@@ -160,19 +192,94 @@ def test_generation_preparation_service_reuses_plan_across_scene_snapshots() -> 
         request=captured, scene_run_id="scene-run"
     )
 
-    assert serializer.context_calls == 1
-    assert serializer.plan_calls == 1
-    assert len(serializer.serialize_calls) == 2
+    assert serializer.context_calls == 0
+    assert serializer.plan_calls == 0
+    assert serializer.serialize_calls == []
     assert [snapshot.workflow_name for snapshot in result.snapshots] == [
         "Recipe - portrait",
         "Recipe - cafe",
     ]
-    assert [snapshot.sugar_script_text for snapshot in result.snapshots] == [
-        "# prompt='quality\\n\\nportrait'",
-        "# prompt='quality\\n\\ncafe'",
+    assert [snapshot.persistence_sugar_script for snapshot in result.snapshots] == [
+        None,
+        None,
+    ]
+    native_workflows = [snapshot.cube_workflow for snapshot in result.snapshots]
+    assert all(workflow is not None for workflow in native_workflows)
+    assert [
+        _native_prompt(cast(JsonObject, workflow)) for workflow in native_workflows
+    ] == [
+        "quality\n\nportrait",
+        "quality\n\ncafe",
     ]
     assert result.scene_run_id == "scene-run"
     assert result.scene_count == 2
+
+
+def test_graph_backed_preparation_ignores_sugarscript_persistence_buffers() -> None:
+    """Native graph execution should preserve complete canonical Cube documents."""
+
+    serializer = _DefinitionStrippingRecipeSerializer()
+    workflow = graph_backed_cube_workflow_from_states(
+        CubeState(
+            cube_id="source",
+            version="1.0.0",
+            alias="Source",
+            original_cube={},
+            buffer={
+                "nodes": {},
+                "inputs": {},
+                "outputs": {"output.image": ["producer", 0]},
+                "definitions": {
+                    "Producer": {"output": ["IMAGE"]},
+                },
+            },
+        ),
+        CubeState(
+            cube_id="target",
+            version="1.0.0",
+            alias="Target",
+            original_cube={},
+            buffer={
+                "nodes": {},
+                "inputs": {"input.value": ["consumer", "image"]},
+                "outputs": {},
+                "definitions": {
+                    "Consumer": {"input": {"required": {"image": ["IMAGE"]}}},
+                },
+            },
+        ),
+    )
+    captured = CapturedGenerationRequest.capture(
+        request=GenerationRequest(
+            workflow_id="wf",
+            workflow_name="Native",
+            workflow=cast(Any, workflow),
+        ),
+        behavior_snapshot=None,
+    )
+
+    result = GenerationPreparationService(
+        recipe_io_service=serializer
+    ).prepare_queued_snapshots(request=captured)
+
+    assert serializer.context_calls == 0
+    assert serializer.plan_calls == 0
+    assert serializer.serialize_calls == []
+    native_workflow = result.snapshots[0].cube_workflow
+    assert native_workflow is not None
+    definitions = cast(
+        dict[str, object],
+        cast(
+            dict[str, object],
+            cast(
+                list[dict[str, object]],
+                cast(dict[str, object], native_workflow["definitions"])["subgraphs"],
+            )[0]["extra"],
+        )["sugarcubes_document"],
+    )["implementation"]
+    assert cast(dict[str, object], definitions)["definitions"] == {
+        "Producer": {"output": ["IMAGE"]}
+    }
 
 
 def test_generation_preparation_preserves_detached_workflow_for_dispatch() -> None:
@@ -230,7 +337,7 @@ def test_generation_preparation_builds_direct_comfy_graph_without_sugar() -> Non
     assert serializer.context_calls == 0
     assert serializer.plan_calls == 0
     assert serializer.serialize_calls == []
-    assert result.snapshots[0].sugar_script_text == ""
+    assert result.snapshots[0].persistence_sugar_script is None
     assert result.snapshots[0].direct_workflow_plan is not None
     assert result.snapshots[0].direct_workflow_plan.authored_api_graph == {
         "4": {"class_type": "KSampler", "inputs": {"seed": 42}}
@@ -348,27 +455,37 @@ def test_primitive_prompt_scenes_lower_through_real_sdxl_fixture() -> None:
 def _scene_workflow() -> WorkflowState:
     """Return a workflow with two runnable prompt scenes."""
 
-    return WorkflowState(
-        stack_order=["Text"],
-        cubes={
-            "Text": CubeState(
-                cube_id="cube",
-                version="1.0.0",
-                alias="Text",
-                original_cube={},
-                buffer={
-                    "nodes": {
-                        "positive_prompt": {
-                            "class_type": "String",
-                            "inputs": {
-                                "text": "quality\n**portrait\nportrait\n**cafe\ncafe"
-                            },
-                        }
+    return graph_backed_cube_workflow_from_states(
+        CubeState(
+            cube_id="cube",
+            version="1.0.0",
+            alias="Text",
+            original_cube={},
+            buffer={
+                "nodes": {
+                    "positive_prompt": {
+                        "class_type": "String",
+                        "inputs": {
+                            "text": "quality\n**portrait\nportrait\n**cafe\ncafe"
+                        },
                     }
-                },
-            )
-        },
+                }
+            },
+        )
     )
+
+
+def _native_prompt(workflow: JsonObject) -> str:
+    """Read the prepared prompt from one embedded Cube document."""
+
+    definitions = cast(dict[str, object], workflow["definitions"])
+    subgraphs = cast(list[dict[str, object]], definitions["subgraphs"])
+    extra = cast(dict[str, object], subgraphs[0]["extra"])
+    document = cast(dict[str, object], extra["sugarcubes_document"])
+    implementation = cast(dict[str, object], document["implementation"])
+    nodes = cast(dict[str, dict[str, object]], implementation["nodes"])
+    inputs = cast(dict[str, object], nodes["positive_prompt"]["inputs"])
+    return cast(str, inputs["text"])
 
 
 def _behavior_snapshot() -> EditorBehaviorSnapshot:

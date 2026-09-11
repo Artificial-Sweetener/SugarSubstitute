@@ -69,7 +69,7 @@ def test_enqueue_dispatches_first_snapshot_immediately() -> None:
         PreparedGenerationRequest(
             workflow_id="wf-workflow",
             workflow_name="Workflow",
-            sugar_script_text='use "cube" as Workflow',
+            persistence_sugar_script='use "cube" as Workflow',
             output_job_started_at=datetime(2026, 4, 22, tzinfo=timezone.utc),
         )
     ]
@@ -85,7 +85,7 @@ def test_enqueue_preserves_snapshot_workflow_for_generation_staging() -> None:
     snapshot = GenerationJobSnapshot(
         workflow_id="wf-staging",
         workflow_name="Staging",
-        sugar_script_text='use "cube" as Staging',
+        persistence_sugar_script='use "cube" as Staging',
         workflow=staging_workflow,
     )
 

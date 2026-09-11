@@ -68,7 +68,7 @@ def test_enqueue_prompt_scene_generation_enqueues_single_snapshot() -> None:
     snapshot = GenerationJobSnapshot(
         workflow_id="workflow-a",
         workflow_name="Recipe A - portrait",
-        sugar_script_text="# portrait",
+        persistence_sugar_script="# portrait",
         scene_key="portrait",
     )
     enqueued: list[tuple[GenerationJobSnapshot, GenerationCallbacks]] = []
@@ -132,7 +132,7 @@ def test_workspace_scene_generation_actions_enqueues_through_view_queue() -> Non
     snapshot = GenerationJobSnapshot(
         workflow_id="workflow-a",
         workflow_name="Recipe A - portrait",
-        sugar_script_text="# portrait",
+        persistence_sugar_script="# portrait",
         scene_key="portrait",
     )
     enqueued: list[tuple[GenerationJobSnapshot, GenerationCallbacks]] = []

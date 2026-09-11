@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import cast
 
 from substitute.application.generation import WorkflowIssuePruningService
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from substitute.domain.workflow import CubeState, WorkflowState
 
 
@@ -74,7 +74,7 @@ def test_pruned_activation_overrides_remove_omitted_aliases() -> None:
 def test_pruned_global_override_scopes_drop_empty_partial_scopes() -> None:
     """Partial override scopes should drop omitted fields and empty scopes."""
 
-    retained_scope = GlobalOverrideSerializationScope(
+    retained_scope = GlobalOverrideScope(
         override_key="sampler",
         value="euler",
         mode="partial",
@@ -86,14 +86,14 @@ def test_pruned_global_override_scopes_drop_empty_partial_scopes() -> None:
             }
         ),
     )
-    removed_scope = GlobalOverrideSerializationScope(
+    removed_scope = GlobalOverrideScope(
         override_key="cfg",
         value=7,
         mode="partial",
         full_participation=False,
         participant_fields=frozenset({("Bad", "sampler", "cfg")}),
     )
-    full_scope = GlobalOverrideSerializationScope(
+    full_scope = GlobalOverrideScope(
         override_key="steps",
         value=20,
         mode="full",
@@ -113,7 +113,7 @@ def test_pruned_global_override_scopes_drop_empty_partial_scopes() -> None:
     assert pruned is not None
     assert set(pruned) == {"sampler", "steps"}
     assert pruned["steps"] == full_scope
-    sampler_scope = cast(GlobalOverrideSerializationScope, pruned["sampler"])
+    sampler_scope = cast(GlobalOverrideScope, pruned["sampler"])
     assert sampler_scope.participant_fields == frozenset(
         {("Good", "sampler", "sampler_name")}
     )

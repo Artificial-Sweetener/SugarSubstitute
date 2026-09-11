@@ -28,6 +28,7 @@ from substitute.infrastructure.comfy.output_source_identity_resolver import (
     build_output_source_graph,
     resolve_output_source_identity_for_node,
 )
+from substitute.application.ports.comfy_gateway import ListenerOutputSource
 
 
 @dataclass
@@ -39,6 +40,7 @@ class ListenerOutputSourceResolver:
     workflow_payload: dict[str, object]
     cube_output_node_ids: set[str]
     on_diagnostic: Callable[[OutputSourceDiagnostic], None]
+    explicit_sources: dict[str, ListenerOutputSource] = field(default_factory=dict)
     _output_source_graph: OutputSourceGraph = field(init=False)
     _ambiguous_warning_keys: set[tuple[str, tuple[str, ...]]] = field(
         default_factory=set,
@@ -56,6 +58,14 @@ class ListenerOutputSourceResolver:
     def resolve(self, node_id: str) -> OutputSourceIdentity:
         """Return the downstream cube output identity for one prompt node."""
 
+        explicit = self.explicit_sources.get(node_id)
+        if explicit is not None:
+            return OutputSourceIdentity(
+                node_id=node_id,
+                source_key=explicit.source_key,
+                source_label=explicit.source_label,
+                cube_alias=explicit.source_label,
+            )
         resolution = resolve_output_source_identity_for_node(
             node_id,
             workflow_id=self.workflow_id,

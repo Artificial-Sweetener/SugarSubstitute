@@ -56,17 +56,6 @@ class BackendCubeLibraryCapabilities:
 
 
 @dataclass(frozen=True)
-class BackendSugarCompileCapabilities:
-    """Represent Sugar compile capability facts from Substitute BackEnd."""
-
-    schema_version: int = 0
-    available: bool = False
-    unavailable_reason: str = ""
-    compile_route: str = ""
-    sugar_dsl_version: str = ""
-
-
-@dataclass(frozen=True)
 class BackendCapabilities:
     """Represent the backend model metadata feature contract."""
 
@@ -81,9 +70,6 @@ class BackendCapabilities:
     features: tuple[str, ...] = ()
     cube_library: BackendCubeLibraryCapabilities = field(
         default_factory=BackendCubeLibraryCapabilities
-    )
-    sugar_compile: BackendSugarCompileCapabilities = field(
-        default_factory=BackendSugarCompileCapabilities
     )
 
 

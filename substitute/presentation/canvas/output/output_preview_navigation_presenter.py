@@ -159,15 +159,21 @@ class OutputPreviewNavigationPresenter:
             if source is None
             else source.images_by_set.get(self._host.active_set_index)
         )
-        if item is None:
+        if (
+            item is not None
+            and self._host._preview_registry.lane_for_id(item.image_id) is not None
+        ):
+            return self._host.route_projector.apply_final_image_route(
+                _preview_route(item.image_id),
+                item.image_id,
+            )
+        active_image_id = projection.active_uuid
+        if active_image_id is None:
             return False
-        route = (
-            _preview_route(item.image_id)
-            if self._host._preview_registry.lane_for_id(item.image_id) is not None
-            else output_route_identity_for_projection(projection)
+        return self._host.route_projector.apply_final_image_route(
+            output_route_identity_for_projection(projection),
+            active_image_id,
         )
-        self._host.route_projector.apply_final_image_route(route, item.image_id)
-        return True
 
     def present_source_preview(self, preview_id: UUID, is_new: bool) -> None:
         """Follow an arriving source in Auto without stealing Manual navigation."""

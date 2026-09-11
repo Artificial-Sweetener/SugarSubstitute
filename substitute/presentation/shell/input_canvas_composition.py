@@ -52,6 +52,9 @@ from substitute.application.workflows.synthetic_canvas_resolution_transaction_se
 from substitute.application.workflows.workflow_input_canvas_service import (
     WorkflowInputCanvasService,
 )
+from substitute.application.workflows.workflow_input_canvas_duplication_service import (
+    WorkflowInputCanvasDuplicationService,
+)
 from substitute.presentation.canvas.input.input_canvas_presenter import (
     InputCanvasPresenter,
 )
@@ -141,6 +144,7 @@ class MainWindowInputCanvasComposition:
     """Hold Input-canvas collaborators composed after canvas widgets exist."""
 
     workflow_input_canvas_service: Any
+    workflow_input_canvas_duplication_service: WorkflowInputCanvasDuplicationService
     input_canvas_authority_reconciliation_service: Any
     input_canvas_tool_controller: Any
     input_canvas_tool_profile_controller: Any
@@ -177,6 +181,12 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         canvas_io_service=shell.canvas_io_service,
         workflow_asset_service=shell.workflow_asset_service,
         graph_section_service=shell.graph_section_service,
+    )
+    workflow_input_canvas_duplication_service = WorkflowInputCanvasDuplicationService(
+        workflow_inputs=workflow_input_canvas_service,
+        graph_sections=shell.graph_section_service,
+        input_document=input_canvas.document,
+        canvas_io=shell.canvas_io_service,
     )
     restored_ordered_mask_collections = RestoredOrderedMaskCollectionService(
         endpoint_service=shell.input_asset_endpoint_service,
@@ -237,12 +247,10 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     input_canvas_tool_profile_controller.refresh_workflow_profile()
     input_canvas_shell_adapter = InputCanvasShellAdapter(shell)
     input_node_preview_coordinator = InputNodePreviewCoordinator(
-        bindings=input_canvas.document.preview_bindings,
-        active_panel=lambda: shell.active_editor_panel,
+        bindings=input_canvas.document.preview_bindings
     )
     regional_mask_presenter = RegionalMaskCollectionPresenter(
         input_document=input_canvas.document,
-        active_workflow=shell.get_active_workflow,
         active_panel=lambda: shell.active_editor_panel,
         mask_color=region_color,
         preview_coordinator=input_node_preview_coordinator,
@@ -416,6 +424,9 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     )
     composition = MainWindowInputCanvasComposition(
         workflow_input_canvas_service=workflow_input_canvas_service,
+        workflow_input_canvas_duplication_service=(
+            workflow_input_canvas_duplication_service
+        ),
         input_canvas_authority_reconciliation_service=(
             input_canvas_authority_reconciliation_service
         ),
@@ -442,6 +453,9 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
         synthetic_canvas_resolution_controller=synthetic_resolution_controller,
     )
     shell.workflow_input_canvas_service = composition.workflow_input_canvas_service
+    shell.workflow_input_canvas_duplication_service = (
+        composition.workflow_input_canvas_duplication_service
+    )
     shell.input_canvas_authority_reconciliation_service = (
         composition.input_canvas_authority_reconciliation_service
     )
@@ -453,6 +467,7 @@ def compose_input_canvas_controllers(shell: Any) -> MainWindowInputCanvasComposi
     shell.input_scene_mapping_changes = composition.input_scene_mapping_changes
     shell.input_canvas_shell_adapter = composition.input_canvas_shell_adapter
     shell.input_canvas_presenter = composition.input_canvas_presenter
+    shell.input_node_preview_coordinator = input_node_preview_coordinator
     shell.input_node_interaction_controller = (
         composition.input_node_interaction_controller
     )

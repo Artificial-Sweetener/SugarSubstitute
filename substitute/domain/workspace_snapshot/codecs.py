@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from enum import Enum
 from pathlib import Path
 from typing import cast
 from uuid import UUID
@@ -34,7 +33,6 @@ from substitute.domain.generation.seed_control import (
     seed_control_state_from_json,
     seed_control_state_to_json,
 )
-from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import (
     CubeState,
     OutputCompareSelection,
@@ -61,10 +59,18 @@ from substitute.domain.workspace_snapshot.models import (
     WorkflowSnapshot,
     WorkspaceSnapshot,
 )
-
-
-class SnapshotCodecError(ValueError):
-    """Report invalid snapshot payloads at the JSON boundary."""
+from substitute.domain.workspace_snapshot.direct_workflow_codec import (
+    direct_workflow_from_json as _direct_workflow_from_json,
+    direct_workflow_to_json as _direct_workflow_to_json,
+)
+from substitute.domain.workspace_snapshot.cube_projection_codec import (
+    capture_cube_projection_state,
+)
+from substitute.domain.workspace_snapshot.errors import SnapshotCodecError
+from substitute.domain.workspace_snapshot.json_value_codec import (
+    json_object_to_json as _json_object_to_json,
+    json_value_to_json as _json_value_to_json,
+)
 
 
 def workspace_snapshot_to_json(snapshot: WorkspaceSnapshot) -> JsonObject:
@@ -122,11 +128,16 @@ def _fallback_active_workflow_id(
 def workflow_state_to_json(state: WorkflowState) -> JsonObject:
     """Return a JSON-ready mapping for the complete internal workflow state."""
 
+    graph_owns_cubes = state.direct_workflow is not None
     return {
-        "cubes": {
-            alias: _cube_state_to_json(cube) for alias, cube in state.cubes.items()
-        },
-        "stack_order": list(state.stack_order),
+        "cubes": (
+            {}
+            if graph_owns_cubes
+            else {
+                alias: _cube_state_to_json(cube) for alias, cube in state.cubes.items()
+            }
+        ),
+        "stack_order": [] if graph_owns_cubes else list(state.stack_order),
         "metadata": _json_object_to_json(state.metadata, path="workflow.metadata"),
         "global_overrides": _json_object_to_json(
             state.global_overrides,
@@ -147,14 +158,22 @@ def workflow_state_to_json(state: WorkflowState) -> JsonObject:
         "output_compare_state": _output_compare_state_to_json(
             state.output_compare_state
         ),
-        "direct_workflow": _direct_workflow_to_json(state.direct_workflow),
+        "direct_workflow": _direct_workflow_to_json(
+            state.direct_workflow,
+            cube_projection_state=(
+                capture_cube_projection_state(state.cubes) if graph_owns_cubes else None
+            ),
+        ),
     }
 
 
 def workflow_state_from_json(payload: Mapping[str, object]) -> WorkflowState:
     """Build a workflow state from a decoded JSON mapping."""
 
-    cubes_payload = _optional_mapping(payload.get("cubes"))
+    direct_workflow = _direct_workflow_from_json(payload.get("direct_workflow"))
+    cubes_payload = (
+        {} if direct_workflow is not None else _optional_mapping(payload.get("cubes"))
+    )
     canvas_payload = _optional_mapping(payload.get("canvas"))
     return WorkflowState(
         cubes={
@@ -164,9 +183,11 @@ def workflow_state_from_json(payload: Mapping[str, object]) -> WorkflowState:
             )
             for alias, value in cubes_payload.items()
         },
-        stack_order=[
-            str(item) for item in _optional_sequence(payload.get("stack_order"))
-        ],
+        stack_order=(
+            []
+            if direct_workflow is not None
+            else [str(item) for item in _optional_sequence(payload.get("stack_order"))]
+        ),
         metadata=dict(_optional_mapping(payload.get("metadata"))),
         global_overrides={
             str(key): dict(_required_mapping(value))
@@ -199,52 +220,7 @@ def workflow_state_from_json(payload: Mapping[str, object]) -> WorkflowState:
         output_compare_state=_output_compare_state_from_json(
             payload.get("output_compare_state")
         ),
-        direct_workflow=_direct_workflow_from_json(payload.get("direct_workflow")),
-    )
-
-
-def _direct_workflow_to_json(
-    state: DirectWorkflowState | None,
-) -> JsonObject | None:
-    """Return durable direct-workflow state without runtime-only editor objects."""
-
-    if state is None:
-        return None
-    return {
-        "source_path": str(state.source_path),
-        "source_workflow": _json_object_to_json(
-            state.source_workflow,
-            path="workflow.direct_workflow.source_workflow",
-        ),
-        "buffer": _json_object_to_json(
-            state.buffer,
-            path="workflow.direct_workflow.buffer",
-        ),
-        "ui": {
-            key: _json_value_to_json(
-                value,
-                path=f"workflow.direct_workflow.ui.{key}",
-            )
-            for key, value in state.ui.items()
-            if key != "node_behavior_runtime"
-        },
-        "dirty": state.dirty,
-    }
-
-
-def _direct_workflow_from_json(value: object) -> DirectWorkflowState | None:
-    """Build optional direct-workflow state from a persisted workflow payload."""
-
-    if value is None:
-        return None
-    payload = _required_mapping(value)
-    source_path = _required_str(payload, "source_path")
-    return DirectWorkflowState(
-        source_path=Path(source_path),
-        source_workflow=dict(_required_mapping(payload.get("source_workflow"))),
-        buffer=dict(_required_mapping(payload.get("buffer"))),
-        ui=dict(_optional_mapping(payload.get("ui"))),
-        dirty=payload.get("dirty") is True,
+        direct_workflow=direct_workflow,
     )
 
 
@@ -1124,49 +1100,6 @@ def _global_override_selections_from_json(value: object) -> dict[str, bool]:
             )
         selections[str(key)] = selected
     return selections
-
-
-def _json_object_to_json(value: Mapping[str, object], *, path: str) -> JsonObject:
-    """Return a JSON-ready copy of a loose internal metadata mapping."""
-
-    return {
-        str(item_key): _json_value_to_json(
-            item_value,
-            path=f"{path}.{item_key}",
-        )
-        for item_key, item_value in value.items()
-    }
-
-
-def _json_value_to_json(value: object, *, path: str) -> object:
-    """Return a JSON-ready value or fail with the metadata path."""
-
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, UUID):
-        return str(value)
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, Enum):
-        enum_value = value.value
-        if isinstance(enum_value, (str, int, float, bool)):
-            return enum_value
-        raise SnapshotCodecError(f"Unsupported enum value at {path}")
-    if isinstance(value, CubeIconDescriptor):
-        return _cube_icon_descriptor_to_json(value)
-    if isinstance(value, Mapping):
-        return _json_object_to_json(
-            cast(Mapping[str, object], value),
-            path=path,
-        )
-    if isinstance(value, Sequence) and not isinstance(
-        value,
-        (str, bytes, bytearray),
-    ):
-        return [_json_value_to_json(item, path=f"{path}[]") for item in value]
-    raise SnapshotCodecError(
-        f"Unsupported JSON snapshot value at {path}: {type(value).__name__}"
-    )
 
 
 def _uuid_to_text(value: UUID | None) -> str | None:

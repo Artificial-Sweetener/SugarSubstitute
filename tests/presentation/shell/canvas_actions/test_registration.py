@@ -108,15 +108,13 @@ def test_handle_add_output_image_registers_without_direct_output_route_mutation(
                 SimpleNamespace(closed=True, closed_preview_ids=(uuid.uuid4(),)),
             )
         ),
-        output_canvas=SimpleNamespace(
-            release_automatic_preview_follow=lambda: automatic_follow_releases.append(
-                None
-            )
-        ),
         canvas_host=SimpleNamespace(
             canvas_for={
                 "Output": SimpleNamespace(
-                    apply_preview_acceptance=preview_acceptances.append
+                    apply_preview_acceptance=preview_acceptances.append,
+                    release_automatic_preview_follow=(
+                        lambda: automatic_follow_releases.append(None)
+                    ),
                 )
             }.get,
             focus_attached_canvas=lambda _label: (_ for _ in ()).throw(

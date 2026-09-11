@@ -41,7 +41,8 @@ def prepared_request_from_queue_snapshot(
     return PreparedGenerationRequest(
         workflow_id=snapshot.workflow_id,
         workflow_name=snapshot.workflow_name,
-        sugar_script_text=snapshot.sugar_script_text,
+        cube_workflow=snapshot.cube_workflow,
+        persistence_sugar_script=snapshot.persistence_sugar_script,
         direct_workflow_plan=snapshot.direct_workflow_plan,
         workflow=cast("WorkflowLike | None", snapshot.workflow),
         output_run_number=output_run_number,

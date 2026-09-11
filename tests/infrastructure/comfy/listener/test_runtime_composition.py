@@ -192,7 +192,7 @@ def _request(workflow_payload: dict[str, object]) -> ListenerStartRequest:
         ),
         output_dir=Path("out"),
         workflow_payload=workflow_payload,
-        sugar_script="line one",
+        persistence_sugar_script="line one",
         workflow_id="wf-1",
         workflow_name="Workflow",
     )

@@ -26,8 +26,12 @@ from substitute.application.workflows import (
     DIRECT_WORKFLOW_SECTION_KEY,
     WorkflowEditorProjectionService,
 )
+from substitute.application.workflows.workflow_graph_section_service import (
+    WorkflowGraphSectionService,
+)
 from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.domain.workflow import CubeState, WorkflowDocumentKind, WorkflowState
+from tests.support.canonical_cube_graph import graph_backed_cube_workflow
 
 
 def test_workflow_document_kind_identifies_mutually_exclusive_authoring_model() -> None:
@@ -74,6 +78,64 @@ def test_cube_workflow_projection_preserves_existing_section_order() -> None:
 
     assert projection.order == ("B", "A")
     assert projection.entries == (("B", second), ("A", first))
+
+
+def test_graph_backed_cube_workflow_projects_embedded_cube_sections() -> None:
+    """Canonical Cube nodes should use the existing stack editor without losing graph ownership."""
+
+    workflow = graph_backed_cube_workflow("First", "Second")
+
+    projection = WorkflowEditorProjectionService().project(workflow)
+
+    assert workflow.document_kind is WorkflowDocumentKind.COMFY_CUBE_GRAPH
+    assert projection.order == ("First", "Second")
+    assert tuple(projection.states) == ("First", "Second")
+    ui = workflow.cubes["First"].ui
+    assert isinstance(ui, dict)
+    document = ui["canonical_cube"]
+    assert isinstance(document, dict)
+    assert workflow.cubes["First"].original_cube is document
+    assert workflow.cubes["First"].buffer is document["implementation"]
+
+
+def test_graph_backed_field_edit_mutates_only_the_canonical_graph_value() -> None:
+    """Write editor values directly into the embedded graph document."""
+
+    workflow = graph_backed_cube_workflow("First")
+    direct = workflow.direct_workflow
+    assert direct is not None
+    definitions = direct.source_workflow.get("definitions")
+    assert isinstance(definitions, dict)
+    subgraphs = definitions.get("subgraphs")
+    assert isinstance(subgraphs, list)
+    definition = subgraphs[0]
+    assert isinstance(definition, dict)
+    extra = definition.get("extra")
+    assert isinstance(extra, dict)
+    document = extra.get("sugarcubes_document")
+    assert isinstance(document, dict)
+    implementation = document.get("implementation")
+    assert isinstance(implementation, dict)
+    implementation["nodes"] = {
+        "sampler": {"class_type": "Sampler", "inputs": {"batch_size": 1}}
+    }
+    workflow.refresh_direct_cube_projection()
+
+    result = WorkflowGraphSectionService().set_input_value(
+        workflow,
+        section_key="First",
+        node_name="sampler",
+        field_key="batch_size",
+        value=2,
+    )
+
+    assert result.changed is True
+    assert workflow.cubes["First"].buffer is implementation
+    nodes = implementation.get("nodes")
+    assert isinstance(nodes, dict)
+    sampler = nodes.get("sampler")
+    assert isinstance(sampler, dict)
+    assert sampler["inputs"] == {"batch_size": 2}
 
 
 def test_direct_projection_rejects_malformed_mixed_document() -> None:

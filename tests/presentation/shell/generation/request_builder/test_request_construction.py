@@ -28,7 +28,7 @@ from substitute.application.node_behavior import (
     MissingLiveNodeDefinition,
 )
 from substitute.domain.node_behavior import NodeDisplayDecision
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from substitute.application.generation.input_generation_errors import (
     InputGenerationPreparationError,
     InputGenerationPreparationFailureKind,
@@ -53,7 +53,7 @@ SOURCE_PATH = (
 def test_generation_request_from_workflow_state_builds_pruned_request() -> None:
     """Request assembly should prune activation and override state."""
 
-    retained_scope = GlobalOverrideSerializationScope(
+    retained_scope = GlobalOverrideScope(
         override_key="sampler",
         value="euler",
         mode="partial",
@@ -65,7 +65,7 @@ def test_generation_request_from_workflow_state_builds_pruned_request() -> None:
             }
         ),
     )
-    removed_scope = GlobalOverrideSerializationScope(
+    removed_scope = GlobalOverrideScope(
         override_key="cfg",
         value=7,
         mode="partial",

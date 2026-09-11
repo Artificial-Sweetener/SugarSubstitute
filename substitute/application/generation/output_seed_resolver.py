@@ -24,38 +24,28 @@ from substitute.application.recipes.workflow_payload_nodes import (
     executable_prompt_nodes,
 )
 from substitute.domain.common import JsonObject
-from substitute.domain.recipes import parse_sugar_script_document
-from substitute.shared.logging.logger import get_logger, log_warning
-
-_LOGGER = get_logger("application.generation.output_seed_resolver")
 
 
 def resolve_output_seed(
     *,
-    sugar_script_text: str,
+    workflow: object | None,
     workflow_payload: JsonObject,
 ) -> str:
     """Return the preferred output seed token value for one generation."""
 
-    global_seed = _global_override_seed(sugar_script_text)
+    global_seed = _global_override_seed(workflow)
     if global_seed:
         return global_seed
     return _first_workflow_seed(workflow_payload)
 
 
-def _global_override_seed(sugar_script_text: str) -> str:
-    """Return the global override seed from Sugar text, if present."""
+def _global_override_seed(workflow: object | None) -> str:
+    """Return the selected global seed directly from workflow state."""
 
-    try:
-        parsed_script = parse_sugar_script_document(sugar_script_text)
-    except Exception as error:
-        log_warning(
-            _LOGGER,
-            "Failed to parse Sugar script while resolving output seed.",
-            error=repr(error),
-        )
+    overrides = getattr(workflow, "global_overrides", None)
+    if not isinstance(overrides, Mapping):
         return ""
-    override = parsed_script.global_overrides.get("seed")
+    override = overrides.get("seed")
     if not isinstance(override, Mapping) or "value" not in override:
         return ""
     return _seed_value_text(override.get("value"))
@@ -73,6 +63,38 @@ def _first_workflow_seed(workflow_payload: JsonObject) -> str:
         seed_text = _seed_value_text(inputs.get("seed"))
         if seed_text:
             return seed_text
+    definitions = workflow_payload.get("definitions")
+    if isinstance(definitions, Mapping):
+        subgraphs = definitions.get("subgraphs")
+        if isinstance(subgraphs, list):
+            for definition in subgraphs:
+                seed_text = _embedded_definition_seed(definition)
+                if seed_text:
+                    return seed_text
+    return ""
+
+
+def _embedded_definition_seed(value: object) -> str:
+    """Read the first seed from one embedded canonical Cube document."""
+
+    if not isinstance(value, Mapping):
+        return ""
+    extra = value.get("extra")
+    document = extra.get("sugarcubes_document") if isinstance(extra, Mapping) else None
+    implementation = (
+        document.get("implementation") if isinstance(document, Mapping) else None
+    )
+    nodes = implementation.get("nodes") if isinstance(implementation, Mapping) else None
+    if not isinstance(nodes, Mapping):
+        return ""
+    for node in nodes.values():
+        if not isinstance(node, Mapping):
+            continue
+        inputs = node.get("inputs")
+        if isinstance(inputs, Mapping) and "seed" in inputs:
+            seed_text = _seed_value_text(inputs.get("seed"))
+            if seed_text:
+                return seed_text
     return ""
 
 

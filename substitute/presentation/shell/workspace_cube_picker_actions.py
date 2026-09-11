@@ -51,13 +51,13 @@ from substitute.application.node_behavior import NodeBehaviorRuntimeState
 from substitute.application.workflows import (
     NodeLinkEndpointIndex,
     PromptEndpointIndex,
-    WorkflowLinkReconciliationService,
 )
 from substitute.application.ports import (
     CubeCatalogRecord,
     CubeCatalogSnapshot,
 )
 from substitute.application.errors import SubstituteOperationContext
+from substitute.domain.workflow import CubeState
 from substitute.presentation.errors import ErrorPresenter, ErrorReportPresenterProtocol
 from substitute.presentation.shell.cube_loader import (
     CubeLoadPresentationIntent,
@@ -70,6 +70,9 @@ from substitute.presentation.shell.cube_removal_projection import (
 )
 from substitute.presentation.shell.editor_busy_coordinator import (
     EditorBusyControllerProtocol,
+)
+from substitute.presentation.shell.staged_cube_link_reconciliation import (
+    StagedCubeLinkReconciliationCoordinator,
 )
 from substitute.presentation.shell.workflow_surface_invalidation import (
     CUBE_STRUCTURE_SURFACES,
@@ -361,7 +364,7 @@ class LoadedCubeProtocol(Protocol):
 class WorkflowStateProtocol(Protocol):
     """Describe workflow cube state consumed by cube actions."""
 
-    cubes: dict[str, object]
+    cubes: dict[str, CubeState]
     stack_order: list[str]
 
 
@@ -421,6 +424,7 @@ class WorkspaceCubePickerActions:
         self._build_cube_load_ui_callbacks = build_cube_load_ui_callbacks
         self._error_presenter = error_presenter
         self._catalog_refresh_route_factory = catalog_refresh_route_factory
+        self._staged_link_reconciler = StagedCubeLinkReconciliationCoordinator(view)
         self._catalog_refresh_running = False
         self._catalog_refresh_request_id = 0
         self._catalog_refresh_close: Callable[[], None] | None = None
@@ -976,30 +980,19 @@ class WorkspaceCubePickerActions:
                     workflow_stack_order_after=list(workflow_state.stack_order),
                     stack_route_keys_after=_stack_route_keys(active_stack),
                 )
-                link_reconciliation_service = WorkflowLinkReconciliationService(
-                    prompt_endpoint_provider=view.node_behavior_service,
-                    node_link_endpoint_provider=view.node_behavior_service,
-                )
-                link_reconciliation_service.reconcile_transition(
+            committed_transition = (
+                self._staged_link_reconciler.reconcile_committed_transition(
                     previous_cube_states=batch_previous_cube_states,
                     previous_stack_order=batch_previous_stack_order,
                     current_cube_states=workflow_state.cubes,
                     current_stack_order=list(workflow_state.stack_order),
-                )
-                link_reconciliation_service.sanitize_current_state(
-                    cube_states=workflow_state.cubes,
-                    stack_order=list(workflow_state.stack_order),
-                )
-                log_info(
-                    _LOGGER,
-                    "Reconciled staged cube batch link state",
-                    cube_load_trace_id=cube_load_trace_id,
-                    workflow_id=workflow_id,
-                    previous_stack_order_count=len(batch_previous_stack_order),
-                    final_stack_order_count=len(final_stack_order),
                     completed_staged_count=len(completed_aliases),
                     failed_queue_count=len(queue_failures),
+                    workflow_id=workflow_id,
+                    trace_id=cube_load_trace_id,
+                    is_batch_load=is_batch_load,
                 )
+            )
             activation_alias = next(
                 (
                     completed_aliases_by_staged_index[index]
@@ -1065,8 +1058,8 @@ class WorkspaceCubePickerActions:
                         ),
                     )
 
-            if is_batch_load:
-                _reconcile_active_workflow_after_cube_batch(
+            if committed_transition:
+                _refresh_active_workflow_after_staged_cube_completion(
                     view,
                     on_complete=finalize_staged_batch_presentation,
                 )
@@ -1087,6 +1080,7 @@ class WorkspaceCubePickerActions:
             nonlocal pending_count
             if busy_finished:
                 return
+            view._pending_cubes.pop(alias_name, None)
             pending_count -= 1
             if resolved_alias is not None:
                 completed_aliases.append(resolved_alias)
@@ -1594,6 +1588,7 @@ def _draft_entries_from_legacy_staging_result(
                 secondary_text=str(getattr(staged_entry, "secondary_text", "")),
                 icon=getattr(staged_entry, "icon", None),
                 existing_alias=None,
+                target_model=str(getattr(staged_entry, "target_model", "")),
             )
         )
     return draft_entries
@@ -1740,12 +1735,12 @@ def _apply_reordered_aliases(
         apply_reordered_aliases(workflow, aliases)
 
 
-def _reconcile_active_workflow_after_cube_batch(
+def _refresh_active_workflow_after_staged_cube_completion(
     view: WorkspaceCubePickerActionView,
     *,
     on_complete: Callable[[], None],
 ) -> None:
-    """Structurally reconcile active surfaces before final batch navigation."""
+    """Refresh active surfaces after committing staged Cube state and links."""
 
     refresh_active_workflow_surface = (
         view.active_workflow_surface_refresher.refresh_active_workflow_surface

@@ -101,6 +101,20 @@ class _TimingEmitter:
         self.count_active_nodes_values.append(count_active_nodes)
 
 
+class _HistoryRecovery:
+    """Record terminal prompt-history recovery calls."""
+
+    def __init__(self) -> None:
+        """Initialize recovery state."""
+
+        self.calls = 0
+
+    def recover(self) -> None:
+        """Record one recovery attempt."""
+
+        self.calls += 1
+
+
 class _CallbackDispatcher:
     """Record listener terminal callback dispatches."""
 
@@ -172,6 +186,7 @@ def test_listener_run_loop_emits_success_timing_and_completion(
     connection_manager = _ConnectionManager(session)
     dispatcher = _CallbackDispatcher()
     timing_emitter = _TimingEmitter()
+    history_recovery = _HistoryRecovery()
     event_runtime = _event_runtime(timing_emitter)
     _Engine.result = ListenerEngineResult(prompt_finished=True)
     _Engine.error = None
@@ -191,12 +206,14 @@ def test_listener_run_loop_emits_success_timing_and_completion(
         runtime=_runtime(
             connection_manager=connection_manager,
             dispatcher=dispatcher,
+            history_recovery=history_recovery,
         ),
     )
 
     assert connection_manager.opened is True
     assert session.closed is True
     assert timing_emitter.count_active_nodes_values == [True]
+    assert history_recovery.calls == 1
     assert dispatcher.failures == []
     assert dispatcher.completed_count == 1
     assert _Engine.constructed_kwargs == [
@@ -242,6 +259,7 @@ def test_listener_run_loop_dispatches_failure_and_completion(
         runtime=_runtime(
             connection_manager=_ConnectionManager(session),
             dispatcher=dispatcher,
+            history_recovery=_HistoryRecovery(),
         ),
     )
 
@@ -278,6 +296,7 @@ def _runtime(
     *,
     connection_manager: _ConnectionManager,
     dispatcher: _CallbackDispatcher,
+    history_recovery: _HistoryRecovery,
 ) -> ListenerRuntimeComposition:
     """Build a structurally compatible runtime composition fake."""
 
@@ -294,6 +313,7 @@ def _runtime(
                 resolve=lambda _node_id: object(),
             ),
             cube_output_handler=object(),
+            history_output_recovery=history_recovery,
             model_load_source_metadata_resolver=SimpleNamespace(
                 resolve=lambda _source_node_id, _all_node_ids: (None, None),
             ),
@@ -318,7 +338,7 @@ def _request() -> ListenerStartRequest:
         ),
         output_dir=Path("out"),
         workflow_payload={"1": {"class_type": "KSampler"}},
-        sugar_script="line one",
+        persistence_sugar_script="line one",
         workflow_id="wf-1",
         workflow_name="Workflow",
     )
