@@ -120,14 +120,10 @@ def spawn_detached_process(
     *,
     environment: Mapping[str, str] | None = None,
 ) -> tuple[subprocess.Popen[bytes], Path]:
-    """Start a hidden app child and return its process and diagnostic log path."""
+    """Start an app child without a console and retain its diagnostic output."""
 
-    startupinfo = None
     creationflags = 0
     if sys.platform == "win32":
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = 0
         creationflags = subprocess.CREATE_NO_WINDOW
 
     startup_log_path = _app_startup_log_path(command)
@@ -153,7 +149,6 @@ def spawn_detached_process(
                     close_fds=True,
                     creationflags=creationflags,
                     shell=False,
-                    startupinfo=startupinfo,
                 )
         except OSError as error:
             compatibility_error = external_long_path_error(
