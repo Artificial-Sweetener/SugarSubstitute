@@ -417,7 +417,6 @@ class WorkspaceCanvasActionView(Protocol):
     workflow_session_service: WorkflowSessionServiceProtocol
     workflow_tabbar: WorkflowTabBarProtocol
     canvas_host: CanvasHostProtocol
-    output_canvas: OutputCanvasProtocol
     canvas_io_service: CanvasIoServiceProtocol
     output_canvas_state_service: OutputCanvasStateServiceProtocol
     output_canvas_focus_service: OutputCanvasFocusServiceProtocol
@@ -742,7 +741,13 @@ class WorkspaceCanvasActions:
         if result.workflow_id != view.workflow_session_service.active_workflow_id:
             return
         if identity.batch_index in {None, 0}:
-            view.output_canvas.release_automatic_preview_follow()
+            output_canvas = view.canvas_host.canvas_for("Output")
+            if output_canvas is None:
+                self._log_missing_output_canvas(result.workflow_id)
+            else:
+                cast(
+                    OutputCanvasProtocol, output_canvas
+                ).release_automatic_preview_follow()
         if not close_result.closed:
             return
         coordinator = getattr(view, "output_canvas_projection_coordinator", None)

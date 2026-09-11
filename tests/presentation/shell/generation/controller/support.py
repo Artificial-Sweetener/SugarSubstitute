@@ -224,7 +224,7 @@ def _snapshot(name: str = "Workflow 1") -> GenerationJobSnapshot:
     return GenerationJobSnapshot(
         workflow_id="wf-1",
         workflow_name=name,
-        sugar_script_text=f"# queued {name}",
+        persistence_sugar_script=f"# queued {name}",
     )
 
 

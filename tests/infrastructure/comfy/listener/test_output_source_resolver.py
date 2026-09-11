@@ -21,6 +21,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from substitute.application.ports import ListenerOutputSource
 from substitute.infrastructure.comfy.listener_output_source_resolver import (
     ListenerOutputSourceResolver,
 )
@@ -109,3 +110,39 @@ def test_ambiguous_output_source_mapping_warns_once() -> None:
         == "Using node-local output source after ambiguous cube-output mapping"
         for diagnostic in diagnostics
     )
+
+
+def test_explicit_execution_identity_avoids_graph_inference() -> None:
+    """SugarCubes ownership should override ambiguous downstream graph inference."""
+
+    diagnostics: list[OutputSourceDiagnostic] = []
+    resolver = ListenerOutputSourceResolver(
+        workflow_id="workflow-1",
+        prompt_id="prompt-1",
+        workflow_payload={
+            "shared": {"class_type": "CheckpointLoader", "inputs": {}},
+            "one": {
+                "class_type": "SugarCubes.CubeOutput",
+                "inputs": {"value": ["shared", 0]},
+            },
+            "two": {
+                "class_type": "SugarCubes.CubeOutput",
+                "inputs": {"value": ["shared", 0]},
+            },
+        },
+        cube_output_node_ids={"one", "two"},
+        on_diagnostic=diagnostics.append,
+        explicit_sources={
+            "shared": ListenerOutputSource(
+                node_id="shared",
+                source_key="cube:cube-a",
+                source_label="Cube A",
+            )
+        },
+    )
+
+    resolved = resolver.resolve("shared")
+
+    assert resolved.source_key == "cube:cube-a"
+    assert resolved.source_label == "Cube A"
+    assert diagnostics == []

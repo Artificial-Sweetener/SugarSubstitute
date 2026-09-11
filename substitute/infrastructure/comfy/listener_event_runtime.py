@@ -112,7 +112,7 @@ def build_listener_event_runtime(
     """Build prompt-scoped routing, timing, trace, and progress collaborators."""
 
     timing_clock = clock_ms or _perf_counter_ms
-    prompt_nodes = typed_prompt_nodes(request.workflow_payload)
+    prompt_nodes = typed_prompt_nodes(request.execution_payload)
     trace = trace_factory()
     trace_prompt_nodes = cast(dict[str, object], prompt_nodes)
     all_node_ids = {str(node_id) for node_id in prompt_nodes}

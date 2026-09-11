@@ -27,7 +27,6 @@ from sugarsubstitute_shared.presentation.localization import app_text
 
 from collections.abc import Callable, Mapping, MutableMapping
 from dataclasses import dataclass
-from inspect import signature
 from pathlib import Path
 from typing import Any, Protocol, cast
 
@@ -66,10 +65,14 @@ from substitute.application.recipes import (
     RecipeModelLoadResolver,
     RecipeModelResolutionRequired,
 )
+from substitute.application.recipes.resolved_recipe_graph import (
+    project_resolved_recipe_model_fields,
+)
 from substitute.application.model_metadata import (
     BackendModelDownloadJob,
     ModelDownloadStatus,
 )
+from substitute.domain.comfy_workflow import CanonicalCubeGraphAnalysis
 from substitute.presentation.shell.recipe_model_resolution_flow import (
     DeferredRecipeModelDownload,
 )
@@ -215,9 +218,10 @@ class WorkflowExportServiceProtocol(Protocol):
         self,
         *,
         destination_path: Path,
-        sugar_script_text: str,
+        sugar_script_text: str | None,
         output_dir: Path,
         workflow: object | None = None,
+        global_override_scopes: Mapping[str, object] | None = None,
     ) -> None:
         """Export sugar script to a Comfy workflow document."""
 
@@ -420,6 +424,7 @@ class ParsedRecipeProtocol(Protocol):
 
     loaded_document: object
     parsed_script: object
+    cube_graph_analysis: CanonicalCubeGraphAnalysis | None
 
 
 class LoadedRecipeDocumentProtocol(Protocol):
@@ -648,17 +653,6 @@ class WorkspaceFileActions:
         scopes = scope_getter()
         return cast(Mapping[str, object] | None, scopes)
 
-    @staticmethod
-    def _call_accepts_keyword(
-        callable_obj: Callable[..., object], keyword: str
-    ) -> bool:
-        """Return whether a collaborator method advertises a keyword parameter."""
-
-        try:
-            return keyword in signature(callable_obj).parameters
-        except (TypeError, ValueError):
-            return False
-
     def on_save_clicked(self, *, sugar_scripts_dir: Path | None = None) -> bool:
         """Save the active workflow into its workflow-named script directory."""
 
@@ -677,22 +671,12 @@ class WorkspaceFileActions:
             )
             active_workflow = view.get_active_workflow()
             global_override_scopes = self._active_global_override_scopes()
-            save_default = view.recipe_io_service.save_workflow_recipe_to_default_path
-            if global_override_scopes is not None and self._call_accepts_keyword(
-                save_default, "global_override_scopes"
-            ):
-                save_default(
-                    workflow_name,
-                    workflow=active_workflow,
-                    sugar_scripts_dir=resolved_sugar_scripts_dir,
-                    global_override_scopes=global_override_scopes,
-                )
-            else:
-                save_default(
-                    workflow_name,
-                    workflow=active_workflow,
-                    sugar_scripts_dir=resolved_sugar_scripts_dir,
-                )
+            view.recipe_io_service.save_workflow_recipe_to_default_path(
+                workflow_name,
+                workflow=active_workflow,
+                sugar_scripts_dir=resolved_sugar_scripts_dir,
+                global_override_scopes=global_override_scopes,
+            )
             workflow_id = view.workflow_session_service.active_workflow_id
             self._mark_workflow_saved(workflow_id, recipe_path)
             return True
@@ -742,22 +726,12 @@ class WorkspaceFileActions:
             )
             active_workflow = view.get_active_workflow()
             global_override_scopes = self._active_global_override_scopes()
-            save_recipe = view.recipe_io_service.save_workflow_recipe
-            if global_override_scopes is not None and self._call_accepts_keyword(
-                save_recipe, "global_override_scopes"
-            ):
-                save_recipe(
-                    validated_destination_path,
-                    workflow_name=workflow_name,
-                    workflow=active_workflow,
-                    global_override_scopes=global_override_scopes,
-                )
-            else:
-                save_recipe(
-                    validated_destination_path,
-                    workflow_name=workflow_name,
-                    workflow=active_workflow,
-                )
+            view.recipe_io_service.save_workflow_recipe(
+                validated_destination_path,
+                workflow_name=workflow_name,
+                workflow=active_workflow,
+                global_override_scopes=global_override_scopes,
+            )
             workflow_id = view.workflow_session_service.active_workflow_id
             self._mark_workflow_saved(workflow_id, validated_destination_path)
             return True
@@ -799,16 +773,13 @@ class WorkspaceFileActions:
 
             active_workflow = view.get_active_workflow()
             global_override_scopes = self._active_global_override_scopes()
-            serialize = view.recipe_io_service.serialize_workflow_to_sugar_script
-            if global_override_scopes is not None and self._call_accepts_keyword(
-                serialize, "global_override_scopes"
-            ):
+            sugar_script: str | None = None
+            if getattr(active_workflow, "direct_workflow", None) is None:
+                serialize = view.recipe_io_service.serialize_workflow_to_sugar_script
                 sugar_script = serialize(
                     active_workflow,
                     global_override_scopes=global_override_scopes,
                 )
-            else:
-                sugar_script = serialize(active_workflow)
             default_path = view.workflow_export_service.build_default_export_path(
                 workflow_name,
                 resolved_output_dir,
@@ -830,6 +801,7 @@ class WorkspaceFileActions:
                 sugar_script_text=sugar_script,
                 output_dir=resolved_output_dir,
                 workflow=active_workflow,
+                global_override_scopes=global_override_scopes,
             )
         except (AttributeError, OSError, RuntimeError, TypeError, ValueError) as error:
             log_context: dict[str, str] = {
@@ -985,6 +957,11 @@ class WorkspaceFileActions:
                 ParsedRecipeScriptProtocol,
                 parsed_recipe.parsed_script,
             )
+            cube_graph_analysis = getattr(
+                parsed_recipe,
+                "cube_graph_analysis",
+                None,
+            )
             loaded_project_name = parsed_script.project_name
             model_load_resolver_factory = getattr(
                 view,
@@ -996,6 +973,7 @@ class WorkspaceFileActions:
                     self._resolve_recipe_model_references_async(
                         resolver_factory=model_load_resolver_factory,
                         parsed_script=parsed_script,
+                        cube_graph_analysis=cube_graph_analysis,
                         target_workflow_id=target_workflow_id,
                         loaded_document=loaded_document,
                         loaded_project_name=loaded_project_name,
@@ -1029,6 +1007,7 @@ class WorkspaceFileActions:
                 deferred_model_download = None
             self._materialize_loaded_recipe_document(
                 parsed_script=parsed_script,
+                cube_graph_analysis=cube_graph_analysis,
                 loaded_document=loaded_document,
                 loaded_project_name=loaded_project_name,
                 target_workflow_id=target_workflow_id,
@@ -1076,6 +1055,7 @@ class WorkspaceFileActions:
         *,
         resolver_factory: Callable[[], RecipeModelLoadResolver],
         parsed_script: ParsedRecipeScriptProtocol,
+        cube_graph_analysis: CanonicalCubeGraphAnalysis | None,
         target_workflow_id: str,
         loaded_document: LoadedRecipeDocumentProtocol,
         loaded_project_name: str | None,
@@ -1146,6 +1126,7 @@ class WorkspaceFileActions:
                             return
                         self._continue_resolved_recipe_materialization(
                             resolved_script=handled,
+                            cube_graph_analysis=cube_graph_analysis,
                             loaded_document=loaded_document,
                             loaded_project_name=loaded_project_name,
                             target_workflow_id=target_workflow_id,
@@ -1166,6 +1147,7 @@ class WorkspaceFileActions:
                     return
                 self._continue_resolved_recipe_materialization(
                     resolved_script=outcome.result,
+                    cube_graph_analysis=cube_graph_analysis,
                     loaded_document=loaded_document,
                     loaded_project_name=loaded_project_name,
                     target_workflow_id=target_workflow_id,
@@ -1192,6 +1174,7 @@ class WorkspaceFileActions:
         self,
         *,
         resolved_script: object,
+        cube_graph_analysis: CanonicalCubeGraphAnalysis | None,
         loaded_document: LoadedRecipeDocumentProtocol,
         loaded_project_name: str | None,
         target_workflow_id: str,
@@ -1213,6 +1196,7 @@ class WorkspaceFileActions:
         )
         self._materialize_loaded_recipe_document(
             parsed_script=resolved_payload.parsed_script,
+            cube_graph_analysis=cube_graph_analysis,
             loaded_document=loaded_document,
             loaded_project_name=loaded_project_name,
             target_workflow_id=target_workflow_id,
@@ -1274,6 +1258,7 @@ class WorkspaceFileActions:
         self,
         *,
         parsed_script: ParsedRecipeScriptProtocol,
+        cube_graph_analysis: CanonicalCubeGraphAnalysis | None,
         loaded_document: LoadedRecipeDocumentProtocol,
         loaded_project_name: str | None,
         target_workflow_id: str,
@@ -1300,6 +1285,10 @@ class WorkspaceFileActions:
             parsed_script,
             "override_control_states",
             {},
+        )
+        cube_graph_analysis = project_resolved_recipe_model_fields(
+            cube_graph_analysis,
+            cast(Any, parsed_script),
         )
         log_debug(
             _LOGGER,
@@ -1362,6 +1351,8 @@ class WorkspaceFileActions:
             projects_dir=resolved_projects_dir,
             icon_provider=icon_provider,
             cube_loader=cube_loader,
+            cube_graph_analysis=cube_graph_analysis,
+            source_path=source_path,
         )
         _mark_recipe_surfaces_dirty(self._view, target_workflow_id)
         self._mark_workflow_saved(target_workflow_id, source_path)

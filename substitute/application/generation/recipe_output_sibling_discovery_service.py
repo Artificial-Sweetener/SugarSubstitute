@@ -38,6 +38,7 @@ _TOKEN_RE = re.compile(r"\{([^{}]+)\}")
 _PATH_SEPARATOR_RE = re.compile(r"[\\/]+")
 _UNSAFE_COMPONENT_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]+')
 _WHITESPACE_RE = re.compile(r"\s+")
+_COLLISION_ORDINAL_RE = re.compile(r"^(?P<base>.+)_(?P<ordinal>[0-9]{3,})$")
 _SUPPORTED_IMAGE_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".webp", ".bmp"})
 _SUPPORTED_PATTERN_TOKEN_SETS = frozenset(
     {
@@ -85,6 +86,16 @@ class _CompiledFilenamePattern:
 
     expression: re.Pattern[str]
     reason: str = ""
+
+
+@dataclass(frozen=True)
+class _MatchedOutputFile:
+    """Carry one filename match before collision-source reconciliation."""
+
+    path: Path
+    run: str
+    cube: str
+    source: str
 
 
 class RecipeOutputSiblingDiscoveryService:
@@ -209,7 +220,7 @@ class RecipeOutputSiblingDiscoveryService:
             )
             return ()
 
-        siblings: list[RecipeOutputSibling] = []
+        matches: list[_MatchedOutputFile] = []
         for candidate in candidates:
             if not _path_is_supported_image(candidate):
                 continue
@@ -218,10 +229,22 @@ class RecipeOutputSiblingDiscoveryService:
             match = expression.fullmatch(candidate.stem)
             if match is None or match.group("run") != selected_run:
                 continue
-            source = match.group("source")
+            matches.append(
+                _MatchedOutputFile(
+                    path=candidate,
+                    run=match.group("run"),
+                    cube=match.groupdict().get("cube", ""),
+                    source=match.group("source"),
+                )
+            )
+
+        identities = {(item.run, item.cube, item.source) for item in matches}
+        siblings: list[RecipeOutputSibling] = []
+        for item in matches:
+            source = _source_without_contextual_collision_ordinal(item, identities)
             siblings.append(
                 RecipeOutputSibling(
-                    path=candidate,
+                    path=item.path,
                     source_key=source,
                     source_label=_source_label_from_token(source),
                     sequence=len(siblings) + 1,
@@ -283,7 +306,7 @@ def _compile_filename_pattern(
         elif token_name == "run":
             expression_parts.append(r"(?P<run>.+?)")
         elif token_name == "cube#":
-            expression_parts.append(r".+?")
+            expression_parts.append(r"(?P<cube>.+?)")
         elif token_name == "source":
             expression_parts.append(r"(?P<source>.+?)")
         cursor = match.end()
@@ -321,6 +344,21 @@ def _source_label_from_token(source: str) -> str:
 
     label = source.replace("_", " ").strip()
     return label.title() if label else "Output"
+
+
+def _source_without_contextual_collision_ordinal(
+    item: _MatchedOutputFile,
+    identities: set[tuple[str, str, str]],
+) -> str:
+    """Remove a renderer collision ordinal only when its base output exists."""
+
+    match = _COLLISION_ORDINAL_RE.fullmatch(item.source)
+    if match is None or int(match.group("ordinal")) < 2:
+        return item.source
+    base_source = match.group("base")
+    if (item.run, item.cube, base_source) not in identities:
+        return item.source
+    return base_source
 
 
 def _normalized_path_key(path: Path) -> str:

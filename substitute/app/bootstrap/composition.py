@@ -179,9 +179,7 @@ if TYPE_CHECKING:
         PromptLoraCatalogLookup,
     )
     from substitute.application.prompt_editor.lora.effective_provider import (
-        RecipeWorkflowSerializer,
         ScheduledLoraProvider,
-        WorkflowPayloadCompiler,
         WorkflowPromptContext,
     )
     from substitute.application.prompt_editor.lora.scheduled import (
@@ -289,6 +287,25 @@ class _LazyComfyGateway:
             visual_context=visual_context,
         )
 
+    def queue_cube_workflow(
+        self,
+        workflow: dict[str, object],
+        *,
+        client_id: str,
+        preview_method: str | None = None,
+        visual_context: "QueueVisualRunContext",
+        persistence_sugar_script: str | None = None,
+    ) -> "QueuePromptResult":
+        """Queue one canonical Cube graph through SugarCubes on first use."""
+
+        return self._resolve().queue_cube_workflow(
+            workflow,
+            client_id=client_id,
+            preview_method=preview_method,
+            visual_context=visual_context,
+            persistence_sugar_script=persistence_sugar_script,
+        )
+
     def start_listener(
         self,
         request: "ListenerStartRequest",
@@ -328,13 +345,17 @@ class _LazyComfyGateway:
             from substitute.infrastructure.comfy.prompt_gateway import (
                 ComfyPromptGateway,
             )
+            from substitute.infrastructure.comfy.native_cube_execution_client import (
+                NativeCubeExecutionClient,
+            )
 
             self._gateway = InfrastructureComfyGatewayAdapter(
-                ComfyPromptGateway(
+                gateway=ComfyPromptGateway(
                     endpoint=self._endpoint,
                     listener_task_factory=self._listener_task_factory,
                     listener_preview_image_decoder=self._listener_preview_image_decoder,
-                )
+                ),
+                native_cube_client=NativeCubeExecutionClient(endpoint=self._endpoint),
             )
         return self._gateway
 
@@ -589,23 +610,17 @@ class _LazyScheduledLoraProvider:
     def __init__(
         self,
         *,
-        recipe_io_service: "RecipeWorkflowSerializer",
-        workflow_export_service: "WorkflowPayloadCompiler",
         prompt_scheduled_lora_service: "PromptScheduledLoraService",
         prompt_lora_catalog_service: "PromptLoraCatalogLookup",
         rich_choice_resolver: "RichChoiceResolver",
         node_definition_gateway: "NodeDefinitionGateway",
-        output_dir: Path,
     ) -> None:
         """Store dependencies needed by the concrete scheduled-LoRA provider."""
 
-        self._recipe_io_service = recipe_io_service
-        self._workflow_export_service = workflow_export_service
         self._prompt_scheduled_lora_service = prompt_scheduled_lora_service
         self._prompt_lora_catalog_service = prompt_lora_catalog_service
         self._rich_choice_resolver = rich_choice_resolver
         self._node_definition_gateway = node_definition_gateway
-        self._output_dir = output_dir
         self._provider: ScheduledLoraProvider | None = None
 
     def scheduled_loras_for_prompt_context(
@@ -638,13 +653,10 @@ class _LazyScheduledLoraProvider:
             )
 
             self._provider = EffectiveScheduledLoraProvider(
-                recipe_io_service=self._recipe_io_service,
-                workflow_export_service=self._workflow_export_service,
                 prompt_scheduled_lora_service=self._prompt_scheduled_lora_service,
                 prompt_lora_catalog_service=self._prompt_lora_catalog_service,
                 rich_choice_resolver=self._rich_choice_resolver,
                 node_definition_gateway=self._node_definition_gateway,
-                output_dir=self._output_dir,
             )
         return self._provider
 
@@ -1290,6 +1302,7 @@ def _build_main_window_dependencies(
     from substitute.application.recipes import (
         CachedPromptLoraHashLookup,
         CachedRecipeModelHashLookup,
+        RecipeGraphLoader,
         RecipeIoService,
         RecipeModelDownloadResolutionService,
         RecipeModelLoadResolver,
@@ -1380,12 +1393,11 @@ def _build_main_window_dependencies(
 
     record_dependency_phase("imports.infrastructure.external.preview_assets")
 
-    from substitute.infrastructure.external.substitute_backend_sugar_compile_client import (
-        BackendSugarWorkflowPayloadCompiler,
-        SubstituteBackendSugarCompileClient,
+    from substitute.infrastructure.external.sugarcubes_sugarscript_compile_client import (
+        SugarCubesSugarScriptWorkflowCompiler,
     )
 
-    record_dependency_phase("imports.infrastructure.external.sugar_compile")
+    record_dependency_phase("imports.infrastructure.external.sugarscript_authoring")
 
     from substitute.infrastructure.onboarding import (
         FileComfyTargetConfigurationRepository,
@@ -1556,11 +1568,8 @@ def _build_main_window_dependencies(
     cube_icon_asset_client = SubstituteBackendCubeIconAssetClient(
         context.comfy_target.endpoint
     )
-    sugar_compile_client = SubstituteBackendSugarCompileClient(
+    workflow_payload_compiler = SugarCubesSugarScriptWorkflowCompiler(
         context.comfy_target.endpoint
-    )
-    workflow_payload_compiler = BackendSugarWorkflowPayloadCompiler(
-        client=sugar_compile_client
     )
     cube_repository = BackendCubeRepository(client=cube_library_backend)
     progress_service = ProgressService()
@@ -1978,6 +1987,9 @@ def _build_main_window_dependencies(
             prompt_lora_catalog=prompt_lora_catalog_service,
             model_hash_lookup=model_hash_lookup,
         ),
+        recipe_graph_loader=RecipeGraphLoader(
+            workflow_payload_compiler,
+        ),
     )
     record_dependency_checkpoint(
         "model_catalog_recipe_services.recipe_services",
@@ -2078,13 +2090,10 @@ def _build_main_window_dependencies(
         preference_service=prompt_editor_preference_service,
     )
     scheduled_lora_provider = _LazyScheduledLoraProvider(
-        recipe_io_service=recipe_io_service,
-        workflow_export_service=workflow_export_service,
         prompt_scheduled_lora_service=prompt_scheduled_lora_service,
         prompt_lora_catalog_service=prompt_lora_catalog_service,
         rich_choice_resolver=model_choice_resolver,
         node_definition_gateway=node_definition_gateway,
-        output_dir=context.projects_dir,
     )
     record_dependency_phase("prompt_editor_services")
     node_behavior_service = NodeBehaviorService(
@@ -2095,7 +2104,6 @@ def _build_main_window_dependencies(
     entrypoint_path = resolve_app_layout(context.install_root).entrypoint_path
     generation_service = GenerationService(
         recipe_io_service=recipe_io_service,
-        workflow_export_service=workflow_export_service,
         comfy_gateway=comfy_gateway,
         asset_staging_service=comfy_asset_staging_service,
         prompt_wildcard_preprocessing_service=(prompt_wildcard_preprocessing_service),
@@ -2136,7 +2144,6 @@ def _build_main_window_dependencies(
     )
     generation_result_snapshot_service = GenerationResultSnapshotService(
         live_results=generation_job_queue_service,
-        recipe_parser=recipe_io_service,
     )
     workspace_generation_controller = WorkspaceGenerationController(
         generation_service,

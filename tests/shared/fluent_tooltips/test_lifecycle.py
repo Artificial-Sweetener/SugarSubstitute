@@ -97,3 +97,27 @@ def test_final_owner_event_tolerates_platform_deleted_tooltip(
 
     assert tooltip_filter._tooltip is None
     assert tooltip_filter.isEnter is False
+
+
+def test_owner_teardown_tolerates_platform_deleted_tooltip_timers(
+    tooltip_control: QWidget,
+) -> None:
+    """Late owner callbacks must tolerate Qt deleting both timers first."""
+
+    set_fluent_tooltip_text(tooltip_control, "Tooltip")
+    tooltip_filter = tooltip_control.findChild(FluentToolTipFilter)
+    assert tooltip_filter is not None
+    hover_guard_timer = tooltip_filter._hover_guard_timer
+    assert hover_guard_timer is not None
+    show_timer = tooltip_filter.timer
+    delete(hover_guard_timer)
+    delete(show_timer)
+    assert not isValid(hover_guard_timer)
+    assert not isValid(show_timer)
+
+    tooltip_filter.eventFilter(
+        tooltip_control,
+        QEvent(QEvent.Type.Destroy),
+    )
+
+    assert tooltip_filter.isEnter is False

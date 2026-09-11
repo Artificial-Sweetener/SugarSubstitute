@@ -72,7 +72,7 @@ def queue_job(
         snapshot=GenerationJobSnapshot(
             workflow_id=f"workflow-{job_id}",
             workflow_name=resolved_workflow_name,
-            sugar_script_text="# sugar",
+            persistence_sugar_script="# sugar",
             positive_prompt_preview=positive_prompt_preview,
             scene_run_id=scene_run_id,
             scene_key=scene_key,

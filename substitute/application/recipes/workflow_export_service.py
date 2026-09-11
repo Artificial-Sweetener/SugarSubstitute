@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from collections.abc import MutableMapping
+from collections.abc import Mapping, MutableMapping
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, cast
 
@@ -35,7 +36,11 @@ from substitute.application.recipes.picker_defaults import (
 from substitute.application.recipes.workflow_payload_nodes import (
     executable_prompt_nodes,
 )
-from substitute.domain.common import JsonObject
+from substitute.application.workflows.composed_value_annotation_service import (
+    ComposedValueAnnotationService,
+)
+from substitute.domain.common import GlobalOverrideScope, JsonObject
+from substitute.domain.comfy_workflow import DirectWorkflowState
 from substitute.shared.util.path_safety import (
     ensure_within_root,
     validate_top_level_name,
@@ -60,13 +65,23 @@ class WorkflowExportService:
     def compile_workflow_payload(
         self,
         *,
-        sugar_script_text: str,
+        sugar_script_text: str | None,
         output_dir: Path,
         workflow: object | None = None,
+        global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None,
     ) -> JsonObject:
-        """Compile Sugar script text into a Comfy artifact payload."""
+        """Return canonical graph authority or compile one legacy Sugar artifact."""
 
-        _ = workflow
+        direct = getattr(workflow, "direct_workflow", None)
+        if isinstance(direct, DirectWorkflowState):
+            graph = deepcopy(direct.source_workflow)
+            ComposedValueAnnotationService().annotate(
+                graph,
+                global_override_scopes=global_override_scopes,
+            )
+            return graph
+        if sugar_script_text is None:
+            raise ValueError("Legacy workflow export requires SugarScript source.")
         compile_kwargs: dict[str, object] = {
             "sugar_script_text": sugar_script_text,
             "output_dir": output_dir,
@@ -90,9 +105,10 @@ class WorkflowExportService:
         self,
         *,
         destination_path: Path,
-        sugar_script_text: str,
+        sugar_script_text: str | None,
         output_dir: Path,
         workflow: object | None = None,
+        global_override_scopes: Mapping[str, GlobalOverrideScope] | None = None,
     ) -> JsonObject:
         """Compile and persist workflow JSON to destination path."""
 
@@ -100,6 +116,7 @@ class WorkflowExportService:
             sugar_script_text=sugar_script_text,
             output_dir=output_dir,
             workflow=workflow,
+            global_override_scopes=global_override_scopes,
         )
         self._workflow_repository.save_workflow_json(destination_path, workflow_payload)
         return workflow_payload

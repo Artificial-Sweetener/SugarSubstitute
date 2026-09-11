@@ -128,7 +128,7 @@ def _request() -> ListenerStartRequest:
         ),
         output_dir=Path("outputs"),
         workflow_payload={},
-        sugar_script="",
+        persistence_sugar_script="",
         workflow_id="workflow-1",
         workflow_name="Workflow",
     )

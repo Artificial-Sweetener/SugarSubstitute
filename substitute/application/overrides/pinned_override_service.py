@@ -32,7 +32,7 @@ from substitute.application.node_behavior.list_value_resolver import (
 from substitute.application.workflows.editor_projection_service import (
     WorkflowEditorProjection,
 )
-from substitute.domain.recipes.sugar_ast import GlobalOverrideSerializationScope
+from substitute.domain.common import GlobalOverrideScope
 from substitute.domain.node_behavior import OverridePinPolicy
 from substitute.domain.workflow.override_keys import canonicalize_global_override_key
 from substitute.shared.logging.logger import get_logger, log_debug
@@ -284,15 +284,15 @@ class PinnedOverrideService:
         overrides: OverrideMap,
         behavior_snapshot: EditorBehaviorSnapshot,
         stack_order: Iterable[str],
-    ) -> dict[str, GlobalOverrideSerializationScope]:
-        """Return SugarScript serialization scopes for active global overrides."""
+    ) -> dict[str, GlobalOverrideScope]:
+        """Return graph-neutral scopes for active global overrides."""
 
         participation_snapshot = self.build_participation_snapshot(
             overrides=overrides,
             behavior_snapshot=behavior_snapshot,
             stack_order=stack_order,
         )
-        scopes: dict[str, GlobalOverrideSerializationScope] = {}
+        scopes: dict[str, GlobalOverrideScope] = {}
         for override_key, override in overrides.items():
             if not isinstance(override, Mapping):
                 continue
@@ -307,7 +307,7 @@ class PinnedOverrideService:
             participant_fields = frozenset(
                 participant.field_identity for participant in participants
             )
-            scopes[canonical_key] = GlobalOverrideSerializationScope(
+            scopes[canonical_key] = GlobalOverrideScope(
                 override_key=canonical_key,
                 value=override.get("value"),
                 mode=str(override.get("mode") or self.DEFAULT_MODE),

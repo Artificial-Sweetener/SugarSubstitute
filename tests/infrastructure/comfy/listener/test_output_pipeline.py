@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import ast
 import logging
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from substitute.application.ports.comfy_gateway import (
     ListenerCallbacks,
+    ListenerOutputSource,
     ListenerSessionHandle,
     ListenerStartRequest,
 )
@@ -140,6 +142,39 @@ def test_listener_output_pipeline_logs_missing_cube_output_context(
     assert "prompt_id=pid-1" in caplog.text
 
 
+def test_listener_output_pipeline_accepts_native_report_sources_without_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Native report sources should activate cache recovery without false warnings."""
+
+    caplog.set_level(
+        logging.WARNING,
+        logger="sugarsubstitute.infrastructure.comfy.listener_output_pipeline",
+    )
+    request = replace(
+        _request({"1": {"class_type": "KSampler"}}),
+        standard_output_sources=(
+            ListenerOutputSource(
+                node_id="native-output-1",
+                source_key="cube:cube-1",
+                source_label="First",
+            ),
+        ),
+    )
+
+    pipeline = build_listener_output_pipeline(
+        request=request,
+        endpoint=ComfyEndpoint(host="127.0.0.1", port=8188),
+        callbacks=_callbacks(),
+        visual_event_guard=_visual_event_guard(),
+        on_output_source_diagnostic=lambda _diagnostic: None,
+        on_cube_output_diagnostic=lambda _diagnostic: None,
+    )
+
+    assert pipeline.cube_output_node_ids == set()
+    assert "No SugarCubes.CubeOutput nodes found" not in caplog.text
+
+
 def _request(workflow_payload: dict[str, object]) -> ListenerStartRequest:
     """Build a listener start request for output-pipeline tests."""
 
@@ -155,7 +190,7 @@ def _request(workflow_payload: dict[str, object]) -> ListenerStartRequest:
         ),
         output_dir=Path("out"),
         workflow_payload=workflow_payload,
-        sugar_script="line one",
+        persistence_sugar_script="line one",
         workflow_id="wf-1",
         workflow_name="Workflow",
     )

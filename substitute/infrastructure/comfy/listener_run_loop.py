@@ -76,6 +76,7 @@ def run_listener_runtime(
             callbacks=event_runtime.engine_callbacks,
         ).run()
         if engine_result.prompt_finished:
+            runtime.history_output_recovery.recover()
             timing_emitter.emit_once(count_active_nodes=True)
     except Exception as error:
         runtime.callback_dispatcher.emit_failure(

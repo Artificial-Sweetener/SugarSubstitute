@@ -55,6 +55,7 @@ from substitute.presentation.editor.panel.widgets.field_row import (
     FieldRowBuilder,
 )
 from substitute.presentation.widgets.spin_box import SpinBox
+from tests.support.qt.lifecycle import activate_widget_layouts
 
 
 class _RoleResolver:
@@ -151,8 +152,8 @@ def test_contributor_locks_original_dimension_fields_and_opens_intent() -> None:
     )
     row_layout = row.row.layout()
     assert isinstance(row_layout, QHBoxLayout)
-    assert row_layout.indexOf(decorator.change_button) == row_layout.count() - 2
-    action_item = row_layout.itemAt(row_layout.count() - 3)
+    assert row_layout.indexOf(decorator.change_button) == row_layout.count() - 1
+    action_item = row_layout.itemAt(row_layout.count() - 2)
     assert action_item is not None
     action_divider = action_item.widget()
     assert action_divider is not None
@@ -165,6 +166,66 @@ def test_contributor_locks_original_dimension_fields_and_opens_intent() -> None:
 
     change_button.click()
     assert requests == [role]
+
+
+def test_compact_resolution_action_preserves_both_dimension_values() -> None:
+    """The inline action should not clip dimensions at the supported narrow width."""
+
+    _app()
+    panel = _Panel()
+    width = _dimension_spin(panel, value=960, key="width")
+    height = _dimension_spin(panel, value=1344, key="height")
+    content = QWidget(panel)
+    content_layout = QVBoxLayout(content)
+    contributor = SyntheticCanvasResolutionContributor(
+        roles=_RoleResolver(_role()),
+        change_requested=lambda _role: None,
+    )
+    contribution = contributor.build(_context())
+
+    assert contribution is not None
+    decorator = cast(
+        SyntheticCanvasResolutionRowDecorator,
+        contribution.row_decorator,
+    )
+    row = NodeCardBodyComposer(
+        panel=panel,
+        field_rows=FieldRowBuilder(
+            panel=panel,
+            icon_builder=lambda _icon: QWidget(panel),
+            icon_resolver=lambda _node, _field, column_index=None: None,
+        ),
+    ).add_n_column_row(
+        fields=[("width", width), ("height", height)],
+        field_behaviors={
+            "width": FieldBehavior(field_key="width"),
+            "height": FieldBehavior(field_key="height"),
+        },
+        content_layout=content_layout,
+        contribution=contribution,
+    )
+    panel_layout = QVBoxLayout(panel)
+    panel_layout.setContentsMargins(0, 0, 0, 0)
+    panel_layout.addWidget(content)
+    assert row.row.minimumSizeHint().width() <= 400
+    row.row.setFixedWidth(420)
+    panel.resize(420, content.sizeHint().height())
+    panel.show()
+    activate_widget_layouts(panel, content, row.row)
+
+    assert content_layout.count() == 1
+    assert row.row.width() == 420
+    assert (
+        width.lineEdit().contentsRect().width()
+        >= width.fontMetrics().horizontalAdvance(width.text())
+    )
+    assert (
+        height.lineEdit().contentsRect().width()
+        >= height.fontMetrics().horizontalAdvance(height.text())
+    )
+    assert decorator.change_button is not None
+    assert decorator.change_button.font().pixelSize() < 14
+    assert decorator.change_button.width() > 0
 
 
 def test_contributor_leaves_non_authority_nodes_untouched() -> None:

@@ -185,6 +185,7 @@ class CubePickerCard(QFrame):
         return CubeCardVisualState(
             primary_text=self._entry.display_name,
             secondary_text=self._entry.secondary_text,
+            target_model=self._entry.target_model,
             icon=self._icon,
             selected=True,
             hovered=self._hovered,

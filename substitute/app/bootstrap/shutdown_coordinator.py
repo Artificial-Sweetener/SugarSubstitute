@@ -58,7 +58,6 @@ from substitute.shared.logging.logger import (
 )
 
 _LOGGER = get_logger("app.bootstrap.shutdown_coordinator")
-_SLOW_SHUTDOWN_THRESHOLD_MS = 500
 _CLEANUP_ATTEMPT_TIMEOUT_MS = 15000
 
 
@@ -66,7 +65,6 @@ class ShutdownUiState(Enum):
     """Describe the coordinator-owned UI state for shell shutdown."""
 
     IDLE = "idle"
-    RUNNING_HIDDEN = "running_hidden"
     RUNNING_VISIBLE = "running_visible"
     RECOVERY_VISIBLE = "recovery_visible"
     FINALIZING_EXIT = "finalizing_exit"
@@ -186,10 +184,6 @@ class ShutdownCoordinator(QObject):
         self._recovery_dialog: ShutdownRecoveryDialogProtocol | None = None
         self._cleanup_handle: TaskHandle[ManagedComfyCleanupResult] | None = None
         self._cleanup_request_ids = count(1)
-        self._slow_path_timer = QTimer(self)
-        self._slow_path_timer.setSingleShot(True)
-        self._slow_path_timer.setInterval(_SLOW_SHUTDOWN_THRESHOLD_MS)
-        self._slow_path_timer.timeout.connect(self._show_slow_path_progress)
         self._cleanup_timeout_timer = QTimer(self)
         self._cleanup_timeout_timer.setSingleShot(True)
         self._cleanup_timeout_timer.setInterval(_CLEANUP_ATTEMPT_TIMEOUT_MS)
@@ -201,7 +195,6 @@ class ShutdownCoordinator(QObject):
         """Return whether coordinated shutdown is currently active."""
 
         return self._ui_state in {
-            ShutdownUiState.RUNNING_HIDDEN,
             ShutdownUiState.RUNNING_VISIBLE,
             ShutdownUiState.RECOVERY_VISIBLE,
         }
@@ -236,15 +229,14 @@ class ShutdownCoordinator(QObject):
                 )
                 return
         self._active_parent_window = parent_window
-        self._transition_to(ShutdownUiState.RUNNING_HIDDEN)
+        self._show_progress()
         log_info(
             _LOGGER,
             "Shutdown requested",
             shutdown_ui_state=self._ui_state.value,
-            shutdown_ui_shown=False,
+            shutdown_ui_shown=True,
         )
         self._run_before_cleanup_hook(parent_window)
-        self._slow_path_timer.start()
         self._start_cleanup_task()
 
     def _run_before_cleanup_hook(self, parent_window: QWidget | None) -> None:
@@ -295,7 +287,6 @@ class ShutdownCoordinator(QObject):
     ) -> None:
         """Handle cleanup task completion on the UI thread."""
 
-        self._slow_path_timer.stop()
         self._cleanup_timeout_timer.stop()
         timed_out = self._cleanup_attempt_timed_out
         self._cleanup_attempt_timed_out = False
@@ -364,7 +355,7 @@ class ShutdownCoordinator(QObject):
             pid=result.pid,
             elapsed_ms=result.elapsed_ms,
             cleanup_outcome=result.outcome.value,
-            shutdown_ui_shown=result.elapsed_ms >= _SLOW_SHUTDOWN_THRESHOLD_MS,
+            shutdown_ui_shown=True,
         )
         self._app.quit()
 
@@ -424,19 +415,17 @@ class ShutdownCoordinator(QObject):
         )
         self._show_recovery_dialog(result)
 
-    def _show_slow_path_progress(self) -> None:
-        """Create and show the delayed progress surface after the slow threshold."""
+    def _show_progress(self) -> None:
+        """Present modal acknowledgement before coordinated cleanup begins."""
 
-        if self._ui_state is not ShutdownUiState.RUNNING_HIDDEN:
-            return
+        self._transition_to(ShutdownUiState.RUNNING_VISIBLE)
         dialog = self._ensure_progress_dialog()
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
-        self._transition_to(ShutdownUiState.RUNNING_VISIBLE)
         log_info(
             _LOGGER,
-            "Slow-path progress dialog shown",
+            "Shutdown progress dialog shown",
             shutdown_ui_state=self._ui_state.value,
             shutdown_ui_shown=True,
         )
@@ -444,10 +433,7 @@ class ShutdownCoordinator(QObject):
     def _handle_cleanup_timeout(self) -> None:
         """Show recovery when cleanup fails to finish within the hard timeout."""
 
-        if self._ui_state not in {
-            ShutdownUiState.RUNNING_HIDDEN,
-            ShutdownUiState.RUNNING_VISIBLE,
-        }:
+        if self._ui_state is not ShutdownUiState.RUNNING_VISIBLE:
             return
         if self._cleanup_handle is None or self._cleanup_handle.is_finished:
             return
@@ -524,9 +510,8 @@ class ShutdownCoordinator(QObject):
             shutdown_ui_state=self._ui_state.value,
         )
         self._close_recovery_dialog()
-        self._transition_to(ShutdownUiState.RUNNING_HIDDEN)
+        self._show_progress()
         self._run_before_cleanup_hook(self._active_parent_window)
-        self._slow_path_timer.start()
         self._start_cleanup_task()
 
     def force_close(self) -> None:
@@ -578,7 +563,7 @@ class ShutdownCoordinator(QObject):
         self._active_parent_window = None
 
     def _close_progress_dialog(self) -> None:
-        """Close and forget the delayed progress dialog when it exists."""
+        """Close and forget the progress dialog when it exists."""
 
         dialog = self._progress_dialog
         if dialog is None:

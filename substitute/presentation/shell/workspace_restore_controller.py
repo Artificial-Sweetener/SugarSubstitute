@@ -323,6 +323,7 @@ class WorkspaceRestoreController:
             hydration = WorkspaceRuntimeHydrationService(
                 cube_load_service=self._shell.cube_load_service,
                 node_behavior_service=self._shell.node_behavior_service,
+                cube_workflow_analyzer=getattr(self._shell, "cube_graph_gateway", None),
                 preserve_cube_keys=preserve_cube_keys,
             ).hydrate(snapshot)
         for warning in hydration.warnings:
@@ -544,6 +545,7 @@ def _catalog_entry_from_record(record: CubeCatalogRecord) -> CubeCatalogEntry:
         source=record.source or CubeSourceMetadata(kind="", path=""),
         content_hash=record.content_hash,
         updated_at=record.updated_at,
+        target_model=record.target_model,
         supported_models=record.supported_models,
         icon=record.icon,
     )

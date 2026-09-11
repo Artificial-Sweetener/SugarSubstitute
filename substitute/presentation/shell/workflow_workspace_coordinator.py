@@ -51,6 +51,10 @@ from substitute.domain.workspace_snapshot import (
     InputMaskReference,
     OutputImageReference,
     WorkflowSnapshot,
+    WorkspaceSnapshot,
+)
+from substitute.domain.workspace_snapshot.models import (
+    WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
 )
 from substitute.presentation.resources import cube_icon_resolver
 from substitute.presentation.shell.cube_stack_presenter import (
@@ -415,6 +419,18 @@ class GenerationProgressProjectionProtocol(Protocol):
         """Project selected workflow progress onto shell progress surfaces."""
 
 
+class WorkspaceRestoreControllerProtocol(Protocol):
+    """Describe canonical runtime hydration required when reopening a workflow."""
+
+    def hydrate_restored_workspace_snapshot(
+        self,
+        snapshot: WorkspaceSnapshot,
+        *,
+        operation: str,
+    ) -> WorkspaceSnapshot:
+        """Rebuild graph-derived runtime state in one restored workspace."""
+
+
 class CanvasRouteControllerProtocol(Protocol):
     """Describe attached canvas route availability projection."""
 
@@ -436,6 +452,7 @@ class WorkflowWorkspaceView(Protocol):
     output_canvas_projection_coordinator: OutputCanvasProjectionCoordinatorProtocol
     input_canvas_state_service: InputCanvasStateServiceProtocol
     session_snapshot_capture_adapter: WorkflowSnapshotCaptureProtocol
+    workspace_restore_controller: WorkspaceRestoreControllerProtocol
     cube_stacks: dict[str, WorkflowCubeStackProtocol]
     editor_panels: dict[str, LifecycleWidgetProtocol]
     override_managers: dict[str, OverrideManagerProtocol | None]
@@ -1095,6 +1112,23 @@ class WorkflowWorkspaceCoordinator:
             )
             self._sync_reopen_closed_workflow_action()
             return False
+        hydrated_workspace = (
+            view.workspace_restore_controller.hydrate_restored_workspace_snapshot(
+                WorkspaceSnapshot(
+                    schema_version=WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
+                    workflows=(snapshot,),
+                    tab_order=(snapshot.workflow_id,),
+                    active_route=snapshot.workflow_id,
+                    active_workflow_id=snapshot.workflow_id,
+                ),
+                operation="reopen_closed_workflow",
+            )
+        )
+        if len(hydrated_workspace.workflows) != 1:
+            raise RuntimeError(
+                "Closed workflow hydration returned an invalid workspace."
+            )
+        snapshot = hydrated_workspace.workflows[0]
         workflow_id = self._unique_reopened_workflow_id(snapshot.workflow_id)
         if workflow_id != snapshot.workflow_id:
             log_info(

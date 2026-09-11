@@ -82,6 +82,9 @@ def _build_view(
         closed_workflow_snapshot_service=(
             closed_workflow_snapshot_service or ClosedWorkflowSnapshotService()
         ),
+        workspace_restore_controller=SimpleNamespace(
+            hydrate_restored_workspace_snapshot=(lambda snapshot, **_kwargs: snapshot)
+        ),
         workflow_tab_service=WorkflowTabService(),
         workflow_session_service=session,
         workflow_tabbar=tabbar,

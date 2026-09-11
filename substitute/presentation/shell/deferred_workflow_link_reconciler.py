@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Resolve cube-duplication link providers only when duplication runs."""
+"""Resolve workflow-link endpoint providers only when reconciliation runs."""
 
 from __future__ import annotations
 
@@ -47,13 +47,13 @@ class CubeLinkEndpointProviderProtocol(Protocol):
         """Build whole-node endpoints for a workflow stack."""
 
 
-class DeferredCubeDuplicationLinkReconciler:
-    """Build link reconciliation from the live shell provider on first use."""
+class DeferredWorkflowLinkReconciler:
+    """Build workflow-link reconciliation from its live provider on first use."""
 
-    def __init__(self, view: object) -> None:
-        """Store the shell view that owns the node-behavior provider."""
+    def __init__(self, provider_owner: object) -> None:
+        """Store the owner exposing the authoritative endpoint provider."""
 
-        self._view = view
+        self._provider_owner = provider_owner
 
     def reconcile_transition(
         self,
@@ -63,7 +63,7 @@ class DeferredCubeDuplicationLinkReconciler:
         current_cube_states: dict[str, CubeState],
         current_stack_order: list[str],
     ) -> None:
-        """Resolve providers and reconcile one duplication transition."""
+        """Resolve providers and reconcile one workflow transition."""
 
         self._service().reconcile_transition(
             previous_cube_states=previous_cube_states,
@@ -78,7 +78,7 @@ class DeferredCubeDuplicationLinkReconciler:
         cube_states: dict[str, CubeState],
         stack_order: list[str],
     ) -> None:
-        """Resolve providers and normalize current duplicate link state."""
+        """Resolve providers and normalize current workflow link state."""
 
         self._service().sanitize_current_state(
             cube_states=cube_states,
@@ -86,12 +86,12 @@ class DeferredCubeDuplicationLinkReconciler:
         )
 
     def _service(self) -> WorkflowLinkReconciliationService:
-        """Return a reconciler backed by the shell's authoritative provider."""
+        """Return a reconciler backed by the authoritative live provider."""
 
-        provider = getattr(self._view, "node_behavior_service", None)
+        provider = getattr(self._provider_owner, "node_behavior_service", None)
         if provider is None:
             raise RuntimeError(
-                "node_behavior_service is required to duplicate a cube safely"
+                "node_behavior_service is required to reconcile workflow links"
             )
         endpoint_provider = cast(CubeLinkEndpointProviderProtocol, provider)
         return WorkflowLinkReconciliationService(
@@ -100,4 +100,4 @@ class DeferredCubeDuplicationLinkReconciler:
         )
 
 
-__all__ = ["DeferredCubeDuplicationLinkReconciler"]
+__all__ = ["DeferredWorkflowLinkReconciler"]

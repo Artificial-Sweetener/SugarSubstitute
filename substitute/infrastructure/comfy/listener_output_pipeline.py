@@ -55,6 +55,11 @@ from substitute.infrastructure.comfy.final_image_event import FinalImageScene
 from substitute.infrastructure.comfy.final_image_event_handler import (
     FinalImageEventHandler,
 )
+from substitute.infrastructure.comfy.prompt_history_output_recovery import (
+    ComfyPromptHistoryReader,
+    PromptHistoryOutputRecovery,
+    PromptHistoryRecoveryContext,
+)
 from substitute.infrastructure.comfy.standard_executed_image_handler import (
     StandardExecutedImageContext,
     StandardExecutedImageHandler,
@@ -72,6 +77,7 @@ class ListenerOutputPipeline:
     output_source_resolver: ListenerOutputSourceResolver
     cube_output_handler: CubeOutputEventHandler
     standard_output_handler: StandardExecutedImageHandler
+    history_output_recovery: PromptHistoryOutputRecovery
 
 
 def build_listener_output_pipeline(
@@ -86,8 +92,9 @@ def build_listener_output_pipeline(
 ) -> ListenerOutputPipeline:
     """Build listener final-output source, fetch, persistence, and callback owners."""
 
-    cube_output_node_ids = collect_cube_output_node_ids(request.workflow_payload)
-    if not cube_output_node_ids:
+    execution_payload = request.execution_payload
+    cube_output_node_ids = collect_cube_output_node_ids(execution_payload)
+    if not cube_output_node_ids and not request.standard_output_sources:
         log_warning(
             _LOGGER,
             "No SugarCubes.CubeOutput nodes found in queued workflow payload",
@@ -98,9 +105,16 @@ def build_listener_output_pipeline(
     output_source_resolver = ListenerOutputSourceResolver(
         workflow_id=request.workflow_id,
         prompt_id=request.prompt_id,
-        workflow_payload=request.workflow_payload,
+        workflow_payload=execution_payload,
         cube_output_node_ids=cube_output_node_ids,
         on_diagnostic=on_output_source_diagnostic,
+        explicit_sources={
+            source.node_id: source
+            for source in (
+                *request.standard_output_sources,
+                *request.execution_node_sources,
+            )
+        },
     )
     artifact_fetcher = ComfyArtifactFetcher(endpoint=endpoint)
     output_save_plan = _output_save_plan(
@@ -112,7 +126,7 @@ def build_listener_output_pipeline(
     output_persistence = OutputImagePersistence(
         output_save_plan=output_save_plan,
         workflow_payload=request.workflow_payload,
-        sugar_script=request.sugar_script,
+        persistence_sugar_script=request.persistence_sugar_script,
         cube_numbers_by_alias=cube_numbers_by_alias,
     )
     final_image_handler = FinalImageEventHandler(
@@ -135,26 +149,47 @@ def build_listener_output_pipeline(
             node_id=node_id,
         ),
         on_diagnostic=on_cube_output_diagnostic,
+        source_identity_resolver=output_source_resolver.resolve,
+    )
+    scene = FinalImageScene(
+        run_id=request.scene_run_id,
+        key=request.scene_key,
+        title=request.scene_title,
+        order=request.scene_order,
+        count=request.scene_count,
+    )
+    standard_output_context = StandardExecutedImageContext(
+        workflow_id=request.workflow_id,
+        generation_run_id=request.generation_run_id,
+        prompt_id=request.prompt_id,
+        client_id=request.client_id,
+        workflow_payload=request.workflow_payload,
+        output_session_id=request.output_session_id,
+        scene=scene,
     )
     standard_output_handler = StandardExecutedImageHandler(
-        context=StandardExecutedImageContext(
+        context=standard_output_context,
+        sources_by_node={
+            source.node_id: source for source in request.standard_output_sources
+        },
+        final_image_handler=final_image_handler,
+    )
+    history_output_recovery = PromptHistoryOutputRecovery(
+        history_reader=ComfyPromptHistoryReader(endpoint=endpoint),
+        context=PromptHistoryRecoveryContext(
             workflow_id=request.workflow_id,
             generation_run_id=request.generation_run_id,
             prompt_id=request.prompt_id,
             client_id=request.client_id,
             workflow_payload=request.workflow_payload,
             output_session_id=request.output_session_id,
-            scene=FinalImageScene(
-                run_id=request.scene_run_id,
-                key=request.scene_key,
-                title=request.scene_title,
-                order=request.scene_order,
-                count=request.scene_count,
-            ),
+            scene=scene,
         ),
-        sources_by_node={
-            source.node_id: source for source in request.standard_output_sources
-        },
+        output_node_ids=frozenset(
+            cube_output_node_ids
+            | {source.node_id for source in request.standard_output_sources}
+        ),
+        source_resolver=output_source_resolver.resolve,
         final_image_handler=final_image_handler,
     )
     return ListenerOutputPipeline(
@@ -162,6 +197,7 @@ def build_listener_output_pipeline(
         output_source_resolver=output_source_resolver,
         cube_output_handler=cube_output_handler,
         standard_output_handler=standard_output_handler,
+        history_output_recovery=history_output_recovery,
     )
 
 

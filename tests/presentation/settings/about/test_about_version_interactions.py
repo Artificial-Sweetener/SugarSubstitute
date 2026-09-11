@@ -47,7 +47,6 @@ def test_about_version_cards_expose_external_project_links(
             "https://github.com/Artificial-Sweetener/Substitute-Backend"
         ),
         "SugarCubes": "https://github.com/Artificial-Sweetener/SugarCubes",
-        "SugarDSL": "https://github.com/Artificial-Sweetener/Sugar-DSL",
         "QPane": "https://github.com/Artificial-Sweetener/QPane",
         "PySide6FluentWidgets": "https://github.com/zhiyiYo/PyQt-Fluent-Widgets",
     }

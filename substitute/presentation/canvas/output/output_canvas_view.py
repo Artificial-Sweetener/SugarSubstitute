@@ -428,8 +428,13 @@ class OutputCanvas(QWidget):
             workflow_id=session.workflow_id.value,
             groups=session.detail_inspection_groups,
         )
-        self._present_projection(projection)
+        compare_state = reconcile_output_compare_state(
+            projection,
+            projection.compare_state,
+        )
+        self._visible_compare_state = compare_state
         self._document_navigation.synchronize_projection()
+        self._present_projection(projection, compare_state=compare_state)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         """Update host-owned navigation overlay geometry after a workspace resize."""
@@ -444,14 +449,14 @@ class OutputCanvas(QWidget):
             retranslate_output_canvas(self)
         super().changeEvent(event)
 
-    def _present_projection(self, projection: OutputCanvasProjection) -> None:
+    def _present_projection(
+        self,
+        projection: OutputCanvasProjection,
+        *,
+        compare_state: OutputCompareState,
+    ) -> None:
         """Choose exactly one document presentation for the current projection."""
 
-        compare_state = reconcile_output_compare_state(
-            projection,
-            projection.compare_state,
-        )
-        self._visible_compare_state = compare_state
         if compare_state.enabled and compare_state.base and compare_state.comparison:
             base = resolve_output_compare_selection(projection, compare_state.base)
             comparison = resolve_output_compare_selection(

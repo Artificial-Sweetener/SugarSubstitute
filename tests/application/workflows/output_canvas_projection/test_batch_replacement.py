@@ -48,6 +48,37 @@ def test_projection_fallback_placement_uses_unoccupied_restore_slots() -> None:
     assert source.images_by_set[2].image_id == fallback_id
 
 
+def test_loaded_collision_ordinals_form_two_sources_by_two_sets() -> None:
+    """Project four restored PNG siblings without inventing output sources."""
+
+    ids = tuple(uuid4() for _index in range(4))
+    workflow = WorkflowState(output_image_uuids=list(ids))
+    metadata = {
+        ids[0]: build_meta("Text to Image", source_key="text_to_image"),
+        ids[1]: build_meta("Text to Image", source_key="text_to_image"),
+        ids[2]: build_meta("Diffusion Upscale", source_key="diffusion_upscale"),
+        ids[3]: build_meta("Diffusion Upscale", source_key="diffusion_upscale"),
+    }
+
+    projection = build_output_canvas_projection(workflow, metadata)
+
+    assert tuple(source.source_key for source in projection.sources) == (
+        "text_to_image",
+        "diffusion_upscale",
+    )
+    assert tuple(projection.sources[0].images_by_set) == (1, 2)
+    assert tuple(projection.sources[1].images_by_set) == (1, 2)
+    assert (
+        tuple(item.image_id for item in projection.sources[0].images_by_set.values())
+        == ids[:2]
+    )
+    assert (
+        tuple(item.image_id for item in projection.sources[1].images_by_set.values())
+        == ids[2:]
+    )
+    assert projection.set_count == 2
+
+
 def test_explicit_batch_coordinates_keep_every_image_without_overwrite() -> None:
     """Images sharing a Comfy list slot must remain separate batch results."""
 

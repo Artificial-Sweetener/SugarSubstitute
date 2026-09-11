@@ -136,6 +136,32 @@ def test_create_cube_state_persists_version_without_definition_ref() -> None:
     assert state.ui == {"catalog_revision": "rev"}
 
 
+def test_loaded_recipe_runtime_restores_cube_level_persistence_state() -> None:
+    """Recipe buffer metadata should restore bypass and output-save behavior."""
+
+    service = CubeLoadService(_Repository())
+    definition = service.load_cube_definition_version(
+        "Owner/Repo/demo.cube",
+        "1.0",
+    )
+
+    runtime = service.build_loaded_cube_runtime(
+        "Owner/Repo/demo.cube",
+        "Demo",
+        buffer_patch={
+            "cube_id": "Owner/Repo/demo.cube",
+            "version": "1.0",
+            "bypassed": True,
+            "save_outputs": False,
+        },
+        runtime_state=None,
+        loaded_cube_definition=definition,
+    )
+
+    assert runtime.cube_state.bypassed is True
+    assert runtime.cube_state.output_persistence_enabled is False
+
+
 def test_list_cube_versions_delegates_to_repository() -> None:
     """The service should expose version listing for the update modal."""
 

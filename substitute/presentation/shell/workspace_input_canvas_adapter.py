@@ -19,9 +19,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from time import perf_counter
 from typing import Protocol, cast
 
+from substitute.application.workflows.editor_projection_service import (
+    DIRECT_WORKFLOW_SECTION_KEY,
+)
 from substitute.presentation.shell.workspace_ports import (
     InputCanvasPresenterProtocol,
     InputNodeInteractionControllerProtocol,
@@ -64,6 +68,7 @@ class InputCanvasAuthorityReconciliationProtocol(Protocol):
 
 ScheduleRehydrationStep = Callable[[Callable[[], None]], None]
 MaterializeLoadedCubeInputCanvas = Callable[[str, str], None]
+RehydrateDuplicatedInputCanvas = Callable[[str, str], None]
 
 
 def input_canvas_presenter_for_view(
@@ -229,6 +234,7 @@ def rehydrate_duplicated_workflow_input_canvas(
     workflow_id: str,
     materialize_loaded_cube_input_canvas: MaterializeLoadedCubeInputCanvas,
     schedule_next: ScheduleRehydrationStep,
+    on_complete: Callable[[], None] | None = None,
 ) -> None:
     """Rebuild live Input canvas state for a duplicated workflow."""
 
@@ -241,71 +247,130 @@ def rehydrate_duplicated_workflow_input_canvas(
             duplicated_workflow_id=workflow_id,
         )
         return
-    stack_order = list(getattr(workflow, "stack_order", ()) or [])
+    section_order = list(getattr(workflow, "stack_order", ()) or [])
+    if not section_order and getattr(workflow, "direct_workflow", None) is not None:
+        section_order.append(DIRECT_WORKFLOW_SECTION_KEY)
     log_info(
         _LOGGER,
         "Workflow duplicate input canvas rehydration started",
         duplicated_workflow_id=workflow_id,
-        stack_order_count=len(stack_order),
+        stack_order_count=len(section_order),
     )
-    _rehydrate_duplicated_workflow_input_canvas_cube(
+    _rehydrate_duplicated_workflow_input_canvas_section(
         workflow_id=workflow_id,
-        stack_order=stack_order,
+        section_order=section_order,
         next_index=0,
         rehydrate_started_at=rehydrate_started_at,
         materialize_loaded_cube_input_canvas=materialize_loaded_cube_input_canvas,
         schedule_next=schedule_next,
+        on_complete=on_complete,
     )
 
 
-def _rehydrate_duplicated_workflow_input_canvas_cube(
+def _rehydrate_duplicated_workflow_input_canvas_section(
     *,
     workflow_id: str,
-    stack_order: Sequence[object],
+    section_order: Sequence[object],
     next_index: int,
     rehydrate_started_at: float,
     materialize_loaded_cube_input_canvas: MaterializeLoadedCubeInputCanvas,
     schedule_next: ScheduleRehydrationStep,
+    on_complete: Callable[[], None] | None,
 ) -> None:
-    """Materialize one duplicated Input canvas cube and schedule the next."""
+    """Materialize one duplicated graph section and schedule the next."""
 
-    if next_index >= len(stack_order):
+    if next_index >= len(section_order):
         _log_rehydration_phase_timing(
             "Workflow duplicate input canvas rehydration completed",
             started_at=rehydrate_started_at,
             duplicated_workflow_id=workflow_id,
-            stack_order_count=len(stack_order),
+            stack_order_count=len(section_order),
         )
+        if on_complete is not None:
+            on_complete()
         return
 
-    cube_alias = str(stack_order[next_index])
+    section_key = str(section_order[next_index])
     cube_started_at = perf_counter()
     log_info(
         _LOGGER,
         "Workflow duplicate input canvas cube rehydration started",
         duplicated_workflow_id=workflow_id,
-        cube_alias=cube_alias,
+        cube_alias=section_key,
         cube_index=next_index,
-        stack_order_count=len(stack_order),
+        stack_order_count=len(section_order),
     )
-    materialize_loaded_cube_input_canvas(workflow_id, cube_alias)
+    materialize_loaded_cube_input_canvas(workflow_id, section_key)
     _log_rehydration_phase_timing(
         "Workflow duplicate input canvas cube rehydration completed",
         started_at=cube_started_at,
         duplicated_workflow_id=workflow_id,
-        cube_alias=cube_alias,
+        cube_alias=section_key,
         cube_index=next_index,
-        stack_order_count=len(stack_order),
+        stack_order_count=len(section_order),
     )
     schedule_next(
-        lambda: _rehydrate_duplicated_workflow_input_canvas_cube(
+        lambda: _rehydrate_duplicated_workflow_input_canvas_section(
             workflow_id=workflow_id,
-            stack_order=stack_order,
+            section_order=section_order,
             next_index=next_index + 1,
             rehydrate_started_at=rehydrate_started_at,
             materialize_loaded_cube_input_canvas=materialize_loaded_cube_input_canvas,
             schedule_next=schedule_next,
+            on_complete=on_complete,
         )
+    )
+
+
+def duplicate_workflow_input_canvas_for_view(
+    canvas_view: object,
+    source_workflow_id: str,
+    target_workflow_id: str,
+    *,
+    schedule_next: ScheduleRehydrationStep,
+) -> None:
+    """Snapshot current masks and rehydrate independent duplicate identities."""
+
+    session = getattr(canvas_view, "workflow_session_service")
+    source = session.get_workflow(source_workflow_id)
+    target = session.get_workflow(target_workflow_id)
+    if source is None or target is None:
+        raise RuntimeError("Workflow duplication lost its source or target state.")
+    tabbar = getattr(canvas_view, "workflow_tabbar")
+    target_item = tabbar.itemMap.get(target_workflow_id)
+    if target_item is None:
+        raise RuntimeError("Workflow duplication target tab is unavailable.")
+    from substitute.presentation.workflows.workflow_tabs_view import (
+        workflow_tab_source_text,
+    )
+
+    target_name = workflow_tab_source_text(target_item)
+    service = getattr(canvas_view, "workflow_input_canvas_duplication_service")
+    plan = service.prepare(
+        source=source,
+        target=target,
+        target_workflow_name=target_name,
+        projects_dir=Path(getattr(canvas_view, "path_bundle").projects_dir),
+    )
+
+    def apply_duplicated_presentation() -> None:
+        """Apply copied region presentation and refresh its mounted projection."""
+
+        service.apply_presentation(target, plan)
+        input_canvas_presenter_for_view(canvas_view).refresh_active_mask_pickers()
+
+    rehydrate_duplicated_workflow_input_canvas(
+        workflow_session_service=session,
+        workflow_id=target_workflow_id,
+        materialize_loaded_cube_input_canvas=lambda workflow_id, cube_alias: (
+            materialize_loaded_cube_input_canvas_for_view(
+                canvas_view,
+                workflow_id,
+                cube_alias,
+            )
+        ),
+        schedule_next=schedule_next,
+        on_complete=apply_duplicated_presentation,
     )
 
 
@@ -331,6 +396,7 @@ def _log_rehydration_phase_timing(
 
 __all__ = [
     "MaterializeLoadedCubeInputCanvas",
+    "RehydrateDuplicatedInputCanvas",
     "ScheduleRehydrationStep",
     "WorkflowLookupProtocol",
     "handle_input_canvas_image_loaded_for_view",
@@ -340,6 +406,7 @@ __all__ = [
     "handle_input_mask_clicked_for_view",
     "input_canvas_presenter_for_view",
     "input_node_interaction_controller_for_view",
+    "duplicate_workflow_input_canvas_for_view",
     "materialize_loaded_cube_input_canvas_for_view",
     "reconcile_active_input_canvas_image_for_view",
     "refresh_active_mask_pickers_for_view",

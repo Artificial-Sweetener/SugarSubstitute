@@ -207,6 +207,33 @@ def test_rehydrate_duplicated_workflow_input_canvas_materializes_stack_order(
     assert "Workflow duplicate input canvas rehydration completed" in caplog.text
 
 
+def test_rehydrate_duplicated_direct_workflow_materializes_direct_graph() -> None:
+    """Duplicated direct workflows should restore their editable Input surface."""
+
+    workflow = SimpleNamespace(stack_order=[], direct_workflow=object())
+    materialized: list[tuple[str, str]] = []
+    scheduled_callbacks: list[object] = []
+
+    rehydrate_duplicated_workflow_input_canvas(
+        workflow_session_service=SimpleNamespace(
+            get_workflow=lambda workflow_id: (
+                workflow if workflow_id == "wf-direct-copy" else None
+            )
+        ),
+        workflow_id="wf-direct-copy",
+        materialize_loaded_cube_input_canvas=lambda workflow_id, section_key: (
+            materialized.append((workflow_id, section_key))
+        ),
+        schedule_next=scheduled_callbacks.append,
+    )
+    while scheduled_callbacks:
+        callback = scheduled_callbacks.pop(0)
+        assert callable(callback)
+        callback()
+
+    assert materialized == [("wf-direct-copy", "__direct_comfy_workflow__")]
+
+
 def test_rehydrate_duplicated_workflow_input_canvas_missing_workflow_logs_skip(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

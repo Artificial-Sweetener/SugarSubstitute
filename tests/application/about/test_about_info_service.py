@@ -31,7 +31,6 @@ from substitute.domain.comfy_runtime import ComfyRuntimeInfo
 from substitute.domain.model_metadata import (
     BackendCapabilities,
     BackendCubeLibraryCapabilities,
-    BackendSugarCompileCapabilities,
 )
 
 
@@ -61,7 +60,6 @@ def test_about_info_service_combines_available_versions() -> None:
         ("ComfyUI", "0.3.2", AboutVersionStatus.AVAILABLE),
         ("SugarCubes", "0.9.0", AboutVersionStatus.AVAILABLE),
         ("Substitute Backend", "1.4.0", AboutVersionStatus.AVAILABLE),
-        ("Sugar-DSL", "0.2.0", AboutVersionStatus.AVAILABLE),
         ("QPane", "2.0.1", AboutVersionStatus.AVAILABLE),
         ("PySide6-Fluent-Widgets", "1.11.2", AboutVersionStatus.AVAILABLE),
         ("PySide6", "6.9.0", AboutVersionStatus.AVAILABLE),
@@ -96,7 +94,7 @@ def test_about_info_service_marks_disconnected_versions() -> None:
         for row in _service(capabilities=None, runtime_info=None).snapshot().versions
     }
 
-    for label in ("Substitute Backend", "SugarCubes", "Sugar-DSL", "ComfyUI"):
+    for label in ("Substitute Backend", "SugarCubes", "ComfyUI"):
         assert rows[label].value == "Not connected"
         assert rows[label].status is AboutVersionStatus.NOT_CONNECTED
 
@@ -110,11 +108,6 @@ def test_about_info_service_preserves_unavailable_dependency_reasons() -> None:
                 available=False,
                 unavailable_reason="SugarCubes is missing.",
             ),
-            sugar_compile=BackendSugarCompileCapabilities(
-                schema_version=1,
-                available=False,
-                unavailable_reason="Sugar-DSL is not installed.",
-            ),
         ),
         runtime_info=ComfyRuntimeInfo(),
     )
@@ -124,23 +117,7 @@ def test_about_info_service_preserves_unavailable_dependency_reasons() -> None:
     assert rows["SugarCubes"].value == "Unavailable"
     assert rows["SugarCubes"].status is AboutVersionStatus.UNAVAILABLE
     assert rows["SugarCubes"].detail == "SugarCubes is missing."
-    assert rows["Sugar-DSL"].value == "Unavailable"
-    assert rows["Sugar-DSL"].status is AboutVersionStatus.UNAVAILABLE
-    assert rows["Sugar-DSL"].detail == "Sugar-DSL is not installed."
     assert rows["ComfyUI"].status is AboutVersionStatus.UNKNOWN
-
-
-def test_about_info_service_treats_legacy_sugar_dsl_facts_as_unknown() -> None:
-    """Treat an old Backend with no Sugar compile facts as unknown, not absent."""
-
-    service = _service(
-        capabilities=_capabilities(sugar_compile=BackendSugarCompileCapabilities())
-    )
-
-    row = _rows(service)["Sugar-DSL"]
-
-    assert row.value == "Unknown"
-    assert row.status is AboutVersionStatus.UNKNOWN
 
 
 def test_about_info_service_marks_connected_sources_without_versions_unknown() -> None:
@@ -154,12 +131,6 @@ def test_about_info_service_marks_connected_sources_without_versions_unknown() -
                 available=True,
                 sugar_cubes_version="",
             ),
-            sugar_compile=BackendSugarCompileCapabilities(
-                schema_version=1,
-                available=True,
-                compile_route="/substitute/v1/sugar/compile",
-                sugar_dsl_version="",
-            ),
         ),
         runtime_info=ComfyRuntimeInfo(),
         local_versions=lambda _names, *, fallback: fallback,
@@ -171,7 +142,6 @@ def test_about_info_service_marks_connected_sources_without_versions_unknown() -
         "ComfyUI",
         "SugarCubes",
         "Substitute Backend",
-        "Sugar-DSL",
         "QPane",
         "PySide6-Fluent-Widgets",
         "PySide6",
@@ -274,7 +244,6 @@ def test_about_info_placeholder_avoids_runtime_providers() -> None:
         AboutVersionStatus.UNKNOWN,
         AboutVersionStatus.UNKNOWN,
         AboutVersionStatus.UNKNOWN,
-        AboutVersionStatus.UNKNOWN,
     ]
 
 
@@ -305,7 +274,6 @@ def _capabilities(
     *,
     extension_version: str = "1.4.0",
     cube_library: BackendCubeLibraryCapabilities | None = None,
-    sugar_compile: BackendSugarCompileCapabilities | None = None,
 ) -> BackendCapabilities:
     """Return compatible Backend capabilities with focused override hooks."""
 
@@ -323,13 +291,6 @@ def _capabilities(
             schema_version=1,
             available=True,
             sugar_cubes_version="0.9.0",
-        ),
-        sugar_compile=sugar_compile
-        or BackendSugarCompileCapabilities(
-            schema_version=1,
-            available=True,
-            compile_route="/substitute/v1/sugar/compile",
-            sugar_dsl_version="0.2.0",
         ),
     )
 

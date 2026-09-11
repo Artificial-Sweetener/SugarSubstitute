@@ -99,6 +99,38 @@ def test_client_loads_cube_by_version() -> None:
     ]
 
 
+def test_client_preserves_catalog_target_model_identity() -> None:
+    """Catalog parsing must retain the explicit model used by cube presentation."""
+
+    client = SubstituteBackendCubeLibraryClient(
+        ComfyEndpoint(host="127.0.0.1", port=8188),
+        http_get=lambda _url, **_kwargs: _Response(
+            {
+                "schemaVersion": 1,
+                "catalogRevision": "sha256:catalog",
+                "generatedAt": "",
+                "cubes": [
+                    {
+                        "cubeId": "Artificial-Sweetener/Base-Cubes/Anima/Demo.cube",
+                        "version": "1.0.0",
+                        "displayName": "Anima/Demo",
+                        "description": "",
+                        "contentHash": "sha256:demo",
+                        "targetModel": "Anima",
+                        "supportedModels": ["Anima"],
+                        "source": {"kind": "local", "path": "demo.cube"},
+                    }
+                ],
+            }
+        ),
+    )
+
+    catalog = client.get_catalog()
+
+    assert catalog is not None
+    assert catalog.cubes[0].target_model == "Anima"
+
+
 def test_client_parses_dependency_readiness_install_plan() -> None:
     """Preserve dependency install-plan details from the backend response."""
 

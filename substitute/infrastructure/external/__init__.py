@@ -46,19 +46,12 @@ if TYPE_CHECKING:
     from substitute.infrastructure.external.substitute_backend_preview_assets_client import (
         SubstituteBackendPreviewAssetsClient,
     )
-    from substitute.infrastructure.external.substitute_backend_sugar_compile_client import (
-        BackendSugarCompileError,
-        BackendSugarWorkflowPayloadCompiler,
-        SubstituteBackendSugarCompileClient,
+    from substitute.infrastructure.external.sugarcubes_sugarscript_compile_client import (
+        SugarCubesSugarScriptCompileError,
+        SugarCubesSugarScriptWorkflowCompiler,
     )
 
 _LAZY_EXPORTS = {
-    "BackendSugarCompileError": (
-        "substitute.infrastructure.external.substitute_backend_sugar_compile_client"
-    ),
-    "BackendSugarWorkflowPayloadCompiler": (
-        "substitute.infrastructure.external.substitute_backend_sugar_compile_client"
-    ),
     "CivitaiClient": "substitute.infrastructure.external.civitai_client",
     "ComfyObjectInfoClient": (
         "substitute.infrastructure.external.comfy_object_info_client"
@@ -83,8 +76,11 @@ _LAZY_EXPORTS = {
     "SubstituteBackendPreviewAssetsClient": (
         "substitute.infrastructure.external.substitute_backend_preview_assets_client"
     ),
-    "SubstituteBackendSugarCompileClient": (
-        "substitute.infrastructure.external.substitute_backend_sugar_compile_client"
+    "SugarCubesSugarScriptCompileError": (
+        "substitute.infrastructure.external.sugarcubes_sugarscript_compile_client"
+    ),
+    "SugarCubesSugarScriptWorkflowCompiler": (
+        "substitute.infrastructure.external.sugarcubes_sugarscript_compile_client"
     ),
 }
 
@@ -102,8 +98,6 @@ def __getattr__(name: str) -> object:
 
 
 __all__ = [
-    "BackendSugarCompileError",
-    "BackendSugarWorkflowPayloadCompiler",
     "CivitaiClient",
     "ComfyObjectInfoClient",
     "DanbooruClient",
@@ -114,5 +108,6 @@ __all__ = [
     "SubstituteBackendEnvironmentClient",
     "SubstituteBackendModelMetadataClient",
     "SubstituteBackendPreviewAssetsClient",
-    "SubstituteBackendSugarCompileClient",
+    "SugarCubesSugarScriptCompileError",
+    "SugarCubesSugarScriptWorkflowCompiler",
 ]

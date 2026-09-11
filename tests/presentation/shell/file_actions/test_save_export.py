@@ -38,7 +38,7 @@ def test_on_save_clicked_uses_recipe_service_default_path_policy(
     """Save should delegate canonical path selection to the recipe I/O service."""
 
     mod = _import_module()
-    save_calls: list[tuple[str, object, Path]] = []
+    save_calls: list[tuple[str, object, Path, object]] = []
     built_paths: list[tuple[str, Path]] = []
     sugar_scripts_dir = tmp_path / "sugarscripts"
     view = SimpleNamespace(
@@ -52,10 +52,15 @@ def test_on_save_clicked_uses_recipe_service_default_path_policy(
                 (workflow_name, sugar_root),
                 (sugar_root / workflow_name / f"{workflow_name}.sugar").resolve(),
             ),
-            save_workflow_recipe_to_default_path=lambda workflow_name, workflow, sugar_scripts_dir: (
+            save_workflow_recipe_to_default_path=lambda workflow_name, workflow, sugar_scripts_dir, *, global_override_scopes=None: (
                 _append_then(
                     save_calls,
-                    (workflow_name, workflow, sugar_scripts_dir),
+                    (
+                        workflow_name,
+                        workflow,
+                        sugar_scripts_dir,
+                        global_override_scopes,
+                    ),
                     (
                         sugar_scripts_dir / workflow_name / f"{workflow_name}.sugar"
                     ).resolve(),
@@ -79,7 +84,7 @@ def test_on_save_clicked_uses_recipe_service_default_path_policy(
     actions.on_save_clicked(sugar_scripts_dir=sugar_scripts_dir)
 
     assert built_paths == [("Recipe", sugar_scripts_dir)]
-    assert save_calls == [("Recipe", {"nodes": {}}, sugar_scripts_dir)]
+    assert save_calls == [("Recipe", {"nodes": {}}, sugar_scripts_dir, None)]
 
 
 def test_on_save_as_clicked_validates_destination_via_recipe_service(
@@ -89,7 +94,7 @@ def test_on_save_as_clicked_validates_destination_via_recipe_service(
 
     mod = _import_module()
     validated_paths: list[Path] = []
-    saved_paths: list[tuple[Path, str, object]] = []
+    saved_paths: list[tuple[Path, str, object, object]] = []
     sugar_scripts_dir = tmp_path / "sugarscripts"
     destination = sugar_scripts_dir / "custom.sugar"
     file_dialog = SimpleNamespace(
@@ -109,8 +114,11 @@ def test_on_save_as_clicked_validates_destination_via_recipe_service(
                 path,
                 path,
             ),
-            save_workflow_recipe=lambda path, *, workflow_name, workflow: _append(
-                saved_paths, (path, workflow_name, workflow)
+            save_workflow_recipe=lambda path, *, workflow_name, workflow, global_override_scopes=None: (
+                _append(
+                    saved_paths,
+                    (path, workflow_name, workflow, global_override_scopes),
+                )
             ),
         ),
         get_active_workflow=lambda: {"nodes": {}},
@@ -132,7 +140,7 @@ def test_on_save_as_clicked_validates_destination_via_recipe_service(
     )
 
     assert validated_paths == [destination.resolve()]
-    assert saved_paths == [(destination.resolve(), "Recipe", {"nodes": {}})]
+    assert saved_paths == [(destination.resolve(), "Recipe", {"nodes": {}}, None)]
 
 
 def test_on_export_clicked_validates_destination_via_export_service(
@@ -153,7 +161,9 @@ def test_on_export_clicked_validates_destination_via_export_service(
             tabItem=lambda _index: _TabItem("wf-1", "Recipe"),
         ),
         recipe_io_service=SimpleNamespace(
-            serialize_workflow_to_sugar_script=lambda workflow: "# sugar"
+            serialize_workflow_to_sugar_script=lambda workflow, *, global_override_scopes=None: (
+                "# sugar"
+            )
         ),
         workflow_export_service=SimpleNamespace(
             build_default_export_path=lambda workflow_name, output_dir: (
@@ -193,6 +203,7 @@ def test_on_export_clicked_validates_destination_via_export_service(
             "sugar_script_text": "# sugar",
             "output_dir": tmp_path,
             "workflow": {"nodes": {}},
+            "global_override_scopes": None,
         }
     ]
 
@@ -214,7 +225,9 @@ def test_on_export_clicked_reports_failure_through_error_presenter(
         ),
         workflow_session_service=SimpleNamespace(active_workflow_id="wf-1"),
         recipe_io_service=SimpleNamespace(
-            serialize_workflow_to_sugar_script=lambda workflow: "# sugar"
+            serialize_workflow_to_sugar_script=lambda workflow, *, global_override_scopes=None: (
+                "# sugar"
+            )
         ),
         workflow_export_service=SimpleNamespace(
             build_default_export_path=lambda workflow_name, output_dir: (
