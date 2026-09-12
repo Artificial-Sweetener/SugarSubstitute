@@ -26,6 +26,7 @@ from substitute.infrastructure.comfy.manager_environment import (
     manager_runtime_environment,
 )
 from substitute.infrastructure.process.hidden_process_runner import (
+    SilenceCallback,
     run_command,
     stream_command_collecting_output,
 )
@@ -76,6 +77,8 @@ class ComfyManagerCommandRunner:
         node_spec: str,
         on_line: LogCallback | None,
         timeout_seconds: int,
+        on_silence: SilenceCallback | None = None,
+        silence_notification_interval_seconds: float = 30.0,
     ) -> tuple[int, tuple[str, ...]] | None:
         """Install one exact Registry nodepack through the available ComfyCLI."""
 
@@ -86,6 +89,10 @@ class ComfyManagerCommandRunner:
             command,
             cwd=self._runtime.workspace,
             on_line=on_line,
+            on_silence=on_silence,
+            silence_notification_interval_seconds=(
+                silence_notification_interval_seconds
+            ),
             timeout_seconds=timeout_seconds,
             env=self._environment,
         )
