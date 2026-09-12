@@ -281,3 +281,48 @@ def test_launcher_page_fits_fixed_window_with_live_output_visible(
             assert abs(top_gap - bottom_gap) <= 2
     finally:
         close_and_delete_launcher_window(window)
+
+
+def test_progress_details_receive_their_declared_console_height(
+    tmp_path: Path,
+) -> None:
+    """Opening progress details should allocate the console's readable height."""
+
+    application = launcher_test_application()
+    window = LauncherMainWindow(
+        initial_layout=InstallLayout.from_root(tmp_path / "SugarSubstitute"),
+        continue_install=False,
+        repair=False,
+        update_check_enabled=True,
+        initial_release_source=release_source_for_test(),
+        workflow_factory=workflow_factory(),
+    )
+    window.show()
+    window.view.show_status_output()
+    application.processEvents()
+
+    try:
+        compact_page_height = window.view.page_stack.height()
+        window.view.details_button.click()
+        application.processEvents()
+
+        console = window.view.progress_log.log_view
+        assert window.view.details_button.isChecked() is True
+        assert console.isVisible() is True
+        assert console.height() >= console.minimumHeight()
+        assert window.view.page_stack.height() > compact_page_height
+        assert window.view.page_stack.contentsRect().contains(
+            console.mapTo(window.view.page_stack, console.rect().bottomRight())
+        )
+
+        window.view.details_button.click()
+        application.processEvents()
+        assert console.isVisible() is False
+        assert window.view.page_stack.height() == compact_page_height
+
+        window.view.details_button.click()
+        application.processEvents()
+        assert console.isVisible() is True
+        assert console.height() >= console.minimumHeight()
+    finally:
+        close_and_delete_launcher_window(window)

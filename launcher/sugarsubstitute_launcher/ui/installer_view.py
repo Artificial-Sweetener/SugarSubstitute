@@ -290,13 +290,21 @@ class InstallerView(QWidget):
         if not isinstance(content_width, int):
             content_width = INSTALLER_CONTENT_MAX_WIDTH
         self.page_stack.setFixedWidth(content_width)
+        self._refresh_active_page_height()
+        self.page_stage.verticalScrollBar().setValue(0)
+
+    def _refresh_active_page_height(self) -> None:
+        """Allocate the current page's full height after dynamic content changes."""
+
+        page = self.page_stack.currentWidget()
+        if page is None:
+            return
         page_layout = page.layout()
         if page_layout is not None:
             page_layout.invalidate()
             page_layout.activate()
         page.updateGeometry()
         self.page_stack.setFixedHeight(page.sizeHint().height())
-        self.page_stage.verticalScrollBar().setValue(0)
 
     def _build_pages(self) -> None:
         """Build the bounded launcher pages owned by this process."""
@@ -488,6 +496,7 @@ class InstallerView(QWidget):
         self.details_button.setText(
             launcher_text("Hide details") if visible else launcher_text("Show details")
         )
+        self._refresh_active_page_height()
 
     def _retranslate_language_page(self) -> None:
         """Immediately preview the selected locale on the first page."""
