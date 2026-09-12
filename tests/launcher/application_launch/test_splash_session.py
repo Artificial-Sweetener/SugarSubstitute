@@ -27,6 +27,7 @@ import pytest
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.splash_session import (
+    LauncherSplashSession,
     append_splash_session_args,
     start_launcher_splash_session,
 )
@@ -78,6 +79,14 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
     ]
     assert calls[0]["cwd"] == subprocess_working_directory(layout.root)
     assert calls[0]["env"]["PYTHONPATH"] == subprocess_path(layout.app_dir)
+    assert (
+        int(
+            calls[0]["env"][
+                "SUGAR_SUBSTITUTE_SPLASH_HOST_PROCESS_REQUESTED_MONOTONIC_NS"
+            ]
+        )
+        > 0
+    )
 
 
 def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
@@ -116,10 +125,41 @@ def test_append_splash_session_args_preserves_command_without_session() -> None:
     ]
 
 
+def test_unacknowledged_splash_close_terminates_the_owned_process() -> None:
+    """An unresponsive splash can never survive its launcher-owned handoff."""
+
+    process = _FakeProcess(stdout="", wait_times_out_while_running=True)
+    session = LauncherSplashSession(
+        client=cast(Any, _UnresponsiveClient()),
+        app_arguments=(),
+        host_pid=1234,
+        process=cast(Any, process),
+    )
+
+    session.close()
+
+    assert process.terminated
+    assert process.wait_timeouts == [2.0, 2.0]
+
+
+class _UnresponsiveClient:
+    """Reject the splash closure request without raising."""
+
+    def close(self) -> bool:
+        """Report that the GUI never applied closure."""
+
+        return False
+
+
 class _FakeProcess:
     """Provide the subset of `Popen[str]` used by splash session startup tests."""
 
-    def __init__(self, *, stdout: str) -> None:
+    def __init__(
+        self,
+        *,
+        stdout: str,
+        wait_times_out_while_running: bool = False,
+    ) -> None:
         """Create fake text pipes."""
 
         self.stdout = StringIO(stdout)
@@ -127,6 +167,7 @@ class _FakeProcess:
         self.terminated = False
         self.killed = False
         self.wait_timeouts: list[float] = []
+        self.wait_times_out_while_running = wait_times_out_while_running
 
     def poll(self) -> int | None:
         """Report the fake process as running until it is terminated."""
@@ -148,4 +189,12 @@ class _FakeProcess:
 
         if timeout is not None:
             self.wait_timeouts.append(timeout)
+        if (
+            self.wait_times_out_while_running
+            and not self.terminated
+            and not self.killed
+        ):
+            import subprocess
+
+            raise subprocess.TimeoutExpired("splash", timeout or 0.0)
         return 0

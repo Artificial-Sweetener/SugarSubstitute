@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2915
+max_lines = 2902
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -61,7 +61,7 @@ kind = "remediation"
 justification = "The assessed file mixes nonessential warmup scheduling, backend editor and model metadata warmup, cube icon and CuteCanvas SAM warmup, restore-finalized lifecycle integration. Extract feature-specific warmup launchers behind one scheduling registry and lifecycle owner."
 issue = "chore:SS-ARCH-007"
 review_by = 2026-12-15
-max_lines = 656
+max_lines = 634
 next_limit = 524
 debt = "SS-ARCH-007"
 
@@ -165,7 +165,7 @@ kind = "remediation"
 justification = "The assessed file mixes runtime behavior-state preparation, behavior snapshot and endpoint-index construction, activation and visibility mutation, field definition and live metadata resolution, node tooltip and icon enrichment. Extract field metadata enrichment and override mutation from behavior snapshot construction."
 issue = "chore:SS-ARCH-015"
 review_by = 2026-12-15
-max_lines = 869
+max_lines = 855
 next_limit = 695
 debt = "SS-ARCH-015"
 
@@ -503,7 +503,7 @@ kind = "remediation"
 justification = "The assessed file mixes workflow override synchronization and application, override menu construction, toolbar snapshot and control reconciliation, override widget factory and sizing, seed-mode and model-picker behavior, autosave and restart-spacing integration. Extract override control creation and toolbar layout from workflow synchronization and override commands."
 issue = "chore:SS-ARCH-046"
 review_by = 2026-12-15
-max_lines = 1144
+max_lines = 1116
 next_limit = 912
 debt = "SS-ARCH-046"
 
@@ -568,7 +568,7 @@ kind = "remediation"
 justification = "The assessed file mixes editor-panel widget and registry lifecycle, projection loading, insertion, cleanup, and freshness, field, link, and prompt state synchronization, search and cube reveal coordination, runtime issue and metadata presentation, behavior and prompt-context caching. Move registry access and feature coordination behind focused panel collaborators until EditorPanel is a narrow mounted view."
 issue = "chore:SS-ARCH-051"
 review_by = 2026-12-15
-max_lines = 1966
+max_lines = 1959
 next_limit = 1571
 debt = "SS-ARCH-051"
 
@@ -906,7 +906,7 @@ kind = "remediation"
 justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, output and transfer composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Split feature-specific composition modules behind a narrow main-window assembly boundary."
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
-max_lines = 1057
+max_lines = 1051
 next_limit = 811
 debt = "SS-ARCH-080"
 
@@ -1010,7 +1010,7 @@ kind = "remediation"
 justification = "The assessed file mixes editable combo-surface painting and caret state, popup lifecycle and keyboard navigation, model catalog resolution and unavailable-state handling, metadata context-menu integration, thumbnail preload routing and cache refresh, model-load progress presentation. Extract thumbnail/metadata coordination and catalog resolution from the mounted field and popup interaction."
 issue = "chore:SS-ARCH-090"
 review_by = 2026-12-15
-max_lines = 1418
+max_lines = 1386
 next_limit = 1130
 debt = "SS-ARCH-090"
 
@@ -1356,17 +1356,6 @@ justification = "EditorIncrementalInsertPipeline owns one incremental insert tra
 issue = "chore:SS-WAIVER-S032"
 review_by = 2026-12-15
 max_lines = 584
-
-[[waivers]]
-id = "SS-WAIVER-S033"
-owner = "panel model-choice snapshot"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/panel/model_choice_snapshot_controller.py"
-kind = "structural"
-justification = "PanelModelChoiceSnapshotController owns one preconstruction decision that resolves a field into an immutable model-choice snapshot. Explicit, cached, cold, unavailable, and catalog-backed methods are exhaustive outcomes of the same request identity and consumption contract."
-issue = "chore:SS-WAIVER-S033"
-review_by = 2026-12-15
-max_lines = 532
 
 [[waivers]]
 id = "SS-WAIVER-S034"
@@ -1808,7 +1797,7 @@ kind = "remediation"
 justification = "The assessed file mixes scenario and workflow fixture orchestration, production editor-panel and shell construction, runtime projection instrumentation, widget and field invariant analysis, trace aggregation and budget summaries. Extract production mounting/instrumentation and invariant/report analysis from scenario execution."
 issue = "chore:SS-ARCH-093"
 review_by = 2026-12-15
-max_lines = 1217
+max_lines = 1215
 next_limit = 973
 debt = "SS-ARCH-093"
 
@@ -1925,10 +1914,10 @@ owner = "managed-ready full application route"
 rule = "STRUCT003"
 path = "tests/app/bootstrap/application_startup/test_managed_ready_full_route.py"
 kind = "structural"
-justification = "This module owns one atomic managed-ready application launch transaction. Its local application, runtime-service boundary, scheduler, splash, shell, readiness, compatibility, warmup, restore, and cleanup doubles share one deterministic event trace that proves activation after the event loop, timer ordering before shell construction, readiness before backend-ready, restoration before reveal, splash closure before showing the shell, and terminal resource cleanup. Splitting those local participants would fragment the trace owner, duplicate callback and timer identity, or weaken the complete route's fault sensitivity."
+justification = "This module owns one atomic managed-ready application launch transaction. Its local application, runtime-service boundary, scheduler, splash, shell, readiness, compatibility, warmup, restore, and cleanup doubles share one deterministic event trace that proves activation after the event loop, timer ordering before shell construction, readiness before backend-ready, restoration before reveal, splash closure after the shell paints, and terminal resource cleanup. Splitting those local participants would fragment the trace owner, duplicate callback and timer identity, or weaken the complete route's fault sensitivity."
 issue = "chore:SS-WAIVER-S150"
 review_by = 2026-12-15
-max_lines = 619
+max_lines = 625
 
 [[waivers]]
 id = "SS-WAIVER-S104"

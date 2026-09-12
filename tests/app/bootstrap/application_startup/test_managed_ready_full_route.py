@@ -27,6 +27,7 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 from substitute.app.bootstrap import (
+    ready_shell_reveal,
     startup,
     startup_environment,
     startup_managed_ready_ports,
@@ -647,6 +648,11 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
     )
     monkeypatch.setattr(qtcore, "QTimer", _FakeTimer)
     monkeypatch.setattr(
+        ready_shell_reveal,
+        "run_after_surface_paint",
+        lambda _window, callback: callback(),
+    )
+    monkeypatch.setattr(
         startup_managed_ready_ports,
         "create_model_metadata_update_bridge",
         lambda parent: _FakeBridge(parent),
@@ -746,7 +752,7 @@ def test_run_application_prebuilds_shell_and_reveals_after_http_ready(
     assert all(callable(handler) for handler in comfy_restart_handlers)
     assert calls.index("pre_show_start:wf-a") < calls.index("show")
     assert calls.index("prepare_restore_runtime") < calls.index("show")
-    assert calls.index("splash_close") < calls.index("show")
+    assert calls.index("show") < calls.index("splash_close")
     assert calls.index("show") < calls.index("finish_layout")
     assert "splash_log" not in calls[calls.index("splash_close") + 1 :]
     assert "finalize_restore_runtime" not in calls

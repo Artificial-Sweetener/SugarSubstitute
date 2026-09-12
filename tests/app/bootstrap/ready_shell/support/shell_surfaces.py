@@ -71,15 +71,23 @@ class _Splash:
 class _CloseSplash:
     """Record close requests for reveal tests."""
 
-    def __init__(self, calls: list[str], *, fail: bool = False) -> None:
+    def __init__(
+        self,
+        calls: list[str],
+        *,
+        fail: bool = False,
+        acknowledged: bool = True,
+    ) -> None:
         """Store the call recorder and failure mode."""
 
         self._calls = calls
         self._fail = fail
+        self._acknowledged = acknowledged
 
-    def close(self) -> None:
+    def close(self) -> bool:
         """Record and optionally fail a splash close."""
 
         self._calls.append("splash:close")
         if self._fail:
             raise RuntimeError("splash close failed")
+        return self._acknowledged

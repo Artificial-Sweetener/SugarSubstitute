@@ -20,13 +20,16 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from copy import deepcopy
-from dataclasses import dataclass, field, replace
+from dataclasses import replace
 from time import perf_counter
-from typing import Mapping, Protocol
+from typing import Mapping
 
 from substitute.application.cubes.cube_load_service import LoadedCubeDefinition
 from substitute.application.model_metadata import model_kind_for_field
 from substitute.application.ports import NodeDefinitionGateway
+from substitute.application.node_behavior.field_runtime_metadata import (
+    field_runtime_metadata,
+)
 from substitute.application.workflows.prompt_endpoint_service import (
     PromptEndpointService,
 )
@@ -75,6 +78,7 @@ from .list_value_resolver import (
 from .model_backed_node_detector import ModelBackedNodeDetector
 from .models import EditorBehaviorSnapshot, FieldValueSource, ResolvedFieldSpec
 from .prompt_behavior_inference_service import PromptBehaviorInferenceService
+from .runtime_state import CubeStateProtocol, NodeBehaviorRuntimeState
 from .section_node_source import (
     SectionNodeSourceFactory,
     is_subgraph_wrapper_definition,
@@ -82,31 +86,6 @@ from .section_node_source import (
 from .section_card_order_service import SectionCardOrderService
 
 _LOGGER = get_logger("application.node_behavior.behavior_service")
-
-
-class CubeStateProtocol(Protocol):
-    """Describe the cube-state shape consumed by NodeBehaviorService."""
-
-    buffer: dict[str, object]
-    ui: dict[str, object]
-    dirty: bool
-
-    @property
-    def activation_storage(self) -> NodeActivationStorage | str:
-        """Return the graph's authoritative node activation storage mode."""
-
-    @property
-    def uses_node_titles_as_card_labels(self) -> bool:
-        """Return whether source node titles own visible card labels."""
-
-
-@dataclass
-class NodeBehaviorRuntimeState:
-    """Store per-cube runtime node-behavior state that should not enter recipe buffers."""
-
-    node_instance_patch: PackageBehaviorPatch = field(
-        default_factory=PackageBehaviorPatch
-    )
 
 
 class NodeBehaviorService:
@@ -733,9 +712,9 @@ class NodeBehaviorService:
                     field_key=field_key,
                 )
             )
-            runtime_meta = dict(meta_info)
-            runtime_meta["cube_alias"] = alias
-            runtime_meta["node_data"] = dict(node_data)
+            runtime_meta = field_runtime_metadata(
+                meta_info, alias, node_data, cube_state
+            )
             raw_value = node_inputs.get(field_key)
             effective_value = raw_value
             value_source = FieldValueSource.EXPLICIT
@@ -954,6 +933,5 @@ class NodeBehaviorService:
 
 __all__ = [
     "EditorBehaviorSnapshot",
-    "NodeBehaviorRuntimeState",
     "NodeBehaviorService",
 ]

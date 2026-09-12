@@ -22,6 +22,7 @@ import socket
 
 from sugarsubstitute_shared.launch_splash.activity import SplashActivity
 from sugarsubstitute_shared.launch_splash.protocol import (
+    SPLASH_MESSAGE_APPLIED_ACK,
     SplashSessionMessage,
     encode_splash_session_message,
 )
@@ -29,7 +30,7 @@ from sugarsubstitute_shared.launch_splash.session import SplashSessionSpec
 
 
 DEFAULT_SPLASH_CLIENT_TIMEOUT_SECONDS = 2.0
-DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS = 0.1
+DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS = 2.0
 
 
 class SocketSplashSessionClient:
@@ -77,8 +78,17 @@ class SocketSplashSessionClient:
 
         self._send("fatal", line=line)
 
-    def close(self) -> None:
-        """Close the shared splash session."""
+    def activate(self) -> bool:
+        """Bring the shared splash forward and report confirmed application."""
+
+        try:
+            self._send("activate", line=None)
+        except OSError:
+            return False
+        return True
+
+    def close(self) -> bool:
+        """Close the shared splash session and report confirmed application."""
 
         try:
             self._send(
@@ -90,7 +100,8 @@ class SocketSplashSessionClient:
                 ),
             )
         except OSError:
-            return
+            return False
+        return True
 
     def _send(
         self,
@@ -116,4 +127,23 @@ class SocketSplashSessionClient:
         ) as connection:
             connection.sendall(encode_splash_session_message(message))
             connection.shutdown(socket.SHUT_WR)
-            connection.recv(1)
+            acknowledgement = _receive_exact(
+                connection,
+                len(SPLASH_MESSAGE_APPLIED_ACK),
+            )
+            if acknowledgement != SPLASH_MESSAGE_APPLIED_ACK:
+                raise OSError("Splash host did not acknowledge message application.")
+
+
+def _receive_exact(connection: socket.socket, size: int) -> bytes:
+    """Read one complete acknowledgement or return the truncated payload."""
+
+    chunks: list[bytes] = []
+    remaining = size
+    while remaining:
+        chunk = connection.recv(remaining)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)

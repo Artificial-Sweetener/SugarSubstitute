@@ -44,8 +44,8 @@ def test_bridge_emits_immediately_when_not_coalescing() -> None:
     assert received == [event]
 
 
-def test_bridge_coalesces_until_flush() -> None:
-    """Startup coalescing should retain only the latest event per key."""
+def test_bridge_coalesces_until_refresh_completion() -> None:
+    """Startup coalescing should retain only the latest event per kind."""
 
     bridge = ModelMetadataUpdateBridge()
     received: list[ModelMetadataRefreshEvent] = []
@@ -61,9 +61,27 @@ def test_bridge_coalesces_until_flush() -> None:
 
     assert received == []
 
-    bridge.flush_startup_coalescing()
+    bridge.end_startup_coalescing()
 
     assert received == [latest, other]
+
+
+def test_bridge_bounds_hostile_metadata_burst_until_refresh_completion() -> None:
+    """Thousands of model updates must produce one surface refresh per kind."""
+
+    bridge = ModelMetadataUpdateBridge()
+    received: list[ModelMetadataRefreshEvent] = []
+    bridge.model_updated.connect(received.append)
+    bridge.begin_startup_coalescing()
+
+    for index in range(5_000):
+        bridge.emit_model_updated(_event("checkpoint", str(index)))
+        bridge.emit_model_updated(_event("vae", str(index)))
+
+    assert received == []
+    bridge.end_startup_coalescing()
+
+    assert [event.value for event in received] == ["4999", "4999"]
 
 
 def test_bridge_coalesces_worker_thread_updates_on_owner_thread() -> None:
@@ -140,21 +158,6 @@ def test_bridge_end_coalescing_flushes_and_resumes_immediate_emits() -> None:
     bridge.emit_model_updated(immediate)
 
     assert received == [pending, immediate]
-
-
-def test_bridge_timeout_flushes_startup_coalescing() -> None:
-    """Safety timeout should flush pending startup metadata updates."""
-
-    bridge = ModelMetadataUpdateBridge()
-    received: list[ModelMetadataRefreshEvent] = []
-    bridge.model_updated.connect(received.append)
-    pending = _event("checkpoint", "a")
-
-    bridge.begin_startup_coalescing()
-    bridge.emit_model_updated(pending)
-    bridge.timeout_startup_coalescing()
-
-    assert received == [pending]
 
 
 def test_main_window_uses_shared_model_metadata_update_bridge() -> None:

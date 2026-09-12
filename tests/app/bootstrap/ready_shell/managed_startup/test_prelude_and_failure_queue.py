@@ -27,8 +27,6 @@ from substitute.app.bootstrap import (
 )
 from substitute.app.bootstrap.startup_timing import StartupTimer
 
-from ..support.shell_surfaces import _CloseSplash
-
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
 READY_SHELL_CONTROLLER_SOURCE = (
     PROJECT_ROOT / "substitute" / "app" / "bootstrap" / "ready_shell_controller.py"
@@ -55,6 +53,20 @@ FORBIDDEN_READY_SHELL_CONTROLLER_IMPORT_PREFIXES = (
     "substitute.infrastructure",
     "subprocess",
 )
+
+
+class _FailureQueueSplash:
+    """Record the cleanup-only splash close contract."""
+
+    def __init__(self, calls: list[str]) -> None:
+        """Store the shared call recorder."""
+
+        self._calls = calls
+
+    def close(self) -> None:
+        """Record cleanup of the startup splash."""
+
+        self._calls.append("splash:close")
 
 
 def test_ready_shell_managed_startup_prelude_wires_cancel_and_splash() -> None:
@@ -160,7 +172,7 @@ def test_ready_shell_failure_queue_cancels_owned_queue_on_startup_cancel() -> No
         readiness_timers=lambda: (),
         runtime_compatibility_probes=lambda: (),
         managed_comfy_state=lambda: None,
-        splash=lambda: _CloseSplash(calls),
+        splash=lambda: _FailureQueueSplash(calls),
         cleanup=lambda: calls.append("cleanup"),
         quit_app=lambda: calls.append("quit"),
         trace_fields=lambda: {"route": "ready"},

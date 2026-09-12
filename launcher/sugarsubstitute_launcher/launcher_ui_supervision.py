@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 import os
 from pathlib import Path
+import tempfile
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments
@@ -28,6 +29,10 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
+    InstanceRecoveryAction,
+    InstanceRecoveryRequest,
+)
 from launcher.sugarsubstitute_launcher.launcher_ui_process import (
     build_launcher_ui_command,
     start_crash_reporter,
@@ -78,6 +83,42 @@ def supervise_launcher_window(
     )
 
 
+def supervise_instance_recovery_window(
+    *,
+    layout: InstallLayout,
+    locale_override: str | None,
+    can_end_owner: bool,
+    supervisor: LauncherUiCrashSupervisor | None = None,
+) -> InstanceRecoveryAction:
+    """Run the Qt recovery modal in the supervised launcher UI executable."""
+
+    with tempfile.TemporaryDirectory(
+        prefix="SugarSubstitute-instance-recovery-"
+    ) as temporary_directory:
+        request, request_path = InstanceRecoveryRequest.create(
+            Path(temporary_directory)
+        )
+        request = request.with_owner_termination(can_end_owner)
+        request.write(request_path)
+        child_arguments = [
+            "--launcher-ui-child",
+            f"--install-root={subprocess_path(layout.root)}",
+            f"--instance-recovery-request={subprocess_path(request_path)}",
+        ]
+        _append_value(child_arguments, "--locale", locale_override)
+        result = _supervise(
+            layout=layout,
+            child_arguments=child_arguments,
+            supervisor=supervisor,
+        )
+        if result != 0:
+            return InstanceRecoveryAction.EXIT
+        try:
+            return request.read_response()
+        except (OSError, ValueError):
+            return InstanceRecoveryAction.EXIT
+
+
 def _supervise(
     *,
     layout: InstallLayout,
@@ -124,5 +165,6 @@ def _append_value(arguments: list[str], option: str, value: str | None) -> None:
 
 __all__ = [
     "LauncherUiCrashSupervisor",
+    "supervise_instance_recovery_window",
     "supervise_launcher_window",
 ]

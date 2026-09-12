@@ -95,10 +95,8 @@ from .generation_progress_strip_registry import GenerationProgressStripRegistry
 from .main_window_dependencies import MainWindowDependencies
 from .main_window_startup_trace import startup_phase
 from .model_catalog_update_controller import ModelCatalogUpdateController
-from .empty_model_picker_discovery_controller import (
-    EmptyModelPickerDiscoveryController,
-)
 from .model_update_notification_controller import ModelUpdateNotificationController
+from .model_discovery_composition import compose_empty_model_picker_discovery
 from .model_metadata_surface_refresh_controller import (
     ModelMetadataSurfaceRefreshController,
 )
@@ -993,14 +991,10 @@ def compose_runtime_controllers(
         "model_update_notifications",
         model_update_notification_controller.close,
     )
-    empty_model_picker_discovery_controller = EmptyModelPickerDiscoveryController(
+    empty_model_picker_discovery_controller = compose_empty_model_picker_discovery(
         parent_widget=shell,
-        service=dependencies.empty_model_picker_discovery_service,
-        catalog=dependencies.model_catalog_service,
-    )
-    shell.shell_resource_lifecycle.register(
-        "empty_model_picker_discovery",
-        empty_model_picker_discovery_controller.close,
+        dependencies=dependencies,
+        lifecycle=shell.shell_resource_lifecycle,
     )
     shell._initial_workspace_hydrated = False
     settings_route_controller = SettingsRouteController(

@@ -22,7 +22,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 import json
 from pathlib import Path
-from typing import Protocol, Self, cast
+from typing import Literal, Protocol, Self, cast
 
 
 _MAXIMUM_MESSAGE_BYTES = 1024 * 1024
@@ -33,6 +33,19 @@ BROKER_TOKEN_ENV = "SUGAR_SUBSTITUTE_INSTANCE_BROKER_TOKEN"
 class ApplicationInstanceBrokerError(RuntimeError):
     """Report a native election or supervisor communication failure."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        owner_process_id: int | None = None,
+        endpoint: ApplicationInstanceEndpoint | None = None,
+    ) -> None:
+        """Retain the verified owner and endpoint needed for explicit recovery."""
+
+        super().__init__(message)
+        self.owner_process_id = owner_process_id
+        self.endpoint = endpoint
+
 
 class ApplicationInstanceConnection(Protocol):
     """Expose bounded message frames over one native IPC connection."""
@@ -40,11 +53,19 @@ class ApplicationInstanceConnection(Protocol):
     def send_frame(self, payload: bytes) -> None:
         """Send one complete application-instance frame."""
 
-    def receive_frame(self, maximum_size: int) -> bytes:
-        """Receive one frame while rejecting oversized input."""
+    def receive_frame(
+        self,
+        maximum_size: int,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> bytes:
+        """Receive one bounded frame, optionally within a deadline."""
 
     def close(self) -> None:
         """Release the native connection idempotently."""
+
+    def peer_process_id(self) -> int | None:
+        """Return the kernel-reported peer process when the transport supports it."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +96,45 @@ class ApplicationInvocation:
             "kind": "invoke",
             "arguments": list(self.arguments),
             "working_directory": self.working_directory,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RoutedApplicationInvocation:
+    """Bind one forwarded invocation to its presentation acknowledgement."""
+
+    request_id: str
+    invocation: ApplicationInvocation
+
+    def to_message(self) -> dict[str, object]:
+        """Return the authenticated child-channel wire representation."""
+
+        return {
+            **self.invocation.to_message(),
+            "request_id": self.request_id,
+        }
+
+
+ApplicationInvocationOutcome = Literal["presented", "unavailable"]
+
+
+@dataclass(frozen=True, slots=True)
+class ApplicationInvocationReceipt:
+    """Prove whether a routed invocation produced a usable application surface."""
+
+    request_id: str
+    outcome: ApplicationInvocationOutcome
+    surface: str
+
+    def to_message(self, *, token: str) -> dict[str, object]:
+        """Return the authenticated supervisor-channel wire representation."""
+
+        return {
+            "kind": "invocation-receipt",
+            "token": token,
+            "request_id": self.request_id,
+            "outcome": self.outcome,
+            "surface": self.surface,
         }
 
 
@@ -136,11 +196,16 @@ def send_instance_message(
 
 def receive_instance_message(
     connection: ApplicationInstanceConnection,
+    *,
+    timeout_seconds: float | None = None,
 ) -> dict[str, object]:
-    """Receive and validate one bounded JSON object."""
+    """Receive and validate one bounded JSON object within an optional deadline."""
 
     payload = json.loads(
-        connection.receive_frame(_MAXIMUM_MESSAGE_BYTES).decode("utf-8")
+        connection.receive_frame(
+            _MAXIMUM_MESSAGE_BYTES,
+            timeout_seconds=timeout_seconds,
+        ).decode("utf-8")
     )
     if not isinstance(payload, dict):
         raise ValueError("Application instance message must be an object.")
@@ -169,14 +234,59 @@ def parse_application_invocation(
     )
 
 
+def parse_routed_application_invocation(
+    message: Mapping[str, object],
+) -> RoutedApplicationInvocation:
+    """Parse a forwarded invocation carrying one bounded request identity."""
+
+    request_id = message.get("request_id")
+    if not isinstance(request_id, str) or not request_id or len(request_id) > 128:
+        raise ValueError("Application invocation request identity is invalid.")
+    return RoutedApplicationInvocation(
+        request_id=request_id,
+        invocation=parse_application_invocation(message),
+    )
+
+
+def parse_application_invocation_receipt(
+    message: Mapping[str, object],
+) -> ApplicationInvocationReceipt:
+    """Parse a child receipt proving one presentation attempt's outcome."""
+
+    if message.get("kind") != "invocation-receipt":
+        raise ValueError("Application instance message is not a receipt.")
+    request_id = message.get("request_id")
+    outcome = message.get("outcome")
+    surface = message.get("surface")
+    if (
+        not isinstance(request_id, str)
+        or not request_id
+        or len(request_id) > 128
+        or outcome not in {"presented", "unavailable"}
+        or not isinstance(surface, str)
+        or len(surface) > 256
+    ):
+        raise ValueError("Application invocation receipt fields are invalid.")
+    return ApplicationInvocationReceipt(
+        request_id=request_id,
+        outcome=outcome,
+        surface=surface,
+    )
+
+
 __all__ = [
     "ApplicationInstanceBrokerError",
     "ApplicationInstanceConnection",
     "ApplicationInstanceEndpoint",
     "ApplicationInvocation",
+    "ApplicationInvocationOutcome",
+    "ApplicationInvocationReceipt",
     "BROKER_ENDPOINT_ENV",
     "BROKER_TOKEN_ENV",
+    "RoutedApplicationInvocation",
+    "parse_application_invocation_receipt",
     "parse_application_invocation",
+    "parse_routed_application_invocation",
     "receive_instance_message",
     "send_instance_message",
 ]

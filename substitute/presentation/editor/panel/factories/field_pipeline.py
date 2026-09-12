@@ -64,6 +64,7 @@ from substitute.application.prompt_editor.lora.scheduled import (
     PromptScheduledLoraService,
 )
 from substitute.domain.prompt.features.models import PromptEditorFeatureProfile
+from substitute.presentation.model_discovery import EmptyModelPickerAction
 from substitute.presentation.editor.panel.factories import (
     choice_factory as _choice_factory,
 )
@@ -98,6 +99,8 @@ from substitute.presentation.editor.panel.factories.registry import (
 )
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
     PanelModelChoiceSnapshotController,
+)
+from substitute.presentation.editor.panel.model_choice_snapshots import (
     PanelModelChoiceSnapshotRequest,
 )
 from substitute.presentation.editor.panel.service_bundle import (
@@ -155,7 +158,7 @@ def build_widget_for_field_behavior(
     model_choice_snapshot_controller: PanelModelChoiceSnapshotController | None = None,
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
-    empty_model_picker_action: Callable[[str], None] | None = None,
+    empty_model_picker_action: EmptyModelPickerAction | None = None,
     node_definition_gateway: NodeDefinitionGateway | None = None,
     prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None,
     danbooru_lookup_dispatcher_factory: (
@@ -225,6 +228,11 @@ def build_widget_for_field_behavior(
                 field_info=kwargs.get("field_info"),
                 node_definition_gateway=node_definition_gateway,
                 cube_alias=cube_alias if isinstance(cube_alias, str) else None,
+                target_model=(
+                    str(field_meta.get("target_model", ""))
+                    if isinstance(field_meta.get("target_model", ""), str)
+                    else ""
+                ),
                 thumbnail_repository_available=(thumbnail_asset_repository is not None),
             )
         )
@@ -348,7 +356,7 @@ def build_widget_for_field_spec(
     model_choice_snapshot_controller: PanelModelChoiceSnapshotController | None = None,
     thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
     model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
-    empty_model_picker_action: Callable[[str], None] | None = None,
+    empty_model_picker_action: EmptyModelPickerAction | None = None,
     node_definition_gateway: NodeDefinitionGateway | None = None,
     prompt_task_executor_factory: PromptEditorTaskExecutorFactory | None = None,
     danbooru_lookup_dispatcher_factory: (

@@ -34,6 +34,7 @@ _TOKEN_QUERY = 0x0008
 _TOKEN_USER = 1
 _PIPE_REJECT_REMOTE_CLIENTS = 0x00000008
 _PIPE_BUFFER_BYTES = 65536
+_PIPE_CONNECT_WAIT_MILLISECONDS = 100
 
 
 class WindowsNamedPipeConnection:
@@ -50,12 +51,21 @@ class WindowsNamedPipeConnection:
 
         self._connection.send_bytes(payload)
 
-    def receive_frame(self, maximum_size: int) -> bytes:
-        """Receive one bounded native message-mode pipe frame."""
+    def receive_frame(
+        self,
+        maximum_size: int,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> bytes:
+        """Receive one bounded native frame within an optional deadline."""
 
         try:
+            if timeout_seconds is not None and not self._connection.poll(
+                timeout_seconds
+            ):
+                raise TimeoutError("Application instance response timed out.")
             return self._connection.recv_bytes(maximum_size)
-        except EOFError as error:
+        except (EOFError, TypeError) as error:
             raise OSError("Application instance named pipe disconnected.") from error
 
     def close(self) -> None:
@@ -72,6 +82,14 @@ class WindowsNamedPipeConnection:
             peer_is_server=self._peer_is_server,
         )
         return _process_user_sid(peer_process_id) == _process_user_sid(None)
+
+    def peer_process_id(self) -> int | None:
+        """Return the peer process identifier reported by the named pipe kernel."""
+
+        return _named_pipe_peer_process_id(
+            self._connection.fileno(),
+            peer_is_server=self._peer_is_server,
+        )
 
 
 class WindowsNamedPipeListener:
@@ -192,6 +210,9 @@ def connect_windows_named_pipe(
 ) -> WindowsNamedPipeConnection:
     """Connect to and authenticate the elected Windows supervisor."""
 
+    import _winapi
+
+    _winapi.WaitNamedPipe(endpoint.address, _PIPE_CONNECT_WAIT_MILLISECONDS)
     connection = cast(Connection, Client(endpoint.address, family="AF_PIPE"))
     wrapped = WindowsNamedPipeConnection(connection, peer_is_server=True)
     if not wrapped.peer_is_current_user():

@@ -51,6 +51,10 @@ def test_surface_evidence_records_the_visible_top_level_splash(
             app=application,
             splash=splash,
             first_paint_monotonic_ns=123_000_000,
+            phase_monotonic_ns={
+                "host_module_started": 121_000_000,
+                "application_ready": 122_000_000,
+            },
         )
 
     evidence_path = (
@@ -63,3 +67,8 @@ def test_surface_evidence_records_the_visible_top_level_splash(
     assert payload["splash_is_visible"] is True
     assert payload["top_level_surface_count"] >= 1
     assert payload["visible_top_level_surface_count"] >= 1
+    assert payload["startup_phase_ms"] == {
+        "application_ready": 2.0,
+        "first_paint": 3.0,
+        "host_module_started": 1.0,
+    }

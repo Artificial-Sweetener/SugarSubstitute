@@ -133,7 +133,8 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
         )
         client.start_activity(activity)
         client.clear_activity()
-        client.close()
+        assert client.activate()
+        assert client.close()
         assert delivered.wait(timeout=2.0)
     finally:
         server.close()
@@ -155,14 +156,15 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
             activity=activity,
         ),
         SplashSessionMessage(message_type="clear_activity", token="x" * 32),
+        SplashSessionMessage(message_type="activate", token="x" * 32),
         SplashSessionMessage(message_type="close", token="x" * 32),
     ]
 
 
-def test_socket_splash_session_close_ignores_unresponsive_session(
+def test_socket_splash_session_close_reports_unresponsive_session(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Shutdown splash close should not raise when the local session is gone."""
+    """Shutdown splash close should expose when the local session is gone."""
 
     spec = create_splash_session_spec(
         host="127.0.0.1",
@@ -185,7 +187,7 @@ def test_socket_splash_session_close_ignores_unresponsive_session(
 
     monkeypatch.setattr("socket.create_connection", _raise_timeout)
 
-    SocketSplashSessionClient(spec).close()
+    assert not SocketSplashSessionClient(spec).close()
 
     assert timeouts == [DEFAULT_SPLASH_CLOSE_TIMEOUT_SECONDS]
 
@@ -237,7 +239,8 @@ def test_splash_session_server_reports_invalid_messages() -> None:
             token="y" * 32,
             host_pid=server.spec.host_pid,
         )
-        SocketSplashSessionClient(wrong_spec).append_log("Unauthorized.")
+        with pytest.raises(OSError, match="acknowledge"):
+            SocketSplashSessionClient(wrong_spec).append_log("Unauthorized.")
     finally:
         server.close()
 

@@ -105,6 +105,11 @@ Prompt preview:
       <translation>%1（已绕过）</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="91"></location>
+      <source>%1 API key required</source>
+      <translation>需要 %1 API 密钥</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="193"></location>
       <source>%1 Canvas</source>
       <translation>%1 画布</translation>
@@ -195,12 +200,7 @@ Prompt preview:
       <translation>%1 个元数据条目、%2 个图像预览，%3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="221"></location>
-      <source>%1 model file(s) downloaded and verified. Reopen the picker to use them.</source>
-      <translation>已下载并验证 %1 个模型文件。请重新打开选择器以使用它们。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="79"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="87"></location>
       <source>%1 model recommendation</source>
       <translation>%1 个模型推荐</translation>
     </message>
@@ -295,7 +295,7 @@ Prompt preview:
       <translation>%1 | 当前：v%2 | 可用：v%3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="160"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="318"></location>
       <source>%1 · %2</source>
       <translation>%1 · %2</translation>
     </message>
@@ -500,6 +500,11 @@ Prompt preview:
       <translation>API 密钥未保存</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="127"></location>
+      <source>API key required</source>
+      <translation>需要 API 密钥</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="277"></location>
       <source>API key status</source>
       <translation>API 密钥状态</translation>
@@ -593,6 +598,11 @@ Prompt preview:
       <location filename="../substitute/application/onboarding/flow_service.py" line="913"></location>
       <source>Add your CivitAI API key.</source>
       <translation>添加你的 CivitAI API 密钥。</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="63"></location>
+      <source>Add your key to download this model. The key is stored securely and can be changed later in Settings.</source>
+      <translation>添加密钥以下载此模型。密钥会安全存储，之后可在设置中更改。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1208"></location>
@@ -798,11 +808,6 @@ Prompt preview:
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="997"></location>
       <source>Base Cube Packs are required by Substitute and cannot be removed.</source>
       <translation>基础立方体包是 Substitute 的必需组件，无法移除。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="162"></location>
-      <source>Base model not listed</source>
-      <translation>未列出基础模型</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/menus/preset_model_scope_policy.py" line="86"></location>
@@ -1125,6 +1130,11 @@ Prompt preview:
       <translation>选择文件夹</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="208"></location>
+      <source>Choose a model to download and use in this picker.</source>
+      <translation>选择一个模型，下载后用于此选择器。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="80"></location>
       <source>Choose a model to download, explore CivitAI, or bring your own.</source>
       <translation>选择要下载的模型、浏览 CivitAI，或使用你自己的模型。</translation>
@@ -1188,11 +1198,6 @@ Prompt preview:
       <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="284"></location>
       <source>Choose from CivitAI</source>
       <translation>从 CivitAI 选择</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="105"></location>
-      <source>Choose from popular compatible files from the last month, or explore CivitAI. Nothing is selected automatically.</source>
-      <translation>从上个月热门的兼容文件中选择，或浏览 CivitAI。不会自动选择任何内容。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="73"></location>
@@ -2200,6 +2205,11 @@ Prompt preview:
       <translation>无法在当前目标上验证 %1。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="287"></location>
+      <source>Credentials are unavailable for %1.</source>
+      <translation>%1 的凭据不可用。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/cube_library/service.py" line="286"></location>
       <source>Cube '%1' (%2)</source>
       <translation>立方体“%1”（%2）</translation>
@@ -2588,6 +2598,11 @@ Install these nodes now?</source>
       <translation>下载并打开配方</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="313"></location>
+      <source>Download and use</source>
+      <translation>下载并使用</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2149"></location>
       <source>Download failed.</source>
       <translation>下载失败。</translation>
@@ -2608,14 +2623,9 @@ Install these nodes now?</source>
       <translation>下载提供方图像作为模型选择器的缩略图。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="134"></location>
+      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="135"></location>
       <source>Download selected</source>
       <translation>下载所选项</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="179"></location>
-      <source>Download this model</source>
-      <translation>下载此模型</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1431"></location>
@@ -2631,6 +2641,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="297"></location>
       <source>Downloading %1 — %2 of %3 MiB</source>
       <translation>正在下载 %1 — %2 / %3 MiB</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="256"></location>
+      <source>Downloading and verifying %1…</source>
+      <translation>正在下载并验证 %1…</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/editor_busy_overlay.py" line="166"></location>
@@ -2733,7 +2748,7 @@ Install these nodes now?</source>
       <translation>请清空 %1 处的文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="425"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="433"></location>
       <source>Enable</source>
       <translation>启用</translation>
     </message>
@@ -2833,9 +2848,9 @@ Install these nodes now?</source>
       <translation>发送队列中的工作流到 Comfy 前展开通配符提示词文本。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="127"></location>
-      <source>Explore more on CivitAI</source>
-      <translation>在 CivitAI 上探索更多</translation>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="302"></location>
+      <source>Explore more</source>
+      <translation>探索更多</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/app_orb_menu.py" line="50"></location>
@@ -2981,7 +2996,12 @@ Install these nodes now?</source>
       <translation>查找 ComfyUI 环境</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="71"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="278"></location>
+      <source>Find a model</source>
+      <translation>查找模型</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="177"></location>
       <source>Find models</source>
       <translation>查找模型</translation>
     </message>
@@ -2989,6 +3009,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="618"></location>
       <source>Finding Python…</source>
       <translation>正在查找 Python…</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="193"></location>
+      <source>Finding compatible models…</source>
+      <translation>正在查找兼容模型…</translation>
     </message>
     <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="103"></location>
@@ -3961,12 +3986,12 @@ Install these nodes now?</source>
       <translation>模型来源</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="247"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="381"></location>
       <source>Model discovery failed: %1</source>
       <translation>模型查找失败：%1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="172"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="201"></location>
       <source>Model discovery returned invalid results.</source>
       <translation>模型查找返回了无效结果。</translation>
     </message>
@@ -3981,17 +4006,22 @@ Install these nodes now?</source>
       <translation>模型下载进度</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="333"></location>
+      <source>Model download returned invalid results.</source>
+      <translation>模型下载返回了无效结果。</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/recipe_model_resolution_flow.py" line="80"></location>
       <source>Model download unavailable</source>
       <translation>无法下载模型</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="143"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="157"></location>
       <source>Model downloads are unavailable for this ComfyUI target. You can still add files to its model folders manually.</source>
       <translation>此 ComfyUI 目标无法下载模型。你仍可手动将文件添加到其模型文件夹。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="212"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="218"></location>
       <source>Model downloads returned invalid results.</source>
       <translation>模型下载返回了无效结果。</translation>
     </message>
@@ -4196,6 +4226,11 @@ Install these nodes now?</source>
       <translation>没有计划更改。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="210"></location>
+      <source>No compatible model suggestions are available right now.</source>
+      <translation>目前没有可用的兼容模型建议。</translation>
+    </message>
+    <message>
       <location filename="../substitute/infrastructure/security/keyring_civitai_credential_store.py" line="182"></location>
       <source>No compatible operating-system credential store is available.</source>
       <translation>没有可用的兼容操作系统凭据存储。</translation>
@@ -4261,11 +4296,6 @@ Install these nodes now?</source>
       <translation>未选择模型下载。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="100"></location>
-      <source>No models are available for this picker</source>
-      <translation>此选择器没有可用模型</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/errors.py" line="577"></location>
       <source>No node-specific validation errors were reported.</source>
       <translation>未报告特定节点的验证错误。</translation>
@@ -4289,11 +4319,6 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="276"></location>
       <source>No repository has been validated.</source>
       <translation>尚未验证任何仓库。</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="179"></location>
-      <source>No safe popular models are available for this picker right now.</source>
-      <translation>此选择器目前没有安全的热门模型可用。</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="485"></location>
@@ -4393,7 +4418,7 @@ I’ll bring my own</source>
       <translation>未加载</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="131"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="309"></location>
       <source>Not now</source>
       <translation>暂不</translation>
     </message>
@@ -4653,7 +4678,7 @@ I’ll bring my own</source>
       <translation>粘贴</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_page.py" line="111"></location>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="71"></location>
       <source>Paste CivitAI API key</source>
       <translation>粘贴 CivitAI API 密钥</translation>
     </message>
@@ -5637,7 +5662,7 @@ No known extension claimant.</source>
       <translation>运行 Sugar Substitute 启动画面。</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="287"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="332"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>运行 SugarSubstitute 启动画面宿主。</translation>
     </message>
@@ -5732,7 +5757,7 @@ No known extension claimant.</source>
       <translation>将 Sugar Script 另存为...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_navigation_presentation.py" line="66"></location>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="78"></location>
       <source>Save and continue</source>
       <translation>保存并继续</translation>
     </message>
@@ -5807,11 +5832,6 @@ No known extension claimant.</source>
       <translation>已保存。请重启 Substitute 以使用新的 ComfyUI 连接。</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="171"></location>
-      <source>Saves to %1</source>
-      <translation>保存到 %1</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="272"></location>
       <source>Saving and applying setup choices.</source>
       <translation>正在保存并应用设置选择。</translation>
@@ -5882,7 +5902,7 @@ No known extension claimant.</source>
       <translation>安排 LoRA</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="596"></location>
+      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="176"></location>
       <source>Search %1</source>
       <translation>搜索 %1</translation>
     </message>
@@ -5892,7 +5912,7 @@ No known extension claimant.</source>
       <translation>搜索立方体</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="102"></location>
+      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_values.py" line="71"></location>
       <source>Search models</source>
       <translation>搜索模型</translation>
     </message>
@@ -5957,7 +5977,7 @@ No known extension claimant.</source>
       <translation>全选</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_picker/model_picker_field.py" line="250"></location>
+      <location filename="../substitute/presentation/widgets/model_picker/model_picker_field.py" line="257"></location>
       <source>Select model</source>
       <translation>选择模型</translation>
     </message>
@@ -5982,7 +6002,7 @@ No known extension claimant.</source>
       <translation>服务器端点</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="313"></location>
+      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="317"></location>
       <source>Set Global Override</source>
       <translation>设置全局覆盖</translation>
     </message>
@@ -6777,7 +6797,7 @@ No known extension claimant.</source>
       <translation>Substitute 已保存的文件夹设置需要修复</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2805"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2793"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -7153,6 +7173,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>适用于 ComfyUI 的原生 Qt 桌面前端</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="343"></location>
+      <source>The downloaded model has an invalid destination.</source>
+      <translation>下载模型的目标位置无效。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="586"></location>
       <source>The existing ComfyUI installation is ready.</source>
       <translation>现有 ComfyUI 安装已准备好。</translation>
@@ -7333,6 +7358,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>无法为所选模型生成指纹。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="273"></location>
+      <source>The selected model is no longer available.</source>
+      <translation>所选模型已不可用。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/model_metadata/manual_refresh_service.py" line="202"></location>
       <source>The selected model is no longer present locally.</source>
       <translation>所选模型已不在本地。</translation>
@@ -7413,6 +7443,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <translation>这些更改将在重启后应用。</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="280"></location>
+      <source>These popular models are compatible with this picker. Nothing downloads until you choose one.</source>
+      <translation>这些热门模型与此选择器兼容。在你选择之前不会下载任何内容。</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="906"></location>
       <source>This CivitAI model needs an API key</source>
       <translation>此 CivitAI 模型需要 API 密钥</translation>
@@ -7451,6 +7486,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="324"></location>
       <source>This model is not compatible with the current family</source>
       <translation>此模型与当前系列不兼容</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="59"></location>
+      <source>This model requires a CivitAI API key</source>
+      <translation>此模型需要 CivitAI API 密钥</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="356"></location>
@@ -7991,6 +8031,11 @@ GNU 通用公共许可证第 3 版保障您出于任何目的使用本程序、�
       <location filename="../substitute/presentation/editor/prompt_editor/projection/lora_surface_features.py" line="330"></location>
       <source>Version: %1</source>
       <translation>版本：%1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="117"></location>
+      <source>View %1 on %2</source>
+      <translation>在 %2 上查看 %1</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="116"></location>

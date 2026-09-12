@@ -25,35 +25,13 @@ from sugarsubstitute_shared.model_discovery.destination_policy import (
 )
 from sugarsubstitute_shared.model_discovery.models import (
     DiscoveredModel,
-    LocalModel,
     ModelArtifactKind,
-    ModelDiscoveryCard,
-    ModelDiscoveryPlan,
-)
-from sugarsubstitute_shared.model_discovery.planner import (
-    EmptyPickerModelDiscoveryPlanner,
-    ModelDestinationPolicy,
-    ModelDiscoveryGateway,
-    ModelInventory,
-)
-from sugarsubstitute_shared.model_discovery.service import (
-    EmptyPickerModelDiscoveryService,
-    model_card_identity,
 )
 
 __all__ = [
     "CivitaiDiscoveryClient",
     "CivitaiDiscoveryError",
     "DiscoveredModel",
-    "EmptyPickerModelDiscoveryPlanner",
-    "EmptyPickerModelDiscoveryService",
-    "LocalModel",
     "ModelArtifactDestinationPolicy",
     "ModelArtifactKind",
-    "ModelDestinationPolicy",
-    "ModelDiscoveryCard",
-    "ModelDiscoveryGateway",
-    "ModelDiscoveryPlan",
-    "ModelInventory",
-    "model_card_identity",
 ]

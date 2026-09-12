@@ -19,5 +19,25 @@
 from substitute.presentation.model_discovery.discovery_modal import (
     ModelDiscoveryModal,
 )
+from substitute.presentation.model_discovery.credential_prompt import (
+    CivitaiApiKeyPromptDialog,
+)
+from substitute.presentation.model_discovery.contracts import (
+    EmptyModelPickerAction,
+    InstalledModelReceiver,
+)
+from substitute.presentation.model_discovery.credential_coordinator import (
+    CivitaiModelSuggestionCredentialHandler,
+    ModelSuggestionCredentialCoordinator,
+    ModelSuggestionCredentialHandler,
+)
 
-__all__ = ["ModelDiscoveryModal"]
+__all__ = [
+    "CivitaiApiKeyPromptDialog",
+    "CivitaiModelSuggestionCredentialHandler",
+    "EmptyModelPickerAction",
+    "InstalledModelReceiver",
+    "ModelDiscoveryModal",
+    "ModelSuggestionCredentialCoordinator",
+    "ModelSuggestionCredentialHandler",
+]

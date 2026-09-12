@@ -27,13 +27,15 @@ import threading
 from typing import Self
 
 from sugarsubstitute_shared.application_instance_protocol import (
+    ApplicationInvocationOutcome,
+    ApplicationInvocationReceipt,
     ApplicationInstanceBrokerError,
     ApplicationInstanceConnection,
     ApplicationInstanceEndpoint,
-    ApplicationInvocation,
+    RoutedApplicationInvocation,
     BROKER_ENDPOINT_ENV,
     BROKER_TOKEN_ENV,
-    parse_application_invocation,
+    parse_routed_application_invocation,
     receive_instance_message,
     send_instance_message,
 )
@@ -60,11 +62,12 @@ class ApplicationSupervisorClient:
         self._endpoint = endpoint
         self._token = token
         self._connection = connection
-        self._handler: Callable[[ApplicationInvocation], None] | None = None
+        self._handler: Callable[[RoutedApplicationInvocation], None] | None = None
         self._disconnect_handler: Callable[[], None] | None = None
         self._disconnected = False
-        self._pending: deque[ApplicationInvocation] = deque(maxlen=64)
+        self._pending: deque[RoutedApplicationInvocation] = deque()
         self._lock = threading.Lock()
+        self._send_lock = threading.Lock()
         self._closing = threading.Event()
         self._reader = threading.Thread(
             target=self._receive_invocations,
@@ -100,7 +103,7 @@ class ApplicationSupervisorClient:
 
     def bind_invocation_handler(
         self,
-        handler: Callable[[ApplicationInvocation], None],
+        handler: Callable[[RoutedApplicationInvocation], None],
     ) -> None:
         """Bind the application owner and replay startup invocations once."""
 
@@ -109,7 +112,27 @@ class ApplicationSupervisorClient:
             pending = tuple(self._pending)
             self._pending.clear()
         for invocation in pending:
-            handler(invocation)
+            self._dispatch_invocation(invocation, handler)
+
+    def complete_invocation(
+        self,
+        request_id: str,
+        *,
+        outcome: ApplicationInvocationOutcome,
+        surface: str,
+    ) -> None:
+        """Return one presentation receipt to the authoritative supervisor."""
+
+        receipt = ApplicationInvocationReceipt(
+            request_id=request_id,
+            outcome=outcome,
+            surface=surface,
+        )
+        with self._send_lock:
+            send_instance_message(
+                self._connection,
+                receipt.to_message(token=self._token),
+            )
 
     def request_restart(self) -> bool:
         """Ask the existing supervisor to relaunch after this child exits."""
@@ -146,13 +169,17 @@ class ApplicationSupervisorClient:
             self._connection.close()
         except OSError:
             pass
+        if threading.current_thread() is not self._reader:
+            self._reader.join(timeout=2.0)
+            if self._reader.is_alive():
+                _LOGGER.warning("Application supervisor client reader did not stop")
 
     def _receive_invocations(self) -> None:
         """Receive forwarded invocations without blocking the Qt event loop."""
 
         try:
             while not self._closing.is_set():
-                invocation = parse_application_invocation(
+                invocation = parse_routed_application_invocation(
                     receive_instance_message(self._connection)
                 )
                 with self._lock:
@@ -160,7 +187,7 @@ class ApplicationSupervisorClient:
                     if handler is None:
                         self._pending.append(invocation)
                         continue
-                handler(invocation)
+                self._dispatch_invocation(invocation, handler)
         except (OSError, ValueError, json.JSONDecodeError):
             pass
         finally:
@@ -172,6 +199,32 @@ class ApplicationSupervisorClient:
             if disconnect_handler is not None:
                 _LOGGER.warning("Application lost its authoritative supervisor")
                 disconnect_handler()
+
+    def _dispatch_invocation(
+        self,
+        invocation: RoutedApplicationInvocation,
+        handler: Callable[[RoutedApplicationInvocation], None],
+    ) -> None:
+        """Isolate one application handler failure without killing the control lane."""
+
+        try:
+            handler(invocation)
+        except Exception:
+            _LOGGER.exception(
+                "Application invocation handler failed",
+                extra={"request_id": invocation.request_id},
+            )
+            try:
+                self.complete_invocation(
+                    invocation.request_id,
+                    outcome="unavailable",
+                    surface="application-handler-failed",
+                )
+            except OSError:
+                _LOGGER.warning(
+                    "Could not report application invocation handler failure",
+                    extra={"request_id": invocation.request_id},
+                )
 
 
 __all__ = ["ApplicationSupervisorClient"]
