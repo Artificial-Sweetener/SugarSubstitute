@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from PySide6.QtCore import Qt
 
 from substitute.application.onboarding import OnboardingProvisioningFailure
 from substitute.presentation.onboarding.onboarding_controller import (
@@ -298,7 +299,7 @@ def test_provisioning_live_output_stays_inside_status_panel(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Setup live output should remain bounded inside the status card."""
+    """Expanded setup output should fit the fixed window without page scrolling."""
 
     application = ensure_qt_application()
     monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
@@ -316,7 +317,6 @@ def test_provisioning_live_output_stays_inside_status_panel(
             _FakeController(draft, OnboardingFlowMode.FIRST_RUN),
         )
     )
-    window.resize(1220, 900)
     window._current_page = OnboardingPageId.PROVISIONING
     window.page_stack.setCurrentWidget(window.provisioning_page)
     window.page_stage.refresh_current_page_height()
@@ -361,7 +361,17 @@ def test_provisioning_live_output_stays_inside_status_panel(
     assert not window.provisioning_page.details_container.isHidden()
     assert window.provisioning_page.show_log_button.text() == "Hide setup log"
     assert window.provisioning_page.height() > page_height_before
-    assert window.page_stage.verticalScrollBar().maximum() > 0
+    console = window.provisioning_page.details_surface.log_view
+    assert console.height() >= console.minimumHeight()
+    assert (
+        window.page_stack.height()
+        <= window.page_stage.viewport().contentsRect().height()
+    )
+    assert window.page_stage.verticalScrollBar().maximum() == 0
+    assert window.page_stage.verticalScrollBarPolicy() is (
+        Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+    )
+    assert window.page_stage.verticalScrollBar().isHidden()
 
     window.provisioning_page.show_log_button.click()
     application.processEvents()
