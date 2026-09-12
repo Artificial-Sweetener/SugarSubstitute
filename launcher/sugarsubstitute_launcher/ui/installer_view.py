@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -148,7 +148,8 @@ class InstallerView(QWidget):
 
         self._experience_page = ExperiencePage.FAILURE
         self.activity_label.setText(message)
-        self.details_button.setChecked(True)
+        with QSignalBlocker(self.details_button):
+            self.details_button.setChecked(True)
         self._set_log_visible(True)
 
     def show_language_selection(self) -> None:

@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 
 from PySide6.QtCore import QPoint, Qt
+from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QFrame, QWidget
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -324,5 +325,35 @@ def test_progress_details_receive_their_declared_console_height(
         application.processEvents()
         assert console.isVisible() is True
         assert console.height() >= console.minimumHeight()
+    finally:
+        close_and_delete_launcher_window(window)
+
+
+def test_failure_reveals_details_without_reentering_the_user_toggle(
+    tmp_path: Path,
+) -> None:
+    """Expand failure diagnostics atomically instead of nesting a layout refresh."""
+
+    application = launcher_test_application()
+    window = LauncherMainWindow(
+        initial_layout=InstallLayout.from_root(tmp_path / "SugarSubstitute"),
+        continue_install=False,
+        repair=False,
+        update_check_enabled=True,
+        initial_release_source=release_source_for_test(),
+        workflow_factory=workflow_factory(),
+    )
+    window.show()
+    window.view.show_status_output()
+    application.processEvents()
+    toggled = QSignalSpy(window.view.details_button.toggled)
+
+    try:
+        window.view.show_failure("Synthetic setup failure")
+        application.processEvents()
+
+        assert window.view.details_button.isChecked() is True
+        assert window.view.progress_log.isVisible() is True
+        assert toggled.count() == 0
     finally:
         close_and_delete_launcher_window(window)
