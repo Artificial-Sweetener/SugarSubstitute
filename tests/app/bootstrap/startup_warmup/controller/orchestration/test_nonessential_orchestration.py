@@ -65,8 +65,6 @@ def test_start_nonessential_startup_warmups_waits_for_backend() -> None:
         comfy_http_ready=False,
         readiness_state=readiness_state,
         metadata_update_bridge=None,
-        coalescing_timeout_delay_ms=30000,
-        scheduler=lambda _delay_ms, _callback: calls.append("schedule"),
         start_backend_editor_warmup=lambda: calls.append("backend"),
         start_cube_icon_warmup=lambda: calls.append("cube"),
         start_model_metadata_refresh=lambda: calls.append("metadata"),
@@ -84,7 +82,6 @@ def test_start_nonessential_startup_warmups_runs_once_and_coalesces() -> None:
     state = StartupWarmupState()
     readiness_state = _ReadinessState()
     bridge = _MetadataBridge()
-    scheduled: list[tuple[int, object]] = []
     calls: list[str] = []
 
     start_nonessential_startup_warmups(
@@ -92,8 +89,6 @@ def test_start_nonessential_startup_warmups_runs_once_and_coalesces() -> None:
         comfy_http_ready=True,
         readiness_state=readiness_state,
         metadata_update_bridge=bridge,
-        coalescing_timeout_delay_ms=30000,
-        scheduler=lambda delay_ms, callback: scheduled.append((delay_ms, callback)),
         start_backend_editor_warmup=lambda: calls.append("backend"),
         start_cube_icon_warmup=lambda: calls.append("cube"),
         start_model_metadata_refresh=lambda: calls.append("metadata"),
@@ -104,8 +99,6 @@ def test_start_nonessential_startup_warmups_runs_once_and_coalesces() -> None:
         comfy_http_ready=True,
         readiness_state=readiness_state,
         metadata_update_bridge=bridge,
-        coalescing_timeout_delay_ms=30000,
-        scheduler=lambda delay_ms, callback: scheduled.append((delay_ms, callback)),
         start_backend_editor_warmup=lambda: calls.append("backend"),
         start_cube_icon_warmup=lambda: calls.append("cube"),
         start_model_metadata_refresh=lambda: calls.append("metadata"),
@@ -116,4 +109,3 @@ def test_start_nonessential_startup_warmups_runs_once_and_coalesces() -> None:
     assert readiness_state.nonessential_startup_warmups_pending_backend is False
     assert calls == ["backend", "cube", "metadata"]
     assert bridge.begin_calls == 1
-    assert scheduled == [(30000, bridge.timeout_startup_coalescing)]

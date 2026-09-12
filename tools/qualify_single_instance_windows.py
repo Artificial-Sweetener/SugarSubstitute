@@ -39,6 +39,7 @@ from tools.single_instance_cold_start_evidence import (
     splash_host_pids,
 )
 from tools.single_instance_qualification_app import (
+    APPLICATION_INITIAL_WINDOW_STATE_ENV,
     APPLICATION_REGISTRATION_DELAY_ENV,
     APPLICATION_RESTART_AFTER_INVOCATIONS_ENV,
     application_preregistration_marker_path,
@@ -48,6 +49,7 @@ from tools.single_instance_qualification_app import (
 from tools.single_instance_qualification_installation import (
     prepare_qualification_installation,
 )
+from tools.single_instance_log_evidence import audit_launcher_log
 
 
 _TIMEOUT_SECONDS = 30.0
@@ -143,6 +145,39 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "replacement_supervisor_pid": replacement.pid,
                 "replacement_child_pid": replacement_pid,
             }
+
+            _terminate_supervisor_and_child(replacement, replacement_pid)
+            previous_state_pid = replacement_pid
+            state_results: dict[str, object] = {}
+            for initial_state in ("hidden", "minimized", "offscreen"):
+                state_supervisor = _launch(
+                    layout,
+                    initial_window_state=initial_state,
+                )
+                launchers.append(state_supervisor)
+                state_child_pid = _wait_for_new_app_pid(
+                    layout,
+                    previous_pid=previous_state_pid,
+                    supervisor=state_supervisor,
+                )
+                forwarder = _launch(layout)
+                launchers.append(forwarder)
+                _wait_for_clean_exits((forwarder,))
+                state_surface = _wait_for_presented_surface(layout)
+                _wait_for_splash_hosts_exit(layout)
+                _assert_single_child(layout, state_child_pid)
+                state_results[initial_state] = {
+                    "child_pid": state_child_pid,
+                    "forwarder_exit_code": forwarder.returncode,
+                    "presented_surface": state_surface,
+                    "supervisor_pid": state_supervisor.pid,
+                }
+                _terminate_supervisor_and_child(
+                    state_supervisor,
+                    state_child_pid,
+                )
+                previous_state_pid = state_child_pid
+            evidence["window_state_recovery"] = state_results
             _assert_no_live_ownership_files(layout)
             evidence["native_ownership"] = {
                 "created_live_ownership_files": [],
@@ -150,6 +185,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "peer_scope": "same-user-session",
                 "remote_clients": "rejected",
             }
+            evidence["launcher_log"] = audit_launcher_log(layout)
+            _capture_success_diagnostics(layout, artifact_dir)
         except BaseException:
             _capture_failure_diagnostics(layout, artifact_dir)
             raise
@@ -190,6 +227,7 @@ def _launch(
     *,
     registration_delay_seconds: float | None = None,
     restart_after_invocations: int | None = None,
+    initial_window_state: str | None = None,
 ) -> subprocess.Popen[bytes]:
     """Start one packaged launcher invocation without desktop surfaces."""
 
@@ -207,6 +245,8 @@ def _launch(
         environment[APPLICATION_RESTART_AFTER_INVOCATIONS_ENV] = str(
             restart_after_invocations
         )
+    if initial_window_state is not None:
+        environment[APPLICATION_INITIAL_WINDOW_STATE_ENV] = initial_window_state
     return subprocess.Popen(  # noqa: S603
         [str(layout.executable_path), "--no-update-check", "--locale=en"],
         cwd=layout.root,
@@ -294,6 +334,35 @@ def _wait_for_invocation_count(layout: InstallLayout, expected_count: int) -> No
     )
 
 
+def _wait_for_presented_surface(layout: InstallLayout) -> dict[str, object]:
+    """Require the last forwarded request to reveal an accessible normal window."""
+
+    evidence_path = invocation_evidence_path(layout.root)
+
+    def presented_surface() -> dict[str, object] | None:
+        try:
+            payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            return None
+        if not isinstance(payload, dict) or payload.get("count") != 1:
+            return None
+        surface = payload.get("surface")
+        if not isinstance(surface, dict):
+            return None
+        if (
+            surface.get("visible") is not True
+            or surface.get("minimized") is not False
+            or surface.get("accessible") is not True
+        ):
+            return None
+        return surface
+
+    return _wait_for_value(
+        presented_surface,
+        description="visible accessible application surface",
+    )
+
+
 def _wait_for_restart_evidence(
     layout: InstallLayout,
     *,
@@ -378,6 +447,18 @@ def _wait_for_process_exit(pid: int) -> None:
         lambda: True if not psutil.pid_exists(pid) else None,
         description=f"process {pid} exit",
     )
+
+
+def _terminate_supervisor_and_child(
+    supervisor: subprocess.Popen[bytes],
+    child_pid: int,
+) -> None:
+    """Crash one qualification supervisor and require its child to follow."""
+
+    if supervisor.poll() is None:
+        psutil.Process(supervisor.pid).kill()
+    _wait_for_process_exit(supervisor.pid)
+    _wait_for_process_exit(child_pid)
 
 
 def _wait_for_value(
@@ -471,6 +552,17 @@ def _capture_failure_diagnostics(
             diagnostics_dir / "app-diagnostics",
             dirs_exist_ok=True,
         )
+
+
+def _capture_success_diagnostics(
+    layout: InstallLayout,
+    artifact_dir: Path,
+) -> None:
+    """Preserve the qualified launcher log beside the structured report."""
+
+    source = layout.logs_dir / "launcher.log"
+    if source.is_file():
+        shutil.copy2(source, artifact_dir / "launcher.log")
 
 
 if __name__ == "__main__":

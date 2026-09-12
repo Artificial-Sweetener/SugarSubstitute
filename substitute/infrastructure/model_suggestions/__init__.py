@@ -14,10 +14,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Expose application adapters for technical model discovery."""
+"""Expose external model-suggestion provider adapters."""
 
-from substitute.application.model_discovery.backend_inventory import (
-    BackendModelInventory,
+from substitute.infrastructure.model_suggestions.civitai_provider import (
+    CivitaiModelSuggestionProvider,
 )
 
-__all__ = ["BackendModelInventory"]
+__all__ = ["CivitaiModelSuggestionProvider"]

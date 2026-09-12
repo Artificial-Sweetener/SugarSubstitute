@@ -32,10 +32,8 @@ from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 from sugarsubstitute_shared.localization import render_source_application_text
 
-from substitute.application.node_behavior.behavior_service import (
-    NodeBehaviorRuntimeState,
-    NodeBehaviorService,
-)
+from substitute.application.node_behavior import NodeBehaviorRuntimeState
+from substitute.application.node_behavior.behavior_service import NodeBehaviorService
 from substitute.application.localization import (
     ActiveComfyNodeCatalogStore,
     NodePresentationService,

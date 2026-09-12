@@ -19,8 +19,15 @@
 import threading
 from pathlib import Path
 
+import pytest
+
+from sugarsubstitute_shared import application_instance_broker
 from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
-from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
+from sugarsubstitute_shared.application_instance_protocol import (
+    ApplicationInstanceBrokerError,
+    ApplicationInvocation,
+    RoutedApplicationInvocation,
+)
 from sugarsubstitute_shared.application_supervisor_client import (
     ApplicationSupervisorClient,
 )
@@ -43,10 +50,15 @@ def test_secondary_invocation_reaches_the_registered_application(
     received: list[ApplicationInvocation] = []
     delivered = threading.Event()
 
-    def receive(invocation: ApplicationInvocation) -> None:
+    def receive(request: RoutedApplicationInvocation) -> None:
         """Capture the invocation delivered through the retained child channel."""
 
-        received.append(invocation)
+        received.append(request.invocation)
+        client.complete_invocation(
+            request.request_id,
+            outcome="presented",
+            surface="test-window",
+        )
         delivered.set()
 
     client.bind_invocation_handler(receive)
@@ -107,13 +119,22 @@ def test_startup_invocation_is_queued_until_the_child_registers(
         ["Substitute", "queued.sugar"],
         working_directory=tmp_path,
     )
-    assert (
-        ApplicationInstanceBroker.elect(
-            install_root=tmp_path,
-            invocation=queued,
+    forward_finished = threading.Event()
+
+    def forward() -> None:
+        """Forward the launch while the primary application is still starting."""
+
+        assert (
+            ApplicationInstanceBroker.elect(
+                install_root=tmp_path,
+                invocation=queued,
+            )
+            is None
         )
-        is None
-    )
+        forward_finished.set()
+
+    forward_thread = threading.Thread(target=forward)
+    forward_thread.start()
     client = ApplicationSupervisorClient.connect_from_environment(
         broker.child_environment({})
     )
@@ -121,16 +142,192 @@ def test_startup_invocation_is_queued_until_the_child_registers(
     received: list[ApplicationInvocation] = []
     delivered = threading.Event()
 
-    def receive(invocation: ApplicationInvocation) -> None:
+    def receive(request: RoutedApplicationInvocation) -> None:
         """Capture the one launch retained by the supervisor."""
 
-        received.append(invocation)
+        received.append(request.invocation)
+        client.complete_invocation(
+            request.request_id,
+            outcome="presented",
+            surface="test-window",
+        )
         delivered.set()
 
     try:
         client.bind_invocation_handler(receive)
         assert delivered.wait(2.0)
+        assert forward_finished.wait(2.0)
         assert received == [queued]
+    finally:
+        client.close()
+        broker.close()
+        forward_thread.join(timeout=2.0)
+
+
+def test_secondary_remains_pending_until_the_application_presents_a_surface(
+    tmp_path: Path,
+) -> None:
+    """Define launch acceptance as presentation rather than IPC delivery."""
+
+    broker = ApplicationInstanceBroker.elect(
+        install_root=tmp_path,
+        invocation=ApplicationInvocation.capture(["Substitute"]),
+    )
+    assert broker is not None
+    client = ApplicationSupervisorClient.connect_from_environment(
+        broker.child_environment({})
+    )
+    assert client is not None
+    routed: list[RoutedApplicationInvocation] = []
+    delivered = threading.Event()
+    forward_finished = threading.Event()
+
+    def receive(request: RoutedApplicationInvocation) -> None:
+        """Retain the request without claiming a presentation yet."""
+
+        routed.append(request)
+        delivered.set()
+
+    client.bind_invocation_handler(receive)
+
+    def forward() -> None:
+        """Attempt the secondary launch on a thread until presentation occurs."""
+
+        assert (
+            ApplicationInstanceBroker.elect(
+                install_root=tmp_path,
+                invocation=ApplicationInvocation.capture(
+                    ["Substitute", "delayed.sugar"]
+                ),
+            )
+            is None
+        )
+        forward_finished.set()
+
+    forward_thread = threading.Thread(target=forward)
+    forward_thread.start()
+    try:
+        assert delivered.wait(2.0)
+        assert not forward_finished.wait(0.1)
+        request = routed.pop()
+        client.complete_invocation(
+            request.request_id,
+            outcome="presented",
+            surface="test-window",
+        )
+        assert forward_finished.wait(2.0)
+    finally:
+        client.close()
+        broker.close()
+        forward_thread.join(timeout=2.0)
+
+
+def test_startup_surface_acknowledges_launch_without_losing_queued_invocation(
+    tmp_path: Path,
+) -> None:
+    """Present the splash immediately and still deliver work to the future child."""
+
+    broker = ApplicationInstanceBroker.elect(
+        install_root=tmp_path,
+        invocation=ApplicationInvocation.capture(["Substitute"]),
+    )
+    assert broker is not None
+    presented: list[ApplicationInvocation] = []
+
+    def present_startup(invocation: ApplicationInvocation) -> str:
+        """Record the invocation and identify the visible startup surface."""
+
+        presented.append(invocation)
+        return "startup-splash"
+
+    broker.bind_startup_presenter(present_startup)
+    duplicate = ApplicationInvocation.capture(["Substitute", "queued.sugar"])
+
+    assert (
+        ApplicationInstanceBroker.elect(
+            install_root=tmp_path,
+            invocation=duplicate,
+        )
+        is None
+    )
+    assert presented == [duplicate]
+
+    client = ApplicationSupervisorClient.connect_from_environment(
+        broker.child_environment({})
+    )
+    assert client is not None
+    delivered: list[ApplicationInvocation] = []
+    complete = threading.Event()
+
+    def receive(request: RoutedApplicationInvocation) -> None:
+        """Prove the early acknowledgement did not consume routed work."""
+
+        delivered.append(request.invocation)
+        client.complete_invocation(
+            request.request_id,
+            outcome="presented",
+            surface="main-window",
+        )
+        complete.set()
+
+    try:
+        client.bind_invocation_handler(receive)
+        assert complete.wait(2.0)
+        assert delivered == [duplicate]
+    finally:
+        client.close()
+        broker.close()
+
+
+def test_presentation_deadline_releases_launcher_without_discarding_work(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Bound an unusable owner while retaining invocation delivery for recovery."""
+
+    monkeypatch.setattr(
+        application_instance_broker,
+        "_SUPERVISOR_RECEIPT_DEADLINE_SECONDS",
+        0.05,
+    )
+    broker = ApplicationInstanceBroker.elect(
+        install_root=tmp_path,
+        invocation=ApplicationInvocation.capture(["Substitute"]),
+    )
+    assert broker is not None
+    duplicate = ApplicationInvocation.capture(["Substitute", "retained.sugar"])
+
+    with pytest.raises(ApplicationInstanceBrokerError) as captured:
+        ApplicationInstanceBroker.elect(
+            install_root=tmp_path,
+            invocation=duplicate,
+        )
+
+    assert captured.value.owner_process_id is not None
+    assert captured.value.endpoint is not None
+
+    client = ApplicationSupervisorClient.connect_from_environment(
+        broker.child_environment({})
+    )
+    assert client is not None
+    delivered: list[ApplicationInvocation] = []
+    completed = threading.Event()
+
+    def receive(request: RoutedApplicationInvocation) -> None:
+        """Complete work retained after its original launcher was released."""
+
+        delivered.append(request.invocation)
+        client.complete_invocation(
+            request.request_id,
+            outcome="presented",
+            surface="main-window",
+        )
+        completed.set()
+
+    try:
+        client.bind_invocation_handler(receive)
+        assert completed.wait(2.0)
+        assert delivered == [duplicate]
     finally:
         client.close()
         broker.close()

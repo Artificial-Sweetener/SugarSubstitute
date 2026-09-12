@@ -202,7 +202,7 @@ class ModelDownloadReviewPage(OnboardingPageFrame):
         self.cards_scroll.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
-        self.cards_scroll.setFixedHeight((CARD_HEIGHT * 2) + 10)
+        self.cards_scroll.setFixedHeight(CARD_HEIGHT * 2)
         self.cards_host = QWidget(self.cards_scroll)
         self.cards_host.setObjectName("OnboardingDownloadCardsHost")
         self.cards_layout = QVBoxLayout(self.cards_host)

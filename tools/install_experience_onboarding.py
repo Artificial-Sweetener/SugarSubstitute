@@ -25,6 +25,7 @@ from substitute.app.bootstrap.execution_runtime import ExecutionRuntime
 from substitute.app.bootstrap.onboarding_execution import (
     create_onboarding_provisioning_submitter_factory,
 )
+from substitute.application.model_recommendations import ModelInstallRecipePlanner
 from substitute.domain.onboarding import BootstrapRoute, ReadinessAssessment
 from substitute.presentation.onboarding import OnboardingController, OnboardingWindow
 from substitute.presentation.onboarding.comfy_environment_coordinator import (
@@ -115,6 +116,7 @@ class OnboardingCheckSession:
             controller=self.controller,
             environment_coordinator=cast(ComfyEnvironmentCoordinator, coordinator),
             model_coordinator=cast(ModelOnboardingCoordinator, model_coordinator),
+            recipe_planner=ModelInstallRecipePlanner(free_space=lambda _path: 1 << 50),
             install_root_locked=install_root_locked,
             error_presenter=self.error_presenter,
             directory_chooser=directory_chooser,

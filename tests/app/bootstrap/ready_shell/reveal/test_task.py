@@ -23,6 +23,8 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from PySide6.QtCore import QCoreApplication
+from PySide6.QtWidgets import QWidget
 
 from substitute.app.bootstrap import (
     ready_shell_reveal,
@@ -33,6 +35,7 @@ from ..support.restore_signals import _Signal
 from ..support.shell_surfaces import _CloseSplash
 from ..support.timing import _Timer
 from ..support.trace import _patch_trace
+from tests.support.qt.lifecycle import ensure_qt_application
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
 READY_SHELL_CONTROLLER_SOURCE = (
@@ -65,12 +68,18 @@ FORBIDDEN_READY_SHELL_CONTROLLER_IMPORT_PREFIXES = (
 def test_reveal_ready_shell_main_window_sequences_post_show_work(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Ready-shell reveal should close splash, show shell, and fan out post-show work."""
+    """Ready-shell reveal should show before closing splash and fan out work."""
 
     events: list[tuple[str, dict[str, object]]] = []
     _patch_trace(monkeypatch, events)
     calls: list[str] = []
     logs: list[dict[str, object]] = []
+    paint_callbacks: list[Callable[[], None]] = []
+    monkeypatch.setattr(
+        ready_shell_reveal,
+        "run_after_surface_paint",
+        lambda _window, callback: paint_callbacks.append(callback),
+    )
     monkeypatch.setattr(
         ready_shell_reveal,
         "log_info",
@@ -88,7 +97,7 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
         calls.append("show")
         return shown_shell_frame
 
-    def schedule_readiness_receipt() -> bool:
+    def schedule_readiness_receipt(_window: object) -> bool:
         """Record readiness scheduling at the visible-shell boundary."""
 
         calls.append("schedule_readiness")
@@ -113,14 +122,8 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
     )
 
     assert result.shell_frame is shown_shell_frame
-    assert result.splash is None
+    assert result.splash is not None
     assert calls == [
-        "phase:start:startup.close_launch_splash",
-        "span:start:launch_splash.close",
-        "splash:close",
-        "span:end:launch_splash.close",
-        "phase:end:startup.close_launch_splash",
-        "mark:splash_closed",
         "phase:start:startup.show_main_window",
         "span:start:main_shell.show",
         "show",
@@ -134,10 +137,17 @@ def test_reveal_ready_shell_main_window_sequences_post_show_work(
         "diagnostics",
         "schedule_hydration",
     ]
-    assert events == [
-        ("launch_splash.closed", {"route": "ready"}),
-        ("main_shell.shown", {"route": "ready"}),
+    assert events == [("main_shell.shown", {"route": "ready"})]
+    paint_callbacks.pop(0)()
+    assert calls[-6:] == [
+        "phase:start:startup.close_launch_splash",
+        "span:start:launch_splash.close",
+        "splash:close",
+        "span:end:launch_splash.close",
+        "phase:end:startup.close_launch_splash",
+        "mark:splash_closed",
     ]
+    assert events[-1] == ("launch_splash.closed", {"route": "ready"})
     assert logs == [
         {
             "message": "Main shell revealed",
@@ -155,6 +165,12 @@ def test_reveal_ready_shell_main_window_tolerates_splash_close_failure(
     _patch_trace(monkeypatch, events)
     calls: list[str] = []
     exceptions: list[str] = []
+    paint_callbacks: list[Callable[[], None]] = []
+    monkeypatch.setattr(
+        ready_shell_reveal,
+        "run_after_surface_paint",
+        lambda _window, callback: paint_callbacks.append(callback),
+    )
     monkeypatch.setattr(
         ready_shell_reveal,
         "log_exception",
@@ -186,11 +202,7 @@ def test_reveal_ready_shell_main_window_tolerates_splash_close_failure(
 
     assert result.shell_frame is shown_shell_frame
     assert result.splash is splash
-    assert "Failed to close splash after readiness check" in exceptions
     assert calls == [
-        "phase:start:startup.close_launch_splash",
-        "span:start:launch_splash.close",
-        "splash:close",
         "phase:start:startup.show_main_window",
         "span:start:main_shell.show",
         "span:end:main_shell.show",
@@ -202,9 +214,65 @@ def test_reveal_ready_shell_main_window_tolerates_splash_close_failure(
         "diagnostics",
         "schedule_hydration",
     ]
+    paint_callbacks.pop(0)()
+    assert "Failed to close splash after shell paint" in exceptions
+    assert calls[-3:] == [
+        "phase:start:startup.close_launch_splash",
+        "span:start:launch_splash.close",
+        "splash:close",
+    ]
     assert events == [
         ("main_shell.shown", {"route": "ready"}),
     ]
+
+
+def test_reveal_retains_splash_when_close_is_not_acknowledged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An attempted close must not be reported as confirmed splash disposal."""
+
+    events: list[tuple[str, dict[str, object]]] = []
+    _patch_trace(monkeypatch, events)
+    calls: list[str] = []
+    warnings: list[str] = []
+    paint_callbacks: list[Callable[[], None]] = []
+    monkeypatch.setattr(
+        ready_shell_reveal,
+        "run_after_surface_paint",
+        lambda _window, callback: paint_callbacks.append(callback),
+    )
+    monkeypatch.setattr(
+        ready_shell_reveal,
+        "log_warning",
+        lambda _logger, message, **_fields: warnings.append(message),
+    )
+    monkeypatch.setattr(
+        ready_shell_reveal,
+        "log_info",
+        lambda _logger, _message, **_fields: None,
+    )
+    splash = _CloseSplash(calls, acknowledged=False)
+
+    result = ready_shell_reveal.reveal_ready_shell_main_window(
+        splash=splash,
+        shell_frame=object(),
+        initial_shell_placement=None,
+        comfy_http_ready=True,
+        startup_timer=_Timer(calls),
+        show_built_main_window=lambda frame, **_kwargs: frame,
+        set_current_shell=lambda _frame: None,
+        update_backend_state=lambda _state: None,
+        connect_restore_finalized_warmups=lambda: None,
+        request_startup_diagnostics_update=lambda: None,
+        schedule_post_show_hydration=lambda: None,
+        trace_fields=lambda: {"route": "ready"},
+    )
+
+    assert result.splash is splash
+    paint_callbacks.pop(0)()
+    assert "mark:splash_closed" not in calls
+    assert events == [("main_shell.shown", {"route": "ready"})]
+    assert warnings == ["Launch splash did not acknowledge closure after shell paint"]
 
 
 def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
@@ -215,6 +283,12 @@ def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
     events: list[tuple[str, dict[str, object]]] = []
     _patch_trace(monkeypatch, events)
     calls: list[str] = []
+    paint_callbacks: list[Callable[[], None]] = []
+    monkeypatch.setattr(
+        ready_shell_reveal,
+        "run_after_surface_paint",
+        lambda _window, callback: paint_callbacks.append(callback),
+    )
     monkeypatch.setattr(
         ready_shell_reveal,
         "log_info",
@@ -274,17 +348,11 @@ def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
     result = task.reveal(main_window)
 
     assert result.shell_frame is shown_shell_frame
-    assert result.splash is None
+    assert result.splash is splash_state[0]
     assert shell_state == [shown_shell_frame]
-    assert splash_state == [None]
+    assert splash_state[0] is not None
     assert recorded_shell_frames == [shown_shell_frame]
     assert calls == [
-        "phase:start:startup.close_launch_splash",
-        "span:start:launch_splash.close",
-        "splash:close",
-        "span:end:launch_splash.close",
-        "phase:end:startup.close_launch_splash",
-        "mark:splash_closed",
         "phase:start:startup.show_main_window",
         "span:start:main_shell.show",
         "show",
@@ -296,16 +364,18 @@ def test_ready_shell_reveal_task_uses_live_shell_and_splash_state(
         "diagnostics",
         "schedule_hydration",
     ]
+    paint_callbacks.pop(0)()
+    assert splash_state == [None]
     callback = cast(Callable[[], None], main_window.restore_finalized.callbacks[0])
     callback()
     assert calls[-1] == "warmups:restore_finalized"
     assert events == [
-        ("launch_splash.closed", {"route": "ready"}),
         ("main_shell.shown", {"route": "ready"}),
         (
             "post_comfy.nonessential_warmups.wait_restore_finalized",
             {"route": "ready"},
         ),
+        ("launch_splash.closed", {"route": "ready"}),
         (
             "post_comfy.nonessential_warmups.restore_finalized",
             {"route": "ready"},
@@ -335,6 +405,52 @@ def test_create_ready_shell_reveal_task_returns_task() -> None:
     )
 
     assert isinstance(task, ready_shell_reveal.ReadyShellRevealTask)
+
+
+def test_real_shell_keeps_splash_until_replacement_surface_paints(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The splash-to-shell handoff must contain no unpainted surface gap."""
+
+    application = ensure_qt_application()
+    monkeypatch.setattr(
+        ready_shell_reveal,
+        "log_info",
+        lambda _logger, _message, **_fields: None,
+    )
+    calls: list[str] = []
+    window = QWidget()
+
+    def show(frame: object, **_kwargs: object) -> object:
+        """Show the exact production-shaped QWidget without pumping events."""
+
+        assert frame is window
+        window.show()
+        calls.append("show")
+        return window
+
+    ready_shell_reveal.reveal_ready_shell_main_window(
+        splash=_CloseSplash(calls),
+        shell_frame=window,
+        initial_shell_placement=None,
+        comfy_http_ready=True,
+        startup_timer=_Timer(calls),
+        show_built_main_window=show,
+        set_current_shell=lambda _frame: None,
+        update_backend_state=lambda _state: None,
+        connect_restore_finalized_warmups=lambda: None,
+        request_startup_diagnostics_update=lambda: None,
+        schedule_post_show_hydration=lambda: None,
+        trace_fields=lambda: {},
+        schedule_readiness_receipt=lambda _window: True,
+    )
+
+    assert "splash:close" not in calls
+    QCoreApplication.processEvents()
+    QCoreApplication.processEvents()
+    assert "splash:close" in calls
+    window.close()
+    application.processEvents()
 
 
 class _RestoreFinalizedMainWindow:

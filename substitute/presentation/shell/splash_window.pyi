@@ -32,10 +32,11 @@ class SplashWindow(QWidget):
         icon: QIcon | None = ...,
         parent: QWidget | None = ...,
         *,
-        backdrop_mode: ShellBackdropMode | None = ...,
-        theme_mode: AppearanceThemeMode = ...,
+        backdrop_mode: ShellBackdropMode | str | None = ...,
+        theme_mode: AppearanceThemeMode | str = ...,
         accent_color: str = ...,
         activity_clock: Callable[[], float] = ...,
+        defer_animation_until_first_paint: bool = ...,
     ) -> None: ...
     def __getattr__(self, name: str) -> Any: ...
     def center_on_screen(self) -> None: ...

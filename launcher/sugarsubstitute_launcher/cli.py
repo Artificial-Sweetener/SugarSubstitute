@@ -41,6 +41,7 @@ class LauncherArguments:
     locale_override: str | None
     crash_report_incident_id: str | None
     launcher_ui_child: bool
+    instance_recovery_request: Path | None
 
 
 def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
@@ -57,6 +58,12 @@ def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
         action="store_true",
         help=argparse.SUPPRESS,
     )
+    parser.add_argument(
+        "--instance-recovery-request",
+        type=Path,
+        default=None,
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("--repair", action="store_true")
     parser.add_argument("--no-update-check", action="store_true")
     parser.add_argument("--install-root", type=Path, default=None)
@@ -68,6 +75,13 @@ def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
         parser.error("--headless-install requires --install-root")
     if namespace.show_crash_report and namespace.install_root is None:
         parser.error("--show-crash-report requires --install-root")
+    if namespace.instance_recovery_request is not None and (
+        not namespace.launcher_ui_child or namespace.install_root is None
+    ):
+        parser.error(
+            "--instance-recovery-request requires --launcher-ui-child and "
+            "--install-root"
+        )
     return LauncherArguments(
         continue_install=namespace.continue_install,
         headless_install=namespace.headless_install,
@@ -80,4 +94,5 @@ def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
         locale_override=namespace.locale,
         crash_report_incident_id=namespace.show_crash_report,
         launcher_ui_child=namespace.launcher_ui_child,
+        instance_recovery_request=namespace.instance_recovery_request,
     )

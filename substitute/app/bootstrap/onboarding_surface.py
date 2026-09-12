@@ -240,7 +240,8 @@ def show_onboarding_surface(
         window.destroyed.connect(lambda _obj=None: setup_transcript.close())
     window.show()
     schedule_application_readiness_receipt(
-        surface=ApplicationReadinessSurface.ONBOARDING
+        surface=ApplicationReadinessSurface.ONBOARDING,
+        window=window,
     )
     from substitute.presentation.onboarding.installer_qualification import (
         schedule_onboarding_qualification,

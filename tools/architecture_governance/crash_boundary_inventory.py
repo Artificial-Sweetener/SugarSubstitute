@@ -25,6 +25,7 @@ CrashBoundaryInventoryRow = tuple[str, str, str, str, int, str]
 # fmt: off
 REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("application", "launcher/sugarsubstitute_launcher/app.py", "_run_launcher_window", "PySide6.QtWidgets.QApplication", 1, "supervised_launcher_ui"),
+    ("application", "launcher/sugarsubstitute_launcher/app.py", "_run_instance_recovery_window", "PySide6.QtWidgets.QApplication", 1, "supervised_launcher_ui"),
     ("application", "launcher/sugarsubstitute_launcher/crash_reporter.py", "_present_crash_incident", "PySide6.QtWidgets.QApplication", 1, "recovery_bound_crash_reporter"),
     ("application", "substitute/app/bootstrap/shared_splash_host.py", "main", "PySide6.QtWidgets.QApplication", 1, "isolated_support_ui"),
     ("application", "substitute/app/bootstrap/splash_process.py", "main", "PySide6.QtWidgets.QApplication", 1, "isolated_support_ui"),

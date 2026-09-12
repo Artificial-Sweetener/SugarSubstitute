@@ -24,6 +24,8 @@ import pytest
 
 from substitute.domain.model_recommendations import (
     ModelFamilyId,
+    ModelRecommendationAccess,
+    ModelRecommendationAccessPolicy,
     ModelRecommendationQuery,
 )
 from substitute.infrastructure.model_recommendations import (
@@ -136,6 +138,32 @@ def test_automatic_recommendations_exclude_api_key_downloads() -> None:
 
     assert [card.model_id for card in cards] == [2]
     assert provider.access_headers
+    assert all("Authorization" not in headers for headers in provider.access_headers)
+
+
+def test_explicit_picker_suggestions_include_and_label_api_key_downloads() -> None:
+    """A user-opened picker may offer protected models without authenticating yet."""
+
+    provider = _AccessProvider(
+        {
+            10: _access(requires_authentication=True),
+            20: _access(requires_authentication=False),
+        }
+    )
+
+    cards = CivitaiFamilyRecommendationGateway(fetch_json=provider).discover(
+        ModelRecommendationQuery(
+            ModelFamilyId.SDXL,
+            access_policy=ModelRecommendationAccessPolicy.INCLUDE_AUTHENTICATED,
+        ),
+        limit=2,
+    )
+
+    assert [card.model_id for card in cards] == [1, 2]
+    assert [card.access for card in cards] == [
+        ModelRecommendationAccess.API_KEY_REQUIRED,
+        ModelRecommendationAccess.PUBLIC,
+    ]
     assert all("Authorization" not in headers for headers in provider.access_headers)
 
 

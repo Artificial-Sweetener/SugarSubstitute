@@ -24,14 +24,22 @@ import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 
-from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QCheckBox, QWidget
 
+from substitute.infrastructure.model_updates import FileModelUsageRepository
+from substitute.presentation.model_updates import ModelUpdateModal
 from substitute.presentation.shell.model_update_notification_controller import (
     ModelUpdateNotificationController,
 )
 from sugarsubstitute_shared.model_acquisition import ModelAcquisitionService
-from sugarsubstitute_shared.model_discovery import DiscoveredModel, ModelArtifactKind
+from sugarsubstitute_shared.model_discovery import (
+    CivitaiDiscoveryClient,
+    DiscoveredModel,
+    ModelArtifactKind,
+)
 from sugarsubstitute_shared.model_updates import (
+    CivitaiCompatibleUpdateGateway,
     ModelUpdateAcquisitionService,
     ModelUpdateProposal,
     ModelUpdateService,
@@ -169,6 +177,162 @@ def test_opt_out_prevents_provider_check(tmp_path: Path) -> None:
     assert updates.calls == 0
     controller.close()
     parent.deleteLater()
+
+
+def test_real_persisted_usage_reaches_update_modal_and_atomic_download(
+    tmp_path: Path,
+) -> None:
+    """Prove tracking, compatibility lookup, review UI, and transfer as one session."""
+
+    payload = b"synthetic-compatible-update"
+    candidate_hash = hashlib.sha256(payload).hexdigest()
+    model_root = tmp_path / "models"
+    current_path = model_root / "checkpoints" / "current.safetensors"
+    current_path.parent.mkdir(parents=True)
+    current_path.write_bytes(b"synthetic-current-model")
+    usage_repository = FileModelUsageRepository(tmp_path / "settings")
+
+    def service_clock() -> datetime:
+        """Return a stable clock inside the update relevance window."""
+
+        return datetime(2026, 9, 12, tzinfo=UTC)
+
+    update_service = ModelUpdateService(
+        usage=usage_repository,
+        updates=CivitaiCompatibleUpdateGateway(
+            CivitaiDiscoveryClient(
+                fetch_json=lambda _url, **_kwargs: _update_provider_payload(
+                    candidate_hash,
+                    len(payload),
+                )
+            )
+        ),
+        clock=service_clock,
+    )
+    update_service.record_usage(
+        sha256="a" * 64,
+        path=current_path,
+        artifact_kind=ModelArtifactKind.CHECKPOINTS,
+        model_id=314,
+        version_id=10,
+        base_model="SDXL 1.0",
+    )
+    shown: list[ModelUpdateProposal] = []
+
+    def review_in_production_modal(
+        proposals: Sequence[ModelUpdateProposal],
+        root: Path,
+        parent: QWidget,
+    ) -> tuple[str, ...]:
+        """Exercise the actual unchecked review surface and explicitly select once."""
+
+        assert len(proposals) == 1
+        shown.extend(proposals)
+        modal = ModelUpdateModal(proposals=proposals, model_root=root, parent=parent)
+        checks = modal.findChildren(QCheckBox)
+        assert len(checks) == 1
+        assert not checks[0].isChecked()
+        checks[0].setChecked(True)
+        QTimer.singleShot(0, modal.accept)
+        try:
+            return modal.choose_updates()
+        finally:
+            modal.deleteLater()
+
+    parent = QWidget()
+    feedback: list[tuple[str, str]] = []
+    controller = ModelUpdateNotificationController(
+        parent_widget=parent,
+        preferences=_Preferences(True),
+        updates=update_service,
+        model_root=model_root,
+        acquisition=ModelUpdateAcquisitionService(
+            model_root=model_root,
+            acquisition=ModelAcquisitionService(
+                allowed_roots=(model_root,),
+                stream_opener=lambda _url, _headers, _timeout: _Stream(payload),
+            ),
+        ),
+        chooser=review_in_production_modal,
+        feedback=lambda severity, message: feedback.append((severity, message)),
+    )
+
+    assert controller.check_on_focus()
+    wait_for_qt_condition(
+        lambda: not controller.running and bool(feedback),
+        timeout_ms=5000,
+    )
+
+    assert len(shown) == 1
+    assert shown[0].current.path == current_path
+    assert shown[0].candidate.version_id == 20
+    assert current_path.read_bytes() == b"synthetic-current-model"
+    assert (model_root / "checkpoints" / "updated.safetensors").read_bytes() == payload
+    assert feedback[-1][0] == "success"
+    persisted = usage_repository.load()
+    assert len(persisted) == 1 and persisted[0].usage_count == 1
+    controller.close()
+    parent.deleteLater()
+
+
+def _update_provider_payload(sha256: str, size_bytes: int) -> dict[str, object]:
+    """Return a realistic newest-first CivitAI version response."""
+
+    def version(
+        version_id: int,
+        *,
+        name: str,
+        file_name: str,
+        file_hash: str,
+        byte_count: int,
+    ) -> dict[str, object]:
+        """Build one safe public SafeTensor version."""
+
+        return {
+            "id": version_id,
+            "name": name,
+            "baseModel": "SDXL 1.0",
+            "availability": "Public",
+            "images": [],
+            "files": [
+                {
+                    "name": file_name,
+                    "downloadUrl": (
+                        f"https://civitai.com/api/download/models/{version_id}"
+                    ),
+                    "sizeKB": byte_count / 1024,
+                    "primary": True,
+                    "metadata": {"format": "SafeTensor"},
+                    "hashes": {"SHA256": file_hash},
+                    "pickleScanResult": "Success",
+                    "virusScanResult": "Success",
+                }
+            ],
+        }
+
+    return {
+        "id": 314,
+        "name": "Synthetic Update Model",
+        "type": "Checkpoint",
+        "nsfw": False,
+        "creator": {"username": "Synthetic"},
+        "modelVersions": [
+            version(
+                20,
+                name="Updated",
+                file_name="updated.safetensors",
+                file_hash=sha256,
+                byte_count=size_bytes,
+            ),
+            version(
+                10,
+                name="Current",
+                file_name="current.safetensors",
+                file_hash="a" * 64,
+                byte_count=23,
+            ),
+        ],
+    }
 
 
 def test_opt_in_review_downloads_exact_selection_and_does_not_repeat(

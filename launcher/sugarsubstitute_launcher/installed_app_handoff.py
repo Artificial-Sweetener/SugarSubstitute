@@ -27,10 +27,10 @@ from launcher.sugarsubstitute_launcher.application_launch import (
 from launcher.sugarsubstitute_launcher.candidate_update_launch import (
     launch_prepared_update,
 )
-from launcher.sugarsubstitute_launcher.config import LauncherConfig
-from launcher.sugarsubstitute_launcher.crash_supervisor import (
-    ApplicationCrashSupervisor,
+from launcher.sugarsubstitute_launcher.application_lifecycle_supervisor import (
+    ApplicationLifecycleSupervisor,
 )
+from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import build_app_launch_command
 from launcher.sugarsubstitute_launcher.release_sources import (
@@ -74,7 +74,7 @@ def complete_installed_app_handoff(
     )
     if update_result.launcher_update_request_path is not None:
         if splash_session is not None:
-            splash_session.client.close()
+            splash_session.close()
         schedule_launcher_update(
             request_path=Path(update_result.launcher_update_request_path),
             runtime_python=layout.runtime_python,
@@ -107,6 +107,9 @@ def complete_installed_app_handoff(
                 remote_failure_reason=update_result.failure_reason,
             ),
             activation=update_result.pending_activation,
+            on_ready=(
+                splash_session.ensure_closed if splash_session is not None else None
+            ),
         )
         _supervise_requested_restarts(
             broker=broker,
@@ -120,6 +123,7 @@ def complete_installed_app_handoff(
         layout=layout,
         command=app_command,
         remote_failure_reason=update_result.failure_reason,
+        splash_session=splash_session,
     )
 
 
@@ -129,20 +133,24 @@ def _supervise_application(
     layout: InstallLayout,
     command: list[str],
     remote_failure_reason: str | None,
+    splash_session: LauncherSplashSession | None = None,
 ) -> None:
     """Supervise the initial child and every broker-authorized restart."""
 
-    supervisor = ApplicationCrashSupervisor()
+    supervisor = ApplicationLifecycleSupervisor()
     environment = installed_application_environment(
         broker,
         remote_failure_reason=remote_failure_reason,
     )
     while True:
+        on_ready = splash_session.ensure_closed if splash_session is not None else None
         supervisor.supervise(
             layout=layout,
             command=command,
             environment=environment,
+            on_ready=on_ready,
         )
+        splash_session = None
         if not broker.consume_restart_request():
             return
 
