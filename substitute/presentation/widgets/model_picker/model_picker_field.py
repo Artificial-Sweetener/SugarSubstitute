@@ -943,6 +943,10 @@ class ModelPickerField(QWidget):
         self._empty_action_button.setIcon(FIF.DOWNLOAD)
         self._empty_action_button.setObjectName("modelPickerEmptyActionButton")
         self._empty_action_button.setMinimumHeight(_COMBO_MINIMUM_HEIGHT)
+        self._empty_action_button.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding,
+        )
         self._empty_action_button.clicked.connect(self.open_picker)
         self._empty_action_button.hide()
         layout = QHBoxLayout(self)

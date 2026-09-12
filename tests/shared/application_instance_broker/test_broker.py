@@ -16,15 +16,19 @@
 
 """Exercise the real fileless broker through local operating-system IPC."""
 
+from collections.abc import Callable
 import threading
 from pathlib import Path
+from typing import cast
 
 import pytest
 
 from sugarsubstitute_shared import application_instance_broker
 from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
 from sugarsubstitute_shared.application_instance_protocol import (
+    ApplicationInstanceConnection,
     ApplicationInstanceBrokerError,
+    ApplicationInstanceEndpoint,
     ApplicationInvocation,
     RoutedApplicationInvocation,
 )
@@ -290,6 +294,23 @@ def test_presentation_deadline_releases_launcher_without_discarding_work(
         "_SUPERVISOR_RECEIPT_DEADLINE_SECONDS",
         0.05,
     )
+    connect = cast(
+        Callable[[ApplicationInstanceEndpoint], ApplicationInstanceConnection],
+        getattr(application_instance_broker, "connect_instance_endpoint"),
+    )
+
+    def connect_without_kernel_peer_identity(
+        endpoint: ApplicationInstanceEndpoint,
+    ) -> ApplicationInstanceConnection:
+        """Exercise the macOS transport contract on every test platform."""
+
+        return _PeerlessConnection(connect(endpoint))
+
+    monkeypatch.setattr(
+        application_instance_broker,
+        "connect_instance_endpoint",
+        connect_without_kernel_peer_identity,
+    )
     broker = ApplicationInstanceBroker.elect(
         install_root=tmp_path,
         invocation=ApplicationInvocation.capture(["Substitute"]),
@@ -331,6 +352,43 @@ def test_presentation_deadline_releases_launcher_without_discarding_work(
     finally:
         client.close()
         broker.close()
+
+
+class _PeerlessConnection:
+    """Delegate IPC while emulating a transport without peer PID discovery."""
+
+    def __init__(self, connection: ApplicationInstanceConnection) -> None:
+        """Retain the real connection used by the integration test."""
+
+        self._connection = connection
+
+    def send_frame(self, payload: bytes) -> None:
+        """Forward one frame to the real connection."""
+
+        self._connection.send_frame(payload)
+
+    def receive_frame(
+        self,
+        maximum_size: int,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> bytes:
+        """Receive one frame from the real connection."""
+
+        return self._connection.receive_frame(
+            maximum_size,
+            timeout_seconds=timeout_seconds,
+        )
+
+    def close(self) -> None:
+        """Close the real connection."""
+
+        self._connection.close()
+
+    def peer_process_id(self) -> int | None:
+        """Emulate loopback TCP, which cannot report its peer process."""
+
+        return None
 
 
 def test_child_observes_authoritative_supervisor_loss(tmp_path: Path) -> None:

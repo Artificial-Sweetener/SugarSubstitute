@@ -330,6 +330,10 @@ def _forward_invocation(
                 connection,
                 timeout_seconds=_PRESENTATION_TIMEOUT_SECONDS,
             )
+            owner_process_id = _response_owner_process_id(
+                response,
+                fallback=owner_process_id,
+            )
         except (OSError, TimeoutError) as error:
             raise ApplicationInstanceBrokerError(
                 "The active application did not present a usable window in time.",
@@ -355,6 +359,23 @@ def _forward_invocation(
         request.request_id,
         response.get("surface"),
     )
+
+
+def _response_owner_process_id(
+    response: Mapping[str, object],
+    *,
+    fallback: int | None,
+) -> int | None:
+    """Prefer the supervisor identity carried by its authenticated response."""
+
+    owner_process_id = response.get("owner_process_id")
+    if (
+        isinstance(owner_process_id, int)
+        and not isinstance(owner_process_id, bool)
+        and owner_process_id > 0
+    ):
+        return owner_process_id
+    return fallback
 
 
 __all__ = [

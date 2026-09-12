@@ -383,6 +383,7 @@ def _send_invocation_response(
                 "status": receipt.outcome,
                 "request_id": receipt.request_id,
                 "surface": receipt.surface,
+                "owner_process_id": os.getpid(),
             },
         )
     except OSError:

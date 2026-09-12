@@ -155,6 +155,8 @@ def bind_socket_listener(
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
             listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if endpoint.port is None:
             raise ValueError("Loopback endpoint requires a port.")
         listener.bind((endpoint.address, endpoint.port))
