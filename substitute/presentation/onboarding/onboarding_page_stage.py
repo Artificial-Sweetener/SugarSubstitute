@@ -97,7 +97,13 @@ class OnboardingPageStage(QScrollArea):
                 page_layout.invalidate()
                 page_layout.activate()
             page.updateGeometry()
-            page_height = page.sizeHint().height()
+            preferred_height = page.sizeHint().height()
+            minimum_height = page.minimumSizeHint().height()
+            page_height = (
+                min(preferred_height, viewport_height)
+                if minimum_height <= viewport_height
+                else preferred_height
+            )
             vertical_policy = (
                 Qt.ScrollBarPolicy.ScrollBarAsNeeded
                 if page_height > viewport_height

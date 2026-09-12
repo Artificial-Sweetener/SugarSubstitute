@@ -127,6 +127,13 @@ class _RecordedProvider:
         self.urls.append(url)
         if url.endswith("/enums"):
             return {"BaseModel": list(self.base_models)}
+        if "/model-versions/mini/" in url:
+            version_id = int(urlparse(url).path.rsplit("/", maxsplit=1)[-1])
+            return {
+                "availability": "Public",
+                "requireAuth": False,
+                "checkPermission": False,
+            }
         if urlparse(url).path.endswith("/images"):
             version_id = int(parse_qs(urlparse(url).query)["modelVersionId"][0])
             return {"items": self.fallback_images.get(version_id, [])}
@@ -293,7 +300,10 @@ def test_gateway_fetches_a_large_portrait_when_model_payload_has_no_preview() ->
     assert cards[0].thumbnail_url == (
         "https://image.civitai.com/x/width=512/portrait.jpeg"
     )
-    image_query = parse_qs(urlparse(provider.urls[-1]).query)
+    image_url = next(
+        url for url in provider.urls if urlparse(url).path.endswith("/images")
+    )
+    image_query = parse_qs(urlparse(image_url).query)
     assert image_query["modelVersionId"] == ["70"]
     assert image_query["sort"] == ["Most Reactions"]
     assert image_query["nsfw"] == ["None"]

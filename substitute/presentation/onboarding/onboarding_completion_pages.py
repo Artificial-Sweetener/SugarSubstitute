@@ -167,7 +167,7 @@ class ProvisioningPage(OnboardingPageFrame):
 
         self.details_surface = TerminalOutputView(
             self.details_container,
-            min_height=220,
+            min_height=120,
             max_height=280,
         )
         details_layout.addWidget(self.details_surface)

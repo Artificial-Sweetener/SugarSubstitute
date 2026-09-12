@@ -41,8 +41,10 @@ from substitute.infrastructure.model_recommendations.civitai_payload_parser impo
     parse_model,
     safe_thumbnail,
 )
+from substitute.infrastructure.execution.parallel_map import BoundedParallelMapper
 
 _API_ROOT = "https://civitai.com/api/v1"
+_ACCESS_CHECK_PARALLELISM = 8
 JsonFetcher = Callable[..., object]
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,6 +113,9 @@ class CivitaiFamilyRecommendationGateway:
                 raise CivitaiRecommendationError(
                     "CivitAI model recommendations returned an invalid response."
                 )
+            page_candidates: list[ModelRecommendation] = []
+            page_model_ids = {existing.model_id for existing in cards}
+            page_hashes = set(seen_hashes)
             for item in payload["items"]:
                 provider_position += 1
                 rank = provider_position
@@ -126,9 +131,19 @@ class CivitaiFamilyRecommendationGateway:
                 )
                 if (
                     card is None
-                    or card.model_id in {existing.model_id for existing in cards}
-                    or card.sha256.casefold() in seen_hashes
+                    or card.model_id in page_model_ids
+                    or card.sha256.casefold() in page_hashes
                 ):
+                    continue
+                page_candidates.append(card)
+                page_model_ids.add(card.model_id)
+                page_hashes.add(card.sha256.casefold())
+            for card, publicly_downloadable in zip(
+                page_candidates,
+                self._public_downloadability(page_candidates),
+                strict=True,
+            ):
+                if not publicly_downloadable:
                     continue
                 cards.append(card)
                 seen_hashes.add(card.sha256.casefold())
@@ -136,6 +151,30 @@ class CivitaiFamilyRecommendationGateway:
                     break
             next_url = _next_page(payload)
         return tuple(cards)
+
+    def _public_downloadability(
+        self,
+        recommendations: list[ModelRecommendation],
+    ) -> tuple[bool, ...]:
+        """Check recommendation access concurrently while preserving card order."""
+
+        if not recommendations:
+            return ()
+        with BoundedParallelMapper(
+            parallelism=min(_ACCESS_CHECK_PARALLELISM, len(recommendations))
+        ) as parallel_mapper:
+            return parallel_mapper.map(
+                self._recommendation_is_publicly_downloadable,
+                recommendations,
+            )
+
+    def _recommendation_is_publicly_downloadable(
+        self,
+        recommendation: ModelRecommendation,
+    ) -> bool:
+        """Return whether one recommendation can be downloaded without auth."""
+
+        return self._is_publicly_downloadable(recommendation.version_id)
 
     def resolve_model_page(
         self,
@@ -158,6 +197,35 @@ class CivitaiFamilyRecommendationGateway:
             thumbnail_policy=self._thumbnail_policy(),
             accepted_base_models=self._recognized_linked_base_models(family),
             target_version_id=version_id,
+        )
+
+    def _is_publicly_downloadable(self, version_id: int) -> bool:
+        """Return whether CivitAI permits this recommended download without auth."""
+
+        payload = self._request(
+            f"{_API_ROOT}/model-versions/mini/{version_id}",
+            purpose="model download access check",
+            include_api_key=False,
+        )
+        if not isinstance(payload, dict):
+            raise CivitaiRecommendationError(
+                "CivitAI model download access returned an invalid response."
+            )
+        availability = _text(payload.get("availability"))
+        requires_auth = payload.get("requireAuth")
+        checks_permission = payload.get("checkPermission")
+        if (
+            availability is None
+            or not isinstance(requires_auth, bool)
+            or not isinstance(checks_permission, bool)
+        ):
+            raise CivitaiRecommendationError(
+                "CivitAI model download access returned an invalid response."
+            )
+        return (
+            availability.casefold() == "public"
+            and not requires_auth
+            and not checks_permission
         )
 
     def _validate_provider_mapping(self, family: ModelFamilyDefinition) -> None:
@@ -220,7 +288,13 @@ class CivitaiFamilyRecommendationGateway:
         provider = self._thumbnail_policy_provider
         return CivitaiThumbnailPolicy() if provider is None else provider()
 
-    def _request(self, url: str, *, purpose: str) -> object:
+    def _request(
+        self,
+        url: str,
+        *,
+        purpose: str,
+        include_api_key: bool = True,
+    ) -> object:
         """Fetch provider JSON with bounded time and sanitized failures."""
 
         if not _is_civitai_api_url(url):
@@ -228,7 +302,11 @@ class CivitaiFamilyRecommendationGateway:
                 "CivitAI pagination returned an unsafe URL."
             )
         headers = {"Accept": "application/json", "User-Agent": "SugarSubstitute/1.0"}
-        api_key = self._api_key_provider() if self._api_key_provider else None
+        api_key = (
+            self._api_key_provider()
+            if include_api_key and self._api_key_provider
+            else None
+        )
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
         try:
