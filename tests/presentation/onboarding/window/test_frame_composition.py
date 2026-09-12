@@ -211,7 +211,7 @@ def test_onboarding_window_builds_all_required_pages(
     assert window.provisioning_page.details_container.isHidden() is True
     assert window.provisioning_page.overall_progress_bar.maximum() == 100
     assert log_view.maximumHeight() == 280
-    assert log_view.minimumHeight() == 220
+    assert log_view.minimumHeight() == 120
     assert (
         window.integrations_page.danbooru_image_policy_combo.currentData()
         == "safe_only"

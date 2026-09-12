@@ -22,7 +22,8 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from PySide6.QtCore import QPoint, QRect
+from PySide6.QtCore import QPoint, QRect, QSize
+from PySide6.QtWidgets import QWidget
 from qfluentwidgets import Theme  # type: ignore[import-untyped]
 
 from substitute.presentation.onboarding.onboarding_controller import (
@@ -33,6 +34,9 @@ from substitute.presentation.onboarding.onboarding_models import (
     OnboardingFlowMode,
     OnboardingTargetMode,
 )
+from substitute.presentation.onboarding.onboarding_page_stage import (
+    OnboardingPageStage,
+)
 from substitute.presentation.onboarding.onboarding_window import (
     OnboardingWindow,
 )
@@ -42,6 +46,63 @@ from tests.support.qt.semantic_wait import wait_for_qt_condition
 from tests.presentation.theme.support import fluent_theme
 
 from .controller_double import _FakeController
+
+
+class _HeightNegotiationPage(QWidget):
+    """Expose explicit preferred and minimum heights to the real page stage."""
+
+    def __init__(self, *, preferred_height: int, minimum_height: int) -> None:
+        """Store the two dimensions exercised by stage height negotiation."""
+
+        super().__init__()
+        self._preferred_height = preferred_height
+        self._minimum_height = minimum_height
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        """Return the page's unconstrained preferred size."""
+
+        return QSize(800, self._preferred_height)
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        """Return the smallest height that preserves the page's content."""
+
+        return QSize(800, self._minimum_height)
+
+
+@pytest.mark.parametrize(
+    ("minimum_height", "expects_scroll"),
+    ((400, False), (600, True)),
+)
+def test_page_stage_shrinks_flexible_pages_before_enabling_scroll(
+    minimum_height: int,
+    expects_scroll: bool,
+) -> None:
+    """Use the viewport for flexible content and scroll only rigid overflow."""
+
+    application = ensure_qt_application()
+    host = QWidget()
+    host.resize(1104, 548)
+    stage = OnboardingPageStage(host)
+    stage.setGeometry(host.rect())
+    page = _HeightNegotiationPage(
+        preferred_height=600,
+        minimum_height=minimum_height,
+    )
+    stage.add_page(page)
+    host.show()
+    application.processEvents()
+    stage.show_page(page)
+    application.processEvents()
+
+    viewport_height = stage.viewport().contentsRect().height()
+    if expects_scroll:
+        assert stage.page_stack.height() == 600
+        assert stage.verticalScrollBar().maximum() > 0
+    else:
+        assert stage.page_stack.height() == viewport_height
+        assert stage.verticalScrollBar().maximum() == 0
+        assert page.height() == viewport_height
+    host.close()
 
 
 def test_onboarding_pages_fit_fixed_window_layout_budget(
