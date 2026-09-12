@@ -117,6 +117,7 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("thread", "substitute/infrastructure/execution/host_execution_scheduler.py", "HostExecutionScheduler._ensure_workers_locked", "threading.Thread", 2, "managed_host_scheduler"),
     ("thread", "substitute/infrastructure/execution/long_lived_task.py", "LongLivedTaskHandle.__init__", "threading.Thread", 1, "managed_task_outcomes"),
     ("thread", "substitute/infrastructure/execution/process_output.py", "BinaryProcessOutput.__init__", "threading.Thread", 1, "bounded_process_output"),
+    ("thread", "substitute/infrastructure/process/hidden_process_runner.py", "_consume_output_lines_with_silence_feedback", "threading.Thread", 1, "bounded_process_output"),
     ("thread", "sugarsubstitute_shared/launch_splash/server.py", "SplashSessionServer.start", "threading.Thread", 1, "bounded_transport_thread"),
 )
 # fmt: on

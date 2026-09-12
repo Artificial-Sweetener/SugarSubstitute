@@ -40,6 +40,7 @@ EXECUTION_ADAPTER_FILES = frozenset(
         "substitute/infrastructure/execution/host_execution_diagnostics.py",
         "substitute/infrastructure/execution/thread_pool_admission.py",
         "substitute/infrastructure/execution/thread_pool_lane.py",
+        "substitute/infrastructure/process/hidden_process_runner.py",
         "substitute/application/execution/cancellation.py",
         "substitute/application/execution/policies.py",
         "substitute/application/execution/task_scope.py",
