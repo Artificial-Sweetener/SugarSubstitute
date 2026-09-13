@@ -47,6 +47,9 @@ TESTS_ROOT = PROJECT_ROOT / "tests"
 OUTPUT_NAVIGATION_CONTRACT_MODULE = (
     "tests/presentation/canvas/output/navigation/test_cross_layer_contract.py"
 )
+EMPTY_PICKER_MODAL_CONTRACT_MODULE = (
+    "tests/presentation/shell/model_discovery/test_empty_picker_controller.py"
+)
 PROJECTION_LAYOUT_CONTRACT_MODULES = frozenset(
     {
         "tests/presentation/editor/prompt_editor/layout/contracts/test_canonical_wrapping.py",
@@ -194,6 +197,14 @@ def test_projection_layout_contracts_use_bounded_fresh_process_lane() -> None:
 
     assert PROJECTION_LAYOUT_CONTRACT_MODULES <= ISOLATED_TEST_MODULES
     assert PROJECTION_LAYOUT_CONTRACT_MODULES.isdisjoint(SERIAL_TEST_MODULES)
+
+
+def test_empty_picker_modal_contract_uses_bounded_fresh_process_lane() -> None:
+    """Keep real Fluent modal construction out of reused native Qt workers."""
+
+    assert (PROJECT_ROOT / EMPTY_PICKER_MODAL_CONTRACT_MODULE).is_file()
+    assert EMPTY_PICKER_MODAL_CONTRACT_MODULE in ISOLATED_TEST_MODULES
+    assert EMPTY_PICKER_MODAL_CONTRACT_MODULE not in SERIAL_TEST_MODULES
 
 
 def test_output_navigation_contract_remains_in_ordinary_parallel_ci() -> None:
