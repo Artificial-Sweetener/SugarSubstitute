@@ -22,6 +22,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import secrets
 from typing import Final, Literal, Mapping, TypeAlias
 
 
@@ -30,6 +31,7 @@ INSTALLER_QUALIFICATION_PLAN_ENV: Final = (
 )
 _SCHEMA_VERSION: Final = 3
 _LEGACY_SCHEMA_VERSIONS: Final = frozenset({1, 2})
+_SHUTDOWN_REQUEST_SCHEMA_VERSION: Final = 1
 InstallerQualificationTarget: TypeAlias = Literal["managed_local", "remote"]
 
 
@@ -167,6 +169,64 @@ class InstallerQualificationPlan:
         }
         with self.event_log_path.open("a", encoding="utf-8") as output:
             output.write(json.dumps(payload, sort_keys=True) + "\n")
+
+    @property
+    def main_shell_shutdown_request_path(self) -> Path:
+        """Return the private request exchanged with the qualified main shell."""
+
+        return self.event_log_path.with_name(
+            f"{self.event_log_path.name}.main-shell-shutdown.json"
+        )
+
+    def request_main_shell_shutdown(self) -> None:
+        """Atomically request a normal close from this exact qualification run."""
+
+        request_path = self.main_shell_shutdown_request_path
+        request_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = request_path.with_name(
+            f".{request_path.name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
+        )
+        try:
+            temporary_path.write_text(
+                json.dumps(
+                    {
+                        "kind": "main_shell_shutdown",
+                        "schema_version": _SHUTDOWN_REQUEST_SCHEMA_VERSION,
+                        "token": self.token,
+                    },
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            os.replace(temporary_path, request_path)
+        finally:
+            temporary_path.unlink(missing_ok=True)
+
+    def consume_main_shell_shutdown_request(self) -> bool:
+        """Consume one authenticated normal-close request if it is present."""
+
+        request_path = self.main_shell_shutdown_request_path
+        if not request_path.is_file():
+            return False
+        try:
+            payload = json.loads(request_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise ValueError(
+                "Installer qualification shutdown request is invalid."
+            ) from error
+        if (
+            not isinstance(payload, dict)
+            or payload.get("kind") != "main_shell_shutdown"
+            or payload.get("schema_version") != _SHUTDOWN_REQUEST_SCHEMA_VERSION
+        ):
+            raise ValueError("Installer qualification shutdown request is invalid.")
+        if payload.get("token") != self.token:
+            raise ValueError(
+                "Installer qualification shutdown request does not belong to this run."
+            )
+        request_path.unlink(missing_ok=True)
+        return True
 
 
 __all__ = [

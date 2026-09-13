@@ -24,7 +24,9 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
-from PySide6.QtWidgets import QAbstractButton
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QSignalSpy
+from PySide6.QtWidgets import QAbstractButton, QWidget
 
 
 from sugarsubstitute_shared.installer_qualification import (
@@ -34,6 +36,12 @@ from sugarsubstitute_shared.installer_qualification import (
 from substitute.presentation.onboarding.installer_qualification import (
     OnboardingQualificationDriver,
 )
+from substitute.app.bootstrap.main_shell_qualification import (
+    MainShellQualificationDriver,
+    schedule_main_shell_qualification,
+)
+from tests.support.qt.lifecycle import ensure_qt_application
+from tests.support.qt.semantic_wait import wait_for_qt_signal
 
 
 def test_qualification_plan_round_trips_through_environment(tmp_path: Path) -> None:
@@ -54,6 +62,123 @@ def test_qualification_plan_round_trips_through_environment(tmp_path: Path) -> N
     )
 
     assert restored == plan
+
+
+def test_qualification_plan_exchanges_one_token_bound_shutdown_request(
+    tmp_path: Path,
+) -> None:
+    """The installed shell should consume exactly one authenticated close request."""
+
+    plan = InstallerQualificationPlan(
+        token="qualification-token",
+        install_root=(tmp_path / "install").resolve(),
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        event_log_path=(tmp_path / "events.jsonl").resolve(),
+        timeout_seconds=45.0,
+    )
+
+    assert plan.consume_main_shell_shutdown_request() is False
+
+    plan.request_main_shell_shutdown()
+
+    assert plan.consume_main_shell_shutdown_request() is True
+    assert plan.consume_main_shell_shutdown_request() is False
+    assert not plan.main_shell_shutdown_request_path.exists()
+
+
+def test_qualification_plan_rejects_a_foreign_shutdown_request(tmp_path: Path) -> None:
+    """A stale or foreign qualification must not close the running application."""
+
+    plan = InstallerQualificationPlan(
+        token="current-token",
+        install_root=(tmp_path / "install").resolve(),
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        event_log_path=(tmp_path / "events.jsonl").resolve(),
+        timeout_seconds=45.0,
+    )
+    request_path = plan.main_shell_shutdown_request_path
+    request_path.parent.mkdir(parents=True, exist_ok=True)
+    request_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "token": "foreign-token",
+                "kind": "main_shell_shutdown",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="does not belong"):
+        plan.consume_main_shell_shutdown_request()
+
+    assert request_path.exists()
+
+
+def test_main_shell_driver_closes_the_real_surface_after_authenticated_request(
+    tmp_path: Path,
+) -> None:
+    """The qualification driver should invoke the same close action as the user."""
+
+    events: list[str] = []
+    plan = InstallerQualificationPlan(
+        token="qualification-token",
+        install_root=(tmp_path / "install").resolve(),
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        event_log_path=(tmp_path / "events.jsonl").resolve(),
+        timeout_seconds=45.0,
+    )
+    plan.request_main_shell_shutdown()
+    driver = cast(
+        MainShellQualificationDriver,
+        SimpleNamespace(
+            _plan=plan,
+            _timer=SimpleNamespace(stop=lambda: events.append("timer.stop")),
+            _window=SimpleNamespace(close=lambda: events.append("window.close")),
+        ),
+    )
+
+    MainShellQualificationDriver._poll_shutdown_request(driver)
+
+    assert events == ["timer.stop", "window.close"]
+    event_payload = json.loads(
+        plan.event_log_path.read_text(encoding="utf-8").splitlines()[-1]
+    )
+    assert event_payload["event"] == "main_shell.shutdown.requested"
+
+
+def test_scheduled_main_shell_driver_survives_until_the_real_widget_closes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The parent-owned polling driver should close a painted QWidget normally."""
+
+    ensure_qt_application()
+    plan = InstallerQualificationPlan(
+        token="qualification-token",
+        install_root=(tmp_path / "install").resolve(),
+        endpoint_host="127.0.0.1",
+        endpoint_port=8188,
+        event_log_path=(tmp_path / "events.jsonl").resolve(),
+        timeout_seconds=45.0,
+    )
+    monkeypatch.setenv(INSTALLER_QUALIFICATION_PLAN_ENV, plan.to_json())
+    window = QWidget()
+    window.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+    destroyed = QSignalSpy(window.destroyed)
+    window.show()
+
+    assert schedule_main_shell_qualification(window) is True
+    plan.request_main_shell_shutdown()
+    wait_for_qt_signal(destroyed, timeout_ms=2000)
+
+    assert destroyed.count() == 1
+    assert "main_shell.shutdown.requested" in plan.event_log_path.read_text(
+        encoding="utf-8"
+    )
 
 
 def test_legacy_qualification_plan_defaults_cpu_override_off(tmp_path: Path) -> None:

@@ -227,11 +227,11 @@ def test_candidate_evidence_requires_real_managed_comfy_before_preservation(
     assert events == ["live-managed-shell", "preservation"]
 
 
-def test_managed_backend_is_verified_before_live_shell_cleanup(
+def test_managed_backend_is_verified_before_clean_live_shell_shutdown(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Managed HTTP proof must finish before its installed process is stopped."""
+    """Managed HTTP proof must finish before normal installed-app shutdown."""
 
     evidence = prepare_qualification_evidence(
         install_root=tmp_path / "installed",
@@ -261,6 +261,16 @@ def test_managed_backend_is_verified_before_live_shell_cleanup(
         "assert_startup_trace_sequence",
         lambda *_arguments: events.append("trace"),
     )
+    monkeypatch.setattr(
+        installer_ui_qualification,
+        "assert_qualification_event_sequence",
+        lambda *_arguments, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        installer_ui_qualification,
+        "assert_no_new_crash_incidents",
+        lambda **_arguments: None,
+    )
 
     def require_managed(**arguments: object) -> None:
         """Record the live managed-runtime proof and its update policy."""
@@ -275,8 +285,18 @@ def test_managed_backend_is_verified_before_live_shell_cleanup(
     )
     monkeypatch.setattr(
         installer_ui_qualification,
+        "request_clean_qualification_shutdown",
+        lambda _plan: events.append("request-clean-shutdown"),
+    )
+    monkeypatch.setattr(
+        installer_ui_qualification,
+        "wait_for_clean_qualification_shutdown",
+        lambda **_arguments: events.append("clean-shutdown-complete"),
+    )
+    monkeypatch.setattr(
+        installer_ui_qualification,
         "terminate_verified_process",
-        lambda pid: events.append(f"terminate:{pid}"),
+        lambda pid: pytest.fail(f"success path force-killed process {pid}"),
     )
 
     verify_main_shell_evidence(
@@ -287,7 +307,13 @@ def test_managed_backend_is_verified_before_live_shell_cleanup(
         require_governed_setup_record=False,
     )
 
-    assert events == ["version", "trace", "managed-comfy", "terminate:456"]
+    assert events == [
+        "version",
+        "trace",
+        "managed-comfy",
+        "request-clean-shutdown",
+        "clean-shutdown-complete",
+    ]
 
 
 def test_stalled_installed_launcher_fails_at_progress_boundary(
