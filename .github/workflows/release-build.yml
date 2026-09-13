@@ -100,6 +100,24 @@ jobs:
           if-no-files-found: warn
           retention-days: 1
 
+      - name: Qualify model discovery and update lifecycle offscreen
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          .\.venv\Scripts\python.exe -m tools.qualify_empty_model_picker
+          .\.venv\Scripts\python.exe -m tools.qualify_model_update_lifecycle
+
+      - name: Upload model lifecycle qualification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: model-lifecycle-qualification${{ inputs.artifact_suffix }}
+          path: |
+            build/qualification/empty-model-picker
+            build/qualification/model-update-lifecycle
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Upload Windows release inputs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

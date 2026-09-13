@@ -272,6 +272,20 @@ def test_windows_release_build_qualifies_packaged_single_instance_behavior() -> 
     )
 
 
+def test_windows_release_build_qualifies_model_lifecycle() -> None:
+    """Block release inputs unless discovery and update lifecycles pass."""
+
+    build_text = workflow_text("release-build.yml")
+
+    assert "-m tools.qualify_empty_model_picker" in build_text
+    assert "-m tools.qualify_model_update_lifecycle" in build_text
+    assert "name: model-lifecycle-qualification${{ inputs.artifact_suffix }}" in (
+        build_text
+    )
+    assert "build/qualification/empty-model-picker" in build_text
+    assert "build/qualification/model-update-lifecycle" in build_text
+
+
 def test_linux_workflow_pins_appimagetool_and_builds_both_native_formats() -> None:
     """Linux packaging should verify its tool and publish AppImage plus Debian."""
 
