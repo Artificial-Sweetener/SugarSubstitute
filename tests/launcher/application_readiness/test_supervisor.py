@@ -283,11 +283,13 @@ def test_supervisor_rejects_unrelated_receipt_process_chain(tmp_path: Path) -> N
 def test_supervisor_rejects_onboarding_as_candidate_readiness(tmp_path: Path) -> None:
     """Candidate activation must require the real main shell."""
 
+    layout = InstallLayout.from_root(tmp_path / "install")
+    process = _CandidateProcess()
     receipt_path = tmp_path / "onboarding.json"
     receipt_path.write_text(
         json.dumps(
             ApplicationReadinessReceipt(
-                pid=123,
+                pid=process.pid,
                 token="candidate-token",
                 surface=ApplicationReadinessSurface.ONBOARDING,
                 parent_pid=999,
@@ -296,12 +298,75 @@ def test_supervisor_rejects_onboarding_as_candidate_readiness(tmp_path: Path) ->
         encoding="utf-8",
     )
 
-    with pytest.raises(ApplicationReadinessError, match="main shell"):
-        ApplicationReadinessSupervisor._validate_receipt(
-            receipt_path=receipt_path,
-            expected_token="candidate-token",
-            expected_pid=123,
+    with pytest.raises(ApplicationReadinessError, match="main_shell"):
+        ApplicationReadinessSupervisor(
+            timeout_seconds=5,
+            process_starter=lambda _command, _environment: (
+                process,
+                tmp_path / "startup.log",
+            ),
+            monotonic=_increasing_clock(),
+            wait=lambda _seconds: None,
+        ).launch_until_ready(
+            layout=layout,
+            command=["python", "main.py"],
+            environment={
+                READINESS_PATH_ENV: str(receipt_path),
+                READINESS_TOKEN_ENV: "candidate-token",
+            },
         )
+
+
+def test_supervisor_accepts_onboarding_for_normal_application_lifetime(
+    tmp_path: Path,
+) -> None:
+    """A painted setup or repair surface must keep a normal launch usable."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    process = _CandidateProcess()
+    receipt_path = tmp_path / "onboarding.json"
+    receipt_path.write_text(
+        json.dumps(
+            ApplicationReadinessReceipt(
+                pid=process.pid,
+                token="normal-launch-token",
+                surface=ApplicationReadinessSurface.ONBOARDING,
+                parent_pid=999,
+            ).to_json()
+        ),
+        encoding="utf-8",
+    )
+
+    result = ApplicationReadinessSupervisor(
+        accepted_surfaces=(
+            ApplicationReadinessSurface.MAIN_SHELL,
+            ApplicationReadinessSurface.ONBOARDING,
+        ),
+        timeout_seconds=5,
+        process_starter=lambda _command, _environment: (
+            process,
+            tmp_path / "startup.log",
+        ),
+        monotonic=_increasing_clock(),
+        wait=lambda _seconds: None,
+    ).launch_until_ready(
+        layout=layout,
+        command=["python", "main.py"],
+        environment={
+            READINESS_PATH_ENV: str(receipt_path),
+            READINESS_TOKEN_ENV: "normal-launch-token",
+        },
+    )
+
+    assert result is process
+    assert process.terminated is False
+
+
+def test_supervisor_requires_at_least_one_visible_surface_policy() -> None:
+    """A launch owner cannot accidentally accept no usable application route."""
+
+    with pytest.raises(ValueError, match="At least one"):
+        ApplicationReadinessSupervisor(accepted_surfaces=())
 
 
 def test_supervisor_rejects_early_process_exit(tmp_path: Path) -> None:

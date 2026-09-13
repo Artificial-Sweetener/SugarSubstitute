@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -88,7 +88,7 @@ class CandidateProcess(Protocol):
 
 
 class ApplicationReadinessSupervisor:
-    """Start a candidate and wait for its token-bound visible-shell receipt."""
+    """Start an application and require an accepted visible-surface receipt."""
 
     def __init__(
         self,
@@ -101,16 +101,22 @@ class ApplicationReadinessSupervisor:
         monotonic: Callable[[], float] = time.monotonic,
         wait: Callable[[float], object] | None = None,
         token_factory: Callable[[], str] | None = None,
+        accepted_surfaces: Collection[ApplicationReadinessSurface] = (
+            ApplicationReadinessSurface.MAIN_SHELL,
+        ),
     ) -> None:
-        """Store bounded process and clock collaborators."""
+        """Store bounded process, clock, and surface-policy collaborators."""
 
         if timeout_seconds <= 0:
             raise ValueError("Application readiness timeout must be positive.")
+        if not accepted_surfaces:
+            raise ValueError("At least one application readiness surface is required.")
         self._timeout_seconds = timeout_seconds
         self._process_starter = process_starter or _start_candidate_process
         self._monotonic = monotonic
         self._wait = wait or threading.Event().wait
         self._token_factory = token_factory or (lambda: secrets.token_urlsafe(32))
+        self._accepted_surfaces = frozenset(accepted_surfaces)
 
     def launch_until_ready(
         self,
@@ -119,7 +125,7 @@ class ApplicationReadinessSupervisor:
         command: Sequence[str],
         environment: Mapping[str, str],
     ) -> CandidateProcess:
-        """Return the running candidate only after its main shell is responsive."""
+        """Return the running process after an accepted surface is responsive."""
 
         contract = self._readiness_contract(layout=layout, environment=environment)
         receipt_path = contract.receipt_path
@@ -144,11 +150,12 @@ class ApplicationReadinessSupervisor:
                         terminated_process=process,
                     )
                 if receipt_path.exists():
-                    self._validate_receipt(
+                    receipt = self._validate_receipt(
                         receipt_path=receipt_path,
                         expected_token=token,
                         expected_pid=process.pid,
                     )
+                    self._require_accepted_surface(receipt)
                     if not contract.externally_owned:
                         receipt_path.unlink()
                     return process
@@ -193,8 +200,8 @@ class ApplicationReadinessSupervisor:
         receipt_path: Path,
         expected_token: str,
         expected_pid: int,
-    ) -> None:
-        """Fail closed unless a receipt belongs to the supervised process."""
+    ) -> ApplicationReadinessReceipt:
+        """Return a valid receipt that belongs to the supervised process."""
 
         try:
             payload = json.loads(receipt_path.read_text(encoding="utf-8"))
@@ -215,11 +222,23 @@ class ApplicationReadinessSupervisor:
             raise ApplicationReadinessError(
                 "Application readiness receipt did not match the launched process."
             )
-        if receipt.surface is not ApplicationReadinessSurface.MAIN_SHELL:
-            raise ApplicationReadinessError(
-                "SugarSubstitute did not reveal its main shell. "
-                f"Reported surface: {receipt.surface.value}."
-            )
+        return receipt
+
+    def _require_accepted_surface(
+        self,
+        receipt: ApplicationReadinessReceipt,
+    ) -> None:
+        """Fail unless the reported painted surface satisfies this launch policy."""
+
+        if receipt.surface in self._accepted_surfaces:
+            return
+        accepted = ", ".join(
+            sorted(surface.value for surface in self._accepted_surfaces)
+        )
+        raise ApplicationReadinessError(
+            "SugarSubstitute did not reveal an accepted visible surface. "
+            f"Expected: {accepted}. Reported: {receipt.surface.value}."
+        )
 
 
 def _start_candidate_process(
