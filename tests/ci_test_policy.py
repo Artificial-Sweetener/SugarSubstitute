@@ -46,6 +46,11 @@ PLATFORM_TEST_MODULES: Final[dict[str, frozenset[CiPlatform]]] = {
 
 ISOLATED_TEST_MODULES = frozenset(
     {
+        # This shutdown owner exercises real worker-to-Qt queued delivery and
+        # repeatedly creates QObject timer cycles. PySide can segfault while a
+        # reused Linux xdist worker collects an earlier coordinator during a
+        # later nested event loop; a fresh process retains the full contract.
+        "tests/app/bootstrap/shutdown_coordinator/test_coordinator.py",
         # This real broker contract enters the macOS Core Foundation election
         # and loopback transport from one process. It can crash after unrelated
         # native work in a reused xdist worker; the shipped supervisor and this
