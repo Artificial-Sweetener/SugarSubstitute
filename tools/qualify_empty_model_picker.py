@@ -26,12 +26,10 @@ from pathlib import Path
 import tempfile
 from typing import cast
 
-from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication, QPushButton, QVBoxLayout, QWidget
 
 from substitute.application.model_metadata import (
-    ModelCatalogItem,
-    ModelCatalogSnapshot,
+    ModelCatalogService,
     ModelChoiceCatalogIndex,
     RichChoiceResolver,
 )
@@ -75,41 +73,14 @@ from sugarsubstitute_shared.model_acquisition import (
     CancellationProbe,
 )
 from sugarsubstitute_shared.model_discovery import ModelArtifactKind
+from tools.model_lifecycle_qualification import (
+    new_filesystem_catalog,
+    runtime_evidence,
+    wait_until,
+)
 
 
 _PAYLOAD = b"synthetic model qualification payload"
-
-
-class _Catalog:
-    """Expose one authoritative warm empty catalog and record refreshes."""
-
-    def __init__(self) -> None:
-        """Initialize an empty catalog with observable refresh state."""
-
-        self.invalidated: list[str | None] = []
-        self.refreshed: list[str] = []
-
-    def cached_snapshot_nowait(self, kind: str) -> ModelCatalogSnapshot:
-        """Return a warm empty snapshot for the requested model kind."""
-
-        return ModelCatalogSnapshot(kind=kind, items=(), generation=1)
-
-    def invalidate(self, kind: str | None = None) -> None:
-        """Record exact catalog invalidation after acquisition."""
-
-        self.invalidated.append(kind)
-
-    def list_models(self, kind: str) -> tuple[ModelCatalogItem, ...]:
-        """Return the same authoritative empty catalog synchronously."""
-
-        _ = kind
-        return ()
-
-    def refresh_models(self, kind: str) -> tuple[ModelCatalogItem, ...]:
-        """Record the authoritative backend refresh before field selection."""
-
-        self.refreshed.append(kind)
-        return ()
 
 
 class _DestinationPolicy(ModelDestinationPolicy):
@@ -254,32 +225,41 @@ def main(argv: Sequence[str] | None = None) -> int:
     artifact_dir = Path("build/qualification/empty-model-picker").resolve()
     artifact_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="SugarSubstitute-model-picker-") as root:
-        model_root = Path(root) / "models" / "diffusion_models"
+        model_root = Path(root) / "models"
+        public_root = model_root / "public" / "diffusion_models"
+        protected_root = model_root / "protected" / "diffusion_models"
         public = _qualify_flow(
             application,
-            destination=model_root,
+            destination=public_root,
             access=ModelSuggestionAccess.PUBLIC,
             file_name="public.safetensors",
             screenshot_path=artifact_dir / "empty-model-picker.png",
         )
         protected = _qualify_flow(
             application,
-            destination=model_root,
+            destination=protected_root,
             access=ModelSuggestionAccess.API_KEY_REQUIRED,
             file_name="protected.safetensors",
             screenshot_path=None,
         )
-        persisted = sorted(
-            path.relative_to(model_root).as_posix()
-            for path in model_root.rglob("*.safetensors")
-        )
-        if persisted != ["Anima/protected.safetensors", "Anima/public.safetensors"]:
-            raise AssertionError(f"Synthetic model persistence failed: {persisted}")
+        restarted = {
+            "public": _qualify_restart(
+                application,
+                destination=public_root,
+                expected_values=("Anima/public.safetensors",),
+            ),
+            "protected": _qualify_restart(
+                application,
+                destination=protected_root,
+                expected_values=("Anima/protected.safetensors",),
+            ),
+        }
     evidence = {
         "result": "passed",
         "public_flow": public,
         "protected_flow": protected,
-        "persisted_after_surface_teardown": persisted,
+        "persisted_after_application_restart": restarted,
+        "runtime": runtime_evidence(),
         "external_network_used": False,
     }
     report_path = artifact_dir / "empty-model-picker-qualification.json"
@@ -301,7 +281,9 @@ def _qualify_flow(
 ) -> dict[str, object]:
     """Drive one actual field, modal, credential decision, and catalog refresh."""
 
-    catalog = _Catalog()
+    catalog, backend = new_filesystem_catalog(destination)
+    if catalog.list_models("diffusion_models"):
+        raise AssertionError("Qualification model catalog was not initially empty.")
     credential = _CredentialHandler()
     provider = _SyntheticProvider(access=access, file_name=file_name)
     service = ModelSuggestionService(
@@ -326,7 +308,7 @@ def _qualify_flow(
     )
     layout.addWidget(picker)
     root.show()
-    _wait_until(application, picker.is_empty_action_visible, "empty action visibility")
+    wait_until(application, picker.is_empty_action_visible, "empty action visibility")
     button = picker.findChild(QPushButton, "modelPickerEmptyActionButton")
     if button is None or button.size() != picker.contentsRect().size():
         raise AssertionError(
@@ -342,7 +324,7 @@ def _qualify_flow(
     modal = root.findChild(ModelDiscoveryModal)
     if modal is None or not modal.isVisible():
         raise AssertionError("The empty-picker action did not open its modal.")
-    _wait_until(application, lambda: not controller.running, "suggestion plan")
+    wait_until(application, lambda: not controller.running, "suggestion plan")
     if credential.prompt_count != 0:
         raise AssertionError("Credentials were requested before explicit selection.")
     card = modal.findChild(ModelSuggestionCard)
@@ -351,7 +333,7 @@ def _qualify_flow(
     card.portrait.checkbox.click()
     modal.download_button.click()
     expected_value = f"Anima/{file_name}"
-    _wait_until(
+    wait_until(
         application,
         lambda: picker.currentText() == expected_value and not controller.running,
         "verified model selection",
@@ -359,15 +341,19 @@ def _qualify_flow(
     expected_prompts = 1 if access is ModelSuggestionAccess.API_KEY_REQUIRED else 0
     if credential.prompt_count != expected_prompts:
         raise AssertionError("Credential prompt policy disagreed with model access.")
-    if (
-        catalog.invalidated != ["diffusion_models"]
-        or not catalog.refreshed
-        or catalog.refreshed[-1] != "diffusion_models"
-    ):
+    discovered_values = tuple(
+        item.backend_value for item in catalog.list_models("diffusion_models")
+    )
+    if discovered_values != (expected_value,):
         raise AssertionError(
-            "Catalog was not refreshed before publishing selection: "
-            f"invalidated={catalog.invalidated}, refreshed={catalog.refreshed}."
+            "The refreshed production catalog did not expose the downloaded model: "
+            f"{discovered_values}."
         )
+    refresh_calls = tuple(
+        (kinds, refresh) for kinds, refresh in backend.list_model_calls if refresh
+    )
+    if refresh_calls != ((("diffusion_models",), True),):
+        raise AssertionError(f"Catalog refresh routing was not exact: {refresh_calls}.")
     if picker.is_empty_action_visible():
         raise AssertionError("Downloaded selection left the empty action visible.")
     controller.close()
@@ -379,16 +365,72 @@ def _qualify_flow(
         "credential_prompts_before_selection": 0,
         "credential_prompts_after_selection": credential.prompt_count,
         "selected_backend_value": expected_value,
-        "catalog_refresh": catalog.refreshed,
+        "catalog_values_after_refresh": discovered_values,
+        "backend_refresh_calls": refresh_calls,
         "same_size_action": True,
     }
+
+
+def _qualify_restart(
+    application: QApplication,
+    *,
+    destination: Path,
+    expected_values: tuple[str, ...],
+) -> dict[str, object]:
+    """Reconstruct catalog and picker owners and prove durable rediscovery."""
+
+    catalog, backend = new_filesystem_catalog(destination)
+    discovered_values = tuple(
+        item.backend_value for item in catalog.list_models("diffusion_models")
+    )
+    if discovered_values != expected_values:
+        raise AssertionError(
+            "A fresh production catalog did not rediscover downloaded models: "
+            f"expected={expected_values}, actual={discovered_values}."
+        )
+    root = QWidget()
+    root.resize(420, 72)
+    layout = QVBoxLayout(root)
+    picker = _build_empty_picker(
+        root,
+        catalog=catalog,
+        request=_reject_discovery_request,
+        current_value=expected_values[0],
+    )
+    layout.addWidget(picker)
+    root.show()
+    application.processEvents()
+    if picker.is_empty_action_visible():
+        raise AssertionError("A freshly reconstructed populated picker stayed empty.")
+    if picker.currentText() != expected_values[0]:
+        raise AssertionError("A freshly reconstructed picker lost its selected value.")
+    root.close()
+    root.deleteLater()
+    application.processEvents()
+    return {
+        "catalog_values": discovered_values,
+        "picker_value": expected_values[0],
+        "empty_action_visible": False,
+        "backend_load_calls": backend.list_model_calls,
+    }
+
+
+def _reject_discovery_request(
+    context: ModelSuggestionContext,
+    receiver: Callable[[str], None],
+) -> None:
+    """Fail if a reconstructed populated picker exposes empty discovery."""
+
+    _ = (context, receiver)
+    raise AssertionError("A populated picker exposed empty-model discovery.")
 
 
 def _build_empty_picker(
     parent: QWidget,
     *,
-    catalog: _Catalog,
+    catalog: ModelCatalogService,
     request: Callable[[ModelSuggestionContext, Callable[[str], None]], None],
+    current_value: str = "",
 ) -> ModelPickerField:
     """Build the production SimpleLoadAnima field from its real empty identity."""
 
@@ -403,7 +445,7 @@ def _build_empty_picker(
             field_behavior=FieldBehavior(field_key="diffusion_model"),
             node_name="models",
             key="diffusion_model",
-            value="",
+            value=current_value,
             node_type="SimpleSyrup.SimpleLoadAnima",
             field_type="LIST",
             field_info=[[], {}],
@@ -417,7 +459,7 @@ def _build_empty_picker(
             field_behavior=FieldBehavior(field_key="diffusion_model"),
             node_name="models",
             key="diffusion_model",
-            value="",
+            value=current_value,
             field_meta={},
             model_choice_snapshot=snapshot,
             empty_model_picker_action=request,
@@ -449,38 +491,6 @@ def _context() -> ModelSuggestionContext:
         artifact_kind=ModelArtifactKind.DIFFUSION_MODELS,
         family_id=ModelFamilyId.ANIMA,
     )
-
-
-def _wait_until(
-    application: QApplication,
-    condition: Callable[[], bool],
-    description: str,
-) -> None:
-    """Process Qt work until an observable condition or a hard deadline."""
-
-    if condition():
-        return
-    event_loop = QEventLoop()
-    probe = QTimer()
-    probe.setInterval(10)
-
-    def observe() -> None:
-        """Finish when the requested production state becomes observable."""
-
-        if condition():
-            event_loop.quit()
-
-    probe.timeout.connect(observe)
-    deadline = QTimer()
-    deadline.setSingleShot(True)
-    deadline.timeout.connect(event_loop.quit)
-    probe.start()
-    deadline.start(5_000)
-    event_loop.exec()
-    probe.stop()
-    if not condition():
-        raise TimeoutError(f"Timed out waiting for {description}.")
-    application.processEvents()
 
 
 if __name__ == "__main__":
