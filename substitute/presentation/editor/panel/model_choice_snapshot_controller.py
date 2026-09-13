@@ -19,20 +19,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Sequence
-from dataclasses import dataclass, field
-from enum import StrEnum
 from substitute.application.display_labels import beautify_label
 from substitute.application.model_metadata import (
     ModelCatalogItem,
     ModelCatalogLookup,
     RichChoiceContext,
-    RichChoiceItem,
     RichChoiceResolution,
     RichChoiceResolver,
-    RichChoiceSource,
 )
 from substitute.application.node_behavior import (
-    FieldBehavior,
     FieldPresentation,
     is_choice_field_type,
     resolve_choice_inventory_for_field,
@@ -46,125 +41,35 @@ from substitute.presentation.editor.catalog.model_catalog_snapshots import (
     prepared_model_catalog_rows,
 )
 from substitute.presentation.widgets.media_wall import (
-    MediaThumbnailReadiness,
-    MediaThumbnailReadinessStatus,
     unavailable_thumbnail_readiness,
 )
 from substitute.presentation.editor.panel.projection_observability import (
     log_panel_projection_timing,
     panel_projection_observability_started_at,
 )
+from substitute.presentation.editor.panel.model_choice_snapshots import (
+    PanelModelChoiceSnapshot,
+    PanelModelChoiceSnapshotKind,
+    PanelModelChoiceSnapshotRequest,
+    PanelPreparedModelChoiceSource,
+)
+from substitute.presentation.editor.panel.model_choice_snapshot_values import (
+    rich_choice_search_placeholder as _rich_choice_search_placeholder,
+    suggestion_context as _suggestion_context,
+    thumbnail_readiness_for_resolution as _thumbnail_readiness_for_resolution,
+)
 from substitute.presentation.editor.panel.model_choice_resolution_adapter import (
     catalog_resolution,
     literal_model_choice_resolution,
 )
+from substitute.presentation.editor.panel.empty_model_choice_snapshot import (
+    build_known_empty_model_snapshot,
+    known_empty_model_kind,
+)
 from substitute.shared.logging.logger import get_logger
-from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.localization import app_text
 
 _LOGGER = get_logger("presentation.editor.panel.model_choice_snapshot_controller")
-
-
-class PanelModelChoiceSnapshotKind(StrEnum):
-    """Classify the prepared choice payload a field factory may consume."""
-
-    NONE = "none"
-    EXPLICIT_MODEL_PICKER = "explicit_model_picker"
-    RICH_MODEL_PICKER = "rich_model_picker"
-
-
-@dataclass(frozen=True, slots=True)
-class PanelModelChoiceSnapshotRequest:
-    """Carry field identity needed to prepare a model-choice snapshot."""
-
-    field_behavior: FieldBehavior
-    node_name: str
-    key: str
-    value: object
-    node_type: object
-    field_type: object
-    field_info: object
-    node_definition_gateway: object
-    cube_alias: str | None = None
-    thumbnail_repository_available: bool = False
-
-
-@dataclass(frozen=True, slots=True)
-class PanelModelChoiceSnapshot:
-    """Publish prepared model-choice data for foreground widget construction."""
-
-    identity: CatalogSnapshotIdentity
-    status: CatalogSnapshotStatus
-    kind: PanelModelChoiceSnapshotKind
-    options: tuple[str, ...] = ()
-    model_kind: str | None = None
-    resolution: RichChoiceResolution | None = None
-    choice_source: RichChoiceSource | None = None
-    search_placeholder: ApplicationText = app_text("Search models")
-    thumbnail_readiness: MediaThumbnailReadiness = field(
-        default_factory=lambda: unavailable_thumbnail_readiness(
-            "not_model_choice_field"
-        )
-    )
-
-    @property
-    def consumable(self) -> bool:
-        """Return whether the snapshot carries renderable prepared choice data."""
-
-        return self.status.consumable
-
-    @property
-    def should_build_picker(self) -> bool:
-        """Return whether the field factory should construct a model picker."""
-
-        return self.choice_source is not None and self.kind is not (
-            PanelModelChoiceSnapshotKind.NONE
-        )
-
-
-class PanelPreparedModelChoiceSource:
-    """Expose prepared model choices and defer refreshes to explicit widget events."""
-
-    def __init__(
-        self,
-        *,
-        resolver: RichChoiceResolver | None,
-        options: Sequence[str],
-        context: RichChoiceContext,
-        initial_resolution: RichChoiceResolution,
-    ) -> None:
-        """Store a prepared first-render resolution and optional refresh resolver."""
-
-        self._resolver = resolver
-        self._options = tuple(str(option) for option in options)
-        self._context = context
-        self._resolution = initial_resolution
-
-    def current_resolution(self) -> RichChoiceResolution:
-        """Return the prepared resolution without consulting catalog services."""
-
-        return self._resolution
-
-    def refresh(self) -> RichChoiceResolution:
-        """Refresh model metadata when the widget explicitly requests it."""
-
-        if self._resolver is None:
-            return self._resolution
-        self._resolution = self._resolver.refresh(
-            self._options,
-            context=self._context,
-            previous_resolution=self._resolution,
-        )
-        return self._resolution
-
-    def extra_item_for_value(self, value: str) -> RichChoiceItem | None:
-        """Return metadata for a selected value absent from the option list."""
-
-        if self._resolver is None:
-            return None
-        return self._resolver.extra_item_for_value(
-            value,
-            previous_resolution=self._resolution,
-        )
 
 
 class PanelModelChoiceSnapshotController:
@@ -211,6 +116,10 @@ class PanelModelChoiceSnapshotController:
                 "requires style['model_kind']."
             )
         normalized_kind = model_kind.strip()
+        suggestion_context = _suggestion_context(
+            model_kind=normalized_kind,
+            target_model=request.target_model,
+        )
         identity = self._identity_for_request(
             request,
             model_kind=normalized_kind,
@@ -261,6 +170,7 @@ class PanelModelChoiceSnapshotController:
             kind=PanelModelChoiceSnapshotKind.EXPLICIT_MODEL_PICKER,
             options=options,
             model_kind=normalized_kind,
+            suggestion_context=suggestion_context,
             resolution=resolution,
             choice_source=source,
             search_placeholder=app_text(
@@ -302,6 +212,27 @@ class PanelModelChoiceSnapshotController:
         if prepared_catalog is None or self._model_choice_resolver is None:
             return self._none_snapshot(request, options=options)
         catalog_items, catalog_revision = prepared_catalog
+        known_model_kind = known_empty_model_kind(
+            request,
+            options=options,
+            resolver=self._model_choice_resolver,
+        )
+        if known_model_kind is not None:
+            identity = self._identity_for_request(
+                request,
+                model_kind=known_model_kind,
+                query_mode=PanelModelChoiceSnapshotKind.RICH_MODEL_PICKER,
+                options=(),
+                catalog_revision=catalog_revision,
+            )
+            snapshot = build_known_empty_model_snapshot(
+                request,
+                identity=identity,
+                model_kind=known_model_kind,
+                resolver=self._model_choice_resolver,
+            )
+            self._snapshots[identity.query_identity or id(snapshot)] = snapshot
+            return snapshot
         context = RichChoiceContext(
             node_class=request.node_type
             if isinstance(request.node_type, str)
@@ -342,6 +273,10 @@ class PanelModelChoiceSnapshotController:
             kind=PanelModelChoiceSnapshotKind.RICH_MODEL_PICKER,
             options=tuple(options),
             model_kind=model_kind,
+            suggestion_context=_suggestion_context(
+                model_kind=model_kind,
+                target_model=request.target_model,
+            ),
             resolution=resolution,
             choice_source=source,
             search_placeholder=_rich_choice_search_placeholder(
@@ -559,51 +494,6 @@ class PanelModelChoiceSnapshotController:
         )
 
 
-def _thumbnail_readiness_for_resolution(
-    resolution: RichChoiceResolution,
-    *,
-    repository_available: bool,
-) -> MediaThumbnailReadiness:
-    """Return metadata-only thumbnail readiness for prepared model choices."""
-
-    storage_key = _first_resolution_thumbnail_storage_key(resolution)
-    if storage_key is None:
-        return unavailable_thumbnail_readiness("thumbnail_variant_unavailable")
-    if not repository_available:
-        return unavailable_thumbnail_readiness("thumbnail_repository_unavailable")
-    return MediaThumbnailReadiness(
-        status=MediaThumbnailReadinessStatus.PENDING,
-        storage_key=storage_key,
-    )
-
-
-def _first_resolution_thumbnail_storage_key(
-    resolution: RichChoiceResolution,
-) -> str | None:
-    """Return the first prepared thumbnail storage key without reading assets."""
-
-    for item in resolution.items:
-        for variant in item.thumbnail_variants:
-            if variant.storage_key:
-                return variant.storage_key
-    return None
-
-
-def _rich_choice_search_placeholder(matched_kinds: tuple[str, ...]) -> ApplicationText:
-    """Return a concise search placeholder for one rich choice resolution."""
-
-    if len(matched_kinds) == 1:
-        return app_text(
-            "Search %1",
-            beautify_label(matched_kinds[0]),
-        )
-    return app_text("Search models")
-
-
 __all__ = [
-    "PanelModelChoiceSnapshot",
     "PanelModelChoiceSnapshotController",
-    "PanelModelChoiceSnapshotKind",
-    "PanelModelChoiceSnapshotRequest",
-    "PanelPreparedModelChoiceSource",
 ]

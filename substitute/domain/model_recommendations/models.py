@@ -40,6 +40,20 @@ class ModelStylePreference(str, Enum):
     ANIME_STYLE = "anime_style"
 
 
+class ModelRecommendationAccessPolicy(str, Enum):
+    """Describe provider access accepted by one recommendation request."""
+
+    PUBLIC_ONLY = "public_only"
+    INCLUDE_AUTHENTICATED = "include_authenticated"
+
+
+class ModelRecommendationAccess(str, Enum):
+    """Describe authentication required by one exact recommendation."""
+
+    PUBLIC = "public"
+    API_KEY_REQUIRED = "api_key_required"
+
+
 @dataclass(frozen=True, slots=True)
 class CivitaiFamilyMapping:
     """Define provider discovery and linked-model compatibility for a family."""
@@ -84,6 +98,9 @@ class ModelRecommendationQuery:
 
     family_id: ModelFamilyId
     styles: frozenset[ModelStylePreference] = frozenset()
+    access_policy: ModelRecommendationAccessPolicy = (
+        ModelRecommendationAccessPolicy.PUBLIC_ONLY
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +121,7 @@ class ModelRecommendation:
     thumbnail_image_id: int
     thumbnail_url: str
     popularity_rank: int
+    access: ModelRecommendationAccess = ModelRecommendationAccess.PUBLIC
 
 
 __all__ = [
@@ -112,6 +130,8 @@ __all__ = [
     "ModelFamilyDefinition",
     "ModelFamilyId",
     "ModelRecommendation",
+    "ModelRecommendationAccess",
+    "ModelRecommendationAccessPolicy",
     "ModelRecommendationQuery",
     "ModelStylePreference",
     "TensorShapeSignature",

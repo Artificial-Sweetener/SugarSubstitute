@@ -127,6 +127,31 @@ def test_build_snapshot_exposes_comfy_tooltip_metadata() -> None:
     assert field_spec.meta_info["tooltip"] == "Number of denoise steps."
 
 
+def test_build_snapshot_exposes_cube_target_model_to_field_projection() -> None:
+    """Every field should derive compatibility from its cube's canonical model."""
+
+    cube = cube_state(
+        nodes={
+            "loader": {
+                "class_type": "SimpleLoadAnima",
+                "inputs": {"unet_name": ""},
+            }
+        },
+        ui={"canonical_cube": {"metadata": {"target_model": "Anima"}}},
+    )
+
+    snapshot = build_behavior_snapshot(
+        cube_states={"Anima/Text to Image": cube},
+        stack_order=["Anima/Text to Image"],
+        definitions_by_class={
+            "SimpleLoadAnima": {"input": {"required": {"unet_name": ["STRING", {}]}}}
+        },
+    )
+
+    field = snapshot.field_specs_by_alias["Anima/Text to Image"]["loader"]["unet_name"]
+    assert field.meta_info["target_model"] == "Anima"
+
+
 def test_build_snapshot_preserves_live_advanced_metadata() -> None:
     """Live Comfy advanced metadata should survive the behavior boundary unchanged."""
 

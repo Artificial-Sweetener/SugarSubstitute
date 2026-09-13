@@ -102,7 +102,7 @@ def test_normal_handoff_supervises_restarts_with_the_same_broker(
 
     monkeypatch.setattr(installed_app_handoff, "LauncherUpdateOrchestrator", _NoUpdate)
     monkeypatch.setattr(
-        installed_app_handoff, "ApplicationCrashSupervisor", _Supervisor
+        installed_app_handoff, "ApplicationLifecycleSupervisor", _Supervisor
     )
 
     installed_app_handoff.complete_installed_app_handoff(
@@ -160,7 +160,7 @@ def test_update_failure_state_is_forwarded_without_a_lock_file(
         _FailedUpdate,
     )
     monkeypatch.setattr(
-        installed_app_handoff, "ApplicationCrashSupervisor", _Supervisor
+        installed_app_handoff, "ApplicationLifecycleSupervisor", _Supervisor
     )
 
     installed_app_handoff.complete_installed_app_handoff(
@@ -187,6 +187,7 @@ def test_launcher_bundle_update_handoff_does_not_start_the_old_app(
     splash = SimpleNamespace(
         client=SimpleNamespace(close=lambda: closed.append(True)),
         app_arguments=(),
+        close=lambda: closed.append(True),
     )
 
     class _LauncherUpdate:
@@ -213,7 +214,7 @@ def test_launcher_bundle_update_handoff_does_not_start_the_old_app(
     )
     monkeypatch.setattr(
         installed_app_handoff,
-        "ApplicationCrashSupervisor",
+        "ApplicationLifecycleSupervisor",
         lambda: pytest.fail("The replaced launcher must not start the old app."),
     )
 

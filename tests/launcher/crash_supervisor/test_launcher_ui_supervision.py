@@ -27,7 +27,12 @@ import pytest
 from launcher.sugarsubstitute_launcher.cli import parse_launcher_args
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.launcher_ui_supervision import (
+    supervise_instance_recovery_window,
     supervise_launcher_window,
+)
+from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
+    InstanceRecoveryAction,
+    InstanceRecoveryRequest,
 )
 from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
 
@@ -52,6 +57,37 @@ class RecordingSupervisor:
 
         self.calls.append((layout, tuple(command), environment))
         return self.result
+
+
+class RecoveryDecisionSupervisor(RecordingSupervisor):
+    """Write a simulated action through the real authenticated child contract."""
+
+    def supervise(
+        self,
+        *,
+        layout: InstallLayout,
+        command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> int:
+        """Read the request exactly as the Qt child does and publish Retry."""
+
+        super().supervise(
+            layout=layout,
+            command=command,
+            environment=environment,
+        )
+        prefix = "--instance-recovery-request="
+        request_path = Path(
+            next(
+                argument.removeprefix(prefix)
+                for argument in command
+                if argument.startswith(prefix)
+            )
+        )
+        request = InstanceRecoveryRequest.read(request_path)
+        assert request.can_end_owner
+        request.write_response(InstanceRecoveryAction.RETRY)
+        return 0
 
 
 def test_setup_window_relaunches_as_supervised_source_child(
@@ -157,3 +193,57 @@ def test_frozen_installed_launcher_uses_its_ui_executable(
     _call_layout, command, _environment = supervisor.calls[0]
     assert command[0] == str(ui_executable)
     assert "--launcher-ui-child" in command
+
+
+def test_instance_recovery_uses_supervised_ui_child_and_authenticated_decision(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The headless supervisor must never import Qt to collect a recovery action."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    supervisor = RecoveryDecisionSupervisor()
+    monkeypatch.setattr(sys, "frozen", False, raising=False)
+
+    result = supervise_instance_recovery_window(
+        layout=layout,
+        locale_override="en",
+        can_end_owner=True,
+        supervisor=supervisor,
+    )
+
+    assert result is InstanceRecoveryAction.RETRY
+    assert len(supervisor.calls) == 1
+    _layout, command, _environment = supervisor.calls[0]
+    assert "--launcher-ui-child" in command
+    assert any(
+        argument.startswith("--instance-recovery-request=") for argument in command
+    )
+
+
+def test_missing_recovery_child_receipt_fails_to_safe_exit(tmp_path: Path) -> None:
+    """A broken UI child must end this launch instead of looping or killing a peer."""
+
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+
+    assert (
+        supervise_instance_recovery_window(
+            layout=layout,
+            locale_override=None,
+            can_end_owner=True,
+            supervisor=RecordingSupervisor(),
+        )
+        is InstanceRecoveryAction.EXIT
+    )
+
+
+def test_oversized_recovery_exchange_is_rejected_before_json_parsing(
+    tmp_path: Path,
+) -> None:
+    """A damaged private exchange cannot force an unbounded launcher read."""
+
+    _request, request_path = InstanceRecoveryRequest.create(tmp_path / "exchange")
+    request_path.write_bytes(b"{" + (b" " * (17 * 1024)) + b"}")
+
+    with pytest.raises(ValueError, match="size limit"):
+        InstanceRecoveryRequest.read(request_path)

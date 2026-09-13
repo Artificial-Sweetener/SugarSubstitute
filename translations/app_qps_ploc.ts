@@ -42,6 +42,10 @@ Prömpt prëvïëw:
       <translation>⟦%1 (bypàssëd) ···⟧</translation>
     </message>
     <message>
+      <source>%1 API key required</source>
+      <translation>⟦%1 ÅPÏ këy rëqüïrëd ···⟧</translation>
+    </message>
+    <message>
       <source>%1 Canvas</source>
       <translation>⟦%1 Cànvàs ···⟧</translation>
     </message>
@@ -112,10 +116,6 @@ Prömpt prëvïëw:
     <message>
       <source>%1 metadata entries, %2 image previews, %3</source>
       <translation>⟦%1 mëtàdàtà ëntrïës, %2 ïmàgë prëvïëws, %3 ···⟧</translation>
-    </message>
-    <message>
-      <source>%1 model file(s) downloaded and verified. Reopen the picker to use them.</source>
-      <translation>⟦%1 mödël fïlë(s) döwnlöàdëd ànd vërïfïëd. Rëöpën thë pïckër tö üsë thëm. ···⟧</translation>
     </message>
     <message>
       <source>%1 model recommendation</source>
@@ -358,6 +358,10 @@ Prömpt prëvïëw:
       <translation>⟦ÅPÏ këy nöt sàvëd ···⟧</translation>
     </message>
     <message>
+      <source>API key required</source>
+      <translation>⟦ÅPÏ këy rëqüïrëd ···⟧</translation>
+    </message>
+    <message>
       <source>API key status</source>
       <translation>⟦ÅPÏ këy stàtüs ···⟧</translation>
     </message>
@@ -432,6 +436,10 @@ Prömpt prëvïëw:
     <message>
       <source>Add your CivitAI API key.</source>
       <translation>⟦Ådd yöür CïvïtÅÏ ÅPÏ këy. ···⟧</translation>
+    </message>
+    <message>
+      <source>Add your key to download this model. The key is stored securely and can be changed later in Settings.</source>
+      <translation>⟦Ådd yöür këy tö döwnlöàd thïs mödël. Thë këy ïs störëd sëcürëly ànd càn bë chàngëd làtër ïn Sëttïngs. ···⟧</translation>
     </message>
     <message>
       <source>Adding uninstall to planned changes.</source>
@@ -596,10 +604,6 @@ Prömpt prëvïëw:
     <message>
       <source>Base Cube Packs are required by Substitute and cannot be removed.</source>
       <translation>⟦Bàsë Cübë Pàcks àrë rëqüïrëd by Sübstïtütë ànd cànnöt bë rëmövëd. ···⟧</translation>
-    </message>
-    <message>
-      <source>Base model not listed</source>
-      <translation>⟦Bàsë mödël nöt lïstëd ···⟧</translation>
     </message>
     <message>
       <source>Base model: %1</source>
@@ -858,6 +862,10 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë à földër ···⟧</translation>
     </message>
     <message>
+      <source>Choose a model to download and use in this picker.</source>
+      <translation>⟦Chöösë à mödël tö döwnlöàd ànd üsë ïn thïs pïckër. ···⟧</translation>
+    </message>
+    <message>
       <source>Choose a model to download, explore CivitAI, or bring your own.</source>
       <translation>⟦Chöösë à mödël tö döwnlöàd, ëxplörë CïvïtÅÏ, ör brïng yöür öwn. ···⟧</translation>
     </message>
@@ -908,10 +916,6 @@ Prömpt prëvïëw:
     <message>
       <source>Choose from CivitAI</source>
       <translation>⟦Chöösë fröm CïvïtÅÏ ···⟧</translation>
-    </message>
-    <message>
-      <source>Choose from popular compatible files from the last month, or explore CivitAI. Nothing is selected automatically.</source>
-      <translation>⟦Chöösë fröm pöpülàr cömpàtïblë fïlës fröm thë làst mönth, ör ëxplörë CïvïtÅÏ. Nöthïng ïs sëlëctëd àütömàtïcàlly. ···⟧</translation>
     </message>
     <message>
       <source>Choose helpful extras</source>
@@ -1718,6 +1722,10 @@ Prömpt prëvïëw:
       <translation>⟦Cöüld nöt vàlïdàtë %1 ön thë àctïvë tàrgët. ···⟧</translation>
     </message>
     <message>
+      <source>Credentials are unavailable for %1.</source>
+      <translation>⟦Crëdëntïàls àrë ünàvàïlàblë för %1. ···⟧</translation>
+    </message>
+    <message>
       <source>Cube '%1' (%2)</source>
       <translation>⟦Cübë '%1' (%2) ···⟧</translation>
     </message>
@@ -2030,6 +2038,10 @@ Install these nodes now?</source>
       <translation>⟦Döwnlöàd ànd öpën rëcïpë ···⟧</translation>
     </message>
     <message>
+      <source>Download and use</source>
+      <translation>⟦Döwnlöàd ànd üsë ···⟧</translation>
+    </message>
+    <message>
       <source>Download failed.</source>
       <translation>⟦Döwnlöàd fàïlëd. ···⟧</translation>
     </message>
@@ -2050,10 +2062,6 @@ Install these nodes now?</source>
       <translation>⟦Döwnlöàd sëlëctëd ···⟧</translation>
     </message>
     <message>
-      <source>Download this model</source>
-      <translation>⟦Döwnlöàd thïs mödël ···⟧</translation>
-    </message>
-    <message>
       <source>Downloading %1</source>
       <translation>⟦Döwnlöàdïng %1 ···⟧</translation>
     </message>
@@ -2064,6 +2072,10 @@ Install these nodes now?</source>
     <message>
       <source>Downloading %1 — %2 of %3 MiB</source>
       <translation>⟦Döwnlöàdïng %1 — %2 öf %3 MïB ···⟧</translation>
+    </message>
+    <message>
+      <source>Downloading and verifying %1…</source>
+      <translation>⟦Döwnlöàdïng ànd vërïfyïng %1… ···⟧</translation>
     </message>
     <message>
       <source>Downloading model</source>
@@ -2226,8 +2238,8 @@ Install these nodes now?</source>
       <translation>⟦Ëxpànd wïldcàrd prömpt tëxt bëförë sëndïng qüëüëd wörkflöws tö Cömfy. ···⟧</translation>
     </message>
     <message>
-      <source>Explore more on CivitAI</source>
-      <translation>⟦Ëxplörë mörë ön CïvïtÅÏ ···⟧</translation>
+      <source>Explore more</source>
+      <translation>⟦Ëxplörë mörë ···⟧</translation>
     </message>
     <message>
       <source>Export to Comfy Workflow...</source>
@@ -2342,12 +2354,20 @@ Install these nodes now?</source>
       <translation>⟦Fïnd CömfyÜÏ's ënvïrönmënt ···⟧</translation>
     </message>
     <message>
+      <source>Find a model</source>
+      <translation>⟦Fïnd à mödël ···⟧</translation>
+    </message>
+    <message>
       <source>Find models</source>
       <translation>⟦Fïnd mödëls ···⟧</translation>
     </message>
     <message>
       <source>Finding Python…</source>
       <translation>⟦Fïndïng Pythön… ···⟧</translation>
+    </message>
+    <message>
+      <source>Finding compatible models…</source>
+      <translation>⟦Fïndïng cömpàtïblë mödëls… ···⟧</translation>
     </message>
     <message>
       <source>Fingerprint: %1</source>
@@ -3142,6 +3162,10 @@ Install these nodes now?</source>
       <translation>⟦Mödël döwnlöàd prögrëss ···⟧</translation>
     </message>
     <message>
+      <source>Model download returned invalid results.</source>
+      <translation>⟦Mödël döwnlöàd rëtürnëd ïnvàlïd rësülts. ···⟧</translation>
+    </message>
+    <message>
       <source>Model download unavailable</source>
       <translation>⟦Mödël döwnlöàd ünàvàïlàblë ···⟧</translation>
     </message>
@@ -3314,6 +3338,10 @@ Install these nodes now?</source>
       <translation>⟦Nö chàngës plànnëd. ···⟧</translation>
     </message>
     <message>
+      <source>No compatible model suggestions are available right now.</source>
+      <translation>⟦Nö cömpàtïblë mödël süggëstïöns àrë àvàïlàblë rïght nöw. ···⟧</translation>
+    </message>
+    <message>
       <source>No compatible operating-system credential store is available.</source>
       <translation>⟦Nö cömpàtïblë öpëràtïng-systëm crëdëntïàl störë ïs àvàïlàblë. ···⟧</translation>
     </message>
@@ -3366,10 +3394,6 @@ Install these nodes now?</source>
       <translation>⟦Nö mödël döwnlöàds wërë sëlëctëd. ···⟧</translation>
     </message>
     <message>
-      <source>No models are available for this picker</source>
-      <translation>⟦Nö mödëls àrë àvàïlàblë för thïs pïckër ···⟧</translation>
-    </message>
-    <message>
       <source>No node-specific validation errors were reported.</source>
       <translation>⟦Nö nödë-spëcïfïc vàlïdàtïön ërrörs wërë rëpörtëd. ···⟧</translation>
     </message>
@@ -3388,10 +3412,6 @@ Install these nodes now?</source>
     <message>
       <source>No repository has been validated.</source>
       <translation>⟦Nö rëpösïtöry hàs bëën vàlïdàtëd. ···⟧</translation>
-    </message>
-    <message>
-      <source>No safe popular models are available for this picker right now.</source>
-      <translation>⟦Nö sàfë pöpülàr mödëls àrë àvàïlàblë för thïs pïckër rïght nöw. ···⟧</translation>
     </message>
     <message>
       <source>No selection</source>
@@ -4604,10 +4624,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sàvëd. Rëstàrt Sübstïtütë tö üsë thë nëw CömfyÜÏ cönnëctïön. ···⟧</translation>
     </message>
     <message>
-      <source>Saves to %1</source>
-      <translation>⟦Sàvës tö %1 ···⟧</translation>
-    </message>
-    <message>
       <source>Saving and applying setup choices.</source>
       <translation>⟦Sàvïng ànd àpplyïng sëtüp chöïcës. ···⟧</translation>
     </message>
@@ -5682,6 +5698,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thë dësktöp nàtïvë Qt fröntënd för CömfyÜÏ ···⟧</translation>
     </message>
     <message>
+      <source>The downloaded model has an invalid destination.</source>
+      <translation>⟦Thë döwnlöàdëd mödël hàs àn ïnvàlïd dëstïnàtïön. ···⟧</translation>
+    </message>
+    <message>
       <source>The existing ComfyUI installation is ready.</source>
       <translation>⟦Thë ëxïstïng CömfyÜÏ ïnstàllàtïön ïs rëàdy. ···⟧</translation>
     </message>
@@ -5826,6 +5846,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thë sëlëctëd mödël cöüld nöt bë fïngërprïntëd. ···⟧</translation>
     </message>
     <message>
+      <source>The selected model is no longer available.</source>
+      <translation>⟦Thë sëlëctëd mödël ïs nö löngër àvàïlàblë. ···⟧</translation>
+    </message>
+    <message>
       <source>The selected model is no longer present locally.</source>
       <translation>⟦Thë sëlëctëd mödël ïs nö löngër prësënt löcàlly. ···⟧</translation>
     </message>
@@ -5890,6 +5914,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thësë chàngës wïll àpply àftër rëstàrt. ···⟧</translation>
     </message>
     <message>
+      <source>These popular models are compatible with this picker. Nothing downloads until you choose one.</source>
+      <translation>⟦Thësë pöpülàr mödëls àrë cömpàtïblë wïth thïs pïckër. Nöthïng döwnlöàds üntïl yöü chöösë önë. ···⟧</translation>
+    </message>
+    <message>
       <source>This CivitAI model needs an API key</source>
       <translation>⟦Thïs CïvïtÅÏ mödël nëëds àn ÅPÏ këy ···⟧</translation>
     </message>
@@ -5920,6 +5948,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>This model is not compatible with the current family</source>
       <translation>⟦Thïs mödël ïs nöt cömpàtïblë wïth thë cürrënt fàmïly ···⟧</translation>
+    </message>
+    <message>
+      <source>This model requires a CivitAI API key</source>
+      <translation>⟦Thïs mödël rëqüïrës à CïvïtÅÏ ÅPÏ këy ···⟧</translation>
     </message>
     <message>
       <source>This recipe uses a model that is not available in your current ComfyUI model folders. Turn on CivitAI model lookup in Settings to search for it.</source>
@@ -6352,6 +6384,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Version: %1</source>
       <translation>⟦Vërsïön: %1 ···⟧</translation>
+    </message>
+    <message>
+      <source>View %1 on %2</source>
+      <translation>⟦Vïëw %1 ön %2 ···⟧</translation>
     </message>
     <message>
       <source>View %1 on CivitAI</source>

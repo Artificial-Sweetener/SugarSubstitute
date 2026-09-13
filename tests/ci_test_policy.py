@@ -309,6 +309,13 @@ ISOLATED_TEST_MODULES = frozenset(
         # This launcher setup owner is stable in a fresh native Qt process but
         # can abort after unrelated Qt work in one reused worker.
         "tests/launcher/installation_workflow/test_successful_setup.py",
+        # These launcher failure-surface owners construct the production Fluent
+        # report modal after worker-thread completion. They are stable in fresh
+        # native Qt processes but can stall after unrelated Qt work in a reused
+        # xdist worker; concurrent fresh processes remain independent.
+        "tests/launcher/installation_workflow/test_handoff_failure.py",
+        "tests/launcher/installation_workflow/test_initial_failure.py",
+        "tests/launcher/installation_workflow/test_runtime_failure.py",
         # This real mouse-interaction owner is stable in a fresh native Qt
         # process but can lose delivery after unrelated Qt work in one worker.
         "tests/presentation/cube_picker/test_staging_removal.py",

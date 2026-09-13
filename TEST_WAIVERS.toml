@@ -1296,3 +1296,42 @@ fingerprint = "sha256:9ef61b73a29be9205121aa128de08dc7436410488ea6d724f74ca1988e
 rationale = "This native Qt module drives the production launcher installation workflow through automatic runtime setup and app handoff. Its continuation contract aborted with a Linux bus error only after prior native Qt work in an ordinary xdist worker, while the same commit passed the complete Linux fresh job and the module passed in five independent Windows fresh processes. It owns only tmp_path installation state and fake process boundaries; process isolation is sufficient and global serialization would be inappropriate."
 issue = "chore:SS-TEST-WAIVER-C0279"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0280"
+owner = "Launcher handoff-failure Qt contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/launcher/installation_workflow/test_handoff_failure.py|isolated-module"]
+paths = ["tests/launcher/installation_workflow/test_handoff_failure.py"]
+fingerprint = "sha256:6b94f922eeb93e9a488e45bc79116964e9cc551dcbaad1c192be4d47aa4ce096"
+rationale = "This native Qt module drives a failed setup handoff through the production launcher worker, expands its diagnostics, and constructs the shared Fluent report modal. The test stalled beyond the five-minute process guard only after unrelated Qt work in an ordinary Windows xdist worker, while the module passed repeatedly in fresh concurrent processes and owns only tmp_path state plus fake process boundaries. Process isolation preserves the real failure surface without inappropriate global serialization."
+issue = "chore:SS-TEST-WAIVER-C0280"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0281"
+owner = "Launcher initial-failure Qt contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/launcher/installation_workflow/test_initial_failure.py|isolated-module"]
+paths = ["tests/launcher/installation_workflow/test_initial_failure.py"]
+fingerprint = "sha256:5e1dfc2d77975478b16906e05284b7ca9957c94703eff54b2560ec676491f15c"
+rationale = "This native Qt module drives initial installation failure through the production launcher worker and shared Fluent report modal. It shares the demonstrated reused-worker modal lifecycle constraint with the handoff and runtime failure owners, while a fresh process owns only tmp_path state and fake installation boundaries. Process isolation retains the full production UI contract and permits concurrent execution."
+issue = "chore:SS-TEST-WAIVER-C0281"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0282"
+owner = "Launcher runtime-failure Qt contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/launcher/installation_workflow/test_runtime_failure.py|isolated-module"]
+paths = ["tests/launcher/installation_workflow/test_runtime_failure.py"]
+fingerprint = "sha256:64464a74b756d323ea3e8996004f415f7fd5e57163a083c2b409ee1ba3b7dd6e"
+rationale = "This native Qt module drives runtime provisioning failure through the production launcher worker and shared Fluent report modal. The test exceeded the five-minute process guard after unrelated Qt work in a reused Windows xdist worker, while the complete module passed immediately in a fresh process and owns no cross-process resource. Process isolation preserves the real error presentation and remains parallel-safe."
+issue = "chore:SS-TEST-WAIVER-C0282"
+review_by = 2026-12-15

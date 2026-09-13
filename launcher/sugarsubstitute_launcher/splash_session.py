@@ -48,15 +48,43 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 _HOST_MODULE = "substitute.app.bootstrap.shared_splash_host"
 _READY_TIMEOUT_SECONDS = 8.0
+_HOST_PROCESS_REQUESTED_MONOTONIC_NS_ENV = (
+    "SUGAR_SUBSTITUTE_SPLASH_HOST_PROCESS_REQUESTED_MONOTONIC_NS"
+)
 
 
 @dataclass(frozen=True, slots=True)
 class LauncherSplashSession:
-    """Carry a launcher-created splash session into app handoff."""
+    """Own a launcher-created splash process through application handoff."""
 
     client: SocketSplashSessionClient
     app_arguments: tuple[str, ...]
     host_pid: int
+    process: subprocess.Popen[str]
+
+    def present(self) -> str | None:
+        """Bring the startup surface forward for a secondary invocation."""
+
+        return "startup-splash" if self.client.activate() else None
+
+    def ensure_closed(self) -> None:
+        """Confirm splash exit or terminate the launcher-owned helper."""
+
+        try:
+            self.process.wait(timeout=2.0)
+            return
+        except subprocess.TimeoutExpired:
+            _LOGGER.warning(
+                "Splash host remained alive after application readiness; terminating it."
+            )
+        _terminate_failed_splash_host(self.process)
+
+    def close(self) -> None:
+        """Request splash closure and enforce launcher-owned process cleanup."""
+
+        if not self.client.close():
+            _LOGGER.warning("Splash host did not acknowledge closure; terminating it.")
+        self.ensure_closed()
 
 
 def start_launcher_splash_session(
@@ -95,6 +123,7 @@ def start_launcher_splash_session(
         client=SocketSplashSessionClient(spec),
         app_arguments=tuple(splash_session_args(spec)),
         host_pid=spec.host_pid,
+        process=process,
     )
 
 
@@ -154,6 +183,7 @@ def _splash_host_environment(layout: InstallLayout) -> dict[str, str]:
         "SUGAR_SUBSTITUTE_SPLASH_REQUESTED_MONOTONIC_NS",
         str(time.monotonic_ns()),
     )
+    environment[_HOST_PROCESS_REQUESTED_MONOTONIC_NS_ENV] = str(time.monotonic_ns())
     return environment
 
 

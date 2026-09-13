@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 import json
 import logging
 import ssl
@@ -32,6 +33,8 @@ from substitute.domain.model_recommendations import (
     ModelFamilyDefinition,
     ModelFamilyId,
     ModelRecommendation,
+    ModelRecommendationAccess,
+    ModelRecommendationAccessPolicy,
     ModelRecommendationQuery,
     SUPPORTED_MODEL_FAMILIES,
     SupportedModelFamilyCatalog,
@@ -138,25 +141,28 @@ class CivitaiFamilyRecommendationGateway:
                 page_candidates.append(card)
                 page_model_ids.add(card.model_id)
                 page_hashes.add(card.sha256.casefold())
-            for card, publicly_downloadable in zip(
+            for card, access in zip(
                 page_candidates,
-                self._public_downloadability(page_candidates),
+                self._download_access(page_candidates),
                 strict=True,
             ):
-                if not publicly_downloadable:
+                if (
+                    query.access_policy is ModelRecommendationAccessPolicy.PUBLIC_ONLY
+                    and access is not ModelRecommendationAccess.PUBLIC
+                ):
                     continue
-                cards.append(card)
+                cards.append(replace(card, access=access))
                 seen_hashes.add(card.sha256.casefold())
                 if len(cards) == limit:
                     break
             next_url = _next_page(payload)
         return tuple(cards)
 
-    def _public_downloadability(
+    def _download_access(
         self,
         recommendations: list[ModelRecommendation],
-    ) -> tuple[bool, ...]:
-        """Check recommendation access concurrently while preserving card order."""
+    ) -> tuple[ModelRecommendationAccess, ...]:
+        """Resolve recommendation access concurrently while preserving card order."""
 
         if not recommendations:
             return ()
@@ -164,17 +170,17 @@ class CivitaiFamilyRecommendationGateway:
             parallelism=min(_ACCESS_CHECK_PARALLELISM, len(recommendations))
         ) as parallel_mapper:
             return parallel_mapper.map(
-                self._recommendation_is_publicly_downloadable,
+                self._recommendation_download_access,
                 recommendations,
             )
 
-    def _recommendation_is_publicly_downloadable(
+    def _recommendation_download_access(
         self,
         recommendation: ModelRecommendation,
-    ) -> bool:
-        """Return whether one recommendation can be downloaded without auth."""
+    ) -> ModelRecommendationAccess:
+        """Return the authentication requirement for one recommendation."""
 
-        return self._is_publicly_downloadable(recommendation.version_id)
+        return self._access_for_version(recommendation.version_id)
 
     def resolve_model_page(
         self,
@@ -199,8 +205,8 @@ class CivitaiFamilyRecommendationGateway:
             target_version_id=version_id,
         )
 
-    def _is_publicly_downloadable(self, version_id: int) -> bool:
-        """Return whether CivitAI permits this recommended download without auth."""
+    def _access_for_version(self, version_id: int) -> ModelRecommendationAccess:
+        """Return CivitAI's current access requirement for one exact version."""
 
         payload = self._request(
             f"{_API_ROOT}/model-versions/mini/{version_id}",
@@ -222,10 +228,15 @@ class CivitaiFamilyRecommendationGateway:
             raise CivitaiRecommendationError(
                 "CivitAI model download access returned an invalid response."
             )
-        return (
+        is_public = (
             availability.casefold() == "public"
             and not requires_auth
             and not checks_permission
+        )
+        return (
+            ModelRecommendationAccess.PUBLIC
+            if is_public
+            else ModelRecommendationAccess.API_KEY_REQUIRED
         )
 
     def _validate_provider_mapping(self, family: ModelFamilyDefinition) -> None:

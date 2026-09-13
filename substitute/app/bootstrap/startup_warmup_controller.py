@@ -123,9 +123,7 @@ class NonessentialStartupWarmupLauncher:
             StartupModelMetadataRefreshHandleFactory
         ),
         comfy_output_stream: Any,
-        scheduler: Callable[[int, Callable[[], None]], None],
         trace_fields: Callable[[], dict[str, object]],
-        coalescing_timeout_delay_ms: int = 30000,
         backend_editor_warmup: Callable[..., None] | None = None,
         cube_icon_warmup: Callable[..., None] | None = None,
         model_metadata_refresh: Callable[..., None] | None = None,
@@ -147,9 +145,7 @@ class NonessentialStartupWarmupLauncher:
             model_metadata_refresh_handle_factory
         )
         self._comfy_output_stream = comfy_output_stream
-        self._scheduler = scheduler
         self._trace_fields = trace_fields
-        self._coalescing_timeout_delay_ms = coalescing_timeout_delay_ms
         self._backend_editor_warmup = (
             start_backend_editor_startup_warmup
             if backend_editor_warmup is None
@@ -174,8 +170,6 @@ class NonessentialStartupWarmupLauncher:
             comfy_http_ready=self._comfy_http_ready(),
             readiness_state=self._readiness_state,
             metadata_update_bridge=self._metadata_update_bridge(),
-            coalescing_timeout_delay_ms=self._coalescing_timeout_delay_ms,
-            scheduler=self._scheduler,
             start_backend_editor_warmup=self._start_backend_editor_warmup,
             start_cube_icon_warmup=self._start_cube_icon_warmup,
             start_model_metadata_refresh=self._start_model_metadata_refresh,
@@ -238,7 +232,6 @@ def create_nonessential_startup_warmup_launcher(
     model_metadata_service_factory: Callable[[], Any],
     model_metadata_refresh_handle_factory: StartupModelMetadataRefreshHandleFactory,
     comfy_output_stream: Any,
-    scheduler: Callable[[int, Callable[[], None]], None],
     trace_fields: Callable[[], dict[str, object]],
 ) -> NonessentialStartupWarmupLauncher:
     """Create the live nonessential startup warmup launcher."""
@@ -257,7 +250,6 @@ def create_nonessential_startup_warmup_launcher(
         model_metadata_service_factory=model_metadata_service_factory,
         model_metadata_refresh_handle_factory=model_metadata_refresh_handle_factory,
         comfy_output_stream=comfy_output_stream,
-        scheduler=scheduler,
         trace_fields=trace_fields,
     )
 
@@ -367,7 +359,6 @@ def create_nonessential_startup_warmup_runtime(
         model_metadata_service_factory=model_metadata_service_factory,
         model_metadata_refresh_handle_factory=model_metadata_refresh_handle_factory,
         comfy_output_stream=comfy_output_stream,
-        scheduler=scheduler,
         trace_fields=trace_fields,
     )
     warmup_scheduler = create_nonessential_startup_warmup_scheduler(
@@ -647,8 +638,6 @@ def start_nonessential_startup_warmups(
     comfy_http_ready: bool,
     readiness_state: NonessentialWarmupReadinessStateProtocol,
     metadata_update_bridge: object | None,
-    coalescing_timeout_delay_ms: int,
-    scheduler: Callable[[int, Callable[[], None]], None],
     start_backend_editor_warmup: Callable[[], None],
     start_cube_icon_warmup: Callable[[], None],
     start_model_metadata_refresh: Callable[[], None],
@@ -681,17 +670,6 @@ def start_nonessential_startup_warmups(
     start_backend_editor_warmup()
     start_cube_icon_warmup()
     start_model_metadata_refresh()
-    timeout_metadata_coalescing = getattr(
-        metadata_update_bridge,
-        "timeout_startup_coalescing",
-        None,
-    )
-    if callable(timeout_metadata_coalescing):
-        trace_mark(
-            "metadata_update_bridge.startup_coalescing_timeout",
-            delay_ms=coalescing_timeout_delay_ms,
-        )
-        scheduler(coalescing_timeout_delay_ms, timeout_metadata_coalescing)
     trace_mark("post_comfy.nonessential_warmups.end", **trace_fields())
 
 

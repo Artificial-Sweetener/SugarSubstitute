@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -98,7 +98,13 @@ class InstallerView(QWidget):
         self.install_path_edit = LineEdit(self)
         self.install_path_edit.setObjectName("LauncherInstallPathEdit")
         self.install_path_edit.setText(initial_install_path)
-        self.progress_log = TerminalOutputView(self, min_height=220, max_height=280)
+        self.progress_log = TerminalOutputView(
+            self,
+            min_height=220,
+            max_height=280,
+            use_qfluent_chrome=False,
+            observe_qfluent_theme=False,
+        )
         self.primary_button = PrimaryPushButton(self)
         self.back_button = PushButton(self)
         self.browse_button = PushButton(self)
@@ -148,7 +154,8 @@ class InstallerView(QWidget):
 
         self._experience_page = ExperiencePage.FAILURE
         self.activity_label.setText(message)
-        self.details_button.setChecked(True)
+        with QSignalBlocker(self.details_button):
+            self.details_button.setChecked(True)
         self._set_log_visible(True)
 
     def show_language_selection(self) -> None:

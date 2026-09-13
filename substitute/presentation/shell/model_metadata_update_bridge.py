@@ -59,17 +59,6 @@ class ModelMetadataUpdateBridge(QObject):
         for event in events_to_emit:
             self.model_updated.emit(event)
 
-    def flush_startup_coalescing(self) -> None:
-        """Emit currently coalesced metadata updates."""
-
-        with self._lock:
-            self._drain_pending_into_coalescing_locked()
-            events = tuple(self._coalesced_events.values())
-            self._coalesced_events.clear()
-        trace_mark("metadata_update_bridge.flush", pending_count=len(events))
-        for event in events:
-            self.model_updated.emit(event)
-
     def end_startup_coalescing(self) -> None:
         """Flush pending updates and resume immediate metadata dispatch."""
 
@@ -104,24 +93,6 @@ class ModelMetadataUpdateBridge(QObject):
 
         trace_mark("metadata_update_bridge.coalesce.end_requested")
         self._end_startup_coalescing_requested.emit()
-
-    def timeout_startup_coalescing(self) -> None:
-        """Flush startup coalescing after the safety timeout expires."""
-
-        with self._lock:
-            startup_coalescing = self._startup_coalescing
-            pending_count = len(self._coalesced_events) + len(self._pending_events)
-        if not startup_coalescing:
-            trace_mark(
-                "metadata_update_bridge.coalesce.timeout_skip",
-                reason="not_coalescing",
-            )
-            return
-        trace_mark(
-            "metadata_update_bridge.coalesce.timeout_flush",
-            pending_count=pending_count,
-        )
-        self.end_startup_coalescing()
 
     def emit_model_updated(self, event: ModelMetadataRefreshEvent) -> None:
         """Queue one refresh event for GUI-thread coalescing and publication."""

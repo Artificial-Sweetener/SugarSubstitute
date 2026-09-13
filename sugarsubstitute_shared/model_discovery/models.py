@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 
 
 class ModelArtifactKind(str, Enum):
@@ -33,15 +32,6 @@ class ModelArtifactKind(str, Enum):
     VAE = "vae"
     CONTROLNET = "controlnet"
     UPSCALE_MODELS = "upscale_models"
-
-
-@dataclass(frozen=True, slots=True)
-class LocalModel:
-    """Describe one locally available artifact visible to a model picker."""
-
-    artifact_kind: ModelArtifactKind
-    path: Path
-    sha256: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,37 +54,7 @@ class DiscoveredModel:
     provider_rank: int
 
 
-@dataclass(frozen=True, slots=True)
-class ModelDiscoveryCard:
-    """Present one candidate with explicit destination and unchecked selection."""
-
-    model: DiscoveredModel
-    destination: Path
-    selected: bool = False
-
-
-@dataclass(frozen=True, slots=True)
-class ModelDiscoveryPlan:
-    """Describe provider-ranked cards for one empty artifact picker."""
-
-    cards: tuple[ModelDiscoveryCard, ...]
-    explore_url: str
-
-    def cards_for(
-        self,
-        artifact_kind: ModelArtifactKind,
-    ) -> tuple[ModelDiscoveryCard, ...]:
-        """Return provider-ranked cards for one artifact kind."""
-
-        return tuple(
-            card for card in self.cards if card.model.artifact_kind is artifact_kind
-        )
-
-
 __all__ = [
     "DiscoveredModel",
-    "LocalModel",
     "ModelArtifactKind",
-    "ModelDiscoveryCard",
-    "ModelDiscoveryPlan",
 ]

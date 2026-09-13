@@ -52,6 +52,7 @@ EXECUTION_LANE_FACTORY_FILES = frozenset(
 )
 EXECUTION_LANE_CONSTRUCTORS = frozenset({"ThreadPoolExecutionLane"})
 DOCUMENTED_NON_EXECUTION_FILES = {
+    "substitute/app/bootstrap/shared_splash_host.py": frozenset({"threading.Event"}),
     "substitute/app/bootstrap/launch_splash.py": frozenset(
         {"threading.Event", "threading.Lock"}
     ),

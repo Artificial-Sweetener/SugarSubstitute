@@ -24,8 +24,14 @@ from pathlib import Path
 import sys
 import time
 
-from PySide6.QtCore import QCoreApplication, QTimer
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtWidgets import QApplication, QWidget
 
+from substitute.app.bootstrap.application_readiness import (
+    schedule_main_shell_readiness_receipt,
+)
+from substitute.app.bootstrap.surface_presentation import run_after_surface_paint
 from substitute.app.bootstrap.application_instance_control import (
     start_application_instance_control,
     stop_application_instance_control,
@@ -51,6 +57,9 @@ APPLICATION_PREREGISTRATION_MARKER_NAME = "qualification-application-preregister
 APPLICATION_RESTART_AFTER_INVOCATIONS_ENV = (
     "SUGAR_SUBSTITUTE_QUALIFICATION_RESTART_AFTER_INVOCATIONS"
 )
+APPLICATION_INITIAL_WINDOW_STATE_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_INITIAL_WINDOW_STATE"
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -59,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     arguments = sys.argv if argv is None else argv
     install_root = application_launch_install_root(arguments, app_root=Path.cwd())
     _delay_application_registration(install_root)
-    application = QCoreApplication(arguments)
+    application = QApplication(arguments)
     received_invocations: list[ApplicationInvocation] = []
     restart_after_invocations = int(
         os.environ.pop(APPLICATION_RESTART_AFTER_INVOCATIONS_ENV, "0")
@@ -84,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
                         }
                         for item in received_invocations
                     ],
+                    "surface": _surface_evidence(window),
                 },
                 sort_keys=True,
             ),
@@ -94,26 +104,36 @@ def main(argv: list[str] | None = None) -> int:
             and len(received_invocations) == restart_after_invocations
             and control is not None
         ):
-            accepted = control.request_restart()
-            restart_evidence_path(install_root).write_text(
-                json.dumps(
-                    {
-                        "accepted": accepted,
-                        "invocation_count": len(received_invocations),
-                        "pid": os.getpid(),
-                    },
-                    sort_keys=True,
-                ),
-                encoding="utf-8",
-            )
-            if accepted:
-                if crash_context is not None:
-                    crash_context.write_exit_intent(
-                        CleanExitOutcome.RESTART,
-                        process_id=os.getpid(),
-                    )
-                requested_restart = True
-                application.quit()
+            restart_count = len(received_invocations)
+
+            def request_restart_after_presentation() -> None:
+                """Restart only after the triggering invocation's surface paints."""
+
+                nonlocal requested_restart
+                assert control is not None
+                accepted = control.request_restart()
+                restart_evidence_path(install_root).write_text(
+                    json.dumps(
+                        {
+                            "accepted": accepted,
+                            "invocation_count": restart_count,
+                            "pid": os.getpid(),
+                        },
+                        sort_keys=True,
+                    ),
+                    encoding="utf-8",
+                )
+                if accepted:
+                    if crash_context is not None:
+                        crash_context.write_exit_intent(
+                            CleanExitOutcome.RESTART,
+                            process_id=os.getpid(),
+                        )
+                    requested_restart = True
+                    application.quit()
+
+            run_after_surface_paint(window, request_restart_after_presentation)
+            window.update()
 
     evidence_path = invocation_evidence_path(install_root)
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
@@ -123,6 +143,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     if control is None:
         return 17
+    window = QWidget()
+    window.setWindowTitle("SugarSubstitute instance qualification")
+    window.resize(640, 480)
+    _show_initial_window_state(window)
+    schedule_main_shell_readiness_receipt(window)
+    _schedule_splash_close_after_surface_paint(arguments, install_root, window)
     marker_path = install_root / "user" / "qualification-app.json"
     owner_marker_path = (
         install_root / "user" / "qualification-owners" / f"{os.getpid()}.json"
@@ -137,7 +163,6 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps({"pid": os.getpid(), "parent_pid": os.getppid()}, sort_keys=True),
         encoding="utf-8",
     )
-    _adopt_splash(arguments, install_root)
     QTimer.singleShot(120_000, application.quit)
     try:
         return application.exec()
@@ -152,8 +177,12 @@ def main(argv: list[str] | None = None) -> int:
             )
 
 
-def _adopt_splash(arguments: list[str], install_root: Path) -> None:
-    """Record and close one launcher-created splash session."""
+def _schedule_splash_close_after_surface_paint(
+    arguments: list[str],
+    install_root: Path,
+    window: QWidget,
+) -> None:
+    """Adopt and close the launcher splash after the replacement surface paints."""
 
     splash_spec = splash_session_from_args(arguments)
     if splash_spec is None:
@@ -162,15 +191,69 @@ def _adopt_splash(arguments: list[str], install_root: Path) -> None:
         install_root / "user" / "qualification-splash-adoptions" / f"{os.getpid()}.json"
     )
     adoption_path.parent.mkdir(parents=True, exist_ok=True)
-    adoption_path.write_text(
-        json.dumps(
-            {"app_pid": os.getpid(), "splash_host_pid": splash_spec.host_pid},
-            sort_keys=True,
-        ),
+    payload: dict[str, object] = {
+        "app_pid": os.getpid(),
+        "close_acknowledged": None,
+        "splash_host_pid": splash_spec.host_pid,
+    }
+    _write_splash_adoption(adoption_path, payload)
+    splash_client = SocketSplashSessionClient(splash_spec)
+
+    def close_adopted_splash() -> None:
+        """Record whether the host applied the production close message."""
+
+        payload["close_acknowledged"] = splash_client.close()
+        _write_splash_adoption(adoption_path, payload)
+
+    run_after_surface_paint(window, close_adopted_splash)
+
+
+def _write_splash_adoption(path: Path, payload: dict[str, object]) -> None:
+    """Atomically publish splash adoption and close acknowledgement evidence."""
+
+    temporary_path = path.with_suffix(f".{os.getpid()}.tmp")
+    temporary_path.write_text(
+        json.dumps(payload, sort_keys=True),
         encoding="utf-8",
     )
-    splash_client = SocketSplashSessionClient(splash_spec)
-    splash_client.close()
+    os.replace(temporary_path, path)
+
+
+def _show_initial_window_state(window: QWidget) -> None:
+    """Expose one deterministic presentation state for process qualification."""
+
+    state = os.environ.pop(APPLICATION_INITIAL_WINDOW_STATE_ENV, "normal")
+    if state == "normal":
+        window.show()
+        return
+    if state == "hidden":
+        window.show()
+        window.hide()
+        return
+    if state == "minimized":
+        window.showMinimized()
+        return
+    if state == "offscreen":
+        window.move(100_000, 100_000)
+        window.show()
+        return
+    raise ValueError(f"Unsupported qualification window state: {state}")
+
+
+def _surface_evidence(window: QWidget) -> dict[str, object]:
+    """Describe whether the activation target is visible and screen-accessible."""
+
+    frame = window.frameGeometry()
+    return {
+        "accessible": any(
+            frame.intersects(screen.availableGeometry())
+            for screen in QGuiApplication.screens()
+        ),
+        "minimized": window.isMinimized(),
+        "visible": window.isVisible(),
+        "x": frame.x(),
+        "y": frame.y(),
+    }
 
 
 def _delay_application_registration(install_root: Path) -> None:

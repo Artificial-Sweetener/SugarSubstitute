@@ -359,8 +359,7 @@ def test_compose_runtime_controllers_assigns_runtime_controllers(
         _ModelUpdateNotificationController,
     )
     monkeypatch.setattr(
-        main_window_composition,
-        "EmptyModelPickerDiscoveryController",
+        "substitute.presentation.shell.model_discovery_composition.EmptyModelPickerDiscoveryController",
         _EmptyModelPickerDiscoveryController,
     )
     monkeypatch.setattr(
