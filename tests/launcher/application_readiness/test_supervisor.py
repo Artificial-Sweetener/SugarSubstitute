@@ -76,6 +76,30 @@ class _CandidateProcess:
         return self.return_code
 
 
+def _publish_test_receipt(
+    *,
+    receipt_path: Path,
+    pid: int,
+    token: str,
+    surface: ApplicationReadinessSurface,
+    parent_pid: int = 999,
+) -> None:
+    """Write one deterministic readiness receipt for a supervised test child."""
+
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    receipt_path.write_text(
+        json.dumps(
+            ApplicationReadinessReceipt(
+                pid=pid,
+                token=token,
+                surface=surface,
+                parent_pid=parent_pid,
+            ).to_json()
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_supervisor_returns_only_after_matching_receipt(tmp_path: Path) -> None:
     """A running process is accepted only after its token and PID match."""
 
@@ -138,19 +162,15 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
         _command: Sequence[str],
         environment: Mapping[str, str],
     ) -> tuple[_CandidateProcess, Path]:
-        """Write the outer token to its caller-owned receipt path."""
+        """Write readiness through the supervisor's private child contract."""
 
-        receipt_path.parent.mkdir(parents=True, exist_ok=True)
-        receipt_path.write_text(
-            json.dumps(
-                ApplicationReadinessReceipt(
-                    pid=process.pid,
-                    token=environment[READINESS_TOKEN_ENV],
-                    surface=ApplicationReadinessSurface.MAIN_SHELL,
-                    parent_pid=999,
-                ).to_json()
-            ),
-            encoding="utf-8",
+        child_receipt_path = Path(environment[READINESS_PATH_ENV])
+        assert child_receipt_path != receipt_path
+        _publish_test_receipt(
+            receipt_path=child_receipt_path,
+            pid=process.pid,
+            token=environment[READINESS_TOKEN_ENV],
+            surface=ApplicationReadinessSurface.MAIN_SHELL,
         )
         return process, tmp_path / "startup.log"
 
@@ -286,25 +306,26 @@ def test_supervisor_rejects_onboarding_as_candidate_readiness(tmp_path: Path) ->
     layout = InstallLayout.from_root(tmp_path / "install")
     process = _CandidateProcess()
     receipt_path = tmp_path / "onboarding.json"
-    receipt_path.write_text(
-        json.dumps(
-            ApplicationReadinessReceipt(
-                pid=process.pid,
-                token="candidate-token",
-                surface=ApplicationReadinessSurface.ONBOARDING,
-                parent_pid=999,
-            ).to_json()
-        ),
-        encoding="utf-8",
-    )
+
+    def start(
+        _command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Publish onboarding through the private child proof contract."""
+
+        child_receipt_path = Path(environment[READINESS_PATH_ENV])
+        _publish_test_receipt(
+            receipt_path=child_receipt_path,
+            pid=process.pid,
+            token=environment[READINESS_TOKEN_ENV],
+            surface=ApplicationReadinessSurface.ONBOARDING,
+        )
+        return process, tmp_path / "startup.log"
 
     with pytest.raises(ApplicationReadinessError, match="main_shell"):
         ApplicationReadinessSupervisor(
             timeout_seconds=5,
-            process_starter=lambda _command, _environment: (
-                process,
-                tmp_path / "startup.log",
-            ),
+            process_starter=start,
             monotonic=_increasing_clock(),
             wait=lambda _seconds: None,
         ).launch_until_ready(
@@ -325,17 +346,21 @@ def test_supervisor_accepts_onboarding_for_normal_application_lifetime(
     layout = InstallLayout.from_root(tmp_path / "install")
     process = _CandidateProcess()
     receipt_path = tmp_path / "onboarding.json"
-    receipt_path.write_text(
-        json.dumps(
-            ApplicationReadinessReceipt(
-                pid=process.pid,
-                token="normal-launch-token",
-                surface=ApplicationReadinessSurface.ONBOARDING,
-                parent_pid=999,
-            ).to_json()
-        ),
-        encoding="utf-8",
-    )
+
+    def start(
+        _command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Publish onboarding through the private child proof contract."""
+
+        child_receipt_path = Path(environment[READINESS_PATH_ENV])
+        _publish_test_receipt(
+            receipt_path=child_receipt_path,
+            pid=process.pid,
+            token=environment[READINESS_TOKEN_ENV],
+            surface=ApplicationReadinessSurface.ONBOARDING,
+        )
+        return process, tmp_path / "startup.log"
 
     result = ApplicationReadinessSupervisor(
         accepted_surfaces=(
@@ -343,10 +368,7 @@ def test_supervisor_accepts_onboarding_for_normal_application_lifetime(
             ApplicationReadinessSurface.ONBOARDING,
         ),
         timeout_seconds=5,
-        process_starter=lambda _command, _environment: (
-            process,
-            tmp_path / "startup.log",
-        ),
+        process_starter=start,
         monotonic=_increasing_clock(),
         wait=lambda _seconds: None,
     ).launch_until_ready(

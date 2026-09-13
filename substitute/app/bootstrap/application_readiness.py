@@ -18,10 +18,8 @@
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
-import secrets
 from substitute.app.bootstrap.surface_presentation import run_after_surface_paint
 
 from sugarsubstitute_shared.application_readiness import (
@@ -30,6 +28,7 @@ from sugarsubstitute_shared.application_readiness import (
     READINESS_PATH_ENV,
     READINESS_SCHEMA_VERSION,
     READINESS_TOKEN_ENV,
+    publish_application_readiness_receipt,
 )
 
 
@@ -75,27 +74,15 @@ def _write_readiness_receipt(
 ) -> None:
     """Atomically publish one process-bound application readiness receipt."""
 
-    readiness_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = readiness_path.with_name(
-        f".{readiness_path.name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
+    publish_application_readiness_receipt(
+        receipt_path=readiness_path,
+        receipt=ApplicationReadinessReceipt(
+            pid=os.getpid(),
+            token=readiness_token,
+            surface=surface,
+            parent_pid=os.getppid(),
+        ),
     )
-    payload = ApplicationReadinessReceipt(
-        pid=os.getpid(),
-        token=readiness_token,
-        surface=surface,
-        parent_pid=os.getppid(),
-    ).to_json()
-    try:
-        temporary_path.write_text(
-            json.dumps(payload, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        os.replace(temporary_path, readiness_path)
-    finally:
-        try:
-            temporary_path.unlink()
-        except FileNotFoundError:
-            pass
 
 
 def schedule_main_shell_readiness_receipt(window: object) -> bool:
