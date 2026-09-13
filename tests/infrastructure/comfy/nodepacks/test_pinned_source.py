@@ -22,6 +22,7 @@ import io
 from pathlib import Path
 import shutil
 import ssl
+from urllib.error import URLError
 import zipfile
 
 import pytest
@@ -65,6 +66,143 @@ def test_pinned_archive_download_uses_system_trust_context(
 
     assert (tmp_path / "source.zip").read_bytes() == b"archive"
     assert observed == [tls_context]
+
+
+def test_pinned_archive_download_recovers_from_transient_transport_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Retry a bounded transport interruption and expose each retry to setup UI."""
+
+    attempts = 0
+    messages: list[str] = []
+    delays: list[float] = []
+
+    def flaky_urlopen(
+        _request: object,
+        *,
+        timeout: float,
+        context: ssl.SSLContext,
+    ) -> io.BytesIO:
+        """Fail twice like the release runner before returning the archive."""
+
+        del timeout, context
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise URLError(ConnectionResetError("simulated transport interruption"))
+        return io.BytesIO(b"archive")
+
+    monkeypatch.setattr("urllib.request.urlopen", flaky_urlopen)
+    monkeypatch.setattr(
+        pinned_nodepack_source,
+        "_DOWNLOAD_RETRY_DELAYS_SECONDS",
+        (0.25, 0.75),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        pinned_nodepack_source,
+        "_sleep",
+        delays.append,
+        raising=False,
+    )
+
+    pinned_nodepack_source.download_file(
+        archive_url="https://github.example/source.zip",
+        target_path=tmp_path / "source.zip",
+        on_log=messages.append,
+    )
+
+    assert attempts == 3
+    assert delays == [0.25, 0.75]
+    assert (tmp_path / "source.zip").read_bytes() == b"archive"
+    assert len(messages) == 2
+    assert all("retrying" in message.casefold() for message in messages)
+    assert "2 of 3" in messages[0]
+    assert "3 of 3" in messages[1]
+
+
+def test_pinned_archive_download_exhausts_a_bounded_retry_budget(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Stop after the declared attempts and leave no partial archive behind."""
+
+    attempts = 0
+    messages: list[str] = []
+    delays: list[float] = []
+
+    def unavailable_urlopen(
+        _request: object,
+        *,
+        timeout: float,
+        context: ssl.SSLContext,
+    ) -> io.BytesIO:
+        """Represent a transport that remains unavailable for every attempt."""
+
+        del timeout, context
+        nonlocal attempts
+        attempts += 1
+        raise URLError(TimeoutError("simulated timeout"))
+
+    monkeypatch.setattr("urllib.request.urlopen", unavailable_urlopen)
+    monkeypatch.setattr(
+        pinned_nodepack_source,
+        "_DOWNLOAD_RETRY_DELAYS_SECONDS",
+        (0.25, 0.75),
+    )
+    monkeypatch.setattr(pinned_nodepack_source, "_sleep", delays.append)
+    target = tmp_path / "source.zip"
+
+    with pytest.raises(URLError):
+        pinned_nodepack_source.download_file(
+            archive_url="https://github.example/source.zip",
+            target_path=target,
+            on_log=messages.append,
+        )
+
+    assert attempts == 3
+    assert delays == [0.25, 0.75]
+    assert len(messages) == 2
+    assert not target.exists()
+
+
+def test_pinned_archive_download_does_not_retry_non_transport_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Propagate a local programming or filesystem failure without disguising it."""
+
+    attempts = 0
+    messages: list[str] = []
+    delays: list[float] = []
+
+    def invalid_urlopen(
+        _request: object,
+        *,
+        timeout: float,
+        context: ssl.SSLContext,
+    ) -> io.BytesIO:
+        """Raise a non-transport failure on the first request."""
+
+        del timeout, context
+        nonlocal attempts
+        attempts += 1
+        raise ValueError("simulated local failure")
+
+    monkeypatch.setattr("urllib.request.urlopen", invalid_urlopen)
+    monkeypatch.setattr(pinned_nodepack_source, "_sleep", delays.append)
+
+    with pytest.raises(ValueError, match="simulated local failure"):
+        pinned_nodepack_source.download_file(
+            archive_url="https://github.example/source.zip",
+            target_path=tmp_path / "source.zip",
+            on_log=messages.append,
+        )
+
+    assert attempts == 1
+    assert delays == []
+    assert messages == []
 
 
 def test_fallback_install_is_registry_owned_and_preserves_mutable_data(
