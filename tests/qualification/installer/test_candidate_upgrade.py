@@ -330,6 +330,42 @@ def test_stalled_installed_launcher_fails_at_progress_boundary(
     assert "process tree:\npid=123" in str(captured.value)
 
 
+def test_installer_automation_failure_ends_readiness_wait_immediately(
+    tmp_path: Path,
+) -> None:
+    """A failed packaged UI chain must not consume the remaining release timeout."""
+
+    event_log_path = tmp_path / "events.jsonl"
+    event_log_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "token": "qualification-token",
+                "event": "installer.qualification.failed",
+                "pid": 123,
+                "fields": {"error": "application entered repair"},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        InstallerLifecycleError,
+        match="Installer automation reported a terminal failure",
+    ) as captured:
+        installer_ui_qualification._wait_for_readiness_receipt(
+            readiness_path=tmp_path / "readiness.json",
+            token="qualification-token",
+            timeout_seconds=3_600.0,
+            qualification_event_path=event_log_path,
+            diagnostic_paths=(event_log_path,),
+        )
+
+    assert "installer.qualification.failed" in str(captured.value)
+    assert "application entered repair" in str(captured.value)
+
+
 def test_failed_candidate_evidence_wait_terminates_only_owned_launcher(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
