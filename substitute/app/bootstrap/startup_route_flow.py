@@ -27,6 +27,7 @@ from substitute.app.bootstrap.bootstrap_route_controller import (
     create_bootstrap_route_controller,
     trace_bootstrap_route,
 )
+from substitute.app.bootstrap.surface_presentation import run_after_surface_paint
 from substitute.domain.onboarding import (
     BootstrapRoute,
     InstallationContext,
@@ -83,6 +84,7 @@ def run_startup_route_flow(
         start_ready_app_process=start_ready_app_process,
         launch_ready_shell=launch_ready_shell,
         quit_app=quit_app,
+        schedule_after_surface_paint=run_after_surface_paint,
     )
     bootstrap_route_result = bootstrap_route_controller.show_onboarding_or_repair_route(
         readiness_assessment=readiness_assessment,
