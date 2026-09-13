@@ -109,7 +109,6 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("thread", "launcher/sugarsubstitute_launcher/splash_session.py", "_start_background_pipe_reader", "threading.Thread", 1, "bounded_transport_thread"),
     ("thread", "sugarsubstitute_shared/application_instance_broker.py", "ApplicationInstanceBroker.__init__", "threading.Thread", 1, "bounded_transport_thread"),
     ("thread", "sugarsubstitute_shared/application_instance_broker.py", "ApplicationInstanceBroker._accept_connections", "threading.Thread", 1, "bounded_transport_thread"),
-    ("thread", "sugarsubstitute_shared/application_instance_macos.py", "MacOSMessagePortClaim.__init__", "threading.Thread", 1, "bounded_transport_thread"),
     ("thread", "sugarsubstitute_shared/application_supervisor_client.py", "ApplicationSupervisorClient.__init__", "threading.Thread", 1, "bounded_transport_thread"),
     ("thread", "substitute/infrastructure/comfy/posix_guardian_entry.py", "_start_control_monitor", "threading.Thread", 1, "external_guardian_thread"),
     ("thread", "substitute/infrastructure/comfy/posix_guardian_entry.py", "_start_output_forwarder", "threading.Thread", 1, "external_guardian_thread"),
