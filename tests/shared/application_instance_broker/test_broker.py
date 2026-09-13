@@ -432,3 +432,28 @@ def test_native_endpoint_is_immediately_recoverable_after_owner_exit(
     )
     assert replacement is not None
     replacement.close()
+
+
+@pytest.mark.platforms("macos")
+def test_macos_native_ownership_survives_repeated_election_and_reuse(
+    tmp_path: Path,
+) -> None:
+    """Abuse native name acquisition without callback threads or stale ownership."""
+
+    from sugarsubstitute_shared.application_instance_macos import (
+        MacOSMessagePortElection,
+        acquire_macos_message_port,
+    )
+    from sugarsubstitute_shared.application_instance_transport import instance_identity
+
+    identity = instance_identity(tmp_path)
+    for _cycle in range(128):
+        primary = acquire_macos_message_port(identity)
+        assert primary.election is MacOSMessagePortElection.PRIMARY
+        assert primary.claim is not None
+
+        duplicate = acquire_macos_message_port(identity)
+        assert duplicate.election is MacOSMessagePortElection.SECONDARY
+        assert duplicate.claim is None
+
+        primary.claim.close()
