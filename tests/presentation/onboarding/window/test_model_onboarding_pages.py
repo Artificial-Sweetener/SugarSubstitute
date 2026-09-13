@@ -18,14 +18,10 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QAbstractAnimation, Qt
 from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QWidget
-from qfluentwidgets import (  # type: ignore[import-untyped]
-    IndeterminateProgressRing,
-    RadioButton,
-    TransparentToolButton,
-)
+from qfluentwidgets import RadioButton, TransparentToolButton  # type: ignore[import-untyped]
 
 from substitute.application.model_recommendations import (
     FamilyRecommendationPage,
@@ -52,6 +48,7 @@ from substitute.presentation.onboarding.onboarding_recommendation_portrait impor
 from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingSectionPanel,
 )
+from substitute.presentation.widgets.busy_ring import BusyRing
 from substitute.presentation.onboarding.onboarding_folder_setup_page import (
     FolderSetupPage,
 )
@@ -185,7 +182,7 @@ def test_recommendation_page_owns_provider_loading_and_recovery_states() -> None
         "OnboardingRecommendationLoadingCard",
     )
     loading_rings = page.card_host.findChildren(
-        IndeterminateProgressRing,
+        BusyRing,
         "OnboardingRecommendationLoadingBusy",
     )
     assert len(loading_cards) == 10
@@ -194,6 +191,7 @@ def test_recommendation_page_owns_provider_loading_and_recovery_states() -> None
     assert all(
         ring.accessibleName() == "Loading recommendations…" for ring in loading_rings
     )
+    assert page.findChildren(QAbstractAnimation) == []
     assert page.loading_row.isHidden()
     assert not page.card_host.isHidden()
 

@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon as FIF,
@@ -43,13 +43,13 @@ from substitute.presentation.onboarding.onboarding_page_primitives import (
 )
 from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
     RecommendationPortrait,
+    thumbnail_image,
 )
 from substitute.presentation.onboarding.onboarding_recommendation_geometry import (
     CARD_HEIGHT,
     CARD_WIDTH,
     THUMBNAIL_SIZE,
 )
-from substitute.shared.qt_thumbnail_codec import image_from_qt_thumbnail_payload
 
 _REMOVE_BUTTON_STYLE = """
 QToolButton {
@@ -87,9 +87,9 @@ class DownloadCartCard(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(0)
-        pixmap = _card_pixmap(card)
+        image = _card_image(card)
         self.portrait = RecommendationPortrait(
-            pixmap=pixmap,
+            image=image,
             title=item.display_name,
             thumbnail_failed=card.thumbnail_failed,
             selected=False,
@@ -99,7 +99,7 @@ class DownloadCartCard(QFrame):
             selectable=False,
             parent=self,
         )
-        if card.thumbnail is not None and pixmap is None:
+        if card.thumbnail is not None and image is None:
             self.portrait.set_thumbnail_unavailable()
         layout.addWidget(self.portrait, alignment=Qt.AlignmentFlag.AlignCenter)
         self.remove_button = TransparentToolButton(FIF.DELETE, self.portrait)
@@ -284,21 +284,12 @@ class ModelDownloadReviewPage(OnboardingPageFrame):
         self.cards_host.setMinimumHeight(0)
 
 
-def _card_pixmap(card: RecommendationCardAsset) -> QPixmap | None:
+def _card_image(card: RecommendationCardAsset) -> QImage | None:
     """Decode a retained exact-version thumbnail for checkout rendering."""
 
     if card.thumbnail is None:
         return None
-    image = image_from_qt_thumbnail_payload(
-        width=card.thumbnail.width,
-        height=card.thumbnail.height,
-        qt_format=card.thumbnail.qt_format,
-        bytes_per_line=card.thumbnail.bytes_per_line,
-        payload=card.thumbnail.payload,
-    )
-    if image is None or image.isNull():
-        return None
-    return QPixmap.fromImage(image)
+    return thumbnail_image(card.thumbnail)
 
 
 def format_model_size(size_bytes: int) -> str:

@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QGridLayout, QVBoxLayout, QWidget
-from qfluentwidgets import IndeterminateProgressRing  # type: ignore[import-untyped]
 
 from sugarsubstitute_shared.localization import app_text
 from sugarsubstitute_shared.presentation.localization import render_application_text
@@ -31,6 +30,7 @@ from substitute.presentation.onboarding.onboarding_recommendation_geometry impor
     PORTRAIT_HEIGHT,
     PORTRAIT_WIDTH,
 )
+from substitute.presentation.widgets.busy_ring import BusyRing
 
 
 class RecommendationLoadingGallery:
@@ -41,7 +41,7 @@ class RecommendationLoadingGallery:
 
         self._host = host
         self._grid = grid
-        self._rings: list[IndeterminateProgressRing] = []
+        self._rings: list[BusyRing] = []
 
     def build(self) -> None:
         """Build a complete 5×2 skeleton without delaying page navigation."""
@@ -62,7 +62,7 @@ class RecommendationLoadingGallery:
             portrait_layout = QVBoxLayout(portrait)
             portrait_layout.setContentsMargins(0, 0, 0, 0)
             portrait_layout.addStretch(1)
-            ring = IndeterminateProgressRing(portrait, start=True)
+            ring = BusyRing(portrait, start=True)
             ring.setObjectName("OnboardingRecommendationLoadingBusy")
             ring.setAccessibleName(accessible_name)
             ring.setFixedSize(34, 34)
