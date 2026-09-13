@@ -22,6 +22,8 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 import shutil
 import tempfile
+import time
+from urllib.error import URLError
 import urllib.request
 import zipfile
 
@@ -42,10 +44,16 @@ from substitute.infrastructure.comfy.nodepack_workspace_inspector import (
     tracked_source_files,
 )
 from substitute.shared.logging.logger import get_logger, log_info
+from substitute.shared.logging.logger import log_warning
+from sugarsubstitute_shared.startup_remote_access import (
+    is_startup_connectivity_failure,
+)
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
 
 LogCallback = Callable[[str], None]
 _LOGGER = get_logger("infrastructure.comfy.pinned_nodepack_source")
+_DOWNLOAD_RETRY_DELAYS_SECONDS = (2.0, 5.0)
+_sleep = time.sleep
 
 
 class PinnedNodepackSourceInstaller:
@@ -76,6 +84,7 @@ class PinnedNodepackSourceInstaller:
             download_file(
                 archive_url=nodepack.fallback_archive_url,
                 target_path=archive_path,
+                on_log=on_log,
             )
             source_path = extract_single_root_zip(
                 archive_path=archive_path,
@@ -108,22 +117,61 @@ class PinnedNodepackSourceInstaller:
         )
 
 
-def download_file(*, archive_url: str, target_path: Path) -> None:
-    """Download one trusted source archive with an explicit timeout."""
+def download_file(
+    *,
+    archive_url: str,
+    target_path: Path,
+    on_log: LogCallback | None = None,
+) -> None:
+    """Download one trusted archive through bounded observable transport retries."""
 
     request = urllib.request.Request(
         archive_url,
         headers={"User-Agent": "SugarSubstitute"},
     )
-    with (
-        urllib.request.urlopen(  # noqa: S310 - manifest owns trusted HTTPS URLs.
-            request,
-            timeout=ARCHIVE_DOWNLOAD_TIMEOUT_SECONDS,
-            context=SystemTrustTlsContext.create(),
-        ) as response,
-        target_path.open("wb") as output,
-    ):
-        shutil.copyfileobj(response, output)
+    attempt_count = len(_DOWNLOAD_RETRY_DELAYS_SECONDS) + 1
+    for attempt in range(1, attempt_count + 1):
+        try:
+            with (
+                urllib.request.urlopen(  # noqa: S310 - trusted manifest URL.
+                    request,
+                    timeout=ARCHIVE_DOWNLOAD_TIMEOUT_SECONDS,
+                    context=SystemTrustTlsContext.create(),
+                ) as response,
+                target_path.open("wb") as output,
+            ):
+                shutil.copyfileobj(response, output)
+            return
+        except Exception as error:  # noqa: BLE001 - classify transport chain.
+            target_path.unlink(missing_ok=True)
+            if attempt >= attempt_count or not is_startup_connectivity_failure(error):
+                raise
+            retry_delay = _DOWNLOAD_RETRY_DELAYS_SECONDS[attempt - 1]
+            reason_type = _transport_reason_type(error)
+            retry_message = (
+                "[ComfyNodepacks] Source download was interrupted "
+                f"({reason_type}); retrying attempt {attempt + 1} of "
+                f"{attempt_count} in {retry_delay:g} seconds."
+            )
+            log_warning(
+                _LOGGER,
+                "Pinned nodepack source download interrupted; retrying",
+                attempt=attempt,
+                attempt_count=attempt_count,
+                reason_type=reason_type,
+                retry_delay_seconds=retry_delay,
+            )
+            if on_log is not None:
+                on_log(retry_message)
+            _sleep(retry_delay)
+
+
+def _transport_reason_type(error: BaseException) -> str:
+    """Return a diagnostic transport identity without exposing sensitive text."""
+
+    if isinstance(error, URLError) and isinstance(error.reason, BaseException):
+        return type(error.reason).__name__
+    return type(error).__name__
 
 
 def extract_single_root_zip(*, archive_path: Path, target_path: Path) -> Path:
