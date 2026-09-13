@@ -29,7 +29,6 @@ from PySide6.QtWidgets import (
 )
 from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon as FIF,
-    IndeterminateProgressRing,
     PrimaryPushButton,
     PushButton,
     TransparentToolButton,
@@ -54,6 +53,7 @@ from substitute.presentation.onboarding.onboarding_recommendation_geometry impor
 from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
     RecommendationPortrait,
 )
+from substitute.presentation.widgets.busy_ring import BusyRing
 from substitute.presentation.widgets.civitai_page_action import (
     UrlOpener,
     open_external_url,
@@ -97,7 +97,7 @@ class ModelSuggestionCard(QFrame):
             else ""
         )
         self.portrait = RecommendationPortrait(
-            pixmap=None,
+            image=None,
             title=suggestion.model_name,
             thumbnail_failed=suggestion.thumbnail_url is None,
             selected=False,
@@ -285,7 +285,7 @@ class ModelDiscoveryModal(QDialog):
         description.setWordWrap(True)
         layout.addWidget(description)
         status_row = QHBoxLayout()
-        self.loading_ring = IndeterminateProgressRing(self, start=False)
+        self.loading_ring = BusyRing(self, start=False)
         self.loading_ring.setFixedSize(24, 24)
         self.status_label = LocalizedBodyLabel("", self)
         self.status_label.setWordWrap(True)
