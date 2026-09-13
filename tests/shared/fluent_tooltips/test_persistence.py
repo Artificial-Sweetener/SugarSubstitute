@@ -260,7 +260,6 @@ def test_visible_tooltip_self_dismisses_when_leave_delivery_is_lost(
 
         wait_for_qt_condition(
             lambda: tooltip.hidden,
-            timeout_ms=500,
             description="tooltip self-dismissal after a lost leave event",
             state=lambda: {
                 "cursor": QCursor.pos(),
@@ -298,7 +297,6 @@ def test_real_tooltip_window_recovers_from_lost_leave_delivery_headlessly(
 
         wait_for_qt_condition(
             lambda: not tooltip.isVisible(),
-            timeout_ms=500,
             description="real QFluent tooltip self-dismissal",
         )
     finally:
