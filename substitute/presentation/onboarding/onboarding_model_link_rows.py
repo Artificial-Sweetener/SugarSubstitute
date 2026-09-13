@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import FluentIcon as FIF, ToolButton  # type: ignore[import-untyped]
 
@@ -34,7 +35,7 @@ from substitute.presentation.localization import (
     LocalizedStrongBodyLabel,
 )
 from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
-    thumbnail_pixmap,
+    thumbnail_image,
 )
 
 
@@ -56,15 +57,15 @@ class ModelLinkReadyRow(QFrame):
         preview.setObjectName("OnboardingModelLinkThumbnail")
         preview.setFixedSize(44, 44)
         preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        pixmap = (
-            thumbnail_pixmap(card.thumbnail) if card.thumbnail is not None else None
-        )
-        if pixmap is not None:
+        image = thumbnail_image(card.thumbnail) if card.thumbnail is not None else None
+        if image is not None:
             preview.setPixmap(
-                pixmap.scaled(
-                    preview.size(),
-                    Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                    Qt.TransformationMode.SmoothTransformation,
+                QPixmap.fromImage(
+                    image.scaled(
+                        preview.size(),
+                        Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
                 )
             )
         layout.addWidget(preview)
