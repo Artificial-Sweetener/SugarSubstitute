@@ -20,6 +20,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import json
+import os
+from pathlib import Path
+import secrets
 from typing import Final
 
 
@@ -109,10 +113,32 @@ class ApplicationReadinessReceipt:
         )
 
 
+def publish_application_readiness_receipt(
+    *,
+    receipt_path: Path,
+    receipt: ApplicationReadinessReceipt,
+) -> None:
+    """Atomically publish one authenticated visible-surface receipt."""
+
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = receipt_path.with_name(
+        f".{receipt_path.name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
+    )
+    try:
+        temporary_path.write_text(
+            json.dumps(receipt.to_json(), sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary_path, receipt_path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
 __all__ = [
     "ApplicationReadinessReceipt",
     "ApplicationReadinessSurface",
     "READINESS_PATH_ENV",
     "READINESS_SCHEMA_VERSION",
     "READINESS_TOKEN_ENV",
+    "publish_application_readiness_receipt",
 ]
