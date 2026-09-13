@@ -129,7 +129,12 @@ def test_two_cube_out_of_order_batches_replace_the_last_preview(
 
     harness.wait_for_output_count("alpha", 4)
     harness.wait_until(lambda: harness.preview_count() == 0)
-    harness.wait_until(lambda: len(harness.fingerprint().grid_target_frames) == 2)
+    harness.wait_until(
+        lambda: (
+            harness.fingerprint().active_source_tab_key == _UPSCALE_SOURCE
+            and len(harness.fingerprint().grid_target_frames) == 2
+        )
+    )
 
     state = harness.fingerprint()
     assert state.active_source_tab_key == _UPSCALE_SOURCE

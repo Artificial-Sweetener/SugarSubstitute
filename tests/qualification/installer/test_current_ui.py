@@ -38,11 +38,9 @@ from substitute.presentation.onboarding.installer_qualification import (
     qualification_preflight_action,
 )
 from tools.ci.current_installer_execution import run_current_installer_ui
+from tools.ci.installer_evidence_verification import assert_qualification_event_sequence
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
-from tools.ci.installer_ui_qualification import (
-    assert_qualification_event_sequence,
-    prepare_qualification_evidence,
-)
+from tools.ci.installer_ui_qualification import prepare_qualification_evidence
 from tools.ci.verify_installer_lifecycle import verify_clean_install
 
 

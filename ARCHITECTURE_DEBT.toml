@@ -1338,7 +1338,7 @@ next_extraction = "Extract visible-source AST classification and pseudo-localiza
 id = "SS-ARCH-096"
 owner = "Windows installer automation"
 paths = ["tools/ci/drive_windows_installer.py"]
-fingerprint = "sha256:47e82958d2ca03e26672ac8c55cd26bffc1585a4149c81ed928fa49343065beb"
+fingerprint = "sha256:1f5943339b885992a88f19ff4d80eccda516ecf9acef3cad5eb28017f19b6c84"
 issue = "chore:SS-ARCH-096"
 review_by = 2026-12-15
 responsibilities = [
@@ -1349,19 +1349,3 @@ responsibilities = [
   "command-line orchestration",
 ]
 next_extraction = "Extract native process/desktop control and historical evidence projection from installer UI workflow automation."
-
-[[debts]]
-id = "SS-ARCH-097"
-owner = "installer UI qualification"
-paths = ["tools/ci/installer_ui_qualification.py"]
-fingerprint = "sha256:95b3a0139186c4194f8a97f790f6bd1a30b66af3e95883d5e5f8fa128a80b665"
-issue = "chore:SS-ARCH-097"
-review_by = 2026-12-15
-responsibilities = [
-  "qualification evidence preparation",
-  "installed candidate launch",
-  "shell and event-sequence verification",
-  "cross-platform process termination",
-  "readiness receipt and startup trace interpretation",
-]
-next_extraction = "Extract installed-candidate process lifecycle and evidence/trace verification from qualification workflow orchestration."
