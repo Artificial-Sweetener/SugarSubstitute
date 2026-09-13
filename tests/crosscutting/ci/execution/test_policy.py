@@ -50,6 +50,9 @@ OUTPUT_NAVIGATION_CONTRACT_MODULE = (
 EMPTY_PICKER_MODAL_CONTRACT_MODULE = (
     "tests/presentation/shell/model_discovery/test_empty_picker_controller.py"
 )
+APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE = (
+    "tests/shared/application_instance_broker/test_broker.py"
+)
 PROJECTION_LAYOUT_CONTRACT_MODULES = frozenset(
     {
         "tests/presentation/editor/prompt_editor/layout/contracts/test_canonical_wrapping.py",
@@ -205,6 +208,14 @@ def test_empty_picker_modal_contract_uses_bounded_fresh_process_lane() -> None:
     assert (PROJECT_ROOT / EMPTY_PICKER_MODAL_CONTRACT_MODULE).is_file()
     assert EMPTY_PICKER_MODAL_CONTRACT_MODULE in ISOLATED_TEST_MODULES
     assert EMPTY_PICKER_MODAL_CONTRACT_MODULE not in SERIAL_TEST_MODULES
+
+
+def test_application_instance_broker_contract_uses_fresh_process_lane() -> None:
+    """Match native broker qualification to the supervisor process topology."""
+
+    assert (PROJECT_ROOT / APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE).is_file()
+    assert APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE in ISOLATED_TEST_MODULES
+    assert APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE not in SERIAL_TEST_MODULES
 
 
 def test_output_navigation_contract_remains_in_ordinary_parallel_ci() -> None:
