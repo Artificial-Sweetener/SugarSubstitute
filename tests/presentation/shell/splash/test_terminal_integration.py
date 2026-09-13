@@ -29,6 +29,8 @@ from PySide6.QtWidgets import QApplication, QLabel, QWidget
 from sugarsubstitute_shared.launch_splash import SplashActivity
 
 import substitute.presentation.shell.splash_window as splash_window
+import substitute.presentation.splash_animation as splash_animation
+import substitute.presentation.shell.window_effects as window_effects
 from substitute.presentation.splash_animation import (
     SplashPaperFlipWidget,
     SplashPoseLibraryError,
@@ -52,6 +54,7 @@ class SplashWindowFactory(Protocol):
         *,
         backdrop_mode: ShellBackdropMode | None = ShellBackdropMode.MICA,
         activity_clock: Callable[[], float] | None = None,
+        defer_animation_until_first_paint: bool = False,
     ) -> SplashWindow:
         """Return one tracked production splash window."""
 
@@ -66,13 +69,18 @@ def splash_window_factory() -> Iterator[SplashWindowFactory]:
         *,
         backdrop_mode: ShellBackdropMode | None = ShellBackdropMode.MICA,
         activity_clock: Callable[[], float] | None = None,
+        defer_animation_until_first_paint: bool = False,
     ) -> SplashWindow:
         window = (
-            SplashWindow(backdrop_mode=backdrop_mode)
+            SplashWindow(
+                backdrop_mode=backdrop_mode,
+                defer_animation_until_first_paint=defer_animation_until_first_paint,
+            )
             if activity_clock is None
             else SplashWindow(
                 backdrop_mode=backdrop_mode,
                 activity_clock=activity_clock,
+                defer_animation_until_first_paint=defer_animation_until_first_paint,
             )
         )
         windows.append(window)
@@ -82,6 +90,46 @@ def splash_window_factory() -> Iterator[SplashWindowFactory]:
 
     for window in reversed(windows):
         destroy_qt_object(window)
+
+
+def test_deferred_animation_starts_only_after_the_bootstrap_pose_paints(
+    monkeypatch: pytest.MonkeyPatch,
+    splash_window_factory: SplashWindowFactory,
+) -> None:
+    """Keep full pose-resource loading outside the first-frame critical path."""
+
+    animation_builds: list[str] = []
+
+    def build_animation(_self: SplashWindow, parent: QWidget) -> QWidget:
+        """Record deferred construction and return a visible replacement."""
+
+        animation_builds.append("animation")
+        replacement = QLabel(parent)
+        replacement.setObjectName("CompleteSplashAnimation")
+        return replacement
+
+    monkeypatch.setattr(
+        SplashWindow,
+        "_build_animated_splash_visual",
+        build_animation,
+    )
+    splash = splash_window_factory(
+        backdrop_mode=None,
+        defer_animation_until_first_paint=True,
+    )
+    first_frames: list[str] = []
+    splash.firstFramePainted.connect(lambda: first_frames.append("painted"))
+
+    assert animation_builds == []
+    assert splash._visual.objectName() == "SplashBootstrapPose"
+
+    splash.show()
+    wait_for_qt_condition(
+        lambda: first_frames == ["painted"] and animation_builds == ["animation"],
+        description="bootstrap frame followed by full animation construction",
+    )
+
+    assert splash._visual.objectName() == "CompleteSplashAnimation"
 
 
 def _end_of_document_bottom_gap(splash: SplashWindow) -> int:
@@ -220,7 +268,7 @@ def test_splash_window_acrylic_uses_caption_fix_helper(
 
     acrylic_calls: list[object] = []
     monkeypatch.setattr(
-        splash_window,
+        window_effects,
         "apply_acrylic_effect",
         lambda window: acrylic_calls.append(window),
     )
@@ -316,7 +364,7 @@ def test_splash_window_falls_back_to_static_icon_when_animation_fails(
 
     monkeypatch.setattr(SplashWindow, "center_on_screen", lambda self: None)
     monkeypatch.setattr(
-        splash_window,
+        splash_animation,
         "load_splash_pose_library",
         lambda: (_ for _ in ()).throw(SplashPoseLibraryError("missing poses")),
     )

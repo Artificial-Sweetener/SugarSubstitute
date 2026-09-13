@@ -221,9 +221,6 @@ class _MetadataBridge:
 
         self.begin_calls += 1
 
-    def timeout_startup_coalescing(self) -> None:
-        """Accept coalescing timeout."""
-
     def emit_model_updated(self, event: object) -> None:
         """Accept model metadata update events."""
 

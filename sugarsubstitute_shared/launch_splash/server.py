@@ -26,6 +26,7 @@ from typing import Protocol
 
 from sugarsubstitute_shared.launch_splash.protocol import (
     MAX_SPLASH_MESSAGE_BYTES,
+    SPLASH_MESSAGE_APPLIED_ACK,
     SplashSessionMessage,
     SplashSessionMessageError,
     decode_splash_session_message,
@@ -125,7 +126,8 @@ class _SplashSessionRequestHandler(socketserver.BaseRequestHandler):
     def handle(self) -> None:
         """Read and dispatch one authenticated splash session message."""
 
-        raw_message = self.request.recv(MAX_SPLASH_MESSAGE_BYTES + 1)
+        with self.request.makefile("rb") as stream:
+            raw_message = stream.readline(MAX_SPLASH_MESSAGE_BYTES + 1)
         try:
             message = decode_splash_session_message(
                 raw_message,
@@ -136,3 +138,4 @@ class _SplashSessionRequestHandler(socketserver.BaseRequestHandler):
                 self.server.context.on_invalid_message(error)
             return
         self.server.context.message_handler.handle_message(message)
+        self.request.sendall(SPLASH_MESSAGE_APPLIED_ACK)

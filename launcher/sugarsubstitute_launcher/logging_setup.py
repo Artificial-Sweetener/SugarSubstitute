@@ -19,12 +19,19 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
+import threading
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.interprocess_log_handler import (
+    InterprocessFileHandler,
+)
+from sugarsubstitute_shared.windows_long_paths import logical_path
 
 
 LOG_FILE_NAME = "launcher.log"
+_CONFIGURATION_LOCK = threading.Lock()
 
 
 def configure_launcher_logging(*, layout: InstallLayout) -> Path:
@@ -32,26 +39,45 @@ def configure_launcher_logging(*, layout: InstallLayout) -> Path:
 
     layout.logs_dir.mkdir(parents=True, exist_ok=True)
     log_path = layout.logs_dir / LOG_FILE_NAME
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
-    if not _has_file_handler(root_logger, log_path):
-        handler = logging.FileHandler(log_path, encoding="utf-8")
-        handler.setFormatter(
-            logging.Formatter(
-                fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
-                datefmt="%Y-%m-%dT%H:%M:%S",
+    with _CONFIGURATION_LOCK:
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.INFO)
+        handlers = _file_handlers_for(root_logger, log_path)
+        for duplicate in handlers[1:]:
+            root_logger.removeHandler(duplicate)
+            duplicate.close()
+        if not handlers:
+            handler = InterprocessFileHandler(log_path, encoding="utf-8")
+            handler.setFormatter(
+                logging.Formatter(
+                    fmt=(
+                        "%(asctime)s %(levelname)s process=%(process)d "
+                        "%(name)s %(message)s"
+                    ),
+                    datefmt="%Y-%m-%dT%H:%M:%S",
+                )
             )
-        )
-        root_logger.addHandler(handler)
+            root_logger.addHandler(handler)
     return log_path
 
 
-def _has_file_handler(logger: logging.Logger, log_path: Path) -> bool:
-    """Return whether an equivalent file handler is already installed."""
+def _file_handlers_for(
+    logger: logging.Logger,
+    log_path: Path,
+) -> tuple[logging.FileHandler, ...]:
+    """Return every file handler already targeting the launcher log."""
 
-    resolved_log_path = log_path.resolve()
+    resolved_log_path = _log_path_identity(log_path)
+    matching: list[logging.FileHandler] = []
     for handler in logger.handlers:
-        if isinstance(handler, logging.FileHandler):
-            if Path(handler.baseFilename).resolve() == resolved_log_path:
-                return True
-    return False
+        if isinstance(handler, logging.FileHandler) and (
+            _log_path_identity(Path(handler.baseFilename)) == resolved_log_path
+        ):
+            matching.append(handler)
+    return tuple(matching)
+
+
+def _log_path_identity(path: Path) -> str:
+    """Normalize Win32 namespace aliases before comparing file handlers."""
+
+    return os.path.normcase(os.path.abspath(logical_path(path)))

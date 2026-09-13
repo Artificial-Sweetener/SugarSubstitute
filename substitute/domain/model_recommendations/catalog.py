@@ -82,6 +82,20 @@ class SupportedModelFamilyCatalog:
             if family.family_id not in present
         )
 
+    def for_target_model(self, target_model: str) -> ModelFamilyDefinition | None:
+        """Return the family whose canonical product identity matches a cube."""
+
+        normalized = target_model.strip().casefold()
+        if not normalized:
+            return None
+        for family in self._families:
+            if normalized in {
+                family.family_id.value.casefold(),
+                family.civitai.recommendation_base_model.casefold(),
+            }:
+                return family
+        return None
+
 
 SUPPORTED_MODEL_FAMILIES = SupportedModelFamilyCatalog(
     (

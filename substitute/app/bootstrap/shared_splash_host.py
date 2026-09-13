@@ -16,27 +16,22 @@
 
 """Run the visible launch splash as a shared session host process."""
 
+# ruff: noqa: E402 -- qualification timing intentionally precedes Qt imports.
+
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass, field
 import os
 import sys
+from threading import Event
 import time
 from typing import TYPE_CHECKING, Any, TextIO, cast
 
+_HOST_MODULE_STARTED_MONOTONIC_NS = time.monotonic_ns()
+
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtWidgets import QApplication
-
-from substitute.app.bootstrap.splash_arguments import (
-    backdrop_mode_from_argument,
-    theme_mode_from_argument,
-)
-from substitute.app.bootstrap.splash_localization import (
-    build_splash_localization_runtime,
-)
-from substitute.presentation.resources.app_icon import application_icon
-from sugarsubstitute_shared.localization.application_message import app_text
-from sugarsubstitute_shared.localization.cli import parse_locale_override
 
 if TYPE_CHECKING:
     from sugarsubstitute_shared.launch_splash.protocol import SplashSessionMessage
@@ -46,6 +41,18 @@ if TYPE_CHECKING:
 _SURFACE_EVIDENCE_ENV = "SUGAR_SUBSTITUTE_SPLASH_SURFACE_EVIDENCE"
 _SURFACE_EVIDENCE_DIRECTORY = "qualification-splash-surfaces"
 _REQUESTED_MONOTONIC_NS_ENV = "SUGAR_SUBSTITUTE_SPLASH_REQUESTED_MONOTONIC_NS"
+_HOST_PROCESS_REQUESTED_MONOTONIC_NS_ENV = (
+    "SUGAR_SUBSTITUTE_SPLASH_HOST_PROCESS_REQUESTED_MONOTONIC_NS"
+)
+_MESSAGE_APPLICATION_TIMEOUT_SECONDS = 2.0
+
+
+@dataclass(slots=True)
+class _SplashSessionDispatch:
+    """Carry one message and its GUI-thread application acknowledgement."""
+
+    message: SplashSessionMessage
+    applied: Event = field(default_factory=Event)
 
 
 class SplashSessionQtBridge(QObject):
@@ -64,32 +71,37 @@ class QtSplashSessionMessageHandler:
         self._bridge = bridge
 
     def handle_message(self, message: SplashSessionMessage) -> None:
-        """Emit one authenticated message for GUI-thread handling."""
+        """Wait until the GUI thread has applied one authenticated message."""
 
-        self._bridge.message_received.emit(message)
+        dispatch = _SplashSessionDispatch(message)
+        self._bridge.message_received.emit(dispatch)
+        if not dispatch.applied.wait(_MESSAGE_APPLICATION_TIMEOUT_SECONDS):
+            raise TimeoutError("Splash GUI did not apply the session message.")
 
 
 def main(argv: list[str] | None = None) -> int:
     """Start the visible splash and serve authenticated local session messages."""
 
+    main_entered_monotonic_ns = time.monotonic_ns()
     args = _parse_args(sys.argv[1:] if argv is None else argv)
+    arguments_parsed_monotonic_ns = time.monotonic_ns()
     app = QApplication.instance()
     if app is None:
         app = QApplication([sys.argv[0]])
     app = cast(QApplication, app)
-    localization_runtime = build_splash_localization_runtime(
-        app,
-        locale_override=args.locale,
-    )
-
-    app.setWindowIcon(application_icon())
+    application_ready_monotonic_ns = time.monotonic_ns()
+    icon_ready_monotonic_ns = time.monotonic_ns()
     from substitute.presentation.shell.splash_window import SplashWindow
 
+    splash_module_ready_monotonic_ns = time.monotonic_ns()
+
     splash = SplashWindow(
-        backdrop_mode=backdrop_mode_from_argument(args.backdrop_mode),
-        theme_mode=theme_mode_from_argument(args.theme_mode),
+        backdrop_mode=_backdrop_mode_value(args.backdrop_mode),
+        theme_mode=args.theme_mode or "dark",
         accent_color=args.accent_color or "#E91E63",
+        defer_animation_until_first_paint=True,
     )
+    splash_constructed_monotonic_ns = time.monotonic_ns()
 
     first_paint_monotonic_ns: list[int] = []
     splash.firstFramePainted.connect(
@@ -108,13 +120,32 @@ def main(argv: list[str] | None = None) -> int:
         first_paint_monotonic_ns=(
             first_paint_monotonic_ns[0] if first_paint_monotonic_ns else None
         ),
+        phase_monotonic_ns={
+            **_environment_phase_monotonic_ns(),
+            "host_module_started": _HOST_MODULE_STARTED_MONOTONIC_NS,
+            "host_main_entered": main_entered_monotonic_ns,
+            "arguments_parsed": arguments_parsed_monotonic_ns,
+            "application_ready": application_ready_monotonic_ns,
+            "icon_ready": icon_ready_monotonic_ns,
+            "splash_module_ready": splash_module_ready_monotonic_ns,
+            "splash_constructed": splash_constructed_monotonic_ns,
+        },
+    )
+
+    from substitute.app.bootstrap.splash_localization import (
+        build_splash_localization_runtime,
+    )
+
+    localization_runtime = build_splash_localization_runtime(
+        app,
+        locale_override=args.locale,
     )
 
     from sugarsubstitute_shared.launch_splash.server import SplashSessionServer
 
     bridge = SplashSessionQtBridge()
     bridge.message_received.connect(
-        lambda message: _handle_session_message(message, splash=splash, app=app)
+        lambda dispatch: _apply_session_dispatch(dispatch, splash=splash, app=app)
     )
     bridge.invalid_message_received.connect(
         lambda _reason: None,
@@ -163,6 +194,9 @@ def _handle_session_message(
     if message.message_type == "close":
         _close_splash_and_quit(splash=splash, app=app)
         return
+    if message.message_type == "activate":
+        _activate_splash(splash=splash, app=app)
+        return
     if message.message_type == "activity":
         if message.activity is not None:
             splash.start_activity(message.activity)
@@ -174,11 +208,38 @@ def _handle_session_message(
         splash.append_log(message.line)
 
 
+def _apply_session_dispatch(
+    dispatch: _SplashSessionDispatch,
+    *,
+    splash: Any,
+    app: QApplication,
+) -> None:
+    """Apply one session message and release its waiting request thread."""
+
+    try:
+        _handle_session_message(dispatch.message, splash=splash, app=app)
+    finally:
+        dispatch.applied.set()
+
+
 def _close_splash_and_quit(*, splash: Any, app: QApplication) -> None:
     """Stop splash-owned native work before leaving the Qt event loop."""
 
     splash.close()
     app.quit()
+
+
+def _activate_splash(*, splash: Any, app: QApplication) -> None:
+    """Reveal and foreground the existing startup surface."""
+
+    if splash.isMinimized():
+        splash.showNormal()
+    elif not splash.isVisible():
+        splash.show()
+    splash.raise_()
+    splash.activateWindow()
+    splash.update()
+    app.processEvents()
 
 
 def _write_ready_message(*, stream: TextIO, server: SplashSessionServer) -> None:
@@ -202,6 +263,7 @@ def _write_surface_evidence(
     app: QApplication,
     splash: Any,
     first_paint_monotonic_ns: int | None,
+    phase_monotonic_ns: dict[str, int] | None = None,
 ) -> None:
     """Record offscreen surface facts only for explicit startup qualification."""
 
@@ -228,6 +290,11 @@ def _write_surface_evidence(
         "visible_top_level_surface_count": sum(
             widget.isVisible() for widget in top_level_widgets
         ),
+        "startup_phase_ms": _startup_phase_durations(
+            requested_monotonic_ns=requested_monotonic_ns,
+            first_paint_monotonic_ns=first_paint_monotonic_ns,
+            phase_monotonic_ns=phase_monotonic_ns or {},
+        ),
     }
     evidence_dir = Path.cwd() / "user" / _SURFACE_EVIDENCE_DIRECTORY
     evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -236,6 +303,25 @@ def _write_surface_evidence(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+
+
+def _startup_phase_durations(
+    *,
+    requested_monotonic_ns: int | None,
+    first_paint_monotonic_ns: int | None,
+    phase_monotonic_ns: dict[str, int],
+) -> dict[str, float]:
+    """Return qualification phase offsets relative to the launch request."""
+
+    if requested_monotonic_ns is None:
+        return {}
+    phases = dict(phase_monotonic_ns)
+    if first_paint_monotonic_ns is not None:
+        phases["first_paint"] = first_paint_monotonic_ns
+    return {
+        name: round((timestamp - requested_monotonic_ns) / 1_000_000, 3)
+        for name, timestamp in phases.items()
+    }
 
 
 def _requested_monotonic_ns() -> int | None:
@@ -249,6 +335,19 @@ def _requested_monotonic_ns() -> int | None:
     except ValueError:
         return None
     return value if value > 0 else None
+
+
+def _environment_phase_monotonic_ns() -> dict[str, int]:
+    """Return valid qualification timestamps inherited from the launcher."""
+
+    raw_value = os.environ.get(_HOST_PROCESS_REQUESTED_MONOTONIC_NS_ENV)
+    if raw_value is None:
+        return {}
+    try:
+        value = int(raw_value)
+    except ValueError:
+        return {}
+    return {"host_process_requested": value} if value > 0 else {}
 
 
 def _handle_shared_cancel_requested(
@@ -283,6 +382,9 @@ def _clear_stale_cancel_signal(*, server: SplashSessionServer) -> None:
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     """Parse shared splash host process arguments."""
 
+    from sugarsubstitute_shared.localization.application_message import app_text
+    from sugarsubstitute_shared.localization.cli import parse_locale_override
+
     parser = argparse.ArgumentParser(
         description=app_text("Run SugarSubstitute splash host.")
     )
@@ -292,6 +394,14 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--maximum-lifetime-seconds", type=float, default=0.0)
     parser.add_argument("--locale", type=parse_locale_override, default="en")
     return parser.parse_args(argv)
+
+
+def _backdrop_mode_value(raw_value: str | None) -> str | None:
+    """Return the safe raw backdrop value without importing shell policy."""
+
+    if raw_value == "none":
+        return None
+    return "acrylic" if raw_value == "acrylic" else "mica"
 
 
 if __name__ == "__main__":

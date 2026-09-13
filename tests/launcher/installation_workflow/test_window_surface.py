@@ -22,7 +22,8 @@ import json
 from pathlib import Path
 
 from PySide6.QtCore import QPoint, Qt
-from PySide6.QtWidgets import QFrame, QWidget
+from PySide6.QtTest import QSignalSpy
+from PySide6.QtWidgets import QFrame, QPlainTextEdit, QWidget
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import (
@@ -129,6 +130,7 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
     assert window.view.browse_button.isEnabled() is True
     assert window.view.primary_button.text() == "Install"
     assert isinstance(window.view.progress_log, TerminalOutputView)
+    assert type(window.view.progress_log.log_view) is QPlainTextEdit
     assert window.view.progress_log.log_view.minimumHeight() == 220
     assert window.view.progress_log.log_view.maximumHeight() == 280
     guidance = window.view.install_location_guidance_label.text()
@@ -324,5 +326,35 @@ def test_progress_details_receive_their_declared_console_height(
         application.processEvents()
         assert console.isVisible() is True
         assert console.height() >= console.minimumHeight()
+    finally:
+        close_and_delete_launcher_window(window)
+
+
+def test_failure_reveals_details_without_reentering_the_user_toggle(
+    tmp_path: Path,
+) -> None:
+    """Expand failure diagnostics atomically instead of nesting a layout refresh."""
+
+    application = launcher_test_application()
+    window = LauncherMainWindow(
+        initial_layout=InstallLayout.from_root(tmp_path / "SugarSubstitute"),
+        continue_install=False,
+        repair=False,
+        update_check_enabled=True,
+        initial_release_source=release_source_for_test(),
+        workflow_factory=workflow_factory(),
+    )
+    window.show()
+    window.view.show_status_output()
+    application.processEvents()
+    toggled = QSignalSpy(window.view.details_button.toggled)
+
+    try:
+        window.view.show_failure("Synthetic setup failure")
+        application.processEvents()
+
+        assert window.view.details_button.isChecked() is True
+        assert window.view.progress_log.isVisible() is True
+        assert toggled.count() == 0
     finally:
         close_and_delete_launcher_window(window)

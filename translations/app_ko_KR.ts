@@ -50,6 +50,11 @@ Prompt preview:
       <translation>%1(우회됨)</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="91"></location>
+      <source>%1 API key required</source>
+      <translation>%1 API 키가 필요합니다</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/canvas/host/canvas_docking_controller.py" line="193"></location>
       <source>%1 Canvas</source>
       <translation>%1 캔버스</translation>
@@ -140,12 +145,7 @@ Prompt preview:
       <translation>메타데이터 항목 %1개, 이미지 미리 보기 %2개, %3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="221"></location>
-      <source>%1 model file(s) downloaded and verified. Reopen the picker to use them.</source>
-      <translation>모델 파일 %1개를 다운로드하고 검증했습니다. 사용하려면 선택기를 다시 여세요.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="79"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="87"></location>
       <source>%1 model recommendation</source>
       <translation>모델 추천 %1개</translation>
     </message>
@@ -240,7 +240,7 @@ Prompt preview:
       <translation>%1 | 현재: v%2 | 사용 가능: v%3</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="160"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_model_download_review_page.py" line="318"></location>
       <source>%1 · %2</source>
       <translation>%1 � %2</translation>
     </message>
@@ -445,6 +445,11 @@ Prompt preview:
       <translation>API 키가 저장되지 않았습니다</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="127"></location>
+      <source>API key required</source>
+      <translation>API 키가 필요합니다</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="277"></location>
       <source>API key status</source>
       <translation>API 키 상태</translation>
@@ -538,6 +543,11 @@ Prompt preview:
       <location filename="../substitute/application/onboarding/flow_service.py" line="913"></location>
       <source>Add your CivitAI API key.</source>
       <translation>CivitAI API 키를 추가하세요.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="63"></location>
+      <source>Add your key to download this model. The key is stored securely and can be changed later in Settings.</source>
+      <translation>이 모델을 다운로드하려면 키를 추가하세요. 키는 안전하게 저장되며 나중에 설정에서 변경할 수 있습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/comfy_environment_page.py" line="1208"></location>
@@ -743,11 +753,6 @@ Prompt preview:
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="997"></location>
       <source>Base Cube Packs are required by Substitute and cannot be removed.</source>
       <translation>기본 큐브 팩은 Substitute에 필요하므로 제거할 수 없습니다.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="162"></location>
-      <source>Base model not listed</source>
-      <translation>기본 모델 정보 없음</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/menus/preset_model_scope_policy.py" line="86"></location>
@@ -1070,6 +1075,11 @@ Prompt preview:
       <translation>폴더 선택</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="208"></location>
+      <source>Choose a model to download and use in this picker.</source>
+      <translation>이 선택기에서 다운로드하여 사용할 모델을 선택하세요.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/onboarding/onboarding_recommendation_pages.py" line="80"></location>
       <source>Choose a model to download, explore CivitAI, or bring your own.</source>
       <translation>다운로드할 모델을 선택하거나 CivitAI를 둘러보거나 직접 준비한 모델을 사용하세요.</translation>
@@ -1133,11 +1143,6 @@ Prompt preview:
       <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="284"></location>
       <source>Choose from CivitAI</source>
       <translation>CivitAI에서 선택</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="105"></location>
-      <source>Choose from popular compatible files from the last month, or explore CivitAI. Nothing is selected automatically.</source>
-      <translation>지난달의 인기 호환 파일에서 선택하거나 CivitAI를 둘러보세요. 아무 항목도 자동 선택되지 않습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="73"></location>
@@ -2145,6 +2150,11 @@ Prompt preview:
       <translation>활성 대상에서 %1을(를) 검증하지 못했습니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="287"></location>
+      <source>Credentials are unavailable for %1.</source>
+      <translation>%1의 인증 정보를 사용할 수 없습니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/cube_library/service.py" line="286"></location>
       <source>Cube '%1' (%2)</source>
       <translation>큐브 '%1'(%2)</translation>
@@ -2533,6 +2543,11 @@ Install these nodes now?</source>
       <translation>레시피 다운로드 후 열기</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="313"></location>
+      <source>Download and use</source>
+      <translation>다운로드하여 사용</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="2149"></location>
       <source>Download failed.</source>
       <translation>다운로드에 실패했습니다.</translation>
@@ -2553,14 +2568,9 @@ Install these nodes now?</source>
       <translation>모델 선택기 썸네일에 사용할 제공자 이미지를 다운로드합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="134"></location>
+      <location filename="../substitute/presentation/model_updates/model_update_modal.py" line="135"></location>
       <source>Download selected</source>
       <translation>선택 항목 다운로드</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="179"></location>
-      <source>Download this model</source>
-      <translation>이 모델 다운로드</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/workspace_file_actions.py" line="1431"></location>
@@ -2576,6 +2586,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="297"></location>
       <source>Downloading %1 — %2 of %3 MiB</source>
       <translation>%1 다운로드 중 — %3 MiB 중 %2 MiB</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="256"></location>
+      <source>Downloading and verifying %1…</source>
+      <translation>%1 다운로드 및 검증 중…</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/editor_busy_overlay.py" line="166"></location>
@@ -2678,7 +2693,7 @@ Install these nodes now?</source>
       <translation>%1의 폴더를 비우세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="425"></location>
+      <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="433"></location>
       <source>Enable</source>
       <translation>활성화</translation>
     </message>
@@ -2778,9 +2793,9 @@ Install these nodes now?</source>
       <translation>대기 중인 워크플로를 Comfy로 보내기 전에 와일드카드 프롬프트 텍스트를 확장합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="127"></location>
-      <source>Explore more on CivitAI</source>
-      <translation>CivitAI에서 더 찾아보기</translation>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="302"></location>
+      <source>Explore more</source>
+      <translation>더 찾아보기</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/shell/app_orb_menu.py" line="50"></location>
@@ -2926,7 +2941,12 @@ Install these nodes now?</source>
       <translation>ComfyUI의 환경 찾기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="71"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="278"></location>
+      <source>Find a model</source>
+      <translation>모델 찾기</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="177"></location>
       <source>Find models</source>
       <translation>모델 찾기</translation>
     </message>
@@ -2934,6 +2954,11 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="618"></location>
       <source>Finding Python…</source>
       <translation>Python 찾는 중�</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="193"></location>
+      <source>Finding compatible models…</source>
+      <translation>호환 모델을 찾는 중…</translation>
     </message>
     <message>
       <location filename="../substitute/application/comfy_startup_diagnostics/summary.py" line="103"></location>
@@ -3906,12 +3931,12 @@ Install these nodes now?</source>
       <translation>모델 소스</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="247"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="381"></location>
       <source>Model discovery failed: %1</source>
       <translation>모델 검색 실패: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="172"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="201"></location>
       <source>Model discovery returned invalid results.</source>
       <translation>모델 검색에서 잘못된 결과를 반환했습니다.</translation>
     </message>
@@ -3926,17 +3951,22 @@ Install these nodes now?</source>
       <translation>모델 다운로드 진행률</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="333"></location>
+      <source>Model download returned invalid results.</source>
+      <translation>모델 다운로드가 잘못된 결과를 반환했습니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/presentation/shell/recipe_model_resolution_flow.py" line="80"></location>
       <source>Model download unavailable</source>
       <translation>모델 다운로드 사용 불가</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="143"></location>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="157"></location>
       <source>Model downloads are unavailable for this ComfyUI target. You can still add files to its model folders manually.</source>
       <translation>이 ComfyUI 대상에서는 모델 다운로드를 사용할 수 없습니다. 모델 폴더에 파일을 직접 추가할 수는 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="212"></location>
+      <location filename="../substitute/presentation/shell/model_update_notification_controller.py" line="218"></location>
       <source>Model downloads returned invalid results.</source>
       <translation>모델 다운로드에서 잘못된 결과를 반환했습니다.</translation>
     </message>
@@ -4141,6 +4171,11 @@ Install these nodes now?</source>
       <translation>예정된 변경 사항이 없습니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="210"></location>
+      <source>No compatible model suggestions are available right now.</source>
+      <translation>현재 호환되는 모델 제안이 없습니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/infrastructure/security/keyring_civitai_credential_store.py" line="182"></location>
       <source>No compatible operating-system credential store is available.</source>
       <translation>호환되는 운영 체제 자격 증명 저장소가 없습니다.</translation>
@@ -4206,11 +4241,6 @@ Install these nodes now?</source>
       <translation>선택한 모델 다운로드가 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="100"></location>
-      <source>No models are available for this picker</source>
-      <translation>이 선택기에 사용할 수 있는 모델이 없습니다</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/errors.py" line="577"></location>
       <source>No node-specific validation errors were reported.</source>
       <translation>노드별 검증 오류가 보고되지 않았습니다.</translation>
@@ -4234,11 +4264,6 @@ Install these nodes now?</source>
       <location filename="../substitute/presentation/settings/cube_library_page.py" line="276"></location>
       <source>No repository has been validated.</source>
       <translation>검증된 저장소가 없습니다.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="179"></location>
-      <source>No safe popular models are available for this picker right now.</source>
-      <translation>현재 이 선택기에 사용할 수 있는 안전한 인기 모델이 없습니다.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="485"></location>
@@ -4338,7 +4363,7 @@ I’ll bring my own</source>
       <translation>불러오지 않음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="131"></location>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="309"></location>
       <source>Not now</source>
       <translation>나중에</translation>
     </message>
@@ -4598,7 +4623,7 @@ I’ll bring my own</source>
       <translation>붙여넣기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/settings/civitai_page.py" line="111"></location>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="71"></location>
       <source>Paste CivitAI API key</source>
       <translation>CivitAI API 키 붙여넣기</translation>
     </message>
@@ -5582,7 +5607,7 @@ No known extension claimant.</source>
       <translation>Sugar Substitute 실행 시작 화면을 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="287"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="332"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>SugarSubstitute 시작 화면 호스트를 실행합니다.</translation>
     </message>
@@ -5677,7 +5702,7 @@ No known extension claimant.</source>
       <translation>다른 이름으로 Sugar 스크립트 저장...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_navigation_presentation.py" line="66"></location>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="78"></location>
       <source>Save and continue</source>
       <translation>저장하고 계속</translation>
     </message>
@@ -5752,11 +5777,6 @@ No known extension claimant.</source>
       <translation>저장했습니다. 새 ComfyUI 연결을 사용하려면 Substitute를 다시 시작하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="171"></location>
-      <source>Saves to %1</source>
-      <translation>저장 위치: %1</translation>
-    </message>
-    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="272"></location>
       <source>Saving and applying setup choices.</source>
       <translation>설정 선택 사항을 저장하고 적용하는 중입니다.</translation>
@@ -5827,7 +5847,7 @@ No known extension claimant.</source>
       <translation>LoRA 예약</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="596"></location>
+      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="176"></location>
       <source>Search %1</source>
       <translation>%1 검색</translation>
     </message>
@@ -5837,7 +5857,7 @@ No known extension claimant.</source>
       <translation>큐브 검색</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_controller.py" line="102"></location>
+      <location filename="../substitute/presentation/editor/panel/model_choice_snapshot_values.py" line="71"></location>
       <source>Search models</source>
       <translation>모델 검색</translation>
     </message>
@@ -5902,7 +5922,7 @@ No known extension claimant.</source>
       <translation>모두 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/widgets/model_picker/model_picker_field.py" line="250"></location>
+      <location filename="../substitute/presentation/widgets/model_picker/model_picker_field.py" line="257"></location>
       <source>Select model</source>
       <translation>모델 선택</translation>
     </message>
@@ -5927,7 +5947,7 @@ No known extension claimant.</source>
       <translation>서버 엔드포인트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="313"></location>
+      <location filename="../substitute/presentation/editor/panel/overrides_controller.py" line="317"></location>
       <source>Set Global Override</source>
       <translation>전역 재정의 설정</translation>
     </message>
@@ -6722,7 +6742,7 @@ No known extension claimant.</source>
       <translation>Substitute에 저장된 폴더 설정을 수정해야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2805"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2793"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -7098,6 +7118,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>ComfyUI용 네이티브 데스크톱 Qt 프런트엔드</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="343"></location>
+      <source>The downloaded model has an invalid destination.</source>
+      <translation>다운로드한 모델의 저장 위치가 잘못되었습니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="586"></location>
       <source>The existing ComfyUI installation is ready.</source>
       <translation>기존 ComfyUI 설치가 준비되었습니다.</translation>
@@ -7278,6 +7303,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>선택한 모델의 지문을 생성하지 못했습니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/shell/empty_model_picker_discovery_controller.py" line="273"></location>
+      <source>The selected model is no longer available.</source>
+      <translation>선택한 모델을 더 이상 사용할 수 없습니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/model_metadata/manual_refresh_service.py" line="202"></location>
       <source>The selected model is no longer present locally.</source>
       <translation>선택한 모델이 더 이상 로컬에 없습니다.</translation>
@@ -7358,6 +7388,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>이 변경 사항은 다시 시작한 후 적용됩니다.</translation>
     </message>
     <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="280"></location>
+      <source>These popular models are compatible with this picker. Nothing downloads until you choose one.</source>
+      <translation>이 인기 모델들은 이 선택기와 호환됩니다. 하나를 선택하기 전에는 아무것도 다운로드되지 않습니다.</translation>
+    </message>
+    <message>
       <location filename="../substitute/application/onboarding/flow_service.py" line="906"></location>
       <source>This CivitAI model needs an API key</source>
       <translation>이 CivitAI 모델에는 API 키가 필요합니다</translation>
@@ -7396,6 +7431,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/presentation/onboarding/onboarding_model_link_import.py" line="324"></location>
       <source>This model is not compatible with the current family</source>
       <translation>이 모델은 현재 계열과 호환되지 않습니다</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/credential_prompt.py" line="59"></location>
+      <source>This model requires a CivitAI API key</source>
+      <translation>이 모델에는 CivitAI API 키가 필요합니다</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/dialogs/recipe_model_resolution_dialog.py" line="356"></location>
@@ -7936,6 +7976,11 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <location filename="../substitute/presentation/editor/prompt_editor/projection/lora_surface_features.py" line="330"></location>
       <source>Version: %1</source>
       <translation>버전: %1</translation>
+    </message>
+    <message>
+      <location filename="../substitute/presentation/model_discovery/discovery_modal.py" line="117"></location>
+      <source>View %1 on %2</source>
+      <translation>%2에서 %1 보기</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_recommendation_cards.py" line="116"></location>

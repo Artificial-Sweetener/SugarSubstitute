@@ -81,6 +81,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         working_directory_path=Path.cwd(),
     )
     layout = startup_candidate.layout
+    from launcher.sugarsubstitute_launcher.logging_setup import (
+        configure_launcher_logging,
+    )
+
+    configure_launcher_logging(layout=layout)
     from launcher.sugarsubstitute_launcher.localization import resolve_launcher_locale
     from sugarsubstitute_shared.localization import format_locale_argument
 
@@ -91,6 +96,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     locale_argument = format_locale_argument(
         resolved_locale.effective_language.identifier
     )
+    if args.instance_recovery_request is not None:
+        return _run_instance_recovery_window(
+            layout=layout,
+            request_path=args.instance_recovery_request,
+            locale_override=args.locale_override,
+        )
 
     app_launch_error: Exception | None = None
     broker: ApplicationInstanceBroker | None = None
@@ -103,7 +114,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             elect_installed_application,
         )
 
-        broker = elect_installed_application(layout, process_arguments)
+        broker = _elect_installed_application_with_recovery(
+            layout=layout,
+            process_arguments=process_arguments,
+            locale_override=args.locale_override,
+            elect=elect_installed_application,
+        )
         if broker is None:
             return 0
         from launcher.sugarsubstitute_launcher.splash_session import (
@@ -116,6 +132,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 layout=layout,
                 locale_identifier=resolved_locale.effective_language.identifier,
             )
+            if splash_session is not None:
+                broker.bind_startup_presenter(
+                    lambda _invocation: splash_session.present()
+                )
             from launcher.sugarsubstitute_launcher.crash_routing import (
                 recover_pending_crash_reports,
             )
@@ -166,12 +186,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "Installed app launch failed; showing repair UI."
             )
             if splash_session is not None:
-                try:
-                    splash_session.client.close()
-                except OSError:
-                    logging.getLogger(__name__).debug(
-                        "Failed to close launcher splash after error."
-                    )
+                splash_session.close()
     else:
         from launcher.sugarsubstitute_launcher.startup_plan import (
             assess_startup_candidate,
@@ -224,6 +239,54 @@ def _configure_normal_logging(startup_plan: LauncherStartupPlan) -> None:
 
     configure_launcher_logging(layout=startup_plan.layout)
     _record_qualification_startup_route(startup_plan)
+
+
+def _elect_installed_application_with_recovery(
+    *,
+    layout: InstallLayout,
+    process_arguments: Sequence[str],
+    locale_override: str | None,
+    elect: Callable[[InstallLayout, Sequence[str]], ApplicationInstanceBroker | None],
+) -> ApplicationInstanceBroker | None:
+    """Elect or provide visible, user-controlled recovery from failed activation."""
+
+    from sugarsubstitute_shared.application_instance_protocol import (
+        ApplicationInstanceBrokerError,
+    )
+
+    while True:
+        try:
+            return elect(layout, process_arguments)
+        except ApplicationInstanceBrokerError as error:
+            logging.getLogger(__name__).exception(
+                "Active application instance could not present a usable surface",
+                extra={"owner_process_id": error.owner_process_id},
+            )
+            from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
+                InstanceRecoveryAction,
+            )
+            from launcher.sugarsubstitute_launcher.launcher_ui_supervision import (
+                supervise_instance_recovery_window,
+            )
+
+            action = supervise_instance_recovery_window(
+                layout=layout,
+                locale_override=locale_override,
+                can_end_owner=(
+                    error.owner_process_id is not None and error.endpoint is not None
+                ),
+            )
+            if action is InstanceRecoveryAction.EXIT:
+                return None
+            if action is InstanceRecoveryAction.END_AND_RETRY:
+                from launcher.sugarsubstitute_launcher.application_instance_recovery import (
+                    terminate_verified_instance_owner,
+                )
+
+                terminate_verified_instance_owner(
+                    error,
+                    expected_executable=Path(sys.executable),
+                )
 
 
 def _configure_launch_error_logging(
@@ -294,6 +357,14 @@ def _run_launcher_window(
         )
         if owns_application:
             window.handoff_completed.connect(application.quit)
+        presenter = None
+        if broker is not None:
+            from launcher.sugarsubstitute_launcher.ui.instance_presentation import (
+                LauncherInstancePresenter,
+            )
+
+            presenter = LauncherInstancePresenter(window)
+            broker.bind_startup_presenter(presenter.present)
         window.show()
         from launcher.sugarsubstitute_launcher.ui.installer_qualification import (
             schedule_installer_qualification,
@@ -304,7 +375,52 @@ def _run_launcher_window(
             return int(application.exec())
         return 0
     finally:
+        if broker is not None:
+            broker.bind_startup_presenter(None)
         _release_launch_ownership(broker)
+
+
+def _run_instance_recovery_window(
+    *,
+    layout: InstallLayout,
+    request_path: Path,
+    locale_override: str | None,
+) -> int:
+    """Present one supervisor-requested recovery modal in the Qt child."""
+
+    from PySide6.QtWidgets import QApplication
+
+    from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
+        InstanceRecoveryRequest,
+    )
+    from launcher.sugarsubstitute_launcher.localization import (
+        build_launcher_localization_runtime,
+    )
+    from launcher.sugarsubstitute_launcher.ui.instance_recovery_dialog import (
+        present_instance_recovery_dialog,
+    )
+
+    application = QApplication.instance()
+    owns_application = application is None
+    if application is None:
+        application = QApplication(sys.argv[:1])
+    request = InstanceRecoveryRequest.read(request_path.resolve())
+    localization = build_launcher_localization_runtime(
+        cast(Any, application),
+        layout=layout,
+        locale_override=locale_override,
+    )
+    try:
+        action = present_instance_recovery_dialog(
+            layout=layout,
+            can_end_owner=request.can_end_owner,
+        )
+        request.write_response(action)
+        return 0
+    finally:
+        localization.manager.close()
+        if owns_application:
+            cast(Any, application).quit()
 
 
 def _launcher_main_window_class() -> Callable[..., Any]:

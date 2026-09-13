@@ -34,8 +34,10 @@ from substitute.application.model_metadata import (
 from substitute.application.node_behavior import FieldBehavior, FieldPresentation
 from substitute.domain.model_metadata import BANNER_THUMBNAIL_ROLE
 from substitute.presentation.editor.panel.model_choice_snapshot_controller import (
-    PanelModelChoiceSnapshot,
     PanelModelChoiceSnapshotController,
+)
+from substitute.presentation.editor.panel.model_choice_snapshots import (
+    PanelModelChoiceSnapshot,
     PanelModelChoiceSnapshotRequest,
 )
 import substitute.presentation.editor.panel.factories.choice_factory as choice_factory
@@ -313,6 +315,7 @@ def _model_choice_snapshot(
     field_info: object = None,
     catalog: _FakeModelCatalog | None = None,
     resolver: RichChoiceResolver | None = None,
+    target_model: str = "",
 ) -> PanelModelChoiceSnapshot:
     """Return a prepared model-choice snapshot for one test field."""
 
@@ -329,6 +332,7 @@ def _model_choice_snapshot(
             field_type=field_type,
             field_info=field_info,
             node_definition_gateway=None,
+            target_model=target_model,
         )
     )
 

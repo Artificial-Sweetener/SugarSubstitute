@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 import logging
 from pathlib import Path
 from typing import Protocol
@@ -127,6 +127,7 @@ def launch_prepared_update(
     supervisor: CandidateReadinessSupervisor | None = None,
     crash_supervisor: CandidateCrashSupervisor | None = None,
     rollback_reporter: UpdateRollbackReporter = record_update_rollback,
+    on_ready: Callable[[], None] | None = None,
 ) -> None:
     """Commit after visible readiness or restore and relaunch the prior app."""
 
@@ -142,6 +143,8 @@ def launch_prepared_update(
             command=command,
             environment=prepared.environment,
         )
+        if on_ready is not None:
+            on_ready()
         try:
             activation.commit()
         except BaseException:

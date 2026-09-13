@@ -97,6 +97,7 @@ def assert_cold_start_snapshot(
         or surface.get("platform_name") != "offscreen"
         or adoption.get("app_pid") != expected_app_pid
         or adoption.get("splash_host_pid") != surface.get("host_pid")
+        or adoption.get("close_acknowledged") is not True
     ):
         raise AssertionError(f"Splash surface evidence was not singular: {snapshot}")
 

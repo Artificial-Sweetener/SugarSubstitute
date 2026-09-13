@@ -62,6 +62,7 @@ def test_floating_and_docked_hosts_choose_same_physical_grid_topology(
             lambda: _has_complete_grid(harness.fingerprint(), item_count=5)
         )
         docked = harness.fingerprint()
+        docked_canvas_size = canvas.size()
 
         window = FloatingCanvasWindow(
             canvas,
@@ -69,7 +70,7 @@ def test_floating_and_docked_hosts_choose_same_physical_grid_topology(
             lambda widget, _label: widget.setParent(harness.shell.canvas_host),
             backdrop_mode=None,
         )
-        window.resize(1000, 500)
+        assert window.size() == docked_canvas_size
         window.show()
         canvas.workspace.resize(1000, 500)
         harness.wait_until(

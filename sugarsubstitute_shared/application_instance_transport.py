@@ -45,7 +45,7 @@ class ApplicationInstanceListener(Protocol):
         """Release endpoint ownership idempotently."""
 
 
-class InstanceEndpointUnavailableError(RuntimeError):
+class InstanceEndpointUnavailableError(OSError):
     """Report an elected owner whose local endpoint never became available."""
 
 

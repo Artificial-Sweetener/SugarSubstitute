@@ -19,10 +19,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 import time
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
-from PySide6.QtCore import QEvent, QRect, Qt, Signal, Slot
+from PySide6.QtCore import QEvent, QRect, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QCloseEvent,
     QColor,
@@ -36,35 +37,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QAbstractButton, QLabel, QSizePolicy, QVBoxLayout, QWidget
 from qframelesswindow import AcrylicWindow
 
-from substitute.domain.appearance import (
-    DEFAULT_CUSTOM_ACCENT_COLOR,
-    AppearanceThemeMode,
-)
 from substitute.presentation.resources.app_icon import application_icon
-from substitute.presentation.splash_animation import (
-    SplashFlipSettings,
-    SplashPaperFlipWidget,
-    SplashPoseLibraryError,
-    load_splash_pose_library,
-)
-from substitute.presentation.splash_animation.pose_selector import (
-    RecencyWeightedPoseSelector,
-)
-from substitute.presentation.shell.window_effects import (
-    ShellBackdropMode,
-    apply_acrylic_effect,
-)
-from substitute.presentation.shell.splash_activity_presenter import (
-    SplashActivityPresenter,
-)
-from sugarsubstitute_shared.launch_splash.activity import SplashActivity
-from sugarsubstitute_shared.localization.application_message import app_text
-from sugarsubstitute_shared.presentation.localization.application_message import (
-    render_application_text,
-)
-from sugarsubstitute_shared.presentation.localization.bindings import (
-    LocalizationBindings,
-)
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
 )
@@ -73,9 +46,20 @@ from sugarsubstitute_shared.presentation.terminal.output_style import (
     TerminalOutputAppearance,
 )
 from sugarsubstitute_shared.presentation.terminal.output_view import TerminalOutputView
-from substitute.shared.logging.logger import get_logger, log_warning
 
-_LOGGER = get_logger("presentation.shell.splash_window")
+if TYPE_CHECKING:
+    from substitute.domain.appearance import AppearanceThemeMode
+    from substitute.presentation.shell.splash_activity_presenter import (
+        SplashActivityPresenter,
+    )
+    from substitute.presentation.shell.window_effects import ShellBackdropMode
+    from sugarsubstitute_shared.launch_splash.activity import SplashActivity
+    from sugarsubstitute_shared.presentation.localization.bindings import (
+        LocalizationBindings,
+    )
+
+
+_DEFAULT_ACCENT_COLOR = "#E91E63"
 _SPLASH_WINDOW_RECT = QRect(0, 0, 558, 558)
 _SPLASH_MASCOT_RECT = QRect(83, 7, 387, 386)
 _SPLASH_CONSOLE_RECT = QRect(6, 358, 546, 193)
@@ -144,48 +128,36 @@ class SplashWindow(AcrylicWindow):
         icon: QIcon | None = None,
         parent: QWidget | None = None,
         *,
-        backdrop_mode: ShellBackdropMode | None = ShellBackdropMode.MICA,
-        theme_mode: AppearanceThemeMode = AppearanceThemeMode.DARK,
-        accent_color: str = DEFAULT_CUSTOM_ACCENT_COLOR,
+        backdrop_mode: ShellBackdropMode | str | None = "mica",
+        theme_mode: AppearanceThemeMode | str = "dark",
+        accent_color: str = _DEFAULT_ACCENT_COLOR,
         activity_clock: Callable[[], float] = time.monotonic,
+        defer_animation_until_first_paint: bool = False,
     ):
         """Build the splash window with one shared terminal output surface."""
 
         super().__init__(parent)
-        self._localization = LocalizationBindings(self)
+        self._localization: LocalizationBindings | None = None
+        self._activity_presenter: SplashActivityPresenter | None = None
+        self._activity_clock = activity_clock
+        self._accent_color = accent_color
         window_icon = icon or application_icon()
         self.setWindowIcon(window_icon)
         self._backdrop_mode = backdrop_mode
-        self._dark_theme_enabled = theme_mode is not AppearanceThemeMode.LIGHT
+        self._dark_theme_enabled = _enum_value(theme_mode) != "light"
         self._first_frame_painted = False
+        self._defer_animation_until_first_paint = (
+            defer_animation_until_first_paint and icon is None
+        )
         self._configure_titlebar_buttons()
-
-        try:
-            if self._backdrop_mode is ShellBackdropMode.ACRYLIC:
-                apply_acrylic_effect(self)
-            elif self._backdrop_mode is not None:
-                self.windowEffect.setMicaEffect(
-                    self.winId(),
-                    isDarkMode=self._dark_theme_enabled,
-                    isAlt=self._backdrop_mode is ShellBackdropMode.MICA_ALT,
-                )
-        except (AttributeError, RuntimeError) as error:
-            log_warning(
-                _LOGGER,
-                "Failed to enable splash Mica effect",
-                error=repr(error),
-            )
+        if not self._defer_animation_until_first_paint:
+            self._apply_backdrop()
 
         container = QWidget(self)
         self._container = container
         container.setObjectName("SplashFixedLayoutContainer")
 
         self._log_stream = TerminalOutputStream(max_lines=2000)
-        self._activity_presenter = SplashActivityPresenter(
-            stream=self._log_stream,
-            parent=self,
-            clock=activity_clock,
-        )
         visual = self._build_splash_visual(icon, container)
         self._visual = visual
         self._terminal_section = QWidget(container)
@@ -218,18 +190,15 @@ class SplashWindow(AcrylicWindow):
 
         self.setFixedSize(_SPLASH_WINDOW_RECT.size())
         self._apply_content_geometry()
-        self._localization.bind_window_title(
-            self,
-            lambda: render_application_text(app_text("Loading...")),
-        )
-
         self.logRequested.connect(self._do_append_log)
         self.activityRequested.connect(self._do_start_activity)
-        self.activityClearRequested.connect(self._activity_presenter.clear)
+        self.activityClearRequested.connect(self._do_clear_activity)
 
         container.installEventFilter(self)
         visual.installEventFilter(self)
         self._drag_widgets = {container, visual}
+        if not self._defer_animation_until_first_paint:
+            self._ensure_runtime_enrichment()
 
     def center_on_screen(self) -> None:
         """Center the splash window on the screen containing the cursor."""
@@ -266,20 +235,33 @@ class SplashWindow(AcrylicWindow):
         if not line:
             return
         self._log_stream.append_line(line)
-        self._activity_presenter.restore_after_log(line)
+        if self._activity_presenter is not None:
+            self._activity_presenter.restore_after_log(line)
 
     @Slot(object)
     def _do_start_activity(self, activity: object) -> None:
         """Start a validated activity on the splash GUI thread."""
 
+        from sugarsubstitute_shared.launch_splash.activity import SplashActivity
+
         if not isinstance(activity, SplashActivity):
             raise TypeError("SplashWindow expected a SplashActivity.")
+        self._ensure_runtime_enrichment()
+        assert self._activity_presenter is not None
         self._activity_presenter.start(activity)
+
+    @Slot()
+    def _do_clear_activity(self) -> None:
+        """Clear an active operation after runtime enrichment exists."""
+
+        if self._activity_presenter is not None:
+            self._activity_presenter.clear()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Stop activity scheduling before closing the splash window."""
 
-        self._activity_presenter.shutdown()
+        if self._activity_presenter is not None:
+            self._activity_presenter.shutdown()
         super().closeEvent(event)
 
     def paintEvent(self, event: object) -> None:
@@ -290,6 +272,8 @@ class SplashWindow(AcrylicWindow):
             return
         self._first_frame_painted = True
         self.firstFramePainted.emit()
+        if self._defer_animation_until_first_paint:
+            QTimer.singleShot(0, self._finish_deferred_animation)
 
     def resizeEvent(self, event: object) -> None:
         """Keep the splash content pinned close to the window edges."""
@@ -309,8 +293,7 @@ class SplashWindow(AcrylicWindow):
         try:
             self.titleBar.raise_()
         except (AttributeError, RuntimeError) as error:
-            log_warning(
-                _LOGGER,
+            _log_splash_warning(
                 "Failed to raise splash titlebar",
                 error=repr(error),
             )
@@ -324,10 +307,6 @@ class SplashWindow(AcrylicWindow):
             titlebar.minBtn.hide()
             titlebar.maxBtn.hide()
             titlebar.closeBtn.show()
-            self._localization.bind_setter(
-                titlebar.closeBtn.setToolTip,
-                lambda: render_application_text(app_text("Cancel loading")),
-            )
             titlebar.setDoubleClickEnabled(False)
             try:
                 titlebar.closeBtn.clicked.disconnect()
@@ -336,8 +315,7 @@ class SplashWindow(AcrylicWindow):
             titlebar.closeBtn.clicked.connect(self._request_cancel)
             titlebar.raise_()
         except (AttributeError, RuntimeError) as error:
-            log_warning(
-                _LOGGER,
+            _log_splash_warning(
                 "Failed to configure splash titlebar buttons",
                 error=repr(error),
             )
@@ -377,6 +355,65 @@ class SplashWindow(AcrylicWindow):
         close_button.setPressedBackgroundColor(QColor(241, 112, 122))
         titlebar.closeBtn.setStyleSheet("CloseButton { background: transparent; }")
 
+    def _apply_backdrop(self) -> None:
+        """Apply the configured native material after the bootstrap frame when asked."""
+
+        from substitute.presentation.shell.window_effects import apply_acrylic_effect
+
+        backdrop_mode = _enum_value(self._backdrop_mode)
+        try:
+            if backdrop_mode == "acrylic":
+                apply_acrylic_effect(self)
+            elif backdrop_mode is not None:
+                self.windowEffect.setMicaEffect(
+                    self.winId(),
+                    isDarkMode=self._dark_theme_enabled,
+                    isAlt=backdrop_mode == "mica_alt",
+                )
+        except (AttributeError, RuntimeError) as error:
+            _log_splash_warning(
+                "Failed to enable splash backdrop effect",
+                error=repr(error),
+            )
+
+    def _ensure_runtime_enrichment(self) -> None:
+        """Attach localization and activity animation outside deferred first paint."""
+
+        if self._activity_presenter is not None:
+            return
+        from substitute.presentation.shell.splash_activity_presenter import (
+            SplashActivityPresenter,
+        )
+        from sugarsubstitute_shared.localization.application_message import app_text
+        from sugarsubstitute_shared.presentation.localization.application_message import (
+            render_application_text,
+        )
+        from sugarsubstitute_shared.presentation.localization.bindings import (
+            LocalizationBindings,
+        )
+
+        self._activity_presenter = SplashActivityPresenter(
+            stream=self._log_stream,
+            parent=self,
+            clock=self._activity_clock,
+        )
+        self._localization = LocalizationBindings(self)
+        self._localization.bind_window_title(
+            self,
+            lambda: render_application_text(app_text("Loading...")),
+        )
+        try:
+            titlebar = cast(_SplashTitleBar, self.titleBar)
+            self._localization.bind_setter(
+                titlebar.closeBtn.setToolTip,
+                lambda: render_application_text(app_text("Cancel loading")),
+            )
+        except (AttributeError, RuntimeError) as error:
+            _log_splash_warning(
+                "Failed to localize splash titlebar",
+                error=repr(error),
+            )
+
     @Slot()
     def _request_cancel(self) -> None:
         """Emit the user-requested startup cancellation and close the helper window."""
@@ -389,6 +426,23 @@ class SplashWindow(AcrylicWindow):
 
         if icon is not None:
             return self._build_static_icon_label(icon, parent)
+        if self._defer_animation_until_first_paint:
+            return self._build_bootstrap_pose_label(parent)
+        return self._build_animated_splash_visual(parent)
+
+    def _build_animated_splash_visual(self, parent: QWidget) -> QWidget:
+        """Return the complete pose animation or an application-icon fallback."""
+
+        from substitute.presentation.splash_animation import (
+            SplashFlipSettings,
+            SplashPaperFlipWidget,
+            SplashPoseLibraryError,
+            load_splash_pose_library,
+        )
+        from substitute.presentation.splash_animation.pose_selector import (
+            RecencyWeightedPoseSelector,
+        )
+
         try:
             poses = load_splash_pose_library()
             selector = RecencyWeightedPoseSelector(poses)
@@ -399,12 +453,47 @@ class SplashWindow(AcrylicWindow):
                 settings=SplashFlipSettings(),
             )
         except (SplashPoseLibraryError, RuntimeError, ValueError) as error:
-            log_warning(
-                _LOGGER,
+            _log_splash_warning(
                 "Falling back to static splash icon after animation setup failed",
                 error=repr(error),
             )
             return self._build_static_icon_label(application_icon(), parent)
+
+    def _build_bootstrap_pose_label(self, parent: QWidget) -> QLabel:
+        """Load one owned pose directly without importing the full pose resource."""
+
+        pose_path = (
+            Path(__file__).resolve().parents[1] / "resources" / "splash_poses" / "1.png"
+        )
+        pose = QPixmap(str(pose_path))
+        if pose.isNull():
+            return cast(
+                QLabel, self._build_static_icon_label(application_icon(), parent)
+            )
+        label = QLabel(parent)
+        label.setObjectName("SplashBootstrapPose")
+        label.setAlignment(Qt.AlignCenter)
+        label.setPixmap(pose)
+        return label
+
+    @Slot()
+    def _finish_deferred_animation(self) -> None:
+        """Replace the painted bootstrap pose with the complete animation once."""
+
+        if not self._defer_animation_until_first_paint:
+            return
+        self._defer_animation_until_first_paint = False
+        self._apply_backdrop()
+        self._ensure_runtime_enrichment()
+        previous_visual = self._visual
+        visual = self._build_animated_splash_visual(self._container)
+        self._visual = visual
+        visual.installEventFilter(self)
+        self._drag_widgets.discard(previous_visual)
+        self._drag_widgets.add(visual)
+        self._apply_content_geometry()
+        visual.show()
+        previous_visual.deleteLater()
 
     def _build_static_icon_label(self, icon: QIcon, parent: QWidget) -> QLabel:
         """Return the legacy static splash icon label."""
@@ -435,8 +524,7 @@ class SplashWindow(AcrylicWindow):
                         wh.startSystemMove()
                         return True
                     except (AttributeError, RuntimeError) as error:
-                        log_warning(
-                            _LOGGER,
+                        _log_splash_warning(
                             "Failed to start splash window drag move",
                             error=repr(error),
                         )
@@ -451,3 +539,23 @@ def _cursor_screen_geometry() -> QRect | None:
     if screen is None:
         screen = QGuiApplication.primaryScreen()
     return screen.availableGeometry() if screen is not None else None
+
+
+def _enum_value(value: object) -> str | None:
+    """Return the stable string value of a raw or enum-backed option."""
+
+    if value is None:
+        return None
+    return str(getattr(value, "value", value))
+
+
+def _log_splash_warning(message: str, **context: object) -> None:
+    """Load structured diagnostics only when a splash warning occurs."""
+
+    from substitute.shared.logging.logger import get_logger, log_warning
+
+    log_warning(
+        get_logger("presentation.shell.splash_window"),
+        message,
+        **context,
+    )

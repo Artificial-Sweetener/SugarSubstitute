@@ -22,7 +22,7 @@ import json
 import os
 from pathlib import Path
 import secrets
-from PySide6.QtCore import QTimer
+from substitute.app.bootstrap.surface_presentation import run_after_surface_paint
 
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
@@ -36,15 +36,16 @@ from sugarsubstitute_shared.application_readiness import (
 def schedule_application_readiness_receipt(
     *,
     surface: ApplicationReadinessSurface,
+    window: object,
 ) -> bool:
-    """Queue a readiness receipt after Qt processes the visible-shell event."""
+    """Publish readiness only after the exact application surface paints."""
 
     readiness_path = _readiness_path_from_environment()
     readiness_token = os.environ.get(READINESS_TOKEN_ENV, "")
     if readiness_path is None or not readiness_token:
         return False
-    QTimer.singleShot(
-        0,
+    run_after_surface_paint(
+        window,
         lambda: _write_readiness_receipt(
             readiness_path=readiness_path,
             readiness_token=readiness_token,
@@ -97,11 +98,12 @@ def _write_readiness_receipt(
             pass
 
 
-def schedule_main_shell_readiness_receipt() -> bool:
-    """Queue a readiness receipt for the visible main application shell."""
+def schedule_main_shell_readiness_receipt(window: object) -> bool:
+    """Publish readiness after the main application shell paints."""
 
     return schedule_application_readiness_receipt(
-        surface=ApplicationReadinessSurface.MAIN_SHELL
+        surface=ApplicationReadinessSurface.MAIN_SHELL,
+        window=window,
     )
 
 

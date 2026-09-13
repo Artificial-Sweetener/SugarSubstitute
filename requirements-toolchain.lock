@@ -671,9 +671,9 @@ cuda-pathfinder==1.7.0 ; python_full_version < '3.15' and sys_platform == 'linux
 cuda-toolkit==13.0.3.0 ; sys_platform == 'linux' \
     --hash=sha256:d693caaa261214ddd7dbb60d68e71cbed884e68c2be7509778f3051da0b91c3f
     # via torch
-cutecanvas==1.0.7 \
-    --hash=sha256:111baf0637a001cb4bb1af593490d2ecf728458d52ba525a4d81779abfce474b \
-    --hash=sha256:43e7a2b9df4033190924b4eb30cbe4b469ccd22d0fb4ca28fd36e519430cf295
+cutecanvas==1.0.8 \
+    --hash=sha256:6f9cb43e027240bedd046019d6a4c2b8a466f7e2c98ee729f41e16c110ccbcd3 \
+    --hash=sha256:91d057d95c9d20a6e6b9db3ef7e4369a89b8bacbfbc25dbe15e69d0cc3307088
     # via -r requirements.txt
 cyclonedx-python-lib==11.12.0 \
     --hash=sha256:0e807521a921a5c3cb8ce1153f8a61d29eedfe76a46aac2796b7c6b573391a54 \
@@ -3943,9 +3943,9 @@ pyyaml==6.0.3 \
     #   huggingface-hub
     #   pre-commit
     #   timm
-qpane==3.0.4 \
-    --hash=sha256:72712817c8734d2b7a305d3e8585efd3212dad5cdd469964707fd58884730b8b \
-    --hash=sha256:7441e7d42a78c0a20916e8b26e0dbec699003f167c33893a500343f3d150c292
+qpane==3.0.5 \
+    --hash=sha256:55e03e9b8746c1eb7f250e7a0bbe735e4443b27a60e1a3e069c8a2b31871aa14 \
+    --hash=sha256:740fb858d70afcb7fcd6b9b9f276df8ff0e2dfe08bc4b2e5945ff194069c8210
     # via
     #   -r requirements.txt
     #   cutecanvas

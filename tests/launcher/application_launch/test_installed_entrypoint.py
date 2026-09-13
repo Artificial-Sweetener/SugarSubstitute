@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 import sys
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -32,8 +33,14 @@ from launcher.sugarsubstitute_launcher import launcher_ui_supervision
 from launcher.sugarsubstitute_launcher import splash_session
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
+    InstanceRecoveryAction,
+)
 from sugarsubstitute_shared.application_instance_broker import (
     ApplicationInstanceBroker,
+)
+from sugarsubstitute_shared.application_instance_protocol import (
+    ApplicationInstanceBrokerError,
 )
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 from tests.launcher.support import write_launcher_executable
@@ -116,7 +123,7 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
     )
     monkeypatch.setattr(
         installed_app_handoff,
-        "ApplicationCrashSupervisor",
+        "ApplicationLifecycleSupervisor",
         _Supervisor,
     )
     monkeypatch.setattr(
@@ -234,3 +241,51 @@ def test_installed_election_uses_the_resolved_installation_identity(
         is None
     )
     assert observed == [(layout.root, ("Substitute", "example.sugar"))]
+
+
+def test_failed_secondary_activation_shows_recovery_and_retries(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Never leave an invocation with only an invisible broker failure."""
+
+    layout = _installed_layout(tmp_path)
+    expected_broker = _Broker()
+    attempts = 0
+    presented: list[bool] = []
+    expected_result = cast(ApplicationInstanceBroker, expected_broker)
+
+    def elect(
+        _layout: InstallLayout,
+        _arguments: Sequence[str],
+    ) -> ApplicationInstanceBroker:
+        """Fail once like an unresponsive owner and then win election."""
+
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise ApplicationInstanceBrokerError("not presented")
+        return expected_result
+
+    def present_recovery(**kwargs: object) -> InstanceRecoveryAction:
+        """Record recovery eligibility and request a bounded retry."""
+
+        presented.append(bool(kwargs["can_end_owner"]))
+        return InstanceRecoveryAction.RETRY
+
+    monkeypatch.setattr(
+        launcher_ui_supervision,
+        "supervise_instance_recovery_window",
+        present_recovery,
+    )
+
+    result = launcher_app._elect_installed_application_with_recovery(
+        layout=layout,
+        process_arguments=("Substitute",),
+        locale_override="en",
+        elect=elect,
+    )
+
+    assert result is expected_result
+    assert attempts == 2
+    assert presented == [False]

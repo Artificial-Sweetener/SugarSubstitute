@@ -98,7 +98,9 @@ class FloatingCanvasWindow(AcrylicWindow):  # type: ignore[misc]
     ) -> None:
         """Create floating shell window and keep content geometry in sync."""
 
+        mounted_canvas_size = canvas_widget.size()
         super().__init__()
+        self.resize(mounted_canvas_size)
         self.canvas_widget = canvas_widget
         self.label = label
         self.redock_callback = redock_callback

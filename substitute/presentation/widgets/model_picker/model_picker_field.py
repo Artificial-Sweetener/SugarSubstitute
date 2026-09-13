@@ -35,7 +35,6 @@ from sugarsubstitute_shared.presentation.fluent_tooltips import (
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import PurePosixPath, PureWindowsPath
 from typing import Protocol, cast, runtime_checkable
 
 from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSize, Qt, QTimer, Signal
@@ -53,7 +52,11 @@ from PySide6.QtGui import (
     QShowEvent,
 )
 from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QWidget
-from qfluentwidgets import EditableComboBox, FluentIcon as FIF  # type: ignore[import-untyped]
+from qfluentwidgets import (  # type: ignore[import-untyped]
+    EditableComboBox,
+    FluentIcon as FIF,
+    PrimaryPushButton,
+)
 from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
     setCustomStyleSheet,
     themeColor,
@@ -63,7 +66,6 @@ from substitute.application.execution import TaskSubmitter
 from substitute.application.model_metadata import (
     BANNER_THUMBNAIL_ROLE,
     ModelMetadataRefreshEvent,
-    ModelThumbnailVariant,
     RichChoiceItem,
     RichChoiceResolution,
     RichChoiceSource,
@@ -80,7 +82,6 @@ from substitute.presentation.widgets.civitai_page_action import (
 from substitute.presentation.widgets.media_wall import (
     MediaWallThumbnailCache,
     MediaWallThumbnailPreloader,
-    ThumbnailVariantReference,
 )
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
@@ -93,6 +94,12 @@ from substitute.presentation.widgets.model_picker.model_picker_completion import
 from substitute.presentation.widgets.model_picker.model_picker_models import (
     ModelPickerItem,
     model_picker_items_from_rich_choice_items,
+)
+from substitute.presentation.widgets.model_picker.model_picker_values import (
+    clamp_progress_percent as _clamp_progress_percent,
+    fallback_display_label as _fallback_display_label,
+    thumbnail_refs_from_all_model_variants as _thumbnail_refs_from_all_model_variants,
+    unavailable_resolution as _unavailable_resolution,
 )
 from substitute.presentation.widgets.model_picker.model_picker_popup import (
     ModelPickerPopup,
@@ -110,8 +117,8 @@ from substitute.shared.logging.logger import (
 )
 
 _LOGGER = get_logger("presentation.widgets.model_picker.model_picker_field")
-_SUPPORTED_MODEL_EXTENSIONS = frozenset({".safetensors", ".ckpt", ".pt"})
 _COMBO_MINIMUM_WIDTH = 208
+_COMBO_MINIMUM_HEIGHT = 32
 _COMBO_HORIZONTAL_PADDING = 44
 _COMBO_TEXT_LEFT_PADDING = 11
 _COMBO_TEXT_RIGHT_PADDING = 31
@@ -930,10 +937,23 @@ class ModelPickerField(QWidget):
         self._surface.contextMenuRequested.connect(
             self._show_selected_model_context_menu
         )
+        self._empty_action_button = PrimaryPushButton(
+            render_application_text(app_text("Find models")), self
+        )
+        self._empty_action_button.setIcon(FIF.DOWNLOAD)
+        self._empty_action_button.setObjectName("modelPickerEmptyActionButton")
+        self._empty_action_button.setMinimumHeight(_COMBO_MINIMUM_HEIGHT)
+        self._empty_action_button.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding,
+        )
+        self._empty_action_button.clicked.connect(self.open_picker)
+        self._empty_action_button.hide()
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self._surface)
+        layout.addWidget(self._empty_action_button)
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -953,7 +973,14 @@ class ModelPickerField(QWidget):
     def displayText(self) -> str:
         """Return the user-facing closed-field label."""
 
+        if self._empty_action_button.isVisible():
+            return cast(str, self._empty_action_button.text())
         return cast(str, self._surface.text())
+
+    def is_empty_action_visible(self) -> bool:
+        """Return whether this empty picker is rendered as a discovery button."""
+
+        return not self._empty_action_button.isHidden()
 
     def setMaxHintWidth(self, width: int | None) -> None:
         """Set an optional cap for the preferred field width."""
@@ -1016,7 +1043,7 @@ class ModelPickerField(QWidget):
         surface_minimum = self._surface.minimumSizeHint()
         return QSize(
             _COMBO_MINIMUM_WIDTH,
-            max(32, surface_minimum.height()),
+            max(_COMBO_MINIMUM_HEIGHT, surface_minimum.height()),
         )
 
     def open_picker(self) -> None:
@@ -1493,7 +1520,21 @@ class ModelPickerField(QWidget):
         if self._surface.isReadOnly():
             self._sync_closed_surface_text()
             self._request_closed_banner_preload()
+        self._sync_empty_action_visibility()
         self.updateGeometry()
+
+    def _sync_empty_action_visibility(self) -> None:
+        """Render a real action button only for a safely discoverable empty picker."""
+
+        show_action = (
+            self._empty_model_action is not None
+            and not self._current_value
+            and not self._choice_items
+            and self._resolution is not None
+            and self._resolution.unavailable_reason is None
+        )
+        self._surface.setVisible(not show_action)
+        self._empty_action_button.setVisible(show_action)
 
     def _sync_closed_surface_text(self) -> None:
         """Apply the width-aware right-elided label used by the closed combo."""
@@ -1609,89 +1650,6 @@ class ModelPickerField(QWidget):
 
         _ = storage_key
         self._surface.update()
-
-
-def _fallback_display_label(value: str) -> str:
-    """Return a conservative local display label for an unknown backend value."""
-
-    stripped_value = value.strip()
-    if not stripped_value:
-        return ""
-    normalized_value = stripped_value.replace("\\", "/")
-    name = PurePosixPath(normalized_value).name
-    return _strip_supported_extension(name) or stripped_value
-
-
-def _unavailable_resolution(
-    previous_resolution: RichChoiceResolution | None,
-    error: Exception,
-) -> RichChoiceResolution:
-    """Return an empty selector resolution after a fresh Backend refresh failure."""
-
-    matched_kinds = (
-        () if previous_resolution is None else previous_resolution.matched_kinds
-    )
-    reason = (
-        "model selection unavailable: backend model catalog refresh failed "
-        f"({type(error).__name__})"
-    )
-    return RichChoiceResolution(
-        items=(),
-        should_use_rich_picker=True,
-        matched_kinds=matched_kinds,
-        option_count=0
-        if previous_resolution is None
-        else previous_resolution.option_count,
-        enriched_count=0,
-        ambiguous_count=0,
-        unmatched_count=0,
-        reason=reason,
-        unavailable_reason=reason,
-    )
-
-
-def _clamp_progress_percent(value: float | None) -> float | None:
-    """Clamp optional progress to the visible progress range."""
-
-    if value is None:
-        return None
-    return min(100.0, max(0.0, float(value)))
-
-
-def _strip_supported_extension(value: str) -> str:
-    """Strip the final model extension from one path while preserving separators."""
-
-    extension = _extension_for_value(value)
-    if extension in _SUPPORTED_MODEL_EXTENSIONS:
-        return value[: -len(extension)]
-    return value
-
-
-def _extension_for_value(value: str) -> str:
-    """Return the final file extension from one backend value."""
-
-    windows_suffix = PureWindowsPath(value).suffix
-    posix_suffix = PurePosixPath(value).suffix
-    return (windows_suffix or posix_suffix).lower()
-
-
-def _thumbnail_refs_from_all_model_variants(
-    variants: tuple[ModelThumbnailVariant, ...],
-) -> tuple[ThumbnailVariantReference, ...]:
-    """Return thumbnail references for all roles, including banner variants."""
-
-    return tuple(
-        ThumbnailVariantReference(
-            storage_key=variant.storage_key,
-            size=variant.size,
-            width=variant.width,
-            height=variant.height,
-            content_format=variant.content_format,
-            byte_size=variant.byte_size,
-            role=variant.role,
-        )
-        for variant in variants
-    )
 
 
 __all__ = ["ModelPickerField", "ModelPickerThumbnailPreloadRoute"]

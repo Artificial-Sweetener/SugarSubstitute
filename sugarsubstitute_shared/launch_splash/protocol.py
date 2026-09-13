@@ -26,8 +26,9 @@ from sugarsubstitute_shared.launch_splash.activity import SplashActivity
 
 
 MAX_SPLASH_MESSAGE_BYTES: Final = 16 * 1024
+SPLASH_MESSAGE_APPLIED_ACK: Final = b"applied\n"
 SUPPORTED_SPLASH_MESSAGE_TYPES: Final = frozenset(
-    {"log", "status", "fatal", "activity", "clear_activity", "close"}
+    {"log", "status", "fatal", "activity", "clear_activity", "activate", "close"}
 )
 
 
@@ -130,9 +131,12 @@ def _validate_message(message: SplashSessionMessage) -> None:
         raise SplashSessionMessageError(
             "Only splash session activity messages can include activity copy."
         )
-    if message.message_type in {"activity", "clear_activity", "close"} and (
-        message.line is not None
-    ):
+    if message.message_type in {
+        "activity",
+        "clear_activity",
+        "activate",
+        "close",
+    } and (message.line is not None):
         raise SplashSessionMessageError(
             "Splash session activity-control and close messages cannot include text."
         )

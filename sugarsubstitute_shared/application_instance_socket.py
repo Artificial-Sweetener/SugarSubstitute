@@ -45,13 +45,23 @@ class SocketInstanceConnection:
 
         self._connection.sendall(struct.pack("!I", len(payload)) + payload)
 
-    def receive_frame(self, maximum_size: int) -> bytes:
-        """Receive one bounded length-prefixed frame."""
+    def receive_frame(
+        self,
+        maximum_size: int,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> bytes:
+        """Receive one bounded length-prefixed frame within an optional deadline."""
 
-        size = struct.unpack("!I", self._receive_exact(4))[0]
-        if size > maximum_size:
-            raise ValueError("Application instance message exceeds its size limit.")
-        return self._receive_exact(size)
+        previous_timeout = self._connection.gettimeout()
+        self._connection.settimeout(timeout_seconds)
+        try:
+            size = struct.unpack("!I", self._receive_exact(4))[0]
+            if size > maximum_size:
+                raise ValueError("Application instance message exceeds its size limit.")
+            return self._receive_exact(size)
+        finally:
+            self._connection.settimeout(previous_timeout)
 
     def close(self) -> None:
         """Wake blocked peer operations and close the underlying socket."""
@@ -74,6 +84,19 @@ class SocketInstanceConnection:
         )
         _pid, user_id, _group_id = struct.unpack("3i", credentials)
         return bool(user_id == os.getuid())
+
+    def peer_process_id(self) -> int | None:
+        """Return Linux peer credentials when exposed by the local socket."""
+
+        if not hasattr(socket, "SO_PEERCRED"):
+            return None
+        credentials = self._connection.getsockopt(
+            socket.SOL_SOCKET,
+            socket.SO_PEERCRED,
+            struct.calcsize("3i"),
+        )
+        process_id, _user_id, _group_id = struct.unpack("3i", credentials)
+        return int(process_id)
 
     def _receive_exact(self, size: int) -> bytes:
         """Read one complete frame segment or fail on disconnect."""
@@ -132,6 +155,8 @@ def bind_socket_listener(
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
             listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if endpoint.port is None:
             raise ValueError("Loopback endpoint requires a port.")
         listener.bind((endpoint.address, endpoint.port))

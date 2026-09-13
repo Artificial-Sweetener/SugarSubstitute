@@ -1190,17 +1190,11 @@ def _build_main_window_dependencies(
 
     from substitute.application.generation.generation_service import GenerationService
     from substitute.application.model_updates import GenerationModelUsageRecorder
-    from substitute.application.model_discovery import BackendModelInventory
     from substitute.infrastructure.model_updates.file_repository import (
         FileModelUsageRepository,
     )
     from sugarsubstitute_shared.model_discovery.civitai_client import (
         CivitaiDiscoveryClient,
-    )
-    from sugarsubstitute_shared.model_discovery import (
-        EmptyPickerModelDiscoveryPlanner,
-        EmptyPickerModelDiscoveryService,
-        ModelArtifactDestinationPolicy,
     )
     from sugarsubstitute_shared.model_updates import (
         CivitaiCompatibleUpdateGateway,
@@ -1945,22 +1939,16 @@ def _build_main_window_dependencies(
         if model_update_model_root is not None
         else None
     )
-    empty_model_picker_discovery_service = (
-        EmptyPickerModelDiscoveryService(
-            planner=EmptyPickerModelDiscoveryPlanner(
-                inventory=BackendModelInventory(model_metadata_backend),
-                discovery=CivitaiDiscoveryClient(
-                    api_key_provider=civitai_credential_service.load_api_key,
-                ),
-                destinations=ModelArtifactDestinationPolicy(model_update_model_root),
-            ),
-            acquisition=ModelAcquisitionService(
-                allowed_roots=(model_update_model_root,),
-                api_key_provider=civitai_credential_service.load_api_key,
-            ),
-        )
-        if model_update_model_root is not None
-        else None
+    from substitute.app.bootstrap.model_suggestion_composition import (
+        compose_model_suggestion_service,
+    )
+
+    empty_model_picker_discovery_service = compose_model_suggestion_service(
+        model_root=model_update_model_root,
+        credentials=civitai_credential_service,
+        preferences=civitai_preference_service,
+        thumbnails=model_thumbnail_store,
+        thumbnail_assets=model_metadata_store,
     )
     generation_model_usage_recorder = GenerationModelUsageRecorder(
         catalog=model_catalog_service,

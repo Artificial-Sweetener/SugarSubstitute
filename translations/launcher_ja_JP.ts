@@ -24,7 +24,7 @@
       <translation>アプリのエントリーポイント：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="357"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="365"></location>
       <source>Application language</source>
       <translation>アプリの言語</translation>
     </message>
@@ -34,7 +34,7 @@
       <translation>戻る</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="513"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="522"></location>
       <source>Browse…</source>
       <translation>参照…</translation>
     </message>
@@ -49,7 +49,7 @@
       <translation>SugarSubstitute のアップデートを確認しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="521"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="530"></location>
       <source>Choose SugarSubstitute install directory</source>
       <translation>SugarSubstitute のインストール先を選択</translation>
     </message>
@@ -64,12 +64,12 @@
       <translation>修復方法を選択</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="507"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="516"></location>
       <source>Choose where Substitute should live</source>
       <translation>Substitute のインストール先を選択</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="495"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="504"></location>
       <source>Choose your language</source>
       <translation>言語を選択</translation>
     </message>
@@ -109,12 +109,22 @@
       <translation>このインストーラーに対応する正確なリリースをダウンロードして検証しています。現在のインストールはまだ変更されていません。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="409"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="52"></location>
+      <source>End unresponsive instance and retry</source>
+      <translation>応答しないインスタンスを終了して再試行</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="60"></location>
+      <source>Exit</source>
+      <translation>終了</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="417"></location>
       <source>Getting things ready…</source>
       <translation>準備しています…</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="489"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="497"></location>
       <source>Hide details</source>
       <translation>詳細を隠す</translation>
     </message>
@@ -129,7 +139,7 @@
       <translation>アプリをインストール</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="512"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="521"></location>
       <source>Install folder</source>
       <translation>インストール先フォルダー</translation>
     </message>
@@ -199,6 +209,11 @@
       <translation>言語</translation>
     </message>
     <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="62"></location>
+      <source>Launcher logs: %1</source>
+      <translation>ランチャーログ: %1</translation>
+    </message>
+    <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="81"></location>
       <source>More thorough</source>
       <translation>より徹底的</translation>
@@ -209,12 +224,17 @@
       <translation>ほかの内容は変更されていません。レポートを確認して、この手順をもう一度お試しください。</translation>
     </message>
     <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="56"></location>
+      <source>Open launcher logs</source>
+      <translation>ランチャーログを開く</translation>
+    </message>
+    <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="58"></location>
       <source>Open setup</source>
       <translation>セットアップを開く</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="510"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="519"></location>
       <source>Pick a folder with room for the app, ComfyUI, and models.</source>
       <translation>アプリ、ComfyUI、モデルに十分な空き容量があるフォルダーを選択してください。</translation>
     </message>
@@ -294,6 +314,11 @@
       <translation>インストーラーが管理するファイルを復元します。作品とモデルはそのまま保持されます。</translation>
     </message>
     <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="47"></location>
+      <source>Retry</source>
+      <translation>再試行</translation>
+    </message>
+    <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="116"></location>
       <source>Review repair</source>
       <translation>修復内容を確認</translation>
@@ -304,7 +329,7 @@
       <translation>ランタイムの準備ができました：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="407"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="415"></location>
       <source>Setting up SugarSubstitute</source>
       <translation>SugarSubstitute をセットアップしています</translation>
     </message>
@@ -334,7 +359,7 @@
       <translation>セットアップを開始しました</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="423"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="431"></location>
       <source>Show details</source>
       <translation>詳細を表示</translation>
     </message>
@@ -364,7 +389,7 @@
       <translation>SugarSubstitute のセットアップを起動しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="477"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="485"></location>
       <source>Step %1 of %2 · %3</source>
       <translation>%2 ステップ中 %1 · %3</translation>
     </message>
@@ -389,7 +414,12 @@
       <translation>SugarSubstitute セットアップ</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="497"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="34"></location>
+      <source>SugarSubstitute did not open</source>
+      <translation>SugarSubstitute を開けませんでした</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installer_view.py" line="506"></location>
       <source>SugarSubstitute will use this language during setup.</source>
       <translation>SugarSubstitute はセットアップ中にこの言語を使用します。</translation>
     </message>
@@ -397,6 +427,11 @@
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_failure_presenter.py" line="67"></location>
       <source>Technical details:</source>
       <translation>技術的な詳細:</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="36"></location>
+      <source>The existing SugarSubstitute instance did not present a usable window.</source>
+      <translation>既存の SugarSubstitute インスタンスは使用可能なウィンドウを表示しませんでした。</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="409"></location>
@@ -457,6 +492,11 @@
       <location filename="../launcher/sugarsubstitute_launcher/ui/installation_workers.py" line="154"></location>
       <source>Wrote launcher config: %1</source>
       <translation>ランチャー設定を書き込みました：%1</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="41"></location>
+      <source>You can retry, open the launcher logs, or end the unresponsive instance and start again.</source>
+      <translation>再試行するか、ランチャーログを開くか、応答しないインスタンスを終了して再起動できます。</translation>
     </message>
   </context>
   <context>

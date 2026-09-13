@@ -21,19 +21,11 @@ from __future__ import annotations
 from collections.abc import Callable, Hashable, Mapping as MappingABC, Sequence
 from typing import Mapping, cast
 
-from PySide6.QtCore import (
-    QEvent,
-    QObject,
-    QPointF,
-    Qt,
-    Signal,
-)
+from PySide6.QtCore import QEvent, QObject, QPointF, Qt, Signal
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import QSizePolicy, QWidget
 from PySide6.QtWidgets import QApplication
-from qfluentwidgets import (
-    CheckableMenu,
-)
+from qfluentwidgets import CheckableMenu
 from shiboken6 import isValid as _qt_is_valid
 
 from substitute.application.node_behavior import (
@@ -95,6 +87,7 @@ from substitute.application.model_metadata import (
 from substitute.presentation.widgets.model_metadata_context_menu import (
     ModelMetadataContextActionHandler,
 )
+from substitute.presentation.model_discovery import EmptyModelPickerAction
 from substitute.application.user_presets import UserPresetService
 from substitute.application.overrides import SamplerSchedulerLinkStateService
 from substitute.presentation.errors import ErrorReportPresenterProtocol
@@ -624,7 +617,7 @@ class EditorPanel(QWidget):
         model_choice_resolver: RichChoiceResolver | None = None,
         thumbnail_asset_repository: ThumbnailAssetRepository | None = None,
         model_metadata_action_handler: ModelMetadataContextActionHandler | None = None,
-        empty_model_picker_action: Callable[[str], None] | None = None,
+        empty_model_picker_action: EmptyModelPickerAction | None = None,
         user_preset_service: UserPresetService | None = None,
         error_presenter: ErrorReportPresenterProtocol | None = None,
         workflow_issue_state: WorkflowIssueState | None = None,
