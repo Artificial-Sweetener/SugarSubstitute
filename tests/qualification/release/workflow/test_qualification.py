@@ -287,7 +287,7 @@ def test_release_dry_run_qualifies_temporary_bytes_without_publishing() -> None:
 
 
 def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
-    """Only manual non-publishing runs may bypass unchanged repository gates."""
+    """Require publishing runs to exercise their complete target qualification."""
 
     release_text = workflow_text("release.yml")
     prepublication_text = workflow_text("release-prepublication.yml")
@@ -303,6 +303,7 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     assert "github.event_name != 'workflow_dispatch'" in prepare_call
     assert "github.event.inputs.dry_run != 'true'" in prepare_call
     assert "github.event.inputs.qualification_scope == 'full'" in prepare_call
+    assert "github.ref_name == 'canary' && 'qualification-windows'" in prepare_call
     assert "github.ref_name == 'canary' && 'canary-fast'" not in prepare_call
     assert "if: inputs.run_tests" in prepublication_text
     assert (
@@ -326,6 +327,7 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     assert "needs.stage-candidate.outputs.candidate_run_id" in prepublication_text
     assert "inputs.qualification_candidate_version ||" in prepublication_text
     assert "qualification-all" in release_text
+    assert "qualification-windows" in release_text
     assert "upgrade_selection:" in release_text
     assert (
         "upgrade_selection: ${{ inputs.dry_run == 'true' && "
@@ -341,6 +343,12 @@ def test_focused_release_qualification_cannot_skip_publishing_gates() -> None:
     )
     assert '@("all", "qualification-all", "clean-all")' in qualification_text
     assert '@("all", "qualification-all", "updates-all")' in qualification_text
+    assert '@("qualification-windows", "clean-windows")' in qualification_text
+    assert '@("qualification-windows", "updates-windows")' in qualification_text
+    assert (
+        '$env:QUALIFICATION_SCOPE -in @("all", "qualification-all", '
+        '"qualification-windows")'
+    ) in qualification_text
     assert "select-qualification:" in qualification_text
     assert "clean_matrix" in qualification_text
     assert "update_platforms" in qualification_text
