@@ -22,6 +22,7 @@ import hashlib
 from dataclasses import replace
 from pathlib import Path
 
+from PySide6.QtCore import QAbstractAnimation
 from PySide6.QtWidgets import QWidget
 
 from substitute.domain.model_suggestions import (
@@ -235,6 +236,36 @@ def test_unavailable_target_does_not_open_discovery() -> None:
     parent.deleteLater()
 
 
+def test_repeated_discovery_lifecycles_remain_animation_graph_free(
+    tmp_path: Path,
+) -> None:
+    """Repeated galleries must not rebuild native Qt animation object graphs."""
+
+    destination = tmp_path / "models" / "diffusion_models"
+    context, plan = _suggestion(destination)
+    service = _Service(plan, destination / "popular.safetensors")
+    parent = QWidget()
+    controller = EmptyModelPickerDiscoveryController(
+        parent_widget=parent,
+        service=service,  # type: ignore[arg-type]
+        catalog=_Catalog(),
+        credentials=_credential_coordinator(),
+    )
+
+    for _cycle in range(128):
+        assert controller.request_for_empty_picker(context, lambda _value: None)
+        modal = parent.findChild(ModelDiscoveryModal)
+        assert modal is not None
+        wait_for_qt_condition(lambda: not controller.running)
+        assert modal.findChildren(QAbstractAnimation) == []
+        modal.reject()
+        wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
+
+    assert len(service.contexts) == 128
+    controller.close()
+    parent.deleteLater()
+
+
 def test_public_selection_downloads_refreshes_and_selects_exact_value(
     tmp_path: Path,
 ) -> None:
@@ -260,6 +291,7 @@ def test_public_selection_downloads_refreshes_and_selects_exact_value(
         lambda: modal.selected_identity is None and bool(service.contexts)
     )
     wait_for_qt_condition(lambda: bool(plan.suggestions) and not controller.running)
+    assert modal.findChildren(QAbstractAnimation) == []
     modal.download_requested.emit(plan.suggestions[0].identity)
     wait_for_qt_condition(lambda: selected_values == ["Anima/popular.safetensors"])
 

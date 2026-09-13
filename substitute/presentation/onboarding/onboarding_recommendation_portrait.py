@@ -23,18 +23,16 @@ from PySide6.QtGui import (
     QColor,
     QEnterEvent,
     QFont,
+    QImage,
     QKeyEvent,
     QLinearGradient,
     QMouseEvent,
     QPaintEvent,
     QPainter,
     QPainterPath,
-    QPixmap,
     QResizeEvent,
 )
 from PySide6.QtWidgets import QWidget
-from qfluentwidgets import IndeterminateProgressRing  # type: ignore[import-untyped]
-
 from sugarsubstitute_shared.localization import app_text
 
 from substitute.domain.model_metadata import ThumbnailAsset
@@ -46,6 +44,7 @@ from substitute.presentation.onboarding.onboarding_recommendation_geometry impor
     PORTRAIT_HEIGHT,
     PORTRAIT_WIDTH,
 )
+from substitute.presentation.widgets.busy_ring import BusyRing
 from substitute.shared.qt_thumbnail_codec import image_from_qt_thumbnail_payload
 
 
@@ -57,7 +56,7 @@ class RecommendationPortrait(QWidget):
     def __init__(
         self,
         *,
-        pixmap: QPixmap | None,
+        image: QImage | None,
         title: str,
         thumbnail_failed: bool,
         selected: bool,
@@ -70,9 +69,9 @@ class RecommendationPortrait(QWidget):
         """Store one decoded image and expose a native selectable control."""
 
         super().__init__(parent)
-        if pixmap is not None and pixmap.isNull():
+        if image is not None and image.isNull():
             raise ValueError("Recommendation portrait cannot use a null image.")
-        self._pixmap = pixmap
+        self._image = image
         self._title = title
         self._metadata = metadata
         self._hovered = False
@@ -87,7 +86,10 @@ class RecommendationPortrait(QWidget):
         self.setAccessibleName(accessible_name)
         if metadata:
             self.setAccessibleDescription(metadata)
-        self.busy_ring = IndeterminateProgressRing(self, start=pixmap is None)
+        self.busy_ring = BusyRing(
+            self,
+            start=image is None and not thumbnail_failed,
+        )
         self.busy_ring.setObjectName("OnboardingRecommendationThumbnailBusy")
         self.busy_ring.setFixedSize(34, 34)
         self.busy_ring.setStrokeWidth(4)
@@ -110,7 +112,7 @@ class RecommendationPortrait(QWidget):
         self.checkbox.toggled.connect(self._selection_toggled)
         self._position_checkbox()
         self._position_thumbnail_status()
-        if pixmap is not None:
+        if image is not None:
             self.busy_ring.hide()
             self.loading_label.hide()
         elif thumbnail_failed:
@@ -119,7 +121,7 @@ class RecommendationPortrait(QWidget):
     def source_size(self) -> QSize:
         """Return the decoded source size used by rendered qualification."""
 
-        return self._pixmap.size() if self._pixmap is not None else QSize()
+        return self._image.size() if self._image is not None else QSize()
 
     def thumbnail_is_loading(self) -> bool:
         """Return whether the portrait is waiting for its image payload."""
@@ -134,11 +136,11 @@ class RecommendationPortrait(QWidget):
     def set_thumbnail(self, thumbnail: ThumbnailAsset) -> bool:
         """Decode and display one asynchronously loaded thumbnail payload."""
 
-        pixmap = thumbnail_pixmap(thumbnail)
-        if pixmap is None:
+        image = thumbnail_image(thumbnail)
+        if image is None:
             self.set_thumbnail_unavailable()
             return False
-        self._pixmap = pixmap
+        self._image = image
         self.busy_ring.stop()
         self.busy_ring.hide()
         self.loading_label.hide()
@@ -176,11 +178,13 @@ class RecommendationPortrait(QWidget):
         clip = QPainterPath()
         clip.addRoundedRect(bounds, 14, 14)
         painter.setClipPath(clip)
-        if self._pixmap is None:
+        if self._image is None:
             painter.fillRect(bounds, QColor(255, 255, 255, 12))
         else:
-            painter.drawPixmap(
-                bounds, self._pixmap, _cover_source_rect(self._pixmap, bounds)
+            painter.drawImage(
+                bounds,
+                self._image,
+                _cover_source_rect(self._image.size(), bounds),
             )
         gradient = QLinearGradient(
             QPointF(0, bounds.height() * 0.42), QPointF(0, bounds.height())
@@ -291,8 +295,8 @@ class RecommendationPortrait(QWidget):
         self.unavailable_label.raise_()
 
 
-def thumbnail_pixmap(thumbnail: ThumbnailAsset) -> QPixmap | None:
-    """Decode one prepared payload into a non-null GUI pixmap."""
+def thumbnail_image(thumbnail: ThumbnailAsset) -> QImage | None:
+    """Decode one prepared payload into a detached non-null image."""
 
     image = image_from_qt_thumbnail_payload(
         width=thumbnail.width,
@@ -301,17 +305,14 @@ def thumbnail_pixmap(thumbnail: ThumbnailAsset) -> QPixmap | None:
         bytes_per_line=thumbnail.bytes_per_line,
         payload=thumbnail.payload,
     )
-    if image is None or image.isNull():
-        return None
-    pixmap = QPixmap.fromImage(image)
-    return pixmap if not pixmap.isNull() else None
+    return image if image is not None and not image.isNull() else None
 
 
-def _cover_source_rect(pixmap: QPixmap, target: QRectF) -> QRectF:
+def _cover_source_rect(source_size: QSize, target: QRectF) -> QRectF:
     """Return a centered source crop that fills the portrait target."""
 
-    source_width = float(pixmap.width())
-    source_height = float(pixmap.height())
+    source_width = float(source_size.width())
+    source_height = float(source_size.height())
     target_ratio = target.width() / target.height()
     source_ratio = source_width / source_height
     if source_ratio > target_ratio:

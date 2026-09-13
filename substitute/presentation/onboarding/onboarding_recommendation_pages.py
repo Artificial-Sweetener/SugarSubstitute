@@ -20,10 +20,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QWidget
-from qfluentwidgets import (  # type: ignore[import-untyped]
-    FluentIcon as FIF,
-    IndeterminateProgressRing,
-)
+from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 from sugarsubstitute_shared.presentation.localization import (
@@ -58,6 +55,7 @@ from substitute.presentation.onboarding.onboarding_recommendation_cards import (
 from substitute.presentation.onboarding.onboarding_recommendation_loading import (
     RecommendationLoadingGallery,
 )
+from substitute.presentation.widgets.busy_ring import BusyRing
 
 _CURATED_CARD_COUNT = 8
 _GRID_COLUMNS = 5
@@ -104,7 +102,7 @@ class ModelRecommendationPage(OnboardingPageFrame):
         loading_layout = QHBoxLayout(self.loading_row)
         loading_layout.setContentsMargins(0, 18, 0, 18)
         loading_layout.setSpacing(12)
-        self.loading_ring = IndeterminateProgressRing(self.loading_row, start=False)
+        self.loading_ring = BusyRing(self.loading_row, start=False)
         self.loading_ring.setFixedSize(26, 26)
         self.loading_ring.setAccessibleName(
             render_application_text(app_text("Loading recommendations…"))

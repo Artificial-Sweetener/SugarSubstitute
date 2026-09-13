@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtGui import QIcon, QKeyEvent, QMouseEvent
+from PySide6.QtGui import QIcon, QKeyEvent, QMouseEvent, QPixmap
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon as FIF,
@@ -45,7 +45,7 @@ from substitute.presentation.localization import (
 from substitute.presentation.resources.brand_icons import civitai_badge_icon_path
 from substitute.presentation.onboarding.onboarding_recommendation_portrait import (
     RecommendationPortrait,
-    thumbnail_pixmap,
+    thumbnail_image,
 )
 from substitute.presentation.onboarding.onboarding_recommendation_geometry import (
     CARD_HEIGHT,
@@ -82,14 +82,12 @@ class RecommendationCard(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(0)
-        pixmap = (
-            thumbnail_pixmap(card.thumbnail) if card.thumbnail is not None else None
-        )
+        image = thumbnail_image(card.thumbnail) if card.thumbnail is not None else None
         self.portrait = RecommendationPortrait(
-            pixmap=pixmap,
+            image=image,
             title=recommendation.model_name,
             thumbnail_failed=card.thumbnail_failed
-            or (card.thumbnail is not None and pixmap is None),
+            or (card.thumbnail is not None and image is None),
             selected=selected,
             accessible_name=accessible_name,
             portrait_size=THUMBNAIL_SIZE,
@@ -263,15 +261,17 @@ class RecommendationPreviewMosaic(QWidget):
             label.setObjectName("OnboardingRecommendationMosaicImage")
             label.setFixedSize(29, 19)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            pixmap = (
-                thumbnail_pixmap(card.thumbnail) if card.thumbnail is not None else None
+            image = (
+                thumbnail_image(card.thumbnail) if card.thumbnail is not None else None
             )
-            if pixmap is not None:
+            if image is not None:
                 label.setPixmap(
-                    pixmap.scaled(
-                        label.size(),
-                        Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                        Qt.TransformationMode.SmoothTransformation,
+                    QPixmap.fromImage(
+                        image.scaled(
+                            label.size(),
+                            Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
                     )
                 )
             self._grid.addWidget(label, index // 2, index % 2)
