@@ -38,7 +38,7 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # no
 from tools.ci.historical_release_contract import (  # noqa: E402
     HISTORICAL_MANAGED_COMFY_OUTPUT_LOG_NAME,
 )
-from tools.ci.installer_ui_qualification import diagnostic_tail  # noqa: E402
+from tools.ci.installer_evidence_verification import diagnostic_tail  # noqa: E402
 
 _UI_PHASE_TIMEOUT_SECONDS = 60.0
 _PROVISIONING_TIMEOUT_SECONDS = 1_800.0

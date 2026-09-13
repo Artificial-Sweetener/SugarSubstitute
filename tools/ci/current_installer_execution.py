@@ -24,7 +24,7 @@ import subprocess
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.installer_qualification import InstallerQualificationPlan
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
-from tools.ci.installer_ui_qualification import diagnostic_tail
+from tools.ci.installer_evidence_verification import diagnostic_tail
 
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
