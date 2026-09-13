@@ -98,7 +98,13 @@ class InstallerView(QWidget):
         self.install_path_edit = LineEdit(self)
         self.install_path_edit.setObjectName("LauncherInstallPathEdit")
         self.install_path_edit.setText(initial_install_path)
-        self.progress_log = TerminalOutputView(self, min_height=220, max_height=280)
+        self.progress_log = TerminalOutputView(
+            self,
+            min_height=220,
+            max_height=280,
+            use_qfluent_chrome=False,
+            observe_qfluent_theme=False,
+        )
         self.primary_button = PrimaryPushButton(self)
         self.back_button = PushButton(self)
         self.browse_button = PushButton(self)

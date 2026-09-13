@@ -23,7 +23,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QSignalSpy
-from PySide6.QtWidgets import QFrame, QWidget
+from PySide6.QtWidgets import QFrame, QPlainTextEdit, QWidget
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import (
@@ -130,6 +130,7 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
     assert window.view.browse_button.isEnabled() is True
     assert window.view.primary_button.text() == "Install"
     assert isinstance(window.view.progress_log, TerminalOutputView)
+    assert type(window.view.progress_log.log_view) is QPlainTextEdit
     assert window.view.progress_log.log_view.minimumHeight() == 220
     assert window.view.progress_log.log_view.maximumHeight() == 280
     guidance = window.view.install_location_guidance_label.text()
