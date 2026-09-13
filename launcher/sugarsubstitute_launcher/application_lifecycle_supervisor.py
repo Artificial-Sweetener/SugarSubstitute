@@ -28,6 +28,7 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_readiness import ApplicationReadinessSurface
 
 
 class ApplicationLifecycleSupervisor:
@@ -36,7 +37,12 @@ class ApplicationLifecycleSupervisor:
     def __init__(self) -> None:
         """Create the readiness and crash owners for one launch sequence."""
 
-        self._readiness = ApplicationReadinessSupervisor()
+        self._readiness = ApplicationReadinessSupervisor(
+            accepted_surfaces=(
+                ApplicationReadinessSurface.MAIN_SHELL,
+                ApplicationReadinessSurface.ONBOARDING,
+            )
+        )
         self._crash = ApplicationCrashSupervisor()
 
     def supervise(

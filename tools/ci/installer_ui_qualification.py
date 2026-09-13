@@ -51,18 +51,16 @@ from tools.ci.installer_evidence_verification import (
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.installer_process_diagnostics import process_tree_diagnostics
+from tools.ci.installer_terminal_event_reader import (
+    read_terminal_qualification_failure,
+    read_terminal_startup_failure,
+)
 from tools.ci.installed_version_evidence import wait_for_installed_version
 from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
 _LAUNCH_PROGRESS_TIMEOUT_SECONDS = 120.0
 _MANAGED_COMFY_OUTPUT_LOG_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
-_TERMINAL_STARTUP_FAILURE_EVENTS = frozenset(
-    {
-        "startup.gui_task.failure",
-        "startup.managed.failure",
-    }
-)
 _PROCESS_TERMINATION_TIMEOUT_SECONDS = 10.0
 _FROZEN_LAUNCH_OVERRIDE_VARIABLES = (
     "PYTHONHOME",
@@ -239,6 +237,7 @@ def verify_main_shell_evidence(
             timeout_seconds=verification_timeout,
             candidate_launch=candidate_launch,
             trace_path=evidence.trace_path,
+            qualification_event_path=evidence.event_log_path,
             diagnostic_paths=_evidence_diagnostic_paths(
                 install_root=install_root,
                 evidence=evidence,
@@ -356,6 +355,7 @@ def _wait_for_readiness_receipt(
     timeout_seconds: float,
     candidate_launch: InstalledCandidateLaunch | None = None,
     trace_path: Path | None = None,
+    qualification_event_path: Path | None = None,
     diagnostic_paths: tuple[Path, ...] = (),
 ) -> ApplicationReadinessReceipt:
     """Wait for a token-bound main-shell receipt or surface diagnostics."""
@@ -367,6 +367,7 @@ def _wait_for_readiness_receipt(
         started_at + _LAUNCH_PROGRESS_TIMEOUT_SECONDS,
     )
     trace_offset = 0
+    qualification_event_offset = 0
     while (now := time.monotonic()) < deadline:
         if candidate_launch is not None:
             return_code = candidate_launch.process.poll()
@@ -393,7 +394,7 @@ def _wait_for_readiness_receipt(
                     f"process tree:\n{process_diagnostics}\n\n{diagnostics}"
                 )
         if trace_path is not None:
-            trace_offset, terminal_event = _read_terminal_startup_failure(
+            trace_offset, terminal_event = read_terminal_startup_failure(
                 trace_path,
                 offset=trace_offset,
             )
@@ -403,6 +404,22 @@ def _wait_for_readiness_receipt(
                 )
                 raise InstallerLifecycleError(
                     "Application reported a terminal startup failure before the "
+                    f"main-shell receipt: {terminal_event}.\n{diagnostics}"
+                )
+        if qualification_event_path is not None:
+            qualification_event_offset, terminal_event = (
+                read_terminal_qualification_failure(
+                    qualification_event_path,
+                    offset=qualification_event_offset,
+                    token=token,
+                )
+            )
+            if terminal_event is not None:
+                diagnostics = "\n\n".join(
+                    f"{path}:\n{diagnostic_tail(path)}" for path in diagnostic_paths
+                )
+                raise InstallerLifecycleError(
+                    "Installer automation reported a terminal failure before the "
                     f"main-shell receipt: {terminal_event}.\n{diagnostics}"
                 )
         if readiness_path.is_file():
@@ -434,31 +451,6 @@ def _wait_for_readiness_receipt(
         "Application did not reveal a post-splash window before timeout.\n"
         + diagnostics
     )
-
-
-def _read_terminal_startup_failure(
-    trace_path: Path,
-    *,
-    offset: int,
-) -> tuple[int, str | None]:
-    """Read new trace records and return the first terminal failure event."""
-
-    try:
-        with trace_path.open(encoding="utf-8", errors="replace") as trace:
-            trace.seek(offset)
-            while True:
-                line = trace.readline()
-                if not line:
-                    return trace.tell(), None
-                try:
-                    payload = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                event = payload.get("event") if isinstance(payload, dict) else None
-                if event in _TERMINAL_STARTUP_FAILURE_EVENTS:
-                    return trace.tell(), str(event)
-    except OSError:
-        return offset, None
 
 
 def _evidence_diagnostic_paths(
