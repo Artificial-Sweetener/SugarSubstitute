@@ -90,6 +90,9 @@ from substitute.app.bootstrap.prompt_editor_execution import (
 from substitute.app.bootstrap.settings_execution import (
     create_settings_task_runner_factory,
 )
+from substitute.app.bootstrap.shell_resource_qt_binding import (
+    bind_shell_resource_lifecycle,
+)
 from substitute.app.bootstrap.startup_timing import StartupTimer
 from substitute.app.bootstrap.startup_trace import (
     StartupVisibilityEventFilter,
@@ -2754,11 +2757,11 @@ def build_main_window(
         "composition.build_main_window.enter",
         runtime_services_supplied=runtime_services is not None,
     )
+    application = QApplication.instance()
+    if not isinstance(application, QApplication):
+        raise RuntimeError("QApplication is required before shell composition.")
     if runtime_services is None:
         appearance_runtime = build_appearance_runtime(context)
-        application = QApplication.instance()
-        if not isinstance(application, QApplication):
-            raise RuntimeError("QApplication is required before shell composition.")
         localization_runtime = build_application_localization_runtime(
             application,
             context,
@@ -2792,7 +2795,11 @@ def build_main_window(
             )
             set_localized_window_title(frame, "Sugar Substitute")
             frame.setWindowIcon(application_icon())
-            frame.destroyed.connect(dependencies.shell_resource_lifecycle.shutdown)
+            frame._shell_resource_qt_binding = bind_shell_resource_lifecycle(
+                application=application,
+                shell=frame,
+                lifecycle=dependencies.shell_resource_lifecycle,
+            )
 
     _apply_main_window_geometry(frame)
 
@@ -2823,6 +2830,14 @@ def build_main_window(
             main_window,
             startup_diagnostics_ignore_repository=startup_diagnostics_ignore_repository,
         )
+    from substitute.presentation.shell.shell_info_bar_lifecycle import (
+        ShellInfoBarLifecycle,
+    )
+
+    shell_info_bars = ShellInfoBarLifecycle(frame)
+    dependencies.shell_resource_lifecycle.register(
+        "fluent_info_bars", shell_info_bars.shutdown
+    )
     _install_startup_visibility_filters(frame, main_window)
     _wire_shell_close_button(frame)
     trace_mark("composition.build_main_window.end", **_widget_geometry_fields(frame))

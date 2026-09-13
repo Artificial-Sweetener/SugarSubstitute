@@ -39,6 +39,9 @@ from substitute.domain.onboarding import (
     RuntimeConfiguration,
 )
 from tests.support.qt.lifecycle import destroy_widget_roots
+from substitute.presentation.shell.shell_resource_lifecycle import (
+    ShellResourceLifecycle,
+)
 
 
 def _ensure_runtime_qapplication() -> None:
@@ -107,6 +110,7 @@ def test_show_main_window_adds_main_window_to_shell_body(
     added_body_widgets: list[QWidget] = []
     assigned_window_icons: list[object] = []
     attached_app_orbs: list[object] = []
+    shell_resources = ShellResourceLifecycle()
 
     class _FakeSignal:
         def connect(self, _callback: object) -> None:
@@ -216,7 +220,7 @@ def test_show_main_window_adds_main_window_to_shell_body(
         composition,
         "_build_main_window_dependencies",
         lambda _runtime_services: SimpleNamespace(
-            shell_resource_lifecycle=SimpleNamespace(shutdown=lambda *_args: ())
+            shell_resource_lifecycle=shell_resources
         ),
     )
     monkeypatch.setattr(composition, "CustomWindow", _FakeFrame)
@@ -249,6 +253,7 @@ def test_show_main_window_adds_main_window_to_shell_body(
     assert attached_app_orbs == [frame.appOrbMenuButton]
 
     _destroy_qt_widgets(frame)
+    assert shell_resources.is_shutdown is True
 
 
 def test_show_main_window_wires_titlebar_close_button_to_window_close(
@@ -261,6 +266,7 @@ def test_show_main_window_wires_titlebar_close_button_to_window_close(
     context = _build_ready_context(tmp_path)
     connected_callbacks: list[object] = []
     close_calls: list[object] = []
+    shell_resources = ShellResourceLifecycle()
 
     class _FakeSignal:
         def connect(self, callback: object) -> None:
@@ -337,7 +343,7 @@ def test_show_main_window_wires_titlebar_close_button_to_window_close(
         composition,
         "_build_main_window_dependencies",
         lambda _runtime_services: SimpleNamespace(
-            shell_resource_lifecycle=SimpleNamespace(shutdown=lambda *_args: ())
+            shell_resource_lifecycle=shell_resources
         ),
     )
     monkeypatch.setattr(composition, "CustomWindow", _FakeFrame)
