@@ -1374,3 +1374,16 @@ fingerprint = "sha256:76efdaf05cf1a91ae00e321b75d6f01fe33efa1ead9cccd3d9ea04cd37
 rationale = "This integration module exercises the production model-update controller with QWidget ownership, real QThread discovery and transfer phases, the Fluent review modal, provider compatibility lookup, atomic acquisition, persistence, and process-lifetime duplicate suppression. Its reviewed transfer contract crashed a Linux xdist worker after thousands of unrelated native Qt tests, while the retained process marker identified the exact active test and the complete module passed in ten independent fresh processes. The shipped application owns this Qt and thread lifecycle in a fresh process. Fresh-process isolation preserves every behavioral assertion, bounds native failure at the module-process owner, and remains safely concurrent because all files, services, provider responses, and credentials are test-local."
 issue = "chore:SS-TEST-WAIVER-C0285"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0286"
+owner = "Threaded shutdown coordinator Qt contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/app/bootstrap/shutdown_coordinator/test_coordinator.py|isolated-module"]
+paths = ["tests/app/bootstrap/shutdown_coordinator/test_coordinator.py"]
+fingerprint = "sha256:a0cc395edcd41a9cce567a65b7480042a06d4d358c4e6c15614ce8f68ef8aabc"
+rationale = "This integration module repeatedly exercises production shutdown coordination through a real execution lane, worker-thread completion, Qt queued delivery, nested event loops, and QObject-owned timeout timers. Its duplicate-close contract triggered a PySide segmentation fault when a Linux xdist worker entered garbage collection during a later nested event loop after earlier coordinator lifecycles, while the retained process marker and fatal stack identified the exact boundary and the complete module passed in five independent fresh Windows processes. The shipped application owns one coordinator for one process lifetime. Fresh-process isolation preserves every shutdown assertion, bounds native failure at the module-process owner, and remains safely concurrent because each module process owns its application, execution runtime, events, and fake cleanup resources."
+issue = "chore:SS-TEST-WAIVER-C0286"
+review_by = 2026-12-15

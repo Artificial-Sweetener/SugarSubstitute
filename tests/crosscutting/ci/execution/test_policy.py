@@ -56,6 +56,9 @@ MODEL_UPDATE_NOTIFICATION_CONTRACT_MODULE = (
 APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE = (
     "tests/shared/application_instance_broker/test_broker.py"
 )
+SHUTDOWN_COORDINATOR_CONTRACT_MODULE = (
+    "tests/app/bootstrap/shutdown_coordinator/test_coordinator.py"
+)
 PROJECTION_LAYOUT_CONTRACT_MODULES = frozenset(
     {
         "tests/presentation/editor/prompt_editor/layout/contracts/test_canonical_wrapping.py",
@@ -227,6 +230,14 @@ def test_application_instance_broker_contract_uses_fresh_process_lane() -> None:
     assert (PROJECT_ROOT / APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE).is_file()
     assert APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE in ISOLATED_TEST_MODULES
     assert APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE not in SERIAL_TEST_MODULES
+
+
+def test_shutdown_coordinator_contract_uses_fresh_process_lane() -> None:
+    """Keep threaded Qt shutdown lifecycle out of reused native workers."""
+
+    assert (PROJECT_ROOT / SHUTDOWN_COORDINATOR_CONTRACT_MODULE).is_file()
+    assert SHUTDOWN_COORDINATOR_CONTRACT_MODULE in ISOLATED_TEST_MODULES
+    assert SHUTDOWN_COORDINATOR_CONTRACT_MODULE not in SERIAL_TEST_MODULES
 
 
 def test_output_navigation_contract_remains_in_ordinary_parallel_ci() -> None:
