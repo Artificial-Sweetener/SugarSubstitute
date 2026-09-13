@@ -31,6 +31,7 @@ from sugarsubstitute_shared.presentation.localization import (
     app_text,
     render_application_text,
 )
+from shiboken6 import isValid
 
 from substitute.domain.comfy_connection import (
     ComfyConnectionPhase,
@@ -225,7 +226,7 @@ class ComfyConnectionPresenter:
 
         bar = self._active_bar
         self._active_bar = None
-        if bar is not None:
+        if bar is not None and isValid(bar):
             bar.close()
 
 
