@@ -46,6 +46,11 @@ PLATFORM_TEST_MODULES: Final[dict[str, frozenset[CiPlatform]]] = {
 
 ISOLATED_TEST_MODULES = frozenset(
     {
+        # This real broker contract enters the macOS Core Foundation election
+        # and loopback transport from one process. It can crash after unrelated
+        # native work in a reused xdist worker; the shipped supervisor and this
+        # bounded lane both own a fresh process for that native lifecycle.
+        "tests/shared/application_instance_broker/test_broker.py",
         # This real model-discovery modal can deadlock in qfluentwidgets style
         # application after unrelated native Qt work in a reused Windows xdist
         # worker. A fresh bounded process preserves the full modal contract and
