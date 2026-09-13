@@ -1335,3 +1335,29 @@ fingerprint = "sha256:64464a74b756d323ea3e8996004f415f7fd5e57163a083c2b409ee1ba3
 rationale = "This native Qt module drives runtime provisioning failure through the production launcher worker and shared Fluent report modal. The test exceeded the five-minute process guard after unrelated Qt work in a reused Windows xdist worker, while the complete module passed immediately in a fresh process and owns no cross-process resource. Process isolation preserves the real error presentation and remains parallel-safe."
 issue = "chore:SS-TEST-WAIVER-C0282"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0283"
+owner = "Empty-model discovery modal Qt contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/shell/model_discovery/test_empty_picker_controller.py|isolated-module"]
+paths = ["tests/presentation/shell/model_discovery/test_empty_picker_controller.py"]
+fingerprint = "sha256:ba6a85128ad61602616496c83616b1228aba74073907d747f24dfa6a42dee88d"
+rationale = "This native Qt module constructs the production model-discovery modal and exercises public acquisition, credential-gated acquisition, thumbnail failure, catalog refresh failure, and picker selection. Its refresh-failure contract deadlocked in QFluent stylesheet application after more than 6,000 prior tests in a reused Windows xdist worker, exhausting the three-hour release job despite the native timeout guard retaining the exact active test and stack. The complete module passed in ten independent fresh processes; its widgets, files, services, and credentials are test-local with no shared port, environment, subprocess, or cross-process resource. Fresh-process isolation preserves the full modal contract, bounds failure at the module-process owner, and remains safely concurrent."
+issue = "chore:SS-TEST-WAIVER-C0283"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0284"
+owner = "Native application-instance broker contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/shared/application_instance_broker/test_broker.py|isolated-module"]
+paths = ["tests/shared/application_instance_broker/test_broker.py"]
+fingerprint = "sha256:cfa9f7621d62d7da8920dcd91e9fb4500a307c6054143ecf25fec8fc013bc3ac"
+rationale = "This integration module exercises the production fileless application-instance broker, child client, routing acknowledgements, startup retention, deadlines, supervisor loss, and native endpoint recovery. Its first secondary-invocation contract crashed a macOS xdist worker while entering the real Core Foundation election and loopback transport after unrelated native work; the retained process marker identified the exact active test. The shipped supervisor owns this native lifecycle in a fresh process, and the module owns only tmp_path state plus per-process native IPC resources. Fresh-process isolation therefore matches production topology, preserves every real transport assertion, bounds native failure at the module-process owner, and permits safe concurrency without global serialization."
+issue = "chore:SS-TEST-WAIVER-C0284"
+review_by = 2026-12-15
