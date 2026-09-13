@@ -25,6 +25,9 @@ from typing import ContextManager, Protocol
 from substitute.app.bootstrap.application_readiness import (
     schedule_main_shell_readiness_receipt,
 )
+from substitute.app.bootstrap.main_shell_qualification import (
+    schedule_main_shell_qualification,
+)
 from substitute.app.bootstrap.startup_trace import trace_mark, trace_span
 from substitute.app.bootstrap.startup_warmup_controller import (
     StartupWarmupState,
@@ -113,6 +116,7 @@ def reveal_ready_shell_main_window(
             ),
         )
     schedule_readiness_receipt(revealed_shell_frame)
+    schedule_main_shell_qualification(revealed_shell_frame)
     update_backend_state("ready" if comfy_http_ready else "starting")
     log_info(
         _LOGGER,

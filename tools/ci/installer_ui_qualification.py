@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import ctypes
 from dataclasses import dataclass
 import json
 import os
@@ -26,8 +25,6 @@ from pathlib import Path
 import subprocess
 import sys
 import time
-
-import psutil  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.install_layout import (
     InstallLayout,
@@ -55,13 +52,19 @@ from tools.ci.installer_terminal_event_reader import (
     read_terminal_qualification_failure,
     read_terminal_startup_failure,
 )
+from tools.ci.installed_application_shutdown import (
+    assert_no_new_crash_incidents,
+    crash_incident_ids,
+    request_clean_qualification_shutdown,
+    wait_for_clean_qualification_shutdown,
+)
 from tools.ci.installed_version_evidence import wait_for_installed_version
 from tools.ci.managed_comfy_qualification import assert_real_managed_comfy
+from tools.ci.owned_process_runner import terminate_owned_process_tree
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
 _LAUNCH_PROGRESS_TIMEOUT_SECONDS = 120.0
 _MANAGED_COMFY_OUTPUT_LOG_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
-_PROCESS_TERMINATION_TIMEOUT_SECONDS = 10.0
 _FROZEN_LAUNCH_OVERRIDE_VARIABLES = (
     "PYTHONHOME",
     "PYTHONPATH",
@@ -87,6 +90,7 @@ class InstallerQualificationEvidence:
     event_log_path: Path
     token: str
     plan: InstallerQualificationPlan
+    crash_incident_ids: frozenset[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,6 +144,7 @@ def prepare_qualification_evidence(
         ),
         force_cpu_mode=target_mode == "managed_local" and sys.platform != "darwin",
     )
+    plan.main_shell_shutdown_request_path.unlink(missing_ok=True)
     environment = dict(os.environ)
     environment[READINESS_PATH_ENV] = str(readiness_path)
     environment[READINESS_TOKEN_ENV] = token
@@ -155,6 +160,7 @@ def prepare_qualification_evidence(
         event_log_path=event_log_path,
         token=token,
         plan=plan,
+        crash_incident_ids=crash_incident_ids(layout.root),
     )
 
 
@@ -230,6 +236,7 @@ def verify_main_shell_evidence(
         evidence.plan.timeout_seconds if timeout_seconds is None else timeout_seconds
     )
     verification_deadline = time.monotonic() + verification_timeout
+    clean_shutdown_completed = False
     try:
         receipt = _wait_for_readiness_receipt(
             readiness_path=evidence.readiness_path,
@@ -268,84 +275,48 @@ def verify_main_shell_evidence(
                 plan=evidence.plan,
                 require_governed_setup_record=require_governed_setup_record,
             )
+        request_clean_qualification_shutdown(evidence.plan)
+        wait_for_clean_qualification_shutdown(
+            install_root=install_root,
+            receipt=receipt,
+            candidate_process=(
+                candidate_launch.process if candidate_launch is not None else None
+            ),
+            timeout_seconds=max(0.0, verification_deadline - time.monotonic()),
+        )
+        assert_qualification_event_sequence(
+            evidence.event_log_path,
+            token=evidence.token,
+            required_events=(
+                *required_qualification_events,
+                "main_shell.shutdown.requested",
+            ),
+        )
+        assert_no_new_crash_incidents(
+            install_root=install_root,
+            baseline=evidence.crash_incident_ids,
+        )
+        clean_shutdown_completed = True
     finally:
-        if receipt is not None:
+        if receipt is not None and not clean_shutdown_completed:
             terminate_verified_process(receipt.pid)
-        if candidate_launch is not None and candidate_launch.process.poll() is None:
+        if (
+            candidate_launch is not None
+            and not clean_shutdown_completed
+            and candidate_launch.process.poll() is None
+        ):
             terminate_verified_process(candidate_launch.process.pid)
 
 
 def terminate_verified_process(pid: int) -> None:
     """Terminate only the token-verified app process and its child processes."""
 
-    if os.name == "nt":
-        result = subprocess.run(
-            ["taskkill.exe", "/PID", str(pid), "/T", "/F"],
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode not in {0, 128} and _windows_process_exists(pid):
-            raise InstallerLifecycleError(
-                f"Could not terminate verified app process {pid}: "
-                + result.stderr.decode("utf-8", errors="replace")
-            )
-        return
-    _terminate_posix_process_tree(pid)
-
-
-def _terminate_posix_process_tree(pid: int) -> None:
-    """Stop and reap one verified POSIX process tree before the next launch."""
-
     try:
-        root = psutil.Process(pid)
-    except psutil.NoSuchProcess:
-        return
-    except psutil.AccessDenied as error:
+        terminate_owned_process_tree(pid)
+    except RuntimeError as error:
         raise InstallerLifecycleError(
-            f"Could not inspect verified app process {pid} for cleanup."
+            f"Could not terminate verified app process {pid}: {error}"
         ) from error
-
-    try:
-        processes = tuple(root.children(recursive=True)) + (root,)
-    except psutil.NoSuchProcess:
-        return
-    except psutil.AccessDenied as error:
-        raise InstallerLifecycleError(
-            f"Could not inspect children of verified app process {pid}."
-        ) from error
-
-    inaccessible: list[int] = []
-    for process in processes:
-        try:
-            process.terminate()
-        except psutil.NoSuchProcess:
-            continue
-        except psutil.AccessDenied:
-            inaccessible.append(process.pid)
-    _, alive = psutil.wait_procs(
-        processes,
-        timeout=_PROCESS_TERMINATION_TIMEOUT_SECONDS / 2,
-    )
-    for process in alive:
-        try:
-            process.kill()
-        except psutil.NoSuchProcess:
-            continue
-        except psutil.AccessDenied:
-            inaccessible.append(process.pid)
-    _, remaining = psutil.wait_procs(
-        alive,
-        timeout=_PROCESS_TERMINATION_TIMEOUT_SECONDS / 2,
-    )
-    if inaccessible or remaining:
-        unresolved = sorted(
-            set(inaccessible).union(process.pid for process in remaining)
-        )
-        raise InstallerLifecycleError(
-            "Could not terminate verified app process tree: "
-            + ", ".join(str(process_id) for process_id in unresolved)
-            + "."
-        )
 
 
 def _wait_for_readiness_receipt(
@@ -503,21 +474,6 @@ def _path_signature(path: Path) -> tuple[bool, int]:
         return True, path.stat().st_size
     except OSError:
         return False, 0
-
-
-def _windows_process_exists(pid: int) -> bool:
-    """Return whether a Windows process still owns the supplied identifier."""
-
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel32.OpenProcess.argtypes = [ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
-    kernel32.OpenProcess.restype = ctypes.c_void_p
-    kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
-    kernel32.CloseHandle.restype = ctypes.c_int
-    handle = kernel32.OpenProcess(0x1000, 0, pid)
-    if handle:
-        kernel32.CloseHandle(handle)
-        return True
-    return ctypes.get_last_error() == 5
 
 
 __all__ = [

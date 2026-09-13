@@ -29,6 +29,7 @@ from qfluentwidgets.common.font import (  # type: ignore[import-untyped]
     fontFamilies,
     getFont,
 )
+from shiboken6 import delete, isValid
 
 from sugarsubstitute_shared.presentation.localization import (
     QFluentFontFamilyAdapter,
@@ -59,7 +60,8 @@ def caption_label(qt_application_owner: QApplication) -> Iterator[CaptionLabel]:
     try:
         yield label
     finally:
-        destroy_qt_object(label)
+        if isValid(label):
+            destroy_qt_object(label)
 
 
 @pytest.fixture
@@ -108,6 +110,33 @@ def test_adapter_switches_locale_profile_without_accumulating_old_fallbacks(
     active_families = tuple(fontFamilies())
     assert active_families[:2] == ("Segoe UI", "Microsoft YaHei UI")
     assert "Yu Gothic UI" not in active_families
+
+
+def test_adapter_ignores_widgets_destroyed_during_qfluent_style_refresh(
+    qt_application_owner: QApplication,
+    font_adapter: QFluentFontFamilyAdapter,
+    caption_label: CaptionLabel,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Complete a font refresh when QFluent destroys a captured widget."""
+
+    from qfluentwidgets.common import style_sheet  # type: ignore[import-untyped]
+
+    original_update = style_sheet.updateStyleSheet
+
+    def destroy_label_then_update(lazy: bool = False) -> None:
+        """Destroy the captured label before the adapter revisits its snapshot."""
+
+        delete(caption_label)
+        original_update(lazy)
+
+    monkeypatch.setattr(style_sheet, "updateStyleSheet", destroy_label_then_update)
+    localized_font = QFont(qt_application_owner.font())
+    localized_font.setFamilies(["SugarSubstitute Locale Test", *fontFamilies()])
+
+    font_adapter.apply_application_font(localized_font)
+
+    assert not isValid(caption_label)
 
 
 def test_adapter_preserves_cube_stack_transparency_styles(
