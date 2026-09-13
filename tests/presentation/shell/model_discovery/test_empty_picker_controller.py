@@ -22,6 +22,7 @@ import hashlib
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
 from PySide6.QtCore import QAbstractAnimation
 from PySide6.QtWidgets import QWidget
 
@@ -236,10 +237,36 @@ def test_unavailable_target_does_not_open_discovery() -> None:
     parent.deleteLater()
 
 
+def test_discovery_lifecycle_remains_animation_graph_free(tmp_path: Path) -> None:
+    """Keep native Qt animation objects out of every discovery modal."""
+
+    destination = tmp_path / "models" / "diffusion_models"
+    context, plan = _suggestion(destination)
+    service = _Service(plan, destination / "popular.safetensors")
+    parent = QWidget()
+    controller = EmptyModelPickerDiscoveryController(
+        parent_widget=parent,
+        service=service,  # type: ignore[arg-type]
+        catalog=_Catalog(),
+        credentials=_credential_coordinator(),
+    )
+
+    assert controller.request_for_empty_picker(context, lambda _value: None)
+    modal = parent.findChild(ModelDiscoveryModal)
+    assert modal is not None
+    wait_for_qt_condition(lambda: not controller.running)
+    assert modal.findChildren(QAbstractAnimation) == []
+    modal.reject()
+    wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
+    controller.close()
+    parent.deleteLater()
+
+
+@pytest.mark.platforms("windows")
 def test_repeated_discovery_lifecycles_remain_animation_graph_free(
     tmp_path: Path,
 ) -> None:
-    """Repeated galleries must not rebuild native Qt animation object graphs."""
+    """Abuse the Windows gallery without rebuilding native animation graphs."""
 
     destination = tmp_path / "models" / "diffusion_models"
     context, plan = _suggestion(destination)
