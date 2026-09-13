@@ -29,10 +29,12 @@ from launcher.sugarsubstitute_launcher.install_layout import (
     default_install_root,
 )
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
-from tools.ci.installer_ui_qualification import (
-    InstalledCandidateLaunch,
+from tools.ci.installer_evidence_verification import (
     assert_startup_trace_sequence,
     diagnostic_tail,
+)
+from tools.ci.installer_ui_qualification import (
+    InstalledCandidateLaunch,
     installed_launch_has_progress,
     process_tree_diagnostics,
 )
