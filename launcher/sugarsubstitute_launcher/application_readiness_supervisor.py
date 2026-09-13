@@ -35,6 +35,7 @@ from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessSurface,
     READINESS_PATH_ENV,
     READINESS_TOKEN_ENV,
+    publish_application_readiness_receipt,
 )
 
 
@@ -60,11 +61,12 @@ class ApplicationReadinessError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class _ReadinessContract:
-    """Bind one receipt path and token to its lifecycle owner."""
+    """Separate one child proof from an optional caller-owned outer proof."""
 
-    receipt_path: Path
-    token: str
-    externally_owned: bool
+    child_receipt_path: Path
+    child_token: str
+    outer_receipt_path: Path | None
+    outer_token: str | None
 
 
 class CandidateProcess(Protocol):
@@ -128,10 +130,9 @@ class ApplicationReadinessSupervisor:
         """Return the running process after an accepted surface is responsive."""
 
         contract = self._readiness_contract(layout=layout, environment=environment)
-        receipt_path = contract.receipt_path
-        token = contract.token
-        if not contract.externally_owned:
-            receipt_path.unlink(missing_ok=True)
+        receipt_path = contract.child_receipt_path
+        token = contract.child_token
+        receipt_path.unlink(missing_ok=True)
         child_environment = dict(environment)
         child_environment[READINESS_PATH_ENV] = str(receipt_path)
         child_environment[READINESS_TOKEN_ENV] = token
@@ -156,8 +157,7 @@ class ApplicationReadinessSupervisor:
                         expected_pid=process.pid,
                     )
                     self._require_accepted_surface(receipt)
-                    if not contract.externally_owned:
-                        receipt_path.unlink()
+                    self._publish_outer_receipt(contract=contract, receipt=receipt)
                     return process
                 self._wait(_POLL_INTERVAL_SECONDS)
             raise ApplicationReadinessError(
@@ -167,6 +167,8 @@ class ApplicationReadinessSupervisor:
         except BaseException:
             stop_candidate_process(process)
             raise
+        finally:
+            receipt_path.unlink(missing_ok=True)
 
     def _readiness_contract(
         self,
@@ -184,14 +186,40 @@ class ApplicationReadinessSupervisor:
             )
         if external_path and external_token:
             return _ReadinessContract(
-                receipt_path=Path(external_path).expanduser().resolve(),
-                token=external_token,
-                externally_owned=True,
+                child_receipt_path=(
+                    layout.launcher_dir
+                    / "readiness"
+                    / f"candidate-{secrets.token_hex(16)}.json"
+                ),
+                child_token=self._token_factory(),
+                outer_receipt_path=Path(external_path).expanduser().resolve(),
+                outer_token=external_token,
             )
         return _ReadinessContract(
-            receipt_path=layout.launcher_dir / "readiness" / "candidate.json",
-            token=self._token_factory(),
-            externally_owned=False,
+            child_receipt_path=layout.launcher_dir / "readiness" / "candidate.json",
+            child_token=self._token_factory(),
+            outer_receipt_path=None,
+            outer_token=None,
+        )
+
+    @staticmethod
+    def _publish_outer_receipt(
+        *,
+        contract: _ReadinessContract,
+        receipt: ApplicationReadinessReceipt,
+    ) -> None:
+        """Project a validated child proof into its caller-owned contract."""
+
+        if contract.outer_receipt_path is None or contract.outer_token is None:
+            return
+        publish_application_readiness_receipt(
+            receipt_path=contract.outer_receipt_path,
+            receipt=ApplicationReadinessReceipt(
+                pid=receipt.pid,
+                token=contract.outer_token,
+                surface=receipt.surface,
+                parent_pid=receipt.parent_pid,
+            ),
         )
 
     @staticmethod
@@ -215,12 +243,17 @@ class ApplicationReadinessSupervisor:
             raise ApplicationReadinessError(
                 "Application readiness receipt is invalid."
             ) from error
-        if receipt.token != expected_token or expected_pid not in {
+        token_matched = receipt.token == expected_token
+        process_matched = expected_pid in {
             receipt.pid,
             receipt.parent_pid,
-        }:
+        }
+        if not token_matched or not process_matched:
             raise ApplicationReadinessError(
-                "Application readiness receipt did not match the launched process."
+                "Application readiness receipt did not match the launched process. "
+                f"Expected PID: {expected_pid}. Receipt PID: {receipt.pid}. "
+                f"Receipt parent PID: {receipt.parent_pid}. "
+                f"Token matched: {token_matched}."
             )
         return receipt
 
