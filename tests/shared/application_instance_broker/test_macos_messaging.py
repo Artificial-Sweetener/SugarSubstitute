@@ -14,53 +14,27 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify macOS native message-port invocation routing without AppKit."""
-
-from typing import cast
+"""Verify macOS native ownership election without AppKit."""
 
 import pytest
 
 from sugarsubstitute_shared import application_instance_macos
 from sugarsubstitute_shared.application_instance_macos import (
-    MacOSMessagePortClaim,
     MacOSMessagePortElection,
 )
 from sugarsubstitute_shared.application_instance_macos_core_foundation import (
-    CoreFoundationMessagePortApi,
     LocalMessagePortCreation,
 )
-from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
 
 
-class _DataApi:
-    """Provide deterministic Core Foundation data ownership for routing tests."""
+class _OwnershipApi:
+    """Model deterministic Core Foundation ownership and release behavior."""
 
-    def __init__(self, payload: bytes) -> None:
-        """Retain one incoming payload and allocate response identifiers."""
+    def __init__(self, *, creation: LocalMessagePortCreation) -> None:
+        """Retain one configured native election result."""
 
-        self.values = {1: payload}
-        self.next_identifier = 2
-
-    def read_data(self, identifier: int) -> bytes:
-        """Return bytes owned by one fake Core Foundation data object."""
-
-        return self.values[identifier]
-
-    def create_data(self, payload: bytes) -> int:
-        """Retain response bytes and return their fake object identifier."""
-
-        identifier = self.next_identifier
-        self.next_identifier += 1
-        self.values[identifier] = payload
-        return identifier
-
-
-class _DuplicateNameApi:
-    """Model Core Foundation returning an existing same-process local port."""
-
-    def __init__(self) -> None:
-        """Record released Core Foundation objects."""
-
+        self.creation = creation
+        self.invalidated: list[int] = []
         self.released: list[int] = []
 
     def create_name(self, _value: str) -> int:
@@ -74,9 +48,14 @@ class _DuplicateNameApi:
         _callback: object,
         _context: object,
     ) -> LocalMessagePortCreation:
-        """Return the already-owned port without claiming its name."""
+        """Return the configured native election result."""
 
-        return LocalMessagePortCreation(port=20, created=False)
+        return self.creation
+
+    def invalidate_port(self, value: int) -> None:
+        """Record ownership invalidation."""
+
+        self.invalidated.append(value)
 
     def release(self, value: int) -> None:
         """Record release of each retained fake object."""
@@ -84,45 +63,27 @@ class _DuplicateNameApi:
         self.released.append(value)
 
 
-def test_native_message_queues_until_broker_handler_is_bound() -> None:
-    """Acknowledge and deliver a launch that arrives during broker startup."""
+def test_primary_ownership_is_invalidated_and_released_exactly_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Release an elected native name without a callback service thread."""
 
-    api = _DataApi(
-        b'{"kind":"invoke","arguments":["Substitute","project.cubepak"],'
-        b'"working_directory":"/workspace"}'
-    )
-    claim = MacOSMessagePortClaim(
-        port=10,
-        core_foundation=cast(CoreFoundationMessagePortApi, api),
-        callback=object(),
-    )
-
-    response = claim.receive_message(1)
-    received: list[ApplicationInvocation] = []
-    claim.bind_invocation_handler(received.append)
-
-    assert api.values[response] == b"accepted"
-    assert received == [
-        ApplicationInvocation(
-            arguments=("Substitute", "project.cubepak"),
-            working_directory="/workspace",
-        )
-    ]
-
-
-def test_native_message_rejects_malformed_invocation() -> None:
-    """Reject untrusted native payloads before they reach the broker."""
-
-    api = _DataApi(b'{"kind":"invoke","arguments":"not-a-list"}')
-    claim = MacOSMessagePortClaim(
-        port=10,
-        core_foundation=cast(CoreFoundationMessagePortApi, api),
-        callback=object(),
+    api = _OwnershipApi(creation=LocalMessagePortCreation(port=20, created=True))
+    monkeypatch.setattr(
+        application_instance_macos,
+        "CoreFoundationMessagePortApi",
+        lambda: api,
     )
 
-    response = claim.receive_message(1)
+    result = application_instance_macos.acquire_macos_message_port("instance")
+    assert result.election is MacOSMessagePortElection.PRIMARY
+    assert result.claim is not None
 
-    assert api.values[response] == b"rejected"
+    result.claim.close()
+    result.claim.close()
+
+    assert api.invalidated == [20]
+    assert api.released == [10, 20]
 
 
 def test_existing_local_message_port_is_a_secondary_election(
@@ -130,7 +91,7 @@ def test_existing_local_message_port_is_a_secondary_election(
 ) -> None:
     """Treat Core Foundation's returned existing port as election loss."""
 
-    api = _DuplicateNameApi()
+    api = _OwnershipApi(creation=LocalMessagePortCreation(port=20, created=False))
     monkeypatch.setattr(
         application_instance_macos,
         "CoreFoundationMessagePortApi",
@@ -141,4 +102,5 @@ def test_existing_local_message_port_is_a_secondary_election(
 
     assert result.election is MacOSMessagePortElection.SECONDARY
     assert result.claim is None
+    assert api.invalidated == []
     assert api.released == [10, 20]
