@@ -134,6 +134,7 @@ def test_structural_campaign_marks_clock_evidence_as_instrumented(
         seed=7,
         frame_budget_ms=16.667,
         artifact_root=tmp_path,
+        revision="test",
         structural_probe=True,
         scenario_runner=fake_runner,
         platform_name=lambda: "offscreen-test",

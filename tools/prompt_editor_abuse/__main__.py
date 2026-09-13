@@ -28,6 +28,7 @@ from .minimization import minimized_scenario_from_report
 from .models import PromptAbuseScenario
 from .replay import load_report_scenarios, scenario_prefix
 from .reporting import format_summary, write_report
+from .revision import resolve_git_revision
 from .workloads import resolve_scenarios
 
 
@@ -117,6 +118,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         seed=args.seed,
         frame_budget_ms=args.frame_budget_ms,
         artifact_root=args.output.parent,
+        revision=resolve_git_revision(),
         deep_trace=args.command == "diagnose",
         structural_probe=structural_probe,
     )
