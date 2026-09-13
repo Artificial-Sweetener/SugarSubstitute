@@ -1852,19 +1852,6 @@ next_limit = 564
 debt = "SS-ARCH-096"
 
 [[waivers]]
-id = "SS-WAIVER-R097"
-owner = "installer UI qualification"
-rule = "STRUCT003"
-path = "tools/ci/installer_ui_qualification.py"
-kind = "remediation"
-justification = "The assessed file mixes qualification evidence preparation, installed candidate launch, shell and event-sequence verification, cross-platform process termination, readiness receipt and startup trace interpretation. Current packaged-installer execution now has an independent owner; next extract installed-candidate process lifecycle and evidence/trace verification from qualification workflow orchestration."
-issue = "chore:SS-ARCH-097"
-review_by = 2026-12-15
-max_lines = 560
-next_limit = 500
-debt = "SS-ARCH-097"
-
-[[waivers]]
 id = "SS-WAIVER-S076"
 owner = "prompt abuse structural policy"
 rule = "STRUCT003"

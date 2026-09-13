@@ -44,6 +44,11 @@ from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationPlan,
     InstallerQualificationTarget,
 )
+from tools.ci.installer_evidence_verification import (
+    assert_qualification_event_sequence,
+    assert_startup_trace_sequence,
+    diagnostic_tail,
+)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci.installer_process_diagnostics import process_tree_diagnostics
 from tools.ci.installed_version_evidence import wait_for_installed_version
@@ -59,11 +64,6 @@ _TERMINAL_STARTUP_FAILURE_EVENTS = frozenset(
     }
 )
 _PROCESS_TERMINATION_TIMEOUT_SECONDS = 10.0
-_REQUIRED_STARTUP_EVENTS = (
-    "launch_splash.started",
-    "launch_splash.closed",
-    "main_shell.shown",
-)
 _FROZEN_LAUNCH_OVERRIDE_VARIABLES = (
     "PYTHONHOME",
     "PYTHONPATH",
@@ -276,47 +276,6 @@ def verify_main_shell_evidence(
             terminate_verified_process(candidate_launch.process.pid)
 
 
-def assert_qualification_event_sequence(
-    event_log_path: Path,
-    *,
-    token: str,
-    required_events: tuple[str, ...],
-) -> None:
-    """Require token-bound production UI interactions in their expected order."""
-
-    try:
-        lines = event_log_path.read_text(
-            encoding="utf-8",
-            errors="replace",
-        ).splitlines()
-    except OSError as error:
-        raise InstallerLifecycleError(
-            f"Installer did not write its UI qualification log: {event_log_path}."
-        ) from error
-    events: list[str] = []
-    for line in lines:
-        try:
-            payload = json.loads(line)
-        except json.JSONDecodeError as error:
-            raise InstallerLifecycleError(
-                f"Installer wrote malformed UI qualification JSON: {event_log_path}."
-            ) from error
-        if not isinstance(payload, dict) or payload.get("token") != token:
-            raise InstallerLifecycleError(
-                "Installer UI qualification evidence did not match this CI run."
-            )
-        event = payload.get("event")
-        if isinstance(event, str):
-            events.append(event)
-    if not _contains_ordered_events(events, required_events):
-        raise InstallerLifecycleError(
-            "Installer UI did not complete the required interaction sequence: "
-            + " -> ".join(required_events)
-            + ".\n"
-            + diagnostic_tail(event_log_path)
-        )
-
-
 def terminate_verified_process(pid: int) -> None:
     """Terminate only the token-verified app process and its child processes."""
 
@@ -388,16 +347,6 @@ def _terminate_posix_process_tree(pid: int) -> None:
             + ", ".join(str(process_id) for process_id in unresolved)
             + "."
         )
-
-
-def diagnostic_tail(path: Path, *, maximum_lines: int = 80) -> str:
-    """Return a bounded diagnostic suffix when a qualification step fails."""
-
-    try:
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
-        return f"<missing diagnostics: {path}>"
-    return "\n".join(lines[-maximum_lines:])
 
 
 def _wait_for_readiness_receipt(
@@ -564,51 +513,6 @@ def _path_signature(path: Path) -> tuple[bool, int]:
         return False, 0
 
 
-def assert_startup_trace_sequence(trace_path: Path) -> None:
-    """Require splash start, splash close, then main-shell reveal in that order."""
-
-    try:
-        lines = trace_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError as error:
-        raise InstallerLifecycleError(
-            f"Button-launched child did not write its startup trace: {trace_path}."
-        ) from error
-    events: list[str] = []
-    for line in lines:
-        try:
-            payload = json.loads(line)
-        except json.JSONDecodeError as error:
-            raise InstallerLifecycleError(
-                f"Button-launched child wrote malformed startup trace JSON: {trace_path}."
-            ) from error
-        if isinstance(payload, dict) and isinstance(payload.get("event"), str):
-            events.append(payload["event"])
-    if not _contains_ordered_events(events, _REQUIRED_STARTUP_EVENTS):
-        raise InstallerLifecycleError(
-            "Open Substitute did not complete the required splash-to-shell sequence: "
-            + " -> ".join(_REQUIRED_STARTUP_EVENTS)
-            + ".\n"
-            + diagnostic_tail(trace_path)
-        )
-
-
-def _contains_ordered_events(
-    events: list[str],
-    required_events: tuple[str, ...],
-) -> bool:
-    """Return whether every required event appears in order."""
-
-    if not required_events:
-        return True
-    next_index = 0
-    for event in events:
-        if event == required_events[next_index]:
-            next_index += 1
-            if next_index == len(required_events):
-                return True
-    return False
-
-
 def _windows_process_exists(pid: int) -> bool:
     """Return whether a Windows process still owns the supplied identifier."""
 
@@ -627,9 +531,6 @@ def _windows_process_exists(pid: int) -> bool:
 __all__ = [
     "InstalledCandidateLaunch",
     "InstallerQualificationEvidence",
-    "assert_qualification_event_sequence",
-    "assert_startup_trace_sequence",
-    "diagnostic_tail",
     "installed_launch_has_progress",
     "launch_installed_candidate",
     "prepare_qualification_evidence",
