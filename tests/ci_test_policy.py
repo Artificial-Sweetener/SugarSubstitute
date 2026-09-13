@@ -56,6 +56,11 @@ ISOLATED_TEST_MODULES = frozenset(
         # worker. A fresh bounded process preserves the full modal contract and
         # leaves attributable timeout evidence if native construction stalls.
         "tests/presentation/shell/model_discovery/test_empty_picker_controller.py",
+        # This production update-notification contract owns QWidget roots,
+        # QThreads, and the real review modal in one application lifecycle. It
+        # can crash after unrelated native Qt work in a reused Linux xdist
+        # worker; a fresh bounded process matches the shipped application.
+        "tests/presentation/shell/model_updates/test_notification_controller.py",
         # This Windows native splash timing qualification requires a fresh
         # process so unrelated xdist pressure cannot distort its latency budget.
         "tests/qualification/startup_splash/test_source_first_paint.py",

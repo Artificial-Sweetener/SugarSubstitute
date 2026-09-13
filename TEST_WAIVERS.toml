@@ -1361,3 +1361,16 @@ fingerprint = "sha256:cfa9f7621d62d7da8920dcd91e9fb4500a307c6054143ecf25fec8fc01
 rationale = "This integration module exercises the production fileless application-instance broker, child client, routing acknowledgements, startup retention, deadlines, supervisor loss, and native endpoint recovery. Its first secondary-invocation contract crashed a macOS xdist worker while entering the real Core Foundation election and loopback transport after unrelated native work; the retained process marker identified the exact active test. The shipped supervisor owns this native lifecycle in a fresh process, and the module owns only tmp_path state plus per-process native IPC resources. Fresh-process isolation therefore matches production topology, preserves every real transport assertion, bounds native failure at the module-process owner, and permits safe concurrency without global serialization."
 issue = "chore:SS-TEST-WAIVER-C0284"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0285"
+owner = "Model-update notification Qt contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/presentation/shell/model_updates/test_notification_controller.py|isolated-module"]
+paths = ["tests/presentation/shell/model_updates/test_notification_controller.py"]
+fingerprint = "sha256:76efdaf05cf1a91ae00e321b75d6f01fe33efa1ead9cccd3d9ea04cd37690129"
+rationale = "This integration module exercises the production model-update controller with QWidget ownership, real QThread discovery and transfer phases, the Fluent review modal, provider compatibility lookup, atomic acquisition, persistence, and process-lifetime duplicate suppression. Its reviewed transfer contract crashed a Linux xdist worker after thousands of unrelated native Qt tests, while the retained process marker identified the exact active test and the complete module passed in ten independent fresh processes. The shipped application owns this Qt and thread lifecycle in a fresh process. Fresh-process isolation preserves every behavioral assertion, bounds native failure at the module-process owner, and remains safely concurrent because all files, services, provider responses, and credentials are test-local."
+issue = "chore:SS-TEST-WAIVER-C0285"
+review_by = 2026-12-15

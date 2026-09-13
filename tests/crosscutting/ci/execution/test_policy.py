@@ -50,6 +50,9 @@ OUTPUT_NAVIGATION_CONTRACT_MODULE = (
 EMPTY_PICKER_MODAL_CONTRACT_MODULE = (
     "tests/presentation/shell/model_discovery/test_empty_picker_controller.py"
 )
+MODEL_UPDATE_NOTIFICATION_CONTRACT_MODULE = (
+    "tests/presentation/shell/model_updates/test_notification_controller.py"
+)
 APPLICATION_INSTANCE_BROKER_CONTRACT_MODULE = (
     "tests/shared/application_instance_broker/test_broker.py"
 )
@@ -208,6 +211,14 @@ def test_empty_picker_modal_contract_uses_bounded_fresh_process_lane() -> None:
     assert (PROJECT_ROOT / EMPTY_PICKER_MODAL_CONTRACT_MODULE).is_file()
     assert EMPTY_PICKER_MODAL_CONTRACT_MODULE in ISOLATED_TEST_MODULES
     assert EMPTY_PICKER_MODAL_CONTRACT_MODULE not in SERIAL_TEST_MODULES
+
+
+def test_model_update_notification_contract_uses_bounded_fresh_process_lane() -> None:
+    """Match update review and transfer qualification to one application process."""
+
+    assert (PROJECT_ROOT / MODEL_UPDATE_NOTIFICATION_CONTRACT_MODULE).is_file()
+    assert MODEL_UPDATE_NOTIFICATION_CONTRACT_MODULE in ISOLATED_TEST_MODULES
+    assert MODEL_UPDATE_NOTIFICATION_CONTRACT_MODULE not in SERIAL_TEST_MODULES
 
 
 def test_application_instance_broker_contract_uses_fresh_process_lane() -> None:
