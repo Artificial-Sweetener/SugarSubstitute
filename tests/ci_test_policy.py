@@ -46,6 +46,11 @@ PLATFORM_TEST_MODULES: Final[dict[str, frozenset[CiPlatform]]] = {
 
 ISOLATED_TEST_MODULES = frozenset(
     {
+        # This real model-discovery modal can deadlock in qfluentwidgets style
+        # application after unrelated native Qt work in a reused Windows xdist
+        # worker. A fresh bounded process preserves the full modal contract and
+        # leaves attributable timeout evidence if native construction stalls.
+        "tests/presentation/shell/model_discovery/test_empty_picker_controller.py",
         # This Windows native splash timing qualification requires a fresh
         # process so unrelated xdist pressure cannot distort its latency budget.
         "tests/qualification/startup_splash/test_source_first_paint.py",
