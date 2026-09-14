@@ -188,20 +188,43 @@ class ModelDiscoveryModal(QDialog):
     def show_loading(self) -> None:
         """Reveal the modal immediately while discovery runs."""
 
-        self._clear_cards()
+        self._selected_identity = None
+        for card in self._cards.values():
+            card.set_selected(False)
+            card.setEnabled(True)
+        self.card_host.hide()
+        self.browse_button.hide()
         self.status_label.setText(
             render_application_text(app_text("Finding compatible models…"))
         )
         self.loading_ring.start()
         self.loading_ring.show()
+        self.cancel_button.setEnabled(True)
         self.download_button.setEnabled(False)
         self.open()
 
     def show_plan(self, plan: ModelSuggestionPlan) -> None:
         """Render provider-ranked suggestions without selecting one automatically."""
 
+        identities = tuple(suggestion.identity for suggestion in plan.suggestions)
+        reuse_cards = self._plan == plan and tuple(self._cards) == identities
+        if reuse_cards:
+            self._selected_identity = None
+            for card in self._cards.values():
+                card.set_selected(False)
+                card.setEnabled(True)
+        else:
+            self._clear_cards()
+            for index, suggestion in enumerate(plan.suggestions):
+                card = ModelSuggestionCard(
+                    suggestion, open_url=self._open_url, parent=self.card_host
+                )
+                card.selection_changed.connect(self._select_exclusively)
+                self.card_grid.addWidget(
+                    card, index // _GRID_COLUMNS, index % _GRID_COLUMNS
+                )
+                self._cards[suggestion.identity] = card
         self._plan = plan
-        self._clear_cards()
         self.loading_ring.stop()
         self.loading_ring.hide()
         message = (
@@ -210,15 +233,7 @@ class ModelDiscoveryModal(QDialog):
             else app_text("No compatible model suggestions are available right now.")
         )
         self.status_label.setText(render_application_text(message))
-        for index, suggestion in enumerate(plan.suggestions):
-            card = ModelSuggestionCard(
-                suggestion, open_url=self._open_url, parent=self.card_host
-            )
-            card.selection_changed.connect(self._select_exclusively)
-            self.card_grid.addWidget(
-                card, index // _GRID_COLUMNS, index % _GRID_COLUMNS
-            )
-            self._cards[suggestion.identity] = card
+        self.card_host.setVisible(bool(plan.suggestions))
         self.browse_button.setVisible(bool(plan.browse_urls))
         self.download_button.setEnabled(False)
 

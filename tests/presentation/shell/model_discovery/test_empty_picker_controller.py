@@ -257,8 +257,9 @@ def test_discovery_lifecycle_remains_animation_graph_free(tmp_path: Path) -> Non
     wait_for_qt_condition(lambda: not controller.running)
     assert modal.findChildren(QAbstractAnimation) == []
     modal.reject()
-    wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
+    wait_for_qt_condition(lambda: not modal.isVisible())
     controller.close()
+    wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
     parent.deleteLater()
 
 
@@ -279,17 +280,28 @@ def test_repeated_discovery_lifecycles_remain_animation_graph_free(
         credentials=_credential_coordinator(),
     )
 
+    retained_modal: ModelDiscoveryModal | None = None
+    retained_card: ModelSuggestionCard | None = None
     for _cycle in range(128):
         assert controller.request_for_empty_picker(context, lambda _value: None)
         modal = parent.findChild(ModelDiscoveryModal)
         assert modal is not None
         wait_for_qt_condition(lambda: not controller.running)
         assert modal.findChildren(QAbstractAnimation) == []
+        card = modal.findChild(ModelSuggestionCard)
+        assert card is not None
+        if retained_modal is None:
+            retained_modal = modal
+            retained_card = card
+        else:
+            assert modal is retained_modal
+            assert card is retained_card
         modal.reject()
-        wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
+        wait_for_qt_condition(lambda: not modal.isVisible())
 
     assert len(service.contexts) == 128
     controller.close()
+    wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
     parent.deleteLater()
 
 
@@ -325,8 +337,9 @@ def test_public_selection_downloads_refreshes_and_selects_exact_value(
     assert service.acquired == [plan.suggestions[0].identity]
     assert catalog.invalidated == ["diffusion_models"]
     assert catalog.refreshed == ["diffusion_models"]
-    wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
+    wait_for_qt_condition(lambda: not modal.isVisible())
     controller.close()
+    wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
     parent.deleteLater()
 
 
