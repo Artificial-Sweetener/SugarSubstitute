@@ -20,6 +20,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
+    styleSheetManager,
+)
+
 from substitute.domain.model_recommendations import ModelFamilyId
 from substitute.domain.model_suggestions import (
     ModelSuggestion,
@@ -91,6 +95,12 @@ def test_gallery_requires_one_explicit_exclusive_selection(tmp_path: Path) -> No
     )
     cards = modal.findChildren(ModelSuggestionCard)
     assert len(cards) == 2
+    registered_card_widgets = [
+        widget
+        for widget in list(styleSheetManager.widgets)
+        if any(widget is card or card.isAncestorOf(widget) for card in cards)
+    ]
+    assert registered_card_widgets == []
     assert modal.selected_identity is None
     assert not modal.download_button.isEnabled()
 

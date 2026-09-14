@@ -19,11 +19,13 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QPalette
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -31,7 +33,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     FluentIcon as FIF,
     PrimaryPushButton,
     PushButton,
-    TransparentToolButton,
 )
 
 from substitute.domain.model_metadata import ThumbnailAsset
@@ -43,6 +44,7 @@ from substitute.domain.model_suggestions import (
 from substitute.presentation.localization import (
     LocalizedBodyLabel,
     LocalizedCaptionLabel,
+    LocalizedLabel,
     LocalizedSubtitleLabel,
 )
 from substitute.presentation.onboarding.onboarding_recommendation_geometry import (
@@ -108,8 +110,9 @@ class ModelSuggestionCard(QFrame):
         )
         self.portrait.selection_changed.connect(self._publish_selection)
         layout.addWidget(self.portrait, alignment=Qt.AlignmentFlag.AlignCenter)
-        self.link_button = TransparentToolButton(self.portrait)
-        self.link_button.setIcon(FIF.GLOBE)
+        self.link_button = QToolButton(self.portrait)
+        self.link_button.setAutoRaise(True)
+        self.link_button.setIcon(FIF.GLOBE.icon())
         self.link_button.setFixedSize(28, 28)
         self.link_button.setIconSize(QSize(20, 20))
         self.link_button.move(10, 10)
@@ -123,10 +126,19 @@ class ModelSuggestionCard(QFrame):
         set_fluent_tooltip_text(self.link_button, tooltip)
         self.link_button.clicked.connect(lambda: open_url(suggestion.model_page_url))
         if metadata:
-            self.access_label = LocalizedCaptionLabel(
+            self.access_label = LocalizedLabel(
                 app_text("API key required"), self.portrait
             )
             self.access_label.setObjectName("ModelSuggestionAccessLabel")
+            access_font = QFont(self.access_label.font())
+            access_font.setPixelSize(12)
+            self.access_label.setFont(access_font)
+            access_palette = QPalette(self.access_label.palette())
+            access_palette.setColor(
+                QPalette.ColorRole.WindowText,
+                QColor(248, 249, 252, 210),
+            )
+            self.access_label.setPalette(access_palette)
             self.access_label.adjustSize()
             self.access_label.move(10, THUMBNAIL_SIZE.height() - 34)
             self.access_label.raise_()
