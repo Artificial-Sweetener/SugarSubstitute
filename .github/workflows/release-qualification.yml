@@ -80,6 +80,7 @@ on:
           - all
           - canary-fast
           - qualification-all
+          - qualification-windows
           - clean-all
           - clean-windows
           - clean-linux
@@ -134,7 +135,7 @@ jobs:
         run: |
           $scope = $env:QUALIFICATION_SCOPE
           $supportedScopes = @(
-            "all", "canary-fast", "qualification-all", "clean-all",
+            "all", "canary-fast", "qualification-all", "qualification-windows", "clean-all",
             "clean-windows", "clean-linux", "clean-macos", "updates-all",
             "updates-windows", "updates-linux", "updates-macos", "managed-comfy"
           )
@@ -143,7 +144,7 @@ jobs:
           }
           $cleanPlatforms = switch ($scope) {
             { $_ -in @("all", "qualification-all", "clean-all") } { @("windows", "linux"); break }
-            "clean-windows" { @("windows"); break }
+            { $_ -in @("qualification-windows", "clean-windows") } { @("windows"); break }
             "clean-linux" { @("linux"); break }
             default { @() }
           }
@@ -166,7 +167,7 @@ jobs:
           }) | ConvertTo-Json -Compress -AsArray
           $updatePlatforms = switch ($scope) {
             { $_ -in @("all", "qualification-all", "updates-all") } { @("windows", "linux", "macos"); break }
-            "updates-windows" { @("windows"); break }
+            { $_ -in @("qualification-windows", "updates-windows") } { @("windows"); break }
             "updates-linux" { @("linux"); break }
             "updates-macos" { @("macos"); break }
             default { @() }
@@ -224,7 +225,7 @@ jobs:
           if (-not [double]::TryParse($env:QUALIFICATION_TIMEOUT_SECONDS, [ref]$timeout) -or $timeout -le 0) {
             throw "qualification_timeout_seconds must be a positive number."
           }
-          $fullQualification = $env:QUALIFICATION_SCOPE -in @("all", "qualification-all")
+          $fullQualification = $env:QUALIFICATION_SCOPE -in @("all", "qualification-all", "qualification-windows")
           if (($published -or $fullQualification) -and $timeout -ne 3600.0) {
             throw "Published and full qualification require the canonical 3600-second timeout."
           }
