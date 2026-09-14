@@ -128,6 +128,7 @@ class EmptyModelPickerDiscoveryController(QObject):
         self._thread: QThread | None = None
         self._task: _SuggestionTask | None = None
         self._modal: ModelDiscoveryModal | None = None
+        self._reusable_modal: ModelDiscoveryModal | None = None
         self._plan: ModelSuggestionPlan | None = None
         self._installed_value_receiver: InstalledModelReceiver | None = None
         self._pending_operation: (
@@ -162,9 +163,12 @@ class EmptyModelPickerDiscoveryController(QObject):
                 parent=self._parent_widget,
             )
             return False
-        modal = ModelDiscoveryModal(parent=self._parent_widget)
-        modal.download_requested.connect(self._download_selected)
-        modal.finished.connect(self._modal_closed)
+        modal = self._reusable_modal
+        if modal is None:
+            modal = ModelDiscoveryModal(parent=self._parent_widget)
+            modal.download_requested.connect(self._download_selected)
+            modal.finished.connect(self._modal_closed)
+            self._reusable_modal = modal
         self._modal = modal
         self._installed_value_receiver = installed_value_receiver
         modal.show_loading()
@@ -177,9 +181,12 @@ class EmptyModelPickerDiscoveryController(QObject):
     def close(self) -> None:
         """Cancel owned work and close the suggestion surface during shutdown."""
 
-        modal = self._modal
+        modal = self._reusable_modal
         if modal is not None:
             modal.close()
+            modal.deleteLater()
+        self._modal = None
+        self._reusable_modal = None
         thread = self._thread
         if thread is not None:
             thread.requestInterruption()
@@ -393,14 +400,12 @@ class EmptyModelPickerDiscoveryController(QObject):
 
     @Slot(int)
     def _modal_closed(self, _result: int) -> None:
-        """Cancel background work and release all per-request presentation state."""
+        """Release request state while retaining the bounded reusable surface."""
 
         thread = self._thread
         if thread is not None:
             thread.requestInterruption()
-        modal, self._modal = self._modal, None
-        if modal is not None:
-            modal.deleteLater()
+        self._modal = None
         self._plan = None
         self._installed_value_receiver = None
         self._pending_operation = None
