@@ -27,19 +27,17 @@ from PySide6.QtGui import (
     QKeyEvent,
     QLinearGradient,
     QMouseEvent,
+    QPalette,
     QPaintEvent,
     QPainter,
     QPainterPath,
     QResizeEvent,
 )
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QCheckBox, QWidget
 from sugarsubstitute_shared.localization import app_text
 
 from substitute.domain.model_metadata import ThumbnailAsset
-from substitute.presentation.localization import (
-    LocalizedCaptionLabel,
-    LocalizedCheckBox,
-)
+from substitute.presentation.localization import LocalizedLabel
 from substitute.presentation.onboarding.onboarding_recommendation_geometry import (
     PORTRAIT_HEIGHT,
     PORTRAIT_WIDTH,
@@ -93,18 +91,26 @@ class RecommendationPortrait(QWidget):
         self.busy_ring.setObjectName("OnboardingRecommendationThumbnailBusy")
         self.busy_ring.setFixedSize(34, 34)
         self.busy_ring.setStrokeWidth(4)
-        self.loading_label = LocalizedCaptionLabel(app_text("Loading preview…"), self)
+        self.loading_label = LocalizedLabel(app_text("Loading preview…"), self)
         self.loading_label.setObjectName("OnboardingRecommendationThumbnailLoading")
         self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.unavailable_label = LocalizedCaptionLabel(
-            app_text("Preview unavailable"), self
-        )
+        self.unavailable_label = LocalizedLabel(app_text("Preview unavailable"), self)
         self.unavailable_label.setObjectName(
             "OnboardingRecommendationThumbnailUnavailable"
         )
         self.unavailable_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.unavailable_label.hide()
-        self.checkbox = LocalizedCheckBox("", self)
+        for label in (self.loading_label, self.unavailable_label):
+            label_font = QFont(label.font())
+            label_font.setPixelSize(12)
+            label.setFont(label_font)
+            label_palette = QPalette(label.palette())
+            label_palette.setColor(
+                QPalette.ColorRole.WindowText,
+                QColor(248, 249, 252, 210),
+            )
+            label.setPalette(label_palette)
+        self.checkbox = QCheckBox("", self)
         self.checkbox.setObjectName("OnboardingRecommendationPortraitCheck")
         self.checkbox.setAccessibleName(accessible_name)
         self.checkbox.setChecked(selected)
