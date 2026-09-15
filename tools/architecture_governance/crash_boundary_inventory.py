@@ -65,6 +65,7 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("process", "substitute/infrastructure/comfy/python_requirements_probe.py", "PythonRequirementsProbe.assess", "subprocess.run", 1, "external_python_probe"),
     ("process", "substitute/infrastructure/comfy/standalone_environment/environment_builder.py", "StandaloneVirtualEnvironmentBuilder.build", "subprocess.run", 1, "external_environment_command"),
     ("process", "substitute/infrastructure/comfy/standalone_environment/extraction_process.py", "_run_bounded", "subprocess.run", 1, "external_extraction_tool"),
+    ("process", "substitute/infrastructure/comfy/standalone_environment/recovery.py", "StandaloneEnvironmentRecovery._legacy_runtime_can_reconcile", "subprocess.run", 1, "external_python_probe"),
     ("process", "substitute/infrastructure/comfy/standalone_environment/tar_extraction_process.py", "NativeTarExtractionProcess.extract", "subprocess.run", 1, "external_extraction_tool"),
     ("process", "substitute/infrastructure/comfy/workspace_python_discovery.py", "probe_comfy_python", "subprocess.run", 1, "external_python_probe"),
     ("process", "substitute/infrastructure/onboarding/launcher_managed_runtime_provisioner.py", "LauncherManagedRuntimeProvisioner._run_checked", "subprocess.run", 1, "external_runtime_provisioning"),

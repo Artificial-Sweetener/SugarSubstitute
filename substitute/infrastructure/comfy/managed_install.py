@@ -82,8 +82,12 @@ from substitute.infrastructure.comfy.managed_workspace_provisioning import (
     provision_verified_standalone_workspace,
 )
 from substitute.infrastructure.comfy.managed_validation import (
+    is_workspace_installed,
     workspace_main_path,
     workspace_python_path,
+)
+from substitute.infrastructure.comfy.standalone_environment.recovery import (
+    StandaloneEnvironmentRecovery,
 )
 from substitute.shared.logging.logger import get_logger, log_info, log_warning
 from substitute.shared.startup_trace import trace_mark, trace_span
@@ -173,14 +177,10 @@ def _ensure_managed_comfy_setup(
     workspace.parent.mkdir(parents=True, exist_ok=True)
     if migrate_nested_workspace_layout(workspace):
         emit_log(on_log, f"Migrated legacy nested ComfyUI layout in {workspace}.")
+    StandaloneEnvironmentRecovery().resume(workspace)
     force_install = os.getenv("SUGARSUB_FORCE_COMFY_INSTALL") == "1"
     venv_python = workspace_python_path(workspace)
-    if (
-        venv_python.exists()
-        and workspace.exists()
-        and workspace_main_path(workspace).exists()
-        and not force_install
-    ):
+    if is_workspace_installed(workspace) and not force_install:
         setup_cache = prepare_managed_setup_cache(workspace)
         try:
             return reconcile_existing_managed_setup(
