@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.application_instance_forwarding import (
+    forward_application_invocation,
+)
+
 from collections.abc import Callable, Mapping
 import json
 import logging
@@ -34,7 +38,6 @@ from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceBrokerError,
     ApplicationInstanceEndpoint,
     ApplicationInvocation,
-    RoutedApplicationInvocation,
     BROKER_ENDPOINT_ENV,
     BROKER_TOKEN_ENV,
     parse_routed_application_invocation,
@@ -47,7 +50,6 @@ from sugarsubstitute_shared.application_invocation_router import (
 from sugarsubstitute_shared.application_instance_transport import (
     ApplicationInstanceListener,
     bind_instance_listener,
-    connect_instance_endpoint,
     endpoint_is_already_owned,
     instance_endpoint,
     instance_identity,
@@ -56,7 +58,6 @@ from sugarsubstitute_shared.application_instance_transport import (
 
 _LOGGER = logging.getLogger(__name__)
 _MAXIMUM_PENDING_INVOCATIONS = 64
-_PRESENTATION_TIMEOUT_SECONDS = 15.0
 _SUPERVISOR_RECEIPT_DEADLINE_SECONDS = 14.0
 _CONNECTION_HANDSHAKE_TIMEOUT_SECONDS = 2.0
 
@@ -122,7 +123,7 @@ class ApplicationInstanceBroker:
 
             bus_result = acquire_linux_session_bus(identity)
             if bus_result.election is LinuxSessionBusElection.SECONDARY:
-                _forward_invocation(endpoint, invocation)
+                forward_application_invocation(endpoint, invocation)
                 return None
             owner_claim = bus_result.claim
         elif sys.platform == "darwin":
@@ -133,7 +134,7 @@ class ApplicationInstanceBroker:
 
             message_port_result = acquire_macos_message_port(identity)
             if message_port_result.election is MacOSMessagePortElection.SECONDARY:
-                _forward_invocation(endpoint, invocation)
+                forward_application_invocation(endpoint, invocation)
                 return None
             owner_claim = message_port_result.claim
         try:
@@ -144,7 +145,7 @@ class ApplicationInstanceBroker:
             if not endpoint_is_already_owned(error):
                 raise
             try:
-                _forward_invocation(endpoint, invocation)
+                forward_application_invocation(endpoint, invocation)
                 _LOGGER.info(
                     "Forwarded launch to the active application supervisor",
                     extra={"instance_transport": endpoint.transport},
@@ -303,86 +304,6 @@ class ApplicationInstanceBroker:
                     connection.close()
                 except OSError:
                     pass
-
-
-def _forward_invocation(
-    endpoint: ApplicationInstanceEndpoint,
-    invocation: ApplicationInvocation,
-) -> None:
-    """Forward a secondary launch and require explicit supervisor acceptance."""
-
-    request = RoutedApplicationInvocation(
-        request_id=secrets.token_urlsafe(24),
-        invocation=invocation,
-    )
-    _LOGGER.info(
-        "Forwarding secondary invocation | requester_pid=%s | request_id=%s | "
-        "transport=%s",
-        os.getpid(),
-        request.request_id,
-        endpoint.transport,
-    )
-    try:
-        connection = connect_instance_endpoint(endpoint)
-    except OSError as error:
-        raise ApplicationInstanceBrokerError(
-            "The active application supervisor could not be reached.",
-            endpoint=endpoint,
-        ) from error
-    owner_process_id = connection.peer_process_id()
-    try:
-        send_instance_message(connection, request.to_message())
-        try:
-            response = receive_instance_message(
-                connection,
-                timeout_seconds=_PRESENTATION_TIMEOUT_SECONDS,
-            )
-            owner_process_id = _response_owner_process_id(
-                response,
-                fallback=owner_process_id,
-            )
-        except (OSError, TimeoutError) as error:
-            raise ApplicationInstanceBrokerError(
-                "The active application did not present a usable window in time.",
-                owner_process_id=owner_process_id,
-                endpoint=endpoint,
-            ) from error
-    finally:
-        connection.close()
-    if (
-        response.get("status") != "presented"
-        or response.get("request_id") != request.request_id
-    ):
-        raise ApplicationInstanceBrokerError(
-            "The active application could not present a usable window.",
-            owner_process_id=owner_process_id,
-            endpoint=endpoint,
-        )
-    _LOGGER.info(
-        "Secondary invocation produced a visible surface | requester_pid=%s | "
-        "owner_pid=%s | request_id=%s | surface=%s",
-        os.getpid(),
-        owner_process_id,
-        request.request_id,
-        response.get("surface"),
-    )
-
-
-def _response_owner_process_id(
-    response: Mapping[str, object],
-    *,
-    fallback: int | None,
-) -> int | None:
-    """Prefer the supervisor identity carried by its authenticated response."""
-
-    owner_process_id = response.get("owner_process_id")
-    if (
-        isinstance(owner_process_id, int)
-        and not isinstance(owner_process_id, bool)
-        and owner_process_id > 0
-    ):
-        return owner_process_id
-    return fallback
 
 
 __all__ = [

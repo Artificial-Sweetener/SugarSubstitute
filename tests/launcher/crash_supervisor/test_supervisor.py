@@ -18,17 +18,18 @@
 
 from __future__ import annotations
 
+from launcher.sugarsubstitute_launcher.process_execution import ChildProcess
+
 from collections.abc import Mapping, Sequence
 import os
 from pathlib import Path
-import subprocess
 import sys
 
 from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.process import spawn_detached_process
+from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from sugarsubstitute_shared.crash_reporting import (
     CrashAttribution,
     CrashIncidentStore,
@@ -40,10 +41,10 @@ from sugarsubstitute_shared.crash_reporting.protocol import CRASHPAD_DATABASE_EN
 def _start_process(
     command: Sequence[str],
     environment: Mapping[str, str],
-) -> tuple[subprocess.Popen[bytes], Path]:
+) -> tuple[ChildProcess, Path]:
     """Start an isolated qualification child with the supplied run contract."""
 
-    return spawn_detached_process(
+    return spawn_supervised_process(
         command,
         environment=environment,
     )
@@ -103,7 +104,7 @@ def test_supervisor_accepts_clean_completion_with_zero_exit_wrapper_dump(
     def start_with_wrapper_dump(
         command: Sequence[str],
         environment: Mapping[str, str],
-    ) -> tuple[subprocess.Popen[bytes], Path]:
+    ) -> tuple[ChildProcess, Path]:
         """Model the dump emitted while a macOS PyInstaller wrapper exits cleanly."""
 
         dump = Path(environment[CRASHPAD_DATABASE_ENV]) / "pending" / "wrapper.dmp"
@@ -233,7 +234,7 @@ def test_supervisor_retains_crashpad_dump_inside_incident(tmp_path: Path) -> Non
     def start_with_dump(
         command: Sequence[str],
         environment: Mapping[str, str],
-    ) -> tuple[subprocess.Popen[bytes], Path]:
+    ) -> tuple[ChildProcess, Path]:
         """Create representative Crashpad evidence before the child exits."""
 
         dump = Path(environment[CRASHPAD_DATABASE_ENV]) / "pending" / "native.dmp"

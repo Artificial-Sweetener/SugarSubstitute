@@ -18,11 +18,12 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.launcher_update.process import relaunch_updated_launcher
+
 import logging
 import os
 from pathlib import Path
 import shutil
-import subprocess
 import sys
 import time
 import ctypes
@@ -40,8 +41,6 @@ from sugarsubstitute_shared.launcher_update.targets import (
 )
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
-    subprocess_path,
-    subprocess_working_directory,
 )
 
 
@@ -103,7 +102,7 @@ class LauncherUpdateTransaction:
         shutil.rmtree(staged_dir, ignore_errors=True)
         journal_path.unlink(missing_ok=True)
         if request.relaunch:
-            _relaunch(install_root / target.executable_relative_path)
+            relaunch_updated_launcher(install_root / target.executable_relative_path)
 
     def _wait_for_process(self, pid: int | None) -> None:
         """Wait for the launcher that owns locked bundle files to exit."""
@@ -310,30 +309,6 @@ def _windows_process_exists(pid: int) -> bool:
         return exit_code.value == still_active
     finally:
         kernel32.CloseHandle(handle)
-
-
-def _relaunch(executable_path: Path) -> None:
-    """Start the newly promoted launcher without inheriting helper handles."""
-
-    creationflags = 0
-    startupinfo = None
-    if sys.platform == "win32":
-        creationflags = (
-            subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
-        )
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-    subprocess.Popen(  # noqa: S603
-        [subprocess_path(executable_path)],
-        cwd=subprocess_working_directory(executable_path.parent),
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        close_fds=True,
-        creationflags=creationflags,
-        startupinfo=startupinfo,
-        shell=False,
-    )
 
 
 __all__ = ["LauncherUpdateTransaction", "LauncherUpdateTransactionError"]

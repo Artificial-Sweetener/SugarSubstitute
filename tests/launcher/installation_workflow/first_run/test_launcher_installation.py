@@ -27,9 +27,11 @@ import pytest
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import (
-    ProcessStartupError,
     build_app_launch_command,
     build_continue_install_command,
+)
+from launcher.sugarsubstitute_launcher.process_execution import (
+    ProcessStartupError,
     start_detached,
 )
 from launcher.sugarsubstitute_launcher.release_sources import LocalFolderReleaseSource

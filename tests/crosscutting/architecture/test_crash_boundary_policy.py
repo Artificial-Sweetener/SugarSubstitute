@@ -52,6 +52,11 @@ def _fixture_policy() -> ArchitecturePolicy:
     "source, primitive",
     [
         (
+            "from sugarsubstitute_shared.windows_process_job_api import load_kernel\n"
+            "def bypass():\n    kernel = load_kernel()\n    kernel.CreateProcessW()\n",
+            "windows.kernel32.CreateProcessW",
+        ),
+        (
             "import subprocess\ndef bypass():\n    subprocess.Popen([])\n",
             "subprocess.Popen",
         ),

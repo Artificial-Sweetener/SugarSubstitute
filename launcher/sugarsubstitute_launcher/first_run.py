@@ -30,8 +30,8 @@ from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
 from launcher.sugarsubstitute_launcher.process import (
     build_app_launch_command,
     build_continue_install_command,
-    start_detached,
 )
+from launcher.sugarsubstitute_launcher.process_execution import start_detached
 from launcher.sugarsubstitute_launcher.release_sources import (
     ReleaseSource,
     release_source_config_for,

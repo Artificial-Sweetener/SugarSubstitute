@@ -30,7 +30,7 @@ from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.launcher_ui_process import present_crash_report
-from launcher.sugarsubstitute_launcher.process import spawn_detached_process
+from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from sugarsubstitute_shared.crash_reporting import (
     CrashAttribution,
     CrashBoundary,
@@ -299,7 +299,7 @@ def _start_application_process(
 ) -> tuple[SupervisedProcess, Path]:
     """Start an application through the launcher's existing process owner."""
 
-    return spawn_detached_process(command, environment=environment)
+    return spawn_supervised_process(command, environment=environment)
 
 
 def _installed_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:

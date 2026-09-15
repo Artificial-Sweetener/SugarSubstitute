@@ -32,10 +32,8 @@ from launcher.sugarsubstitute_launcher.application.repair.composition import (
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import launcher_target_for_key
-from launcher.sugarsubstitute_launcher.process import (
-    build_app_launch_command,
-    start_detached,
-)
+from launcher.sugarsubstitute_launcher.process import build_app_launch_command
+from launcher.sugarsubstitute_launcher.process_execution import start_detached
 from sugarsubstitute_shared.process_identity import (
     ProcessIdentity,
     wait_for_process_exit,

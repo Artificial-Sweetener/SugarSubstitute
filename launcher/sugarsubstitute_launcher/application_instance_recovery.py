@@ -25,9 +25,6 @@ import psutil  # type: ignore[import-untyped]
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceBrokerError,
 )
-from sugarsubstitute_shared.application_instance_transport import (
-    connect_instance_endpoint,
-)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,32 +36,25 @@ def terminate_verified_instance_owner(
     *,
     expected_executable: Path,
 ) -> bool:
-    """Terminate only the still-owning, same-executable supervisor selected by a user."""
+    """Terminate the originally authenticated process without requiring responsive IPC."""
 
     endpoint = error.endpoint
+    identity = error.owner_identity
     expected_process_id = error.owner_process_id
-    if endpoint is None or expected_process_id is None:
+    if endpoint is None or identity is None:
         _LOGGER.warning(
             "Instance recovery has no verified owner to terminate",
             extra={"owner_process_id": expected_process_id},
         )
         return False
     try:
-        connection = connect_instance_endpoint(endpoint)
-        try:
-            current_owner_process_id = connection.peer_process_id()
-            if current_owner_process_id != expected_process_id:
-                _LOGGER.warning(
-                    "Refused to terminate an endpoint now owned by another process",
-                    extra={
-                        "expected_owner_process_id": expected_process_id,
-                        "current_owner_process_id": current_owner_process_id,
-                    },
-                )
-                return False
-        finally:
-            connection.close()
-        process = psutil.Process(expected_process_id)
+        process = psutil.Process(identity.pid)
+        if abs(float(process.create_time()) - identity.created_at) > 0.000_001:
+            _LOGGER.warning(
+                "Refused to terminate a reused instance PID",
+                extra={"owner_process_id": identity.pid},
+            )
+            return False
         if Path(process.exe()).resolve() != expected_executable.resolve():
             _LOGGER.warning(
                 "Refused to terminate instance owner with a different executable",
@@ -87,6 +77,12 @@ def terminate_verified_instance_owner(
             process.wait(timeout=_TERMINATION_TIMEOUT_SECONDS)
         _LOGGER.info(
             "Verified unresponsive instance owner exited",
+            extra={"owner_process_id": expected_process_id},
+        )
+        return True
+    except psutil.NoSuchProcess:
+        _LOGGER.info(
+            "Verified instance owner has already exited",
             extra={"owner_process_id": expected_process_id},
         )
         return True
