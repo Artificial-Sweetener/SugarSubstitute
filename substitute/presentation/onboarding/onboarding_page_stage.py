@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import QEvent, QObject, QTimer, Qt
 from PySide6.QtGui import QResizeEvent, QShowEvent
 from PySide6.QtWidgets import (
     QFrame,
@@ -63,9 +63,19 @@ class OnboardingPageStage(QScrollArea):
         self._height_refresh_timer.timeout.connect(self.refresh_current_page_height)
 
     def add_page(self, page: QWidget) -> None:
-        """Add one production page to the stage."""
+        """Observe native layout requests from every mounted production page."""
 
         self.page_stack.addWidget(page)
+        page.installEventFilter(self)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        """Coalesce content changes after Qt has propagated child size hints."""
+        if (
+            watched is self.page_stack.currentWidget()
+            and event.type() == QEvent.Type.LayoutRequest
+        ):
+            self._height_refresh_timer.start(0)
+        return super().eventFilter(watched, event)
 
     def show_page(self, page: QWidget) -> None:
         """Display one page from its top and settle its current geometry."""
@@ -94,7 +104,6 @@ class OnboardingPageStage(QScrollArea):
             self.scroll_content.setFixedWidth(viewport_width)
             page_layout = page.layout()
             if page_layout is not None:
-                page_layout.invalidate()
                 page_layout.activate()
             page.updateGeometry()
             preferred_height = page.sizeHint().height()

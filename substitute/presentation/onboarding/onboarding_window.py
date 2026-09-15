@@ -243,7 +243,6 @@ class OnboardingWindow(SubstituteWindowFrame):
             review_page=self.model_download_review_page,
             primary_button=self.primary_button,
             navigate=self._show_page,
-            refresh_height=self.page_stage.schedule_current_page_height_refresh,
             open_model_page=open_civitai_model_page,
             recipe_planner=recipe_planner,
         )
@@ -345,30 +344,6 @@ class OnboardingWindow(SubstituteWindowFrame):
         }
         for page in self._pages.values():
             self.page_stage.add_page(page)
-        self.comfy_preflight_page.content_height_changed.connect(
-            self.page_stage.schedule_current_page_height_refresh
-        )
-        self.managed_local_page.content_height_changed.connect(
-            self.page_stage.schedule_current_page_height_refresh
-        )
-        self.attached_local_page.content_height_changed.connect(
-            self.page_stage.schedule_current_page_height_refresh
-        )
-        self.attached_python_process_page.content_height_changed.connect(
-            self.page_stage.schedule_current_page_height_refresh
-        )
-        self.attached_python_manual_page.content_height_changed.connect(
-            self.page_stage.schedule_current_page_height_refresh
-        )
-        self.provisioning_page.content_height_changed.connect(
-            self.page_stage.schedule_current_page_height_refresh
-        )
-        self.completion_page.content_height_changed.connect(
-            self.page_stage.schedule_current_page_height_refresh
-        )
-        self.integrations_page.content_height_changed.connect(
-            self.page_stage.schedule_current_page_height_refresh
-        )
 
         self.footer_row = QFrame(self.content_panel)
         self.footer_row.setObjectName("OnboardingFooterRow")
@@ -806,7 +781,6 @@ class OnboardingWindow(SubstituteWindowFrame):
                 self._provisioning_started = True
                 self.provisioning_page.clear_details()
                 self.provisioning_page.reset_progress()
-                self.page_stage.refresh_current_page_height()
                 self._controller.start_provisioning()
             return
 

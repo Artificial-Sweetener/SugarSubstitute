@@ -39,6 +39,7 @@ from substitute.presentation.onboarding.onboarding_window import (
 )
 
 from tests.support.qt.lifecycle import activate_widget_layouts, ensure_qt_application
+from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 from .controller_double import _FakeController
 
@@ -357,7 +358,10 @@ def test_provisioning_live_output_stays_inside_status_panel(
     page_height_before = window.provisioning_page.height()
 
     window.provisioning_page.show_log_button.click()
-    application.processEvents()
+    wait_for_qt_condition(
+        lambda: window.provisioning_page.height() > page_height_before,
+        description="expanded provisioning log geometry",
+    )
     assert not window.provisioning_page.details_container.isHidden()
     assert window.provisioning_page.show_log_button.text() == "Hide setup log"
     assert window.provisioning_page.height() > page_height_before
