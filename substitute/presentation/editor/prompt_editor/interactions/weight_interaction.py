@@ -22,7 +22,7 @@ from collections.abc import Callable
 from typing import Protocol
 
 from PySide6.QtCore import QRectF
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtGui import QKeyEvent, QMouseEvent
 from PySide6.QtWidgets import QScrollBar
 
 from substitute.application.prompt_editor.document.service import PromptDocumentService
@@ -307,21 +307,6 @@ class PromptWeightInteraction:
 
         self._exact_weight.cancel_exact_weight_edit()
 
-    def update_exact_weight_edit(
-        self,
-        *,
-        buffer_text: str,
-        caret_index: int,
-        select_all: bool,
-    ) -> None:
-        """Update the projection-owned exact-weight edit buffer."""
-
-        self._exact_weight.update_exact_weight_edit(
-            buffer_text=buffer_text,
-            caret_index=caret_index,
-            select_all=select_all,
-        )
-
     def clear_exact_weight_edit(self) -> None:
         """Clear active exact-weight edit state without mutation."""
 
@@ -347,18 +332,10 @@ class PromptWeightInteraction:
 
         return self._exact_weight.exact_weight_edit_active()
 
-    def update_exact_weight_caret(
-        self,
-        *,
-        token: PromptProjectionToken,
-        caret_index: int,
-    ) -> None:
-        """Move the exact-edit caret for one token."""
+    def handle_exact_weight_mouse(self, event: QMouseEvent) -> None:
+        """Route viewport mouse delivery to the active numeric input."""
 
-        self._exact_weight.update_exact_weight_caret(
-            token=token,
-            caret_index=caret_index,
-        )
+        self._exact_weight.handle_exact_weight_mouse(event)
 
     def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return current projection-owned weight text geometry."""

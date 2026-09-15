@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.real_shell.exact_weight_state import (
+    exact_weight_input_violations,
+)
+
 import math
 from typing import TYPE_CHECKING
 
@@ -46,7 +50,13 @@ def snapshot_invariant_violations(
 ) -> tuple[str, ...]:
     """Return code-level prompt editor invariant violations for one snapshot."""
 
-    violations: list[str] = []
+    violations: list[str] = list(
+        exact_weight_input_violations(snapshot.exact_weight_input)
+    )
+    if snapshot.exact_weight_input is not None and (
+        snapshot.popup_visual_visible or snapshot.ghost_visual_visible
+    ):
+        violations.append("autocomplete_visible_during_exact_weight_edit")
     source_length = len(snapshot.source_text)
     if not 0 <= snapshot.cursor_position <= source_length:
         violations.append(

@@ -89,6 +89,7 @@ class _SnapshotInvariantState:
         "horizontal_scroll_maximum": 0,
         "horizontal_scroll_minimum": 0,
         "horizontal_scroll_page_step": 0,
+        "exact_weight_input": None,
         "last_content_paint_frame_is_current": True,
         "last_content_paint_result": "miss",
         "layout_inline_object_fragment_count": 0,

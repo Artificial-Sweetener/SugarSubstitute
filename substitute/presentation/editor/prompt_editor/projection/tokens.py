@@ -225,49 +225,6 @@ def _emphasis_edit_text(token: PromptProjectionToken, run: PromptProjectionRun) 
     )
 
 
-def paint_exact_weight_edit_buffer(
-    painter: QPainter,
-    *,
-    token: PromptProjectionToken,
-    weight_rect: QRectF,
-    text: str,
-    metrics: QFontMetricsF,
-    palette: QPalette,
-) -> None:
-    """Paint the shared projection-owned exact-edit weight buffer."""
-
-    highlight_rect = QRectF(weight_rect)
-    if token.editing_select_all:
-        painter.fillRect(highlight_rect, palette.color(QPalette.ColorRole.Highlight))
-    painter.setPen(
-        palette.color(
-            QPalette.ColorRole.HighlightedText
-            if token.editing_select_all
-            else QPalette.ColorRole.Text
-        )
-    )
-    painter.drawText(
-        QPointF(
-            weight_rect.left(),
-            weight_rect.top() + metrics.ascent(),
-        ),
-        text,
-    )
-    if token.editing_select_all:
-        return
-    caret_index = 0 if token.editing_caret_index is None else token.editing_caret_index
-    caret_x = weight_rect.left() + metrics.horizontalAdvance(text[:caret_index])
-    painter.fillRect(
-        QRectF(
-            caret_x,
-            weight_rect.top(),
-            1.0,
-            weight_rect.height(),
-        ),
-        palette.color(QPalette.ColorRole.Text),
-    )
-
-
 class PromptEmphasisPrefixRenderer:
     """Render the decorative leading parenthesis for one emphasis token."""
 
@@ -589,15 +546,6 @@ class PromptEmphasisSuffixRenderer:
                     ),
                     weight_text,
                 )
-            else:
-                self._paint_exact_weight_edit(
-                    painter,
-                    token=token,
-                    weight_rect=weight_rect,
-                    text=weight_text,
-                    metrics=decoration_metrics.weight_metrics,
-                    palette=palette,
-                )
         painter.restore()
 
     def anchor_rect(
@@ -675,27 +623,6 @@ class PromptEmphasisSuffixRenderer:
         if selection_start <= token.source_start and token.source_end <= selection_end:
             return (QRectF(rect),)
         return ()
-
-    def _paint_exact_weight_edit(
-        self,
-        painter: QPainter,
-        *,
-        token: PromptProjectionToken,
-        weight_rect: QRectF,
-        text: str,
-        metrics: QFontMetricsF,
-        palette: QPalette,
-    ) -> None:
-        """Paint the projection-owned exact-edit weight buffer for one emphasis token."""
-
-        paint_exact_weight_edit_buffer(
-            painter,
-            token=token,
-            weight_rect=weight_rect,
-            text=text,
-            metrics=metrics,
-            palette=palette,
-        )
 
 
 class PromptWildcardInlineObjectRenderer:
@@ -1466,14 +1393,6 @@ class PromptLoraInlineObjectRenderer:
             )
             return
         self._paint_edit_backing(painter, rect, banner_backed=banner_backed)
-        paint_exact_weight_edit_buffer(
-            painter,
-            token=token,
-            weight_rect=text_rect,
-            text=text,
-            metrics=metrics,
-            palette=_banner_edit_palette(palette) if banner_backed else palette,
-        )
 
     def _paint_edit_backing(
         self,
@@ -1625,5 +1544,4 @@ __all__ = [
     "PromptRichInlineObjectRenderer",
     "PromptWildcardInlineObjectRenderer",
     "emphasis_weight_font",
-    "paint_exact_weight_edit_buffer",
 ]

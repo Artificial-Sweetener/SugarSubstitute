@@ -669,10 +669,10 @@ owner = "prompt token-weight controls"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/overlays/token_weight_controls.py"
 kind = "remediation"
-justification = "The assessed file mixes control overlay geometry and visibility, pointer, click, and wheel gesture routing, exact-weight edit widget behavior, token preview and hover state, wheel-intent coordination, runtime widget lifecycle and event filtering. Extract exact-edit, wheel-intent, and preview controllers from overlay geometry and widget presentation."
+justification = "The assessed file mixes control overlay geometry and visibility, pointer, click, and wheel gesture routing, exact-weight activation and completion gesture routing, token preview and hover state, wheel-intent coordination, runtime widget lifecycle and event filtering. Extract remaining exact-edit activation gestures, wheel-intent, and preview controllers from overlay geometry and widget presentation."
 issue = "chore:SS-ARCH-059"
 review_by = 2026-12-15
-max_lines = 1314
+max_lines = 1242
 next_limit = 1051
 debt = "SS-ARCH-059"
 
@@ -698,7 +698,7 @@ kind = "remediation"
 justification = "The assessed file mixes source editing and input-method handling, projection, layout, freshness, and publication coordination, caret, selection, scrolling, and hit testing, paint caches and custom rendering, autocomplete, diagnostics, reorder, region, and token-weight interaction hosting, clipboard, drag/drop, undo, focus, and tooltip routing. Extract input/editing, paint publication, and feature-interaction hosts from the mounted projection surface."
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
-max_lines = 3517
+max_lines = 3435
 next_limit = 2813
 debt = "SS-ARCH-061"
 
@@ -708,10 +708,10 @@ owner = "prompt inline token rendering"
 rule = "STRUCT003"
 path = "substitute/presentation/editor/prompt_editor/projection/tokens.py"
 kind = "remediation"
-justification = "The assessed file mixes shared inline renderer contract, emphasis measurement and exact-weight painting, wildcard inline rendering, LoRA banner rendering and media presentation, renderer registration and theme adaptation. Split emphasis, wildcard, and LoRA renderers into focused modules behind the renderer registry contract."
+justification = "The assessed file mixes shared inline renderer contract, emphasis measurement and static token painting, wildcard inline rendering, LoRA banner rendering and media presentation, renderer registration and theme adaptation. Split emphasis, wildcard, and LoRA renderers into focused modules behind the renderer registry contract."
 issue = "chore:SS-ARCH-062"
 review_by = 2026-12-15
-max_lines = 1410
+max_lines = 1333
 next_limit = 1128
 debt = "SS-ARCH-062"
 
@@ -1501,17 +1501,6 @@ review_by = 2026-12-15
 max_lines = 611
 
 [[waivers]]
-id = "SS-WAIVER-S047"
-owner = "prompt exact-weight interaction"
-rule = "STRUCT003"
-path = "substitute/presentation/editor/prompt_editor/interactions/exact_weight_controller.py"
-kind = "structural"
-justification = "PromptExactWeightController owns one exact-weight edit session from overlay activation through buffer editing, caret handling, parse/step actions, mutation commit, cancellation, and focus/scroll restoration. Its methods share one exact-edit state."
-issue = "chore:SS-WAIVER-S047"
-review_by = 2026-12-15
-max_lines = 573
-
-[[waivers]]
 id = "SS-WAIVER-S048"
 owner = "lazy shifted prompt snapshots"
 rule = "STRUCT003"
@@ -1575,7 +1564,7 @@ kind = "structural"
 justification = "PromptProjectionPromptStateApplier owns one atomic application transaction from prepared prompt state to projection lineage, geometry, cursor/scroll restoration, and optional exact-weight activation. Fast and rebuilding paths must publish the same outcome invariants."
 issue = "chore:SS-WAIVER-S053"
 review_by = 2026-12-15
-max_lines = 622
+max_lines = 613
 
 [[waivers]]
 id = "SS-WAIVER-S054"
