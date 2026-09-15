@@ -22,6 +22,19 @@ import argparse
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NoReturn
+
+
+class LauncherArgumentError(ValueError):
+    """Reject an inspected invocation without printing or exiting the launcher."""
+
+
+class _InspectionArgumentParser(argparse.ArgumentParser):
+    """Apply the launcher's grammar to another process without CLI side effects."""
+
+    def error(self, message: str) -> NoReturn:
+        """Return invalid process arguments to the inspection boundary as data."""
+        raise LauncherArgumentError(message)
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,10 +56,15 @@ class LauncherArguments:
     instance_recovery_request: Path | None
 
 
-def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
-    """Parse launcher flags used by setup, repair, and normal launch modes."""
+def parse_launcher_args(
+    argv: Sequence[str], *, report_errors: bool = True
+) -> LauncherArguments:
+    """Parse the shared launcher grammar for CLI execution or quiet inspection."""
 
-    parser = argparse.ArgumentParser(add_help=True)
+    parser_type = (
+        argparse.ArgumentParser if report_errors else _InspectionArgumentParser
+    )
+    parser = parser_type(add_help=report_errors)
     execution_mode = parser.add_mutually_exclusive_group()
     execution_mode.add_argument("--continue-install", action="store_true")
     execution_mode.add_argument("--headless-install", action="store_true")

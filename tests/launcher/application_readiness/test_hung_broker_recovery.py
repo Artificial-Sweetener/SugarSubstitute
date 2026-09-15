@@ -28,12 +28,9 @@ import pytest
 from sugarsubstitute_shared.process_identity import capture_process_identity
 
 from launcher.sugarsubstitute_launcher.application_instance_recovery import (
-    terminate_verified_instance_owner,
+    terminate_verified_process,
 )
 from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
-from sugarsubstitute_shared.application_instance_protocol import (
-    ApplicationInstanceBrokerError,
-)
 from sugarsubstitute_shared.application_instance_transport import (
     connect_instance_endpoint,
     instance_endpoint,
@@ -85,12 +82,9 @@ def test_recovery_remains_available_when_owner_cannot_accept_more_connections(
             else:
                 pytest.fail("The frozen owner unexpectedly accepted an unbounded queue")
             assert authenticated_owner == owner_pid
-            assert terminate_verified_instance_owner(
-                ApplicationInstanceBrokerError(
-                    "Hung fixture owner",
-                    owner_identity=verified_identity,
-                    endpoint=endpoint,
-                ),
+            assert verified_identity is not None
+            assert terminate_verified_process(
+                verified_identity,
                 expected_executable=executable,
             ), "Recovery required cooperation from the hung owner"
             root.wait(timeout=5)
