@@ -123,12 +123,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             elect_application,
         )
 
-        broker = _elect_application_with_recovery(
+        from launcher.sugarsubstitute_launcher.application_election_recovery import (
+            ApplicationElectionRecovery,
+        )
+
+        election_recovery = ApplicationElectionRecovery(
             layout=layout,
             process_arguments=process_arguments,
             locale_override=args.locale_override,
             elect=elect_application,
         )
+        broker = election_recovery.run()
         if broker is None:
             if splash_session is not None:
                 splash_session.close()
@@ -278,54 +283,6 @@ def _configure_normal_logging(startup_plan: LauncherStartupPlan) -> None:
 
     configure_launcher_logging(layout=startup_plan.layout)
     _record_qualification_startup_route(startup_plan)
-
-
-def _elect_application_with_recovery(
-    *,
-    layout: InstallLayout,
-    process_arguments: Sequence[str],
-    locale_override: str | None,
-    elect: Callable[[InstallLayout, Sequence[str]], ApplicationInstanceBroker | None],
-) -> ApplicationInstanceBroker | None:
-    """Elect or provide visible, user-controlled recovery from failed activation."""
-
-    from sugarsubstitute_shared.application_instance_protocol import (
-        ApplicationInstanceBrokerError,
-    )
-
-    while True:
-        try:
-            return elect(layout, process_arguments)
-        except ApplicationInstanceBrokerError as error:
-            logging.getLogger(__name__).exception(
-                "Active application instance could not present a usable surface",
-                extra={"owner_process_id": error.owner_process_id},
-            )
-            from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
-                InstanceRecoveryAction,
-            )
-            from launcher.sugarsubstitute_launcher.launcher_ui_supervision import (
-                supervise_instance_recovery_window,
-            )
-
-            action = supervise_instance_recovery_window(
-                layout=layout,
-                locale_override=locale_override,
-                can_end_owner=(
-                    error.owner_process_id is not None and error.endpoint is not None
-                ),
-            )
-            if action is InstanceRecoveryAction.EXIT:
-                return None
-            if action is InstanceRecoveryAction.END_AND_RETRY:
-                from launcher.sugarsubstitute_launcher.application_instance_recovery import (
-                    terminate_verified_instance_owner,
-                )
-
-                terminate_verified_instance_owner(
-                    error,
-                    expected_executable=Path(sys.executable),
-                )
 
 
 def _configure_launch_error_logging(
