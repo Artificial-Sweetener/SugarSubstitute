@@ -66,6 +66,7 @@ def test_application_repair_preserves_user_recovery_and_all_comfy_content(
     for path in (
         layout.user_dir / "projects",
         layout.appdata_dir / "session",
+        layout.appdata_dir / "runtime_state",
         layout.appdata_dir / "cache",
         layout.root / "comfyui" / "models",
         layout.root / "comfyui" / "user",
@@ -73,6 +74,10 @@ def test_application_repair_preserves_user_recovery_and_all_comfy_content(
         _touch_directory(path)
 
     plan = RepairPlanService().build_application_plan(layout=layout)
+    assert (
+        _disposition(plan, layout.appdata_dir / "runtime_state")
+        is RepairDisposition.PRESERVE
+    )
 
     assert (
         _disposition(plan, layout.user_dir / "projects" / "content.txt")

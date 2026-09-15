@@ -66,6 +66,11 @@ class RepairPlanService:
                 "unsaved-work recovery state",
             ),
             self._operation(
+                layout.appdata_dir / "runtime_state",
+                RepairDisposition.PRESERVE,
+                "managed Comfy configuration and runtime coordination",
+            ),
+            self._operation(
                 root / _COMFY_DIR_NAME,
                 RepairDisposition.PRESERVE,
                 "Comfy installation and models are outside application repair",
@@ -92,7 +97,7 @@ class RepairPlanService:
             for replacement_root in launcher_target.replacement_roots
         )
         operations.extend(self._quarantine_unowned_root_entries(layout, operations))
-        operations.extend(self._quarantine_replaceable_appdata(layout))
+        operations.extend(self._quarantine_replaceable_appdata(layout, operations))
         if comfy_ownership is not None:
             comfy_root = self._verified_managed_comfy_root(layout, comfy_ownership)
             operations.extend(self._owned_node_operations(comfy_root))
@@ -227,11 +232,17 @@ class RepairPlanService:
     @staticmethod
     def _quarantine_replaceable_appdata(
         layout: InstallLayout,
+        declared_operations: list[RepairOperation],
     ) -> tuple[RepairOperation, ...]:
-        """Quarantine non-session application state for fresh reconstruction."""
+        """Rebuild application data outside the plan's authoritative preserved roots."""
 
         if not layout.appdata_dir.exists():
             return ()
+        preserved_roots = {
+            operation.path
+            for operation in declared_operations
+            if operation.disposition is RepairDisposition.PRESERVE
+        }
         return tuple(
             RepairPlanService._operation(
                 child,
@@ -239,7 +250,7 @@ class RepairPlanService:
                 "replaceable application state",
             )
             for child in layout.appdata_dir.iterdir()
-            if child.name != "session"
+            if child.resolve() not in preserved_roots
         )
 
     @staticmethod

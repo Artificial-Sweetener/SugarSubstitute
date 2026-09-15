@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+from collections.abc import Mapping, Sequence
+import sys
 
 import pytest
 
@@ -32,6 +34,10 @@ from launcher.sugarsubstitute_launcher.application.repair import (
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
 from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
+from launcher.sugarsubstitute_launcher.runtime_command import (
+    SubprocessRuntimeCommandRunner,
+)
+from launcher.sugarsubstitute_launcher.repair_helper import run_prepared_repair
 
 
 class _RuntimeProvisioner:
@@ -372,3 +378,56 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
     assert result.comfy_quarantine_root is not None
     assert (workspace / "main.py").read_text(encoding="utf-8") == "fresh-core"
     assert {path: path.read_bytes() for path in protected} == before
+
+
+def test_detached_repair_bootstraps_runtime_from_its_bundled_tool(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rebuild a removed runtime through the real helper and bundled uv owner."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    layout.uv_executable.parent.mkdir(parents=True, exist_ok=True)
+    layout.uv_executable.write_bytes(b"old-uv")
+    managed_state = layout.appdata_dir / "runtime_state" / "managed_runtime.json"
+    managed_state.parent.mkdir(parents=True)
+    managed_state.write_bytes(
+        b'{"workspace_path":"comfyui","validation_status":"valid"}'
+    )
+    original_managed_state = managed_state.read_bytes()
+    bundle = tmp_path / "helper-bundle"
+    bundled_uv = bundle / "launcher_assets" / WINDOWS_X64.uv_executable_name
+    bundled_uv.parent.mkdir(parents=True)
+    bundled_uv.write_bytes(b"bundled-uv")
+    monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+    request = _prepared_request(layout)
+    request_path = layout.root / ".repair" / "prepared.json"
+    request.save(request_path)
+    commands: list[tuple[str, ...]] = []
+
+    def run_command(
+        self: SubprocessRuntimeCommandRunner,
+        command: Sequence[str],
+        *,
+        cwd: Path,
+        env: Mapping[str, str],
+    ) -> None:
+        """Model subprocess output while retaining real runtime orchestration."""
+        del self, env
+        assert cwd == layout.root
+        assert layout.uv_executable.read_bytes() == b"bundled-uv"
+        commands.append(tuple(command))
+        if "venv" in command:
+            layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
+            layout.runtime_python.write_bytes(b"candidate-python")
+
+    monkeypatch.setattr(SubprocessRuntimeCommandRunner, "run", run_command)
+    result = run_prepared_repair(request_path)
+
+    assert result.version == request.version
+    assert not request_path.exists()
+    assert layout.runtime_python.read_bytes() == b"candidate-python"
+    assert layout.uv_executable.read_bytes() == b"bundled-uv"
+    assert managed_state.read_bytes() == original_managed_state
+    assert any("venv" in command for command in commands)
+    assert (layout.user_dir / "projects" / "work.json").read_bytes() == b"protected-0"

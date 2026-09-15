@@ -60,7 +60,6 @@ from launcher.sugarsubstitute_launcher.payload_staging import validate_app_paylo
 from launcher.sugarsubstitute_launcher.platforms import launcher_target_for_key
 from launcher.sugarsubstitute_launcher.repair_ownership import load_comfy_ownership
 from launcher.sugarsubstitute_launcher.repair_transaction import RepairTransaction
-from launcher.sugarsubstitute_launcher.runtime import UvManagedRuntimeInstaller
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
 from sugarsubstitute_shared.launcher_update.staging import validate_staged_bundle
@@ -204,14 +203,14 @@ class RepairExecutionService:
     def __init__(
         self,
         *,
-        runtime_provisioner: RuntimeProvisioner | None = None,
+        runtime_provisioner: RuntimeProvisioner,
         comfy_repairer: ManagedComfyRepairer | None = None,
         state_writer: RepairInstallationStateWriter | None = None,
         transaction: RepairTransaction | None = None,
     ) -> None:
         """Store repair adapters whose side effects remain transaction-bound."""
 
-        self._runtime_provisioner = runtime_provisioner or UvManagedRuntimeInstaller()
+        self._runtime_provisioner = runtime_provisioner
         self._comfy_repairer = comfy_repairer or SubprocessManagedComfyRepairer()
         self._state_writer = state_writer or FreshRepairInstallationStateWriter()
         self._transaction = transaction or RepairTransaction()
