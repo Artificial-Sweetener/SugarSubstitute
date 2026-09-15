@@ -23,10 +23,12 @@ from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.application.repair.execution_service import (
     CompletedRepair,
-    RepairExecutionService,
 )
 from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
+)
+from launcher.sugarsubstitute_launcher.application.repair.composition import (
+    build_repair_execution_service,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import launcher_target_for_key
@@ -72,7 +74,12 @@ def run_prepared_repair(
                 created_at=request.wait_process_created_at,
             )
         )
-    execute = executor or RepairExecutionService().execute_application
+    execute = (
+        executor
+        or build_repair_execution_service(
+            target=launcher_target_for_key(request.target_key)
+        ).execute_application
+    )
     result = execute(request)
     request_path.unlink(missing_ok=True)
     if request.relaunch:
