@@ -127,7 +127,7 @@ def provision_external_comfy_workspace(fixture: ExternalComfyFixture) -> Path:
     fixture.workspace_root.parent.mkdir(parents=True, exist_ok=True)
     return ensure_managed_comfy_setup(
         workspace=fixture.workspace_root,
-    )
+    ).python_executable
 
 
 def launch_external_comfy_fixture(

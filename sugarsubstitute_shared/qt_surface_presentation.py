@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Run application handoff work only after a concrete Qt surface paints."""
+"""Run process handoff work only after a concrete Qt surface paints."""
 
 from __future__ import annotations
 

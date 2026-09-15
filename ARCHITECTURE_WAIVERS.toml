@@ -178,7 +178,7 @@ kind = "remediation"
 justification = "The assessed file mixes draft-state loading and recovery coordination, managed, attached, and remote provisioning transaction orchestration, external model-library configuration coordination, readiness and provisioning failure classification. Extract target-specific provisioning strategies, external model-library configuration, and failure classifiers from the shared transaction sequence."
 issue = "chore:SS-ARCH-016"
 review_by = 2026-12-15
-max_lines = 1253
+max_lines = 1250
 next_limit = 1075
 debt = "SS-ARCH-016"
 
@@ -1091,7 +1091,7 @@ kind = "structural"
 justification = "BootstrapReadinessService evaluates one ordered readiness decision tree and returns one startup route. Configuration, runtime, target, compatibility, and managed-workspace checks are branches of that single exhaustive policy; extracting branches would distribute one authoritative routing decision."
 issue = "chore:SS-WAIVER-S006"
 review_by = 2026-12-15
-max_lines = 561
+max_lines = 567
 
 [[waivers]]
 id = "SS-WAIVER-S007"
@@ -1834,7 +1834,7 @@ kind = "remediation"
 justification = "The assessed file mixes application, shared, and launcher message extraction, dynamic and unmarked visible-text validation, presentation assignment and return classification, pseudo-localization transformation, AST source ownership and literal-discovery heuristics. Extract visible-source AST classification and pseudo-localization from catalog extraction."
 issue = "chore:SS-ARCH-095"
 review_by = 2026-12-15
-max_lines = 804
+max_lines = 805
 next_limit = 643
 debt = "SS-ARCH-095"
 

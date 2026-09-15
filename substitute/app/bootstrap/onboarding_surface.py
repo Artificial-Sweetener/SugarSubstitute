@@ -41,8 +41,8 @@ from substitute.application.onboarding.comfy_environment_service import (
     ComfyEnvironmentService,
 )
 from substitute.app.bootstrap.app_layout import resolve_app_layout
-from substitute.app.bootstrap.application_readiness import (
-    schedule_application_readiness_receipt,
+from sugarsubstitute_shared.qt_surface_readiness import (
+    schedule_surface_readiness_receipt,
 )
 from substitute.app.bootstrap.execution_runtime import ExecutionRuntime
 from substitute.app.bootstrap.installation_context import (
@@ -239,7 +239,7 @@ def show_onboarding_surface(
     if setup_transcript is not None:
         window.destroyed.connect(lambda _obj=None: setup_transcript.close())
     window.show()
-    schedule_application_readiness_receipt(
+    schedule_surface_readiness_receipt(
         surface=ApplicationReadinessSurface.ONBOARDING,
         window=window,
     )

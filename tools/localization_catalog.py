@@ -26,6 +26,7 @@ from pathlib import Path
 from tools.localization_source_surfaces import (
     application_catalog_source_roots,
     application_source_roots,
+    iter_authored_python_sources,
     shared_application_catalog_source_roots,
     visible_source_roots,
 )
@@ -329,7 +330,7 @@ def _extract_messages(
 
     locations: dict[str, tuple[str, int]] = {}
     for source_root in source_roots:
-        for path in sorted(source_root.rglob("*.py")):
+        for path in iter_authored_python_sources(source_root):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             definitions = _message_definitions(tree)
             for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
@@ -361,7 +362,7 @@ def find_unbound_dynamic_messages(
     violations: list[ExtractedMessage] = []
     source_roots = visible_source_roots(project_root)
     for source_root in source_roots:
-        for path in sorted(source_root.rglob("*.py")):
+        for path in iter_authored_python_sources(source_root):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             definitions = _assignment_definitions(tree)
             for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
@@ -399,7 +400,7 @@ def find_unmarked_application_messages(
         | frozenset({"LocalizedSwitchButton"})
     )
     for source_root in source_roots:
-        for path in sorted(source_root.rglob("*.py")):
+        for path in iter_authored_python_sources(source_root):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             definitions = _assignment_definitions(tree)
             for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
@@ -433,7 +434,7 @@ def find_unclassified_presentation_assignments(
 
     violations: list[ExtractedMessage] = []
     for source_root in application_source_roots(project_root):
-        for path in sorted(source_root.rglob("*.py")):
+        for path in iter_authored_python_sources(source_root):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             enum_member_lines = _enum_member_assignment_lines(tree)
             for node in ast.walk(tree):
@@ -472,7 +473,7 @@ def find_unclassified_presentation_returns(
 
     violations: list[ExtractedMessage] = []
     for source_root in application_source_roots(project_root):
-        for path in sorted(source_root.rglob("*.py")):
+        for path in iter_authored_python_sources(source_root):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for function in (
                 node

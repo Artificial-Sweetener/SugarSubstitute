@@ -37,6 +37,7 @@ from substitute.domain.onboarding import (
     ComfyPythonBinding,
     ComfyTargetConfiguration,
     ComfyTargetMode,
+    ManagedComfySetupResult,
     ManagedRuntimeConfiguration,
     ReadinessAssessment,
     SetupTransaction,
@@ -58,6 +59,7 @@ from .runtime_support import (
     _StaticOnboardingService,
     _StaticReadinessService,
     _build_context,
+    _managed_setup_result,
     _python_binding,
 )
 
@@ -104,7 +106,9 @@ def test_flow_service_load_draft_prefers_pending_transaction_state(
             managed_runtime_service=_StaticManagedRuntimeService(),
             setup_transaction_service=pending_runtime_service,
         ),
-        managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
+        managed_workspace_provisioner=lambda **kwargs: _managed_setup_result(
+            tmp_path / "unused"
+        ),
         entrypoint_path=tmp_path / "main.py",
     )
 
@@ -153,7 +157,9 @@ def test_flow_service_load_draft_includes_folder_and_preference_state(
     )
     service = OnboardingFlowService(
         service_bundle_factory=lambda _root: bundle,
-        managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
+        managed_workspace_provisioner=lambda **kwargs: _managed_setup_result(
+            tmp_path / "unused"
+        ),
         entrypoint_path=tmp_path / "main.py",
         external_model_library_configurator=external_models,
     )
@@ -179,13 +185,13 @@ def test_flow_service_recovers_stale_attached_retry_to_managed_local(
     context = _build_context(tmp_path, ComfyTargetMode.MANAGED_LOCAL)
     provisioned_workspaces: list[Path] = []
 
-    def _record_provisioned_workspace(**kwargs: object) -> Path:
+    def _record_provisioned_workspace(**kwargs: object) -> ManagedComfySetupResult:
         """Record the workspace passed to managed provisioning."""
 
         workspace = kwargs["workspace"]
         assert isinstance(workspace, Path)
         provisioned_workspaces.append(workspace)
-        return tmp_path / "unused"
+        return _managed_setup_result(workspace)
 
     service = OnboardingFlowService(
         service_bundle_factory=lambda _root: _Bundle(
@@ -230,7 +236,9 @@ def test_flow_service_preserves_explicit_attached_choice_during_first_run(
     workspace = context.comfy_target.workspace_path
     assert workspace is not None
 
-    def _reject_managed_provisioning(**kwargs: object) -> Path:
+    def _reject_managed_provisioning(
+        **kwargs: object,
+    ) -> ManagedComfySetupResult:
         """Fail if first-run attached setup enters managed provisioning."""
 
         _ = kwargs

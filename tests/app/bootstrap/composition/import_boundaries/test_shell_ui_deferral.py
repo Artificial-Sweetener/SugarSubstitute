@@ -22,6 +22,7 @@ import textwrap
 
 
 from .support import (
+    eager_project_import_closure,
     run_isolated_import_probe,
 )
 
@@ -29,27 +30,17 @@ from .support import (
 def test_main_window_composition_import_keeps_canvas_view_deferred() -> None:
     """Main-window composition imports should not load concrete canvas widgets."""
 
-    code = textwrap.dedent(
-        """
-        import importlib
-        import json
-        import sys
-
-        importlib.import_module("substitute.presentation.shell.main_window_composition")
-        forbidden = {
-            "cv2",
-            "substitute.presentation.canvas.factory",
-            "substitute.presentation.canvas.input.input_canvas_view",
-            "substitute.presentation.canvas.output.output_canvas_view",
-        }
-        loaded = sorted(name for name in sys.modules if name in forbidden)
-        print(json.dumps(loaded))
-        """
+    forbidden = {
+        "cv2",
+        "substitute.presentation.canvas.factory",
+        "substitute.presentation.canvas.input.input_canvas_view",
+        "substitute.presentation.canvas.output.output_canvas_view",
+    }
+    imported = eager_project_import_closure(
+        "substitute.presentation.shell.main_window_composition"
     )
 
-    completed = run_isolated_import_probe(code)
-
-    assert completed.stdout.strip() == "[]"
+    assert forbidden.isdisjoint(imported)
 
 
 def test_model_metadata_action_scheduler_import_keeps_menu_ui_deferred() -> None:

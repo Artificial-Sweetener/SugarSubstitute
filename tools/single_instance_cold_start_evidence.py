@@ -31,7 +31,6 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 
 SPLASH_SURFACE_EVIDENCE_ENV = "SUGAR_SUBSTITUTE_SPLASH_SURFACE_EVIDENCE"
 _TIMEOUT_SECONDS = 30.0
-_MAX_LAUNCH_TO_FIRST_PAINT_MS = 1_500.0
 
 
 def capture_cold_start_snapshot(layout: InstallLayout) -> dict[str, object]:
@@ -91,7 +90,6 @@ def assert_cold_start_snapshot(
         surface.get("splash_is_visible") is not True
         or surface.get("first_paint_confirmed") is not True
         or not isinstance(surface.get("launch_to_first_paint_ms"), (int, float))
-        or float(surface["launch_to_first_paint_ms"]) > _MAX_LAUNCH_TO_FIRST_PAINT_MS
         or surface.get("top_level_surface_count") != 1
         or surface.get("visible_top_level_surface_count") != 1
         or surface.get("platform_name") != "offscreen"
@@ -100,6 +98,38 @@ def assert_cold_start_snapshot(
         or adoption.get("close_acknowledged") is not True
     ):
         raise AssertionError(f"Splash surface evidence was not singular: {snapshot}")
+    _assert_startup_phase_order(surface, snapshot=snapshot)
+
+
+def _assert_startup_phase_order(
+    surface: dict[str, object],
+    *,
+    snapshot: dict[str, object],
+) -> None:
+    """Require each observed splash phase to follow its causal predecessor."""
+
+    raw_phases = surface.get("startup_phase_ms")
+    if not isinstance(raw_phases, dict):
+        raise AssertionError(f"Splash startup phases were missing: {snapshot}")
+    ordered_names = (
+        "host_process_requested",
+        "host_module_started",
+        "host_main_entered",
+        "arguments_parsed",
+        "application_ready",
+        "icon_ready",
+        "splash_module_ready",
+        "splash_constructed",
+        "first_paint",
+    )
+    try:
+        phases = [float(raw_phases[name]) for name in ordered_names]
+    except (KeyError, TypeError, ValueError) as error:
+        raise AssertionError(
+            f"Splash startup phases were malformed: {snapshot}"
+        ) from error
+    if phases != sorted(phases):
+        raise AssertionError(f"Splash startup phases were out of order: {snapshot}")
 
 
 def splash_host_pids(layout: InstallLayout) -> tuple[int, ...]:

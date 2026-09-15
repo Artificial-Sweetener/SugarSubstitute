@@ -28,6 +28,11 @@ from typing import cast
 import pytest
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_readiness import (
+    ApplicationReadinessReceipt,
+    ApplicationReadinessSurface,
+    publish_application_readiness_receipt,
+)
 from tools.ci.installer_lifecycle_errors import InstallerLifecycleError
 from tools.ci import installer_ui_qualification
 from tools.ci.installer_process_diagnostics import process_tree_diagnostics
@@ -35,6 +40,52 @@ from tools.ci.installer_ui_qualification import (
     InstalledCandidateLaunch,
     launch_installed_candidate,
 )
+
+
+def test_readiness_wait_observes_launcher_handoff_until_main_shell(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Treat painted setup as progress while requiring the terminal main shell."""
+
+    readiness_path = tmp_path / "readiness.json"
+    token = "qualification-token"
+    publish_application_readiness_receipt(
+        receipt_path=readiness_path,
+        receipt=ApplicationReadinessReceipt(
+            pid=101,
+            token=token,
+            surface=ApplicationReadinessSurface.LAUNCHER_WINDOW,
+            parent_pid=100,
+        ),
+    )
+
+    def publish_main_shell(_interval: float) -> None:
+        """Complete the explicit setup-to-application handoff."""
+
+        publish_application_readiness_receipt(
+            receipt_path=readiness_path,
+            receipt=ApplicationReadinessReceipt(
+                pid=202,
+                token=token,
+                surface=ApplicationReadinessSurface.MAIN_SHELL,
+                parent_pid=201,
+            ),
+        )
+
+    monkeypatch.setattr(
+        "tools.ci.installer_ui_qualification.time.sleep",
+        publish_main_shell,
+    )
+
+    receipt = installer_ui_qualification._wait_for_readiness_receipt(
+        readiness_path=readiness_path,
+        token=token,
+        timeout_seconds=30.0,
+    )
+
+    assert receipt.pid == 202
+    assert receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
 
 
 @pytest.mark.parametrize(

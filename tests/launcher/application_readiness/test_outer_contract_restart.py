@@ -34,6 +34,8 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
+    READINESS_DELEGATION_PATH_ENV,
+    READINESS_DELEGATION_TOKEN_ENV,
     READINESS_PATH_ENV,
     READINESS_TOKEN_ENV,
 )
@@ -180,6 +182,87 @@ def test_supervisor_replaces_outer_receipt_across_authorized_restart(
     assert final_receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
     assert child_environments[1][READINESS_PATH_ENV] != str(receipt_path)
     assert child_environments[1][READINESS_TOKEN_ENV] == "main-shell-token"
+
+
+def test_nested_supervisor_projects_final_surface_to_original_outer_contract(
+    tmp_path: Path,
+) -> None:
+    """A setup child must not strand final readiness inside its private proof."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    outer_receipt_path = tmp_path / "qualification" / "candidate.json"
+    setup_process = _CandidateProcess(pid=321)
+    app_process = _CandidateProcess(pid=654)
+    setup_child_environment: dict[str, str] = {}
+
+    def start_setup(
+        _command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Publish the setup launcher's painted surface and retain its environment."""
+
+        setup_child_environment.update(environment)
+        _publish_test_receipt(
+            receipt_path=Path(environment[READINESS_PATH_ENV]),
+            pid=setup_process.pid,
+            token=environment[READINESS_TOKEN_ENV],
+            surface=ApplicationReadinessSurface.LAUNCHER_WINDOW,
+        )
+        return setup_process, tmp_path / "setup-startup.log"
+
+    ApplicationReadinessSupervisor(
+        accepted_surfaces=(ApplicationReadinessSurface.LAUNCHER_WINDOW,),
+        timeout_seconds=5,
+        process_starter=start_setup,
+        monotonic=_increasing_clock(),
+        wait=lambda _seconds: None,
+        token_factory=lambda: "setup-private-token",
+    ).launch_until_ready(
+        layout=layout,
+        command=["setup.exe", "--launcher-ui-child"],
+        environment={
+            READINESS_PATH_ENV: str(outer_receipt_path),
+            READINESS_TOKEN_ENV: "outer-token",
+        },
+    )
+    assert setup_child_environment[READINESS_DELEGATION_PATH_ENV] == str(
+        outer_receipt_path.resolve()
+    )
+    assert setup_child_environment[READINESS_DELEGATION_TOKEN_ENV] == "outer-token"
+
+    def start_app(
+        _command: Sequence[str],
+        environment: Mapping[str, str],
+    ) -> tuple[_CandidateProcess, Path]:
+        """Publish the final shell through the nested launcher's private proof."""
+
+        _publish_test_receipt(
+            receipt_path=Path(environment[READINESS_PATH_ENV]),
+            pid=app_process.pid,
+            token=environment[READINESS_TOKEN_ENV],
+            surface=ApplicationReadinessSurface.MAIN_SHELL,
+        )
+        return app_process, tmp_path / "app-startup.log"
+
+    ApplicationReadinessSupervisor(
+        accepted_surfaces=(ApplicationReadinessSurface.MAIN_SHELL,),
+        timeout_seconds=5,
+        process_starter=start_app,
+        monotonic=_increasing_clock(),
+        wait=lambda _seconds: None,
+        token_factory=lambda: "app-private-token",
+    ).launch_until_ready(
+        layout=layout,
+        command=["python", "main.py"],
+        environment=setup_child_environment,
+    )
+
+    final_receipt = ApplicationReadinessReceipt.from_json(
+        json.loads(outer_receipt_path.read_text(encoding="utf-8"))
+    )
+    assert final_receipt.pid == app_process.pid
+    assert final_receipt.token == "outer-token"
+    assert final_receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
 
 
 def test_invalid_restarted_child_cannot_replace_outer_receipt(tmp_path: Path) -> None:

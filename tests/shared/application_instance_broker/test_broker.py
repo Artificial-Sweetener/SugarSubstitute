@@ -17,6 +17,7 @@
 """Exercise the real fileless broker through local operating-system IPC."""
 
 from collections.abc import Callable
+import logging
 import threading
 from pathlib import Path
 from typing import cast
@@ -124,6 +125,24 @@ def test_startup_invocation_is_queued_until_the_child_registers(
         working_directory=tmp_path,
     )
     forward_finished = threading.Event()
+    queued_recorded = threading.Event()
+
+    class _QueuedRecordHandler(logging.Handler):
+        """Expose the exact queue transition as a synchronization boundary."""
+
+        def emit(self, record: logging.LogRecord) -> None:
+            """Release the test after the router records retained work."""
+
+            if "Queued secondary invocation" in record.getMessage():
+                queued_recorded.set()
+
+    queue_logger = logging.getLogger(
+        "sugarsubstitute_shared.application_invocation_router"
+    )
+    queue_handler = _QueuedRecordHandler()
+    previous_log_level = queue_logger.level
+    queue_logger.addHandler(queue_handler)
+    queue_logger.setLevel(logging.INFO)
 
     def forward() -> None:
         """Forward the launch while the primary application is still starting."""
@@ -139,6 +158,7 @@ def test_startup_invocation_is_queued_until_the_child_registers(
 
     forward_thread = threading.Thread(target=forward)
     forward_thread.start()
+    assert queued_recorded.wait(2.0)
     client = ApplicationSupervisorClient.connect_from_environment(
         broker.child_environment({})
     )
@@ -163,6 +183,8 @@ def test_startup_invocation_is_queued_until_the_child_registers(
         assert forward_finished.wait(2.0)
         assert received == [queued]
     finally:
+        queue_logger.removeHandler(queue_handler)
+        queue_logger.setLevel(previous_log_level)
         client.close()
         broker.close()
         forward_thread.join(timeout=2.0)
@@ -278,6 +300,66 @@ def test_startup_surface_acknowledges_launch_without_losing_queued_invocation(
         client.bind_invocation_handler(receive)
         assert complete.wait(2.0)
         assert delivered == [duplicate]
+    finally:
+        client.close()
+        broker.close()
+
+
+def test_startup_surface_remains_authoritative_after_child_registration(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Use the living splash while a registered child still has no window."""
+
+    monkeypatch.setattr(
+        application_instance_broker,
+        "_SUPERVISOR_RECEIPT_DEADLINE_SECONDS",
+        0.05,
+    )
+    broker = ApplicationInstanceBroker.elect(
+        install_root=tmp_path,
+        invocation=ApplicationInvocation.capture(["Substitute"]),
+    )
+    assert broker is not None
+    client = ApplicationSupervisorClient.connect_from_environment(
+        broker.child_environment({})
+    )
+    assert client is not None
+    delivered: list[RoutedApplicationInvocation] = []
+    delivery = threading.Event()
+    startup_presentations: list[ApplicationInvocation] = []
+
+    def receive(request: RoutedApplicationInvocation) -> None:
+        """Retain the work without pretending the app has a window yet."""
+
+        delivered.append(request)
+        delivery.set()
+
+    def present_startup(invocation: ApplicationInvocation) -> str:
+        """Acknowledge through the still-visible launcher splash."""
+
+        startup_presentations.append(invocation)
+        return "startup-splash"
+
+    client.bind_invocation_handler(receive)
+    broker.bind_startup_presenter(present_startup)
+    invocation = ApplicationInvocation.capture(["Substitute", "prewindow.sugar"])
+    try:
+        assert (
+            ApplicationInstanceBroker.elect(
+                install_root=tmp_path,
+                invocation=invocation,
+            )
+            is None
+        )
+        assert delivery.wait(2.0)
+        assert startup_presentations == [invocation]
+        assert [request.invocation for request in delivered] == [invocation]
+        client.complete_invocation(
+            delivered[0].request_id,
+            outcome="presented",
+            surface="main-window",
+        )
     finally:
         client.close()
         broker.close()

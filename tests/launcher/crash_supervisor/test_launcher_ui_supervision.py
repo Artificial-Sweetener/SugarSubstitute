@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 import sys
 
@@ -52,10 +52,13 @@ class RecordingSupervisor:
         layout: InstallLayout,
         command: Sequence[str],
         environment: Mapping[str, str],
+        on_ready: Callable[[], None] | None = None,
     ) -> int:
         """Record exact launch ownership and return the requested result."""
 
         self.calls.append((layout, tuple(command), environment))
+        if on_ready is not None:
+            on_ready()
         return self.result
 
 
@@ -68,6 +71,7 @@ class RecoveryDecisionSupervisor(RecordingSupervisor):
         layout: InstallLayout,
         command: Sequence[str],
         environment: Mapping[str, str],
+        on_ready: Callable[[], None] | None = None,
     ) -> int:
         """Read the request exactly as the Qt child does and publish Retry."""
 
@@ -75,6 +79,7 @@ class RecoveryDecisionSupervisor(RecordingSupervisor):
             layout=layout,
             command=command,
             environment=environment,
+            on_ready=on_ready,
         )
         prefix = "--instance-recovery-request="
         request_path = Path(

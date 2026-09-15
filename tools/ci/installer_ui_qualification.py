@@ -64,6 +64,12 @@ from tools.ci.owned_process_runner import terminate_owned_process_tree
 
 _INSTALL_TIMEOUT_SECONDS = 3_600.0
 _LAUNCH_PROGRESS_TIMEOUT_SECONDS = 120.0
+_INSTALLER_HANDOFF_SURFACES = frozenset(
+    {
+        ApplicationReadinessSurface.LAUNCHER_WINDOW,
+        ApplicationReadinessSurface.ONBOARDING,
+    }
+)
 _MANAGED_COMFY_OUTPUT_LOG_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS_COMFY_OUTPUT_LOG"
 _FROZEN_LAUNCH_OVERRIDE_VARIABLES = (
     "PYTHONHOME",
@@ -405,7 +411,7 @@ def _wait_for_readiness_receipt(
                 raise InstallerLifecycleError(
                     "Application readiness receipt did not match this CI launch."
                 )
-            if receipt.surface is ApplicationReadinessSurface.ONBOARDING:
+            if receipt.surface in _INSTALLER_HANDOFF_SURFACES:
                 time.sleep(0.1)
                 continue
             if receipt.surface is not ApplicationReadinessSurface.MAIN_SHELL:

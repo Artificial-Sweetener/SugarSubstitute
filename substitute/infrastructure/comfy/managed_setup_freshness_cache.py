@@ -23,13 +23,9 @@ from datetime import UTC, datetime
 import os
 from pathlib import Path
 
-from substitute.application.onboarding.managed_runtime_state_recorder import (
-    ManagedRuntimeStateRecorder,
-)
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.domain.onboarding import (
     ManagedRuntimeConfiguration,
-    ManagedRuntimeValidationStatus,
 )
 from substitute.infrastructure.comfy.managed_environment_validator import (
     ManagedEnvironmentValidationResult,
@@ -37,6 +33,7 @@ from substitute.infrastructure.comfy.managed_environment_validator import (
 from substitute.infrastructure.comfy.managed_runtime_configuration_codec import (
     managed_runtime_configuration_from_payload,
     managed_runtime_configuration_payload,
+    validated_managed_runtime_configuration,
 )
 from substitute.infrastructure.comfy.managed_setup_evidence import (
     load_json_object,
@@ -46,10 +43,12 @@ from substitute.infrastructure.comfy.managed_setup_freshness_inputs import (
     installed_setup_static_freshness_key,
 )
 from substitute.shared.startup_trace import trace_mark
+from substitute.shared.logging.logger import get_logger, log_warning
 
 _SCHEMA_VERSION = 5
 _MAX_AGE_SECONDS = 6 * 60 * 60
 _DISABLE_ENV = "SUGARSUB_DISABLE_MANAGED_SETUP_CACHE"
+_LOGGER = get_logger("infrastructure.comfy.managed_setup_freshness_cache")
 
 
 def fresh_installed_setup_record_without_hardware_probe(
@@ -77,6 +76,9 @@ def fresh_installed_setup_record_without_hardware_probe(
     if record.get("success") is not True:
         trace_mark("managed_setup.existing.fast_cache_miss", reason="not_successful")
         return None
+    if validated_runtime_configuration_from_installed_setup_record(record) is None:
+        trace_mark("managed_setup.existing.fast_cache_miss", reason="evidence")
+        return None
     if record.get("request") != dict(request):
         trace_mark("managed_setup.existing.fast_cache_miss", reason="request_changed")
         return None
@@ -98,39 +100,42 @@ def fresh_installed_setup_record_without_hardware_probe(
     return record
 
 
-def installed_setup_freshness_is_current(
+def fresh_installed_setup_record(
     *,
     record_path: Path,
     key: Mapping[str, object],
     refresh_core_nodepacks: Collection[CoreNodepackId],
-) -> bool:
-    """Return whether setup can reuse a recent successful reconciliation."""
+) -> dict[str, object] | None:
+    """Return complete fresh evidence for the selected runtime strategy."""
 
     if refresh_core_nodepacks:
         trace_mark("managed_setup.existing.cache_skip", reason="refresh_requested")
-        return False
+        return None
     if os.getenv(_DISABLE_ENV) == "1":
         trace_mark("managed_setup.existing.cache_skip", reason="disabled")
-        return False
+        return None
     record = load_installed_setup_freshness(record_path)
     if record is None:
         trace_mark("managed_setup.existing.cache_miss", reason="missing")
-        return False
+        return None
     if record.get("schema_version") != _SCHEMA_VERSION:
         trace_mark("managed_setup.existing.cache_miss", reason="schema")
-        return False
+        return None
     if record.get("success") is not True:
         trace_mark("managed_setup.existing.cache_miss", reason="not_successful")
-        return False
+        return None
     if record.get("key") != dict(key):
         trace_mark("managed_setup.existing.cache_miss", reason="key_changed")
-        return False
+        return None
+    if validated_runtime_configuration_from_installed_setup_record(record) is None:
+        trace_mark("managed_setup.existing.cache_miss", reason="evidence")
+        return None
     age_seconds = _freshness_record_age_seconds(record)
     if age_seconds is None or age_seconds > _MAX_AGE_SECONDS:
         trace_mark("managed_setup.existing.cache_miss", reason="expired")
-        return False
+        return None
     trace_mark("managed_setup.existing.cache_hit", age_seconds=round(age_seconds, 3))
-    return True
+    return record
 
 
 def load_installed_setup_freshness(record_path: Path) -> dict[str, object] | None:
@@ -172,26 +177,68 @@ def write_installed_setup_freshness(
     trace_mark("managed_setup.existing.cache_written")
 
 
-def record_cached_installed_setup_success(
+def try_write_installed_setup_freshness(
     *,
-    runtime_recorder: ManagedRuntimeStateRecorder,
+    record_path: Path,
+    key: Mapping[str, object],
+    request: Mapping[str, object],
+    runtime_configuration: ManagedRuntimeConfiguration,
+    validation: ManagedEnvironmentValidationResult,
+) -> bool:
+    """Persist disposable evidence without allowing cache IO to fail setup."""
+
+    try:
+        write_installed_setup_freshness(
+            record_path=record_path,
+            key=key,
+            request=request,
+            runtime_configuration=runtime_configuration,
+            validation=validation,
+        )
+    except Exception as error:
+        log_warning(
+            _LOGGER,
+            "Managed setup evidence could not be cached; setup remains valid.",
+            record_path=record_path,
+            error=repr(error),
+        )
+        trace_mark("managed_setup.existing.cache_write_failed")
+        return False
+    return True
+
+
+def validated_runtime_configuration_from_installed_setup_record(
     record: Mapping[str, object],
-) -> None:
-    """Project cached setup evidence into the managed runtime state owner."""
+) -> ManagedRuntimeConfiguration | None:
+    """Return complete validated runtime state from one cache record."""
 
     configuration = managed_runtime_configuration_from_payload(
         record.get("runtime_configuration")
     )
-    if configuration is not None:
-        runtime_recorder.record_selection(configuration)
-    validation = record.get("validation")
-    detail = None
-    if isinstance(validation, Mapping):
-        raw_detail = validation.get("detail")
-        detail = raw_detail if isinstance(raw_detail, str) else None
-    runtime_recorder.record_validation(
-        status=ManagedRuntimeValidationStatus.VALID,
-        detail=detail,
+    validation = validation_from_installed_setup_record(record)
+    if (
+        configuration is None
+        or configuration.workspace_path is None
+        or validation is None
+        or not validation.success
+    ):
+        return None
+    recorded_at = record.get("recorded_at")
+    return validated_managed_runtime_configuration(
+        configuration,
+        backend_policy=configuration.backend_policy
+        or validation.detected_backend
+        or "",
+        torch_release_channel=(
+            configuration.torch_release_channel
+            or validation.detected_torch_channel
+            or ""
+        ),
+        torch_selection_reason=configuration.torch_selection_reason
+        or validation.detail,
+        torch_fallback_used=configuration.torch_fallback_used,
+        validation_detail=validation.detail,
+        validated_at=recorded_at if isinstance(recorded_at, str) else None,
     )
 
 
@@ -243,9 +290,10 @@ def _freshness_record_age_seconds(record: Mapping[str, object]) -> float | None:
 
 __all__ = [
     "fresh_installed_setup_record_without_hardware_probe",
-    "installed_setup_freshness_is_current",
+    "fresh_installed_setup_record",
     "load_installed_setup_freshness",
-    "record_cached_installed_setup_success",
+    "try_write_installed_setup_freshness",
+    "validated_runtime_configuration_from_installed_setup_record",
     "validation_from_installed_setup_record",
     "write_installed_setup_freshness",
 ]

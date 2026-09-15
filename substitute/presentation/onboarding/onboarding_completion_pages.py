@@ -53,6 +53,9 @@ from sugarsubstitute_shared.presentation.terminal.output_view import TerminalOut
 from substitute.presentation.onboarding.onboarding_page_primitives import (
     OnboardingPageFrame,
 )
+from substitute.presentation.onboarding.setup_activity_presenter import (
+    SetupActivityPresenter,
+)
 
 
 class ProvisioningPage(OnboardingPageFrame):
@@ -102,6 +105,10 @@ class ProvisioningPage(OnboardingPageFrame):
         self.detail_label.setObjectName("OnboardingStatusDetail")
         self.detail_label.setWordWrap(True)
         status_layout.addWidget(self.detail_label)
+        self._activity_presenter = SetupActivityPresenter(
+            label=self.detail_label,
+            parent=self,
+        )
 
         self.overall_progress_label = LocalizedCaptionLabel(
             app_text("Preparing setup tasks…"), self.status_panel
@@ -180,10 +187,7 @@ class ProvisioningPage(OnboardingPageFrame):
         """Prepare the provisioning page for active work."""
 
         set_localized_text(self.status_label, "Starting setup…")
-        set_localized_text(
-            self.detail_label,
-            "Substitute is preparing ComfyUI. You can keep this window in the background.",
-        )
+        self._activity_presenter.start()
         self.overall_progress_bar.setError(False)
         self.model_progress_bar.setError(False)
         self.activity_progress_bar.setError(False)
@@ -193,6 +197,7 @@ class ProvisioningPage(OnboardingPageFrame):
     def mark_complete(self) -> None:
         """Render the setup as complete."""
 
+        self._activity_presenter.stop()
         self.activity_progress_bar.stop()
         self.activity_progress_bar.hide()
         self.overall_progress_bar.setValue(100)
@@ -201,6 +206,7 @@ class ProvisioningPage(OnboardingPageFrame):
     def mark_failed(self) -> None:
         """Render the setup as failed without clearing the log output."""
 
+        self._activity_presenter.stop()
         self.activity_progress_bar.stop()
         self.activity_progress_bar.hide()
         self.overall_progress_bar.setError(True)
@@ -210,6 +216,7 @@ class ProvisioningPage(OnboardingPageFrame):
     def reset_progress(self) -> None:
         """Reset the provisioning page state before a retry begins."""
 
+        self._activity_presenter.stop()
         self._failure_user_message = None
         self._failure_steps = ()
         self.overall_progress_bar.setError(False)
@@ -219,6 +226,10 @@ class ProvisioningPage(OnboardingPageFrame):
         self.model_progress_bar.hide()
         self.model_progress_label.hide()
         set_localized_text(self.overall_progress_label, "Preparing setup tasks…")
+        set_localized_text(
+            self.detail_label,
+            "Setup progress appears here. Open the setup log only when you want technical details.",
+        )
         self.set_log_expanded(False)
 
     def set_progress(

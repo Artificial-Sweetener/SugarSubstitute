@@ -31,7 +31,6 @@ from substitute.application.ports.managed_runtime_selection_policy import (
 from substitute.domain.onboarding.managed_runtime_models import (
     ManagedRuntimeConfiguration,
     ManagedRuntimeLaunchStatus,
-    ManagedRuntimeValidationStatus,
 )
 from substitute.shared.logging.logger import get_logger, log_info
 
@@ -122,16 +121,6 @@ class ManagedRuntimeService:
         )
         return self.save_active_configuration(configuration)
 
-    def record_active_validation(
-        self,
-        *,
-        status: ManagedRuntimeValidationStatus,
-        detail: str | None,
-    ) -> ManagedRuntimeConfiguration:
-        """Persist the latest active managed runtime validation outcome."""
-
-        return self.record_validation(status=status, detail=detail)
-
     def record_active_launch(
         self,
         *,
@@ -141,41 +130,6 @@ class ManagedRuntimeService:
         """Persist the latest active launch or listener ownership outcome."""
 
         return self.record_launch(status=status, detail=detail)
-
-    def record_validation(
-        self,
-        *,
-        status: ManagedRuntimeValidationStatus,
-        detail: str | None,
-    ) -> ManagedRuntimeConfiguration:
-        """Persist the latest managed runtime validation outcome."""
-
-        current = self.load_persisted() or self.create_default()
-        updated = ManagedRuntimeConfiguration(
-            workspace_path=current.workspace_path,
-            detected_platform=current.detected_platform,
-            detected_accelerator=current.detected_accelerator,
-            detected_adapter_name=current.detected_adapter_name,
-            install_target=current.install_target,
-            python_version=current.python_version,
-            python_fallback_used=current.python_fallback_used,
-            comfy_channel=current.comfy_channel,
-            backend_policy=current.backend_policy,
-            torch_release_channel=current.torch_release_channel,
-            torch_selection_reason=current.torch_selection_reason,
-            torch_fallback_used=current.torch_fallback_used,
-            stability=current.stability,
-            prefer_edge_torch=current.prefer_edge_torch,
-            prefer_edge_comfy_channel=current.prefer_edge_comfy_channel,
-            force_cpu_mode=current.force_cpu_mode,
-            validation_status=status,
-            validation_detail=detail,
-            last_validation_at=_timestamp_now(),
-            launch_status=current.launch_status,
-            launch_detail=current.launch_detail,
-            last_launch_at=current.last_launch_at,
-        )
-        return self.save(updated)
 
     def record_launch(
         self,
@@ -212,46 +166,9 @@ class ManagedRuntimeService:
         )
         return self.save(updated)
 
-    def record_torch_resolution(
-        self,
-        *,
-        backend_policy: str,
-        torch_release_channel: str,
-        torch_selection_reason: str,
-        torch_fallback_used: bool,
-    ) -> ManagedRuntimeConfiguration:
-        """Persist the resolved torch backend/channel selected for this runtime."""
-
-        current = self.load_persisted() or self.create_default()
-        updated = ManagedRuntimeConfiguration(
-            workspace_path=current.workspace_path,
-            detected_platform=current.detected_platform,
-            detected_accelerator=current.detected_accelerator,
-            detected_adapter_name=current.detected_adapter_name,
-            install_target=current.install_target,
-            python_version=current.python_version,
-            python_fallback_used=current.python_fallback_used,
-            comfy_channel=current.comfy_channel,
-            backend_policy=backend_policy,
-            torch_release_channel=torch_release_channel,
-            torch_selection_reason=torch_selection_reason,
-            torch_fallback_used=torch_fallback_used,
-            stability=current.stability,
-            prefer_edge_torch=current.prefer_edge_torch,
-            prefer_edge_comfy_channel=current.prefer_edge_comfy_channel,
-            force_cpu_mode=current.force_cpu_mode,
-            validation_status=current.validation_status,
-            validation_detail=current.validation_detail,
-            last_validation_at=current.last_validation_at,
-            launch_status=current.launch_status,
-            launch_detail=current.launch_detail,
-            last_launch_at=current.last_launch_at,
-        )
-        return self.save(updated)
-
 
 def _timestamp_now() -> str:
-    """Return one UTC ISO timestamp for managed runtime persistence."""
+    """Return one UTC ISO timestamp for managed launch persistence."""
 
     return datetime.now(UTC).isoformat()
 

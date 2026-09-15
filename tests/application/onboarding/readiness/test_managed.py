@@ -44,6 +44,7 @@ from .support import (
     FakeBackendCompatibility,
     FakeReadinessChecks,
     present_files,
+    ready_runtime,
     readiness_service,
 )
 
@@ -87,6 +88,57 @@ def test_readiness_assess_returns_ready_for_valid_managed_setup_without_listener
 
     assert assessment.route is BootstrapRoute.READY
     assert assessment.issues == ()
+
+
+def test_persisted_valid_workspace_runs_without_validation_metadata(
+    tmp_path: Path,
+) -> None:
+    """Missing historical metadata must not block concrete launchable artifacts."""
+
+    installation = InstallationConfiguration.create_default(tmp_path)
+    target = managed_target(installation)
+    service = readiness_service(
+        installation,
+        target,
+        FakeReadinessChecks(files=present_files(installation)),
+        managed_runtime=None,
+    )
+
+    assessment = service.assess()
+
+    assert assessment.route is BootstrapRoute.READY
+    assert assessment.issues == ()
+
+
+def test_pending_setup_requires_the_provisioners_validated_result(
+    tmp_path: Path,
+) -> None:
+    """A new transaction must still prove provisioning before it is committed."""
+
+    installation = InstallationConfiguration.create_default(tmp_path)
+    target = managed_target(installation)
+    service = readiness_service(
+        installation,
+        target,
+        FakeReadinessChecks(files=present_files(installation)),
+    )
+
+    for status in (
+        ManagedRuntimeValidationStatus.UNKNOWN,
+        ManagedRuntimeValidationStatus.INSTALL_FAILED,
+    ):
+        assessment = service.assess_candidate(
+            installation=installation,
+            runtime=ready_runtime(installation),
+            target=target,
+            managed_runtime=ManagedRuntimeConfiguration(validation_status=status),
+        )
+
+        assert assessment.route is BootstrapRoute.REPAIR
+        assert (
+            assessment.issues[0].code
+            is ReadinessIssueCode.MANAGED_WORKSPACE_NOT_VALIDATED
+        )
 
 
 def test_readiness_assess_repairs_when_managed_runtime_claims_other_workspace(

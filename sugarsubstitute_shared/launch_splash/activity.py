@@ -76,8 +76,19 @@ def splash_activity_dots(elapsed_seconds: float) -> str:
     return _ACTIVITY_DOT_FRAMES[frame % len(_ACTIVITY_DOT_FRAMES)]
 
 
+def format_activity_elapsed(elapsed_seconds: float) -> str:
+    """Format one monotonic activity age without locale-sensitive punctuation."""
+
+    total_seconds = int(max(0.0, elapsed_seconds))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes}:{seconds:02d}"
+
+
 def render_splash_activity(activity: SplashActivity, elapsed_seconds: float) -> str:
-    """Render the selected localized activity stage with animated dots."""
+    """Render localized activity, independent motion, and its elapsed duration."""
 
     stage = splash_activity_stage(elapsed_seconds)
     if stage is SplashActivityStage.EXTENDED_WAIT:
@@ -86,7 +97,8 @@ def render_splash_activity(activity: SplashActivity, elapsed_seconds: float) -> 
         base_text = activity.long_wait_text
     else:
         base_text = activity.initial_text
-    return f"{base_text.rstrip('.…')}{splash_activity_dots(elapsed_seconds)}"
+    activity_text = f"{base_text.rstrip('.…')}{splash_activity_dots(elapsed_seconds)}"
+    return f"{activity_text} · {format_activity_elapsed(elapsed_seconds)}"
 
 
 __all__ = [
@@ -95,6 +107,7 @@ __all__ = [
     "LONG_ACTIVITY_SECONDS",
     "SplashActivity",
     "SplashActivityStage",
+    "format_activity_elapsed",
     "render_splash_activity",
     "splash_activity_dots",
     "splash_activity_stage",

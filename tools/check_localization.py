@@ -29,6 +29,7 @@ from tools.localization_catalog import (
     find_unclassified_presentation_returns,
     find_unmarked_application_messages,
 )
+from tools.localization_source_surfaces import iter_authored_python_sources
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -54,7 +55,7 @@ def find_ascii_input_restrictions(
         project_root / "launcher" / "sugarsubstitute_launcher" / "ui",
     )
     for root in roots:
-        for path in sorted(root.rglob("*.py")):
+        for path in iter_authored_python_sources(root):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
                 reason = _ascii_restriction_reason(call)
@@ -81,7 +82,7 @@ def find_non_fluent_tooltip_usage(
         project_root / "sugarsubstitute_shared",
     )
     for root in roots:
-        for path in sorted(root.rglob("*.py")):
+        for path in iter_authored_python_sources(root):
             relative_path = path.relative_to(project_root)
             if relative_path == _TOOLTIP_OWNER:
                 continue
@@ -112,7 +113,7 @@ def find_unowned_qt_translation_usage(
         project_root / "sugarsubstitute_shared",
     )
     for root in roots:
-        for path in sorted(root.rglob("*.py")):
+        for path in iter_authored_python_sources(root):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):
                 owner = _direct_attribute_owner(call.func, "tr")

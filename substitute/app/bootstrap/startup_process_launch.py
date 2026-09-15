@@ -38,7 +38,7 @@ def start_ready_app_process(command: Sequence[str]) -> bool:
     if not command:
         return False
     working_directory = launch_command_working_directory(command)
-    from substitute.app.bootstrap.application_instance_control import (
+    from sugarsubstitute_shared.qt_application_instance_control import (
         request_supervised_application_restart,
     )
 

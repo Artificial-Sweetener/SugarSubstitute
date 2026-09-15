@@ -246,13 +246,13 @@ def test_splash_window_keeps_activity_visible_around_durable_logs(
 
     splash.start_activity(activity)
     QApplication.processEvents()
-    assert splash.log_view.toPlainText() == "Updating SugarCubes."
+    assert splash.log_view.toPlainText() == "Updating SugarCubes. · 0:00"
 
     splash.append_log("Downloaded package metadata.\n")
     QApplication.processEvents()
     assert splash.log_view.toPlainText().splitlines() == [
         "Downloaded package metadata.",
-        "Updating SugarCubes.",
+        "Updating SugarCubes. · 0:00",
     ]
 
     splash.clear_activity()

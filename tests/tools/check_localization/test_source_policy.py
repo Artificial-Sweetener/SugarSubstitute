@@ -47,6 +47,23 @@ def test_presentation_inputs_have_no_ascii_only_source_restrictions() -> None:
     assert find_ascii_input_restrictions(_PROJECT_ROOT) == ()
 
 
+def test_source_policy_skips_generated_qt_resource_modules(tmp_path: Path) -> None:
+    """Generated binary resource tables must not enter authored-source scans."""
+
+    presentation_root = tmp_path / "substitute" / "presentation"
+    presentation_root.mkdir(parents=True)
+    (presentation_root / "splash_poses_rc.py").write_text(
+        "value.isascii()\n",
+        encoding="utf-8",
+    )
+    (presentation_root / "authored.py").write_text(
+        "value.casefold()\n",
+        encoding="utf-8",
+    )
+
+    assert find_ascii_input_restrictions(tmp_path) == ()
+
+
 def test_all_tooltips_use_the_shared_qfluent_owner() -> None:
     """Native and competing tooltip paths must fail source policy."""
 

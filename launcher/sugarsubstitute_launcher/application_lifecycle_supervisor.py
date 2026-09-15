@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
@@ -34,16 +34,28 @@ from sugarsubstitute_shared.application_readiness import ApplicationReadinessSur
 class ApplicationLifecycleSupervisor:
     """Require a visible shell before supervising the remaining process lifetime."""
 
-    def __init__(self) -> None:
-        """Create the readiness and crash owners for one launch sequence."""
+    def __init__(
+        self,
+        *,
+        accepted_surfaces: Collection[ApplicationReadinessSurface] = (
+            ApplicationReadinessSurface.MAIN_SHELL,
+            ApplicationReadinessSurface.ONBOARDING,
+        ),
+        readiness_timeout_seconds: float | None = None,
+        crash_supervisor: ApplicationCrashSupervisor | None = None,
+    ) -> None:
+        """Create readiness and crash owners for one visible launch policy."""
 
-        self._readiness = ApplicationReadinessSupervisor(
-            accepted_surfaces=(
-                ApplicationReadinessSurface.MAIN_SHELL,
-                ApplicationReadinessSurface.ONBOARDING,
+        if readiness_timeout_seconds is None:
+            self._readiness = ApplicationReadinessSupervisor(
+                accepted_surfaces=accepted_surfaces,
             )
-        )
-        self._crash = ApplicationCrashSupervisor()
+        else:
+            self._readiness = ApplicationReadinessSupervisor(
+                accepted_surfaces=accepted_surfaces,
+                timeout_seconds=readiness_timeout_seconds,
+            )
+        self._crash = crash_supervisor or ApplicationCrashSupervisor()
 
     def supervise(
         self,
@@ -68,7 +80,9 @@ class ApplicationLifecycleSupervisor:
                     layout=layout,
                     process=error.terminated_process,
                     prepared=prepared,
+                    present_report=False,
                 )
+                error.incident_id = prepared.context.run_id
             raise
         if on_ready is not None:
             on_ready()

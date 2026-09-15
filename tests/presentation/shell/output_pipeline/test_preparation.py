@@ -238,6 +238,50 @@ def test_dispatcher_retains_encoded_requests_until_decoded_capacity_returns() ->
     destroy_qt_object(dispatcher)
 
 
+def test_dispatcher_publishes_concurrent_decodes_in_submission_order() -> None:
+    """A faster later decode must not overtake an earlier generated output."""
+
+    ensure_qt_application()
+    submitter = QueuedTaskSubmitter()
+    dispatcher = OutputImagePreparationDispatcher(
+        loader=_Loader(QImage(8, 8, QImage.Format.Format_ARGB32)),
+        submitter=submitter,
+    )
+    prepared: list[PreparedOutputImage] = []
+    dispatcher.prepared.connect(prepared.append)
+    first_request = _request(Path("E:/first.png"))
+    second_request = _request(Path("E:/second.png"))
+
+    dispatcher.submit(first_request)
+    dispatcher.submit(second_request)
+
+    assert len(submitter.handles) == 2
+    second = submitter.handles[1]
+    second.complete_success(
+        PreparedOutputImage(
+            request=second_request,
+            image=QImage(8, 8, QImage.Format.Format_ARGB32),
+        )
+    )
+    assert prepared == []
+
+    first = submitter.handles[0]
+    first.complete_success(
+        PreparedOutputImage(
+            request=first_request,
+            image=QImage(8, 8, QImage.Format.Format_ARGB32),
+        )
+    )
+
+    assert [result.request.file_path for result in prepared] == [
+        Path("E:/first.png"),
+        Path("E:/second.png"),
+    ]
+
+    dispatcher.shutdown()
+    destroy_qt_object(dispatcher)
+
+
 def _request(path: Path) -> OutputImageCommitRequest:
     """Return a minimal output commit request for preparation tests."""
 

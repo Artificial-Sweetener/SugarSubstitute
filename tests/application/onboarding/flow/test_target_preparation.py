@@ -45,6 +45,7 @@ from .runtime_support import (
     _StaticOnboardingService,
     _StaticReadinessService,
     _build_context,
+    _managed_setup_result,
     _python_binding,
 )
 
@@ -76,7 +77,9 @@ def test_flow_service_prepares_existing_local_comfy_without_endpoint_probe(
             managed_runtime_service=_StaticManagedRuntimeService(),
             setup_transaction_service=_FakeSetupTransactionService(context),
         ),
-        managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
+        managed_workspace_provisioner=lambda **kwargs: _managed_setup_result(
+            tmp_path / "unused"
+        ),
         attached_workspace_provisioner=_record_provisioning,
         entrypoint_path=tmp_path / "main.py",
         external_model_library_configurator=external_models,
@@ -122,7 +125,9 @@ def test_flow_service_rejects_existing_local_without_workspace(
             managed_runtime_service=_StaticManagedRuntimeService(),
             setup_transaction_service=_FakeSetupTransactionService(context),
         ),
-        managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
+        managed_workspace_provisioner=lambda **kwargs: _managed_setup_result(
+            tmp_path / "unused"
+        ),
         attached_workspace_provisioner=lambda **kwargs: _python_binding(tmp_path),
         entrypoint_path=tmp_path / "main.py",
     )
@@ -175,7 +180,9 @@ def test_flow_service_maps_missing_attached_workspace_to_user_copy(
             managed_runtime_service=_StaticManagedRuntimeService(),
             setup_transaction_service=_FakeSetupTransactionService(context),
         ),
-        managed_workspace_provisioner=lambda **kwargs: tmp_path / "unused",
+        managed_workspace_provisioner=lambda **kwargs: _managed_setup_result(
+            tmp_path / "unused"
+        ),
         attached_workspace_provisioner=lambda **kwargs: _python_binding(tmp_path),
         entrypoint_path=tmp_path / "main.py",
     )

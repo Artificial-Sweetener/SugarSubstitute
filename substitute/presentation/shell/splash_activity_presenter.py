@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import time
+from typing import Protocol
 
 from PySide6.QtCore import QObject, QTimer, Slot
 
@@ -36,6 +37,63 @@ Clock = Callable[[], float]
 _DEFAULT_FRAME_INTERVAL_MILLISECONDS = int(ACTIVITY_FRAME_SECONDS * 1000)
 
 
+class ActivityFrameScheduler(Protocol):
+    """Schedule presenter-owned frame refreshes."""
+
+    def start(self) -> None:
+        """Begin delivering frame callbacks."""
+
+    def stop(self) -> None:
+        """Stop delivering frame callbacks."""
+
+
+ActivityFrameSchedulerFactory = Callable[
+    [QObject, int, Callable[[], None]], ActivityFrameScheduler
+]
+
+
+class _QtActivityFrameScheduler(QObject):
+    """Adapt a repeating Qt timer to the splash frame scheduler contract."""
+
+    def __init__(
+        self,
+        *,
+        parent: QObject,
+        interval_milliseconds: int,
+        callback: Callable[[], None],
+    ) -> None:
+        """Own one timer whose lifetime follows the presenter."""
+
+        super().__init__(parent)
+        self._timer = QTimer(self)
+        self._timer.setInterval(interval_milliseconds)
+        self._timer.timeout.connect(callback)
+
+    def start(self) -> None:
+        """Begin periodic callback delivery."""
+
+        self._timer.start()
+
+    def stop(self) -> None:
+        """Stop periodic callback delivery."""
+
+        self._timer.stop()
+
+
+def _create_qt_activity_frame_scheduler(
+    parent: QObject,
+    interval_milliseconds: int,
+    callback: Callable[[], None],
+) -> ActivityFrameScheduler:
+    """Create the production Qt-backed frame scheduler."""
+
+    return _QtActivityFrameScheduler(
+        parent=parent,
+        interval_milliseconds=interval_milliseconds,
+        callback=callback,
+    )
+
+
 class SplashActivityPresenter(QObject):
     """Own splash activity timing independently from blocking producer work."""
 
@@ -46,6 +104,9 @@ class SplashActivityPresenter(QObject):
         parent: QObject | None = None,
         clock: Clock = time.monotonic,
         frame_interval_milliseconds: int = _DEFAULT_FRAME_INTERVAL_MILLISECONDS,
+        scheduler_factory: ActivityFrameSchedulerFactory = (
+            _create_qt_activity_frame_scheduler
+        ),
     ) -> None:
         """Bind activity rendering to one terminal stream and monotonic clock."""
 
@@ -56,9 +117,11 @@ class SplashActivityPresenter(QObject):
         self._clock = clock
         self._activity: SplashActivity | None = None
         self._started_at = 0.0
-        self._timer = QTimer(self)
-        self._timer.setInterval(frame_interval_milliseconds)
-        self._timer.timeout.connect(self.refresh)
+        self._scheduler = scheduler_factory(
+            self,
+            frame_interval_milliseconds,
+            self.refresh,
+        )
 
     @property
     def active(self) -> bool:
@@ -72,12 +135,12 @@ class SplashActivityPresenter(QObject):
         self._activity = activity
         self._started_at = self._clock()
         self.refresh()
-        self._timer.start()
+        self._scheduler.start()
 
     def clear(self) -> None:
         """Stop activity animation and remove its transient terminal row."""
 
-        self._timer.stop()
+        self._scheduler.stop()
         self._activity = None
         self._stream.clear_transient_line()
 
@@ -102,7 +165,7 @@ class SplashActivityPresenter(QObject):
     def shutdown(self) -> None:
         """Stop scheduling frames without mutating terminal history."""
 
-        self._timer.stop()
+        self._scheduler.stop()
         self._activity = None
 
 
@@ -112,4 +175,8 @@ def _is_transient_record(record: str) -> bool:
     return record.endswith("\r") and not record.endswith("\r\n")
 
 
-__all__ = ["SplashActivityPresenter"]
+__all__ = [
+    "ActivityFrameScheduler",
+    "ActivityFrameSchedulerFactory",
+    "SplashActivityPresenter",
+]

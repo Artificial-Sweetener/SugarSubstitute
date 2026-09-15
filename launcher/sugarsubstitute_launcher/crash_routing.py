@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Mapping
 import logging
+import os
+from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -27,7 +29,19 @@ from launcher.sugarsubstitute_launcher.launcher_ui_process import run_crash_repo
 from sugarsubstitute_shared.crash_reporting import CrashIncidentStore
 
 
-CrashReportRunner = Callable[[InstallLayout, str, str | None], int]
+class CrashReportRunner(Protocol):
+    """Run one report child with explicit supervisor authorization."""
+
+    def __call__(
+        self,
+        layout: InstallLayout,
+        incident_id: str,
+        locale_override: str | None,
+        environment: Mapping[str, str],
+    ) -> int:
+        """Present the incident and return the child exit status."""
+
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -48,6 +62,7 @@ def route_explicit_crash_operation(
                 layout,
                 args.crash_report_incident_id,
                 args.locale_override,
+                os.environ,
             )
         from launcher.sugarsubstitute_launcher.crash_reporter import (
             show_crash_report,
@@ -65,6 +80,7 @@ def recover_pending_crash_reports(
     *,
     layout: InstallLayout,
     locale_override: str | None,
+    environment: Mapping[str, str],
     reporter_runner: CrashReportRunner | None = None,
 ) -> int:
     """Delegate missed reports without treating presentation as app readiness."""
@@ -75,7 +91,12 @@ def recover_pending_crash_reports(
     recovered = 0
     for incident in pending:
         try:
-            return_code = runner(layout, incident.incident_id, locale_override)
+            return_code = runner(
+                layout,
+                incident.incident_id,
+                locale_override,
+                environment,
+            )
         except Exception:
             _LOGGER.exception(
                 "Pending crash report could not be presented; continuing launch. "

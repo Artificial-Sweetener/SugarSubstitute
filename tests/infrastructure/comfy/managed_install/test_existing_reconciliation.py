@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
-from __future__ import annotations
 from pathlib import Path
+from types import SimpleNamespace
+
 import pytest
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.domain.comfy_manager import ComfyManagerRuntime
@@ -29,6 +30,10 @@ from substitute.infrastructure.comfy import managed_existing_setup_operations
 from substitute.infrastructure.comfy.managed_validation import (
     workspace_python_path,
 )
+from substitute.infrastructure.comfy.managed_environment_validator import (
+    ManagedEnvironmentValidationResult,
+)
+from substitute.infrastructure.comfy.torch_policy import TorchReleaseChannel
 from sugarsubstitute_shared.startup_remote_access import (
     STARTUP_REMOTE_DEGRADED_ENV,
 )
@@ -125,7 +130,7 @@ def test_ensure_managed_comfy_setup_reuses_installed_workspace(
         refresh_core_nodepacks={CoreNodepackId.SUBSTITUTE_BACKEND},
     )
 
-    assert result == python_path
+    assert result.python_executable == python_path
     assert provision_calls == [tmp_path]
     assert refresh_targets == [frozenset({CoreNodepackId.SUBSTITUTE_BACKEND})]
     assert mutation_order == ["nodepacks", "model_root"]
@@ -202,8 +207,43 @@ def test_existing_managed_setup_skips_remote_work_after_launcher_degradation(
 
     result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
-    assert result == python_path
+    assert result.python_executable == python_path
     assert not managed_setup_record_path(tmp_path).exists()
+
+
+def test_offline_mode_cannot_turn_failed_local_validation_into_success(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Remote degradation must not suppress concrete local backend failure."""
+
+    configure_managed_install(monkeypatch, tmp_path)
+    python_path = workspace_python_path(tmp_path)
+    python_path.parent.mkdir(parents=True, exist_ok=True)
+    python_path.write_text("", encoding="utf-8")
+    (tmp_path / "main.py").write_text("main", encoding="utf-8")
+    monkeypatch.setenv(STARTUP_REMOTE_DEGRADED_ENV, "1")
+    backend = SimpleNamespace(
+        backend_key="cuda_cu130",
+        release_channel=TorchReleaseChannel.STABLE,
+        selection_reason="Detected installed backend.",
+        fallback_used=False,
+    )
+    validation = ManagedEnvironmentValidationResult(
+        success=False,
+        detail="Torch could not execute on the selected device.",
+        detected_backend="nvidia",
+        detected_torch_channel="stable",
+        torch_version="2.12.1+cu130",
+    )
+    monkeypatch.setattr(
+        managed_existing_setup_operations,
+        "validate_existing_torch_backend",
+        lambda **kwargs: (backend, validation),
+    )
+
+    with pytest.raises(RuntimeError, match="could not execute"):
+        managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
 
 def test_existing_managed_setup_latches_first_remote_failure(
@@ -258,7 +298,7 @@ def test_existing_managed_setup_latches_first_remote_failure(
 
     result = managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
 
-    assert result == python_path
+    assert result.python_executable == python_path
     assert downstream_calls == []
     assert not managed_setup_record_path(tmp_path).exists()
 
