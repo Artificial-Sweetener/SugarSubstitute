@@ -39,7 +39,6 @@ from sugarsubstitute_shared.launch_splash.session import (
     splash_session_args,
 )
 from sugarsubstitute_shared.launch_splash.session import validate_splash_session_spec
-from sugarsubstitute_shared.localization.cli import format_locale_argument
 
 if TYPE_CHECKING:
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -82,6 +81,8 @@ class LauncherSplashSession:
     def close(self) -> None:
         """Request splash closure and enforce launcher-owned process cleanup."""
 
+        if self.process.poll() is not None:
+            return
         if not self.client.close():
             _LOGGER.warning("Splash host did not acknowledge closure; terminating it.")
         self.ensure_closed()
@@ -90,7 +91,7 @@ class LauncherSplashSession:
 def start_launcher_splash_session(
     *,
     layout: InstallLayout,
-    locale_identifier: str,
+    locale_override: str | None,
     popen: Callable[..., subprocess.Popen[str]] = subprocess.Popen,
 ) -> LauncherSplashSession | None:
     """Start the shared splash host process for production app handoff."""
@@ -99,7 +100,7 @@ def start_launcher_splash_session(
     try:
         process = _start_splash_host_process(
             layout=layout,
-            locale_identifier=locale_identifier,
+            locale_override=locale_override,
             popen=popen,
         )
         spec = _read_ready_spec(process=process, timeout_seconds=_READY_TIMEOUT_SECONDS)
@@ -148,7 +149,7 @@ def _terminate_failed_splash_host(process: subprocess.Popen[str]) -> None:
 def _start_splash_host_process(
     *,
     layout: InstallLayout,
-    locale_identifier: str,
+    locale_override: str | None,
     popen: Callable[..., subprocess.Popen[str]],
 ) -> subprocess.Popen[str]:
     """Launch the app-payload splash host without importing app code."""
@@ -157,8 +158,9 @@ def _start_splash_host_process(
         subprocess_path(layout.runtime_python),
         "-m",
         _HOST_MODULE,
-        format_locale_argument(locale_identifier),
     ]
+    if locale_override is not None:
+        command.append(f"--locale={locale_override}")
     return popen(
         command,
         cwd=subprocess_working_directory(layout.root),

@@ -60,7 +60,7 @@ def test_initial_install_failure_restores_editable_retry_state(
             raise OSError("launcher copy failed")
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window._current_frozen_executable",
+        "launcher.sugarsubstitute_launcher.ui.main_window.current_frozen_executable_path",
         lambda: tmp_path / "SugarSubstitute-Setup-Windows-x64.exe",
     )
     window = LauncherMainWindow(

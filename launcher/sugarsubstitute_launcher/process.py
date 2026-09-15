@@ -162,13 +162,17 @@ def spawn_detached_process(
     return process, startup_log_path
 
 
-def start_detached_handoff(command: Sequence[str]) -> None:
+def start_detached_handoff(
+    command: Sequence[str],
+    *,
+    environment: Mapping[str, str] | None = None,
+) -> None:
     """Start a handoff child process without keeping the current window around."""
 
     start_detached(
         command,
         startup_timeout_seconds=HANDOFF_STARTUP_TIMEOUT_SECONDS,
-        environment=without_crash_supervision_environment(),
+        environment=without_crash_supervision_environment(environment),
     )
 
 
@@ -194,7 +198,19 @@ def build_installed_launcher_handoff_command(
 def start_installed_launcher_handoff(app_command: Sequence[str]) -> None:
     """Start the installed launcher that will supervise the prepared app."""
 
-    start_detached_handoff(build_installed_launcher_handoff_command(app_command))
+    from sugarsubstitute_shared.qt_application_instance_control import (
+        active_application_supervisor_identity,
+    )
+    from sugarsubstitute_shared.supervisor_handoff import with_supervisor_handoff
+
+    environment = without_crash_supervision_environment()
+    supervisor_identity = active_application_supervisor_identity()
+    if supervisor_identity is not None:
+        environment = with_supervisor_handoff(environment, supervisor_identity)
+    start_detached_handoff(
+        build_installed_launcher_handoff_command(app_command),
+        environment=environment,
+    )
 
 
 def _command_working_directory(command: Sequence[str]) -> Path | None:

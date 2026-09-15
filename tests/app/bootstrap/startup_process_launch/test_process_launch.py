@@ -52,7 +52,7 @@ def test_start_ready_app_process_requests_existing_supervisor(
 
     outcomes: list[CleanExitOutcome] = []
     monkeypatch.setattr(
-        "substitute.app.bootstrap.application_instance_control.request_supervised_application_restart",
+        "sugarsubstitute_shared.qt_application_instance_control.request_supervised_application_restart",
         lambda: True,
     )
     monkeypatch.setattr(
@@ -70,7 +70,7 @@ def test_start_ready_app_process_fails_closed_without_supervisor(
     """Reject restart when no authenticated long-lived launcher owns it."""
 
     monkeypatch.setattr(
-        "substitute.app.bootstrap.application_instance_control.request_supervised_application_restart",
+        "sugarsubstitute_shared.qt_application_instance_control.request_supervised_application_restart",
         lambda: False,
     )
 

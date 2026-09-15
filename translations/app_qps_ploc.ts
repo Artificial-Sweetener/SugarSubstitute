@@ -4824,6 +4824,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëtüp dïd nöt fïnïsh ···⟧</translation>
     </message>
     <message>
+      <source>Setup is active — %1 elapsed</source>
+      <translation>⟦Sëtüp ïs àctïvë — %1 ëlàpsëd ···⟧</translation>
+    </message>
+    <message>
       <source>Setup is saved and ready.</source>
       <translation>⟦Sëtüp ïs sàvëd ànd rëàdy. ···⟧</translation>
     </message>
@@ -5302,10 +5306,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Substitute is not fully prepared yet</source>
       <translation>⟦Sübstïtütë ïs nöt fülly prëpàrëd yët ···⟧</translation>
-    </message>
-    <message>
-      <source>Substitute is preparing ComfyUI. You can keep this window in the background.</source>
-      <translation>⟦Sübstïtütë ïs prëpàrïng CömfyÜÏ. Yöü càn këëp thïs wïndöw ïn thë bàckgröünd. ···⟧</translation>
     </message>
     <message>
       <source>Substitute is showing the default managed ComfyUI connection because no saved connection exists yet.</source>

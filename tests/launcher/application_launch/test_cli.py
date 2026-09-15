@@ -51,7 +51,7 @@ def test_launcher_args_parse_internal_flags(tmp_path: Path) -> None:
     assert args.headless_install is False
     assert args.verify_release_connectivity is False
     assert args.manifest_url is None
-    assert args.locale_override == "ja"
+    assert args.locale_override == "ja-JP"
     assert args.crash_report_incident_id is None
     assert args.launcher_ui_child is False
 
@@ -120,11 +120,10 @@ def test_launcher_args_parse_headless_release_probe_flags(tmp_path: Path) -> Non
     assert connectivity_args.locale_override is None
 
 
-def test_launcher_args_reject_unsupported_locale_override() -> None:
-    """Reject unshipped and automatic locale values at the launcher boundary."""
+def test_launcher_args_defers_locale_resolution_until_after_splash() -> None:
+    """Keep catalog-backed locale work out of the pre-splash parser."""
 
-    with pytest.raises(SystemExit):
-        parse_launcher_args(["--locale", "zh-TW"])
+    assert parse_launcher_args(["--locale", "zh-TW"]).locale_override == "zh-TW"
 
 
 def test_headless_install_requires_explicit_install_root() -> None:

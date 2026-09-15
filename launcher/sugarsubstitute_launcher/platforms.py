@@ -80,6 +80,7 @@ class LauncherTarget:
     architecture: LauncherArchitecture
     bundle_root: Path
     executable_relative_path: Path
+    launcher_ui_executable_relative_path: Path | None
     support_relative_path: Path
     runtime_python_relative_path: Path
     runtime_gui_python_relative_path: Path
@@ -151,6 +152,9 @@ WINDOWS_X64 = LauncherTarget(
     architecture=LauncherArchitecture.X64,
     bundle_root=WINDOWS_X64_BUNDLE.bundle_root,
     executable_relative_path=WINDOWS_X64_BUNDLE.executable_relative_path,
+    launcher_ui_executable_relative_path=(
+        WINDOWS_X64_BUNDLE.support_relative_path / "LauncherUi.exe"
+    ),
     support_relative_path=WINDOWS_X64_BUNDLE.support_relative_path,
     runtime_python_relative_path=Path(".venv") / "Scripts" / "python.exe",
     runtime_gui_python_relative_path=Path(".venv") / "Scripts" / "pythonw.exe",
@@ -173,6 +177,7 @@ MACOS_ARM64 = LauncherTarget(
     architecture=LauncherArchitecture.ARM64,
     bundle_root=MACOS_ARM64_BUNDLE.bundle_root,
     executable_relative_path=MACOS_ARM64_BUNDLE.executable_relative_path,
+    launcher_ui_executable_relative_path=None,
     support_relative_path=MACOS_ARM64_BUNDLE.support_relative_path,
     runtime_python_relative_path=Path(".venv") / "bin" / "python",
     runtime_gui_python_relative_path=Path(".venv") / "bin" / "python",
@@ -195,6 +200,7 @@ LINUX_X64 = LauncherTarget(
     architecture=LauncherArchitecture.X64,
     bundle_root=LINUX_X64_BUNDLE.bundle_root,
     executable_relative_path=LINUX_X64_BUNDLE.executable_relative_path,
+    launcher_ui_executable_relative_path=None,
     support_relative_path=LINUX_X64_BUNDLE.support_relative_path,
     runtime_python_relative_path=Path(".venv") / "bin" / "python",
     runtime_gui_python_relative_path=Path(".venv") / "bin" / "python",

@@ -383,7 +383,6 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     """Parse shared splash host process arguments."""
 
     from sugarsubstitute_shared.localization.application_message import app_text
-    from sugarsubstitute_shared.localization.cli import parse_locale_override
 
     parser = argparse.ArgumentParser(
         description=app_text("Run SugarSubstitute splash host.")
@@ -392,7 +391,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--accent-color", type=str, required=False)
     parser.add_argument("--backdrop-mode", type=str, required=False)
     parser.add_argument("--maximum-lifetime-seconds", type=float, default=0.0)
-    parser.add_argument("--locale", type=parse_locale_override, default="en")
+    parser.add_argument("--locale", type=str, default=None)
     return parser.parse_args(argv)
 
 

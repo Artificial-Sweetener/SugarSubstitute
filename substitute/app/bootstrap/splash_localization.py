@@ -44,7 +44,7 @@ class SplashLocalizationRuntime:
 def build_splash_localization_runtime(
     application: QApplication,
     *,
-    locale_override: str,
+    locale_override: str | None,
 ) -> SplashLocalizationRuntime:
     """Install the effective handoff locale before constructing the splash window."""
 

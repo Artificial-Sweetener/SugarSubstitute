@@ -14,25 +14,24 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Publish a launcher-verifiable receipt after the application shell is usable."""
+"""Publish launcher-verifiable receipts after exact Qt surfaces paint."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
-from substitute.app.bootstrap.surface_presentation import run_after_surface_paint
 
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
     READINESS_PATH_ENV,
-    READINESS_SCHEMA_VERSION,
     READINESS_TOKEN_ENV,
     publish_application_readiness_receipt,
 )
+from sugarsubstitute_shared.qt_surface_presentation import run_after_surface_paint
 
 
-def schedule_application_readiness_receipt(
+def schedule_surface_readiness_receipt(
     *,
     surface: ApplicationReadinessSurface,
     window: object,
@@ -88,16 +87,13 @@ def _write_readiness_receipt(
 def schedule_main_shell_readiness_receipt(window: object) -> bool:
     """Publish readiness after the main application shell paints."""
 
-    return schedule_application_readiness_receipt(
+    return schedule_surface_readiness_receipt(
         surface=ApplicationReadinessSurface.MAIN_SHELL,
         window=window,
     )
 
 
 __all__ = [
-    "READINESS_PATH_ENV",
-    "READINESS_SCHEMA_VERSION",
-    "READINESS_TOKEN_ENV",
-    "schedule_application_readiness_receipt",
     "schedule_main_shell_readiness_receipt",
+    "schedule_surface_readiness_receipt",
 ]

@@ -217,6 +217,13 @@ class ApplicationInstanceBroker:
         if self._owner_claim is not None:
             self._owner_claim.close()
             self._owner_claim = None
+        _LOGGER.info(
+            "Application supervisor shutdown completed | owner_pid=%s | "
+            "transport=%s | accept_thread_stopped=%s",
+            os.getpid(),
+            self._endpoint.transport,
+            not self._accept_thread.is_alive(),
+        )
 
     def __enter__(self) -> Self:
         """Return this active broker for context-managed supervision."""

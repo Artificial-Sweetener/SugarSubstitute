@@ -27,6 +27,7 @@ from sugarsubstitute_shared.localization import (
     load_language_manifest,
 )
 from tools.check_translations import translation_coverage_failures
+from tools.localization_catalog import extract_application_messages
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
@@ -103,6 +104,27 @@ def test_new_owned_source_automatically_requires_every_existing_locale(
     )
 
     assert "app_zh_CN.ts: missing: AppText:New message" in failures
+
+
+def test_catalog_extraction_skips_generated_qt_resource_modules(
+    tmp_path: Path,
+) -> None:
+    """Generated resource byte tables must not become localization sources."""
+
+    presentation_root = tmp_path / "substitute" / "presentation"
+    presentation_root.mkdir(parents=True)
+    (presentation_root / "splash_poses_rc.py").write_text(
+        "app_text('Generated payload')\n",
+        encoding="utf-8",
+    )
+    (presentation_root / "authored.py").write_text(
+        "app_text('Authored message')\n",
+        encoding="utf-8",
+    )
+
+    assert tuple(
+        message.source for message in extract_application_messages(tmp_path)
+    ) == ("Authored message",)
 
 
 def test_shared_report_copy_is_required_in_launcher_apptext_context(

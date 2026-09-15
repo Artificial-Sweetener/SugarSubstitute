@@ -19,15 +19,13 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import tempfile
 import time
-from typing import TypeVar
 
 import psutil  # type: ignore[import-untyped]
 
@@ -36,26 +34,52 @@ from tools.single_instance_cold_start_evidence import (
     SPLASH_SURFACE_EVIDENCE_ENV,
     assert_cold_start_snapshot,
     capture_cold_start_snapshot,
-    splash_host_pids,
+    clear_splash_qualification_records,
 )
 from tools.single_instance_qualification_app import (
+    APPLICATION_EXIT_AFTER_INVOCATIONS_ENV,
     APPLICATION_INITIAL_WINDOW_STATE_ENV,
-    APPLICATION_REGISTRATION_DELAY_ENV,
+    APPLICATION_REGISTRATION_GATE_ENV,
     APPLICATION_RESTART_AFTER_INVOCATIONS_ENV,
+    APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV,
+    application_prewindow_marker_path,
+    application_prewindow_release_path,
+    application_preregistration_claim_path,
     application_preregistration_marker_path,
-    invocation_evidence_path,
-    restart_evidence_path,
+    application_preregistration_release_path,
 )
 from tools.single_instance_qualification_installation import (
     prepare_qualification_installation,
 )
 from tools.single_instance_log_evidence import audit_launcher_log
+from tools.single_instance_windows_process_support import (
+    _assert_no_live_ownership_files,
+    _assert_single_child,
+    _capture_failure_diagnostics,
+    _capture_success_diagnostics,
+    _terminate_installation_processes,
+    _terminate_launchers,
+    _terminate_qualification_apps,
+    _terminate_supervisor_and_child,
+    _wait_for_clean_exits,
+    _wait_for_forwarder_acceptance,
+    _wait_for_forwarder_surface,
+    _wait_for_invocation_count,
+    _wait_for_presented_surface,
+    _wait_for_process_exit,
+    _wait_for_replacement_broker_child,
+    _wait_for_restart_evidence,
+    _wait_for_splash_host_pid,
+    _wait_for_splash_hosts_exit,
+    _wait_for_value,
+)
+from tools.single_instance_launcher_surface_qualification import (
+    qualify_launcher_surfaces,
+)
 
 
 _TIMEOUT_SECONDS = 30.0
-_REGISTRATION_DELAY_SECONDS = 5.0
 _BURST_SIZE = 16
-_T = TypeVar("_T")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -79,13 +103,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             primary = _launch(
                 layout,
-                registration_delay_seconds=_REGISTRATION_DELAY_SECONDS,
+                gate_application_registration=True,
                 restart_after_invocations=_BURST_SIZE * 2,
             )
             launchers.append(primary)
             _wait_for_preregistration(layout)
             burst = [_launch(layout) for _index in range(_BURST_SIZE)]
             launchers.extend(burst)
+            _release_application_registration(layout)
             _wait_for_clean_exits(burst)
             app_pid = _wait_for_new_app_pid(layout, supervisor=primary)
             _wait_for_invocation_count(layout, _BURST_SIZE)
@@ -148,6 +173,40 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             _terminate_supervisor_and_child(replacement, replacement_pid)
             previous_state_pid = replacement_pid
+            prewindow_supervisor = _launch(
+                layout,
+                gate_window_construction=True,
+            )
+            launchers.append(prewindow_supervisor)
+            prewindow_child_pid = _wait_for_prewindow_phase(layout)
+            prewindow_forwarder = _launch(layout)
+            launchers.append(prewindow_forwarder)
+            _wait_for_clean_exits((prewindow_forwarder,))
+            _release_window_construction(layout)
+            registered_prewindow_pid = _wait_for_new_app_pid(
+                layout,
+                previous_pid=previous_state_pid,
+                supervisor=prewindow_supervisor,
+            )
+            if registered_prewindow_pid != prewindow_child_pid:
+                raise AssertionError(
+                    "Window-construction gate changed child identity before paint."
+                )
+            _wait_for_invocation_count(layout, 1)
+            prewindow_surface = _wait_for_presented_surface(layout)
+            _wait_for_splash_hosts_exit(layout)
+            _assert_single_child(layout, registered_prewindow_pid)
+            evidence["registered_before_window"] = {
+                "child_pid": registered_prewindow_pid,
+                "forwarder_exit_code": prewindow_forwarder.returncode,
+                "presented_surface": prewindow_surface,
+                "supervisor_pid": prewindow_supervisor.pid,
+            }
+            _terminate_supervisor_and_child(
+                prewindow_supervisor,
+                registered_prewindow_pid,
+            )
+            previous_state_pid = registered_prewindow_pid
             state_results: dict[str, object] = {}
             for initial_state in ("hidden", "minimized", "offscreen"):
                 state_supervisor = _launch(
@@ -178,6 +237,124 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 previous_state_pid = state_child_pid
             evidence["window_state_recovery"] = state_results
+
+            clear_splash_qualification_records(layout)
+            application_preregistration_claim_path(layout.root).unlink(missing_ok=True)
+            splash_crash_supervisor = _launch(
+                layout,
+                gate_application_registration=True,
+            )
+            launchers.append(splash_crash_supervisor)
+            _wait_for_preregistration(layout)
+            crashed_splash_pid = _wait_for_splash_host_pid(layout)
+            psutil.Process(crashed_splash_pid).kill()
+            _wait_for_process_exit(crashed_splash_pid)
+            abandoned_forwarder = _launch(layout)
+            launchers.append(abandoned_forwarder)
+            _wait_for_forwarder_acceptance(layout, abandoned_forwarder.pid)
+            psutil.Process(abandoned_forwarder.pid).kill()
+            _wait_for_process_exit(abandoned_forwarder.pid)
+            surviving_forwarder = _launch(layout)
+            launchers.append(surviving_forwarder)
+            _release_application_registration(layout)
+            splash_crash_child_pid = _wait_for_new_app_pid(
+                layout,
+                previous_pid=previous_state_pid,
+                supervisor=splash_crash_supervisor,
+            )
+            _wait_for_clean_exits((surviving_forwarder,))
+            _wait_for_invocation_count(layout, 2)
+            splash_crash_surface = _wait_for_presented_surface(
+                layout,
+                expected_invocation_count=2,
+            )
+            _assert_single_child(layout, splash_crash_child_pid)
+            evidence["splash_crash_and_dropped_acknowledgement"] = {
+                "abandoned_forwarder_pid": abandoned_forwarder.pid,
+                "application_pid": splash_crash_child_pid,
+                "crashed_splash_pid": crashed_splash_pid,
+                "forwarded_invocation_count": 2,
+                "presented_surface": splash_crash_surface,
+                "surviving_forwarder_exit_code": surviving_forwarder.returncode,
+                "supervisor_pid": splash_crash_supervisor.pid,
+            }
+            _terminate_supervisor_and_child(
+                splash_crash_supervisor,
+                splash_crash_child_pid,
+            )
+            application_prewindow_marker_path(layout.root).unlink(missing_ok=True)
+            application_prewindow_release_path(layout.root).unlink(missing_ok=True)
+            child_crash_supervisor = _launch(
+                layout,
+                gate_window_construction=True,
+            )
+            launchers.append(child_crash_supervisor)
+            crashed_child_pid = _wait_for_prewindow_phase(layout)
+            psutil.Process(crashed_child_pid).kill()
+            _wait_for_process_exit(crashed_child_pid)
+            repair_child_pid = _wait_for_replacement_broker_child(
+                layout,
+                owner_pid=child_crash_supervisor.pid,
+                previous_child_pid=crashed_child_pid,
+            )
+            _wait_for_splash_hosts_exit(layout)
+            repair_forwarder = _launch(layout)
+            launchers.append(repair_forwarder)
+            _wait_for_clean_exits((repair_forwarder,))
+            repair_surface = _wait_for_forwarder_surface(
+                layout,
+                requester_pid=repair_forwarder.pid,
+                expected_surface="LauncherMainWindow",
+            )
+            _terminate_supervisor_and_child(
+                child_crash_supervisor,
+                repair_child_pid,
+            )
+            child_crash_replacement = _launch(layout)
+            launchers.append(child_crash_replacement)
+            replacement_child_pid = _wait_for_new_app_pid(
+                layout,
+                previous_pid=crashed_child_pid,
+                supervisor=child_crash_replacement,
+            )
+            child_crash_forwarder = _launch(layout)
+            launchers.append(child_crash_forwarder)
+            _wait_for_clean_exits((child_crash_forwarder,))
+            _wait_for_invocation_count(layout, 1)
+            child_crash_surface = _wait_for_presented_surface(layout)
+            _assert_single_child(layout, replacement_child_pid)
+            evidence["child_crash_recovery"] = {
+                "crashed_child_pid": crashed_child_pid,
+                "departed_supervisor_pid": child_crash_supervisor.pid,
+                "repair_forwarder_exit_code": repair_forwarder.returncode,
+                "repair_surface": repair_surface,
+                "repair_ui_pid": repair_child_pid,
+                "replacement_forwarder_exit_code": child_crash_forwarder.returncode,
+                "presented_surface": child_crash_surface,
+                "replacement_child_pid": replacement_child_pid,
+                "replacement_supervisor_pid": child_crash_replacement.pid,
+            }
+            _terminate_supervisor_and_child(
+                child_crash_replacement,
+                replacement_child_pid,
+            )
+            graceful_supervisor = _launch(layout, exit_after_invocations=1)
+            launchers.append(graceful_supervisor)
+            graceful_child_pid = _wait_for_new_app_pid(
+                layout,
+                previous_pid=replacement_child_pid,
+                supervisor=graceful_supervisor,
+            )
+            graceful_forwarder = _launch(layout)
+            launchers.append(graceful_forwarder)
+            _wait_for_clean_exits((graceful_forwarder, graceful_supervisor))
+            _wait_for_process_exit(graceful_child_pid)
+            evidence["graceful_shutdown"] = {
+                "application_pid": graceful_child_pid,
+                "forwarder_exit_code": graceful_forwarder.returncode,
+                "supervisor_exit_code": graceful_supervisor.returncode,
+                "supervisor_pid": graceful_supervisor.pid,
+            }
             _assert_no_live_ownership_files(layout)
             evidence["native_ownership"] = {
                 "created_live_ownership_files": [],
@@ -187,6 +364,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             }
             evidence["launcher_log"] = audit_launcher_log(layout)
             _capture_success_diagnostics(layout, artifact_dir)
+            evidence["launcher_surfaces"] = qualify_launcher_surfaces(
+                launcher_bundle=arguments.launcher_bundle.resolve(),
+                temporary_root=Path(temporary),
+                artifact_dir=artifact_dir,
+            )
         except BaseException:
             _capture_failure_diagnostics(layout, artifact_dir)
             raise
@@ -225,9 +407,11 @@ def _parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
 def _launch(
     layout: InstallLayout,
     *,
-    registration_delay_seconds: float | None = None,
+    gate_application_registration: bool = False,
     restart_after_invocations: int | None = None,
+    exit_after_invocations: int | None = None,
     initial_window_state: str | None = None,
+    gate_window_construction: bool = False,
 ) -> subprocess.Popen[bytes]:
     """Start one packaged launcher invocation without desktop surfaces."""
 
@@ -237,16 +421,20 @@ def _launch(
     environment["SUGAR_SUBSTITUTE_SPLASH_REQUESTED_MONOTONIC_NS"] = str(
         time.monotonic_ns()
     )
-    if registration_delay_seconds is not None:
-        environment[APPLICATION_REGISTRATION_DELAY_ENV] = str(
-            registration_delay_seconds
-        )
+    if gate_application_registration:
+        environment[APPLICATION_REGISTRATION_GATE_ENV] = "1"
     if restart_after_invocations is not None:
         environment[APPLICATION_RESTART_AFTER_INVOCATIONS_ENV] = str(
             restart_after_invocations
         )
+    if exit_after_invocations is not None:
+        environment[APPLICATION_EXIT_AFTER_INVOCATIONS_ENV] = str(
+            exit_after_invocations
+        )
     if initial_window_state is not None:
         environment[APPLICATION_INITIAL_WINDOW_STATE_ENV] = initial_window_state
+    if gate_window_construction:
+        environment[APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV] = "1"
     return subprocess.Popen(  # noqa: S603
         [str(layout.executable_path), "--no-update-check", "--locale=en"],
         cwd=layout.root,
@@ -265,6 +453,43 @@ def _wait_for_preregistration(layout: InstallLayout) -> None:
     _wait_for_value(
         lambda: True if marker_path.is_file() else None,
         description="application preregistration phase",
+    )
+
+
+def _release_application_registration(layout: InstallLayout) -> None:
+    """Release one child waiting before supervisor registration."""
+
+    application_preregistration_release_path(layout.root).write_text(
+        "release",
+        encoding="utf-8",
+    )
+
+
+def _wait_for_prewindow_phase(layout: InstallLayout) -> int:
+    """Require a registered child that has not constructed its first window."""
+
+    marker_path = application_prewindow_marker_path(layout.root)
+
+    def child_pid() -> int | None:
+        try:
+            payload = json.loads(marker_path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            return None
+        pid = payload.get("pid") if isinstance(payload, dict) else None
+        return pid if isinstance(pid, int) and psutil.pid_exists(pid) else None
+
+    return _wait_for_value(
+        child_pid,
+        description="registered pre-window application phase",
+    )
+
+
+def _release_window_construction(layout: InstallLayout) -> None:
+    """Release one child waiting at the explicit pre-window phase gate."""
+
+    application_prewindow_release_path(layout.root).write_text(
+        "release",
+        encoding="utf-8",
     )
 
 
@@ -298,271 +523,6 @@ def _wait_for_new_app_pid(
         return pid
 
     return _wait_for_value(current_pid, description="registered application child")
-
-
-def _qualification_app_pids(layout: InstallLayout) -> tuple[int, ...]:
-    """Return live registered children in the disposable installation."""
-
-    matches: list[int] = []
-    for marker_path in (layout.user_dir / "qualification-owners").glob("*.json"):
-        try:
-            payload = json.loads(marker_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        pid = payload.get("pid") if isinstance(payload, dict) else None
-        if isinstance(pid, int) and psutil.pid_exists(pid):
-            matches.append(pid)
-    return tuple(matches)
-
-
-def _wait_for_invocation_count(layout: InstallLayout, expected_count: int) -> None:
-    """Require every acknowledged secondary launch to be handled exactly once."""
-
-    evidence_path = invocation_evidence_path(layout.root)
-
-    def observed_count() -> int | None:
-        try:
-            payload = json.loads(evidence_path.read_text(encoding="utf-8"))
-        except (FileNotFoundError, OSError, json.JSONDecodeError):
-            return None
-        count = payload.get("count") if isinstance(payload, dict) else None
-        return count if count == expected_count else None
-
-    _wait_for_value(
-        observed_count,
-        description=f"{expected_count} exactly-once forwarded invocations",
-    )
-
-
-def _wait_for_presented_surface(layout: InstallLayout) -> dict[str, object]:
-    """Require the last forwarded request to reveal an accessible normal window."""
-
-    evidence_path = invocation_evidence_path(layout.root)
-
-    def presented_surface() -> dict[str, object] | None:
-        try:
-            payload = json.loads(evidence_path.read_text(encoding="utf-8"))
-        except (FileNotFoundError, OSError, json.JSONDecodeError):
-            return None
-        if not isinstance(payload, dict) or payload.get("count") != 1:
-            return None
-        surface = payload.get("surface")
-        if not isinstance(surface, dict):
-            return None
-        if (
-            surface.get("visible") is not True
-            or surface.get("minimized") is not False
-            or surface.get("accessible") is not True
-        ):
-            return None
-        return surface
-
-    return _wait_for_value(
-        presented_surface,
-        description="visible accessible application surface",
-    )
-
-
-def _wait_for_restart_evidence(
-    layout: InstallLayout,
-    *,
-    expected_pid: int,
-    expected_invocation_count: int,
-) -> dict[str, object]:
-    """Require a real child-to-supervisor restart request at the exact count."""
-
-    evidence_path = restart_evidence_path(layout.root)
-
-    def accepted_evidence() -> dict[str, object] | None:
-        try:
-            payload = json.loads(evidence_path.read_text(encoding="utf-8"))
-        except (FileNotFoundError, OSError, json.JSONDecodeError):
-            return None
-        if not isinstance(payload, dict):
-            return None
-        if payload != {
-            "accepted": True,
-            "invocation_count": expected_invocation_count,
-            "pid": expected_pid,
-        }:
-            return None
-        return payload
-
-    return _wait_for_value(
-        accepted_evidence,
-        description="authenticated supervised application restart",
-    )
-
-
-def _assert_single_child(layout: InstallLayout, expected_pid: int) -> None:
-    """Prove exactly one registered application child remains live."""
-
-    observed = tuple(sorted(_qualification_app_pids(layout)))
-    if observed != (expected_pid,):
-        raise AssertionError(f"Expected one child {expected_pid}, observed {observed}.")
-
-
-def _assert_no_live_ownership_files(layout: InstallLayout) -> None:
-    """Prove the packaged run created none of the removed ownership artifacts."""
-
-    forbidden = (
-        "application-instance.lease",
-        "launcher-invocation.lease",
-        "application-launch.mutex",
-        "application-launch.lock",
-        "app-update.lock",
-    )
-    historical_lock_directory = layout.launcher_dir / "locks"
-    created = [
-        name for name in forbidden if (historical_lock_directory / name).exists()
-    ]
-    if created:
-        raise AssertionError(f"Removed ownership files were recreated: {created}")
-
-
-def _wait_for_clean_exits(processes: Sequence[subprocess.Popen[bytes]]) -> None:
-    """Require every forwarded launcher invocation to acknowledge and exit cleanly."""
-
-    for process in processes:
-        process.wait(timeout=_TIMEOUT_SECONDS)
-        if process.returncode != 0:
-            raise AssertionError(
-                f"Forwarding launcher {process.pid} exited with {process.returncode}."
-            )
-
-
-def _wait_for_splash_hosts_exit(layout: InstallLayout) -> None:
-    """Prove every launcher splash host exits after child adoption."""
-
-    _wait_for_value(
-        lambda: True if not splash_host_pids(layout) else None,
-        description="launcher splash host exit",
-    )
-
-
-def _wait_for_process_exit(pid: int) -> None:
-    """Wait until one supervisor or child process is gone."""
-
-    _wait_for_value(
-        lambda: True if not psutil.pid_exists(pid) else None,
-        description=f"process {pid} exit",
-    )
-
-
-def _terminate_supervisor_and_child(
-    supervisor: subprocess.Popen[bytes],
-    child_pid: int,
-) -> None:
-    """Crash one qualification supervisor and require its child to follow."""
-
-    if supervisor.poll() is None:
-        psutil.Process(supervisor.pid).kill()
-    _wait_for_process_exit(supervisor.pid)
-    _wait_for_process_exit(child_pid)
-
-
-def _wait_for_value(
-    value_factory: Callable[[], _T | None],
-    *,
-    description: str,
-) -> _T:
-    """Return the first non-None value produced within the global timeout."""
-
-    deadline = time.monotonic() + _TIMEOUT_SECONDS
-    while time.monotonic() < deadline:
-        value = value_factory()
-        if value is not None:
-            return value
-        time.sleep(0.05)
-    raise TimeoutError(f"Timed out waiting for {description}.")
-
-
-def _terminate_launchers(processes: Sequence[subprocess.Popen[bytes]]) -> None:
-    """Stop only still-running launchers created by this qualification."""
-
-    for process in processes:
-        if process.poll() is None:
-            process.terminate()
-    for process in processes:
-        if process.poll() is None:
-            try:
-                process.wait(timeout=5.0)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5.0)
-
-
-def _terminate_qualification_apps(layout: InstallLayout) -> None:
-    """Stop remaining children belonging to the disposable installation."""
-
-    for pid in _qualification_app_pids(layout):
-        try:
-            process = psutil.Process(pid)
-            process.kill()
-            process.wait(timeout=5.0)
-        except (psutil.NoSuchProcess, psutil.TimeoutExpired):
-            continue
-
-
-def _terminate_installation_processes(layout: InstallLayout) -> None:
-    """Stop remaining helpers rooted in the disposable installation."""
-
-    root_key = os.path.normcase(str(layout.root))
-    owned: list[psutil.Process] = []
-    for process in psutil.process_iter(["exe", "cmdline"]):
-        try:
-            executable = os.path.normcase(str(process.info.get("exe") or ""))
-            command = process.info.get("cmdline") or []
-            invoked = os.path.normcase(str(command[0])) if command else ""
-        except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
-            continue
-        if executable.startswith(root_key) or invoked.startswith(root_key):
-            owned.append(process)
-    for process in owned:
-        try:
-            process.terminate()
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-    _, alive = psutil.wait_procs(owned, timeout=3.0)
-    for process in alive:
-        try:
-            process.kill()
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-
-
-def _capture_failure_diagnostics(
-    layout: InstallLayout,
-    artifact_dir: Path,
-) -> None:
-    """Retain bounded launcher and crash evidence before disposal."""
-
-    diagnostics_dir = artifact_dir / "failure-diagnostics"
-    diagnostics_dir.mkdir(parents=True, exist_ok=True)
-    for source in (
-        layout.logs_dir / "launcher.log",
-        layout.logs_dir / "app-startup.log",
-    ):
-        if source.is_file():
-            shutil.copy2(source, diagnostics_dir / source.name)
-    crash_diagnostics = layout.appdata_dir / "diagnostics"
-    if crash_diagnostics.is_dir():
-        shutil.copytree(
-            crash_diagnostics,
-            diagnostics_dir / "app-diagnostics",
-            dirs_exist_ok=True,
-        )
-
-
-def _capture_success_diagnostics(
-    layout: InstallLayout,
-    artifact_dir: Path,
-) -> None:
-    """Preserve the qualified launcher log beside the structured report."""
-
-    source = layout.logs_dir / "launcher.log"
-    if source.is_file():
-        shutil.copy2(source, artifact_dir / "launcher.log")
 
 
 if __name__ == "__main__":

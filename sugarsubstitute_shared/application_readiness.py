@@ -29,6 +29,8 @@ from typing import Final
 
 READINESS_PATH_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_PATH"
 READINESS_TOKEN_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_TOKEN"
+READINESS_DELEGATION_PATH_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_DELEGATION_PATH"
+READINESS_DELEGATION_TOKEN_ENV: Final = "SUGAR_SUBSTITUTE_READINESS_DELEGATION_TOKEN"
 READINESS_SCHEMA_VERSION: Final = 3
 _LEGACY_READINESS_SCHEMA_VERSION: Final = 1
 _SURFACE_READINESS_SCHEMA_VERSION: Final = 2
@@ -38,6 +40,7 @@ class ApplicationReadinessSurface(str, Enum):
     """Identify which visible application surface became ready."""
 
     LEGACY_VISIBLE_SHELL = "legacy_visible_shell"
+    LAUNCHER_WINDOW = "launcher_window"
     ONBOARDING = "onboarding"
     MAIN_SHELL = "main_shell"
 
@@ -138,6 +141,8 @@ __all__ = [
     "ApplicationReadinessReceipt",
     "ApplicationReadinessSurface",
     "READINESS_PATH_ENV",
+    "READINESS_DELEGATION_PATH_ENV",
+    "READINESS_DELEGATION_TOKEN_ENV",
     "READINESS_SCHEMA_VERSION",
     "READINESS_TOKEN_ENV",
     "publish_application_readiness_receipt",

@@ -116,7 +116,7 @@ def test_ensure_managed_comfy_setup_removes_incomplete_workspace_before_install(
         workspace=tmp_path,
     )
 
-    assert result == new_python
+    assert result.python_executable == new_python
     assert repo_sync_calls == [tmp_path]
 
 
@@ -183,6 +183,6 @@ def test_ensure_managed_comfy_setup_migrates_legacy_nested_workspace(
         workspace=tmp_path,
     )
 
-    assert result == python_path
+    assert result.python_executable == python_path
     assert workspace_main_path(tmp_path).exists()
     assert not (tmp_path / "ComfyUI").exists()

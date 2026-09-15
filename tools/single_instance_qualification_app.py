@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 import sys
@@ -28,11 +29,11 @@ from PySide6.QtCore import QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.app.bootstrap.application_readiness import (
+from sugarsubstitute_shared.qt_surface_readiness import (
     schedule_main_shell_readiness_receipt,
 )
-from substitute.app.bootstrap.surface_presentation import run_after_surface_paint
-from substitute.app.bootstrap.application_instance_control import (
+from sugarsubstitute_shared.qt_surface_presentation import run_after_surface_paint
+from sugarsubstitute_shared.qt_application_instance_control import (
     start_application_instance_control,
     stop_application_instance_control,
 )
@@ -53,13 +54,30 @@ from sugarsubstitute_shared.launch_splash import (
 APPLICATION_REGISTRATION_DELAY_ENV = (
     "SUGAR_SUBSTITUTE_QUALIFICATION_APPLICATION_REGISTRATION_DELAY_SECONDS"
 )
+APPLICATION_REGISTRATION_GATE_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_APPLICATION_REGISTRATION_GATE"
+)
 APPLICATION_PREREGISTRATION_MARKER_NAME = "qualification-application-preregister.json"
+APPLICATION_PREREGISTRATION_RELEASE_NAME = (
+    "qualification-application-preregister.release"
+)
+APPLICATION_PREREGISTRATION_CLAIM_NAME = "qualification-application-preregister.claimed"
 APPLICATION_RESTART_AFTER_INVOCATIONS_ENV = (
     "SUGAR_SUBSTITUTE_QUALIFICATION_RESTART_AFTER_INVOCATIONS"
+)
+APPLICATION_EXIT_AFTER_INVOCATIONS_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_EXIT_AFTER_INVOCATIONS"
 )
 APPLICATION_INITIAL_WINDOW_STATE_ENV = (
     "SUGAR_SUBSTITUTE_QUALIFICATION_INITIAL_WINDOW_STATE"
 )
+APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV = (
+    "SUGAR_SUBSTITUTE_QUALIFICATION_WINDOW_CONSTRUCTION_GATE"
+)
+APPLICATION_PREWINDOW_MARKER_NAME = "qualification-application-prewindow.json"
+APPLICATION_PREWINDOW_RELEASE_NAME = "qualification-application-prewindow.release"
+_WINDOW_CONSTRUCTION_GATE_TIMEOUT_SECONDS = 30.0
+_LOGGER = logging.getLogger(__name__)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -68,10 +86,14 @@ def main(argv: list[str] | None = None) -> int:
     arguments = sys.argv if argv is None else argv
     install_root = application_launch_install_root(arguments, app_root=Path.cwd())
     _delay_application_registration(install_root)
+    _wait_at_application_registration_gate(install_root)
     application = QApplication(arguments)
     received_invocations: list[ApplicationInvocation] = []
     restart_after_invocations = int(
         os.environ.pop(APPLICATION_RESTART_AFTER_INVOCATIONS_ENV, "0")
+    )
+    exit_after_invocations = int(
+        os.environ.pop(APPLICATION_EXIT_AFTER_INVOCATIONS_ENV, "0")
     )
     crash_context = CrashRunContext.from_environment()
     requested_restart = False
@@ -134,6 +156,12 @@ def main(argv: list[str] | None = None) -> int:
 
             run_after_surface_paint(window, request_restart_after_presentation)
             window.update()
+        elif (
+            exit_after_invocations > 0
+            and len(received_invocations) == exit_after_invocations
+        ):
+            run_after_surface_paint(window, application.quit)
+            window.update()
 
     evidence_path = invocation_evidence_path(install_root)
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
@@ -143,6 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     if control is None:
         return 17
+    _wait_at_window_construction_gate(install_root)
     window = QWidget()
     window.setWindowTitle("SugarSubstitute instance qualification")
     window.resize(640, 480)
@@ -280,6 +309,87 @@ def application_preregistration_marker_path(install_root: Path) -> Path:
     return install_root / "user" / APPLICATION_PREREGISTRATION_MARKER_NAME
 
 
+def application_preregistration_release_path(install_root: Path) -> Path:
+    """Return the explicit release signal for child registration."""
+
+    return install_root / "user" / APPLICATION_PREREGISTRATION_RELEASE_NAME
+
+
+def application_preregistration_claim_path(install_root: Path) -> Path:
+    """Return the one-supervision-cycle registration-gate claim."""
+
+    return install_root / "user" / APPLICATION_PREREGISTRATION_CLAIM_NAME
+
+
+def application_prewindow_marker_path(install_root: Path) -> Path:
+    """Return the marker proving child registration before window construction."""
+
+    return install_root / "user" / APPLICATION_PREWINDOW_MARKER_NAME
+
+
+def application_prewindow_release_path(install_root: Path) -> Path:
+    """Return the explicit release signal for window construction."""
+
+    return install_root / "user" / APPLICATION_PREWINDOW_RELEASE_NAME
+
+
+def _wait_at_application_registration_gate(install_root: Path) -> None:
+    """Pause one selected child before registration until explicitly released."""
+
+    enabled = os.environ.pop(APPLICATION_REGISTRATION_GATE_ENV, "0") == "1"
+    if not enabled:
+        return
+    marker_path = application_preregistration_marker_path(install_root)
+    release_path = application_preregistration_release_path(install_root)
+    claim_path = application_preregistration_claim_path(install_root)
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        claim_path.touch(exist_ok=False)
+    except FileExistsError:
+        return
+    release_path.unlink(missing_ok=True)
+    marker_path.write_text(
+        json.dumps({"pid": os.getpid()}, sort_keys=True),
+        encoding="utf-8",
+    )
+    deadline = time.monotonic() + _WINDOW_CONSTRUCTION_GATE_TIMEOUT_SECONDS
+    try:
+        while not release_path.is_file():
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    "Application-registration qualification gate timed out."
+                )
+            time.sleep(0.05)
+    finally:
+        _remove_owned_marker(marker_path)
+        release_path.unlink(missing_ok=True)
+
+
+def _wait_at_window_construction_gate(install_root: Path) -> None:
+    """Pause a selected child after registration until qualification releases it."""
+
+    enabled = os.environ.pop(APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV, "0") == "1"
+    if not enabled:
+        return
+    marker_path = application_prewindow_marker_path(install_root)
+    release_path = application_prewindow_release_path(install_root)
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
+    release_path.unlink(missing_ok=True)
+    marker_path.write_text(
+        json.dumps({"pid": os.getpid()}, sort_keys=True),
+        encoding="utf-8",
+    )
+    deadline = time.monotonic() + _WINDOW_CONSTRUCTION_GATE_TIMEOUT_SECONDS
+    try:
+        while not release_path.is_file():
+            if time.monotonic() >= deadline:
+                raise TimeoutError("Window-construction qualification gate timed out.")
+            time.sleep(0.05)
+    finally:
+        _remove_owned_marker(marker_path)
+        release_path.unlink(missing_ok=True)
+
+
 def invocation_evidence_path(install_root: Path) -> Path:
     """Return the disposable forwarded-invocation evidence path."""
 
@@ -300,7 +410,15 @@ def _remove_owned_marker(marker_path: Path) -> None:
     except (FileNotFoundError, OSError, json.JSONDecodeError):
         return
     if isinstance(marker_payload, dict) and marker_payload.get("pid") == os.getpid():
-        marker_path.unlink(missing_ok=True)
+        try:
+            marker_path.unlink(missing_ok=True)
+        except OSError:
+            _LOGGER.warning(
+                "Qualification marker cleanup was deferred because the file is busy. "
+                "| marker_path=%s | owner_pid=%s",
+                marker_path,
+                os.getpid(),
+            )
 
 
 if __name__ == "__main__":

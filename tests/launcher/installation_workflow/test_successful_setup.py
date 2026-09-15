@@ -101,7 +101,7 @@ def test_frozen_setup_installs_in_current_window(
             return SimpleNamespace(python_executable=layout.runtime_python)
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window._current_frozen_executable",
+        "launcher.sugarsubstitute_launcher.ui.main_window.current_frozen_executable_path",
         lambda: downloaded_exe,
     )
     monkeypatch.setattr(

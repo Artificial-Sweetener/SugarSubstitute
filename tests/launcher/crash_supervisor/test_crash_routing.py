@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+import os
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.cli import parse_launcher_args
@@ -64,12 +66,15 @@ def test_pending_recovery_delegates_in_time_order_without_owning_acknowledgement
     calls: list[tuple[str, str | None]] = []
 
     def run_reporter(
-        _layout: InstallLayout,
+        layout: InstallLayout,
         incident_id: str,
         locale_override: str | None,
+        environment: Mapping[str, str],
     ) -> int:
         """Model successful child presentation and acknowledgement."""
 
+        del layout
+        assert environment["BROKER"] == "authorized"
         calls.append((incident_id, locale_override))
         store.acknowledge(incident_id)
         return 0
@@ -77,6 +82,7 @@ def test_pending_recovery_delegates_in_time_order_without_owning_acknowledgement
     recovered = recover_pending_crash_reports(
         layout=layout,
         locale_override="es",
+        environment={"BROKER": "authorized"},
         reporter_runner=run_reporter,
     )
 
@@ -96,17 +102,20 @@ def test_pending_recovery_failure_preserves_incident_and_allows_launch(
     store.record(incident)
 
     def fail_reporter(
-        _layout: InstallLayout,
-        _incident_id: str,
-        _locale_override: str | None,
+        layout: InstallLayout,
+        incident_id: str,
+        locale_override: str | None,
+        environment: Mapping[str, str],
     ) -> int:
         """Model a missing or unloadable Qt-capable report child."""
 
+        del layout, incident_id, locale_override, environment
         raise OSError("reporter unavailable")
 
     recovered = recover_pending_crash_reports(
         layout=layout,
         locale_override=None,
+        environment={},
         reporter_runner=fail_reporter,
     )
 
@@ -118,16 +127,17 @@ def test_explicit_report_on_supervisor_delegates_to_ui_child(tmp_path: Path) -> 
     """Even direct report requests must keep Qt out of the supervisor process."""
 
     layout = InstallLayout.from_root(tmp_path / "install")
-    calls: list[tuple[InstallLayout, str, str | None]] = []
+    calls: list[tuple[InstallLayout, str, str | None, Mapping[str, str]]] = []
 
     def run_reporter(
-        report_layout: InstallLayout,
+        layout: InstallLayout,
         incident_id: str,
         locale_override: str | None,
+        environment: Mapping[str, str],
     ) -> int:
         """Capture the delegated report without importing its presentation."""
 
-        calls.append((report_layout, incident_id, locale_override))
+        calls.append((layout, incident_id, locale_override, environment))
         return 3
 
     result = route_explicit_crash_operation(
@@ -142,4 +152,4 @@ def test_explicit_report_on_supervisor_delegates_to_ui_child(tmp_path: Path) -> 
     )
 
     assert result == 3
-    assert calls == [(layout, "incident-1", "ja")]
+    assert calls == [(layout, "incident-1", "ja", os.environ)]

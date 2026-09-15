@@ -21,6 +21,16 @@ from __future__ import annotations
 from pathlib import Path
 
 
+def iter_authored_python_sources(source_root: Path) -> tuple[Path, ...]:
+    """Return authored Python sources without generated Qt resource modules."""
+
+    return tuple(
+        path
+        for path in sorted(source_root.rglob("*.py"))
+        if not path.name.endswith("_rc.py")
+    )
+
+
 def application_source_roots(project_root: Path) -> tuple[Path, ...]:
     """Return source roots that can own application-visible messages."""
 
@@ -65,6 +75,7 @@ def visible_source_roots(project_root: Path) -> tuple[Path, ...]:
 __all__ = [
     "application_catalog_source_roots",
     "application_source_roots",
+    "iter_authored_python_sources",
     "shared_application_catalog_source_roots",
     "visible_source_roots",
 ]

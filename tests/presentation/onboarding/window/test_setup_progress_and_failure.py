@@ -49,6 +49,9 @@ from substitute.presentation.onboarding.onboarding_window import OnboardingWindo
 from substitute.presentation.onboarding.setup_progress_presenter import (
     SetupProgressPresenter,
 )
+from substitute.presentation.onboarding.setup_activity_presenter import (
+    SetupActivityPresenter,
+)
 from substitute.presentation.errors import ErrorReportPresenterProtocol
 from tests.support.qt.lifecycle import ensure_qt_application
 from .controller_double import _FakeController
@@ -66,6 +69,31 @@ class _ReportPresenter:
         """Retain one report instead of opening a modal."""
 
         self.reports.append(report)
+
+
+def test_setup_activity_heartbeat_advances_without_inventing_progress() -> None:
+    """Keep the visible setup surface moving from a controlled monotonic clock."""
+
+    ensure_qt_application()
+    page = ProvisioningPage()
+    now = 10.0
+    presenter = SetupActivityPresenter(
+        label=page.detail_label,
+        parent=page,
+        clock=lambda: now,
+    )
+
+    presenter.start()
+    assert page.detail_label.text() == "Setup is active — 0:00 elapsed"
+    now = 160.0
+    presenter.refresh()
+    assert page.detail_label.text() == "Setup is active — 2:30 elapsed"
+    assert page.overall_progress_bar.value() == 0
+    presenter.stop()
+    now = 220.0
+    presenter.refresh()
+    assert page.detail_label.text() == "Setup is active — 2:30 elapsed"
+    page.close()
 
 
 def test_progress_uses_exact_tasks_bytes_and_rejects_stale_generation() -> None:

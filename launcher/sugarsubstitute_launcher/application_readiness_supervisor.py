@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 import json
+import logging
 from pathlib import Path
 import secrets
 import subprocess
@@ -33,6 +34,8 @@ from launcher.sugarsubstitute_launcher.process import spawn_detached_process
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
+    READINESS_DELEGATION_PATH_ENV,
+    READINESS_DELEGATION_TOKEN_ENV,
     READINESS_PATH_ENV,
     READINESS_TOKEN_ENV,
     publish_application_readiness_receipt,
@@ -42,6 +45,7 @@ from sugarsubstitute_shared.application_readiness import (
 DEFAULT_READINESS_TIMEOUT_SECONDS = 3600.0
 _POLL_INTERVAL_SECONDS = 0.05
 _TERMINATION_TIMEOUT_SECONDS = 5.0
+_LOGGER = logging.getLogger(__name__)
 
 
 class ApplicationReadinessError(RuntimeError):
@@ -52,11 +56,13 @@ class ApplicationReadinessError(RuntimeError):
         message: str,
         *,
         terminated_process: CandidateProcess | None = None,
+        incident_id: str | None = None,
     ) -> None:
-        """Retain a naturally terminated candidate for crash classification."""
+        """Retain terminated-process and durable-incident recovery context."""
 
         super().__init__(message)
         self.terminated_process = terminated_process
+        self.incident_id = incident_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,9 +142,21 @@ class ApplicationReadinessSupervisor:
         child_environment = dict(environment)
         child_environment[READINESS_PATH_ENV] = str(receipt_path)
         child_environment[READINESS_TOKEN_ENV] = token
+        if contract.outer_receipt_path is not None and contract.outer_token is not None:
+            child_environment[READINESS_DELEGATION_PATH_ENV] = str(
+                contract.outer_receipt_path
+            )
+            child_environment[READINESS_DELEGATION_TOKEN_ENV] = contract.outer_token
         process, startup_log_path = self._process_starter(
             command,
             child_environment,
+        )
+        _LOGGER.info(
+            "Started supervised application candidate | candidate_pid=%s | "
+            "accepted_surfaces=%s | outer_contract=%s",
+            process.pid,
+            ",".join(sorted(surface.value for surface in self._accepted_surfaces)),
+            contract.outer_receipt_path is not None,
         )
         try:
             deadline = self._monotonic() + self._timeout_seconds
@@ -158,6 +176,14 @@ class ApplicationReadinessSupervisor:
                     )
                     self._require_accepted_surface(receipt)
                     self._publish_outer_receipt(contract=contract, receipt=receipt)
+                    _LOGGER.info(
+                        "Accepted painted application surface | candidate_pid=%s | "
+                        "surface_pid=%s | surface=%s | outer_contract=%s",
+                        process.pid,
+                        receipt.pid,
+                        receipt.surface.value,
+                        contract.outer_receipt_path is not None,
+                    )
                     return process
                 self._wait(_POLL_INTERVAL_SECONDS)
             raise ApplicationReadinessError(
@@ -180,11 +206,20 @@ class ApplicationReadinessSupervisor:
 
         external_path = environment.get(READINESS_PATH_ENV)
         external_token = environment.get(READINESS_TOKEN_ENV)
+        delegated_path = environment.get(READINESS_DELEGATION_PATH_ENV)
+        delegated_token = environment.get(READINESS_DELEGATION_TOKEN_ENV)
         if bool(external_path) != bool(external_token):
             raise ApplicationReadinessError(
                 "Application readiness path and token must be supplied together."
             )
-        if external_path and external_token:
+        if bool(delegated_path) != bool(delegated_token):
+            raise ApplicationReadinessError(
+                "Application readiness delegation path and token must be supplied "
+                "together."
+            )
+        outer_path = delegated_path or external_path
+        outer_token = delegated_token or external_token
+        if outer_path and outer_token:
             return _ReadinessContract(
                 child_receipt_path=(
                     layout.launcher_dir
@@ -192,8 +227,8 @@ class ApplicationReadinessSupervisor:
                     / f"candidate-{secrets.token_hex(16)}.json"
                 ),
                 child_token=self._token_factory(),
-                outer_receipt_path=Path(external_path).expanduser().resolve(),
-                outer_token=external_token,
+                outer_receipt_path=Path(outer_path).expanduser().resolve(),
+                outer_token=outer_token,
             )
         return _ReadinessContract(
             child_receipt_path=layout.launcher_dir / "readiness" / "candidate.json",

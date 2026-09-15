@@ -26,7 +26,7 @@ from launcher.sugarsubstitute_launcher.application.repair import (
     RepairScope,
 )
 from launcher.sugarsubstitute_launcher.repair_helper import run_prepared_repair
-from launcher.sugarsubstitute_launcher.repair_process import RepairProcessIdentity
+from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 
 def test_helper_waits_for_exact_caller_then_executes_and_relaunches(
@@ -55,10 +55,10 @@ def test_helper_waits_for_exact_caller_then_executes_and_relaunches(
     events: list[str] = []
     launches: list[tuple[str, ...]] = []
 
-    def wait(identity: RepairProcessIdentity) -> None:
+    def wait(identity: ProcessIdentity) -> None:
         """Record the identity used by the helper."""
 
-        assert identity == RepairProcessIdentity(77, 123.5)
+        assert identity == ProcessIdentity(77, 123.5)
         events.append("waited")
 
     def execute(candidate: PreparedRepairRequest) -> CompletedRepair:

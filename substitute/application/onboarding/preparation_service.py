@@ -38,6 +38,7 @@ from substitute.application.onboarding.setup_progress import (
 from substitute.application.execution import CancellationToken
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.domain.onboarding import ComfyEndpoint, ComfyTargetMode
+from substitute.domain.onboarding import ManagedComfySetupResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,7 +96,7 @@ class OnboardingPreparationService:
         self,
         *,
         service_bundle_factory: OnboardingBundleFactory,
-        managed_workspace_provisioner: Callable[..., Path],
+        managed_workspace_provisioner: Callable[..., ManagedComfySetupResult],
         attached_workspace_provisioner: AttachedWorkspaceProvisioner | None,
     ) -> None:
         """Store the preparation-only infrastructure boundaries."""
