@@ -42,6 +42,7 @@ def prepare_qualification_installation(
         raise FileNotFoundError(f"Packaged launcher not found: {launcher_bundle}")
     shutil.copytree(launcher_bundle, install_root)
     layout = InstallLayout.from_root(install_root)
+    _place_windows_helper_executables(layout)
     layout.app_dir.mkdir()
     for package_name in ("sugarsubstitute_shared", "substitute"):
         shutil.copytree(
@@ -64,6 +65,31 @@ def prepare_qualification_installation(
         release_source=None,
     ).save(layout.config_path)
     return layout
+
+
+def prepare_launcher_surface_qualification_installation(
+    *,
+    launcher_bundle: Path,
+    install_root: Path,
+) -> InstallLayout:
+    """Create a blank released layout for setup and repair qualification."""
+
+    if not (launcher_bundle / "SugarSubstitute.exe").is_file():
+        raise FileNotFoundError(f"Packaged launcher not found: {launcher_bundle}")
+    shutil.copytree(launcher_bundle, install_root)
+    layout = InstallLayout.from_root(install_root)
+    _place_windows_helper_executables(layout)
+    return layout
+
+
+def _place_windows_helper_executables(layout: InstallLayout) -> None:
+    """Apply the release archive's helper placement to a raw Windows build."""
+
+    layout.launcher_support_path.mkdir(parents=True, exist_ok=True)
+    for filename in ("LauncherUi.exe", "Repair.exe"):
+        staged_path = layout.root / filename
+        if staged_path.is_file():
+            staged_path.replace(layout.launcher_support_path / filename)
 
 
 def _create_directory_link(source: Path, destination: Path) -> None:
@@ -89,4 +115,7 @@ def _create_directory_link(source: Path, destination: Path) -> None:
         )
 
 
-__all__ = ["prepare_qualification_installation"]
+__all__ = [
+    "prepare_launcher_surface_qualification_installation",
+    "prepare_qualification_installation",
+]

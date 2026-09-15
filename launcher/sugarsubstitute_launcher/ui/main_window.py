@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -43,11 +42,17 @@ from launcher.sugarsubstitute_launcher.language_preference import (
 )
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.resources import launcher_icon
+from launcher.sugarsubstitute_launcher.runtime_paths import (
+    current_frozen_executable_path,
+)
 from launcher.sugarsubstitute_launcher.repair_handoff import (
     launch_prepared_repair_helper,
 )
 from launcher.sugarsubstitute_launcher.ui.installation_execution import (
     QtInstallationExecutor,
+)
+from launcher.sugarsubstitute_launcher.ui.installation_close_coordinator import (
+    InstallationCloseCoordinator,
 )
 from launcher.sugarsubstitute_launcher.ui.installation_workers import (
     InstallationWorkflowFactory,
@@ -79,13 +84,12 @@ from launcher.sugarsubstitute_launcher.ui.window_effects import (
 )
 from launcher.sugarsubstitute_launcher.ui.window_geometry import (
     append_handoff_geometry,
-    parse_handoff_geometry,
-    serialize_handoff_geometry,
+    place_launcher_window,
+    serialize_launcher_window,
 )
 from sugarsubstitute_shared.presentation.installer_surface import (
     INSTALLER_WINDOW_HEIGHT,
     INSTALLER_WINDOW_WIDTH,
-    center_installer_window,
     configure_installer_title_bar,
 )
 
@@ -158,6 +162,13 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self.execution.setup_finished.connect(self._handle_setup_execution_finished)
 
         self._build_shell(initial_layout)
+        self._close_coordinator = InstallationCloseCoordinator(
+            window=self,
+            view=self.view,
+            installation=self.execution,
+            repair=self.repair_execution,
+        )
+        self.repair_execution.finished.connect(self._close_coordinator.finish_if_safe)
         if self._localization_manager is not None:
             self._localization_manager.languageChanged.connect(
                 lambda _snapshot: self._retranslate_window()
@@ -177,7 +188,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         if not update_check_enabled:
             self._append_log(launcher_text("Update check disabled for this launch."))
         self._refresh_primary_button()
-        self._apply_handoff_geometry()
+        place_launcher_window(self, self._handoff_geometry)
         apply_launcher_window_effects(self)
         QTimer.singleShot(0, self._finish_native_shell)
         if continue_install:
@@ -187,8 +198,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Reapply native material and center its final visible frame once."""
 
         apply_launcher_window_effects(self)
-        if parse_handoff_geometry(self._handoff_geometry) is None:
-            center_installer_window(self)
+        place_launcher_window(self, self._handoff_geometry)
 
     @property
     def ui_state(self) -> LauncherUiState:
@@ -286,6 +296,8 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
     def _handle_repair_prepared(self, result: object) -> None:
         """Launch the independent helper only after every artifact is verified."""
 
+        if self._close_coordinator.close_requested:
+            return
         try:
             preparation = require_repair_preparation(result)
             request = preparation.request.with_process_behavior(
@@ -341,9 +353,9 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
         self.execution.start_initial(
             layout=InstallLayout.from_root(install_root),
-            frozen_setup=_current_frozen_executable() is not None,
+            frozen_setup=current_frozen_executable_path() is not None,
             release_source=self._initial_release_source,
-            handoff_geometry=self._current_handoff_geometry(),
+            handoff_geometry=serialize_launcher_window(self),
         )
 
     def _install_app_payload(self) -> None:
@@ -515,6 +527,8 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
     def _handle_setup_execution_finished(self) -> None:
         """Complete a successful handoff after its Qt worker has stopped."""
 
+        if self._close_coordinator.finish_if_safe():
+            return
         if self._setup_handoff_close_pending:
             self._setup_handoff_close_pending = False
             self._close_after_successful_handoff()
@@ -523,6 +537,8 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
     def _handle_initial_install_finished(self) -> None:
         """Advance only after the initial Qt worker has released ownership."""
 
+        if self._close_coordinator.finish_if_safe():
+            return
         if self._ui_state is LauncherUiState.PREPARE_INSTALL:
             self._refresh_primary_button()
             return
@@ -566,25 +582,3 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Reveal installer output once setup work has actually started."""
 
         self.view.show_status_output()
-
-    def _apply_handoff_geometry(self) -> None:
-        """Restore handoff placement or center a fresh installer window."""
-
-        geometry = parse_handoff_geometry(self._handoff_geometry)
-        if geometry is not None:
-            self.setGeometry(geometry)
-            return
-        center_installer_window(self)
-
-    def _current_handoff_geometry(self) -> str:
-        """Return this window's frame geometry for the next setup process."""
-
-        return serialize_handoff_geometry(self.frameGeometry())
-
-
-def _current_frozen_executable() -> Path | None:
-    """Return the frozen launcher executable path when running from PyInstaller."""
-
-    if bool(getattr(sys, "frozen", False)):
-        return Path(sys.executable)
-    return None

@@ -114,7 +114,7 @@ def run_application(
         ),
     )
     app = runtime_bootstrap.app
-    from substitute.app.bootstrap.application_instance_control import (
+    from sugarsubstitute_shared.qt_application_instance_control import (
         start_application_instance_control,
         stop_application_instance_control,
     )

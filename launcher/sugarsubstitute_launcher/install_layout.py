@@ -79,6 +79,15 @@ class InstallLayout:
         return self.root / self.target.support_relative_path
 
     @property
+    def launcher_ui_executable_path(self) -> Path | None:
+        """Return the packaged Qt launcher child when the target provides one."""
+
+        relative_path = self.target.launcher_ui_executable_relative_path
+        if relative_path is None:
+            return None
+        return self.bundle_path / relative_path
+
+    @property
     def crashpad_runtime_path(self) -> Path:
         """Return the packaged native Crashpad runtime directory."""
 

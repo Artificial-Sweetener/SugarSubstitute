@@ -24,6 +24,11 @@ import pytest
 
 from launcher.sugarsubstitute_launcher import process
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.process_identity import ProcessIdentity
+from sugarsubstitute_shared.supervisor_handoff import (
+    SUPERVISOR_HANDOFF_CREATED_AT_ENV,
+    SUPERVISOR_HANDOFF_PID_ENV,
+)
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 from sugarsubstitute_shared.crash_reporting.protocol import (
     CRASHPAD_CLIENT_LIBRARY_ENV,
@@ -70,21 +75,52 @@ def test_installer_handoff_starts_only_stable_launcher(
         "main.py",
         f"--install-root={layout.root}",
     ]
-    started: list[list[str]] = []
+    started: list[tuple[list[str], object]] = []
     monkeypatch.setattr(
         process,
         "start_detached_handoff",
-        lambda command: started.append(list(command)),
+        lambda command, **options: started.append(
+            (list(command), options.get("environment"))
+        ),
     )
 
     process.start_installed_launcher_handoff(app_command)
 
-    assert started == [
-        [
-            subprocess_path(layout.executable_path),
-            f"--install-root={subprocess_path(layout.root)}",
-        ]
+    assert started[0][0] == [
+        subprocess_path(layout.executable_path),
+        f"--install-root={subprocess_path(layout.root)}",
     ]
+    assert isinstance(started[0][1], dict)
+
+
+def test_installer_handoff_waits_for_exact_active_supervisor(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The installed launcher must not compete with the setup supervisor."""
+
+    from sugarsubstitute_shared import qt_application_instance_control
+
+    identity = ProcessIdentity(pid=4321, created_at=123.5)
+    captured_environment: dict[str, str] = {}
+    monkeypatch.setattr(
+        qt_application_instance_control,
+        "active_application_supervisor_identity",
+        lambda: identity,
+    )
+    monkeypatch.setattr(
+        process,
+        "start_detached_handoff",
+        lambda _command, **options: captured_environment.update(options["environment"]),
+    )
+    layout = InstallLayout.from_root(tmp_path / "install")
+
+    process.start_installed_launcher_handoff(
+        ["python", "main.py", f"--install-root={layout.root}"]
+    )
+
+    assert captured_environment[SUPERVISOR_HANDOFF_PID_ENV] == "4321"
+    assert captured_environment[SUPERVISOR_HANDOFF_CREATED_AT_ENV] == "123.5"
 
 
 def test_detached_handoff_drops_completed_crash_supervision(

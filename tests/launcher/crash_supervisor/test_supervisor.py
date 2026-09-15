@@ -66,7 +66,9 @@ def test_supervisor_accepts_only_authenticated_clean_completion(tmp_path: Path) 
 
     return_code = ApplicationCrashSupervisor(
         process_starter=_start_process,
-        reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
+        reporter_starter=lambda _layout, incident_id, _environment: reports.append(
+            incident_id
+        ),
     ).supervise(
         layout=layout,
         command=(sys.executable, "-c", script),
@@ -111,7 +113,9 @@ def test_supervisor_accepts_clean_completion_with_zero_exit_wrapper_dump(
 
     return_code = ApplicationCrashSupervisor(
         process_starter=start_with_wrapper_dump,
-        reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
+        reporter_starter=lambda _layout, incident_id, _environment: reports.append(
+            incident_id
+        ),
         time_ns=lambda: 0,
     ).supervise(
         layout=layout,
@@ -138,7 +142,9 @@ def test_supervisor_reports_hard_exit_even_when_exit_code_is_zero(
 
     return_code = ApplicationCrashSupervisor(
         process_starter=_start_process,
-        reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
+        reporter_starter=lambda _layout, incident_id, _environment: reports.append(
+            incident_id
+        ),
     ).supervise(
         layout=layout,
         command=(sys.executable, "-c", "import os; os._exit(0)"),
@@ -170,7 +176,9 @@ def test_supervisor_identifies_real_abort_from_fatal_evidence(tmp_path: Path) ->
 
     ApplicationCrashSupervisor(
         process_starter=_start_process,
-        reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
+        reporter_starter=lambda _layout, incident_id, _environment: reports.append(
+            incident_id
+        ),
     ).supervise(
         layout=layout,
         command=(sys.executable, "-c", script),
@@ -191,7 +199,11 @@ def test_supervisor_keeps_incident_pending_when_reporter_fails(tmp_path: Path) -
 
     layout = InstallLayout.from_root(tmp_path / "install")
 
-    def fail_reporter(_layout: InstallLayout, _incident_id: str) -> None:
+    def fail_reporter(
+        _layout: InstallLayout,
+        _incident_id: str,
+        _environment: Mapping[str, str],
+    ) -> None:
         """Simulate a missing or damaged reporter executable."""
 
         raise OSError("reporter missing")
@@ -231,7 +243,7 @@ def test_supervisor_retains_crashpad_dump_inside_incident(tmp_path: Path) -> Non
 
     ApplicationCrashSupervisor(
         process_starter=start_with_dump,
-        reporter_starter=lambda _layout, _incident_id: None,
+        reporter_starter=lambda _layout, _incident_id, _environment: None,
         time_ns=lambda: 0,
     ).supervise(
         layout=layout,

@@ -113,17 +113,27 @@ def _present_crash_incident(
     application = QApplication.instance()
     if not isinstance(application, QApplication):
         application = QApplication(sys.argv[:1])
+    from sugarsubstitute_shared.qt_application_instance_control import (
+        start_application_instance_control,
+        stop_application_instance_control,
+    )
+
+    instance_control = start_application_instance_control()
     configure_launcher_theme()
     localization_runtime = build_launcher_localization_runtime(
         application,
         layout=layout,
         locale_override=locale_override,
     )
-    SharedErrorReportDialog(
-        presentation=build_crash_report_presentation(incident),
-        restart=restart,
-    ).exec()
-    del localization_runtime
+    try:
+        SharedErrorReportDialog(
+            presentation=build_crash_report_presentation(incident),
+            restart=restart,
+        ).exec()
+    finally:
+        if instance_control is not None:
+            stop_application_instance_control()
+        del localization_runtime
 
 
 def _restart_application(layout: InstallLayout) -> None:

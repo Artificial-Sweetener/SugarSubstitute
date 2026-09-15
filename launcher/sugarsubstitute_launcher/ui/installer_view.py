@@ -54,6 +54,9 @@ from launcher.sugarsubstitute_launcher.ui.experience_pages import RepairScopePag
 from launcher.sugarsubstitute_launcher.ui.installer_errors import (
     install_location_guidance,
 )
+from launcher.sugarsubstitute_launcher.ui.installation_activity_presenter import (
+    InstallationActivityPresenter,
+)
 from sugarsubstitute_shared.localization import load_language_manifest
 from sugarsubstitute_shared.presentation.installer_surface import (
     INSTALLER_CONTENT_MAX_WIDTH,
@@ -139,7 +142,7 @@ class InstallerView(QWidget):
         """Append diagnostics while promoting the latest activity to the page."""
 
         self.progress_log.append_line(f"{message}\n")
-        self.activity_label.setText(message)
+        self._activity_presenter.start(message)
 
     def show_status_output(self) -> None:
         """Show calm progress while keeping console details collapsed."""
@@ -153,6 +156,7 @@ class InstallerView(QWidget):
         """Reveal diagnostics after a failure and retain the retry action."""
 
         self._experience_page = ExperiencePage.FAILURE
+        self._activity_presenter.stop()
         self.activity_label.setText(message)
         with QSignalBlocker(self.details_button):
             self.details_button.setChecked(True)
@@ -426,6 +430,10 @@ class InstallerView(QWidget):
         self.activity_label.setWordWrap(True)
         text_layout.addWidget(title)
         text_layout.addWidget(self.activity_label)
+        self._activity_presenter = InstallationActivityPresenter(
+            label=self.activity_label,
+            parent=self,
+        )
         layout.addLayout(icon_row)
         layout.addSpacing(12)
 

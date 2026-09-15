@@ -24,7 +24,7 @@ from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtGui import QCloseEvent, QGuiApplication
 from PySide6.QtWidgets import QApplication, QWidget
 
-from substitute.app.bootstrap.application_instance_control import (
+from sugarsubstitute_shared.qt_application_instance_control import (
     ApplicationInstanceControlClient,
 )
 from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation

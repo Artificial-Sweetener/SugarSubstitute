@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-import os
 from pathlib import Path
 import sys
 from typing import Protocol
@@ -73,6 +72,7 @@ def build_launcher_ui_command(
 def start_crash_reporter(
     layout: InstallLayout,
     incident_id: str,
+    environment: Mapping[str, str],
     *,
     process_starter: LauncherUiProcessStarter = spawn_detached_process,
 ) -> None:
@@ -80,7 +80,7 @@ def start_crash_reporter(
 
     process_starter(
         _build_crash_report_command(layout, incident_id, locale_override=None),
-        environment=os.environ,
+        environment=environment,
     )
 
 
@@ -88,6 +88,7 @@ def run_crash_reporter(
     layout: InstallLayout,
     incident_id: str,
     locale_override: str | None,
+    environment: Mapping[str, str],
     *,
     process_starter: LauncherUiProcessStarter = spawn_detached_process,
 ) -> int:
@@ -95,7 +96,7 @@ def run_crash_reporter(
 
     process, _log_path = process_starter(
         _build_crash_report_command(layout, incident_id, locale_override),
-        environment=os.environ,
+        environment=environment,
     )
     return process.wait()
 
@@ -127,7 +128,7 @@ def _installed_windows_ui_executable(layout: InstallLayout) -> Path | None:
         return None
     if support_path.resolve() != layout.launcher_support_path.resolve():
         return None
-    return layout.launcher_support_path / "LauncherUi.exe"
+    return layout.launcher_ui_executable_path
 
 
 __all__ = [

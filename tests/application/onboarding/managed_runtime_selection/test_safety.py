@@ -19,13 +19,9 @@
 from __future__ import annotations
 
 
-from substitute.application.onboarding import (
-    ActiveSafeManagedRuntimeStateRecorder,
-    ManagedRuntimeService,
-)
+from substitute.application.onboarding import ManagedRuntimeService
 from substitute.domain.onboarding import (
     ManagedRuntimeConfiguration,
-    ManagedRuntimeValidationStatus,
 )
 
 
@@ -33,7 +29,6 @@ from tests.support.onboarding.setup_transaction_state import (
     _RecordingManagedRuntimeRepository,
     _StaticSelectionPolicy,
     _UnavailableSelectionPolicy,
-    _valid_managed_runtime,
 )
 
 
@@ -66,23 +61,3 @@ def test_managed_runtime_draft_falls_back_when_managed_install_is_unavailable() 
 
     assert result == ManagedRuntimeConfiguration()
     assert repository.saved is None
-
-
-def test_active_safe_recorder_preserves_valid_runtime_on_failure() -> None:
-    """Launch failure recording should not downgrade a valid active runtime."""
-
-    valid_runtime = _valid_managed_runtime()
-    repository = _RecordingManagedRuntimeRepository(valid_runtime)
-    service = ManagedRuntimeService(
-        repository,
-        selection_policy=_StaticSelectionPolicy(valid_runtime),
-    )
-    recorder = ActiveSafeManagedRuntimeStateRecorder(service)
-
-    result = recorder.record_failure(
-        status=ManagedRuntimeValidationStatus.INSTALL_FAILED,
-        detail="interrupted during splash",
-    )
-
-    assert result.validation_status is ManagedRuntimeValidationStatus.VALID
-    assert repository.saved == valid_runtime

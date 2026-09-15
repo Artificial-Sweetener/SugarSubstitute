@@ -35,6 +35,7 @@ from substitute.application.onboarding import (
     OnboardingProvisioningFailure,
     OnboardingService,
     RuntimeService,
+    SetupTransactionOptions,
     SetupTransactionService,
 )
 from substitute.application.onboarding.flow_contracts import OnboardingBundleProtocol
@@ -46,6 +47,7 @@ from substitute.domain.onboarding import (
     BootstrapRoute,
     ComfyTargetMode,
     InstallationConfiguration,
+    ManagedComfySetupResult,
     ReadinessIssueCode,
     SetupTransaction,
     SetupTransactionMode,
@@ -140,6 +142,99 @@ def test_readiness_routes_repair_when_no_active_config_has_pending_state(
     )
 
 
+def test_validated_managed_setup_survives_commit_and_process_restart(
+    tmp_path: Path,
+) -> None:
+    """Persist the provisioner's exact validated result as launchable active state."""
+
+    installation = InstallationConfiguration.create_default(tmp_path)
+    installation_service = InstallationService(
+        FileInstallationConfigurationRepository(tmp_path)
+    )
+    runtime_service = RuntimeService(
+        FileRuntimeConfigurationRepository(installation),
+        provisioner=_ReadyRuntimeProvisioner(),
+    )
+    target_service = ComfyTargetService(
+        FileComfyTargetConfigurationRepository(installation)
+    )
+    managed_runtime_service = ManagedRuntimeService(
+        FileManagedRuntimeConfigurationRepository(installation.runtime_state_dir),
+        selection_policy=_StaticSelectionPolicy(_valid_managed_runtime()),
+    )
+    transaction_service = SetupTransactionService(
+        repository=FileSetupTransactionRepository(installation.runtime_state_dir),
+        installation_service=installation_service,
+        runtime_service=runtime_service,
+        comfy_target_service=target_service,
+        managed_runtime_service=managed_runtime_service,
+    )
+    runtime = _ready_runtime(installation)
+    target = _managed_target(installation)
+    assert runtime.python_executable is not None
+    setup_result = ManagedComfySetupResult(
+        python_executable=runtime.python_executable,
+        runtime_configuration=_valid_managed_runtime().for_workspace(
+            installation.default_managed_comfy_dir
+        ),
+    )
+    transaction = transaction_service.begin(
+        mode=SetupTransactionMode.FIRST_RUN,
+        options=SetupTransactionOptions(
+            workspace_path=installation.default_managed_comfy_dir
+        ),
+    )
+    transaction_service.record_installation(transaction.transaction_id, installation)
+    transaction_service.record_runtime(transaction.transaction_id, runtime)
+    transaction_service.record_target(transaction.transaction_id, target)
+    transaction_service.record_managed_runtime(
+        transaction.transaction_id,
+        setup_result.runtime_configuration,
+    )
+    transaction_service.update_status(
+        transaction.transaction_id,
+        SetupTransactionStatus.READY_TO_COMMIT,
+    )
+
+    transaction_service.commit(transaction.transaction_id)
+
+    restarted_installation_service = InstallationService(
+        FileInstallationConfigurationRepository(tmp_path)
+    )
+    restarted_runtime_service = RuntimeService(
+        FileRuntimeConfigurationRepository(installation),
+        provisioner=_ReadyRuntimeProvisioner(),
+    )
+    restarted_target_service = ComfyTargetService(
+        FileComfyTargetConfigurationRepository(installation)
+    )
+    restarted_managed_runtime_service = ManagedRuntimeService(
+        FileManagedRuntimeConfigurationRepository(installation.runtime_state_dir),
+        selection_policy=_StaticSelectionPolicy(_valid_managed_runtime()),
+    )
+    readiness_service = BootstrapReadinessService(
+        installation_root=tmp_path,
+        installation_service=restarted_installation_service,
+        runtime_service=restarted_runtime_service,
+        comfy_target_service=restarted_target_service,
+        managed_runtime_service=restarted_managed_runtime_service,
+        checks=_FakeReadinessChecks(
+            files=ConfigurationFileSet(
+                installation_path=installation.user_settings_dir / "installation.json",
+                runtime_path=installation.user_settings_dir / "runtime.json",
+                target_path=installation.user_settings_dir / "comfy_target.json",
+            )
+        ),
+        setup_transaction_repository=FileSetupTransactionRepository(
+            installation.runtime_state_dir
+        ),
+    )
+
+    persisted_runtime = restarted_managed_runtime_service.load_persisted()
+    assert persisted_runtime == setup_result.runtime_configuration
+    assert readiness_service.assess().route is BootstrapRoute.READY
+
+
 def test_attached_endpoint_failure_does_not_replace_active_target(
     tmp_path: Path,
 ) -> None:
@@ -212,6 +307,14 @@ def test_attached_endpoint_failure_does_not_replace_active_target(
 
             _ = draft
 
+    def _unexpected_managed_provisioning(
+        **kwargs: object,
+    ) -> ManagedComfySetupResult:
+        """Fail if attached-target validation enters managed provisioning."""
+
+        _ = kwargs
+        raise AssertionError("Attached setup unexpectedly used managed provisioning.")
+
     flow_service = OnboardingFlowService(
         service_bundle_factory=lambda _root: cast(
             OnboardingBundleProtocol,
@@ -228,9 +331,7 @@ def test_attached_endpoint_failure_does_not_replace_active_target(
                 preference_setup_service=_NoOpPreferenceSetupService(),
             ),
         ),
-        managed_workspace_provisioner=lambda **kwargs: (
-            installation.default_managed_comfy_dir
-        ),
+        managed_workspace_provisioner=_unexpected_managed_provisioning,
         entrypoint_path=tmp_path / "main.py",
     )
 

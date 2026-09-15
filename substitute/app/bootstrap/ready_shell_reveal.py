@@ -22,7 +22,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import ContextManager, Protocol
 
-from substitute.app.bootstrap.application_readiness import (
+from sugarsubstitute_shared.qt_surface_readiness import (
     schedule_main_shell_readiness_receipt,
 )
 from substitute.app.bootstrap.main_shell_qualification import (
@@ -33,7 +33,7 @@ from substitute.app.bootstrap.startup_warmup_controller import (
     StartupWarmupState,
     connect_restore_finalized_warmups,
 )
-from substitute.app.bootstrap.surface_presentation import run_after_surface_paint
+from sugarsubstitute_shared.qt_surface_presentation import run_after_surface_paint
 from substitute.shared.logging.logger import (
     get_logger,
     log_exception,

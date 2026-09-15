@@ -22,7 +22,7 @@ from PySide6.QtCore import QEvent
 from PySide6.QtWidgets import QApplication, QWidget
 from shiboken6 import delete
 
-from substitute.app.bootstrap.surface_presentation import run_after_surface_paint
+from sugarsubstitute_shared.qt_surface_presentation import run_after_surface_paint
 
 
 def test_destroyed_surface_abandons_callback_queued_by_paint() -> None:

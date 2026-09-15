@@ -22,9 +22,9 @@ import os
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.repair_process import (
-    RepairProcessError,
-    RepairProcessIdentity,
+from sugarsubstitute_shared.process_identity import (
+    ProcessIdentity,
+    ProcessIdentityError,
     capture_process_identity,
     wait_for_process_exit,
 )
@@ -44,9 +44,9 @@ def test_wait_rejects_reused_identity_without_waiting() -> None:
 
     identity = capture_process_identity(os.getpid())
 
-    with pytest.raises(RepairProcessError, match="PID was reused"):
+    with pytest.raises(ProcessIdentityError, match="PID was reused"):
         wait_for_process_exit(
-            RepairProcessIdentity(identity.pid, identity.created_at - 100),
+            ProcessIdentity(identity.pid, identity.created_at - 100),
             timeout_seconds=0.01,
         )
 
@@ -56,5 +56,5 @@ def test_wait_times_out_for_matching_live_process() -> None:
 
     identity = capture_process_identity(os.getpid())
 
-    with pytest.raises(RepairProcessError, match="Timed out"):
+    with pytest.raises(ProcessIdentityError, match="Timed out"):
         wait_for_process_exit(identity, timeout_seconds=0.01)

@@ -60,7 +60,7 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
 
     session = start_launcher_splash_session(
         layout=layout,
-        locale_identifier="ja",
+        locale_override="ja",
         popen=cast(Any, _fake_popen),
     )
 
@@ -107,7 +107,7 @@ def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
     assert (
         start_launcher_splash_session(
             layout=layout,
-            locale_identifier="en",
+            locale_override="en",
             popen=cast(Any, _fake_popen),
         )
         is None

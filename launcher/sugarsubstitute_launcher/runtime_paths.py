@@ -39,6 +39,14 @@ def frozen_invocation_path() -> Path | None:
     return Path(sys.argv[0])
 
 
+def current_frozen_executable_path() -> Path | None:
+    """Return the executable hosting the current packaged process."""
+
+    if not bool(getattr(sys, "frozen", False)):
+        return None
+    return Path(sys.executable)
+
+
 def native_frozen_executable_path() -> Path | None:
     """Return Linux's kernel-owned path to the current packaged executable."""
 
@@ -51,6 +59,7 @@ def native_frozen_executable_path() -> Path | None:
 
 
 __all__ = [
+    "current_frozen_executable_path",
     "frozen_invocation_path",
     "frozen_support_path",
     "native_frozen_executable_path",

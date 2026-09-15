@@ -26,9 +26,17 @@ import pytest
 
 from tools.single_instance_qualification_app import (
     APPLICATION_REGISTRATION_DELAY_ENV,
+    APPLICATION_REGISTRATION_GATE_ENV,
+    APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV,
     _delay_application_registration,
     _schedule_splash_close_after_surface_paint,
+    _wait_at_application_registration_gate,
+    _wait_at_window_construction_gate,
+    application_prewindow_marker_path,
+    application_prewindow_release_path,
+    application_preregistration_claim_path,
     application_preregistration_marker_path,
+    application_preregistration_release_path,
 )
 from sugarsubstitute_shared.launch_splash.session import SplashSessionSpec
 
@@ -56,7 +64,70 @@ def test_application_registration_delay_is_explicit_and_one_shot(
     _delay_application_registration(tmp_path)
 
     assert observed == [(1.25, os.getpid())]
-    assert not marker_path.exists()
+
+
+def test_window_construction_gate_starts_after_registration_and_releases_explicitly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Synchronize the pre-window process phase without clock assertions."""
+
+    marker_path = application_prewindow_marker_path(tmp_path)
+    release_path = application_prewindow_release_path(tmp_path)
+    observed_pids: list[int] = []
+
+    def release_after_observing_marker(_interval: float) -> None:
+        """Prove the process phase before releasing window construction."""
+
+        payload = json.loads(marker_path.read_text(encoding="utf-8"))
+        observed_pids.append(payload["pid"])
+        release_path.write_text("release", encoding="utf-8")
+
+    monkeypatch.setenv(APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV, "1")
+    monkeypatch.setattr(
+        "tools.single_instance_qualification_app.time.sleep",
+        release_after_observing_marker,
+    )
+
+    _wait_at_window_construction_gate(tmp_path)
+
+    assert observed_pids == [os.getpid()]
+    assert not release_path.exists()
+
+
+def test_application_registration_gate_releases_explicitly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Synchronize the pre-registration process phase without a timed delay."""
+
+    marker_path = application_preregistration_marker_path(tmp_path)
+    release_path = application_preregistration_release_path(tmp_path)
+    observed_pids: list[int] = []
+
+    def release_after_observing_marker(_interval: float) -> None:
+        """Prove the process phase before releasing registration."""
+
+        payload = json.loads(marker_path.read_text(encoding="utf-8"))
+        observed_pids.append(payload["pid"])
+        release_path.write_text("release", encoding="utf-8")
+
+    monkeypatch.setenv(APPLICATION_REGISTRATION_GATE_ENV, "1")
+    monkeypatch.setattr(
+        "tools.single_instance_qualification_app.time.sleep",
+        release_after_observing_marker,
+    )
+
+    _wait_at_application_registration_gate(tmp_path)
+
+    assert observed_pids == [os.getpid()]
+    assert not release_path.exists()
+    assert application_preregistration_claim_path(tmp_path).is_file()
+
+    monkeypatch.setenv(APPLICATION_REGISTRATION_GATE_ENV, "1")
+    _wait_at_application_registration_gate(tmp_path)
+
+    assert observed_pids == [os.getpid()]
 
 
 def test_qualification_child_records_applied_splash_close(

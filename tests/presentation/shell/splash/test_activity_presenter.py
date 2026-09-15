@@ -18,13 +18,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
+from PySide6.QtCore import QObject
+
 from sugarsubstitute_shared.launch_splash import SplashActivity
 from sugarsubstitute_shared.presentation.terminal import TerminalOutputStream
 
 from substitute.presentation.shell.splash_activity_presenter import (
     SplashActivityPresenter,
 )
-from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 
 class _Clock:
@@ -41,19 +44,30 @@ class _Clock:
         return self.now
 
 
-class _AdvancingClock:
-    """Advance one activity second per scheduled render after startup."""
+class _ManualFrameScheduler:
+    """Deliver frame callbacks only when the test requests a frame."""
 
-    def __init__(self) -> None:
-        """Initialize the start-time and first-frame calls at zero."""
+    def __init__(self, callback: Callable[[], None]) -> None:
+        """Capture the callback without consulting a wall clock."""
 
-        self._calls = 0
+        self._callback = callback
+        self._active = False
 
-    def __call__(self) -> float:
-        """Return zero twice, then advance once per timer-driven refresh."""
+    def start(self) -> None:
+        """Permit requested frame delivery."""
 
-        self._calls += 1
-        return float(max(0, self._calls - 2))
+        self._active = True
+
+    def stop(self) -> None:
+        """Prevent further requested frame delivery."""
+
+        self._active = False
+
+    def deliver_frame(self) -> None:
+        """Deliver one scheduled frame when active."""
+
+        if self._active:
+            self._callback()
 
 
 def test_silent_activity_animates_without_growing_transcript() -> None:
@@ -71,15 +85,15 @@ def test_silent_activity_animates_without_growing_transcript() -> None:
     )
 
     expected_frames = {
-        0.0: "Updating SugarCubes.",
-        1.0: "Updating SugarCubes..",
-        2.0: "Updating SugarCubes...",
-        120.0: "Updating SugarCubes is taking longer than usual.",
-        121.0: "Updating SugarCubes is taking longer than usual..",
-        122.0: "Updating SugarCubes is taking longer than usual...",
-        300.0: "Still updating SugarCubes—network may be slow.",
-        301.0: "Still updating SugarCubes—network may be slow..",
-        302.0: "Still updating SugarCubes—network may be slow...",
+        0.0: "Updating SugarCubes. · 0:00",
+        1.0: "Updating SugarCubes.. · 0:01",
+        2.0: "Updating SugarCubes... · 0:02",
+        120.0: "Updating SugarCubes is taking longer than usual. · 2:00",
+        121.0: "Updating SugarCubes is taking longer than usual.. · 2:01",
+        122.0: "Updating SugarCubes is taking longer than usual... · 2:02",
+        300.0: "Still updating SugarCubes—network may be slow. · 5:00",
+        301.0: "Still updating SugarCubes—network may be slow.. · 5:01",
+        302.0: "Still updating SugarCubes—network may be slow... · 5:02",
     }
     for elapsed_seconds, expected in expected_frames.items():
         clock.now = elapsed_seconds
@@ -89,16 +103,31 @@ def test_silent_activity_animates_without_growing_transcript() -> None:
     presenter.shutdown()
 
 
-def test_activity_timer_schedules_headless_dot_frames() -> None:
-    """The real Qt timer should emit successive dot frames without producer output."""
+def test_activity_scheduler_delivers_headless_dot_frames() -> None:
+    """Scheduled callbacks should advance frames without producer output."""
 
+    clock = _Clock()
     stream = TerminalOutputStream(max_lines=20)
     frames: list[str] = []
+    scheduler: _ManualFrameScheduler | None = None
+
+    def create_scheduler(
+        _parent: QObject,
+        _interval_milliseconds: int,
+        callback: Callable[[], None],
+    ) -> _ManualFrameScheduler:
+        """Capture the presenter scheduler for deterministic delivery."""
+
+        nonlocal scheduler
+        scheduler = _ManualFrameScheduler(callback)
+        return scheduler
+
     stream.changed.connect(lambda: frames.append(stream.snapshot()[-1]))
     presenter = SplashActivityPresenter(
         stream=stream,
-        clock=_AdvancingClock(),
+        clock=clock,
         frame_interval_milliseconds=1,
+        scheduler_factory=create_scheduler,
     )
 
     presenter.start(
@@ -109,13 +138,17 @@ def test_activity_timer_schedules_headless_dot_frames() -> None:
         )
     )
 
-    wait_for_qt_condition(lambda: len(frames) >= 3)
+    assert scheduler is not None
+    clock.now = 1.0
+    scheduler.deliver_frame()
+    clock.now = 2.0
+    scheduler.deliver_frame()
     presenter.shutdown()
 
     assert frames[:3] == [
-        "Waiting for ComfyUI.",
-        "Waiting for ComfyUI..",
-        "Waiting for ComfyUI...",
+        "Waiting for ComfyUI. · 0:00",
+        "Waiting for ComfyUI.. · 0:01",
+        "Waiting for ComfyUI... · 0:02",
     ]
 
 
@@ -138,7 +171,7 @@ def test_activity_preserves_logs_and_clears_only_its_tail_row() -> None:
 
     assert stream.snapshot() == (
         "Downloaded package metadata",
-        "Installing dependencies.",
+        "Installing dependencies. · 0:00",
     )
 
     presenter.clear()
