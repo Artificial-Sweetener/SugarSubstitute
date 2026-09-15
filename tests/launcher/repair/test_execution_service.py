@@ -24,11 +24,17 @@ import sys
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application.repair import (
+from launcher.sugarsubstitute_launcher.application.repair.models import (
     ManagedComfyOwnership,
-    PreparedRepairRequest,
-    RepairExecutionService,
     RepairScope,
+)
+from launcher.sugarsubstitute_launcher.application.repair.request import (
+    PreparedRepairRequest,
+)
+from launcher.sugarsubstitute_launcher.application.repair.execution_service import (
+    RepairExecutionService,
+)
+from launcher.sugarsubstitute_launcher.application.repair.integrity import (
     directory_tree_sha256,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout

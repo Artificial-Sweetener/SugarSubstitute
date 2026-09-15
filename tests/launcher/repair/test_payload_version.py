@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application.repair import (
+from launcher.sugarsubstitute_launcher.application.repair.payload_version import (
     RepairPayloadVersionError,
     inspect_app_payload_version,
 )

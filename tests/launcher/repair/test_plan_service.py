@@ -22,9 +22,11 @@ from pathlib import Path
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application.repair import (
+from launcher.sugarsubstitute_launcher.application.repair.models import (
     ManagedComfyOwnership,
     RepairDisposition,
+)
+from launcher.sugarsubstitute_launcher.application.repair.plan_service import (
     RepairPlanError,
     RepairPlanService,
 )

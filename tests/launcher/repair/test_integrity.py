@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application.repair import (
+from launcher.sugarsubstitute_launcher.application.repair.integrity import (
     RepairArtifactIntegrityError,
     directory_tree_sha256,
     verify_directory_tree_sha256,

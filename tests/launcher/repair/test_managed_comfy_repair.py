@@ -21,7 +21,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-from launcher.sugarsubstitute_launcher.application.repair import ManagedComfyOwnership
+from launcher.sugarsubstitute_launcher.application.repair.models import (
+    ManagedComfyOwnership,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.managed_comfy_repair import (
     SubprocessManagedComfyRepairer,
