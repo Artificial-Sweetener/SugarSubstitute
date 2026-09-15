@@ -28,10 +28,10 @@ from launcher.sugarsubstitute_launcher.application.repair import (
     RepairReplacement,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.repair_recovery import recover_interrupted_repair
+from launcher.sugarsubstitute_launcher.repair_errors import RepairTransactionError
 from launcher.sugarsubstitute_launcher.repair_transaction import (
     RepairTransaction,
-    RepairTransactionError,
-    recover_interrupted_repair,
 )
 
 

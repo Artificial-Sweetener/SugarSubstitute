@@ -146,6 +146,13 @@ class RepairPlanService:
             )
         )
         operations.extend(self._owned_node_operations(comfy_root))
+        operations.append(
+            self._operation(
+                comfy_root / ".substitute" / "model_root.json",
+                RepairDisposition.PRESERVE,
+                "authoritative Comfy model-root selection",
+            )
+        )
         protected_names = {*_COMFY_USER_DIR_NAMES, "custom_nodes"}
         active_names = (
             {child.name for child in comfy_root.iterdir()}
@@ -199,13 +206,22 @@ class RepairPlanService:
         """Return exact replacement operations for app-owned custom nodes."""
 
         custom_nodes = comfy_root / "custom_nodes"
-        return tuple(
+        package_operations = tuple(
             RepairPlanService._operation(
                 custom_nodes / name,
                 RepairDisposition.REPLACE,
                 "SugarSubstitute-owned custom node",
             )
             for name in _OWNED_NODE_DIR_NAMES
+        )
+        library = custom_nodes / "SugarCubes" / ".sugarcubes"
+        return (
+            *package_operations,
+            RepairPlanService._operation(
+                library,
+                RepairDisposition.PRESERVE,
+                "SugarCubes repositories, local authoring, and identity state",
+            ),
         )
 
     @staticmethod
@@ -259,8 +275,13 @@ class RepairPlanService:
         disposition: RepairDisposition,
         reason: str,
     ) -> RepairOperation:
-        """Build one normalized repair operation."""
+        """Normalize an operation only when its filesystem boundary is direct."""
 
+        if any(
+            candidate.is_symlink() or candidate.is_junction()
+            for candidate in (path, *path.parents)
+        ):
+            raise RepairPlanError(f"Repair operation is redirected: {path}")
         return RepairOperation(
             path=path.resolve(),
             disposition=disposition,

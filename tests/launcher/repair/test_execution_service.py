@@ -362,6 +362,8 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
         workspace / "input" / "source.png",
         workspace / "output" / "result.png",
         workspace / "custom_nodes" / "third-party" / "node.py",
+        workspace / "custom_nodes" / "SugarCubes" / ".sugarcubes" / "authored.cube",
+        workspace / ".substitute" / "model_root.json",
     )
     for index, path in enumerate(protected):
         path.parent.mkdir(parents=True, exist_ok=True)
