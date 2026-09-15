@@ -22,7 +22,7 @@ from typing import Any
 
 from PySide6.QtGui import QColor
 from PySide6.QtGui import QPalette
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
 from qfluentwidgets.common.style_sheet import (  # type: ignore[import-untyped]
     isDarkTheme,
     themeColor,
@@ -32,8 +32,8 @@ from sugarsubstitute_shared.presentation.installer_surface import (
 )
 
 
-def apply_installer_style(window: Any) -> None:
-    """Style launcher surfaces while leaving Fluent controls authoritative."""
+def apply_installer_style(window: Any, content: QWidget) -> None:
+    """Style an explicit installer surface while Fluent controls retain rendering."""
 
     accent = themeColor()
     accent_rgb = f"{accent.red()}, {accent.green()}, {accent.blue()}"
@@ -66,7 +66,7 @@ def apply_installer_style(window: Any) -> None:
     else:
         window.setAutoFillBackground(False)
     window.titleBar.setStyleSheet("background-color: transparent; border: none;")
-    window.view.setStyleSheet(
+    content.setStyleSheet(
         offscreen_background
         + build_installer_surface_style_sheet()
         + """

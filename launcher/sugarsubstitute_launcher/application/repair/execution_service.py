@@ -18,9 +18,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from launcher.sugarsubstitute_launcher.application.repair.progress import (
+    RepairProgressObserver,
+    RepairProgressTracker,
+    RepairStage,
+)
 
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     RuntimeProvisioner,
@@ -44,14 +47,6 @@ from launcher.sugarsubstitute_launcher.application.repair.plan_service import (
 from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
 )
-from launcher.sugarsubstitute_launcher.config import (
-    CANARY_RELEASE_CHANNEL,
-    DEFAULT_CANARY_RELEASE_MANIFEST_URL,
-    DEFAULT_RELEASE_MANIFEST_URL,
-    RELEASE_SOURCE_KIND_GITHUB,
-    LauncherConfig,
-    ReleaseSourceConfig,
-)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.managed_comfy_repair import (
     SubprocessManagedComfyRepairer,
@@ -60,8 +55,9 @@ from launcher.sugarsubstitute_launcher.payload_staging import validate_app_paylo
 from launcher.sugarsubstitute_launcher.platforms import launcher_target_for_key
 from launcher.sugarsubstitute_launcher.repair_ownership import load_comfy_ownership
 from launcher.sugarsubstitute_launcher.repair_transaction import RepairTransaction
-from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
-from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
+from launcher.sugarsubstitute_launcher.repair_attempt_artifacts import (
+    stage_repair_attempt,
+)
 from sugarsubstitute_shared.launcher_update.staging import validate_staged_bundle
 from sugarsubstitute_shared.launcher_update.targets import (
     LauncherBundleTarget,
@@ -69,132 +65,17 @@ from sugarsubstitute_shared.launcher_update.targets import (
 )
 
 
-class RepairExecutionError(RuntimeError):
-    """Report a prepared repair that cannot be executed or validated safely."""
-
-
-class ManagedComfyRepairer(Protocol):
-    """Restore and validate app-owned content inside proven managed Comfy."""
-
-    def repair_owned_nodes(
-        self,
-        *,
-        layout: InstallLayout,
-        ownership: ManagedComfyOwnership,
-    ) -> None:
-        """Restore the exact app-owned custom-node versions."""
-
-    def validate_owned_nodes(
-        self,
-        *,
-        layout: InstallLayout,
-        ownership: ManagedComfyOwnership,
-    ) -> None:
-        """Raise unless both app-owned nodepacks are ready."""
-
-    def stage_full_managed_comfy(
-        self,
-        *,
-        layout: InstallLayout,
-        ownership: ManagedComfyOwnership,
-        destination: Path,
-    ) -> None:
-        """Build a fresh managed workspace outside the active Comfy tree."""
-
-    def validate_full_managed_comfy(
-        self,
-        *,
-        layout: InstallLayout,
-        ownership: ManagedComfyOwnership,
-    ) -> None:
-        """Raise unless the promoted managed workspace is complete."""
-
-
-class RepairInstallationStateWriter(Protocol):
-    """Recreate and validate launcher state inside the transaction boundary."""
-
-    def write(
-        self,
-        *,
-        layout: InstallLayout,
-        request: PreparedRepairRequest,
-    ) -> None:
-        """Write fresh state for the repaired exact version."""
-
-    def validate(
-        self,
-        *,
-        layout: InstallLayout,
-        request: PreparedRepairRequest,
-    ) -> None:
-        """Raise unless persisted state identifies the repaired version."""
-
-
-class FreshRepairInstallationStateWriter:
-    """Own fresh launcher configuration and exact installed-version records."""
-
-    def write(
-        self,
-        *,
-        layout: InstallLayout,
-        request: PreparedRepairRequest,
-    ) -> None:
-        """Create default channel configuration and exact version records."""
-
-        manifest_url = (
-            DEFAULT_CANARY_RELEASE_MANIFEST_URL
-            if request.channel == CANARY_RELEASE_CHANNEL
-            else DEFAULT_RELEASE_MANIFEST_URL
-        )
-        LauncherConfig.from_layout(
-            layout=layout,
-            channel=request.channel,
-            release_source=ReleaseSourceConfig(
-                kind=RELEASE_SOURCE_KIND_GITHUB,
-                manifest_url=manifest_url,
-            ),
-        ).save(layout.config_path)
-        LauncherUpdateState().with_installed_payload(
-            version=request.version,
-            channel=request.channel,
-        ).save(layout.state_path)
-        LauncherInstallationRecord(
-            version=request.version,
-            target_key=request.target_key,
-        ).save(layout.launcher_installation_path)
-
-    def validate(
-        self,
-        *,
-        layout: InstallLayout,
-        request: PreparedRepairRequest,
-    ) -> None:
-        """Verify config and both exact installed-version records."""
-
-        config = LauncherConfig.load(layout.config_path)
-        state = LauncherUpdateState.load(layout.state_path)
-        launcher = LauncherInstallationRecord.load(layout.launcher_installation_path)
-        if (
-            config.install_root.resolve() != layout.root
-            or config.channel != request.channel
-            or state.installed_app_version != request.version
-            or launcher is None
-            or launcher.version != request.version
-            or launcher.target_key != request.target_key
-        ):
-            raise RepairExecutionError(
-                "Repaired launcher state does not match the prepared release."
-            )
-
-
-@dataclass(frozen=True, slots=True)
-class CompletedRepair:
-    """Describe one committed repair and its retained rollback quarantine."""
-
-    version: str
-    quarantine_root: Path
-    repaired_managed_comfy_nodes: bool
-    comfy_quarantine_root: Path | None = None
+from launcher.sugarsubstitute_launcher.application.repair.execution_result import (
+    RepairExecutionError,
+    CompletedRepair,
+)
+from launcher.sugarsubstitute_launcher.application.repair.managed_comfy_contract import (
+    ManagedComfyRepairer,
+)
+from launcher.sugarsubstitute_launcher.application.repair.installation_state_writer import (
+    RepairInstallationStateWriter,
+    FreshRepairInstallationStateWriter,
+)
 
 
 class RepairExecutionService:
@@ -207,6 +88,7 @@ class RepairExecutionService:
         comfy_repairer: ManagedComfyRepairer | None = None,
         state_writer: RepairInstallationStateWriter | None = None,
         transaction: RepairTransaction | None = None,
+        progress_observer: RepairProgressObserver | None = None,
     ) -> None:
         """Store repair adapters whose side effects remain transaction-bound."""
 
@@ -214,6 +96,7 @@ class RepairExecutionService:
         self._comfy_repairer = comfy_repairer or SubprocessManagedComfyRepairer()
         self._state_writer = state_writer or FreshRepairInstallationStateWriter()
         self._transaction = transaction or RepairTransaction()
+        self._progress_observer = progress_observer
 
     def execute_application(self, request: PreparedRepairRequest) -> CompletedRepair:
         """Commit one prepared application repair or restore the prior install."""
@@ -228,12 +111,16 @@ class RepairExecutionService:
         target = launcher_target_for_key(request.target_key)
         layout = InstallLayout.from_root(request.install_root, target=target)
         launcher_target = launcher_bundle_target_for_key(request.target_key)
-        self._validate_staging(
-            request=request,
-            launcher_target=launcher_target,
-        )
         ownership = load_comfy_ownership(layout)
         repair_owned_nodes = _is_exact_managed_ownership(layout, ownership)
+        progress = RepairProgressTracker(
+            repair_nodes=repair_owned_nodes,
+            full_comfy=request.scope is RepairScope.FULL_MANAGED_COMFY,
+            observer=self._progress_observer,
+        )
+        progress.begin(RepairStage.VALIDATE_INPUT)
+        self._validate_staging(request=request, launcher_target=launcher_target)
+        request = stage_repair_attempt(request)
         plan = RepairPlanService().build_application_plan(
             layout=layout,
             comfy_ownership=ownership if repair_owned_nodes else None,
@@ -256,18 +143,22 @@ class RepairExecutionService:
         def apply_repair() -> None:
             """Provision every candidate component before final validation."""
 
+            progress.begin(RepairStage.PREPARE_RUNTIME)
             runtime_result.append(self._runtime_provisioner.provision(layout=layout))
             if repair_owned_nodes:
                 assert ownership is not None
+                progress.begin(RepairStage.RESTORE_NODES)
                 self._comfy_repairer.repair_owned_nodes(
                     layout=layout,
                     ownership=ownership,
                 )
+            progress.begin(RepairStage.SAVE_STATE)
             self._state_writer.write(layout=layout, request=request)
 
         def validate_repair() -> None:
             """Prove the promoted release before the transaction can commit."""
 
+            progress.begin(RepairStage.VALIDATE_APPLICATION)
             if (
                 len(runtime_result) != 1
                 or not runtime_result[0].python_executable.is_file()
@@ -291,6 +182,7 @@ class RepairExecutionService:
                 )
             self._state_writer.validate(layout=layout, request=request)
 
+        progress.begin(RepairStage.RESTORE_APPLICATION)
         quarantine = self._transaction.execute(
             plan=plan,
             replacements=tuple(replacements),
@@ -301,11 +193,13 @@ class RepairExecutionService:
             self._execute_full_managed_comfy(
                 layout=layout,
                 ownership=ownership,
-                version=request.version,
+                progress=progress,
+                candidate=request.staged_app_dir.parent / "full-comfy",
             )
             if request.scope is RepairScope.FULL_MANAGED_COMFY
             else None
         )
+        progress.complete()
         return CompletedRepair(
             version=request.version,
             quarantine_root=quarantine,
@@ -318,7 +212,8 @@ class RepairExecutionService:
         *,
         layout: InstallLayout,
         ownership: ManagedComfyOwnership | None,
-        version: str,
+        progress: RepairProgressTracker,
+        candidate: Path,
     ) -> Path:
         """Stage fresh core/runtime, then atomically preserve and promote boundaries."""
 
@@ -327,7 +222,7 @@ class RepairExecutionService:
                 "Full managed Comfy repair requires exact installer ownership."
             )
         assert ownership is not None
-        candidate = layout.root / ".repair" / "staging" / version / "full-comfy"
+        progress.begin(RepairStage.PREPARE_COMFY)
         self._comfy_repairer.stage_full_managed_comfy(
             layout=layout,
             ownership=ownership,
@@ -360,13 +255,20 @@ class RepairExecutionService:
                     staged_path=candidate / "custom_nodes" / node_name,
                 )
             )
+
+        def validate_comfy() -> None:
+            """Report verification only after all managed replacements are promoted."""
+            progress.begin(RepairStage.VALIDATE_COMFY)
+            self._comfy_repairer.validate_full_managed_comfy(
+                layout=layout,
+                ownership=ownership,
+            )
+
+        progress.begin(RepairStage.RESTORE_COMFY)
         return self._transaction.execute(
             plan=plan,
             replacements=tuple(replacements),
-            validate_repair=lambda: self._comfy_repairer.validate_full_managed_comfy(
-                layout=layout,
-                ownership=ownership,
-            ),
+            validate_repair=validate_comfy,
         )
 
     @staticmethod
@@ -409,13 +311,3 @@ def _is_exact_managed_ownership(
         and ownership.workspace_root is not None
         and ownership.workspace_root.resolve() == (layout.root / "comfyui").resolve()
     )
-
-
-__all__ = [
-    "CompletedRepair",
-    "FreshRepairInstallationStateWriter",
-    "ManagedComfyRepairer",
-    "RepairExecutionError",
-    "RepairExecutionService",
-    "RepairInstallationStateWriter",
-]

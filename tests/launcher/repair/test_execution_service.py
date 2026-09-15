@@ -44,6 +44,10 @@ from launcher.sugarsubstitute_launcher.runtime_command import (
     SubprocessRuntimeCommandRunner,
 )
 from launcher.sugarsubstitute_launcher.repair_helper import run_prepared_repair
+from launcher.sugarsubstitute_launcher.application.repair.progress import (
+    RepairProgress,
+    RepairStage,
+)
 
 
 class _RuntimeProvisioner:
@@ -376,9 +380,11 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
         path.write_bytes(f"sentinel-{index}".encode())
     before = {path: path.read_bytes() for path in protected}
 
+    events: list[RepairProgress] = []
     result = RepairExecutionService(
         runtime_provisioner=_RuntimeProvisioner(),
         comfy_repairer=_ManagedComfyRepairer(),
+        progress_observer=events.append,
     ).execute_application(
         _prepared_request(layout, scope=RepairScope.FULL_MANAGED_COMFY)
     )
@@ -386,6 +392,101 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
     assert result.comfy_quarantine_root is not None
     assert (workspace / "main.py").read_text(encoding="utf-8") == "fresh-core"
     assert {path: path.read_bytes() for path in protected} == before
+    assert [event.stage for event in events] == [
+        RepairStage.VALIDATE_INPUT,
+        RepairStage.RESTORE_APPLICATION,
+        RepairStage.PREPARE_RUNTIME,
+        RepairStage.RESTORE_NODES,
+        RepairStage.SAVE_STATE,
+        RepairStage.VALIDATE_APPLICATION,
+        RepairStage.PREPARE_COMFY,
+        RepairStage.RESTORE_COMFY,
+        RepairStage.VALIDATE_COMFY,
+        None,
+    ]
+    assert [event.completed for event in events] == list(range(10))
+    assert {event.total for event in events} == {9}
+
+
+@pytest.mark.parametrize("reject", [False, True])
+def test_progress_reaches_completion_only_after_successful_commit(
+    tmp_path: Path,
+    reject: bool,
+) -> None:
+    """A rolled-back repair must never emit successful terminal progress."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    events: list[RepairProgress] = []
+    service = RepairExecutionService(
+        runtime_provisioner=_RuntimeProvisioner(),
+        state_writer=_RejectingStateWriter() if reject else None,
+        progress_observer=events.append,
+    )
+    request = _prepared_request(layout)
+    if reject:
+        with pytest.raises(RuntimeError, match="rolled back"):
+            service.execute_application(request)
+    else:
+        service.execute_application(request)
+    assert [event.stage for event in events[:5]] == [
+        RepairStage.VALIDATE_INPUT,
+        RepairStage.RESTORE_APPLICATION,
+        RepairStage.PREPARE_RUNTIME,
+        RepairStage.SAVE_STATE,
+        RepairStage.VALIDATE_APPLICATION,
+    ]
+    assert [event.completed for event in events] == list(range(5 if reject else 6))
+    assert {event.total for event in events} == {5}
+    assert (events[-1].stage is None) is not reject
+
+
+def test_progress_observer_failure_cannot_abort_repair(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Keep presentation callbacks outside the repair transaction's failure contract."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+
+    def broken_observer(progress: RepairProgress) -> None:
+        """Reject a real stage report at the presentation boundary."""
+        raise RuntimeError(f"presentation failed at {progress.stage}")
+
+    result = RepairExecutionService(
+        runtime_provisioner=_RuntimeProvisioner(),
+        progress_observer=broken_observer,
+    ).execute_application(_prepared_request(layout))
+    assert result.version == "1.2.3"
+    assert "Repair progress observer failed" in caplog.text
+
+
+def test_failed_repair_can_retry_without_downloading_or_rebuilding_its_inputs(
+    tmp_path: Path,
+) -> None:
+    """A retry uses the same verified source after the first candidate is rolled back."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    request = _prepared_request(layout)
+    rejecting = RepairExecutionService(
+        runtime_provisioner=_RuntimeProvisioner(),
+        state_writer=_RejectingStateWriter(),
+    )
+    with pytest.raises(RuntimeError, match="rolled back"):
+        rejecting.execute_application(request)
+    assert directory_tree_sha256(request.staged_app_dir) == request.staged_app_sha256
+    assert (
+        directory_tree_sha256(request.staged_launcher_dir)
+        == request.staged_launcher_sha256
+    )
+    result = RepairExecutionService(
+        runtime_provisioner=_RuntimeProvisioner()
+    ).execute_application(request)
+    assert result.version == request.version
+    assert directory_tree_sha256(request.staged_app_dir) == request.staged_app_sha256
+    assert (
+        directory_tree_sha256(request.staged_launcher_dir)
+        == request.staged_launcher_sha256
+    )
 
 
 def test_detached_repair_bootstraps_runtime_from_its_bundled_tool(
@@ -439,3 +540,25 @@ def test_detached_repair_bootstraps_runtime_from_its_bundled_tool(
     assert managed_state.read_bytes() == original_managed_state
     assert any("venv" in command for command in commands)
     assert (layout.user_dir / "projects" / "work.json").read_bytes() == b"protected-0"
+
+
+def test_repair_preserves_live_crash_diagnostics_and_child_output(
+    tmp_path: Path,
+) -> None:
+    """Repair must not move files its own live diagnostic writers still hold open."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    fault = layout.appdata_dir / "diagnostics" / "python-fault.log"
+    child_log = layout.root / ".repair" / "diagnostics" / "repair-child.log"
+    for path in (fault, child_log):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"retained diagnostic\n")
+    request = _prepared_request(layout)
+    with fault.open("ab") as fault_stream, child_log.open("ab") as child_stream:
+        RepairExecutionService(
+            runtime_provisioner=_RuntimeProvisioner()
+        ).execute_application(request)
+        fault_stream.write(b"crash runtime still active\n")
+        child_stream.write(b"repair worker finished\n")
+    assert fault.read_bytes() == b"retained diagnostic\ncrash runtime still active\n"
+    assert child_log.read_bytes() == b"retained diagnostic\nrepair worker finished\n"

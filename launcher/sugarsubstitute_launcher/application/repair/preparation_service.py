@@ -36,6 +36,9 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseManifest
 from launcher.sugarsubstitute_launcher.payload_models import StagedAppPayload
 from launcher.sugarsubstitute_launcher.payload_staging import AppPayloadStager
+from launcher.sugarsubstitute_launcher.repair_bundle import (
+    stage_independent_repair_bundle,
+)
 from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import (
@@ -176,6 +179,7 @@ class RepairPreparationService:
             staged_launcher_sha256=directory_tree_sha256(staged_launcher),
         )
         request_path = layout.root / ".repair" / "prepared.json"
+        request = request.with_helper_bundle(stage_independent_repair_bundle(request))
         request.save(request_path)
         return RepairPreparation(request=request, request_path=request_path)
 

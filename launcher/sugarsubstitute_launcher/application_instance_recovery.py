@@ -24,6 +24,7 @@ from pathlib import Path
 
 import psutil  # type: ignore[import-untyped]
 from sugarsubstitute_shared.process_identity import ProcessIdentity
+from sugarsubstitute_shared.application_process_scope import ApplicationProcessScope
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ _TERMINATION_TIMEOUT_SECONDS = 5.0
 def terminate_verified_process(
     identity: ProcessIdentity,
     *,
-    expected_executable: Path,
+    scope: ApplicationProcessScope,
 ) -> bool:
     """Terminate the previously verified process without requiring responsive IPC."""
 
@@ -49,9 +50,12 @@ def terminate_verified_process(
                 extra={"owner_process_id": identity.pid},
             )
             return False
-        if Path(process.exe()).resolve() != expected_executable.resolve():
+        executable = Path(process.exe())
+        if not scope.accepts_executable(executable) or not scope.accepts_invocation(
+            executable, tuple(process.cmdline()), Path(process.cwd())
+        ):
             _LOGGER.warning(
-                "Refused to terminate instance owner with a different executable",
+                "Refused to terminate instance owner outside the installation's process scope",
                 extra={"owner_process_id": expected_process_id},
             )
             return False

@@ -84,8 +84,10 @@ def center_installer_window(window: QWidget) -> bool:
 class InstallerBrandBar(QFrame):
     """Render the persistent wordmark and compact journey progress."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
-        """Build the Mica-revealing top bar used across process handoff."""
+    def __init__(
+        self, parent: QWidget | None = None, *, show_progress: bool = True
+    ) -> None:
+        """Show journey progress only when this shell owns a multi-screen journey."""
 
         super().__init__(parent)
         self.setObjectName("InstallerBrandBar")
@@ -140,6 +142,7 @@ class InstallerBrandBar(QFrame):
         self.progress_bar.setValue(1)
         progress_layout.addWidget(self.progress_bar)
         layout.addWidget(progress_host, alignment=Qt.AlignmentFlag.AlignVCenter)
+        progress_host.setVisible(show_progress)
 
     def set_progress(self, *, current: int, total: int, description: str) -> None:
         """Project compact semantic progress without adding another text block."""

@@ -42,6 +42,7 @@ def test_supervised_family_cannot_outlive_its_owner(
 ) -> None:
     """Kill only a verified fixture owner and require all its descendants to exit."""
     root = None
+    retained_owner: psutil.Process | None = None
     family: list[psutil.Process] = []
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -56,6 +57,7 @@ def test_supervised_family_cannot_outlive_its_owner(
                 command(role, port, tmp_path),
                 startup_log_path=tmp_path / "owner.log",
             )
+            retained_owner = psutil.Process(root.pid)
             records: dict[str, int] = {}
             for _ in range(3 if role == "owner" else 2):
                 connection, _address = listener.accept()
@@ -64,7 +66,7 @@ def test_supervised_family_cannot_outlive_its_owner(
                     with connection.makefile("rb") as response:
                         record = json.loads(response.read())
                 records[record["role"]] = record["pid"]
-            root_identity = psutil.Process(root.pid)
+            root_identity = retained_owner
             family = [root_identity, *root_identity.children(recursive=True)]
             identities = {process.pid: process for process in family}
             assert set(records.values()).issubset(identities)
@@ -103,11 +105,10 @@ def test_supervised_family_cannot_outlive_its_owner(
                 f"{[(process.pid, process.name()) for process in alive]}"
             )
         finally:
-            if root is not None:
+            if retained_owner is not None and retained_owner.is_running():
                 try:
-                    identity = psutil.Process(root.pid)
-                    family.extend(identity.children(recursive=True))
-                    family.append(identity)
+                    family.extend(retained_owner.children(recursive=True))
+                    family.append(retained_owner)
                 except psutil.NoSuchProcess:
                     pass
             for process in reversed(family):

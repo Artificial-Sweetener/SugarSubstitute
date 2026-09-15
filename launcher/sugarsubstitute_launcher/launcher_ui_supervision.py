@@ -121,6 +121,7 @@ def supervise_instance_recovery_window(
     locale_override: str | None,
     can_end_owner: bool,
     supervisor: LauncherUiCrashSupervisor | None = None,
+    bundle_layout: InstallLayout | None = None,
 ) -> InstanceRecoveryAction:
     """Run the Qt recovery modal in the supervised launcher UI executable."""
 
@@ -142,6 +143,7 @@ def supervise_instance_recovery_window(
             layout=layout,
             child_arguments=child_arguments,
             supervisor=supervisor,
+            bundle_layout=bundle_layout,
         )
         if result != 0:
             return InstanceRecoveryAction.EXIT
@@ -156,16 +158,19 @@ def _supervise(
     layout: InstallLayout,
     child_arguments: Sequence[str],
     supervisor: LauncherUiCrashSupervisor | None,
+    bundle_layout: InstallLayout | None = None,
 ) -> int:
     """Run one current-launcher child through the shared crash protocol."""
 
+    from functools import partial
+
     crash_owner = supervisor or ApplicationCrashSupervisor(
-        reporter_starter=present_crash_report,
+        reporter_starter=partial(present_crash_report, bundle_layout=bundle_layout),
         native_runtime_resolver=_current_native_runtime,
     )
     return crash_owner.supervise(
         layout=layout,
-        command=build_launcher_ui_command(layout, child_arguments),
+        command=build_launcher_ui_command(bundle_layout or layout, child_arguments),
         environment=os.environ,
     )
 

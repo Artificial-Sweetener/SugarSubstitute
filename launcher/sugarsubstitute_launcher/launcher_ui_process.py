@@ -75,11 +75,17 @@ def present_crash_report(
     environment: Mapping[str, str],
     *,
     process_starter: LauncherUiProcessStarter = spawn_supervised_process,
+    bundle_layout: InstallLayout | None = None,
 ) -> None:
-    """Retain the supervising caller until its report child is dismissed."""
+    """Retain ownership while presenting from the available launcher bundle."""
 
     run_crash_reporter(
-        layout, incident_id, None, environment, process_starter=process_starter
+        layout,
+        incident_id,
+        None,
+        environment,
+        process_starter=process_starter,
+        bundle_layout=bundle_layout,
     )
 
 
@@ -90,12 +96,17 @@ def run_crash_reporter(
     environment: Mapping[str, str],
     *,
     process_starter: LauncherUiProcessStarter = spawn_supervised_process,
+    bundle_layout: InstallLayout | None = None,
 ) -> int:
-    """Present one report whose Restart action belongs to the live supervisor."""
+    """Keep incident storage independent of the executable hosting its report."""
 
     process, _log_path = process_starter(
         _build_crash_report_command(
-            layout, incident_id, locale_override, continue_launch=False
+            layout,
+            incident_id,
+            locale_override,
+            continue_launch=False,
+            bundle_layout=bundle_layout,
         ),
         environment=environment,
     )
@@ -127,8 +138,9 @@ def _build_crash_report_command(
     locale_override: str | None,
     *,
     continue_launch: bool,
+    bundle_layout: InstallLayout | None = None,
 ) -> tuple[str, ...]:
-    """Build one dedicated report invocation without entering setup or repair."""
+    """Bind the installation's report to its available presentation bundle."""
 
     arguments = [
         "--launcher-ui-child",
@@ -139,7 +151,7 @@ def _build_crash_report_command(
         arguments.append(f"--locale={locale_override}")
     if continue_launch:
         arguments.append("--crash-report-continues-launch")
-    return build_launcher_ui_command(layout, arguments)
+    return build_launcher_ui_command(bundle_layout or layout, arguments)
 
 
 def _installed_windows_ui_executable(layout: InstallLayout) -> Path | None:
@@ -147,6 +159,9 @@ def _installed_windows_ui_executable(layout: InstallLayout) -> Path | None:
 
     if layout.target.operating_system is not LauncherOperatingSystem.WINDOWS:
         return None
+    repair_root = layout.target.install_root_for_repair_executable(Path(sys.executable))
+    if repair_root == layout.root.resolve():
+        return layout.launcher_ui_executable_path
     support_path = frozen_support_path()
     if support_path is None:
         return None

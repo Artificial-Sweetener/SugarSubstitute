@@ -18,8 +18,12 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.application_process_scope import ExactExecutableProcessScope
+
 from pathlib import Path
 import os
+import sys
+from collections.abc import Sequence
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 import psutil  # type: ignore[import-untyped]
@@ -28,15 +32,42 @@ import pytest
 from launcher.sugarsubstitute_launcher.application_instance_recovery import (
     terminate_verified_process,
 )
+from launcher.sugarsubstitute_launcher.application_election_recovery import (
+    ApplicationElectionRecovery,
+)
+from launcher.sugarsubstitute_launcher.application_process_discovery import (
+    InstalledInvocationScope,
+)
+from launcher.sugarsubstitute_launcher import launcher_ui_supervision
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
+from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
+    InstanceRecoveryAction,
+)
+from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
+from sugarsubstitute_shared.application_instance_protocol import (
+    ApplicationInstanceBrokerError,
+)
+from sugarsubstitute_shared.application_instance_transport import (
+    instance_endpoint,
+    instance_identity,
+)
 
 
 class _Process:
     """Record process control after endpoint and executable verification."""
 
-    def __init__(self, executable: Path, *, hang_on_terminate: bool = False) -> None:
+    def __init__(
+        self,
+        executable: Path,
+        *,
+        hang_on_terminate: bool = False,
+        arguments: tuple[str, ...] = (),
+    ) -> None:
         """Store executable identity and optional forced escalation."""
 
         self._executable = executable
+        self._arguments = arguments
         self._hang_on_terminate = hang_on_terminate
         self.terminated = False
         self.killed = False
@@ -50,6 +81,14 @@ class _Process:
         """Return the simulated executable path."""
 
         return str(self._executable)
+
+    def cmdline(self) -> list[str]:
+        """Return the OS-observed invocation for this controlled process."""
+        return [str(self._executable), *self._arguments]
+
+    def cwd(self) -> str:
+        """Bind relative process arguments to the observed working directory."""
+        return str(self._executable.parent)
 
     def terminate(self) -> None:
         """Record graceful termination."""
@@ -70,11 +109,86 @@ class _Process:
             raise psutil.TimeoutExpired(timeout, pid=4401)
 
 
+@pytest.mark.parametrize("copied_bundle", [False, True])
+def test_normal_launch_recovers_the_authenticated_repair_owner(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, copied_bundle: bool
+) -> None:
+    """Recover an authenticated repair owner even after its request is retired."""
+    layout = InstallLayout.from_root(tmp_path, target=WINDOWS_X64)
+    executable = (
+        layout.root / ".repair/helper/1.2.3/session-owned/bundle/SugarSubstitute.exe"
+        if copied_bundle
+        else layout.launcher_support_path / "Repair.exe"
+    )
+    process = _Process(
+        executable,
+        arguments=(
+            f"--execute-repair-request={layout.root / '.repair' / 'prepared.json'}",
+        )
+        if copied_bundle
+        else (),
+    )
+    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    failures = iter(
+        (
+            ApplicationInstanceBrokerError(
+                "frozen repair",
+                endpoint=instance_endpoint(instance_identity(layout.root)),
+                owner_identity=ProcessIdentity(4401, 123.0),
+            ),
+        )
+    )
+
+    def elect(
+        _layout: InstallLayout, arguments: Sequence[str]
+    ) -> ApplicationInstanceBroker | None:
+        """Return ownership after the single recorded failed election."""
+        error = next(failures, None)
+        if error is not None:
+            raise error
+        return None
+
+    def present(**kwargs: object) -> InstanceRecoveryAction:
+        """Choose the actual recovery action offered by the application."""
+        assert kwargs["can_end_owner"]
+        return InstanceRecoveryAction.END_AND_RETRY
+
+    monkeypatch.setattr(
+        launcher_ui_supervision, "supervise_instance_recovery_window", present
+    )
+    ApplicationElectionRecovery(
+        layout=layout, process_arguments=(), locale_override="en", elect=elect
+    ).run()
+    assert process.terminated
+
+
 def test_recovery_refuses_to_end_itself(tmp_path: Path) -> None:
     """A malformed recovery target cannot close the user's recovery surface."""
     assert not terminate_verified_process(
-        ProcessIdentity(os.getpid(), 123.0), expected_executable=tmp_path / "app.exe"
+        ProcessIdentity(os.getpid(), 123.0),
+        scope=ExactExecutableProcessScope((tmp_path / "app.exe",)),
     )
+
+
+def test_recovery_refuses_copied_image_running_for_another_installation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Matching PID and owned executable cannot override a different request root."""
+    layout = InstallLayout.from_root(tmp_path / "installation", target=WINDOWS_X64)
+    process = _Process(
+        layout.root / ".repair/helper/1.2.3/session-owned/bundle/SugarSubstitute.exe",
+        arguments=(
+            f"--execute-repair-request={tmp_path / 'other' / '.repair' / 'prepared.json'}",
+        ),
+    )
+    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    assert not terminate_verified_process(
+        ProcessIdentity(4401, 123.0), scope=InstalledInvocationScope(layout)
+    )
+    assert not process.terminated
+    assert not process.killed
 
 
 def test_recovery_refuses_reused_pid(
@@ -85,7 +199,7 @@ def test_recovery_refuses_reused_pid(
     monkeypatch.setattr(psutil, "Process", lambda _pid: process)
     assert not terminate_verified_process(
         ProcessIdentity(pid=4401, created_at=122.0),
-        expected_executable=tmp_path / "SugarSubstitute.exe",
+        scope=ExactExecutableProcessScope((tmp_path / "SugarSubstitute.exe",)),
     )
     assert not process.terminated
     assert not process.killed
@@ -106,7 +220,7 @@ def test_recovery_refuses_same_pid_with_different_executable(
 
     assert not terminate_verified_process(
         ProcessIdentity(pid=4401, created_at=123.0),
-        expected_executable=tmp_path / "SugarSubstitute.exe",
+        scope=ExactExecutableProcessScope((tmp_path / "SugarSubstitute.exe",)),
     )
     assert not process.terminated
     assert not process.killed
@@ -130,7 +244,7 @@ def test_recovery_terminates_only_reverified_exact_owner(
 
     assert terminate_verified_process(
         ProcessIdentity(pid=4401, created_at=123.0),
-        expected_executable=executable,
+        scope=ExactExecutableProcessScope((executable,)),
     )
     assert process.terminated
     assert process.killed is hang_on_terminate

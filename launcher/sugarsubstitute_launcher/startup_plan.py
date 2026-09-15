@@ -121,6 +121,13 @@ def resolve_startup_candidate(
         )
 
     target = detect_launcher_target()
+    repair_root = target.install_root_for_repair_executable(executable_path)
+    if repair_root is not None:
+        layout = InstallLayout.from_root(repair_root, target=target)
+        return LauncherStartupCandidate(
+            layout=layout,
+            installed_config_found=layout.config_path.is_file(),
+        )
     candidate_roots: list[Path] = []
     installed_invocation = _matches_installed_executable(invocation_path, target)
     installed_native_executable = _matches_installed_executable(

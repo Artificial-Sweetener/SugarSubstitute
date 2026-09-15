@@ -18,21 +18,36 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from launcher.sugarsubstitute_launcher.application.repair.execution_service import (
     RepairExecutionService,
 )
 from launcher.sugarsubstitute_launcher.platforms import LauncherTarget
 from launcher.sugarsubstitute_launcher.runtime import UvManagedRuntimeInstaller
+from launcher.sugarsubstitute_launcher.runtime_command import (
+    SubprocessRuntimeCommandRunner,
+)
+from launcher.sugarsubstitute_launcher.application.repair.progress import (
+    RepairProgressObserver,
+)
 from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
 from launcher.sugarsubstitute_launcher.uv_tool import VerifiedUvExecutableProvider
 
 
-def build_repair_execution_service(*, target: LauncherTarget) -> RepairExecutionService:
-    """Keep bootstrap tooling available after the previous runtime is quarantined."""
+def build_repair_execution_service(
+    *,
+    target: LauncherTarget,
+    progress_observer: RepairProgressObserver | None = None,
+    output_callback: Callable[[str], None] | None = None,
+) -> RepairExecutionService:
+    """Bind independent tooling and real work feedback to the repair executor."""
     return RepairExecutionService(
         runtime_provisioner=UvManagedRuntimeInstaller(
             uv_provider=VerifiedUvExecutableProvider(
                 bundled_uv_path=launcher_uv_path(target=target)
-            )
-        )
+            ),
+            runner=SubprocessRuntimeCommandRunner(output_callback=output_callback),
+        ),
+        progress_observer=progress_observer,
     )

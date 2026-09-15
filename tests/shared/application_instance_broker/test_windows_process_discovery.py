@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.application_process_scope import ExactExecutableProcessScope
+
 from dataclasses import dataclass
 from collections.abc import Sequence
 import os
@@ -69,11 +71,6 @@ class _Process:
         return str(self.executable.parent)
 
 
-def _accept_invocation(arguments: Sequence[str], working_directory: Path) -> bool:
-    """Leave application argument policy outside these OS adapter tests."""
-    return True
-
-
 def _install_processes(
     monkeypatch: pytest.MonkeyPatch, processes: list[_Process]
 ) -> None:
@@ -84,6 +81,36 @@ def _install_processes(
     monkeypatch.setattr(discovery, "process_user_sid", lambda pid: by_pid[pid].user)
     monkeypatch.setattr(
         discovery, "process_session_id", lambda pid: by_pid[pid].session
+    )
+
+
+def test_discovery_applies_invocation_scope_after_image_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A recognized image running an unrelated operation must never become a target."""
+    executable = tmp_path / "SugarSubstitute.exe"
+    _install_processes(
+        monkeypatch,
+        [
+            _Process(os.getpid(), executable, 100.0),
+            _Process(1, executable, 1.0),
+        ],
+    )
+
+    class RejectedOperation(ExactExecutableProcessScope):
+        """Reject a valid image through the operation policy boundary."""
+
+        def accepts_invocation(
+            self, image: Path, arguments: Sequence[str], working_directory: Path
+        ) -> bool:
+            """Observe the actual kernel image independently of command-line spelling."""
+            assert image == executable
+            assert arguments == (str(executable),)
+            return False
+
+    assert (
+        discovery.find_previous_application_process(RejectedOperation((executable,)))
+        is None
     )
 
 
@@ -108,8 +135,33 @@ def test_discovery_selects_oldest_matching_earlier_instance(
     ]
     _install_processes(monkeypatch, processes)
     assert discovery.find_previous_application_process(
-        executable, accepts_invocation=_accept_invocation
+        ExactExecutableProcessScope((executable,))
     ) == ProcessIdentity(2, 20.0)
+
+
+@pytest.mark.parametrize("caller_is_repair", [False, True])
+def test_discovery_recognizes_both_installed_owner_roles(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caller_is_repair: bool
+) -> None:
+    """Normal and repair launchers can recover one another without admitting other installs."""
+    main = tmp_path / "installation" / "SugarSubstitute.exe"
+    repair = main.parent / "launcher-bin" / "Repair.exe"
+    caller_executable, owner_executable = (
+        (repair, main) if caller_is_repair else (main, repair)
+    )
+    _install_processes(
+        monkeypatch,
+        [
+            _Process(os.getpid(), caller_executable, 100.0),
+            _Process(1, owner_executable, 20.0),
+            _Process(2, tmp_path / "other" / "launcher-bin" / "Repair.exe", 1.0),
+            _Process(3, repair, 1.0, user="other"),
+            _Process(4, repair, 1.0, session=2),
+        ],
+    )
+    assert discovery.find_previous_application_process(
+        ExactExecutableProcessScope((main, repair))
+    ) == ProcessIdentity(1, 20.0)
 
 
 @pytest.mark.parametrize(
@@ -139,7 +191,7 @@ def test_discovery_never_offers_an_ineligible_process(
     _install_processes(monkeypatch, [caller, candidate])
     assert (
         discovery.find_previous_application_process(
-            executable, accepts_invocation=_accept_invocation
+            ExactExecutableProcessScope((executable,))
         )
         is None
     )
@@ -160,7 +212,7 @@ def test_source_interpreter_cannot_discover_installed_recovery_targets(
     )
     assert (
         discovery.find_previous_application_process(
-            executable, accepts_invocation=_accept_invocation
+            ExactExecutableProcessScope((executable,))
         )
         is None
     )

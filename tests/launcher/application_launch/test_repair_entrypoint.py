@@ -28,6 +28,14 @@ from launcher.sugarsubstitute_launcher.repair_entrypoint import (
     repair_arguments,
     run_repair,
 )
+from launcher.sugarsubstitute_launcher import __main__ as launcher_bootstrap
+from launcher.sugarsubstitute_launcher.application.repair.request import (
+    PreparedRepairRequest,
+)
+from launcher.sugarsubstitute_launcher.application.repair.models import RepairScope
+from launcher.sugarsubstitute_launcher.repair_session_supervisor import (
+    RepairSessionSupervisor,
+)
 
 
 def test_repair_arguments_select_repair_once_and_preserve_other_options() -> None:
@@ -90,3 +98,44 @@ def test_run_repair_routes_internal_execution_without_constructing_ui(
     assert result == 0
     assert normal_calls == []
     assert prepared_calls == [request_path]
+
+
+def test_regular_launcher_routes_detached_repair_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every platform's launcher bundle must understand the detached helper route."""
+    root = tmp_path / "install"
+    staging = root / ".repair/staging/1.2.3"
+    request = PreparedRepairRequest(
+        root,
+        RepairScope.APPLICATION,
+        "1.2.3",
+        "stable",
+        "windows_x64",
+        staging / "app",
+        staging / "launcher",
+        "a" * 64,
+        "b" * 64,
+    )
+    request_path = root / ".repair/prepared.json"
+    request.save(request_path)
+    calls: list[str] = []
+    monkeypatch.setattr(
+        sys, "argv", ["SugarSubstitute", f"--execute-repair-request={request_path}"]
+    )
+
+    def supervise(
+        self: RepairSessionSupervisor, candidate: PreparedRepairRequest
+    ) -> int:
+        """Capture the lifecycle boundary without starting a process."""
+        calls.append(candidate.version)
+        return 7
+
+    monkeypatch.setattr(RepairSessionSupervisor, "run", supervise)
+
+    def reject_normal_launch() -> int:
+        """Prove execution does not fall through into the ordinary CLI."""
+        pytest.fail("Detached repair entered normal launcher routing")
+
+    assert launcher_bootstrap.run_launcher(reject_normal_launch) == 7
+    assert calls == ["1.2.3"]

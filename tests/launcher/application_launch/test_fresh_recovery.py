@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from sugarsubstitute_shared.application_process_scope import ApplicationProcessScope
+
+from collections.abc import Sequence
 from pathlib import Path
 import sys
 
@@ -104,13 +106,17 @@ def test_fresh_recovery_offers_and_ends_the_independently_verified_instance(
     )
 
     def discover(
-        executable: Path, *, accepts_invocation: Callable[[Sequence[str], Path], bool]
+        scope: ApplicationProcessScope,
     ) -> ProcessIdentity:
         """Supply an independently verified OS process identity."""
+        executable = layout.executable_path
+        assert scope.accepts_executable(executable)
         discovered.append(executable)
-        assert accepts_invocation([str(executable)], layout.root)
-        assert not accepts_invocation(
-            [str(executable), "--install-root", str(layout.root / "other")], layout.root
+        assert scope.accepts_invocation(executable, [str(executable)], layout.root)
+        assert not scope.accepts_invocation(
+            executable,
+            [str(executable), "--install-root", str(layout.root / "other")],
+            layout.root,
         )
         return identity
 
@@ -128,9 +134,9 @@ def test_fresh_recovery_offers_and_ends_the_independently_verified_instance(
         offered.append(bool(kwargs["can_end_owner"]))
         return InstanceRecoveryAction.END_AND_RETRY
 
-    def terminate(identity: ProcessIdentity, *, expected_executable: Path) -> bool:
+    def terminate(identity: ProcessIdentity, *, scope: ApplicationProcessScope) -> bool:
         """Record the exact identity authorized by the user's recovery action."""
-        assert expected_executable == layout.executable_path
+        assert scope.accepts_executable(layout.executable_path)
         ended.append(identity)
         return True
 
@@ -186,7 +192,7 @@ def test_independent_discovery_requires_the_exact_installed_endpoint(
     )
 
     def discover(
-        executable: Path, *, accepts_invocation: Callable[[Sequence[str], Path], bool]
+        scope: ApplicationProcessScope,
     ) -> ProcessIdentity:
         """Reject any attempt to cross the recovery scope boundary."""
         pytest.fail("Process discovery ran outside the installed endpoint scope")

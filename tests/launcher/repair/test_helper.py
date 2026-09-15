@@ -14,13 +14,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Verify prepared helper waiting, execution, cleanup, and relaunch."""
+"""Verify prepared execution retires the authoritative request after commit."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from launcher.sugarsubstitute_launcher.application.repair.execution_service import (
+from launcher.sugarsubstitute_launcher.application.repair.execution_result import (
     CompletedRepair,
 )
 from launcher.sugarsubstitute_launcher.application.repair.request import (
@@ -30,13 +30,12 @@ from launcher.sugarsubstitute_launcher.application.repair.models import (
     RepairScope,
 )
 from launcher.sugarsubstitute_launcher.repair_helper import run_prepared_repair
-from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 
-def test_helper_waits_for_exact_caller_then_executes_and_relaunches(
+def test_helper_executes_and_retires_request_under_existing_ownership(
     tmp_path: Path,
 ) -> None:
-    """Mutation must start after the identified caller exits and cleanup follows commit."""
+    """Lifecycle metadata cannot make the execution owner wait or launch processes."""
 
     root = (tmp_path / "install").resolve()
     staging = root / ".repair" / "staging" / "1.2.3"
@@ -57,36 +56,20 @@ def test_helper_waits_for_exact_caller_then_executes_and_relaunches(
     request_path = root / ".repair" / "prepared.json"
     request.save(request_path)
     events: list[str] = []
-    launches: list[tuple[str, ...]] = []
-
-    def wait(identity: ProcessIdentity) -> None:
-        """Record the identity used by the helper."""
-
-        assert identity == ProcessIdentity(77, 123.5)
-        events.append("waited")
 
     def execute(candidate: PreparedRepairRequest) -> CompletedRepair:
-        """Prove execution follows waiting and return a committed outcome."""
+        """Return one committed outcome at the execution boundary."""
 
         assert candidate == request
-        assert events == ["waited"]
+        assert events == []
         events.append("executed")
         return CompletedRepair("1.2.3", root / ".repair" / "quarantine" / "tx", False)
 
     result = run_prepared_repair(
         request_path,
         executor=execute,
-        process_waiter=wait,
-        app_starter=lambda command: launches.append(command),
     )
 
     assert result.version == "1.2.3"
-    assert events == ["waited", "executed"]
+    assert events == ["executed"]
     assert not request_path.exists()
-    assert launches == [
-        (
-            str(root / "runtime" / ".venv" / "Scripts" / "python.exe"),
-            str(root / "app" / "main.py"),
-            f"--install-root={root}",
-        )
-    ]

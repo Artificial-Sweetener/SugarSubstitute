@@ -35,6 +35,7 @@ class LauncherBundleTarget:
     required_file_relative_paths: tuple[Path, ...]
     replacement_roots: tuple[Path, ...]
     executable_mode: int | None
+    repair_executable_relative_path: Path | None = None
 
 
 WINDOWS_X64_BUNDLE = LauncherBundleTarget(
@@ -52,6 +53,7 @@ WINDOWS_X64_BUNDLE = LauncherBundleTarget(
         Path("launcher-bin"),
     ),
     executable_mode=None,
+    repair_executable_relative_path=Path("launcher-bin") / "Repair.exe",
 )
 MACOS_ARM64_BUNDLE = LauncherBundleTarget(
     key="macos_arm64",
