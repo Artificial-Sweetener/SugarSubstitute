@@ -76,6 +76,7 @@ class WindowsProcessFamily:
         environment: Mapping[str, str],
         cwd: Path | None,
         output_fd: int,
+        error_fd: int | None = None,
     ) -> WindowsProcessFamily:
         """Assign the child atomically, eliminating the spawn-before-containment gap."""
         import msvcrt
@@ -114,7 +115,11 @@ class WindowsProcessFamily:
                 raise ctypes.WinError(ctypes.get_last_error())
             attributes_initialized = True
             with open(os.devnull, "rb") as null_input:
-                for fd in (null_input.fileno(), output_fd):
+                for fd in (
+                    null_input.fileno(),
+                    output_fd,
+                    output_fd if error_fd is None else error_fd,
+                ):
                     duplicate = wintypes.HANDLE()
                     current_process = kernel.GetCurrentProcess()
                     if not kernel.DuplicateHandle(
@@ -150,7 +155,7 @@ class WindowsProcessFamily:
                 startup.startup.flags = _STARTF_USESTDHANDLES
                 startup.startup.stdin = handles[0]
                 startup.startup.stdout = handles[1]
-                startup.startup.stderr = handles[1]
+                startup.startup.stderr = handles[2]
                 startup.attributes = ctypes.cast(attributes, ctypes.c_void_p)
                 process_info = ProcessInformation()
                 environment_block = ctypes.create_unicode_buffer(

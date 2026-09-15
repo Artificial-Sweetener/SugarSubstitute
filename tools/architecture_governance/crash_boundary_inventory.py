@@ -35,6 +35,7 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("executor", "substitute/infrastructure/execution/thread_pool_admission.py", "ThreadPoolAdmission.__init__", "concurrent.futures.ThreadPoolExecutor", 1, "managed_task_outcomes"),
     ("process", "launcher/sugarsubstitute_launcher/process_execution.py", "_spawn_process", "subprocess.Popen", 1, "application_supervisor_adapter"),
     ("process", "sugarsubstitute_shared/windows_process_family.py", "WindowsProcessFamily.start", "windows.kernel32.CreateProcessW", 1, "application_supervisor_adapter"),
+    ("process", "sugarsubstitute_shared/supervised_text_process.py", "start_supervised_text_process", "subprocess.Popen", 1, "isolated_support_process"),
     ("process", "launcher/sugarsubstitute_launcher/runtime_command.py", "SubprocessRuntimeCommandRunner.run", "subprocess.Popen", 1, "external_install_command"),
     ("process", "substitute/app/bootstrap/early_launch_splash.py", "start_shared_launch_splash", "subprocess.Popen", 1, "isolated_support_process"),
     ("process", "substitute/infrastructure/comfy/managed_install_commands.py", "stream_command", "subprocess.Popen", 1, "external_comfy_command"),
