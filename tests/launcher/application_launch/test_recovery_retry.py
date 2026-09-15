@@ -111,18 +111,16 @@ def test_retry_preserves_only_the_matching_verified_owner(
         eligibility.append(bool(kwargs["can_end_owner"]))
         return next(actions)
 
-    def terminate(
-        error: ApplicationInstanceBrokerError, *, expected_executable: Path
-    ) -> bool:
+    def terminate(identity: ProcessIdentity, *, expected_executable: Path) -> bool:
         """Record the proof passed across the process termination boundary."""
-        terminated.append(error.owner_identity)
+        terminated.append(identity)
         return True
 
     monkeypatch.setattr(
         launcher_ui_supervision, "supervise_instance_recovery_window", present
     )
     monkeypatch.setattr(
-        application_instance_recovery, "terminate_verified_instance_owner", terminate
+        application_instance_recovery, "terminate_verified_process", terminate
     )
     ApplicationElectionRecovery(
         layout=InstallLayout.from_root(tmp_path),
@@ -164,9 +162,7 @@ def test_termination_releases_proof_only_after_verified_completion(
         eligibility.append(bool(kwargs["can_end_owner"]))
         return next(actions)
 
-    def terminate(
-        error: ApplicationInstanceBrokerError, *, expected_executable: Path
-    ) -> bool:
+    def terminate(identity: ProcessIdentity, *, expected_executable: Path) -> bool:
         """Return the controlled OS termination result."""
         return terminated_successfully
 
@@ -174,7 +170,7 @@ def test_termination_releases_proof_only_after_verified_completion(
         launcher_ui_supervision, "supervise_instance_recovery_window", present
     )
     monkeypatch.setattr(
-        application_instance_recovery, "terminate_verified_instance_owner", terminate
+        application_instance_recovery, "terminate_verified_process", terminate
     )
     ApplicationElectionRecovery(
         layout=InstallLayout.from_root(tmp_path),

@@ -19,17 +19,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 import psutil  # type: ignore[import-untyped]
 import pytest
 
 from launcher.sugarsubstitute_launcher.application_instance_recovery import (
-    terminate_verified_instance_owner,
-)
-from sugarsubstitute_shared.application_instance_protocol import (
-    ApplicationInstanceBrokerError,
-    ApplicationInstanceEndpoint,
+    terminate_verified_process,
 )
 
 
@@ -73,19 +70,22 @@ class _Process:
             raise psutil.TimeoutExpired(timeout, pid=4401)
 
 
+def test_recovery_refuses_to_end_itself(tmp_path: Path) -> None:
+    """A malformed recovery target cannot close the user's recovery surface."""
+    assert not terminate_verified_process(
+        ProcessIdentity(os.getpid(), 123.0), expected_executable=tmp_path / "app.exe"
+    )
+
+
 def test_recovery_refuses_reused_pid(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """A new process with the same executable and PID must remain untouched."""
     process = _Process(tmp_path / "SugarSubstitute.exe")
     monkeypatch.setattr(psutil, "Process", lambda _pid: process)
-    error = ApplicationInstanceBrokerError(
-        "unavailable",
-        owner_identity=ProcessIdentity(pid=4401, created_at=122.0),
-        endpoint=_recovery_error(owner_process_id=4401).endpoint,
-    )
-    assert not terminate_verified_instance_owner(
-        error, expected_executable=tmp_path / "SugarSubstitute.exe"
+    assert not terminate_verified_process(
+        ProcessIdentity(pid=4401, created_at=122.0),
+        expected_executable=tmp_path / "SugarSubstitute.exe",
     )
     assert not process.terminated
     assert not process.killed
@@ -104,8 +104,8 @@ def test_recovery_refuses_same_pid_with_different_executable(
         lambda _pid: process,
     )
 
-    assert not terminate_verified_instance_owner(
-        _recovery_error(owner_process_id=4401),
+    assert not terminate_verified_process(
+        ProcessIdentity(pid=4401, created_at=123.0),
         expected_executable=tmp_path / "SugarSubstitute.exe",
     )
     assert not process.terminated
@@ -128,23 +128,10 @@ def test_recovery_terminates_only_reverified_exact_owner(
         lambda _pid: process,
     )
 
-    assert terminate_verified_instance_owner(
-        _recovery_error(owner_process_id=4401),
+    assert terminate_verified_process(
+        ProcessIdentity(pid=4401, created_at=123.0),
         expected_executable=executable,
     )
     assert process.terminated
     assert process.killed is hang_on_terminate
     assert process.wait_count == (2 if hang_on_terminate else 1)
-
-
-def _recovery_error(*, owner_process_id: int) -> ApplicationInstanceBrokerError:
-    """Return one recoverable broker failure with a concrete native endpoint."""
-
-    return ApplicationInstanceBrokerError(
-        "unavailable",
-        owner_identity=ProcessIdentity(pid=owner_process_id, created_at=123.0),
-        endpoint=ApplicationInstanceEndpoint(
-            transport="windows-named-pipe",
-            address=r"\\.\pipe\SugarSubstitute-test",
-        ),
-    )

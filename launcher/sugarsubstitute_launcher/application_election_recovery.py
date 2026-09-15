@@ -31,6 +31,7 @@ from sugarsubstitute_shared.application_instance_broker import ApplicationInstan
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceBrokerError,
 )
+from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,23 +71,41 @@ class ApplicationElectionRecovery:
 
                 self._observe_failure(error)
                 proof = self._verified_failure
+                identity = (
+                    proof.owner_identity
+                    if proof is not None
+                    else self._discover_owner(error)
+                )
                 action = launcher_ui_supervision.supervise_instance_recovery_window(
                     layout=self._layout,
                     locale_override=self._locale,
-                    can_end_owner=proof is not None,
+                    can_end_owner=identity is not None,
                 )
                 if action is InstanceRecoveryAction.EXIT:
                     return None
-                if action is InstanceRecoveryAction.END_AND_RETRY and proof is not None:
+                if (
+                    action is InstanceRecoveryAction.END_AND_RETRY
+                    and identity is not None
+                ):
                     from launcher.sugarsubstitute_launcher import (
                         application_instance_recovery,
                     )
 
-                    if application_instance_recovery.terminate_verified_instance_owner(
-                        proof,
+                    if application_instance_recovery.terminate_verified_process(
+                        identity,
                         expected_executable=Path(sys.executable),
                     ):
                         self._verified_failure = None
+
+    def _discover_owner(
+        self, error: ApplicationInstanceBrokerError
+    ) -> ProcessIdentity | None:
+        """Inspect earlier installed Windows processes only for this failed endpoint."""
+        from launcher.sugarsubstitute_launcher.application_process_discovery import (
+            discover_previous_installed_instance,
+        )
+
+        return discover_previous_installed_instance(self._layout, error.endpoint)
 
     def _observe_failure(self, error: ApplicationInstanceBrokerError) -> None:
         """Retain same-endpoint proof when a subsequent connection cannot authenticate."""

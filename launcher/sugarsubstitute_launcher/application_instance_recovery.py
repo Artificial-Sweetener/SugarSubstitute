@@ -19,33 +19,27 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 import psutil  # type: ignore[import-untyped]
-from sugarsubstitute_shared.application_instance_protocol import (
-    ApplicationInstanceBrokerError,
-)
+from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 
 _LOGGER = logging.getLogger(__name__)
 _TERMINATION_TIMEOUT_SECONDS = 5.0
 
 
-def terminate_verified_instance_owner(
-    error: ApplicationInstanceBrokerError,
+def terminate_verified_process(
+    identity: ProcessIdentity,
     *,
     expected_executable: Path,
 ) -> bool:
-    """Terminate the originally authenticated process without requiring responsive IPC."""
+    """Terminate the previously verified process without requiring responsive IPC."""
 
-    endpoint = error.endpoint
-    identity = error.owner_identity
-    expected_process_id = error.owner_process_id
-    if endpoint is None or identity is None:
-        _LOGGER.warning(
-            "Instance recovery has no verified owner to terminate",
-            extra={"owner_process_id": expected_process_id},
-        )
+    expected_process_id = identity.pid
+    if expected_process_id == os.getpid():
+        _LOGGER.error("Refused to terminate the current recovery process")
         return False
     try:
         process = psutil.Process(identity.pid)
@@ -95,5 +89,5 @@ def terminate_verified_instance_owner(
 
 
 __all__ = [
-    "terminate_verified_instance_owner",
+    "terminate_verified_process",
 ]
