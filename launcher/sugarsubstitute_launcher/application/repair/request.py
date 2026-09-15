@@ -53,6 +53,13 @@ class PreparedRepairRequest:
     wait_pid: int | None = None
     wait_process_created_at: float | None = None
     relaunch: bool = False
+    helper_bundle_dir: Path | None = None
+
+    def with_helper_bundle(self, directory: Path) -> Self:
+        """Bind the verified independent runtime prepared before UI handoff."""
+        candidate = replace(self, helper_bundle_dir=directory)
+        candidate._validate()
+        return candidate
 
     def with_process_behavior(
         self,
@@ -94,6 +101,9 @@ class PreparedRepairRequest:
                 "wait_pid": self.wait_pid,
                 "wait_process_created_at": self.wait_process_created_at,
                 "relaunch": self.relaunch,
+                "helper_bundle_dir": str(self.helper_bundle_dir)
+                if self.helper_bundle_dir is not None
+                else None,
             },
         )
 
@@ -107,6 +117,11 @@ class PreparedRepairRequest:
         wait_pid = payload.get("wait_pid")
         wait_process_created_at = payload.get("wait_process_created_at")
         relaunch = payload.get("relaunch")
+        helper_bundle = payload.get("helper_bundle_dir")
+        if helper_bundle is not None and not isinstance(helper_bundle, str):
+            raise PreparedRepairRequestError(
+                "Repair helper bundle path must be a string."
+            )
         if wait_pid is not None and (not isinstance(wait_pid, int) or wait_pid <= 0):
             raise PreparedRepairRequestError("Repair wait_pid must be positive.")
         if wait_process_created_at is not None and not isinstance(
@@ -145,6 +160,9 @@ class PreparedRepairRequest:
                     else None
                 ),
                 relaunch=relaunch,
+                helper_bundle_dir=operational_path(helper_bundle)
+                if helper_bundle is not None
+                else None,
             )
         except ValueError as error:
             raise PreparedRepairRequestError(
@@ -164,6 +182,13 @@ class PreparedRepairRequest:
         normalized_version = safe_launcher_version(self.version)
         root = operational_path(self.install_root).resolve()
         staging_root = root / ".repair" / "staging" / normalized_version
+        if self.helper_bundle_dir is not None:
+            helper_root = root / ".repair" / "helper" / normalized_version
+            helper = operational_path(self.helper_bundle_dir).resolve()
+            if helper == helper_root or not helper.is_relative_to(helper_root):
+                raise PreparedRepairRequestError(
+                    "Repair helper bundle escapes its version root."
+                )
         for staged_path in (self.staged_app_dir, self.staged_launcher_dir):
             resolved = operational_path(staged_path).resolve()
             if resolved == staging_root or not resolved.is_relative_to(staging_root):

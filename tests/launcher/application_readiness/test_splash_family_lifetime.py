@@ -35,6 +35,7 @@ def test_frozen_splash_family_cannot_survive_supervisor_death(tmp_path: Path) ->
     """A non-cooperative splash must not need a user to end its processes."""
     family: list[psutil.Process] = []
     root = None
+    retained_owner: psutil.Process | None = None
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen(3)
@@ -51,6 +52,7 @@ def test_frozen_splash_family_cannot_survive_supervisor_death(tmp_path: Path) ->
                 ],
                 startup_log_path=tmp_path / "owner.log",
             )
+            retained_owner = psutil.Process(root.pid)
             records: dict[str, int] = {}
             for _ in range(3):
                 connection, _address = listener.accept()
@@ -59,7 +61,7 @@ def test_frozen_splash_family_cannot_survive_supervisor_death(tmp_path: Path) ->
                     with connection.makefile("rb") as stream:
                         record = json.loads(stream.read())
                 records[record["role"]] = record["pid"]
-            owner = psutil.Process(root.pid)
+            owner = retained_owner
             family = [owner, *owner.children(recursive=True)]
             identities = {p.pid: p for p in family}
             assert set(records.values()).issubset(identities)
@@ -68,10 +70,11 @@ def test_frozen_splash_family_cannot_survive_supervisor_death(tmp_path: Path) ->
             _gone, alive = psutil.wait_procs(family, timeout=5)
             assert not alive, f"Orphaned splash processes: {[p.pid for p in alive]}"
         finally:
-            if root is not None:
+            if retained_owner is not None and retained_owner.is_running():
                 try:
-                    owner = psutil.Process(root.pid)
-                    family.extend([owner, *owner.children(recursive=True)])
+                    family.extend(
+                        [retained_owner, *retained_owner.children(recursive=True)]
+                    )
                 except psutil.NoSuchProcess:
                     pass
             for process in reversed(family):

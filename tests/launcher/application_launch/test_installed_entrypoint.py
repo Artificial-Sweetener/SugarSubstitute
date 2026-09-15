@@ -61,9 +61,11 @@ from tests.launcher.application_launch.instance_routing_support import (
 )
 
 
+@pytest.mark.parametrize("splash_available", [True, False])
 def test_installed_launcher_supervises_one_broker_authorized_child(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    splash_available: bool,
 ) -> None:
     """The elected launcher should remain through the complete child lifetime."""
 
@@ -96,12 +98,16 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
     monkeypatch.setattr(
         splash_session,
         "start_launcher_splash_session",
-        lambda **_kwargs: SimpleNamespace(
-            app_arguments=(),
-            client=None,
-            ensure_closed=lambda: None,
-            cancellation_requested=lambda: False,
-            present=lambda: "startup-splash",
+        lambda **_kwargs: (
+            SimpleNamespace(
+                app_arguments=(),
+                client=None,
+                ensure_closed=lambda: None,
+                cancellation_requested=lambda: False,
+                present=lambda: "startup-splash",
+            )
+            if splash_available
+            else None
         ),
     )
     monkeypatch.setattr(
@@ -110,8 +116,8 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
         _Supervisor,
     )
     monkeypatch.setattr(
-        launcher_app,
-        "LauncherMainWindow",
+        launcher_ui_supervision,
+        "supervise_launcher_window",
         lambda **_kwargs: pytest.fail("Installed launch must not show setup UI."),
     )
 
@@ -278,15 +284,15 @@ def test_pending_report_recovery_failure_does_not_open_repair(
     assert broker.closed
 
 
-def test_unavailable_installed_splash_routes_to_visible_repair(
+def test_unavailable_installed_splash_preserves_application_launch(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Never continue a potentially long installed launch without a surface."""
+    """A failed presentation helper must not classify a valid install as damaged."""
 
     layout = _installed_layout(tmp_path)
     broker = _Broker()
-    repair_requests: list[bool] = []
+    handoffs: list[object] = []
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setattr(
         application_launch,
@@ -301,23 +307,18 @@ def test_unavailable_installed_splash_routes_to_visible_repair(
     monkeypatch.setattr(
         installed_app_handoff,
         "complete_installed_app_handoff",
-        lambda **_kwargs: pytest.fail("Invisible application launch is forbidden."),
+        lambda **kwargs: handoffs.append(kwargs["splash_session"]),
     )
-
-    def supervise_repair(**kwargs: object) -> int:
-        """Record that invisible startup routes to a repair surface."""
-
-        repair_requests.append(bool(kwargs["repair"]))
-        return 0
 
     monkeypatch.setattr(
         launcher_ui_supervision,
         "supervise_launcher_window",
-        supervise_repair,
+        lambda **_kwargs: pytest.fail("Splash failure must not open repair."),
     )
 
     assert launcher_app.main([]) == 0
-    assert repair_requests == [True]
+    assert handoffs == [None]
+    assert not broker.startup_presenters
     assert broker.closed
 
 

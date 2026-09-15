@@ -19,8 +19,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
+import math
 
 import psutil  # type: ignore[import-untyped]
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ProcessIdentityError(RuntimeError):
@@ -33,6 +37,11 @@ class ProcessIdentity:
 
     pid: int
     created_at: float
+
+    def __post_init__(self) -> None:
+        """Require a positive finite kernel timestamp before comparing incarnations."""
+        if not math.isfinite(self.created_at) or self.created_at <= 0:
+            raise ValueError("Process creation time must be positive and finite.")
 
 
 def capture_process_identity(pid: int) -> ProcessIdentity:
@@ -52,7 +61,7 @@ def wait_for_process_exit(
     *,
     timeout_seconds: float = 120.0,
 ) -> None:
-    """Wait only for the captured process and reject PID reuse or timeout."""
+    """Wait for the captured incarnation; a replacement PID means it has exited."""
 
     try:
         process = psutil.Process(identity.pid)
@@ -64,7 +73,11 @@ def wait_for_process_exit(
             f"Could not inspect process: {identity.pid}"
         ) from error
     if abs(observed_creation - identity.created_at) > 0.000_001:
-        raise ProcessIdentityError(f"Process PID was reused: {identity.pid}")
+        _LOGGER.info(
+            "Outgoing process incarnation has exited; leaving reused PID untouched",
+            extra={"outgoing_process_id": identity.pid},
+        )
+        return
     try:
         process.wait(timeout=timeout_seconds)
     except psutil.NoSuchProcess:

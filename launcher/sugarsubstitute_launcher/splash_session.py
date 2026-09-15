@@ -111,6 +111,11 @@ def start_launcher_splash_session(
             locale_override=locale_override,
             process_starter=process_starter,
         )
+        _start_background_pipe_reader(
+            stream=process.stderr,
+            label="stderr",
+            ignore_ready_message=False,
+        )
         spec = _read_ready_spec(process=process, timeout_seconds=_READY_TIMEOUT_SECONDS)
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         _LOGGER.warning("Shared launcher splash session unavailable: %r", error)
@@ -118,18 +123,12 @@ def start_launcher_splash_session(
             _terminate_failed_splash_host(process)
             if process.poll() is not None:
                 process.stdout.close()
-                process.stderr.close()
         return None
 
     _start_background_pipe_reader(
         stream=process.stdout,
         label="stdout",
         ignore_ready_message=True,
-    )
-    _start_background_pipe_reader(
-        stream=process.stderr,
-        label="stderr",
-        ignore_ready_message=False,
     )
     return LauncherSplashSession(
         client=SocketSplashSessionClient(spec),

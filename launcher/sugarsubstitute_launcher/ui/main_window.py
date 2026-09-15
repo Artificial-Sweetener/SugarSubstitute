@@ -231,7 +231,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         body_layout.setContentsMargins(0, 0, 0, 0)
         body_layout.setSpacing(0)
         body_layout.addWidget(self.view)
-        apply_installer_style(self)
+        apply_installer_style(self, self.view)
         self.titleBar.raise_()
 
     def _handle_primary_clicked(self) -> None:

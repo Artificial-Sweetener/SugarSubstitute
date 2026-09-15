@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping, Sequence
+from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
@@ -26,6 +27,7 @@ from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
 )
 from launcher.sugarsubstitute_launcher.application_startup_contract import (
     ApplicationStartupCancelled,
+    CandidateProcess,
 )
 from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
@@ -47,6 +49,10 @@ class ApplicationLifecycleSupervisor:
         readiness_timeout_seconds: float | None = None,
         crash_supervisor: ApplicationCrashSupervisor | None = None,
         cancellation_requested: Callable[[], bool] | None = None,
+        process_starter: Callable[
+            [Sequence[str], Mapping[str, str]], tuple[CandidateProcess, Path]
+        ]
+        | None = None,
     ) -> None:
         """Create readiness and crash owners for one visible launch policy."""
 
@@ -54,12 +60,14 @@ class ApplicationLifecycleSupervisor:
             self._readiness = ApplicationReadinessSupervisor(
                 accepted_surfaces=accepted_surfaces,
                 cancellation_requested=cancellation_requested,
+                process_starter=process_starter,
             )
         else:
             self._readiness = ApplicationReadinessSupervisor(
                 accepted_surfaces=accepted_surfaces,
                 timeout_seconds=readiness_timeout_seconds,
                 cancellation_requested=cancellation_requested,
+                process_starter=process_starter,
             )
         self._crash = crash_supervisor or ApplicationCrashSupervisor()
 

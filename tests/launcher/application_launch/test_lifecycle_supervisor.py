@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -51,9 +51,14 @@ def test_normal_lifecycle_accepts_every_painted_primary_application_surface(
             *,
             accepted_surfaces: tuple[ApplicationReadinessSurface, ...],
             cancellation_requested: object = None,
+            process_starter: Callable[
+                [Sequence[str], Mapping[str, str]], tuple[CandidateProcess, Path]
+            ]
+            | None,
         ) -> None:
             """Record the accepted painted surfaces."""
 
+            assert process_starter is None
             captured_surfaces.append(frozenset(accepted_surfaces))
 
     class _CrashSupervisor:

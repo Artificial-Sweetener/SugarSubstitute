@@ -104,6 +104,20 @@ def test_frozen_installed_reporter_uses_qt_capable_ui_executable(
     assert "--show-crash-report=incident-1" in command
 
 
+def test_one_file_repair_uses_installed_qt_presentation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Repair's extracted Qt-free runtime must not be used as its UI child."""
+    layout = InstallLayout.from_root(tmp_path / "installation", target=WINDOWS_X64)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(
+        sys, "executable", str(layout.launcher_support_path / "Repair.exe")
+    )
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path / "_MEI1234"), raising=False)
+    command = build_launcher_ui_command(layout, ("--launcher-ui-child", "--repair"))
+    assert Path(command[0]) == layout.launcher_ui_executable_path
+
+
 def test_crash_reporter_start_and_recovery_share_one_command_owner(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -157,4 +171,30 @@ def test_immediate_report_retains_supervisor_until_reporter_exits(
         process_starter=starter,
     )
 
+    assert starter.processes[0].wait_count == 1
+
+
+def test_repair_report_uses_independent_bundle_and_original_incident_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Keep crash presentation usable while the live launcher roots are replaced."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    bundle = InstallLayout.from_root(
+        layout.root / ".repair" / "helper" / "bundle", target=WINDOWS_X64
+    )
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(bundle.executable_path))
+    monkeypatch.setattr(
+        sys, "_MEIPASS", str(bundle.launcher_support_path), raising=False
+    )
+    starter = _ProcessStarter()
+    present_crash_report(
+        layout, "repair-incident", {}, process_starter=starter, bundle_layout=bundle
+    )
+    command = starter.calls[0][0]
+    assert command[0] == str(bundle.launcher_ui_executable_path)
+    from sugarsubstitute_shared.windows_long_paths import subprocess_path
+
+    assert f"--install-root={subprocess_path(layout.root)}" in command
+    assert "--show-crash-report=repair-incident" in command
     assert starter.processes[0].wait_count == 1

@@ -24,8 +24,10 @@ CrashBoundaryInventoryRow = tuple[str, str, str, str, int, str]
 # Keep one stable row per reviewed site so additions remain obvious in review.
 # fmt: off
 REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
-    ("application", "launcher/sugarsubstitute_launcher/app.py", "_run_launcher_window", "PySide6.QtWidgets.QApplication", 1, "supervised_launcher_ui"),
-    ("application", "launcher/sugarsubstitute_launcher/app.py", "_run_instance_recovery_window", "PySide6.QtWidgets.QApplication", 1, "supervised_launcher_ui"),
+    ("application", "launcher/sugarsubstitute_launcher/repair_ui_entrypoint.py", "_run_repair_window", "PySide6.QtWidgets.QApplication", 1, "supervised_launcher_ui"),
+    ("qt_thread", "launcher/sugarsubstitute_launcher/ui/repair_controller.py", "RepairController.start", "PySide6.QtCore.QThread", 1, "signal_reported_install_worker"),
+    ("application", "launcher/sugarsubstitute_launcher/launcher_window_application.py", "run_launcher_window", "PySide6.QtWidgets.QApplication", 1, "supervised_launcher_ui"),
+    ("application", "launcher/sugarsubstitute_launcher/instance_recovery_application.py", "run_instance_recovery_window", "PySide6.QtWidgets.QApplication", 1, "supervised_launcher_ui"),
     ("application", "launcher/sugarsubstitute_launcher/crash_report_application.py", "run_crash_report_application", "PySide6.QtWidgets.QApplication", 1, "recovery_bound_crash_reporter"),
     ("application", "substitute/app/bootstrap/shared_splash_host.py", "main", "PySide6.QtWidgets.QApplication", 1, "isolated_support_ui"),
     ("application", "substitute/app/bootstrap/splash_process.py", "main", "PySide6.QtWidgets.QApplication", 1, "isolated_support_ui"),

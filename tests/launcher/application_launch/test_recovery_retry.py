@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.application_process_scope import ApplicationProcessScope
+
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -111,7 +113,7 @@ def test_retry_preserves_only_the_matching_verified_owner(
         eligibility.append(bool(kwargs["can_end_owner"]))
         return next(actions)
 
-    def terminate(identity: ProcessIdentity, *, expected_executable: Path) -> bool:
+    def terminate(identity: ProcessIdentity, *, scope: ApplicationProcessScope) -> bool:
         """Record the proof passed across the process termination boundary."""
         terminated.append(identity)
         return True
@@ -162,7 +164,7 @@ def test_termination_releases_proof_only_after_verified_completion(
         eligibility.append(bool(kwargs["can_end_owner"]))
         return next(actions)
 
-    def terminate(identity: ProcessIdentity, *, expected_executable: Path) -> bool:
+    def terminate(identity: ProcessIdentity, *, scope: ApplicationProcessScope) -> bool:
         """Return the controlled OS termination result."""
         return terminated_successfully
 

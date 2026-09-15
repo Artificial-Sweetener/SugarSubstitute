@@ -32,6 +32,10 @@ from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceBrokerError,
 )
 from sugarsubstitute_shared.process_identity import ProcessIdentity
+from sugarsubstitute_shared.application_process_scope import (
+    ApplicationProcessScope,
+    ExactExecutableProcessScope,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,12 +52,16 @@ class ApplicationElectionRecovery:
         elect: Callable[
             [InstallLayout, Sequence[str]], ApplicationInstanceBroker | None
         ],
+        presentation_layout: InstallLayout | None = None,
+        process_scope: ApplicationProcessScope | None = None,
     ) -> None:
         """Bind one launch request and its transient, endpoint-scoped recovery proof."""
         self._layout = layout
         self._arguments = tuple(process_arguments)
         self._locale = locale_override
         self._elect = elect
+        self._presentation_layout = presentation_layout
+        self._process_scope = process_scope
         self._verified_failure: ApplicationInstanceBrokerError | None = None
 
     def run(self) -> ApplicationInstanceBroker | None:
@@ -80,6 +88,7 @@ class ApplicationElectionRecovery:
                     layout=self._layout,
                     locale_override=self._locale,
                     can_end_owner=identity is not None,
+                    bundle_layout=self._presentation_layout,
                 )
                 if action is InstanceRecoveryAction.EXIT:
                     return None
@@ -90,10 +99,18 @@ class ApplicationElectionRecovery:
                     from launcher.sugarsubstitute_launcher import (
                         application_instance_recovery,
                     )
+                    from launcher.sugarsubstitute_launcher.application_process_discovery import (
+                        InstalledInvocationScope,
+                    )
 
                     if application_instance_recovery.terminate_verified_process(
                         identity,
-                        expected_executable=Path(sys.executable),
+                        scope=self._process_scope
+                        or (
+                            InstalledInvocationScope(self._layout)
+                            if bool(getattr(sys, "frozen", False))
+                            else ExactExecutableProcessScope((Path(sys.executable),))
+                        ),
                     ):
                         self._verified_failure = None
 

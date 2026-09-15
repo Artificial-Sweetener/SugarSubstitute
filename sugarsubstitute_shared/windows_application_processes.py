@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import psutil  # type: ignore[import-untyped]
+from sugarsubstitute_shared.application_process_scope import ApplicationProcessScope
 
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 from sugarsubstitute_shared.windows_process_security import (
@@ -35,7 +35,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def find_previous_application_process(
-    executable: Path, *, accepts_invocation: Callable[[Sequence[str], Path], bool]
+    scope: ApplicationProcessScope,
 ) -> ProcessIdentity | None:
     """Find the oldest earlier launcher in this executable's user and session.
 
@@ -43,10 +43,9 @@ def find_previous_application_process(
     Python globals. Exclude newer launches so concurrent recovery cannot end a
     replacement that started after this request. No process is terminated here.
     """
-    expected = executable.resolve()
     try:
         caller = psutil.Process(os.getpid())
-        if Path(caller.exe()).resolve() != expected:
+        if not scope.accepts_executable(Path(caller.exe())):
             return None
         caller_created = float(caller.create_time())
         user = process_user_sid(caller.pid)
@@ -61,17 +60,16 @@ def find_previous_application_process(
         try:
             process = psutil.Process(pid)
             image = Path(process.exe())
-            if (
-                image.name.casefold() != expected.name.casefold()
-                or image.resolve() != expected
-            ):
+            if not scope.accepts_executable(image):
                 continue
             created = float(process.create_time())
             if created >= caller_created:
                 continue
             if process_user_sid(pid) != user or process_session_id(pid) != session:
                 continue
-            if not accepts_invocation(tuple(process.cmdline()), Path(process.cwd())):
+            if not scope.accepts_invocation(
+                image, tuple(process.cmdline()), Path(process.cwd())
+            ):
                 continue
             if not process.is_running():
                 continue

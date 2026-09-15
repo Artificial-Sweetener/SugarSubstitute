@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.application_process_scope import ExactExecutableProcessScope
+
 from contextlib import ExitStack
 import json
 from pathlib import Path
@@ -85,7 +87,7 @@ def test_recovery_remains_available_when_owner_cannot_accept_more_connections(
             assert verified_identity is not None
             assert terminate_verified_process(
                 verified_identity,
-                expected_executable=executable,
+                scope=ExactExecutableProcessScope((executable,)),
             ), "Recovery required cooperation from the hung owner"
             root.wait(timeout=5)
         finally:

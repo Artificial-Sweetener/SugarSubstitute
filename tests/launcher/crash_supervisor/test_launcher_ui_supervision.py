@@ -252,3 +252,33 @@ def test_oversized_recovery_exchange_is_rejected_before_json_parsing(
 
     with pytest.raises(ValueError, match="size limit"):
         InstanceRecoveryRequest.read(request_path)
+
+
+def test_repair_recovery_uses_independent_bundle_with_installed_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Recover ownership even when the installation has no runnable UI payload."""
+    layout = InstallLayout.from_root(tmp_path / "installation", target=WINDOWS_X64)
+    bundle = InstallLayout.from_root(tmp_path / "independent", target=WINDOWS_X64)
+    ui = bundle.launcher_support_path / "LauncherUi.exe"
+    ui.parent.mkdir(parents=True)
+    ui.write_bytes(b"fixture UI executable")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(bundle.executable_path))
+    monkeypatch.setattr(
+        sys, "_MEIPASS", str(bundle.launcher_support_path), raising=False
+    )
+    supervisor = RecoveryDecisionSupervisor()
+    result = supervise_instance_recovery_window(
+        layout=layout,
+        bundle_layout=bundle,
+        locale_override="en",
+        can_end_owner=True,
+        supervisor=supervisor,
+    )
+    assert result is InstanceRecoveryAction.RETRY
+    installation, command, _environment = supervisor.calls[0]
+    assert installation == layout
+    assert command[0] == str(ui)
+    assert f"--install-root={layout.root}" in command
+    assert not layout.launcher_support_path.exists()

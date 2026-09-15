@@ -9,7 +9,7 @@
       <translation>"%1"</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/preparation_service.py" line="183"></location>
+      <location filename="../substitute/application/onboarding/preparation_service.py" line="184"></location>
       <source>%1</source>
       <translation>%1</translation>
     </message>
@@ -60,7 +60,7 @@ Prompt preview:
       <translation>%1 캔버스</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="131"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="128"></location>
       <source>%1 ComfyUI processes are still running. Close ComfyUI to continue.</source>
       <translation>%1개의 ComfyUI 프로세스가 아직 실행 중입니다. 계속하려면 ComfyUI를 닫으세요.</translation>
     </message>
@@ -95,7 +95,7 @@ Prompt preview:
       <translation>%1을(를) 큐브에 필요한 버전으로 변경하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="934"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="931"></location>
       <source>%1 could not use this Windows path even though Substitute can.</source>
       <translation>%1에서 Substitute가 처리할 수 있는 이 Windows 경로를 사용할 수 없습니다.</translation>
     </message>
@@ -165,7 +165,7 @@ Prompt preview:
       <translation>%2개 중 %1개</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="247"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="245"></location>
       <source>%1 of %2 setup tasks complete</source>
       <translation>설정 작업 %2개 중 %1개 완료</translation>
     </message>
@@ -195,7 +195,7 @@ Prompt preview:
       <translation>%1 픽셀</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="950"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="924"></location>
       <source>%1 saved setup items need repair before Substitute can open.</source>
       <translation>Substitute를 열기 전에 저장된 설정 항목 %1개를 복구해야 합니다.</translation>
     </message>
@@ -310,7 +310,7 @@ Prompt preview:
       <translation>%1; 문제가 해결될 때까지 차단됨.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="126"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="123"></location>
       <source>1 ComfyUI process is still running. Close ComfyUI to continue.</source>
       <translation>ComfyUI 프로세스 1개가 아직 실행 중입니다. 계속하려면 ComfyUI를 닫으세요.</translation>
     </message>
@@ -350,7 +350,7 @@ Prompt preview:
       <translation>출력 1개</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="933"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="930"></location>
       <source>A Windows component could not use this long path</source>
       <translation>Windows 구성 요소가 이 긴 경로를 사용할 수 없습니다</translation>
     </message>
@@ -375,12 +375,12 @@ Prompt preview:
       <translation>다른 ComfyUI 설치가 실행 중입니다. Substitute가 Python 환경을 식별할 수 있도록 선택한 ComfyUI 폴더를 시작하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="265"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="259"></location>
       <source>A different ComfyUI is running</source>
       <translation>다른 ComfyUI가 실행 중입니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="919"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="916"></location>
       <source>A file or folder name is too long for Windows</source>
       <translation>파일 또는 폴더 이름이 Windows에서 너무 깁니다</translation>
     </message>
@@ -430,12 +430,12 @@ Prompt preview:
       <translation>API 키</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="151"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="148"></location>
       <source>API key (optional)</source>
       <translation>API 키(선택 사항)</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="191"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="188"></location>
       <source>API key already saved</source>
       <translation>API 키가 이미 저장되어 있습니다</translation>
     </message>
@@ -500,7 +500,7 @@ Prompt preview:
       <translation>큐브 팩 추가</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="152"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="149"></location>
       <source>Add a CivitAI API key now, or leave this blank and add one later in Settings.</source>
       <translation>CivitAI API 키를 지금 추가하거나 비워 두고 나중에 설정에서 추가하세요.</translation>
     </message>
@@ -540,7 +540,7 @@ Prompt preview:
       <translation>사전에 추가</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="913"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="910"></location>
       <source>Add your CivitAI API key.</source>
       <translation>CivitAI API 키를 추가하세요.</translation>
     </message>
@@ -565,12 +565,12 @@ Prompt preview:
       <translation>가중치가 적용된 프롬프트 텍스트를 조정하고 강조 컨트롤을 표시합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="253"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="252"></location>
       <source>Advanced settings</source>
       <translation>고급 설정</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="99"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="102"></location>
       <source>Affected cubes</source>
       <translation>영향받는 큐브</translation>
     </message>
@@ -580,17 +580,17 @@ Prompt preview:
       <translation>전체</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="270"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="267"></location>
       <source>All ratings</source>
       <translation>모든 등급</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="204"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="202"></location>
       <source>All setup tasks are complete.</source>
       <translation>모든 설정 작업이 완료되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="295"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="292"></location>
       <source>Allow all</source>
       <translation>모두 허용</translation>
     </message>
@@ -605,7 +605,7 @@ Prompt preview:
       <translation>누락된 모델을 해결할 때 CivitAI 다운로드를 제안할 수 있도록 허용합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="291"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="288"></location>
       <source>Allow soft</source>
       <translation>Soft까지 허용</translation>
     </message>
@@ -685,12 +685,12 @@ Prompt preview:
       <translation>생성 작업에 키보드 컨트롤을 할당합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/readiness_service.py" line="420"></location>
+      <location filename="../substitute/application/onboarding/readiness_service.py" line="422"></location>
       <source>Attached ComfyUI folder does not exist: %1</source>
       <translation>연결된 ComfyUI 폴더가 없습니다: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="497"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="494"></location>
       <source>Attached workspace: %1</source>
       <translation>연결된 작업 공간: %1</translation>
     </message>
@@ -805,7 +805,7 @@ Prompt preview:
       <translation>파일 찾아보기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="340"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="331"></location>
       <source>Browse for Python executable…</source>
       <translation>Python 실행 파일 찾아보기�</translation>
     </message>
@@ -935,22 +935,22 @@ Prompt preview:
       <translation>링크 확인</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1270"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1267"></location>
       <source>Check that the ComfyUI folder still exists, or clear that field.</source>
       <translation>ComfyUI 폴더가 여전히 존재하는지 확인하거나 해당 필드를 비우세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="866"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="863"></location>
       <source>Check that the folder still exists.</source>
       <translation>폴더가 여전히 존재하는지 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1227"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1224"></location>
       <source>Check that the host and port are correct from this computer.</source>
       <translation>이 컴퓨터에서 호스트와 포트가 올바른지 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1213"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1210"></location>
       <source>Check that the host and port match your ComfyUI window.</source>
       <translation>호스트와 포트가 ComfyUI 창의 값과 일치하는지 확인하세요.</translation>
     </message>
@@ -960,32 +960,32 @@ Prompt preview:
       <translation>로컬 ComfyUI 폴더가 여전히 존재하는지 확인한 다음 ComfyUI의 main.py 파일이 있는 폴더를 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1047"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1044"></location>
       <source>Check the live output for the custom-node problem.</source>
       <translation>사용자 지정 노드 문제는 실시간 출력에서 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1280"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1277"></location>
       <source>Check the managed ComfyUI folder and try again.</source>
       <translation>관리형 ComfyUI 폴더를 확인하고 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1013"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1010"></location>
       <source>Check your internet connection.</source>
       <translation>인터넷 연결을 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/infrastructure/comfy/managed_existing_setup.py" line="212"></location>
+      <location filename="../substitute/infrastructure/comfy/managed_existing_setup.py" line="211"></location>
       <source>Checking ComfyUI's Python environment.</source>
       <translation>ComfyUI의 Python 환경을 확인하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="711"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="686"></location>
       <source>Checking ComfyUI…</source>
       <translation>ComfyUI 확인 중�</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="110"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="109"></location>
       <source>Checking for running ComfyUI…</source>
       <translation>실행 중인 ComfyUI 확인 중�</translation>
     </message>
@@ -995,17 +995,17 @@ Prompt preview:
       <translation>모델 링크 확인 중…</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="427"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="424"></location>
       <source>Checking that ComfyUI is ready.</source>
       <translation>ComfyUI가 준비되었는지 확인하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="398"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="387"></location>
       <source>Checking the Python environment</source>
       <translation>Python 환경 확인 중</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="721"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="718"></location>
       <source>Checking the remote ComfyUI connection.</source>
       <translation>원격 ComfyUI 연결을 확인하는 중입니다.</translation>
     </message>
@@ -1015,12 +1015,12 @@ Prompt preview:
       <translation>선택한 Comfy 서버를 확인하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="377"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="367"></location>
       <source>Checking the selected Python executable…</source>
       <translation>선택한 Python 실행 파일 확인 중�</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="774"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="749"></location>
       <source>Checking…</source>
       <translation>확인 중�</translation>
     </message>
@@ -1085,7 +1085,7 @@ Prompt preview:
       <translation>다운로드할 모델을 선택하거나 CivitAI를 둘러보거나 직접 준비한 모델을 사용하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="520"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="513"></location>
       <source>Choose a models folder before reviewing downloads.</source>
       <translation>다운로드를 검토하기 전에 모델 폴더를 선택하세요.</translation>
     </message>
@@ -1095,7 +1095,7 @@ Prompt preview:
       <translation>입력 캔버스와 마스크의 새 크기 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="940"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="937"></location>
       <source>Choose a shorter folder for this operation.</source>
       <translation>이 작업에는 더 짧은 폴더를 선택하세요.</translation>
     </message>
@@ -1105,12 +1105,12 @@ Prompt preview:
       <translation>특정 큐브 버전 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1164"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1161"></location>
       <source>Choose a working Python for this ComfyUI setup</source>
       <translation>이 ComfyUI 설정에서 작동하는 Python 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="210"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="207"></location>
       <source>Choose an accessible existing models folder.</source>
       <translation>접근 가능한 기존 모델 폴더를 선택하세요.</translation>
     </message>
@@ -1145,7 +1145,7 @@ Prompt preview:
       <translation>CivitAI에서 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="73"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="70"></location>
       <source>Choose helpful extras</source>
       <translation>유용한 추가 기능 선택</translation>
     </message>
@@ -1180,7 +1180,7 @@ Prompt preview:
       <translation>이 워크플로 큐브에서 업데이트를 처리할 방법을 선택하세요</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="163"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="159"></location>
       <source>Choose how to find it</source>
       <translation>찾을 방법 선택</translation>
     </message>
@@ -1195,7 +1195,7 @@ Prompt preview:
       <translation>출력 폴더 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="283"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="279"></location>
       <source>Choose the ComfyUI folder you already use.</source>
       <translation>현재 사용 중인 ComfyUI 폴더를 선택하세요.</translation>
     </message>
@@ -1215,17 +1215,17 @@ Prompt preview:
       <translation>이 ComfyUI 설치에서 사용하는 Python 실행 파일을 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="310"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="301"></location>
       <source>Choose the Python executable used by this ComfyUI installation.</source>
       <translation>이 ComfyUI 설치에서 사용하는 Python 실행 파일을 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1179"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1176"></location>
       <source>Choose the Python this ComfyUI setup uses</source>
       <translation>이 ComfyUI 설정에서 사용할 Python 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="320"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="311"></location>
       <source>Choose the Python your setup actually uses</source>
       <translation>설정에서 실제로 사용하는 Python 선택</translation>
     </message>
@@ -1240,12 +1240,12 @@ Prompt preview:
       <translation>Substitute가 실행할 기존 ComfyUI 폴더를 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1135"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1132"></location>
       <source>Choose the folder that contains ComfyUI</source>
       <translation>ComfyUI가 들어 있는 폴더 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="867"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="864"></location>
       <source>Choose the folder that contains ComfyUI's main.py file.</source>
       <translation>ComfyUI의 main.py 파일이 있는 폴더를 선택하세요.</translation>
     </message>
@@ -1255,7 +1255,7 @@ Prompt preview:
       <translation>Substitute가 실행할 ComfyUI 설치가 들어 있는 폴더를 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="304"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="300"></location>
       <source>Choose the folder that contains your existing ComfyUI main.py file. Substitute will launch this copy when it starts.</source>
       <translation>기존 ComfyUI main.py 파일이 있는 폴더를 선택하세요. Substitute가 시작될 때 이 설치를 실행합니다.</translation>
     </message>
@@ -1280,7 +1280,7 @@ Prompt preview:
       <translation>버전 선택...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="182"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="181"></location>
       <source>Choose where ComfyUI should live. Substitute handles the rest.</source>
       <translation>ComfyUI를 설치할 위치를 선택하세요. 나머지는 Substitute가 처리합니다.</translation>
     </message>
@@ -1310,17 +1310,17 @@ Prompt preview:
       <translation>Substitute가 ComfyUI를 설정할지, 기존 설치를 사용할지, 다른 컴퓨터에 연결할지 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="140"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="137"></location>
       <source>Choose which CivitAI image levels may be used for model thumbnails.</source>
       <translation>모델 썸네일에 사용할 수 있는 CivitAI 이미지 등급을 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="98"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="95"></location>
       <source>Choose which Danbooru wiki preview image ratings Substitute may show.</source>
       <translation>Substitute에서 표시할 수 있는 Danbooru 위키 미리 보기 이미지 등급을 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1148"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1145"></location>
       <source>Choose which Python this ComfyUI setup uses</source>
       <translation>이 ComfyUI 설정에서 사용할 Python 선택</translation>
     </message>
@@ -1330,7 +1330,7 @@ Prompt preview:
       <translation>끌어오기 및 복사에서 내보낼 형식을 선택합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="466"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="463"></location>
       <source>Choose your existing ComfyUI folder</source>
       <translation>기존 ComfyUI 폴더 선택</translation>
     </message>
@@ -1425,12 +1425,12 @@ Prompt preview:
       <translation>CivitAI 메타데이터를 새로 고쳤습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="346"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="342"></location>
       <source>CivitAI recommendations could not be loaded. Try again or go back.</source>
       <translation>CivitAI 추천을 불러올 수 없습니다. 다시 시도하거나 뒤로 가세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="313"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="309"></location>
       <source>CivitAI returned no usable recommendations.</source>
       <translation>CivitAI에서 사용할 수 있는 추천을 반환하지 않았습니다.</translation>
     </message>
@@ -1515,12 +1515,12 @@ Prompt preview:
       <translation>닫기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="237"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="232"></location>
       <source>Close ComfyUI and continue</source>
       <translation>ComfyUI를 닫고 계속</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="62"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="61"></location>
       <source>Close ComfyUI before setup continues</source>
       <translation>설정을 계속하기 전에 ComfyUI 닫기</translation>
     </message>
@@ -1530,7 +1530,7 @@ Prompt preview:
       <translation>Substitute를 시작하기 전에 ComfyUI를 닫으세요</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="80"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="79"></location>
       <source>Close ComfyUI for me</source>
       <translation>Substitute가 ComfyUI 닫기</translation>
     </message>
@@ -1700,12 +1700,12 @@ Prompt preview:
       <translation>ComfyUI 연결, 설치 및 Python 환경입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="289"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="282"></location>
       <source>ComfyUI could not be checked yet</source>
       <translation>아직 ComfyUI를 확인할 수 없습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1207"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1181"></location>
       <source>ComfyUI could not be checked yet: %1</source>
       <translation>아직 ComfyUI를 확인할 수 없습니다: %1</translation>
     </message>
@@ -1745,7 +1745,7 @@ Prompt preview:
       <translation>ComfyUI 시작 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="207"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="206"></location>
       <source>ComfyUI folder</source>
       <translation>ComfyUI 폴더</translation>
     </message>
@@ -1765,12 +1765,12 @@ Prompt preview:
       <translation>ComfyUI가 닫혔으며 Python 환경이 준비되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="118"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="116"></location>
       <source>ComfyUI is closed. Setup can continue.</source>
       <translation>ComfyUI가 닫혔습니다. 설정을 계속할 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="405"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="402"></location>
       <source>ComfyUI is ready for final checks.</source>
       <translation>ComfyUI가 최종 확인을 할 준비가 되었습니다.</translation>
     </message>
@@ -1820,12 +1820,12 @@ Prompt preview:
       <translation>ComfyUI를 시작하려면 복구가 필요합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="448"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="445"></location>
       <source>ComfyUI passed its readiness checks.</source>
       <translation>ComfyUI가 준비 상태 확인을 통과했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/preparation_service.py" line="204"></location>
+      <location filename="../substitute/application/onboarding/preparation_service.py" line="205"></location>
       <source>ComfyUI preparation is ready for final setup.</source>
       <translation>ComfyUI 준비가 완료되어 최종 설정을 진행할 수 있습니다.</translation>
     </message>
@@ -1910,12 +1910,12 @@ Prompt preview:
       <translation>ComfyUI 버전: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1024"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1021"></location>
       <source>ComfyUI was downloaded, but some of its Python packages could not be installed.</source>
       <translation>ComfyUI를 다운로드했지만 일부 Python 패키지를 설치하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1042"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1039"></location>
       <source>ComfyUI was installed, but Substitute couldn't finish preparing the required node packs.</source>
       <translation>ComfyUI를 설치했지만 Substitute가 필요한 노드 팩 준비를 완료하지 못했습니다.</translation>
     </message>
@@ -1970,17 +1970,17 @@ Prompt preview:
       <translation>세부 정보 확인</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1108"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1105"></location>
       <source>Confirm the local host and port are free for Substitute to use.</source>
       <translation>로컬 호스트와 포트를 Substitute에서 사용할 수 있는지 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1120"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1117"></location>
       <source>Confirm the remote host and port are correct.</source>
       <translation>원격 호스트와 포트가 올바른지 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="350"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="345"></location>
       <source>Connect to ComfyUI on another machine</source>
       <translation>다른 컴퓨터의 ComfyUI에 연결</translation>
     </message>
@@ -1990,7 +1990,7 @@ Prompt preview:
       <translation>%1에 연결되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="231"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="230"></location>
       <source>Connection</source>
       <translation>연결</translation>
     </message>
@@ -2010,7 +2010,7 @@ Prompt preview:
       <translation>연결 확인 성공</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="336"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="332"></location>
       <source>Connection settings</source>
       <translation>연결 설정</translation>
     </message>
@@ -2030,7 +2030,7 @@ Prompt preview:
       <translation>계속</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="94"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="93"></location>
       <source>Continue becomes available automatically when ComfyUI stops.</source>
       <translation>ComfyUI가 중지되면 계속 버튼이 자동으로 활성화됩니다.</translation>
     </message>
@@ -2413,7 +2413,7 @@ Install these nodes now?</source>
       <translation>'%1'을(를) 삭제하시겠습니까?</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="977"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="974"></location>
       <source>Delete the incomplete folder at %1.</source>
       <translation>%1의 미완성 폴더를 삭제하세요.</translation>
     </message>
@@ -2458,12 +2458,12 @@ Install these nodes now?</source>
       <translation>ComfyUI의 환경 감지</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="176"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="172"></location>
       <source>Detect from running ComfyUI</source>
       <translation>실행 중인 ComfyUI에서 감지</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="796"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="771"></location>
       <source>Detect from running ComfyUI instead</source>
       <translation>대신 실행 중인 ComfyUI에서 감지</translation>
     </message>
@@ -2578,12 +2578,12 @@ Install these nodes now?</source>
       <translation>%1 다운로드 중</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="296"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="290"></location>
       <source>Downloading %1 (%2 of %3) — %4 of %5 MiB</source>
       <translation>%1 다운로드 중(%3개 중 %2개) — %5 MiB 중 %4 MiB</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="308"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="300"></location>
       <source>Downloading %1 — %2 of %3 MiB</source>
       <translation>%1 다운로드 중 — %3 MiB 중 %2 MiB</translation>
     </message>
@@ -2688,7 +2688,7 @@ Install these nodes now?</source>
       <translation>첫 항목 강조</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="997"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="994"></location>
       <source>Empty the folder at %1.</source>
       <translation>%1의 폴더를 비우세요.</translation>
     </message>
@@ -2718,7 +2718,7 @@ Install these nodes now?</source>
       <translation>먼저 API 키를 입력하세요</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="351"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="346"></location>
       <source>Enter the address of the ComfyUI server.</source>
       <translation>ComfyUI 서버 주소를 입력하세요.</translation>
     </message>
@@ -2748,7 +2748,7 @@ Install these nodes now?</source>
       <translation>오류</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="92"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="95"></location>
       <source>Exception</source>
       <translation>예외</translation>
     </message>
@@ -2768,7 +2768,7 @@ Install these nodes now?</source>
       <translation>기존 로컬</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/readiness_service.py" line="418"></location>
+      <location filename="../substitute/application/onboarding/readiness_service.py" line="420"></location>
       <source>Existing local ComfyUI setup requires a folder path.</source>
       <translation>기존 로컬 ComfyUI 설정에는 폴더 경로가 필요합니다.</translation>
     </message>
@@ -2869,7 +2869,7 @@ Install these nodes now?</source>
       <translation>활성 대상에서 큐브 라이브러리 상태를 불러오지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="246"></location>
+      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="364"></location>
       <source>Failed to load generated image.</source>
       <translation>생성된 이미지를 불러오지 못했습니다.</translation>
     </message>
@@ -2951,7 +2951,7 @@ Install these nodes now?</source>
       <translation>모델 찾기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="618"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="593"></location>
       <source>Finding Python…</source>
       <translation>Python 찾는 중�</translation>
     </message>
@@ -2981,12 +2981,12 @@ Install these nodes now?</source>
       <translation>Substitute가 파일을 보관할 위치를 알 수 있도록 설정을 완료하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="70"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="68"></location>
       <source>Finishing your setup</source>
       <translation>설정 마무리 중</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1048"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1045"></location>
       <source>Fix the reported issue if you can.</source>
       <translation>가능하다면 보고된 문제를 해결하세요.</translation>
     </message>
@@ -3026,7 +3026,7 @@ Install these nodes now?</source>
       <translation>여유 공간</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="953"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="950"></location>
       <source>Free space on the drive that contains %1.</source>
       <translation>%1이(가) 있는 드라이브의 여유 공간입니다.</translation>
     </message>
@@ -3151,12 +3151,12 @@ Install these nodes now?</source>
       <translation>전역</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="912"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="909"></location>
       <source>Go back to Integrations.</source>
       <translation>통합 설정으로 돌아가세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1186"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1183"></location>
       <source>Go back to My Current ComfyUI.</source>
       <translation>내 현재 ComfyUI로 돌아갑니다.</translation>
     </message>
@@ -3186,12 +3186,12 @@ Install these nodes now?</source>
       <translation>높이</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="111"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="108"></location>
       <source>Help find model info</source>
       <translation>모델 정보 찾기 지원</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="85"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="82"></location>
       <source>Help with prompt tags</source>
       <translation>프롬프트 태그 지원</translation>
     </message>
@@ -3231,17 +3231,17 @@ Install these nodes now?</source>
       <translation>전체 대기열 패널 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="253"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="252"></location>
       <source>Hide advanced settings</source>
       <translation>고급 설정 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="336"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="332"></location>
       <source>Hide connection settings</source>
       <translation>연결 설정 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="477"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="466"></location>
       <source>Hide details</source>
       <translation>세부 정보 숨기기</translation>
     </message>
@@ -3261,7 +3261,7 @@ Install these nodes now?</source>
       <translation>보고서 숨기기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="333"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="325"></location>
       <source>Hide setup log</source>
       <translation>설정 로그 숨기기</translation>
     </message>
@@ -3286,12 +3286,12 @@ Install these nodes now?</source>
       <translation>호스트는 비워 둘 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1067"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1064"></location>
       <source>If the folder already contains a partial install, delete it before retrying.</source>
       <translation>폴더에 부분 설치가 이미 있으면 다시 시도하기 전에 삭제하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="332"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="323"></location>
       <source>If you are not sure, use Detect from running ComfyUI instead.</source>
       <translation>잘 모르겠다면 대신 실행 중인 ComfyUI에서 감지를 사용하세요.</translation>
     </message>
@@ -3426,7 +3426,7 @@ Install these nodes now?</source>
       <translation>설치된 패키지</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="360"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="357"></location>
       <source>Installing ComfyUI and finishing setup.</source>
       <translation>ComfyUI를 설치하고 설정을 마무리하는 중입니다.</translation>
     </message>
@@ -3436,7 +3436,7 @@ Install these nodes now?</source>
       <translation>Substitute Comfy 노드 팩을 설치하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="88"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="87"></location>
       <source>Installing packages or changing model paths while ComfyUI is running can leave its environment in an inconsistent state.</source>
       <translation>ComfyUI가 실행 중일 때 패키지를 설치하거나 모델 경로를 변경하면 환경이 일관되지 않은 상태가 될 수 있습니다.</translation>
     </message>
@@ -3496,7 +3496,7 @@ Install these nodes now?</source>
       <translation>v%1 유지</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1064"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1061"></location>
       <source>Keep your internet connection available while setup runs.</source>
       <translation>설정이 실행되는 동안 인터넷 연결을 유지하세요.</translation>
     </message>
@@ -3571,12 +3571,12 @@ Install these nodes now?</source>
       <translation>실행 인수: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="445"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="434"></location>
       <source>Launch command</source>
       <translation>실행 명령</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="181"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="180"></location>
       <source>Let Substitute set up ComfyUI for you</source>
       <translation>Substitute가 ComfyUI를 설정하도록 하기</translation>
     </message>
@@ -3696,7 +3696,7 @@ Install these nodes now?</source>
       <translation>미리보기 불러오는 중…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="300"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="296"></location>
       <source>Loading recommendations…</source>
       <translation>추천을 불러오는 중…</translation>
     </message>
@@ -3751,12 +3751,12 @@ Install these nodes now?</source>
       <translation>검색 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1212"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1209"></location>
       <source>Make sure ComfyUI is running at %1.</source>
       <translation>ComfyUI가 %1에서 실행 중인지 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1274"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1271"></location>
       <source>Make sure ComfyUI is running at %1:%2.</source>
       <translation>ComfyUI가 %1:%2에서 실행 중인지 확인하세요.</translation>
     </message>
@@ -3766,32 +3766,32 @@ Install these nodes now?</source>
       <translation>ComfyUI가 저장된 주소에서 실행 중인지 확인한 후 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1224"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1221"></location>
       <source>Make sure a ComfyUI server is running at %1.</source>
       <translation>ComfyUI 서버가 %1에서 실행 중인지 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1030"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1027"></location>
       <source>Make sure security software is not blocking Python package downloads.</source>
       <translation>보안 소프트웨어가 Python 패키지 다운로드를 차단하지 않는지 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1105"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1102"></location>
       <source>Make sure the folder points to the ComfyUI setup you want Substitute to launch.</source>
       <translation>선택한 폴더가 Substitute에서 실행하려는 ComfyUI 설정을 가리키는지 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1061"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1058"></location>
       <source>Make sure the selected folder is writable and has enough free space.</source>
       <translation>선택한 폴더에 쓰기 권한과 충분한 여유 공간이 있는지 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1014"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1011"></location>
       <source>Make sure the selected folder is writable.</source>
       <translation>선택한 폴더에 쓰기 권한이 있는지 확인하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1121"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1118"></location>
       <source>Make sure this computer can reach the remote ComfyUI server.</source>
       <translation>이 컴퓨터에서 원격 ComfyUI 서버에 연결할 수 있는지 확인하세요.</translation>
     </message>
@@ -3836,7 +3836,7 @@ Install these nodes now?</source>
       <translation>관리형 로컬 설정</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="324"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="321"></location>
       <source>Managed workspace: %1</source>
       <translation>관리형 작업 공간: %1</translation>
     </message>
@@ -3946,7 +3946,7 @@ Install these nodes now?</source>
       <translation>모델 다운로드 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="147"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="145"></location>
       <source>Model download progress</source>
       <translation>모델 다운로드 진행률</translation>
     </message>
@@ -3971,7 +3971,7 @@ Install these nodes now?</source>
       <translation>모델 다운로드에서 잘못된 결과를 반환했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="287"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="281"></location>
       <source>Model downloads — %1 of %2 MiB</source>
       <translation>모델 다운로드 — %2 MiB 중 %1 MiB</translation>
     </message>
@@ -3991,7 +3991,7 @@ Install these nodes now?</source>
       <translation>모델 폴더 패턴</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="292"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="289"></location>
       <source>Model recommendations are unavailable in this setup run.</source>
       <translation>이번 설정에서는 모델 추천을 사용할 수 없습니다.</translation>
     </message>
@@ -4036,7 +4036,7 @@ Install these nodes now?</source>
       <translation>선택 영역 수정</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="268"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="262"></location>
       <source>More than one ComfyUI process was found</source>
       <translation>둘 이상의 ComfyUI 프로세스를 찾았습니다</translation>
     </message>
@@ -4236,7 +4236,7 @@ Install these nodes now?</source>
       <translation>마이크 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="421"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="418"></location>
       <source>No model downloads were selected.</source>
       <translation>선택한 모델 다운로드가 없습니다.</translation>
     </message>
@@ -4293,12 +4293,12 @@ I’ll bring my own</source>
       <translation>썸네일 없음</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="386"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="361"></location>
       <source>No, show recommendations</source>
       <translation>아니요, 추천 보기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="90"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="93"></location>
       <source>Node</source>
       <translation>노드</translation>
     </message>
@@ -4328,7 +4328,7 @@ I’ll bring my own</source>
       <translation>노드 컨텍스트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="97"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="100"></location>
       <source>Node errors</source>
       <translation>노드 오류</translation>
     </message>
@@ -4403,7 +4403,7 @@ I’ll bring my own</source>
       <translation>운영 체제: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="118"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="115"></location>
       <source>Offer model downloads</source>
       <translation>모델 다운로드 제안</translation>
     </message>
@@ -4448,17 +4448,17 @@ I’ll bring my own</source>
       <translation>CivitAI 페이지 열기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="248"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="243"></location>
       <source>Open ComfyUI yourself</source>
       <translation>직접 ComfyUI 열기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="815"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="789"></location>
       <source>Open Substitute</source>
       <translation>Substitute 열기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="401"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="390"></location>
       <source>Open Substitute and start creating.</source>
       <translation>Substitute를 열고 창작을 시작하세요.</translation>
     </message>
@@ -4528,27 +4528,27 @@ I’ll bring my own</source>
       <translation>이 Comfy 서버에서는 작업 계획을 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="74"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="71"></location>
       <source>Optional services can help with prompts and models. You can change them later in Settings.</source>
       <translation>선택적 서비스는 프롬프트와 모델 작업을 도와줍니다. 나중에 설정에서 변경할 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="941"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="938"></location>
       <source>Or enable Win32 long paths in Windows, then try again.</source>
       <translation>또는 Windows에서 Win32 긴 경로를 사용하도록 설정한 다음 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="981"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="978"></location>
       <source>Or go back and choose a different empty ComfyUI folder.</source>
       <translation>또는 뒤로 돌아가 비어 있는 다른 ComfyUI 폴더를 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="998"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="995"></location>
       <source>Or go back and choose a different empty folder.</source>
       <translation>또는 뒤로 돌아가 비어 있는 다른 폴더를 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="957"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="954"></location>
       <source>Or go back and choose an install location on a drive with more free space.</source>
       <translation>또는 뒤로 돌아가 여유 공간이 더 많은 드라이브의 설치 위치를 선택하세요.</translation>
     </message>
@@ -4593,7 +4593,7 @@ I’ll bring my own</source>
       <translation>출력 설정을 저장했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="124"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="122"></location>
       <source>Overall setup progress</source>
       <translation>전체 설정 진행률</translation>
     </message>
@@ -4783,17 +4783,17 @@ I’ll bring my own</source>
       <translation>Base-Cubes 종속성을 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/preparation_service.py" line="172"></location>
+      <location filename="../substitute/application/onboarding/preparation_service.py" line="173"></location>
       <source>Preparing ComfyUI in the background.</source>
       <translation>백그라운드에서 ComfyUI를 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="370"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="367"></location>
       <source>Preparing ComfyUI.</source>
       <translation>ComfyUI를 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="346"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="343"></location>
       <source>Preparing Substitute's local runtime.</source>
       <translation>Substitute의 로컬 런타임을 준비하는 중입니다.</translation>
     </message>
@@ -4808,7 +4808,7 @@ I’ll bring my own</source>
       <translation>관리형 가속 지원을 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="228"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="226"></location>
       <source>Preparing setup tasks…</source>
       <translation>설정 작업을 준비하는 중…</translation>
     </message>
@@ -4823,17 +4823,17 @@ I’ll bring my own</source>
       <translation>다운로드를 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="565"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="562"></location>
       <source>Preparing the existing ComfyUI installation.</source>
       <translation>기존 ComfyUI 설치를 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="557"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="554"></location>
       <source>Preparing your existing ComfyUI installation.</source>
       <translation>기존 ComfyUI 설치를 준비하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="495"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="492"></location>
       <source>Preparing your existing ComfyUI setup.</source>
       <translation>기존 ComfyUI 설정을 준비하는 중입니다.</translation>
     </message>
@@ -4863,7 +4863,7 @@ I’ll bring my own</source>
       <translation>미리 보기</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="97"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="94"></location>
       <source>Preview image content</source>
       <translation>미리보기 이미지 콘텐츠</translation>
     </message>
@@ -4898,7 +4898,7 @@ I’ll bring my own</source>
       <translation>프로젝트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="88"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="91"></location>
       <source>Prompt</source>
       <translation>프롬프트</translation>
     </message>
@@ -4968,12 +4968,12 @@ I’ll bring my own</source>
       <translation>Python에서 확장 프로그램 소스 코드를 분석하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="274"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="268"></location>
       <source>Python environment found</source>
       <translation>Python 환경을 찾았습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="277"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="271"></location>
       <source>Python environment ready</source>
       <translation>Python 환경 준비됨</translation>
     </message>
@@ -5178,17 +5178,17 @@ I’ll bring my own</source>
       <translation>원격</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="709"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="706"></location>
       <source>Remote ComfyUI does not need local workspace preparation.</source>
       <translation>원격 ComfyUI에는 로컬 작업 공간 준비가 필요하지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="716"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="713"></location>
       <source>Remote ComfyUI does not use local model downloads.</source>
       <translation>원격 ComfyUI는 로컬 모델 다운로드를 사용하지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="659"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="656"></location>
       <source>Remote endpoint: %1:%2</source>
       <translation>원격 엔드포인트: %1:%2</translation>
     </message>
@@ -5437,7 +5437,7 @@ No known extension claimant.</source>
       <translation>ComfyUI 수동으로 다시 시작</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/presentation/error_report_dialog.py" line="339"></location>
+      <location filename="../sugarsubstitute_shared/presentation/error_report_view.py" line="328"></location>
       <source>Restart SugarSubstitute</source>
       <translation>SugarSubstitute 다시 시작</translation>
     </message>
@@ -5482,7 +5482,7 @@ No known extension claimant.</source>
       <translation>다시 시도</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="914"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="911"></location>
       <source>Return to setup and try again.</source>
       <translation>설정으로 돌아가 다시 시도하세요.</translation>
     </message>
@@ -5527,7 +5527,7 @@ No known extension claimant.</source>
       <translation>SugarCubes 진단 세부 정보를 검토하고 나열된 큐브 팩, 종속성 또는 로컬 체크아웃을 복구하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1281"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1278"></location>
       <source>Review the connection details and try again.</source>
       <translation>연결 세부 정보를 검토하고 다시 시도하세요.</translation>
     </message>
@@ -5537,12 +5537,12 @@ No known extension claimant.</source>
       <translation>아래 세부 정보를 검토하고 복구를 계속하여 설정을 마치세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1012"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="986"></location>
       <source>Review the details below, fix the reported issue, and try again.</source>
       <translation>아래 세부 정보를 검토하고 보고된 문제를 해결한 다음 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1100"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1097"></location>
       <source>Review the existing ComfyUI folder and local address, then try again.</source>
       <translation>기존 ComfyUI 폴더와 로컬 주소를 검토한 다음 다시 시도하세요.</translation>
     </message>
@@ -5557,7 +5557,7 @@ No known extension claimant.</source>
       <translation>Substitute가 ComfyUI를 찾을 수 있도록 호스트와 포트를 검토하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1117"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1114"></location>
       <source>Review the remote address details, then try again.</source>
       <translation>원격 주소 세부 정보를 검토한 다음 다시 시도하세요.</translation>
     </message>
@@ -5612,27 +5612,27 @@ No known extension claimant.</source>
       <translation>SugarSubstitute 시작 화면 호스트를 실행합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1248"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1245"></location>
       <source>Run setup again after fixing the files mentioned in the live output.</source>
       <translation>실시간 출력에 언급된 파일 문제를 해결한 후 설정을 다시 실행하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1244"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1241"></location>
       <source>Run setup again so Substitute can finish installing ComfyUI.</source>
       <translation>Substitute가 ComfyUI 설치를 마칠 수 있도록 설정을 다시 실행하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1252"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1249"></location>
       <source>Run setup again so Substitute can install its required Comfy nodepacks.</source>
       <translation>Substitute가 필요한 Comfy 노드 팩을 설치할 수 있도록 설정을 다시 실행하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1266"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1263"></location>
       <source>Run setup again so Substitute can install the correct backend for the detected hardware.</source>
       <translation>Substitute가 감지된 하드웨어에 맞는 백엔드를 설치할 수 있도록 설정을 다시 실행하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1256"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1253"></location>
       <source>Run setup again so Substitute can validate the managed backend on this machine.</source>
       <translation>Substitute가 이 컴퓨터의 관리형 백엔드를 검증할 수 있도록 설정을 다시 실행하세요.</translation>
     </message>
@@ -5652,12 +5652,12 @@ No known extension claimant.</source>
       <translation>런타임 및 시스템 정보</translation>
     </message>
     <message>
-      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="117"></location>
+      <location filename="../sugarsubstitute_shared/crash_reporting/presentation.py" line="118"></location>
       <source>Runtime context</source>
       <translation>런타임 컨텍스트</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="266"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="263"></location>
       <source>Runtime root: %1</source>
       <translation>런타임 루트: %1</translation>
     </message>
@@ -5667,17 +5667,17 @@ No known extension claimant.</source>
       <translation>SDXL</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="287"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="284"></location>
       <source>SFW only</source>
       <translation>SFW만</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="266"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="263"></location>
       <source>Safe and questionable</source>
       <translation>Safe 및 Questionable</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="262"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="259"></location>
       <source>Safe only</source>
       <translation>Safe만</translation>
     </message>
@@ -5777,7 +5777,7 @@ No known extension claimant.</source>
       <translation>저장했습니다. 새 ComfyUI 연결을 사용하려면 Substitute를 다시 시작하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="272"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="269"></location>
       <source>Saving and applying setup choices.</source>
       <translation>설정 선택 사항을 저장하고 적용하는 중입니다.</translation>
     </message>
@@ -5787,17 +5787,17 @@ No known extension claimant.</source>
       <translation>생성 미리 보기 설정을 저장하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="458"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="455"></location>
       <source>Saving the completed setup.</source>
       <translation>완료된 설정을 저장하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="657"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="654"></location>
       <source>Saving your remote ComfyUI connection.</source>
       <translation>원격 ComfyUI 연결을 저장하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="323"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="320"></location>
       <source>Saving your setup choices.</source>
       <translation>설정 선택 사항을 저장하는 중입니다.</translation>
     </message>
@@ -5812,12 +5812,12 @@ No known extension claimant.</source>
       <translation>크기 조정 품질</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="214"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="211"></location>
       <source>Scanning for SDXL and Anima…</source>
       <translation>SDXL 및 Anima를 검사하는 중…</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="215"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="212"></location>
       <source>Scanning…</source>
       <translation>검사 중…</translation>
     </message>
@@ -5892,7 +5892,7 @@ No known extension claimant.</source>
       <translation>선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="308"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="299"></location>
       <source>Select ComfyUI's Python executable</source>
       <translation>ComfyUI의 Python 실행 파일 선택</translation>
     </message>
@@ -5907,12 +5907,12 @@ No known extension claimant.</source>
       <translation>전역 필드 재정의 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="182"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="178"></location>
       <source>Select Python executable manually</source>
       <translation>Python 실행 파일 수동 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="788"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="763"></location>
       <source>Select Python manually instead</source>
       <translation>대신 Python 수동 선택</translation>
     </message>
@@ -5927,7 +5927,7 @@ No known extension claimant.</source>
       <translation>모델 선택</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="328"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="319"></location>
       <source>Select the executable used by the custom shortcut, script, launcher, or environment manager that starts ComfyUI.</source>
       <translation>ComfyUI를 시작하는 사용자 지정 바로 가기, 스크립트, 실행기 또는 환경 관리자에서 사용하는 실행 파일을 선택하세요.</translation>
     </message>
@@ -5997,7 +5997,7 @@ No known extension claimant.</source>
       <translation>설정</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="321"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="318"></location>
       <source>Setup choices are ready.</source>
       <translation>설정 선택 사항이 준비되었습니다.</translation>
     </message>
@@ -6007,17 +6007,17 @@ No known extension claimant.</source>
       <translation>ComfyUI가 닫히면 설정이 자동으로 계속됩니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="947"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="944"></location>
       <source>Setup could not finish while downloading or installing Python packages for ComfyUI.</source>
       <translation>ComfyUI용 Python 패키지를 다운로드하거나 설치하는 동안 설정을 완료하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1008"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1005"></location>
       <source>Setup couldn't download the ComfyUI files it needs.</source>
       <translation>설정에 필요한 ComfyUI 파일을 다운로드하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="879"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="876"></location>
       <source>Setup details were saved, but Substitute still found a problem that needs attention before it can continue.</source>
       <translation>설정 세부 정보는 저장했지만 계속하기 전에 확인해야 할 문제가 남아 있습니다.</translation>
     </message>
@@ -6032,27 +6032,27 @@ No known extension claimant.</source>
       <translation>설정 진행 중 — 경과 시간 %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="773"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="770"></location>
       <source>Setup is saved and ready.</source>
       <translation>설정이 저장되어 준비되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="170"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="168"></location>
       <source>Setup log</source>
       <translation>설정 로그</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="960"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="934"></location>
       <source>Setup needs attention</source>
       <translation>설정을 확인해야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1011"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="985"></location>
       <source>Setup needs attention.</source>
       <translation>설정을 확인해야 합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="229"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="227"></location>
       <source>Setup progress appears here. Open the setup log only when you want technical details.</source>
       <translation>설정 진행 상황이 여기에 표시됩니다. 기술 세부 정보가 필요할 때만 설정 로그를 여세요.</translation>
     </message>
@@ -6062,12 +6062,12 @@ No known extension claimant.</source>
       <translation>설정 상태를 읽지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1055"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1052"></location>
       <source>Setup stopped before ComfyUI was ready. Read the live output below, fix the problem it mentions, and then try again.</source>
       <translation>ComfyUI가 준비되기 전에 설정이 중지되었습니다. 아래 실시간 출력을 읽고 언급된 문제를 해결한 다음 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="133"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="131"></location>
       <source>Setup task activity</source>
       <translation>설정 작업 활동</translation>
     </message>
@@ -6087,7 +6087,7 @@ No known extension claimant.</source>
       <translation>심각도: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="925"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="922"></location>
       <source>Shorten the file or folder name at %1, then try again.</source>
       <translation>%1의 파일 또는 폴더 이름을 줄인 다음 다시 시도하세요.</translation>
     </message>
@@ -6122,7 +6122,7 @@ No known extension claimant.</source>
       <translation>종속 확장 프로그램 표시</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="477"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="466"></location>
       <source>Show details</source>
       <translation>세부 정보 표시</translation>
     </message>
@@ -6147,7 +6147,7 @@ No known extension claimant.</source>
       <translation>ComfyUI가 생성하는 동안 샘플러 미리 보기 프레임을 표시합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="333"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="325"></location>
       <source>Show setup log</source>
       <translation>설정 로그 표시</translation>
     </message>
@@ -6267,7 +6267,7 @@ No known extension claimant.</source>
       <translation>맞춤법 검사</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="79"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="82"></location>
       <source>Stage</source>
       <translation>단계</translation>
     </message>
@@ -6282,7 +6282,7 @@ No known extension claimant.</source>
       <translation>준비된 큐브 대기열 실패</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="206"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="201"></location>
       <source>Start ComfyUI</source>
       <translation>ComfyUI 시작</translation>
     </message>
@@ -6302,7 +6302,7 @@ No known extension claimant.</source>
       <translation>Substitute가 정상적인 설정 상태를 저장할 수 있도록 설정을 다시 시작하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="249"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="244"></location>
       <source>Start this ComfyUI installation using your usual shortcut, script, or launcher. Keep this installer open; Substitute will detect it automatically.</source>
       <translation>평소 사용하는 바로 가기, 스크립트 또는 실행기로 이 ComfyUI 설치를 시작하세요. 이 설치 프로그램은 열어 두세요. Substitute가 자동으로 감지합니다.</translation>
     </message>
@@ -6317,12 +6317,12 @@ No known extension claimant.</source>
       <translation>다운로드 시작 중...</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="971"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="945"></location>
       <source>Starting setup.</source>
       <translation>설정을 시작하는 중입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="189"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="187"></location>
       <source>Starting setup…</source>
       <translation>설정 시작 중�</translation>
     </message>
@@ -6337,7 +6337,7 @@ No known extension claimant.</source>
       <translation>시작 기록</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="843"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="817"></location>
       <source>Step %1 of %2 · %3</source>
       <translation>%2단계 중 %1단계 · %3</translation>
     </message>
@@ -6372,7 +6372,7 @@ No known extension claimant.</source>
       <translation>생성 중지</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1260"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1257"></location>
       <source>Stop the other process using %1:%2, or choose a different managed port.</source>
       <translation>%1:%2을(를) 사용하는 다른 프로세스를 중지하거나 다른 관리형 포트를 선택하세요.</translation>
     </message>
@@ -6437,7 +6437,7 @@ No known extension claimant.</source>
       <translation>Substitute가 이미 사용 중인 로컬 ComfyUI 설정을 가져와 시작합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="322"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="313"></location>
       <source>Substitute already checked the usual environment locations in this ComfyUI folder.</source>
       <translation>Substitute가 이 ComfyUI 폴더에서 일반적인 환경 위치를 이미 확인했습니다.</translation>
     </message>
@@ -6447,17 +6447,17 @@ No known extension claimant.</source>
       <translation>Substitute와 ComfyUI는 모델을 이동하거나 재구성하지 않고 이 폴더를 그대로 사용합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="165"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="161"></location>
       <source>Substitute can detect the environment from a running ComfyUI, or you can select the Python executable manually.</source>
       <translation>Substitute가 실행 중인 ComfyUI에서 환경을 감지하거나 사용자가 Python 실행 파일을 직접 선택할 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="991"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="988"></location>
       <source>Substitute can't install a fresh managed ComfyUI setup into a folder that already has other files in it.</source>
       <translation>다른 파일이 이미 있는 폴더에는 새 관리형 ComfyUI 설정을 설치할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="64"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="63"></location>
       <source>Substitute checks for running ComfyUI processes before changing local environments.</source>
       <translation>Substitute는 로컬 환경을 변경하기 전에 실행 중인 ComfyUI 프로세스를 확인합니다.</translation>
     </message>
@@ -6492,17 +6492,17 @@ No known extension claimant.</source>
       <translation>Substitute를 완전히 닫지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1114"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1111"></location>
       <source>Substitute could not finish this remote connection setup</source>
       <translation>이 원격 연결 설정을 완료하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1180"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1177"></location>
       <source>Substitute could not identify a working Python environment automatically.</source>
       <translation>Substitute에서 작동하는 Python 환경을 자동으로 식별하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="152"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="148"></location>
       <source>Substitute could not identify the Python environment from the ComfyUI folder alone.</source>
       <translation>ComfyUI 폴더만으로는 Python 환경을 식별하지 못했습니다.</translation>
     </message>
@@ -6512,7 +6512,7 @@ No known extension claimant.</source>
       <translation>필요한 실시간 Comfy 노드 정의를 불러오지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1097"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1094"></location>
       <source>Substitute could not prepare this local ComfyUI setup</source>
       <translation>이 로컬 ComfyUI 설정을 준비하지 못했습니다</translation>
     </message>
@@ -6527,47 +6527,47 @@ No known extension claimant.</source>
       <translation>큐브 라이브러리에서 이 큐브를 업데이트하지 못했습니다: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1207"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1204"></location>
       <source>Substitute couldn't connect to the local ComfyUI address you entered.</source>
       <translation>입력한 로컬 ComfyUI 주소에 연결하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1219"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1216"></location>
       <source>Substitute couldn't connect to the remote ComfyUI address you entered.</source>
       <translation>입력한 원격 ComfyUI 주소에 연결하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1007"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1004"></location>
       <source>Substitute couldn't download ComfyUI</source>
       <translation>ComfyUI를 다운로드하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="861"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="858"></location>
       <source>Substitute couldn't find the local ComfyUI folder you entered.</source>
       <translation>입력한 로컬 ComfyUI 폴더를 찾지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1023"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1020"></location>
       <source>Substitute couldn't finish installing ComfyUI</source>
       <translation>ComfyUI 설치를 완료하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1041"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1038"></location>
       <source>Substitute couldn't finish preparing ComfyUI</source>
       <translation>ComfyUI 준비를 완료하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1054"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1051"></location>
       <source>Substitute couldn't finish setting up ComfyUI</source>
       <translation>ComfyUI 설정을 완료하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="878"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="875"></location>
       <source>Substitute couldn't finish this setup</source>
       <translation>이 설정을 완료하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1218"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1215"></location>
       <source>Substitute couldn't reach the remote ComfyUI server</source>
       <translation>원격 ComfyUI 서버에 연결하지 못했습니다</translation>
     </message>
@@ -6577,7 +6577,7 @@ No known extension claimant.</source>
       <translation>저장된 ComfyUI 주소에 연결하지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1206"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1203"></location>
       <source>Substitute couldn't reach your ComfyUI setup</source>
       <translation>ComfyUI 설정에 연결하지 못했습니다</translation>
     </message>
@@ -6602,12 +6602,12 @@ No known extension claimant.</source>
       <translation>Substitute에서 설정 문제를 발견했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="971"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="968"></location>
       <source>Substitute found leftover files in the selected ComfyUI folder, so it could not install a fresh managed setup there.</source>
       <translation>선택한 ComfyUI 폴더에 남은 파일이 있어 새 관리형 설정을 설치하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1149"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1146"></location>
       <source>Substitute found more than one working Python environment and needs you to choose the one ComfyUI uses.</source>
       <translation>작동하는 Python 환경이 둘 이상 발견되어 ComfyUI에서 사용하는 환경을 선택해야 합니다.</translation>
     </message>
@@ -6637,7 +6637,7 @@ No known extension claimant.</source>
       <translation>저장된 연결이 아직 없어 Substitute에서 기본 관리형 ComfyUI 연결을 표시하고 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="347"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="338"></location>
       <source>Substitute is verifying that this Python belongs to ComfyUI.</source>
       <translation>Substitute가 이 Python이 ComfyUI에 속하는지 확인하는 중입니다.</translation>
     </message>
@@ -6667,7 +6667,7 @@ No known extension claimant.</source>
       <translation>Substitute에서 설정 문제가 발생했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="946"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="943"></location>
       <source>Substitute ran out of temporary install space</source>
       <translation>Substitute의 임시 설치 공간이 부족합니다</translation>
     </message>
@@ -6707,7 +6707,7 @@ No known extension claimant.</source>
       <translation>Substitute 버전: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="208"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="203"></location>
       <source>Substitute will identify the Python environment from the running ComfyUI process.</source>
       <translation>Substitute가 실행 중인 ComfyUI 프로세스에서 Python 환경을 식별합니다.</translation>
     </message>
@@ -6722,7 +6722,7 @@ No known extension claimant.</source>
       <translation>Substitute는 관리형 포트를 이미 수신 중인 다른 앱 위에서 시작하지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="358"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="355"></location>
       <source>Substitute's local runtime is ready.</source>
       <translation>Substitute의 로컬 런타임이 준비되었습니다.</translation>
     </message>
@@ -7038,7 +7038,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>연결 테스트</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="409"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="397"></location>
       <source>That Python executable did not work</source>
       <translation>해당 Python 실행 파일이 작동하지 않았습니다</translation>
     </message>
@@ -7048,7 +7048,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>이 조합은 Windows에서 예약되어 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="271"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="265"></location>
       <source>That environment could not be verified</source>
       <translation>해당 환경을 검증하지 못했습니다</translation>
     </message>
@@ -7058,17 +7058,17 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>이 키는 컨트롤로 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="860"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="857"></location>
       <source>The ComfyUI folder couldn't be found</source>
       <translation>ComfyUI 폴더를 찾지 못했습니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="968"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="965"></location>
       <source>The ComfyUI folder needs to be cleared before setup can continue</source>
       <translation>설정을 계속하려면 먼저 ComfyUI 폴더를 비워야 합니다</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="990"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="987"></location>
       <source>The ComfyUI folder needs to be empty first</source>
       <translation>먼저 ComfyUI 폴더가 비어 있어야 합니다</translation>
     </message>
@@ -7083,7 +7083,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>이 ComfyUI 설치에서 사용하는 Python 환경입니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1165"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1162"></location>
       <source>The Python executable you selected could not run this ComfyUI installation.</source>
       <translation>선택한 Python 실행 파일로 이 ComfyUI 설치를 실행할 수 없습니다.</translation>
     </message>
@@ -7123,7 +7123,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>다운로드한 모델의 저장 위치가 잘못되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="586"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="583"></location>
       <source>The existing ComfyUI installation is ready.</source>
       <translation>기존 ComfyUI 설치가 준비되었습니다.</translation>
     </message>
@@ -7143,7 +7143,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>일반 가져오기가 완료되기 전에 확장 프로그램 시작 스크립트가 실패했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="71"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="69"></location>
       <source>The first setup can take a few minutes.</source>
       <translation>최초 설정에는 몇 분 정도 걸릴 수 있습니다.</translation>
     </message>
@@ -7198,12 +7198,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>모델 다운로드가 완료되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="258"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="255"></location>
       <source>The models folder could not be fully scanned. Try again or choose No.</source>
       <translation>모델 폴더 검사를 완료할 수 없습니다. 다시 시도하거나 아니요를 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="339"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="335"></location>
       <source>The models folder could not be scanned. Try again or choose No.</source>
       <translation>모델 폴더를 검사할 수 없습니다. 다시 시도하거나 아니요를 선택하세요.</translation>
     </message>
@@ -7223,7 +7223,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>이전 SugarSubstitute 세션이 종료 절차를 완료하지 못한 채 끝났습니다. 아래 보고서가 원인을 파악하는 데 도움이 될 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/readiness_service.py" line="263"></location>
+      <location filename="../substitute/application/onboarding/readiness_service.py" line="265"></location>
       <source>The previous setup attempt failed before it could be committed.</source>
       <translation>이전 설정 시도가 커밋되기 전에 실패했습니다.</translation>
     </message>
@@ -7238,7 +7238,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>큐브 라이브러리 경고와 함께 레시피를 불러왔습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="737"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="734"></location>
       <source>The remote ComfyUI connection is ready.</source>
       <translation>원격 ComfyUI 연결이 준비되었습니다.</translation>
     </message>
@@ -7278,12 +7278,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>선택한 Comfy 서버에서 환경 관리를 제공하지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1164"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1138"></location>
       <source>The selected Python executable could not be validated.</source>
       <translation>선택한 Python 실행 파일을 검증하지 못했습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1136"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1133"></location>
       <source>The selected folder is not a complete ComfyUI installation.</source>
       <translation>선택한 폴더는 완전한 ComfyUI 설치가 아닙니다.</translation>
     </message>
@@ -7368,12 +7368,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>테마 모드</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1190"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1187"></location>
       <source>Then run setup again.</source>
       <translation>그런 다음 설정을 다시 실행하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1230"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1227"></location>
       <source>Then try again.</source>
       <translation>그런 다음 다시 시도하세요.</translation>
     </message>
@@ -7393,7 +7393,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>이 인기 모델들은 이 선택기와 호환됩니다. 하나를 선택하기 전에는 아무것도 다운로드되지 않습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="906"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="903"></location>
       <source>This CivitAI model needs an API key</source>
       <translation>이 CivitAI 모델에는 API 키가 필요합니다</translation>
     </message>
@@ -7453,7 +7453,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>이 레시피는 현재 ComfyUI 모델 폴더에 없는 모델을 사용합니다. CivitAI에서 일치하는 파일을 찾았으므로 다운로드한 다음 레시피를 열 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="228"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="223"></location>
       <source>This screen updates as soon as the matching ComfyUI process appears.</source>
       <translation>일치하는 ComfyUI 프로세스가 나타나는 즉시 이 화면이 업데이트됩니다.</translation>
     </message>
@@ -7468,7 +7468,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>썸네일을 할당하려면 모델 종류와 값이 필요합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="139"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="136"></location>
       <source>Thumbnail content</source>
       <translation>썸네일 콘텐츠</translation>
     </message>
@@ -7548,7 +7548,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>다른 검색어를 사용해 보세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="372"></location>
+      <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="368"></location>
       <source>Try again</source>
       <translation>다시 시도</translation>
     </message>
@@ -7803,17 +7803,17 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>레시피 업데이트 중...</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1172"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1169"></location>
       <source>Use Browse beside Python executable and choose the Python ComfyUI actually uses.</source>
       <translation>Python 실행 파일 옆의 찾아보기를 사용하여 ComfyUI에서 실제로 사용하는 Python을 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1187"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1184"></location>
       <source>Use Browse beside Python executable and choose the Python ComfyUI uses.</source>
       <translation>Python 실행 파일 옆의 찾아보기를 사용하여 ComfyUI에서 사용하는 Python을 선택하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1156"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="1153"></location>
       <source>Use Browse beside Python executable and choose this ComfyUI setup's Python.</source>
       <translation>Python 실행 파일 옆의 찾아보기를 사용하여 이 ComfyUI 설정의 Python을 선택하세요.</translation>
     </message>
@@ -7828,7 +7828,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>로컬 레시피 모델 일치에 실패한 경우에만 CivitAI를 사용합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="112"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="109"></location>
       <source>Use CivitAI to help identify local models and missing recipe models.</source>
       <translation>CivitAI를 사용하여 로컬 모델과 누락된 레시피 모델을 식별합니다.</translation>
     </message>
@@ -7848,12 +7848,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>현재 항목 사용</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="86"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="83"></location>
       <source>Use Danbooru tag tools while writing prompts.</source>
       <translation>프롬프트를 작성하는 동안 Danbooru 태그 도구를 사용합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="467"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="464"></location>
       <source>Use My Current ComfyUI needs the folder that contains your local ComfyUI installation.</source>
       <translation>내 현재 ComfyUI 사용에는 로컬 ComfyUI 설치가 들어 있는 폴더가 필요합니다.</translation>
     </message>
@@ -7898,7 +7898,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>ComfyUI 페이지의 패키지 필터를 사용하여 설치된 패키지와 유지 관리 작업을 살펴봅니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="282"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="278"></location>
       <source>Use the ComfyUI setup you already have</source>
       <translation>이미 보유한 ComfyUI 설정 사용</translation>
     </message>
@@ -8048,7 +8048,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>경고</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="150"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="146"></location>
       <source>We couldn't find ComfyUI's Python environment</source>
       <translation>ComfyUI의 Python 환경을 찾지 못했습니다</translation>
     </message>
@@ -8068,7 +8068,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>JPEG 동반 파일이 활성화되면 끌어오기 및 복사는 해당 JPEG를 내보냅니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="119"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_preference_pages.py" line="116"></location>
       <source>When a recipe needs a missing model, Substitute can offer verified CivitAI downloads.</source>
       <translation>레시피에 누락된 모델이 필요하면 Substitute에서 검증된 CivitAI 다운로드를 제안할 수 있습니다.</translation>
     </message>
@@ -8078,7 +8078,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>끄면 컨트롤을 클릭하거나 포커스한 후에만 마우스 휠로 값을 변경할 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="86"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="85"></location>
       <source>Why setup pauses here</source>
       <translation>여기에서 설정이 일시 중지되는 이유</translation>
     </message>
@@ -8118,12 +8118,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>이 플랫폼에서는 Windows DPAPI를 사용할 수 없습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="920"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="917"></location>
       <source>Windows limits each individual file or folder name to 255 characters.</source>
       <translation>Windows에서는 개별 파일 또는 폴더 이름을 255자로 제한합니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="83"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="86"></location>
       <source>Workflow</source>
       <translation>워크플로</translation>
     </message>
@@ -8158,7 +8158,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>워크플로 이름</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="803"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="778"></location>
       <source>Working...</source>
       <translation>작업 중...</translation>
     </message>
@@ -8183,7 +8183,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>예</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="391"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="366"></location>
       <source>Yes, choose folder</source>
       <translation>예, 폴더 선택</translation>
     </message>
@@ -8198,12 +8198,12 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>나중에 ComfyUI 연결을 변경할 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="97"></location>
+      <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="96"></location>
       <source>You can close it yourself or ask Substitute to close a verified process.</source>
       <translation>직접 닫거나 Substitute에 검증된 프로세스를 닫도록 요청할 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="208"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_target_pages.py" line="207"></location>
       <source>You can keep the suggested location.</source>
       <translation>제안된 위치를 그대로 사용해도 됩니다.</translation>
     </message>
@@ -8218,7 +8218,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>거의 다 됐습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="400"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="389"></location>
       <source>You're ready</source>
       <translation>준비되었습니다</translation>
     </message>
@@ -8233,22 +8233,22 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>복구 저장을 완료할 수 없어 생성을 시작하지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="907"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="904"></location>
       <source>Your reviewed download plan is still selected. Add a CivitAI API key, then try setup again.</source>
       <translation>검토한 다운로드 계획은 그대로 선택되어 있습니다. CivitAI API 키를 추가한 후 설정을 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1057"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1031"></location>
       <source>Your setup is saved and ready to use.</source>
       <translation>설정이 저장되었으며 사용할 준비가 되었습니다.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1053"></location>
+      <location filename="../substitute/presentation/onboarding/onboarding_window.py" line="1027"></location>
       <source>Your updated setup has been saved. Close Substitute now, then open it again to use the new configuration.</source>
       <translation>업데이트된 설정이 저장되었습니다. 새 구성을 사용하려면 지금 Substitute를 닫았다가 다시 여세요.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="326"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="323"></location>
       <source>[ManagedInstall] platform=%1 accelerator=%2 target=%3 python=%4 channel=%5 backend=%6 torch_channel=%7 stability=%8</source>
       <translation>[관리형 설치] 플랫폼=%1 가속기=%2 대상=%3 python=%4 채널=%5 백엔드=%6 torch_채널=%7 안정성=%8</translation>
     </message>
@@ -8344,7 +8344,7 @@ GNU 일반 공중 사용 허가서 버전 3은 어떤 목적으로든 프로그�
       <translation>소스 체크아웃</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="84"></location>
+      <location filename="../substitute/presentation/dialogs/error_report_dialog.py" line="87"></location>
       <source>unknown</source>
       <translation>알 수 없음</translation>
     </message>

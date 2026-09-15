@@ -94,10 +94,16 @@ class _LauncherStager:
     ) -> Path:
         """Create a representative staged launcher bundle."""
 
-        del install_root, target, asset
+        del install_root, asset
         self.calls += 1
         destination_dir.mkdir(parents=True)
-        (destination_dir / "version.txt").write_text(version, encoding="utf-8")
+        for relative in target.required_file_relative_paths:
+            path = destination_dir / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(version, encoding="utf-8")
+        (destination_dir / target.support_relative_path).mkdir(
+            parents=True, exist_ok=True
+        )
         return destination_dir
 
 
@@ -127,7 +133,7 @@ def _manifest(
 def test_preparation_stages_exact_version_without_touching_active_install(
     tmp_path: Path,
 ) -> None:
-    """Preparation should persist only staged artifacts and its handoff request."""
+    """Background preparation must finish the independent bundle before handoff."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute", target=WINDOWS_X64)
     layout.app_dir.mkdir(parents=True)
@@ -154,6 +160,10 @@ def test_preparation_stages_exact_version_without_touching_active_install(
     assert launcher_stager.calls == 1
     assert PreparedRepairRequest.load(preparation.request_path) == preparation.request
     assert preparation.request.version == "1.2.3"
+    assert preparation.request.helper_bundle_dir is not None
+    assert (
+        preparation.request.helper_bundle_dir / "launcher-bin/LauncherUi.exe"
+    ).is_file()
     assert preparation.request.staged_app_dir.is_relative_to(
         layout.root / ".repair" / "staging" / "1.2.3"
     )

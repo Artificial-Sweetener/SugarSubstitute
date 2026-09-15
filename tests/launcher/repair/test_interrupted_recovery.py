@@ -65,6 +65,7 @@ def test_recovery_survives_abrupt_filesystem_transition(
         text=True,
         timeout=30,
         check=False,
+        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
     )
 
     assert result.returncode == exit_code, result.stderr

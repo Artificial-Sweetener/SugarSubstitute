@@ -71,6 +71,11 @@ class RepairPlanService:
                 "managed Comfy configuration and runtime coordination",
             ),
             self._operation(
+                layout.appdata_dir / "diagnostics",
+                RepairDisposition.PRESERVE,
+                "active crash reporting and retained incident evidence",
+            ),
+            self._operation(
                 root / _COMFY_DIR_NAME,
                 RepairDisposition.PRESERVE,
                 "Comfy installation and models are outside application repair",

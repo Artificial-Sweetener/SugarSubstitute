@@ -39,16 +39,24 @@ def test_capture_process_identity_describes_current_process() -> None:
     assert identity.created_at > 0
 
 
-def test_wait_rejects_reused_identity_without_waiting() -> None:
-    """A mismatched creation time must never wait on an unrelated reused PID."""
+@pytest.mark.parametrize(
+    "created_at", [float("nan"), float("inf"), float("-inf"), 0.0, -1.0]
+)
+def test_process_identity_rejects_invalid_creation_time(created_at: float) -> None:
+    """Invalid comparison operands cannot become process ownership authority."""
+    with pytest.raises(ValueError):
+        ProcessIdentity(pid=123, created_at=created_at)
+
+
+def test_wait_completes_when_original_identity_has_been_replaced() -> None:
+    """A replacement process proves the outgoing incarnation has already exited."""
 
     identity = capture_process_identity(os.getpid())
 
-    with pytest.raises(ProcessIdentityError, match="PID was reused"):
-        wait_for_process_exit(
-            ProcessIdentity(identity.pid, identity.created_at - 100),
-            timeout_seconds=0.01,
-        )
+    wait_for_process_exit(
+        ProcessIdentity(identity.pid, identity.created_at - 100),
+        timeout_seconds=0.01,
+    )
 
 
 def test_wait_times_out_for_matching_live_process() -> None:

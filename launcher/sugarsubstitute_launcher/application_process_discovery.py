@@ -39,6 +39,12 @@ from sugarsubstitute_shared.application_instance_transport import (
     instance_identity,
 )
 from sugarsubstitute_shared.process_identity import ProcessIdentity
+from launcher.sugarsubstitute_launcher.repair_artifact_storage import (
+    repair_bundle_for_executable,
+)
+from launcher.sugarsubstitute_launcher.repair_entrypoint import (
+    prepared_repair_request_path,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,7 +57,8 @@ def discover_previous_installed_instance(
     if sys.platform != "win32":
         return None
     executable = current_frozen_executable_path()
-    if executable is None or executable.resolve() != layout.executable_path.resolve():
+    scope = InstalledInvocationScope(layout)
+    if executable is None or not scope.accepts_executable(executable):
         return None
     if endpoint != instance_endpoint(instance_identity(layout.root)):
         return None
@@ -59,10 +66,7 @@ def discover_previous_installed_instance(
         find_previous_application_process,
     )
 
-    scope = InstalledInvocationScope(layout)
-    return find_previous_application_process(
-        layout.executable_path, accepts_invocation=scope.accepts
-    )
+    return find_previous_application_process(scope)
 
 
 class InstalledInvocationScope:
@@ -71,10 +75,39 @@ class InstalledInvocationScope:
     def __init__(self, layout: InstallLayout) -> None:
         """Keep the installation that the user's recovery action may affect."""
         self._root = layout.root.resolve()
+        self._main_relative_path = layout.target.executable_relative_path
+        self._executables = [layout.executable_path.resolve()]
+        repair = layout.target.repair_executable_relative_path
+        if repair is not None:
+            self._executables.append((layout.root / repair).resolve())
 
-    def accepts(self, arguments: Sequence[str], working_directory: Path) -> bool:
+    def accepts_executable(self, executable: Path) -> bool:
+        """Recognize installed owners and the independently retained repair runtime."""
+        return (
+            executable.resolve() in self._executables
+            or repair_bundle_for_executable(
+                install_root=self._root,
+                executable=executable,
+                executable_relative_path=self._main_relative_path,
+            )
+            is not None
+        )
+
+    def accepts_invocation(
+        self, executable: Path, arguments: Sequence[str], working_directory: Path
+    ) -> bool:
         """Exclude helpers, unrelated operations, and explicit alternative roots."""
-        if not arguments:
+        if not arguments or not self.accepts_executable(executable):
+            return False
+        try:
+            request = prepared_repair_request_path(arguments[1:])
+        except ValueError:
+            return False
+        if request is not None:
+            if not request.is_absolute():
+                request = working_directory / request
+            return request.resolve() == self._root / ".repair" / "prepared.json"
+        if executable.resolve() not in self._executables:
             return False
         try:
             parsed = parse_launcher_args(arguments[1:], report_errors=False)

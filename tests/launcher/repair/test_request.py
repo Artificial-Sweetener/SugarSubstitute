@@ -50,6 +50,7 @@ def test_request_round_trip_preserves_detached_process_behavior(tmp_path: Path) 
         wait_pid=42,
         wait_process_created_at=1234.5,
         relaunch=True,
+        helper_bundle_dir=root / ".repair/helper/1.2.3/session/bundle",
     )
     path = root / ".repair" / "prepared.json"
 
@@ -64,6 +65,7 @@ def test_request_round_trip_preserves_detached_process_behavior(tmp_path: Path) 
         ("staged_app_dir", "{external}"),
         ("staged_launcher_dir", "{root}\\.repair\\staging\\1.2.4\\launcher"),
         ("version", "..\\hostile"),
+        ("helper_bundle_dir", "{external}"),
     ],
 )
 def test_request_rejects_hostile_or_cross_version_staging_paths(
