@@ -39,9 +39,6 @@ from substitute.domain.onboarding import (
     ComfyTargetMode,
     InstallationContext,
 )
-from substitute.application.onboarding.managed_runtime_state_recorder import (
-    PendingManagedRuntimeStateRecorder,
-)
 from substitute.application.onboarding.flow_contracts import (
     AttachedWorkspaceProvisioner,
     ExternalModelLibraryConfiguratorProtocol,
@@ -369,7 +366,7 @@ class OnboardingFlowService:
                     SetupTaskState.RUNNING,
                     app_text("Preparing ComfyUI."),
                 )
-                self.managed_workspace_provisioner(
+                managed_setup = self.managed_workspace_provisioner(
                     workspace=(
                         pending_context.comfy_target.workspace_path
                         or pending_context.managed_comfy_dir
@@ -385,10 +382,10 @@ class OnboardingFlowService:
                     ),
                     on_status=on_status,
                     on_log=on_log,
-                    state_recorder=PendingManagedRuntimeStateRecorder(
-                        transaction_service=bundle.setup_transaction_service,
-                        transaction_id=transaction.transaction_id,
-                    ),
+                )
+                bundle.setup_transaction_service.record_managed_runtime(
+                    transaction.transaction_id,
+                    managed_setup.runtime_configuration,
                 )
                 self._configure_shared_model_library(
                     pending_context.comfy_target.workspace_path

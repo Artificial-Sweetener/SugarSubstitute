@@ -34,8 +34,8 @@ from launcher.sugarsubstitute_launcher.process import (
     build_app_launch_command,
     start_detached,
 )
-from launcher.sugarsubstitute_launcher.repair_process import (
-    RepairProcessIdentity,
+from sugarsubstitute_shared.process_identity import (
+    ProcessIdentity,
     wait_for_process_exit,
 )
 
@@ -45,7 +45,7 @@ class RepairHelperError(RuntimeError):
 
 
 RepairExecutor = Callable[[PreparedRepairRequest], CompletedRepair]
-ProcessWaiter = Callable[[RepairProcessIdentity], None]
+ProcessWaiter = Callable[[ProcessIdentity], None]
 AppStarter = Callable[[tuple[str, ...]], None]
 
 
@@ -67,7 +67,7 @@ def run_prepared_repair(
     if request.wait_pid is not None:
         assert request.wait_process_created_at is not None
         process_waiter(
-            RepairProcessIdentity(
+            ProcessIdentity(
                 pid=request.wait_pid,
                 created_at=request.wait_process_created_at,
             )

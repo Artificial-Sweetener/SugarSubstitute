@@ -23,6 +23,7 @@ import pytest
 from sugarsubstitute_shared.launch_splash import (
     SplashActivity,
     SplashActivityStage,
+    format_activity_elapsed,
     render_splash_activity,
     splash_activity_stage,
 )
@@ -37,38 +38,38 @@ _ACTIVITY = SplashActivity(
 @pytest.mark.parametrize(
     ("elapsed_seconds", "expected_stage", "expected_text"),
     (
-        (0.0, SplashActivityStage.INITIAL, "Updating SugarCubes."),
-        (1.0, SplashActivityStage.INITIAL, "Updating SugarCubes.."),
-        (2.0, SplashActivityStage.INITIAL, "Updating SugarCubes..."),
+        (0.0, SplashActivityStage.INITIAL, "Updating SugarCubes. · 0:00"),
+        (1.0, SplashActivityStage.INITIAL, "Updating SugarCubes.. · 0:01"),
+        (2.0, SplashActivityStage.INITIAL, "Updating SugarCubes... · 0:02"),
         (
             120.0,
             SplashActivityStage.LONG_WAIT,
-            "Updating SugarCubes is taking longer than usual.",
+            "Updating SugarCubes is taking longer than usual. · 2:00",
         ),
         (
             121.0,
             SplashActivityStage.LONG_WAIT,
-            "Updating SugarCubes is taking longer than usual..",
+            "Updating SugarCubes is taking longer than usual.. · 2:01",
         ),
         (
             122.0,
             SplashActivityStage.LONG_WAIT,
-            "Updating SugarCubes is taking longer than usual...",
+            "Updating SugarCubes is taking longer than usual... · 2:02",
         ),
         (
             300.0,
             SplashActivityStage.EXTENDED_WAIT,
-            "Still updating SugarCubes—network may be slow.",
+            "Still updating SugarCubes—network may be slow. · 5:00",
         ),
         (
             301.0,
             SplashActivityStage.EXTENDED_WAIT,
-            "Still updating SugarCubes—network may be slow..",
+            "Still updating SugarCubes—network may be slow.. · 5:01",
         ),
         (
             302.0,
             SplashActivityStage.EXTENDED_WAIT,
-            "Still updating SugarCubes—network may be slow...",
+            "Still updating SugarCubes—network may be slow... · 5:02",
         ),
     ),
 )
@@ -86,4 +87,17 @@ def test_splash_activity_cycles_dots_through_every_wait_stage(
 def test_splash_activity_clamps_negative_elapsed_time() -> None:
     """A clock adjustment should retain the first visible activity frame."""
 
-    assert render_splash_activity(_ACTIVITY, -10.0) == "Updating SugarCubes."
+    assert render_splash_activity(_ACTIVITY, -10.0) == "Updating SugarCubes. · 0:00"
+
+
+@pytest.mark.parametrize(
+    ("elapsed_seconds", "expected"),
+    ((0.0, "0:00"), (150.9, "2:30"), (3661.0, "1:01:01")),
+)
+def test_activity_elapsed_format_is_compact_and_monotonic(
+    elapsed_seconds: float,
+    expected: str,
+) -> None:
+    """Expose elapsed activity time without depending on wall-clock locale."""
+
+    assert format_activity_elapsed(elapsed_seconds) == expected

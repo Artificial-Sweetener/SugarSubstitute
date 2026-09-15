@@ -128,8 +128,8 @@ def test_launcher_logging_preserves_records_from_simultaneous_processes(
     """A launch burst must never tear or combine diagnostic records."""
 
     install_root = tmp_path / "SugarSubstitute"
-    worker_count = 8
-    records_per_worker = 100
+    worker_count = 2
+    records_per_worker = 400
     worker_program = """
 import logging
 from pathlib import Path
@@ -139,6 +139,10 @@ from launcher.sugarsubstitute_launcher.logging_setup import configure_launcher_l
 
 layout = InstallLayout.from_root(Path(sys.argv[1]))
 worker = int(sys.argv[2])
+sys.stdout.write(f"ready:{worker}\\n")
+sys.stdout.flush()
+if sys.stdin.buffer.read(1) != b"x":
+    raise RuntimeError("Logging writer release was not authenticated.")
 configure_launcher_logging(layout=layout)
 logger = logging.getLogger("qualification.concurrent_launcher_log")
 for record in range(int(sys.argv[3])):
@@ -157,20 +161,54 @@ logging.shutdown()
         for worker in range(worker_count)
     ]
 
-    def run_worker(command: list[str]) -> None:
-        """Run one bounded writer process and require a clean exit."""
+    def read_ready(process: subprocess.Popen[bytes]) -> bytes:
+        """Read the writer's semantic barrier acknowledgement."""
 
-        subprocess.run(  # noqa: S603
-            command,
+        assert process.stdout is not None
+        return bytes(process.stdout.readline())
+
+    with (
+        subprocess.Popen(  # noqa: S603
+            commands[0],
             cwd=Path(__file__).resolve().parents[3],
-            check=True,
-            capture_output=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             shell=False,
-            timeout=20.0,
-        )
-
-    with ThreadPoolExecutor(max_workers=worker_count) as executor:
-        tuple(executor.map(run_worker, commands))
+        ) as first,
+        subprocess.Popen(  # noqa: S603
+            commands[1],
+            cwd=Path(__file__).resolve().parents[3],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            shell=False,
+        ) as second,
+    ):
+        processes = (first, second)
+        try:
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                ready = tuple(
+                    executor.submit(read_ready, process) for process in processes
+                )
+                acknowledgements = tuple(
+                    future.result(timeout=20.0) for future in ready
+                )
+            assert tuple(line.rstrip(b"\r\n") for line in acknowledgements) == (
+                b"ready:0",
+                b"ready:1",
+            )
+            for process in processes:
+                assert process.stdin is not None
+                process.stdin.write(b"x")
+                process.stdin.close()
+            return_codes = tuple(process.wait(timeout=20.0) for process in processes)
+            assert return_codes == (0, 0)
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+                process.wait(timeout=5.0)
 
     log_path = InstallLayout.from_root(install_root).logs_dir / "launcher.log"
     lines = log_path.read_text(encoding="utf-8").splitlines()

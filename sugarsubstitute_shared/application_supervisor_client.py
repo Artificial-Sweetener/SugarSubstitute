@@ -42,6 +42,11 @@ from sugarsubstitute_shared.application_instance_protocol import (
 from sugarsubstitute_shared.application_instance_transport import (
     connect_instance_endpoint,
 )
+from sugarsubstitute_shared.process_identity import (
+    ProcessIdentity,
+    ProcessIdentityError,
+    capture_process_identity,
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,12 +61,14 @@ class ApplicationSupervisorClient:
         endpoint: ApplicationInstanceEndpoint,
         token: str,
         connection: ApplicationInstanceConnection,
+        supervisor_identity: ProcessIdentity | None = None,
     ) -> None:
         """Retain the authenticated supervisor channel."""
 
         self._endpoint = endpoint
         self._token = token
         self._connection = connection
+        self._supervisor_identity = supervisor_identity
         self._handler: Callable[[RoutedApplicationInvocation], None] | None = None
         self._disconnect_handler: Callable[[], None] | None = None
         self._disconnected = False
@@ -90,6 +97,7 @@ class ApplicationSupervisorClient:
             return None
         endpoint = ApplicationInstanceEndpoint.from_json(endpoint_value)
         connection = connect_instance_endpoint(endpoint)
+        supervisor_identity = _capture_supervisor_identity(connection)
         send_instance_message(connection, {"kind": "register-child", "token": token})
         response = receive_instance_message(connection)
         if response.get("status") != "accepted":
@@ -99,7 +107,18 @@ class ApplicationSupervisorClient:
             )
         source.pop(BROKER_ENDPOINT_ENV, None)
         source.pop(BROKER_TOKEN_ENV, None)
-        return cls(endpoint=endpoint, token=token, connection=connection)
+        return cls(
+            endpoint=endpoint,
+            token=token,
+            connection=connection,
+            supervisor_identity=supervisor_identity,
+        )
+
+    @property
+    def supervisor_identity(self) -> ProcessIdentity | None:
+        """Return the kernel identity of the launcher supervising this child."""
+
+        return self._supervisor_identity
 
     def bind_invocation_handler(
         self,
@@ -225,6 +244,24 @@ class ApplicationSupervisorClient:
                     "Could not report application invocation handler failure",
                     extra={"request_id": invocation.request_id},
                 )
+
+
+def _capture_supervisor_identity(
+    connection: ApplicationInstanceConnection,
+) -> ProcessIdentity | None:
+    """Capture the authenticated pipe peer without making registration fragile."""
+
+    try:
+        process_id = connection.peer_process_id()
+        if process_id is None:
+            return None
+        return capture_process_identity(process_id)
+    except (OSError, ProcessIdentityError):
+        _LOGGER.warning(
+            "Could not capture the application supervisor process identity",
+            exc_info=True,
+        )
+        return None
 
 
 __all__ = ["ApplicationSupervisorClient"]

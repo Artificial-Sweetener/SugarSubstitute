@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 import os
 from pathlib import Path
 import tempfile
@@ -27,6 +27,9 @@ from typing import Protocol
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments
 from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
+)
+from launcher.sugarsubstitute_launcher.application_lifecycle_supervisor import (
+    ApplicationLifecycleSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
@@ -39,6 +42,10 @@ from launcher.sugarsubstitute_launcher.launcher_ui_process import (
 )
 from launcher.sugarsubstitute_launcher.runtime_paths import frozen_support_path
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
+from sugarsubstitute_shared.application_readiness import ApplicationReadinessSurface
+
+
+_LAUNCHER_WINDOW_READINESS_TIMEOUT_SECONDS = 30.0
 
 
 class LauncherUiCrashSupervisor(Protocol):
@@ -54,12 +61,28 @@ class LauncherUiCrashSupervisor(Protocol):
         """Run one launcher UI child until a classified terminal state."""
 
 
+class LauncherWindowLifecycleSupervisor(Protocol):
+    """Describe painted-readiness supervision for the launcher window."""
+
+    def supervise(
+        self,
+        *,
+        layout: InstallLayout,
+        command: Sequence[str],
+        environment: Mapping[str, str],
+        on_ready: Callable[[], None] | None = None,
+    ) -> int:
+        """Require launcher-window paint before supervising its lifetime."""
+
+
 def supervise_launcher_window(
     *,
     layout: InstallLayout,
     arguments: LauncherArguments,
     repair: bool,
-    supervisor: LauncherUiCrashSupervisor | None = None,
+    supervisor: LauncherWindowLifecycleSupervisor | None = None,
+    on_ready: Callable[[], None] | None = None,
+    environment: Mapping[str, str] | None = None,
 ) -> int:
     """Run setup or repair UI as a full-lifetime supervised child."""
 
@@ -76,10 +99,19 @@ def supervise_launcher_window(
     _append_value(child_arguments, "--handoff-geometry", arguments.handoff_geometry)
     _append_value(child_arguments, "--manifest-url", arguments.manifest_url)
     _append_value(child_arguments, "--locale", arguments.locale_override)
-    return _supervise(
+    lifecycle = supervisor or ApplicationLifecycleSupervisor(
+        accepted_surfaces=(ApplicationReadinessSurface.LAUNCHER_WINDOW,),
+        readiness_timeout_seconds=_LAUNCHER_WINDOW_READINESS_TIMEOUT_SECONDS,
+        crash_supervisor=ApplicationCrashSupervisor(
+            reporter_starter=start_crash_reporter,
+            native_runtime_resolver=_current_native_runtime,
+        ),
+    )
+    return lifecycle.supervise(
         layout=layout,
-        child_arguments=child_arguments,
-        supervisor=supervisor,
+        command=build_launcher_ui_command(layout, child_arguments),
+        environment=environment or os.environ,
+        on_ready=on_ready,
     )
 
 
@@ -165,6 +197,7 @@ def _append_value(arguments: list[str], option: str, value: str | None) -> None:
 
 __all__ = [
     "LauncherUiCrashSupervisor",
+    "LauncherWindowLifecycleSupervisor",
     "supervise_instance_recovery_window",
     "supervise_launcher_window",
 ]

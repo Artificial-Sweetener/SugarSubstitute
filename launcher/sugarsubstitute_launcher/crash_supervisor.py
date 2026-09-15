@@ -59,7 +59,7 @@ ProcessStarter = Callable[
     [Sequence[str], Mapping[str, str]],
     tuple[SupervisedProcess, Path],
 ]
-ReporterStarter = Callable[[InstallLayout, str], None]
+ReporterStarter = Callable[[InstallLayout, str, Mapping[str, str]], None]
 NativeRuntimeResolver = Callable[[InstallLayout], tuple[Path, Path]]
 
 
@@ -141,8 +141,9 @@ class ApplicationCrashSupervisor:
         layout: InstallLayout,
         process: SupervisedProcess,
         prepared: PreparedCrashRun,
+        present_report: bool = True,
     ) -> int:
-        """Classify a process started by a readiness or update owner."""
+        """Classify one terminated process and optionally present its incident."""
 
         return_code = process.wait()
         context = prepared.context
@@ -160,12 +161,23 @@ class ApplicationCrashSupervisor:
             return_code=return_code,
             minidump=minidump,
         )
-        try:
-            self._reporter_starter(layout, incident.incident_id)
-        except OSError:
-            _LOGGER.exception(
-                "Crash reporter could not be started; incident remains pending.",
-                extra={"incident_id": incident.incident_id},
+        if present_report:
+            try:
+                self._reporter_starter(
+                    layout,
+                    incident.incident_id,
+                    prepared.environment,
+                )
+            except OSError:
+                _LOGGER.exception(
+                    "Crash reporter could not be started; incident remains pending.",
+                    extra={"incident_id": incident.incident_id},
+                )
+        else:
+            _LOGGER.info(
+                "Deferred crash report while launcher presents startup recovery | "
+                "incident_id=%s",
+                incident.incident_id,
             )
         return return_code
 

@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Receive supervisor-owned activation and restart control in the Qt process."""
+"""Receive supervisor-owned activation and restart control in a Qt process."""
 
 from __future__ import annotations
 
@@ -34,6 +34,7 @@ from sugarsubstitute_shared.application_instance_protocol import (
 from sugarsubstitute_shared.application_supervisor_client import (
     ApplicationSupervisorClient,
 )
+from sugarsubstitute_shared.process_identity import ProcessIdentity
 from sugarsubstitute_shared.qt_window_presentation import request_window_presentation
 
 
@@ -117,6 +118,13 @@ class ApplicationInstanceControlClient(QObject):
         """Ask the existing launcher supervisor to own the next application run."""
 
         return self._client.request_restart()
+
+    @property
+    def supervisor_identity(self) -> ProcessIdentity | None:
+        """Return the exact supervisor process that owns this application child."""
+
+        identity = getattr(self._client, "supervisor_identity", None)
+        return identity if isinstance(identity, ProcessIdentity) else None
 
     def close(self) -> None:
         """Disconnect the private child channel."""
@@ -296,6 +304,13 @@ def request_supervised_application_restart() -> bool:
     return client is not None and client.request_restart()
 
 
+def active_application_supervisor_identity() -> ProcessIdentity | None:
+    """Return the active supervisor identity for an ownership handoff."""
+
+    client = _ACTIVE_CLIENT
+    return None if client is None else client.supervisor_identity
+
+
 def stop_application_instance_control() -> None:
     """Stop and release the supervised child channel idempotently."""
 
@@ -320,6 +335,7 @@ def _activation_window(known_windows: list[QWidget]) -> QWidget | None:
 
 __all__ = [
     "ApplicationInstanceControlClient",
+    "active_application_supervisor_identity",
     "request_supervised_application_restart",
     "start_application_instance_control",
     "stop_application_instance_control",

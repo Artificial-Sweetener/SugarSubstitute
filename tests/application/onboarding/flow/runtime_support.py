@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -31,7 +31,9 @@ from substitute.domain.onboarding import (
     ComfyTargetMode,
     InstallationConfiguration,
     InstallationContext,
+    ManagedComfySetupResult,
     ManagedRuntimeConfiguration,
+    ManagedRuntimeValidationStatus,
     ReadinessAssessment,
     RuntimeBootstrapStatus,
     RuntimeConfiguration,
@@ -399,4 +401,18 @@ def _python_binding(root: Path) -> ComfyPythonBinding:
         prefix=executable.parent.parent,
         base_prefix=executable.parent.parent,
         source=ComfyPythonSelectionSource.DISCOVERED,
+    )
+
+
+def _managed_setup_result(workspace: Path) -> ManagedComfySetupResult:
+    """Return one validated managed setup result for flow tests."""
+
+    configuration = replace(
+        _StaticManagedRuntimeService().configuration.for_workspace(workspace),
+        validation_status=ManagedRuntimeValidationStatus.VALID,
+        validation_detail="Managed workspace validation succeeded.",
+    )
+    return ManagedComfySetupResult(
+        python_executable=workspace / ".venv" / "Scripts" / "python.exe",
+        runtime_configuration=configuration,
     )

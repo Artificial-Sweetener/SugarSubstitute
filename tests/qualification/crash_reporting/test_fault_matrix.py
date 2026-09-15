@@ -143,7 +143,9 @@ def test_real_process_fault_is_durable_and_presented(
     reports: list[str] = []
     supervisor = ApplicationCrashSupervisor(
         process_starter=_start_child,
-        reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
+        reporter_starter=lambda _layout, incident_id, _environment: reports.append(
+            incident_id
+        ),
         native_runtime_resolver=lambda _layout: (
             tmp_path / "unused-handler",
             tmp_path / "unused-client",
@@ -188,7 +190,9 @@ def test_real_process_clean_exit_creates_no_incident(tmp_path: Path) -> None:
     reports: list[str] = []
     supervisor = ApplicationCrashSupervisor(
         process_starter=_start_child,
-        reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
+        reporter_starter=lambda _layout, incident_id, _environment: reports.append(
+            incident_id
+        ),
         native_runtime_resolver=lambda _layout: (
             tmp_path / "unused-handler",
             tmp_path / "unused-client",
@@ -221,7 +225,9 @@ def test_real_launcher_ui_child_crash_is_durable_and_presented(
     runtime = project_root / "third_party" / "bin" / "crashpad" / "windows-x64"
     supervisor = ApplicationCrashSupervisor(
         process_starter=_start_child,
-        reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
+        reporter_starter=lambda _layout, incident_id, _environment: reports.append(
+            incident_id
+        ),
         native_runtime_resolver=lambda _layout: (
             runtime / "crashpad_handler.exe",
             runtime / "sugarsubstitute_crashpad_client.dll",
@@ -292,7 +298,9 @@ def test_real_update_candidate_handoff_preserves_crash_supervision(
     activation = _CandidateActivation()
     crash_supervisor = ApplicationCrashSupervisor(
         process_starter=_start_child,
-        reporter_starter=lambda _layout, incident_id: reports.append(incident_id),
+        reporter_starter=lambda _layout, incident_id, _environment: reports.append(
+            incident_id
+        ),
         native_runtime_resolver=lambda _layout: (
             tmp_path / "unused-handler",
             tmp_path / "unused-client",

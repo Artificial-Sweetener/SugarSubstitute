@@ -23,8 +23,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from sugarsubstitute_shared.localization import parse_locale_override
-
 
 @dataclass(frozen=True, slots=True)
 class LauncherArguments:
@@ -69,7 +67,7 @@ def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
     parser.add_argument("--install-root", type=Path, default=None)
     parser.add_argument("--handoff-geometry", type=str, default=None)
     parser.add_argument("--manifest-url", type=str, default=None)
-    parser.add_argument("--locale", type=parse_locale_override, default=None)
+    parser.add_argument("--locale", type=str, default=None)
     namespace = parser.parse_args(argv)
     if namespace.headless_install and namespace.install_root is None:
         parser.error("--headless-install requires --install-root")

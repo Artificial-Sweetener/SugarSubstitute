@@ -95,6 +95,13 @@ class ApplicationInvocationRouter:
             self._inflight.clear()
             self._released_request_ids.clear()
             self._startup_presenter = None
+        _LOGGER.info(
+            "Closing application invocation router | owner_pid=%s | "
+            "waiting_invocations=%s | child_registered=%s",
+            os.getpid(),
+            len(waiters),
+            child_socket is not None,
+        )
         for timer in waiter_timers:
             timer.cancel()
         for request_id, waiter in waiters:
@@ -224,13 +231,21 @@ class ApplicationInvocationRouter:
             child_socket = self._child_socket
             if child_socket is None:
                 self._pending.append(invocation)
-                should_present = self._startup_presenter is not None
+                queue_depth = len(self._pending)
             else:
-                should_present = False
                 self._inflight[invocation.request_id] = invocation
+                queue_depth = 0
+            should_present = self._startup_presenter is not None
+        if should_present:
+            self._present_during_startup(invocation)
         if child_socket is None:
-            if should_present:
-                self._present_during_startup(invocation)
+            _LOGGER.info(
+                "Queued secondary invocation until a surface owner is available | "
+                "owner_pid=%s | request_id=%s | queue_depth=%s",
+                os.getpid(),
+                invocation.request_id,
+                queue_depth,
+            )
             return
         _LOGGER.info(
             "Delivered secondary invocation to application child | request_id=%s",

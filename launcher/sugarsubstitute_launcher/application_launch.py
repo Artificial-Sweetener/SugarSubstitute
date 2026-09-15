@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own installed-application election and supervised child authorization."""
+"""Own application election and supervised child authorization."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ from sugarsubstitute_shared.application_runtime_mode import (
 from sugarsubstitute_shared.startup_remote_access import StartupRemoteAccess
 
 
-def elect_installed_application(
+def elect_application(
     layout: InstallLayout,
     arguments: Sequence[str],
 ) -> ApplicationInstanceBroker | None:
@@ -60,6 +60,6 @@ def installed_application_environment(
 
 
 __all__ = [
-    "elect_installed_application",
+    "elect_application",
     "installed_application_environment",
 ]

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from threading import Event
 
 from PySide6.QtCore import QObject, Signal, Slot
 
@@ -59,6 +60,7 @@ class SetupWorker(QObject):
         application: InstalledApplication,
         setup_command: Sequence[str],
         workflow_factory: InstallationWorkflowFactory,
+        stop_after_current_stage: Event,
     ) -> None:
         """Store setup work that must not block the Qt event loop."""
 
@@ -66,6 +68,7 @@ class SetupWorker(QObject):
         self._application = application
         self._setup_command = list(setup_command)
         self._workflow_factory = workflow_factory
+        self._stop_after_current_stage = stop_after_current_stage
 
     @Slot()
     def run(self) -> None:
@@ -80,6 +83,10 @@ class SetupWorker(QObject):
             return
 
         self.log.emit(launcher_text("Runtime ready: %1", completed.runtime_python))
+        if self._stop_after_current_stage.is_set():
+            self.log.emit(launcher_text("Setup stopped at a safe point."))
+            self.finished.emit()
+            return
         self.log.emit(launcher_text("Starting SugarSubstitute setup."))
         try:
             workflow.start_setup(self._setup_command)

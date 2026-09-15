@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import os
 from pathlib import Path
 import sys
 
@@ -76,8 +77,9 @@ def test_frozen_installed_reporter_uses_qt_capable_ui_executable(
     """The Qt-free installed supervisor must never present a report itself."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute", target=WINDOWS_X64)
-    ui_executable = layout.launcher_support_path / "LauncherUi.exe"
-    layout.launcher_support_path.mkdir(parents=True)
+    ui_executable = layout.launcher_ui_executable_path
+    assert ui_executable is not None
+    ui_executable.parent.mkdir(parents=True)
     ui_executable.write_bytes(b"launcher UI")
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
@@ -110,12 +112,14 @@ def test_crash_reporter_start_and_recovery_share_one_command_owner(
     start_crash_reporter(
         layout,
         "immediate",
+        os.environ,
         process_starter=starter,
     )
     result = run_crash_reporter(
         layout,
         "pending",
         locale_override="ja",
+        environment={"BROKER": "authorized"},
         process_starter=starter,
     )
 
@@ -130,3 +134,4 @@ def test_crash_reporter_start_and_recovery_share_one_command_owner(
     assert "--show-crash-report=immediate" in immediate_command
     assert "--show-crash-report=pending" in pending_command
     assert "--locale=ja" in pending_command
+    assert starter.calls[1][1] == {"BROKER": "authorized"}

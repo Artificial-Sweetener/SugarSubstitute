@@ -23,34 +23,32 @@ from dataclasses import dataclass
 import psutil  # type: ignore[import-untyped]
 
 
-class RepairProcessError(RuntimeError):
-    """Report an inaccessible, reused, or unresponsive handoff process."""
+class ProcessIdentityError(RuntimeError):
+    """Report an inaccessible, reused, or unresponsive process identity."""
 
 
 @dataclass(frozen=True, slots=True)
-class RepairProcessIdentity:
+class ProcessIdentity:
     """Identify one OS process by both PID and kernel creation time."""
 
     pid: int
     created_at: float
 
 
-def capture_process_identity(pid: int) -> RepairProcessIdentity:
+def capture_process_identity(pid: int) -> ProcessIdentity:
     """Capture the kernel-backed identity of one live process."""
 
     if pid <= 0:
-        raise RepairProcessError("Repair process PID must be positive.")
+        raise ProcessIdentityError("Process PID must be positive.")
     try:
         process = psutil.Process(pid)
-        return RepairProcessIdentity(pid=pid, created_at=float(process.create_time()))
+        return ProcessIdentity(pid=pid, created_at=float(process.create_time()))
     except (psutil.NoSuchProcess, psutil.AccessDenied, OSError) as error:
-        raise RepairProcessError(
-            f"Could not identify repair handoff process: {pid}"
-        ) from error
+        raise ProcessIdentityError(f"Could not identify process: {pid}") from error
 
 
 def wait_for_process_exit(
-    identity: RepairProcessIdentity,
+    identity: ProcessIdentity,
     *,
     timeout_seconds: float = 120.0,
 ) -> None:
@@ -62,26 +60,24 @@ def wait_for_process_exit(
     except psutil.NoSuchProcess:
         return
     except (psutil.AccessDenied, OSError) as error:
-        raise RepairProcessError(
-            f"Could not inspect repair handoff process: {identity.pid}"
+        raise ProcessIdentityError(
+            f"Could not inspect process: {identity.pid}"
         ) from error
     if abs(observed_creation - identity.created_at) > 0.000_001:
-        raise RepairProcessError(
-            f"Repair handoff PID was reused before waiting: {identity.pid}"
-        )
+        raise ProcessIdentityError(f"Process PID was reused: {identity.pid}")
     try:
         process.wait(timeout=timeout_seconds)
     except psutil.NoSuchProcess:
         return
     except psutil.TimeoutExpired as error:
-        raise RepairProcessError(
-            f"Timed out waiting for repair handoff process: {identity.pid}"
+        raise ProcessIdentityError(
+            f"Timed out waiting for process: {identity.pid}"
         ) from error
 
 
 __all__ = [
-    "RepairProcessError",
-    "RepairProcessIdentity",
+    "ProcessIdentity",
+    "ProcessIdentityError",
     "capture_process_identity",
     "wait_for_process_exit",
 ]

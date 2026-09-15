@@ -118,34 +118,35 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
                     "launcher.sugarsubstitute_launcher.crash_routing",
                     "launcher.sugarsubstitute_launcher.launcher_ui_supervision",
                     "launcher.sugarsubstitute_launcher.logging_setup",
-                    "launcher.sugarsubstitute_launcher.localization",
                     "launcher.sugarsubstitute_launcher.runtime_paths",
                     "launcher.sugarsubstitute_launcher.splash_session",
                     "launcher.sugarsubstitute_launcher.startup_plan",
-                    "sugarsubstitute_shared.localization",
+                    "launcher.sugarsubstitute_launcher.supervisor_handoff_wait",
+                    "sugarsubstitute_shared.supervisor_handoff",
                 }
             ),
             allowed_pre_boundary_calls=frozenset(
                 {
                     "Path",
                     "Path.cwd",
-                    "_elect_installed_application_with_recovery",
+                    "_elect_application_with_recovery",
                     "_frozen_invocation_path",
                     "_frozen_support_path",
                     "_native_frozen_executable_path",
-                    "elect_installed_application",
-                    "format_locale_argument",
+                    "elect_application",
                     "configure_launcher_logging",
                     "frozen_invocation_path",
                     "frozen_support_path",
                     "native_frozen_executable_path",
                     "parse_launcher_args",
-                    "resolve_launcher_locale",
                     "resolve_startup_candidate",
                     "route_explicit_crash_operation",
                     "should_attempt_installed_app_launch",
+                    "splash_session.close",
                     "start_launcher_splash_session",
+                    "supervisor_handoff_present",
                     "tuple",
+                    "wait_for_outgoing_supervisor",
                 }
             ),
         ),
@@ -159,6 +160,7 @@ def repository_dependency_contracts() -> tuple[SplashDependencyContract, ...]:
         {
             "cutecanvas",
             "numpy",
+            "psutil",
             "qpane",
             "qfluentwidgets",
             "scipy",
@@ -177,8 +179,21 @@ def repository_dependency_contracts() -> tuple[SplashDependencyContract, ...]:
             "substitute/app/bootstrap/splash_localization.py",
             "substitute/presentation/shell/splash_window.py",
             "substitute/presentation/shell/window_effects.py",
+            "sugarsubstitute_shared/supervisor_handoff.py",
         )
     ]
+    contracts.append(
+        SplashDependencyContract(
+            Path("launcher/sugarsubstitute_launcher/supervisor_handoff_wait.py"),
+            forbidden
+            | {
+                "sugarsubstitute_shared.process_identity",
+                "sugarsubstitute_shared.supervisor_handoff",
+            },
+            function_name="wait_for_outgoing_supervisor",
+            boundary_call="start_launcher_splash_session",
+        )
+    )
     contracts.append(
         SplashDependencyContract(
             Path("substitute/app/bootstrap/shared_splash_host.py"),

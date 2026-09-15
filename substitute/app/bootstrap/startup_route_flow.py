@@ -27,7 +27,7 @@ from substitute.app.bootstrap.bootstrap_route_controller import (
     create_bootstrap_route_controller,
     trace_bootstrap_route,
 )
-from substitute.app.bootstrap.surface_presentation import run_after_surface_paint
+from sugarsubstitute_shared.qt_surface_presentation import run_after_surface_paint
 from substitute.domain.onboarding import (
     BootstrapRoute,
     InstallationContext,

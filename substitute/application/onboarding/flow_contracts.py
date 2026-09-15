@@ -42,6 +42,7 @@ from substitute.domain.onboarding import (
     ComfyTargetConfiguration,
     InstallationConfiguration,
     InstallationContext,
+    ManagedComfySetupResult,
     ManagedRuntimeConfiguration,
     RuntimeConfiguration,
 )
@@ -361,7 +362,7 @@ class OnboardingBundleProtocol(Protocol):
         """Return onboarding preference persistence operations."""
 
 
-ManagedWorkspaceProvisioner = Callable[..., Path]
+ManagedWorkspaceProvisioner = Callable[..., ManagedComfySetupResult]
 
 
 class AttachedWorkspaceProvisioner(Protocol):
