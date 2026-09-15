@@ -110,6 +110,11 @@ def complete_installed_app_handoff(
             on_ready=(
                 splash_session.ensure_closed if splash_session is not None else None
             ),
+            cancellation_requested=(
+                splash_session.cancellation_requested
+                if splash_session is not None
+                else None
+            ),
         )
         _supervise_requested_restarts(
             broker=broker,
@@ -137,7 +142,13 @@ def _supervise_application(
 ) -> None:
     """Supervise the initial child and every broker-authorized restart."""
 
-    supervisor = ApplicationLifecycleSupervisor()
+    supervisor = ApplicationLifecycleSupervisor(
+        cancellation_requested=(
+            splash_session.cancellation_requested
+            if splash_session is not None
+            else None
+        ),
+    )
     environment = installed_application_environment(
         broker,
         remote_failure_reason=remote_failure_reason,

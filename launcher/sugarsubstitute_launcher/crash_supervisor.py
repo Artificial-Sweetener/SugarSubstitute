@@ -29,6 +29,9 @@ import time
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.completed_run_artifacts import (
+    CompletedRunArtifacts,
+)
 from launcher.sugarsubstitute_launcher.launcher_ui_process import present_crash_report
 from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from sugarsubstitute_shared.crash_reporting import (
@@ -142,6 +145,7 @@ class ApplicationCrashSupervisor:
         process: SupervisedProcess,
         prepared: PreparedCrashRun,
         present_report: bool = True,
+        expected_cancellation: bool = False,
     ) -> int:
         """Classify one terminated process and optionally present its incident."""
 
@@ -151,8 +155,19 @@ class ApplicationCrashSupervisor:
             context.crashpad_database,
             prepared.started_at_ns,
         )
-        if context.validates_clean_exit() and return_code == 0:
-            _discard_clean_run_artifacts(context, minidump=minidump)
+        if expected_cancellation or (
+            context.validates_clean_exit() and return_code == 0
+        ):
+            CompletedRunArtifacts(context).discard(minidump=minidump)
+            if expected_cancellation:
+                _LOGGER.info(
+                    "Application startup cancelled by the user",
+                    extra={
+                        "run_id": context.run_id,
+                        "process_id": process.pid,
+                        "exit_code": return_code,
+                    },
+                )
             return return_code
 
         incident = self._resolve_incident(
@@ -322,40 +337,6 @@ def _newest_minidump(database: Path, started_at_ns: int) -> Path | None:
         if modified_ns >= started_at_ns:
             candidates.append((modified_ns, path))
     return max(candidates, default=(0, None), key=lambda item: item[0])[1]
-
-
-def _discard_clean_run_artifacts(
-    context: CrashRunContext,
-    *,
-    minidump: Path | None,
-) -> None:
-    """Remove only known per-run files after authenticated clean termination."""
-
-    if minidump is not None:
-        minidump.unlink(missing_ok=True)
-        crashpad_attachment_directory = (
-            context.crashpad_database / "attachments" / minidump.stem
-        )
-        crashpad_fault_log = crashpad_attachment_directory / "python-fault.log"
-        crashpad_fault_log.unlink(missing_ok=True)
-        try:
-            crashpad_attachment_directory.rmdir()
-        except OSError:
-            pass
-    for path in (context.exit_intent_path, context.exit_receipt_path):
-        path.unlink(missing_ok=True)
-    lifecycle_directory = context.exit_intent_path.parent
-    try:
-        lifecycle_directory.rmdir()
-    except OSError:
-        pass
-    incident_directory = context.incident_root / context.run_id
-    fault_log = incident_directory / "python-fault.log"
-    fault_log.unlink(missing_ok=True)
-    try:
-        incident_directory.rmdir()
-    except OSError:
-        pass
 
 
 __all__ = [

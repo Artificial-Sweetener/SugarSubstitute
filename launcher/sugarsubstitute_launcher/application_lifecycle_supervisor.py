@@ -24,6 +24,9 @@ from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
     ApplicationReadinessSupervisor,
 )
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
+    ApplicationStartupCancelled,
+)
 from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
@@ -43,17 +46,20 @@ class ApplicationLifecycleSupervisor:
         ),
         readiness_timeout_seconds: float | None = None,
         crash_supervisor: ApplicationCrashSupervisor | None = None,
+        cancellation_requested: Callable[[], bool] | None = None,
     ) -> None:
         """Create readiness and crash owners for one visible launch policy."""
 
         if readiness_timeout_seconds is None:
             self._readiness = ApplicationReadinessSupervisor(
                 accepted_surfaces=accepted_surfaces,
+                cancellation_requested=cancellation_requested,
             )
         else:
             self._readiness = ApplicationReadinessSupervisor(
                 accepted_surfaces=accepted_surfaces,
                 timeout_seconds=readiness_timeout_seconds,
+                cancellation_requested=cancellation_requested,
             )
         self._crash = crash_supervisor or ApplicationCrashSupervisor()
 
@@ -74,6 +80,15 @@ class ApplicationLifecycleSupervisor:
                 command=command,
                 environment=prepared.environment,
             )
+        except ApplicationStartupCancelled as cancelled:
+            if cancelled.terminated_process is not None:
+                self._crash.supervise_process(
+                    layout=layout,
+                    process=cancelled.terminated_process,
+                    prepared=prepared,
+                    expected_cancellation=True,
+                )
+            raise
         except ApplicationReadinessError as error:
             if error.terminated_process is not None:
                 self._crash.supervise_process(

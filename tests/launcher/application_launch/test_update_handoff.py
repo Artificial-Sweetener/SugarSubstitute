@@ -92,6 +92,9 @@ def test_normal_handoff_supervises_restarts_with_the_same_broker(
     class _Supervisor:
         """Record each full child lifetime."""
 
+        def __init__(self, **kwargs: object) -> None:
+            """Accept the startup cancellation policy at the process boundary."""
+
         def supervise(self, **kwargs: object) -> int:
             """Capture the authenticated environment."""
 
@@ -145,6 +148,9 @@ def test_update_failure_state_is_forwarded_without_a_lock_file(
 
     class _Supervisor:
         """Capture the single degraded child environment."""
+
+        def __init__(self, **kwargs: object) -> None:
+            """Accept the startup cancellation policy at the process boundary."""
 
         def supervise(self, **kwargs: object) -> int:
             """Record the environment and finish the child lifetime."""

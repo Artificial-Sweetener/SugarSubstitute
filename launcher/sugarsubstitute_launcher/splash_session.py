@@ -37,6 +37,7 @@ from sugarsubstitute_shared.launch_splash.client import SocketSplashSessionClien
 from sugarsubstitute_shared.launch_splash.session import (
     SplashSessionSpec,
     splash_session_args,
+    splash_cancel_signal_path,
 )
 from sugarsubstitute_shared.launch_splash.session import validate_splash_session_spec
 
@@ -65,6 +66,10 @@ class LauncherSplashSession:
         """Bring the startup surface forward for a secondary invocation."""
 
         return "startup-splash" if self.client.activate() else None
+
+    def cancellation_requested(self) -> bool:
+        """Observe only the explicit cancel signal for this authenticated session."""
+        return splash_cancel_signal_path(self.client.spec).is_file()
 
     def ensure_closed(self) -> None:
         """Confirm splash exit or terminate the launcher-owned helper."""
