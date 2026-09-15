@@ -172,7 +172,6 @@ class ManagedLocalPage(OnboardingPageFrame):
     """Collect the managed-local endpoint and workspace choices."""
 
     browse_requested = Signal()
-    content_height_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the managed-local page with the form as the primary content."""
@@ -254,7 +253,6 @@ class ManagedLocalPage(OnboardingPageFrame):
             self.advanced_button,
             "Hide advanced settings" if expanded else "Advanced settings",
         )
-        self.content_height_changed.emit()
 
     def collapse_advanced_settings(self) -> None:
         """Restore the managed setup page to its concise initial state."""
@@ -266,14 +264,12 @@ class ManagedLocalPage(OnboardingPageFrame):
         self.settings_section.content_layout.invalidate()
         self.settings_section.updateGeometry()
         self.updateGeometry()
-        self.content_height_changed.emit()
 
 
 class AttachedLocalPage(OnboardingPageFrame):
     """Collect the launch details for an existing local ComfyUI setup."""
 
     browse_requested = Signal()
-    content_height_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the attached-local configuration page."""
@@ -337,7 +333,6 @@ class AttachedLocalPage(OnboardingPageFrame):
             self.advanced_button,
             "Hide connection settings" if expanded else "Connection settings",
         )
-        self.content_height_changed.emit()
 
 
 class RemotePage(OnboardingPageFrame):

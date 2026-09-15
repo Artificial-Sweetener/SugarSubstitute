@@ -31,7 +31,6 @@ from substitute.presentation.localization import (
 )
 
 
-from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -63,8 +62,6 @@ _CIVITAI_ALLOW_ALL = "allow_all"
 
 class IntegrationsPage(OnboardingPageFrame):
     """Collect first-run helper integration preferences."""
-
-    content_height_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the friendly integrations setup page."""

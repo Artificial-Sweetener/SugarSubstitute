@@ -53,7 +53,6 @@ class ComfyPreflightPage(OnboardingPageFrame):
     """Block setup mutations while a confidently identified ComfyUI is running."""
 
     close_requested = Signal()
-    content_height_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the responsive running-Comfy preflight page."""
@@ -109,7 +108,6 @@ class ComfyPreflightPage(OnboardingPageFrame):
 
         set_localized_text(self.status_label, "Checking for running ComfyUI…")
         self.close_button.hide()
-        self.content_height_changed.emit()
 
     def apply_snapshot(self, snapshot: ComfyPreflightSnapshot) -> None:
         """Render one live process preflight observation."""
@@ -119,7 +117,6 @@ class ComfyPreflightPage(OnboardingPageFrame):
                 self.status_label, "ComfyUI is closed. Setup can continue."
             )
             self.close_button.hide()
-            self.content_height_changed.emit()
             return
         count = len(snapshot.processes)
         if count == 1:
@@ -134,7 +131,6 @@ class ComfyPreflightPage(OnboardingPageFrame):
                 count,
             )
         self.close_button.setVisible(snapshot.can_close)
-        self.content_height_changed.emit()
 
 
 class AttachedPythonChoicePage(OnboardingPageFrame):
@@ -197,7 +193,6 @@ class AttachedPythonProcessPage(OnboardingPageFrame):
     """Guide live process detection for an unusual attached environment."""
 
     close_requested = Signal()
-    content_height_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the responsive running-Comfy detection page."""
@@ -253,7 +248,6 @@ class AttachedPythonProcessPage(OnboardingPageFrame):
             "automatically.",
         )
         self.close_button.hide()
-        self.content_height_changed.emit()
 
     def apply_snapshot(self, snapshot: AttachedPythonRecoverySnapshot) -> None:
         """Render one current process-detection observation."""
@@ -281,7 +275,6 @@ class AttachedPythonProcessPage(OnboardingPageFrame):
         )
         apply_application_text(self.status_panel.description_label, snapshot.detail)
         self.close_button.setVisible(snapshot.can_close)
-        self.content_height_changed.emit()
 
     def show_failure(self, detail: ApplicationText) -> None:
         """Render a process-observation failure without hiding route switching."""
@@ -291,7 +284,6 @@ class AttachedPythonProcessPage(OnboardingPageFrame):
         )
         apply_application_text(self.status_panel.description_label, detail)
         self.close_button.hide()
-        self.content_height_changed.emit()
 
 
 class AttachedPythonManualPage(OnboardingPageFrame):
@@ -299,7 +291,6 @@ class AttachedPythonManualPage(OnboardingPageFrame):
 
     browse_requested = Signal()
     close_requested = Signal()
-    content_height_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the manual attached-Python selection page."""
@@ -369,7 +360,6 @@ class AttachedPythonManualPage(OnboardingPageFrame):
         self.browse_button.show()
         self.status_panel.hide()
         self.close_button.hide()
-        self.content_height_changed.emit()
 
     def show_validation_started(self, executable: Path) -> None:
         """Show which selected executable is being verified."""
@@ -380,7 +370,6 @@ class AttachedPythonManualPage(OnboardingPageFrame):
         self.status_panel.description_label.setText(str(executable))
         self.status_panel.show()
         self.close_button.hide()
-        self.content_height_changed.emit()
 
     def apply_snapshot(self, snapshot: AttachedPythonRecoverySnapshot) -> None:
         """Render shutdown or readiness after successful manual validation."""
@@ -401,7 +390,6 @@ class AttachedPythonManualPage(OnboardingPageFrame):
         apply_application_text(self.status_panel.description_label, snapshot.detail)
         self.status_panel.show()
         self.close_button.setVisible(snapshot.can_close)
-        self.content_height_changed.emit()
 
     def show_validation_failure(self, detail: ApplicationText) -> None:
         """Render a failed selection while leaving Browse available."""
@@ -412,7 +400,6 @@ class AttachedPythonManualPage(OnboardingPageFrame):
         apply_application_text(self.status_panel.description_label, detail)
         self.status_panel.show()
         self.close_button.hide()
-        self.content_height_changed.emit()
 
 
 __all__ = [
