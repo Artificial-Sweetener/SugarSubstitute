@@ -23,9 +23,11 @@ from pathlib import Path
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application.repair import (
+from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
     PreparedRepairRequestError,
+)
+from launcher.sugarsubstitute_launcher.application.repair.models import (
     RepairScope,
 )
 

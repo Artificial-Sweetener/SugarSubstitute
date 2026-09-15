@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own the persisted repair journal schema and atomic storage boundary."""
+"""Persist and validate repair transition journals before filesystem mutation."""
 
 from __future__ import annotations
 
@@ -22,121 +22,143 @@ import json
 import os
 from pathlib import Path
 import secrets
-from typing import TypedDict
 
 from launcher.sugarsubstitute_launcher.application.repair.models import (
     RepairDisposition,
 )
 from launcher.sugarsubstitute_launcher.repair_errors import RepairTransactionError
+from launcher.sugarsubstitute_launcher.repair_journal_state import (
+    RepairJournal,
+    RepairPathRecord,
+    RepairPathState,
+    RepairPhase,
+)
 
-REPAIR_JOURNAL_SCHEMA_VERSION = 1
+REPAIR_JOURNAL_SCHEMA_VERSION = 2
 PENDING_JOURNAL = Path(".repair") / "pending.json"
 
 
-class RecoveryRecord(TypedDict):
-    """Describe validated fields needed to roll back one destination."""
-
-    destination: str
-    disposition: str
-    had_destination: bool
-    relocated: bool
-    promoted: bool
-
-
-def read_repair_journal(root: Path) -> tuple[list[RecoveryRecord], Path] | None:
-    """Read and validate every recovery destination before permitting mutation."""
-    journal_path = root / PENDING_JOURNAL
+def read_repair_journal(root: Path) -> RepairJournal | None:
+    """Validate the entire persisted recovery boundary before allowing mutation."""
+    path = root / PENDING_JOURNAL
     try:
-        payload = json.loads(journal_path.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return None
     except (OSError, json.JSONDecodeError) as error:
         raise RepairTransactionError(
-            f"Pending repair journal is unreadable: {journal_path}"
+            f"Pending repair journal is unreadable: {path}"
         ) from error
-    return _validate_journal(payload, root, journal_path)
-
-
-def _validate_journal(
-    payload: object,
-    root: Path,
-    journal_path: Path,
-) -> tuple[list[RecoveryRecord], Path]:
-    """Validate recovery data before mutating any path."""
-
     if (
         not isinstance(payload, dict)
-        or payload.get("schema_version") != REPAIR_JOURNAL_SCHEMA_VERSION
+        or type(payload.get("schema_version")) is not int
+        or payload.get("schema_version") not in {1, 2}
     ):
+        raise RepairTransactionError(f"Pending repair journal is invalid: {path}")
+    version = payload["schema_version"]
+    values = payload.get("records")
+    quarantine = _relative_path(payload.get("quarantine_root"), root)
+    if not isinstance(values, list):
+        raise RepairTransactionError(f"Pending repair records are invalid: {path}")
+    try:
+        phase = RepairPhase(payload.get("phase", "prepared" if version == 1 else None))
+        records = [_read_record(value, root, version) for value in values]
+    except (TypeError, ValueError) as error:
         raise RepairTransactionError(
-            f"Pending repair journal is invalid: {journal_path}"
-        )
-    records = payload.get("records")
-    quarantine_value = payload.get("quarantine_root")
-    if not isinstance(records, list) or not isinstance(quarantine_value, str):
-        raise RepairTransactionError(
-            f"Pending repair journal is invalid: {journal_path}"
-        )
-    quarantine_root = (root / quarantine_value).resolve()
-    if not quarantine_root.is_relative_to(root / ".repair" / "quarantine"):
-        raise RepairTransactionError(
-            f"Pending repair quarantine path is unsafe: {journal_path}"
-        )
-    validated: list[RecoveryRecord] = []
-    for record in records:
-        if not isinstance(record, dict):
-            raise RepairTransactionError(
-                f"Pending repair journal is invalid: {journal_path}"
-            )
-        destination_value = record.get("destination")
-        disposition = record.get("disposition")
-        had_destination = record.get("had_destination")
-        relocated = record.get("relocated")
-        promoted = record.get("promoted")
-        if (
-            not isinstance(destination_value, str)
-            or disposition
-            not in {
-                RepairDisposition.QUARANTINE.value,
-                RepairDisposition.REPLACE.value,
-            }
-            or not isinstance(had_destination, bool)
-            or not isinstance(relocated, bool)
-            or not isinstance(promoted, bool)
+            f"Pending repair transition state is invalid: {path}"
+        ) from error
+    journal = RepairJournal(quarantine, records, phase)
+    validate_repair_journal_paths(root, journal)
+    return journal
+
+
+def validate_repair_journal_paths(root: Path, journal: RepairJournal) -> None:
+    """Apply one path boundary to newly prepared and persisted transactions."""
+    quarantine = _relative_path(str(journal.quarantine_root), root)
+    if quarantine.parts[:2] != (".repair", "quarantine") or len(quarantine.parts) != 3:
+        raise RepairTransactionError("Pending repair quarantine path is unsafe")
+    destinations: list[Path] = []
+    for record in journal.records:
+        destination = _relative_path(str(record.destination), root)
+        if destination.parts[0] == ".repair" or any(
+            destination.is_relative_to(previous) or previous.is_relative_to(destination)
+            for previous in destinations
         ):
-            raise RepairTransactionError(
-                f"Pending repair journal is invalid: {journal_path}"
-            )
-        destination = (root / destination_value).resolve()
-        if not destination.is_relative_to(root) or destination == root:
-            raise RepairTransactionError(
-                f"Pending repair destination is unsafe: {journal_path}"
-            )
-        validated.append(
-            {
-                "destination": destination_value,
-                "disposition": disposition,
-                "had_destination": had_destination,
-                "relocated": relocated,
-                "promoted": promoted,
-            }
+            raise RepairTransactionError("Pending repair destinations are unsafe")
+        _relative_path(str(quarantine / destination), root)
+        destinations.append(destination)
+
+
+def _read_record(value: object, root: Path, version: int) -> RepairPathRecord:
+    """Decode current transitions or migrate a persisted first-generation record."""
+    if not isinstance(value, dict) or not isinstance(
+        value.get("had_destination"), bool
+    ):
+        raise RepairTransactionError("Pending repair record is invalid")
+    disposition = RepairDisposition(value.get("disposition"))
+    if disposition is RepairDisposition.PRESERVE:
+        raise RepairTransactionError(
+            "Pending repair record cannot replace preserved state"
         )
-    return validated, quarantine_root
+    destination = _relative_path(value.get("destination"), root)
+    if version == 1:
+        relocated, promoted = value.get("relocated"), value.get("promoted")
+        if not isinstance(relocated, bool) or not isinstance(promoted, bool):
+            raise RepairTransactionError("Pending legacy repair record is invalid")
+        state = (
+            RepairPathState.PROMOTED
+            if promoted
+            else RepairPathState.RELOCATED
+            if relocated
+            else RepairPathState.PREPARED
+        )
+    else:
+        state = RepairPathState(value.get("state"))
+    return RepairPathRecord(destination, disposition, value["had_destination"], state)
 
 
-def write_repair_journal(path: Path, payload: dict[str, object]) -> None:
-    """Atomically persist a repair journal before filesystem transitions."""
+def _relative_path(value: object, root: Path) -> Path:
+    """Reject escaped or redirected journal paths before interpreting state."""
+    if not isinstance(value, str):
+        raise RepairTransactionError("Pending repair path is invalid")
+    path = Path(value)
+    if path.is_absolute() or path.anchor or not path.parts or ".." in path.parts:
+        raise RepairTransactionError(f"Pending repair path is unsafe: {value}")
+    destination = root / path
+    if not destination.resolve().is_relative_to(root.resolve()):
+        raise RepairTransactionError(f"Pending repair path is unsafe: {value}")
+    for candidate in (destination, *destination.parents):
+        if candidate.is_symlink() or candidate.is_junction():
+            raise RepairTransactionError(f"Pending repair path is unsafe: {value}")
+        if candidate == root:
+            break
+    return path
 
+
+def write_repair_journal(path: Path, journal: RepairJournal) -> None:
+    """Flush transition intent before atomically replacing the previous journal."""
+    payload = {
+        "schema_version": REPAIR_JOURNAL_SCHEMA_VERSION,
+        "quarantine_root": str(journal.quarantine_root),
+        "phase": journal.phase.value,
+        "records": [
+            {
+                "destination": str(record.destination),
+                "disposition": record.disposition.value,
+                "had_destination": record.had_destination,
+                "state": record.state.value,
+            }
+            for record in journal.records
+        ],
+    }
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp")
     try:
-        temporary.write_text(
-            json.dumps(payload, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        with temporary.open("w", encoding="utf-8", newline="\n") as stream:
+            json.dump(payload, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
         os.replace(temporary, path)
     finally:
-        try:
-            temporary.unlink()
-        except FileNotFoundError:
-            pass
+        temporary.unlink(missing_ok=True)

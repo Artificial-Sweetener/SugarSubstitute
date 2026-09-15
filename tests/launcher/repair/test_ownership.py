@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application.repair import (
+from launcher.sugarsubstitute_launcher.application.repair.models import (
     ManagedComfyOwnership,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout

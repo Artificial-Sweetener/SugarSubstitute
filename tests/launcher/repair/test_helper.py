@@ -20,9 +20,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from launcher.sugarsubstitute_launcher.application.repair import (
+from launcher.sugarsubstitute_launcher.application.repair.execution_service import (
     CompletedRepair,
+)
+from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
+)
+from launcher.sugarsubstitute_launcher.application.repair.models import (
     RepairScope,
 )
 from launcher.sugarsubstitute_launcher.repair_helper import run_prepared_repair

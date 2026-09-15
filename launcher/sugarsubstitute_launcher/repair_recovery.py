@@ -29,37 +29,60 @@ from launcher.sugarsubstitute_launcher.repair_errors import RepairTransactionErr
 from launcher.sugarsubstitute_launcher.repair_journal import (
     PENDING_JOURNAL,
     read_repair_journal,
+    write_repair_journal,
+)
+from launcher.sugarsubstitute_launcher.repair_journal_state import (
+    RepairPathState,
+    RepairPhase,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def recover_interrupted_repair(install_root: Path) -> bool:
-    """Restore all relocated paths recorded by an interrupted repair journal."""
+    """Resume rollback or finish committed cleanup without repeating completed moves."""
 
     root = install_root.resolve()
     journal_path = root / PENDING_JOURNAL
     journal = read_repair_journal(root)
     if journal is None:
         return False
-    records, quarantine_root = journal
-    for record in reversed(records):
-        destination = root / record["destination"]
-        quarantined = quarantine_root / record["destination"]
-        if record["relocated"]:
-            if not quarantined.exists():
-                raise RepairTransactionError(
-                    f"Repair rollback source is missing: {quarantined}"
-                )
+    if journal.phase is RepairPhase.COMMITTED:
+        journal_path.unlink()
+        _LOGGER.info("Completed committed repair journal cleanup")
+        return True
+    quarantine_root = root / journal.quarantine_root
+    journal.phase = RepairPhase.ROLLING_BACK
+    for record in reversed(journal.records):
+        if record.state is RepairPathState.RESTORED:
+            continue
+        destination = root / record.destination
+        quarantined = quarantine_root / record.destination
+        if quarantined.exists():
+            record.state = RepairPathState.RESTORING
+            write_repair_journal(journal_path, journal)
             _retain_failed_candidate(destination, quarantine_root)
             destination.parent.mkdir(parents=True, exist_ok=True)
             quarantined.replace(destination)
-        elif (
-            record["disposition"] == RepairDisposition.REPLACE.value
-            and not record["had_destination"]
-        ):
+        elif record.had_destination:
+            if (
+                record.state
+                not in {
+                    RepairPathState.PREPARED,
+                    RepairPathState.RELOCATING,
+                    RepairPathState.RESTORING,
+                }
+                or not destination.exists()
+            ):
+                raise RepairTransactionError(
+                    f"Repair rollback source is missing: {quarantined}"
+                )
+        elif record.disposition is RepairDisposition.REPLACE:
             _retain_failed_candidate(destination, quarantine_root)
+        record.state = RepairPathState.RESTORED
+        write_repair_journal(journal_path, journal)
     journal_path.unlink()
+    _LOGGER.info("Completed interrupted repair rollback")
     return True
 
 
