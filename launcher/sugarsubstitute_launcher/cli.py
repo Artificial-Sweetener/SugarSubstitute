@@ -38,6 +38,7 @@ class LauncherArguments:
     manifest_url: str | None
     locale_override: str | None
     crash_report_incident_id: str | None
+    crash_report_continues_launch: bool
     launcher_ui_child: bool
     instance_recovery_request: Path | None
 
@@ -51,6 +52,9 @@ def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
     execution_mode.add_argument("--headless-install", action="store_true")
     execution_mode.add_argument("--verify-release-connectivity", action="store_true")
     execution_mode.add_argument("--show-crash-report", type=str, default=None)
+    parser.add_argument(
+        "--crash-report-continues-launch", action="store_true", help=argparse.SUPPRESS
+    )
     parser.add_argument(
         "--launcher-ui-child",
         action="store_true",
@@ -73,6 +77,13 @@ def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
         parser.error("--headless-install requires --install-root")
     if namespace.show_crash_report and namespace.install_root is None:
         parser.error("--show-crash-report requires --install-root")
+    if namespace.crash_report_continues_launch and (
+        not namespace.show_crash_report or not namespace.launcher_ui_child
+    ):
+        parser.error(
+            "--crash-report-continues-launch requires --show-crash-report and "
+            "--launcher-ui-child"
+        )
     if namespace.instance_recovery_request is not None and (
         not namespace.launcher_ui_child or namespace.install_root is None
     ):
@@ -91,6 +102,7 @@ def parse_launcher_args(argv: Sequence[str]) -> LauncherArguments:
         manifest_url=namespace.manifest_url,
         locale_override=namespace.locale,
         crash_report_incident_id=namespace.show_crash_report,
+        crash_report_continues_launch=namespace.crash_report_continues_launch,
         launcher_ui_child=namespace.launcher_ui_child,
         instance_recovery_request=namespace.instance_recovery_request,
     )

@@ -29,7 +29,7 @@ import time
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.launcher_ui_process import start_crash_reporter
+from launcher.sugarsubstitute_launcher.launcher_ui_process import present_crash_report
 from launcher.sugarsubstitute_launcher.process import spawn_detached_process
 from sugarsubstitute_shared.crash_reporting import (
     CrashAttribution,
@@ -86,7 +86,7 @@ class ApplicationCrashSupervisor:
         """Store process, reporter, and clock boundaries for deterministic proof."""
 
         self._process_starter = process_starter or _start_application_process
-        self._reporter_starter = reporter_starter or start_crash_reporter
+        self._reporter_starter = reporter_starter or present_crash_report
         self._native_runtime_resolver = (
             native_runtime_resolver or _installed_native_runtime
         )

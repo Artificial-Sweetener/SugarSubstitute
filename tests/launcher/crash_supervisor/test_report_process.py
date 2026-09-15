@@ -28,8 +28,8 @@ import pytest
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.launcher_ui_process import (
     build_launcher_ui_command,
-    run_crash_reporter,
-    start_crash_reporter,
+    run_pending_crash_reporter,
+    present_crash_report,
 )
 from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
 
@@ -41,11 +41,13 @@ class _CompletedProcess:
         """Store the return code exposed by ``wait``."""
 
         self.return_code = return_code
+        self.wait_count = 0
 
     def wait(self, timeout: float | None = None) -> int:
         """Return the configured result without blocking."""
 
         assert timeout is None
+        self.wait_count += 1
         return self.return_code
 
 
@@ -57,6 +59,7 @@ class _ProcessStarter:
 
         self.return_code = return_code
         self.calls: list[tuple[tuple[str, ...], Mapping[str, str] | None]] = []
+        self.processes: list[_CompletedProcess] = []
 
     def __call__(
         self,
@@ -67,7 +70,9 @@ class _ProcessStarter:
         """Capture one exact command and return a completed fake process."""
 
         self.calls.append((tuple(command), environment))
-        return _CompletedProcess(self.return_code), Path("reporter.log")
+        process = _CompletedProcess(self.return_code)
+        self.processes.append(process)
+        return process, Path("reporter.log")
 
 
 def test_frozen_installed_reporter_uses_qt_capable_ui_executable(
@@ -109,13 +114,13 @@ def test_crash_reporter_start_and_recovery_share_one_command_owner(
     starter = _ProcessStarter(return_code=7)
     monkeypatch.setattr(sys, "frozen", False, raising=False)
 
-    start_crash_reporter(
+    present_crash_report(
         layout,
         "immediate",
         os.environ,
         process_starter=starter,
     )
-    result = run_crash_reporter(
+    result = run_pending_crash_reporter(
         layout,
         "pending",
         locale_override="ja",
@@ -133,5 +138,23 @@ def test_crash_reporter_start_and_recovery_share_one_command_owner(
     assert "--launcher-ui-child" in pending_command
     assert "--show-crash-report=immediate" in immediate_command
     assert "--show-crash-report=pending" in pending_command
+    assert "--crash-report-continues-launch" in pending_command
+    assert "--crash-report-continues-launch" not in immediate_command
     assert "--locale=ja" in pending_command
     assert starter.calls[1][1] == {"BROKER": "authorized"}
+
+
+def test_immediate_report_retains_supervisor_until_reporter_exits(
+    tmp_path: Path,
+) -> None:
+    """An immediate reporter must finish before its caller releases native ownership."""
+
+    starter = _ProcessStarter()
+    present_crash_report(
+        InstallLayout.from_root(tmp_path / "install"),
+        "immediate",
+        {"BROKER": "authorized"},
+        process_starter=starter,
+    )
+
+    assert starter.processes[0].wait_count == 1
