@@ -18,11 +18,14 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.error_report_presentation import (
+    ErrorReportPresentation,
+)
+
 from collections.abc import Callable
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 from sugarsubstitute_shared.presentation.error_report_dialog import (
-    ErrorReportPresentation,
     SharedErrorReportDialog,
 )
 from sugarsubstitute_shared.presentation.error_report_glyph import (

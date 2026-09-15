@@ -31,8 +31,8 @@ from sugarsubstitute_shared.crash_reporting import (
 )
 from sugarsubstitute_shared.crash_reporting import presentation as crash_presentation
 from sugarsubstitute_shared.issue_tracker import SUGARSUBSTITUTE_ISSUES_URL
-from sugarsubstitute_shared.presentation.error_report_dialog import (
-    SharedErrorReportDialog,
+from sugarsubstitute_shared.presentation.error_report_window import (
+    SharedErrorReportWindow,
 )
 from tests.support.qt.lifecycle import ensure_qt_application
 
@@ -76,18 +76,19 @@ def test_launcher_crash_surface_copies_opens_github_and_restarts(
         python_version="3.12",
     )
     report = crash_presentation.build_crash_report_presentation(incident)
-    dialog = SharedErrorReportDialog(
+    dialog = SharedErrorReportWindow(
         presentation=report,
         restart=lambda: restart_calls.append(None),
     )
 
     try:
-        assert dialog._report_issue_button is not None
-        assert dialog._restart_button is not None
+        assert dialog.content._report_issue_button is not None
+        assert dialog.content._restart_button is not None
         footer_actions = [
             widget.text()
-            for index in range(dialog.buttonLayout.count())
-            if (widget := dialog.buttonLayout.itemAt(index).widget()) is not None
+            for index in range(dialog.content._footer_layout.count())
+            if (item := dialog.content._footer_layout.itemAt(index)) is not None
+            and (widget := item.widget()) is not None
             and isinstance(widget, QAbstractButton)
         ]
         assert footer_actions == [
@@ -100,12 +101,12 @@ def test_launcher_crash_surface_copies_opens_github_and_restarts(
         assert "RuntimeError: qualified" in report.report_text
         assert SUGARSUBSTITUTE_ISSUES_URL in report.report_text
 
-        dialog._toggle_details()
-        dialog._copy_button.click()
-        dialog._report_issue_button.click()
-        dialog._restart_button.click()
+        dialog.content._toggle_details()
+        dialog.content._copy_button.click()
+        dialog.content._report_issue_button.click()
+        dialog.content._restart_button.click()
 
-        assert dialog._details_button.text() == "Hide report"
+        assert dialog.content._details_button.text() == "Hide report"
         assert QApplication.clipboard().text() == report.report_text
         assert opened_urls == [SUGARSUBSTITUTE_ISSUES_URL]
         assert restart_calls == [None]

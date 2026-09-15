@@ -131,3 +131,22 @@ def test_headless_install_requires_explicit_install_root() -> None:
 
     with pytest.raises(SystemExit):
         parse_launcher_args(["--headless-install"])
+
+
+@pytest.mark.parametrize("child", [False, True])
+@pytest.mark.parametrize("report", [False, True])
+def test_report_continuation_requires_report_child(
+    tmp_path: Path, child: bool, report: bool
+) -> None:
+    """Reserve parent-owned continuation for a dedicated pending report child."""
+
+    arguments = [f"--install-root={tmp_path}", "--crash-report-continues-launch"]
+    if child:
+        arguments.append("--launcher-ui-child")
+    if report:
+        arguments.append("--show-crash-report=incident")
+    if child and report:
+        assert parse_launcher_args(arguments).crash_report_continues_launch
+    else:
+        with pytest.raises(SystemExit):
+            parse_launcher_args(arguments)

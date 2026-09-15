@@ -69,18 +69,17 @@ def build_launcher_ui_command(
     )
 
 
-def start_crash_reporter(
+def present_crash_report(
     layout: InstallLayout,
     incident_id: str,
     environment: Mapping[str, str],
     *,
     process_starter: LauncherUiProcessStarter = spawn_detached_process,
 ) -> None:
-    """Start one nonblocking crash report in the Qt-capable launcher child."""
+    """Retain the supervising caller until its report child is dismissed."""
 
-    process_starter(
-        _build_crash_report_command(layout, incident_id, locale_override=None),
-        environment=environment,
+    run_crash_reporter(
+        layout, incident_id, None, environment, process_starter=process_starter
     )
 
 
@@ -92,10 +91,31 @@ def run_crash_reporter(
     *,
     process_starter: LauncherUiProcessStarter = spawn_detached_process,
 ) -> int:
-    """Present one pending crash report before normal launch continues."""
+    """Present one report whose Restart action belongs to the live supervisor."""
 
     process, _log_path = process_starter(
-        _build_crash_report_command(layout, incident_id, locale_override),
+        _build_crash_report_command(
+            layout, incident_id, locale_override, continue_launch=False
+        ),
+        environment=environment,
+    )
+    return process.wait()
+
+
+def run_pending_crash_reporter(
+    layout: InstallLayout,
+    incident_id: str,
+    locale_override: str | None,
+    environment: Mapping[str, str],
+    *,
+    process_starter: LauncherUiProcessStarter = spawn_detached_process,
+) -> int:
+    """Dismiss a pending report into the launch already owned by its caller."""
+
+    process, _log_path = process_starter(
+        _build_crash_report_command(
+            layout, incident_id, locale_override, continue_launch=True
+        ),
         environment=environment,
     )
     return process.wait()
@@ -105,6 +125,8 @@ def _build_crash_report_command(
     layout: InstallLayout,
     incident_id: str,
     locale_override: str | None,
+    *,
+    continue_launch: bool,
 ) -> tuple[str, ...]:
     """Build one dedicated report invocation without entering setup or repair."""
 
@@ -115,6 +137,8 @@ def _build_crash_report_command(
     ]
     if locale_override is not None:
         arguments.append(f"--locale={locale_override}")
+    if continue_launch:
+        arguments.append("--crash-report-continues-launch")
     return build_launcher_ui_command(layout, arguments)
 
 
@@ -136,5 +160,6 @@ __all__ = [
     "LauncherUiProcessStarter",
     "build_launcher_ui_command",
     "run_crash_reporter",
-    "start_crash_reporter",
+    "present_crash_report",
+    "run_pending_crash_reporter",
 ]

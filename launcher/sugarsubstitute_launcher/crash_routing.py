@@ -25,7 +25,10 @@ from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.launcher_ui_process import run_crash_reporter
+from launcher.sugarsubstitute_launcher.launcher_ui_process import (
+    run_crash_reporter,
+    run_pending_crash_reporter,
+)
 from sugarsubstitute_shared.crash_reporting import CrashIncidentStore
 
 
@@ -64,14 +67,15 @@ def route_explicit_crash_operation(
                 args.locale_override,
                 os.environ,
             )
-        from launcher.sugarsubstitute_launcher.crash_reporter import (
-            show_crash_report,
+        from launcher.sugarsubstitute_launcher.crash_report_application import (
+            run_crash_report_application,
         )
 
-        return show_crash_report(
+        return run_crash_report_application(
             layout=layout,
             incident_id=args.crash_report_incident_id,
             locale_override=args.locale_override,
+            continue_launch=args.crash_report_continues_launch,
         )
     return None
 
@@ -87,7 +91,7 @@ def recover_pending_crash_reports(
 
     store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
     pending = sorted(store.pending(), key=lambda incident: incident.occurred_at_utc)
-    runner = reporter_runner or run_crash_reporter
+    runner = reporter_runner or run_pending_crash_reporter
     recovered = 0
     for incident in pending:
         try:

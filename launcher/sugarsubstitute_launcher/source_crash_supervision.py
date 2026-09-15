@@ -27,7 +27,7 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.launcher_ui_process import start_crash_reporter
+from launcher.sugarsubstitute_launcher.launcher_ui_process import present_crash_report
 from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
 from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
@@ -45,7 +45,7 @@ def supervise_source_application(*, argv: Sequence[str], app_root: Path) -> int:
         return 0
     with broker:
         supervisor = ApplicationCrashSupervisor(
-            reporter_starter=start_crash_reporter,
+            reporter_starter=present_crash_report,
             native_runtime_resolver=lambda _layout: _source_native_runtime(layout),
         )
         command = [

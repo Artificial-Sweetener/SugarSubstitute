@@ -116,6 +116,49 @@ def test_reporter_keeps_incident_pending_when_presentation_fails(
     assert store.pending() == (incident,)
 
 
+def test_restart_occurs_after_report_dismissal_and_acknowledgement(
+    tmp_path: Path,
+) -> None:
+    """A replacement launch must never race the still-pending incident it replaces."""
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    store = CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes")
+    incident = _incident("restart-order", "2026-09-15T02:00:00+00:00")
+    store.record(incident)
+    phases: list[str] = []
+
+    def present(
+        _layout: InstallLayout,
+        _incident_value: CrashIncident,
+        _locale: str | None,
+        request_restart: Callable[[], None],
+    ) -> None:
+        """Request Restart while the report still owns presentation."""
+
+        phases.append("presented")
+        request_restart()
+        assert store.pending() == (incident,)
+        phases.append("dismissed")
+
+    def restart() -> None:
+        """Observe durable acknowledgement before starting the replacement."""
+
+        assert store.pending() == ()
+        phases.append("restarted")
+
+    assert (
+        show_crash_report(
+            layout=layout,
+            incident_id=incident.incident_id,
+            locale_override=None,
+            restart=restart,
+            presenter=present,
+        )
+        == 0
+    )
+    assert phases == ["presented", "dismissed", "restarted"]
+
+
 def test_normal_startup_recovers_all_pending_incidents_in_time_order(
     tmp_path: Path,
 ) -> None:
