@@ -85,6 +85,7 @@ class CanvasIoOutputImageLoader:
 class _QueuedOutputPreparation:
     """Retain one output until the shared image-decode lane can admit it."""
 
+    sequence: int
     task_request: TaskRequest[PreparedOutputImage | FailedOutputImagePreparation]
     commit_request: OutputImageCommitRequest
 
@@ -108,6 +109,14 @@ class OutputImagePreparationDispatcher(QObject):
         super().__init__(parent)
         self._loader = loader
         self._request_ids = count(1)
+        self._next_publication_sequence = 1
+        self._settled_preparations: dict[
+            int,
+            tuple[
+                TaskOutcome[PreparedOutputImage | FailedOutputImagePreparation],
+                OutputImageCommitRequest,
+            ],
+        ] = {}
         self._close_submitter = close_submitter
         self._queued_preparations: deque[_QueuedOutputPreparation] = deque()
         self._prepared_capacity: Callable[[], int] | None = None
@@ -126,9 +135,10 @@ class OutputImagePreparationDispatcher(QObject):
     def submit(self, request: OutputImageCommitRequest) -> None:
         """Retain one generated output until it can be prepared off-thread."""
 
+        sequence = next(self._request_ids)
         task_request = TaskRequest(
             identity=TaskIdentity(
-                request_id=next(self._request_ids),
+                request_id=sequence,
                 domain="output_image_preparation",
                 parts=(
                     ("workflow_id", request.workflow_id),
@@ -151,6 +161,7 @@ class OutputImagePreparationDispatcher(QObject):
         )
         self._queued_preparations.append(
             _QueuedOutputPreparation(
+                sequence=sequence,
                 task_request=task_request,
                 commit_request=request,
             )
@@ -174,6 +185,7 @@ class OutputImagePreparationDispatcher(QObject):
         self._is_shutdown = True
         self._submission_retry_timer.stop()
         self._queued_preparations.clear()
+        self._settled_preparations.clear()
         self._task_scope.close(reason="output_image_preparation_shutdown")
         if self._close_submitter is not None:
             self._close_submitter()
@@ -187,7 +199,8 @@ class OutputImagePreparationDispatcher(QObject):
         while self._queued_preparations:
             if (
                 self._prepared_capacity is not None
-                and self._inflight_preparations >= self._prepared_capacity()
+                and self._inflight_preparations + len(self._settled_preparations)
+                >= self._prepared_capacity()
             ):
                 return
             queued = self._queued_preparations.popleft()
@@ -198,7 +211,16 @@ class OutputImagePreparationDispatcher(QObject):
                 self._schedule_submission_retry()
                 return
             except Exception as error:
-                self._publish_submission_failure(queued.commit_request, error)
+                self._settle_preparation(
+                    sequence=queued.sequence,
+                    outcome=self._submission_failure_outcome(
+                        queued.task_request,
+                        queued.commit_request,
+                        error,
+                    ),
+                    request=queued.commit_request,
+                    was_inflight=False,
+                )
                 continue
             self._inflight_preparations += 1
 
@@ -206,11 +228,17 @@ class OutputImagePreparationDispatcher(QObject):
                 outcome: TaskOutcome[
                     PreparedOutputImage | FailedOutputImagePreparation
                 ],
+                sequence: int = queued.sequence,
                 request: OutputImageCommitRequest = queued.commit_request,
             ) -> None:
                 """Publish one completion against its retained commit request."""
 
-                self._publish_outcome_and_continue(outcome, request)
+                self._settle_preparation(
+                    sequence=sequence,
+                    outcome=outcome,
+                    request=request,
+                    was_inflight=True,
+                )
 
             handle.add_done_callback(
                 publish_outcome,
@@ -223,12 +251,13 @@ class OutputImagePreparationDispatcher(QObject):
         if not self._submission_retry_timer.isActive():
             self._submission_retry_timer.start()
 
-    def _publish_submission_failure(
+    def _submission_failure_outcome(
         self,
+        task_request: TaskRequest[PreparedOutputImage | FailedOutputImagePreparation],
         request: OutputImageCommitRequest,
         error: Exception,
-    ) -> None:
-        """Publish one unexpected submission failure with output identity."""
+    ) -> TaskOutcome[PreparedOutputImage | FailedOutputImagePreparation]:
+        """Convert one unexpected submission failure into an ordered outcome."""
 
         log_exception(
             _LOGGER,
@@ -240,24 +269,43 @@ class OutputImagePreparationDispatcher(QObject):
             scene_key=request.scene_key,
             error=error,
         )
-        self.failed.emit(
-            FailedOutputImagePreparation(
+        return TaskOutcome(
+            identity=task_request.identity,
+            context=task_request.context,
+            status="succeeded",
+            result=FailedOutputImagePreparation(
                 request=request,
                 message=app_text("Failed to load generated image."),
                 detail=str(error),
-            )
+            ),
         )
 
-    def _publish_outcome_and_continue(
+    def _settle_preparation(
         self,
+        *,
+        sequence: int,
         outcome: TaskOutcome[PreparedOutputImage | FailedOutputImagePreparation],
         request: OutputImageCommitRequest,
+        was_inflight: bool,
     ) -> None:
-        """Publish one settled output and admit retained work immediately."""
+        """Retain one completion until every earlier submission has settled."""
 
-        self._inflight_preparations = max(0, self._inflight_preparations - 1)
-        self._publish_outcome(outcome, request)
+        if was_inflight:
+            self._inflight_preparations = max(0, self._inflight_preparations - 1)
+        self._settled_preparations[sequence] = (outcome, request)
+        self._publish_settled_in_submission_order()
         self._drain_queued_preparations()
+
+    def _publish_settled_in_submission_order(self) -> None:
+        """Publish the contiguous settled prefix in original callback order."""
+
+        while settled := self._settled_preparations.pop(
+            self._next_publication_sequence,
+            None,
+        ):
+            outcome, request = settled
+            self._publish_outcome(outcome, request)
+            self._next_publication_sequence += 1
 
     def _publish_outcome(
         self,
