@@ -26,6 +26,9 @@ from typing import cast
 
 import pytest
 
+from launcher.sugarsubstitute_launcher.application_election_recovery import (
+    ApplicationElectionRecovery,
+)
 from launcher.sugarsubstitute_launcher import app as launcher_app
 from launcher.sugarsubstitute_launcher import application_launch
 from launcher.sugarsubstitute_launcher import crash_routing
@@ -467,12 +470,12 @@ def test_failed_secondary_activation_shows_recovery_and_retries(
         present_recovery,
     )
 
-    result = launcher_app._elect_application_with_recovery(
+    result = ApplicationElectionRecovery(
         layout=layout,
         process_arguments=("Substitute",),
         locale_override="en",
         elect=elect,
-    )
+    ).run()
 
     assert result is expected_result
     assert attempts == 2

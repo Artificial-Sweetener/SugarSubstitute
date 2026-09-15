@@ -114,6 +114,7 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
             allowed_pre_boundary_imports=frozenset(
                 {
                     "launcher.sugarsubstitute_launcher.application_launch",
+                    "launcher.sugarsubstitute_launcher.application_election_recovery",
                     "launcher.sugarsubstitute_launcher.cli",
                     "launcher.sugarsubstitute_launcher.crash_routing",
                     "launcher.sugarsubstitute_launcher.launcher_ui_supervision",
@@ -129,7 +130,8 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
                 {
                     "Path",
                     "Path.cwd",
-                    "_elect_application_with_recovery",
+                    "ApplicationElectionRecovery",
+                    "election_recovery.run",
                     "_frozen_invocation_path",
                     "_frozen_support_path",
                     "_native_frozen_executable_path",
