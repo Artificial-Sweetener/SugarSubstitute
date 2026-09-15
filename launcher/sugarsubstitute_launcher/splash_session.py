@@ -21,17 +21,20 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
-import sys
 import threading
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, IO, Any
 
 from launcher.sugarsubstitute_launcher.runtime_policy import runtime_environment
+from sugarsubstitute_shared.supervised_text_process import (
+    SupervisedTextProcess,
+    TextProcessStarter,
+    start_supervised_text_process,
+)
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
-    subprocess_working_directory,
 )
 from sugarsubstitute_shared.launch_splash.client import SocketSplashSessionClient
 from sugarsubstitute_shared.launch_splash.session import (
@@ -60,7 +63,7 @@ class LauncherSplashSession:
     client: SocketSplashSessionClient
     app_arguments: tuple[str, ...]
     host_pid: int
-    process: subprocess.Popen[str]
+    process: SupervisedTextProcess
 
     def present(self) -> str | None:
         """Bring the startup surface forward for a secondary invocation."""
@@ -97,22 +100,25 @@ def start_launcher_splash_session(
     *,
     layout: InstallLayout,
     locale_override: str | None,
-    popen: Callable[..., subprocess.Popen[str]] = subprocess.Popen,
+    process_starter: TextProcessStarter = start_supervised_text_process,
 ) -> LauncherSplashSession | None:
     """Start the shared splash host process for production app handoff."""
 
-    process: subprocess.Popen[str] | None = None
+    process: SupervisedTextProcess | None = None
     try:
         process = _start_splash_host_process(
             layout=layout,
             locale_override=locale_override,
-            popen=popen,
+            process_starter=process_starter,
         )
         spec = _read_ready_spec(process=process, timeout_seconds=_READY_TIMEOUT_SECONDS)
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         _LOGGER.warning("Shared launcher splash session unavailable: %r", error)
         if process is not None:
             _terminate_failed_splash_host(process)
+            if process.poll() is not None:
+                process.stdout.close()
+                process.stderr.close()
         return None
 
     _start_background_pipe_reader(
@@ -133,7 +139,7 @@ def start_launcher_splash_session(
     )
 
 
-def _terminate_failed_splash_host(process: subprocess.Popen[str]) -> None:
+def _terminate_failed_splash_host(process: SupervisedTextProcess) -> None:
     """Stop a visible splash host whose session could not be handed off."""
 
     if process.poll() is not None:
@@ -155,8 +161,8 @@ def _start_splash_host_process(
     *,
     layout: InstallLayout,
     locale_override: str | None,
-    popen: Callable[..., subprocess.Popen[str]],
-) -> subprocess.Popen[str]:
+    process_starter: TextProcessStarter,
+) -> SupervisedTextProcess:
     """Launch the app-payload splash host without importing app code."""
 
     command = [
@@ -166,19 +172,10 @@ def _start_splash_host_process(
     ]
     if locale_override is not None:
         command.append(f"--locale={locale_override}")
-    return popen(
+    return process_starter(
         command,
-        cwd=subprocess_working_directory(layout.root),
-        env=_splash_host_environment(layout),
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        creationflags=_hidden_process_creation_flags(),
-        startupinfo=_hidden_process_startup_info(),
-        shell=False,
+        cwd=layout.root,
+        environment=_splash_host_environment(layout),
     )
 
 
@@ -196,7 +193,7 @@ def _splash_host_environment(layout: InstallLayout) -> dict[str, str]:
 
 def _read_ready_spec(
     *,
-    process: subprocess.Popen[str],
+    process: SupervisedTextProcess,
     timeout_seconds: float,
 ) -> SplashSessionSpec:
     """Read and validate the host process ready line."""
@@ -262,13 +259,15 @@ def _start_background_pipe_reader(
         return
 
     def _reader() -> None:
-        for raw_line in stream:
-            line = raw_line.rstrip("\r\n")
-            if not line:
-                continue
-            if ignore_ready_message and _is_ready_message(line):
-                continue
-            _LOGGER.debug("Splash host %s: %s", label, line)
+        """Own this pipe until its process family closes every writer."""
+        with stream:
+            for raw_line in stream:
+                line = raw_line.rstrip("\r\n")
+                if not line:
+                    continue
+                if ignore_ready_message and _is_ready_message(line):
+                    continue
+                _LOGGER.debug("Splash host %s: %s", label, line)
 
     thread = threading.Thread(
         target=_reader,
@@ -313,25 +312,6 @@ def _parse_endpoint(endpoint: str) -> tuple[str, int]:
     if not separator:
         raise ValueError("Splash host endpoint is invalid.")
     return host, int(raw_port)
-
-
-def _hidden_process_creation_flags() -> int:
-    """Return Windows process flags for a hidden splash host console."""
-
-    if sys.platform == "win32":
-        return subprocess.CREATE_NO_WINDOW
-    return 0
-
-
-def _hidden_process_startup_info() -> subprocess.STARTUPINFO | None:
-    """Return Windows startup info that suppresses console windows."""
-
-    if sys.platform != "win32":
-        return None
-    startupinfo = subprocess.STARTUPINFO()
-    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-    startupinfo.wShowWindow = 0
-    return startupinfo
 
 
 def append_splash_session_args(
