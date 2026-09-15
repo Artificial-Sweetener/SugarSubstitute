@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -32,6 +33,9 @@ from substitute.infrastructure.comfy.standalone_environment.layout import (
 )
 from substitute.infrastructure.comfy.standalone_environment.models import (
     StandaloneArtifactError,
+)
+from substitute.infrastructure.comfy.standalone_environment.hydration_state import (
+    StandaloneHydrationState,
 )
 
 
@@ -53,9 +57,16 @@ class StandaloneVirtualEnvironmentBuilder:
         *,
         on_progress: Callable[[DirectoryCopyProgress], None] | None = None,
     ) -> Path:
-        """Create the active venv and copy the verified package set into it."""
+        """Publish runtime readiness only after its complete package copy succeeds."""
 
         layout.validate_master()
+        source_packages = layout.master_site_packages()
+        if layout.virtual_environment.resolve() != layout.workspace.resolve() / ".venv":
+            raise StandaloneArtifactError(
+                "Managed Python environment redirects outside its owned directory."
+            )
+        state = StandaloneHydrationState(layout.workspace)
+        state.begin()
         if layout.virtual_environment.exists():
             shutil.rmtree(layout.virtual_environment)
         try:
@@ -74,6 +85,7 @@ class StandaloneVirtualEnvironmentBuilder:
                 errors="replace",
                 timeout=180,
                 check=False,
+                creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
             )
             if result.returncode != 0:
                 raise StandaloneArtifactError(
@@ -81,7 +93,7 @@ class StandaloneVirtualEnvironmentBuilder:
                     f"{result.stderr.strip()}"
                 )
             self._directory_copier.copy(
-                layout.master_site_packages(),
+                source_packages,
                 layout.virtual_site_packages(),
                 on_progress=on_progress,
             )
@@ -94,4 +106,5 @@ class StandaloneVirtualEnvironmentBuilder:
             raise StandaloneArtifactError(
                 f"Managed virtual environment has no Python: {layout.virtual_python}"
             )
+        state.complete()
         return layout.virtual_python

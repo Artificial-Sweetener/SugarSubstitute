@@ -35,6 +35,8 @@ from substitute.infrastructure.comfy.managed_process_probe import (
     probe_managed_listener,
 )
 from substitute.infrastructure.comfy.managed_validation import (
+    is_workspace_installed,
+    is_workspace_launchable,
     workspace_main_path,
     workspace_python_path,
 )
@@ -162,20 +164,14 @@ class FileSystemReadinessChecks:
             return False
 
     def is_managed_workspace_installed(self, workspace: Path) -> bool:
-        """Return whether the managed workspace shows the expected install artifacts."""
+        """Use managed installation readiness, including its hydration boundary."""
 
-        return (
-            self.managed_workspace_python_path(workspace).exists()
-            and self.managed_workspace_main_path(workspace).exists()
-        )
+        return is_workspace_installed(workspace)
 
     def is_managed_workspace_launchable(self, workspace: Path) -> bool:
-        """Return whether the managed workspace can be launched."""
+        """Use the managed owner's readiness decision before bootstrap launches."""
 
-        return (
-            self.managed_workspace_python_path(workspace).exists()
-            and self.managed_workspace_main_path(workspace).exists()
-        )
+        return is_workspace_launchable(workspace)
 
     def has_required_managed_nodepacks(self, workspace: Path) -> bool:
         """Return whether Substitute's required Comfy nodepacks are present."""
