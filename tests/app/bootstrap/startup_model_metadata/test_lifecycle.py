@@ -138,7 +138,7 @@ def test_start_model_metadata_refresh_creates_and_starts_refresh_handle() -> Non
     """Metadata refresh startup should create one handle through explicit ports."""
 
     state = StartupModelMetadataRefreshState()
-    bridge = _CoalescingBridge()
+    bridge = _Bridge()
     handles: list[StartupModelMetadataRefreshHandleProtocol] = []
     factory = _RefreshHandleFactory()
 
@@ -156,9 +156,7 @@ def test_start_model_metadata_refresh_creates_and_starts_refresh_handle() -> Non
     assert state.started is True
     assert handles == [factory.handle]
     assert factory.handle.started is True
-    assert callable(factory.finished_callback)
-    factory.finished_callback()
-    assert bridge.end_requests == 1
+    assert factory.finished_callback is None
 
 
 def test_start_model_metadata_refresh_skips_without_bridge_or_after_start() -> None:
@@ -185,7 +183,7 @@ def test_start_model_metadata_refresh_skips_without_bridge_or_after_start() -> N
     start_model_metadata_refresh(
         state=state,
         startup_cancelled=False,
-        metadata_update_bridge=_CoalescingBridge(),
+        metadata_update_bridge=_Bridge(),
         refreshes=handles,
         service_factory=_service_factory,
         comfy_output_stream=cast(TerminalOutputStream, _Stream()),
@@ -205,7 +203,7 @@ def test_start_model_metadata_refresh_skips_after_startup_cancel() -> None:
     start_model_metadata_refresh(
         state=state,
         startup_cancelled=True,
-        metadata_update_bridge=_CoalescingBridge(),
+        metadata_update_bridge=_Bridge(),
         refreshes=handles,
         service_factory=_service_factory,
         comfy_output_stream=cast(TerminalOutputStream, _Stream()),
@@ -435,21 +433,6 @@ class _Bridge:
         self.events.append(event)
 
 
-class _CoalescingBridge(_Bridge):
-    """Collect model events and expose startup coalescing shutdown."""
-
-    def __init__(self) -> None:
-        """Create empty event and coalescing records."""
-
-        super().__init__()
-        self.end_requests = 0
-
-    def request_end_startup_coalescing(self) -> None:
-        """Record one coalescing shutdown request."""
-
-        self.end_requests += 1
-
-
 class _Signal:
     """Collect connected metadata update callbacks."""
 
@@ -467,7 +450,7 @@ class _Signal:
         return None
 
 
-class _SignalBridge(_CoalescingBridge):
+class _SignalBridge(_Bridge):
     """Expose a connectable metadata update signal."""
 
     def __init__(self) -> None:

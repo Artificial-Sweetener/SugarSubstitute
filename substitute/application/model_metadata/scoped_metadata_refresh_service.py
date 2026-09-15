@@ -35,9 +35,11 @@ from substitute.application.model_metadata.ports import (
     ModelMetadataUpdateSink,
     RefreshCancellationToken,
 )
+from substitute.application.model_metadata.refresh_summary import (
+    ModelMetadataRefreshSummary,
+)
 from substitute.application.model_metadata.refresh_service import (
     ModelMetadataRefreshService,
-    ModelMetadataRefreshSummary,
 )
 from substitute.domain.model_metadata import (
     BackendModelCatalogChangedEntry,

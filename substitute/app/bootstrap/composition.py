@@ -125,7 +125,6 @@ from sugarsubstitute_shared.presentation.terminal.output_stream import (
 )
 from substitute.shared.logging.logger import (
     get_logger,
-    log_debug,
     log_exception,
     log_warning,
 )
@@ -933,35 +932,6 @@ def _create_generation_listener_task(
         dispatcher=dispatcher,
         thread_name=thread_name,
     )
-
-
-class _SettingsModelMetadataProgressSink:
-    """Log Settings-triggered metadata refresh progress without touching widgets."""
-
-    def __init__(self, on_model_updated: Callable[[], None]) -> None:
-        """Store the model-catalog invalidation callback."""
-
-        self._on_model_updated = on_model_updated
-
-    def emit_line(self, line: str) -> None:
-        """Log one refresh progress line."""
-
-        log_debug(_LOGGER, "Settings CivitAI metadata refresh progress", line=line)
-
-    def emit_progress(self, line: str) -> None:
-        """Log transient refresh progress."""
-
-        log_debug(_LOGGER, "Settings CivitAI metadata refresh progress", line=line)
-
-    def emit_model_updated(self, event: object) -> None:
-        """Invalidate model catalog snapshots after a metadata update."""
-
-        log_debug(
-            _LOGGER,
-            "Settings CivitAI metadata refresh updated model",
-            event=repr(event),
-        )
-        self._on_model_updated()
 
 
 def create_application(argv: Sequence[str]) -> QApplication:
@@ -1987,6 +1957,11 @@ def _build_main_window_dependencies(
         model_recipe_step_started_at,
     )
     record_dependency_phase("model_catalog_recipe_services")
+    from substitute.app.bootstrap.settings_model_metadata_progress import (
+        SettingsModelMetadataProgressSink,
+    )
+
+    manual_model_metadata_update_bridge = ModelMetadataUpdateBridge()
     settings_metadata_refreshes: list[StartupModelMetadataRefreshHandle] = []
     settings_metadata_refresh_request_id = 0
 
@@ -2031,8 +2006,9 @@ def _build_main_window_dependencies(
                 context,
                 runtime_services.persistent_cache_runtime.prepared,
             ),
-            progress_sink=_SettingsModelMetadataProgressSink(
-                model_catalog_service.invalidate
+            progress_sink=SettingsModelMetadataProgressSink(
+                invalidate_catalog=model_catalog_service.invalidate,
+                publish_update=manual_model_metadata_update_bridge.emit_model_updated,
             ),
             submitter=settings_metadata_submitter,
             close_submitter=settings_metadata_submitter.close,
@@ -2291,7 +2267,6 @@ def _build_main_window_dependencies(
             else CivitaiThumbnailSafetyPolicy.DISABLED
         )
 
-    manual_model_metadata_update_bridge = ModelMetadataUpdateBridge()
     manual_model_metadata_submitter = runtime_services.execution_runtime.submitter(
         "model_metadata",
         owner_id="manual_model_metadata_context_actions",

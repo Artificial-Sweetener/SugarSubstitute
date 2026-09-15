@@ -62,9 +62,9 @@ from substitute.presentation.editor.panel.model_choice_resolution_adapter import
     catalog_resolution,
     literal_model_choice_resolution,
 )
-from substitute.presentation.editor.panel.empty_model_choice_snapshot import (
-    build_known_empty_model_snapshot,
-    known_empty_model_kind,
+from substitute.presentation.editor.panel.known_model_choice_snapshot import (
+    build_known_model_snapshot,
+    known_model_kind,
 )
 from substitute.shared.logging.logger import get_logger
 from sugarsubstitute_shared.localization import app_text
@@ -208,31 +208,37 @@ class PanelModelChoiceSnapshotController:
             projection_mode="snapshot",
             option_count=len(options),
         )
-        prepared_catalog = self._prepared_eligible_catalog()
-        if prepared_catalog is None or self._model_choice_resolver is None:
+        if self._model_choice_resolver is None:
             return self._none_snapshot(request, options=options)
-        catalog_items, catalog_revision = prepared_catalog
-        known_model_kind = known_empty_model_kind(
+        field_model_kind = known_model_kind(
             request,
-            options=options,
             resolver=self._model_choice_resolver,
         )
-        if known_model_kind is not None:
+        if field_model_kind is not None:
+            catalog_items, catalog_revision = self._cached_catalog_items(
+                field_model_kind
+            )
             identity = self._identity_for_request(
                 request,
-                model_kind=known_model_kind,
+                model_kind=field_model_kind,
                 query_mode=PanelModelChoiceSnapshotKind.RICH_MODEL_PICKER,
-                options=(),
+                options=options,
                 catalog_revision=catalog_revision,
             )
-            snapshot = build_known_empty_model_snapshot(
+            snapshot = build_known_model_snapshot(
                 request,
                 identity=identity,
-                model_kind=known_model_kind,
+                model_kind=field_model_kind,
                 resolver=self._model_choice_resolver,
+                options=options,
+                catalog_items=catalog_items,
             )
             self._snapshots[identity.query_identity or id(snapshot)] = snapshot
             return snapshot
+        prepared_catalog = self._prepared_eligible_catalog()
+        if prepared_catalog is None:
+            return self._none_snapshot(request, options=options)
+        catalog_items, catalog_revision = prepared_catalog
         context = RichChoiceContext(
             node_class=request.node_type
             if isinstance(request.node_type, str)

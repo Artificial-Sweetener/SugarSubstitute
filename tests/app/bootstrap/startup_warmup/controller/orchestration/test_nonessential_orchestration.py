@@ -28,7 +28,6 @@ from substitute.app.bootstrap.startup_warmup_controller import (
 
 from .support import (
     _ReadinessState,
-    _MetadataBridge,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
@@ -64,7 +63,6 @@ def test_start_nonessential_startup_warmups_waits_for_backend() -> None:
         state=state,
         comfy_http_ready=False,
         readiness_state=readiness_state,
-        metadata_update_bridge=None,
         start_backend_editor_warmup=lambda: calls.append("backend"),
         start_cube_icon_warmup=lambda: calls.append("cube"),
         start_model_metadata_refresh=lambda: calls.append("metadata"),
@@ -76,19 +74,17 @@ def test_start_nonessential_startup_warmups_waits_for_backend() -> None:
     assert calls == []
 
 
-def test_start_nonessential_startup_warmups_runs_once_and_coalesces() -> None:
-    """Nonessential warmups should start dependencies and metadata coalescing once."""
+def test_start_nonessential_startup_warmups_runs_once() -> None:
+    """Nonessential warmups should start each background dependency once."""
 
     state = StartupWarmupState()
     readiness_state = _ReadinessState()
-    bridge = _MetadataBridge()
     calls: list[str] = []
 
     start_nonessential_startup_warmups(
         state=state,
         comfy_http_ready=True,
         readiness_state=readiness_state,
-        metadata_update_bridge=bridge,
         start_backend_editor_warmup=lambda: calls.append("backend"),
         start_cube_icon_warmup=lambda: calls.append("cube"),
         start_model_metadata_refresh=lambda: calls.append("metadata"),
@@ -98,7 +94,6 @@ def test_start_nonessential_startup_warmups_runs_once_and_coalesces() -> None:
         state=state,
         comfy_http_ready=True,
         readiness_state=readiness_state,
-        metadata_update_bridge=bridge,
         start_backend_editor_warmup=lambda: calls.append("backend"),
         start_cube_icon_warmup=lambda: calls.append("cube"),
         start_model_metadata_refresh=lambda: calls.append("metadata"),
@@ -108,4 +103,3 @@ def test_start_nonessential_startup_warmups_runs_once_and_coalesces() -> None:
     assert state.nonessential_started is True
     assert readiness_state.nonessential_startup_warmups_pending_backend is False
     assert calls == ["backend", "cube", "metadata"]
-    assert bridge.begin_calls == 1

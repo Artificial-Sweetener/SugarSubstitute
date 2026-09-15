@@ -205,11 +205,6 @@ def start_model_metadata_refresh(
             reason="already_started" if state.started else "no_metadata_bridge",
         )
         return
-    finish_metadata_coalescing = getattr(
-        metadata_update_bridge,
-        "request_end_startup_coalescing",
-        None,
-    )
     refresh = refresh_handle_factory(
         service_factory=service_factory,
         progress_sink=StartupModelMetadataProgressSink(
@@ -217,9 +212,7 @@ def start_model_metadata_refresh(
             comfy_output_stream=comfy_output_stream,
             update_bridge=metadata_update_bridge,
         ),
-        finished_callback=finish_metadata_coalescing
-        if callable(finish_metadata_coalescing)
-        else None,
+        finished_callback=None,
     )
     refreshes.append(refresh)
     refresh.start()
