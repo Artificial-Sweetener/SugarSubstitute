@@ -808,18 +808,18 @@ next_extraction = "Extract animation/raster ownership and geometry projection fr
 id = "SS-ARCH-059"
 owner = "prompt token-weight controls"
 paths = ["substitute/presentation/editor/prompt_editor/overlays/token_weight_controls.py"]
-fingerprint = "sha256:637cba18d5269f520a166f488d675b606bc458262e49e1c463e88087035e98a8"
+fingerprint = "sha256:ec0029962280a776a38e39288eef94ef91fc2eb68db12cffbe4f0dd7edbd1b55"
 issue = "chore:SS-ARCH-059"
 review_by = 2026-12-15
 responsibilities = [
   "control overlay geometry and visibility",
   "pointer, click, and wheel gesture routing",
-  "exact-weight edit widget behavior",
+  "exact-weight activation and completion gesture routing",
   "token preview and hover state",
   "wheel-intent coordination",
   "runtime widget lifecycle and event filtering",
 ]
-next_extraction = "Extract exact-edit, wheel-intent, and preview controllers from overlay geometry and widget presentation."
+next_extraction = "Extract remaining exact-edit activation gestures, wheel-intent, and preview controllers from overlay geometry and widget presentation."
 
 [[debts]]
 id = "SS-ARCH-060"
@@ -842,7 +842,7 @@ next_extraction = "Extract LoRA, exact-weight, and inline-preview feature projec
 id = "SS-ARCH-061"
 owner = "prompt projection surface"
 paths = ["substitute/presentation/editor/prompt_editor/projection/surface.py"]
-fingerprint = "sha256:7aadc6d306c282a5cd79ebcd6af9292ee54e26224422fd430d8b991479610f59"
+fingerprint = "sha256:471a05af360403ca8cc42928e2891e96870d26155e8885e0e7489e6e233a9f6d"
 issue = "chore:SS-ARCH-061"
 review_by = 2026-12-15
 responsibilities = [
@@ -859,12 +859,12 @@ next_extraction = "Extract input/editing, paint publication, and feature-interac
 id = "SS-ARCH-062"
 owner = "prompt inline token rendering"
 paths = ["substitute/presentation/editor/prompt_editor/projection/tokens.py"]
-fingerprint = "sha256:3a23666fede3b81a22018cce4514e207ab331213a47de787c66b96331817c437"
+fingerprint = "sha256:50edcafde62aa7f50690b618efe9555888f76151f752c4288ec88e039e5faa12"
 issue = "chore:SS-ARCH-062"
 review_by = 2026-12-15
 responsibilities = [
   "shared inline renderer contract",
-  "emphasis measurement and exact-weight painting",
+  "emphasis measurement and static token painting",
   "wildcard inline rendering",
   "LoRA banner rendering and media presentation",
   "renderer registration and theme adaptation",

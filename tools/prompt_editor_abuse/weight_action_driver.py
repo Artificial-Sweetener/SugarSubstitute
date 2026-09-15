@@ -115,7 +115,7 @@ class PromptWeightActionDriver:
             pos=target.mapFromGlobal(global_position),
             delay=0,
         )
-        if not surface.exact_weight_edit_active():
+        if not surface.exact_weight_editor.active:
             raise RuntimeError(
                 "Prompt abuse exact-weight double click was not accepted."
             )
