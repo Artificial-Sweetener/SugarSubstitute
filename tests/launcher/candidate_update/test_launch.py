@@ -22,7 +22,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
+)
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
     CandidateProcess,
+    ApplicationStartupCancelled,
 )
 from launcher.sugarsubstitute_launcher.candidate_update_launch import (
     launch_prepared_update,
@@ -62,10 +65,11 @@ class _Activation:
 class _Supervisor:
     """Return or reject one candidate launch."""
 
-    def __init__(self, *, fail: bool) -> None:
+    def __init__(self, *, fail: bool, cancel: bool = False) -> None:
         """Store whether launch should fail."""
 
         self._fail = fail
+        self._cancel = cancel
         self.environments: list[dict[str, str]] = []
         self.process = _ReadyProcess()
 
@@ -81,6 +85,9 @@ class _Supervisor:
         _ = layout
         _ = command
         self.environments.append(dict(environment))
+        if self._cancel:
+            self.process.terminate()
+            raise ApplicationStartupCancelled(self.process)
         if self._fail:
             raise ApplicationReadinessError("candidate failed")
         return self.process
@@ -90,14 +97,16 @@ class _ReadyProcess:
     """Represent a process that remains alive after readiness."""
 
     pid = 123
+    return_code: int | None = None
 
     def poll(self) -> int | None:
         """Report a running process."""
 
-        return None
+        return self.return_code
 
     def terminate(self) -> None:
         """Satisfy the candidate process lifecycle port."""
+        self.return_code = 1
 
     def kill(self) -> None:
         """Satisfy the candidate process lifecycle port."""
@@ -117,6 +126,7 @@ class _CrashSupervisor:
 
         self._diagnostics_root = diagnostics_root
         self.adopted: list[CandidateProcess] = []
+        self.cancellations: list[bool] = []
         self.fallbacks: list[tuple[list[str], dict[str, str]]] = []
 
     def prepare(
@@ -142,12 +152,14 @@ class _CrashSupervisor:
         layout: InstallLayout,
         process: CandidateProcess,
         prepared: PreparedCrashRun,
+        expected_cancellation: bool = False,
     ) -> int:
         """Record full-lifetime adoption of the ready candidate."""
 
         _ = layout
         _ = prepared
         self.adopted.append(process)
+        self.cancellations.append(expected_cancellation)
         return 0
 
     def supervise(
@@ -229,3 +241,31 @@ def test_failed_candidate_rolls_back_and_launches_previous_app(
     assert rollback_report.stage is UpdateRollbackStage.CANDIDATE_READINESS
     assert rollback_report.exception_type == "ApplicationReadinessError"
     assert rollback_report.message == "candidate failed"
+
+
+def test_cancelled_candidate_rolls_back_without_failure_report_or_fallback(
+    tmp_path: Path,
+) -> None:
+    """Respect cancellation without committing or relaunching an unwanted update."""
+    import pytest
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    activation = _Activation()
+    readiness = _Supervisor(fail=False, cancel=True)
+    crash = _CrashSupervisor(layout.appdata_dir / "diagnostics")
+    with pytest.raises(ApplicationStartupCancelled):
+        launch_prepared_update(
+            layout=layout,
+            command=("app",),
+            attempted_version="1.0.0",
+            environment={},
+            activation=activation,
+            supervisor=readiness,
+            crash_supervisor=crash,
+            rollback_reporter=lambda **kwargs: pytest.fail(
+                "Cancellation is not an update failure"
+            ),
+        )
+    assert activation.transitions == ["rollback"]
+    assert crash.fallbacks == []
+    assert crash.cancellations == [True]

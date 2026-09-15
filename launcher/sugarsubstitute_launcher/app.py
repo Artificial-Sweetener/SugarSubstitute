@@ -146,6 +146,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         from launcher.sugarsubstitute_launcher.splash_session import (
             start_launcher_splash_session,
         )
+        from launcher.sugarsubstitute_launcher.application_startup_contract import (
+            ApplicationStartupCancelled,
+        )
 
         try:
             if splash_session is None:
@@ -210,6 +213,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             broker.close()
             broker = None
+            return 0
+        except ApplicationStartupCancelled:
+            logging.getLogger(__name__).info(
+                "Installed application launch cancelled by the user"
+            )
+            try:
+                if splash_session is not None:
+                    splash_session.close()
+            finally:
+                if broker is not None:
+                    broker.close()
             return 0
         except Exception as error:
             app_launch_error = error

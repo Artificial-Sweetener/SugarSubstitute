@@ -28,6 +28,8 @@ import pytest
 from launcher.sugarsubstitute_launcher import application_lifecycle_supervisor
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
+)
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
     CandidateProcess,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -48,6 +50,7 @@ def test_normal_lifecycle_accepts_every_painted_primary_application_surface(
             self,
             *,
             accepted_surfaces: tuple[ApplicationReadinessSurface, ...],
+            cancellation_requested: object = None,
         ) -> None:
             """Record the accepted painted surfaces."""
 

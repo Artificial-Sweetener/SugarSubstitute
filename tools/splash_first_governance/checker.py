@@ -114,6 +114,7 @@ def repository_contracts() -> tuple[SplashFirstContract, ...]:
             allowed_pre_boundary_imports=frozenset(
                 {
                     "launcher.sugarsubstitute_launcher.application_launch",
+                    "launcher.sugarsubstitute_launcher.application_startup_contract",
                     "launcher.sugarsubstitute_launcher.application_election_recovery",
                     "launcher.sugarsubstitute_launcher.cli",
                     "launcher.sugarsubstitute_launcher.crash_routing",

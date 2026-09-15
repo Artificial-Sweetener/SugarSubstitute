@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from io import StringIO
 import json
+import subprocess
 from pathlib import Path
 from typing import Any, cast
 
@@ -123,6 +124,38 @@ def test_append_splash_session_args_preserves_command_without_session() -> None:
         "python",
         "main.py",
     ]
+
+
+def test_splash_cancellation_is_scoped_to_its_authenticated_session(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A different splash's cancellation cannot cancel this launch."""
+    import tempfile
+    from sugarsubstitute_shared.launch_splash.client import SocketSplashSessionClient
+    from sugarsubstitute_shared.launch_splash.session import (
+        SplashSessionSpec,
+        splash_cancel_signal_path,
+    )
+
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    spec = SplashSessionSpec(
+        host="127.0.0.1", port=49152, token="a" * 32, host_pid=1234
+    )
+    other = SplashSessionSpec(
+        host="127.0.0.1", port=49153, token="b" * 32, host_pid=1235
+    )
+    session = LauncherSplashSession(
+        client=SocketSplashSessionClient(spec),
+        app_arguments=(),
+        host_pid=1234,
+        process=cast(subprocess.Popen[str], _FakeProcess(stdout="")),
+    )
+    assert not session.cancellation_requested()
+    splash_cancel_signal_path(other).write_text("cancel\n", encoding="utf-8")
+    assert not session.cancellation_requested()
+    splash_cancel_signal_path(spec).write_text("cancel\n", encoding="utf-8")
+    assert session.cancellation_requested()
 
 
 def test_unacknowledged_splash_close_terminates_the_owned_process() -> None:

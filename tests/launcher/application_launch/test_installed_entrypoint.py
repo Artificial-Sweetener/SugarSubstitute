@@ -74,6 +74,9 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
     class _Supervisor:
         """Capture the installed application process without spawning it."""
 
+        def __init__(self, **kwargs: object) -> None:
+            """Accept the startup cancellation policy at the process boundary."""
+
         def supervise(self, **kwargs: object) -> int:
             """Record command and environment at the crash-owner boundary."""
 
@@ -97,6 +100,7 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
             app_arguments=(),
             client=None,
             ensure_closed=lambda: None,
+            cancellation_requested=lambda: False,
             present=lambda: "startup-splash",
         ),
     )
@@ -249,6 +253,7 @@ def test_pending_report_recovery_failure_does_not_open_repair(
             app_arguments=(),
             client=None,
             ensure_closed=lambda: None,
+            cancellation_requested=lambda: False,
             present=lambda: "startup-splash",
         ),
     )
