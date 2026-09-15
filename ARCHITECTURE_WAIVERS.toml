@@ -9,7 +9,7 @@ kind = "remediation"
 justification = "The assessed file mixes lazy infrastructure adapter implementations, application service graph composition, shell construction and geometry, runtime readiness probing. Extract the remaining lazy adapter definitions and shell construction and geometry from the application composition root."
 issue = "chore:SS-ARCH-002"
 review_by = 2026-12-15
-max_lines = 2916
+max_lines = 2900
 next_limit = 2430
 debt = "SS-ARCH-002"
 
@@ -61,7 +61,7 @@ kind = "remediation"
 justification = "The assessed file mixes nonessential warmup scheduling, backend editor and model metadata warmup, cube icon and CuteCanvas SAM warmup, restore-finalized lifecycle integration. Extract feature-specific warmup launchers behind one scheduling registry and lifecycle owner."
 issue = "chore:SS-ARCH-007"
 review_by = 2026-12-15
-max_lines = 634
+max_lines = 625
 next_limit = 524
 debt = "SS-ARCH-007"
 

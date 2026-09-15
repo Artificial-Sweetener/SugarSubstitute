@@ -14,28 +14,32 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Prepare model-picker snapshots for authoritative empty Comfy fields."""
+"""Prepare model pickers from authoritative field identity and available enrichment."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 
 from substitute.application.model_metadata import (
+    ModelCatalogItem,
     RichChoiceContext,
     RichChoiceResolver,
-    model_kind_for_field,
+)
+from substitute.application.model_metadata.model_field_kind_resolver import (
+    declared_model_kind_for_field,
 )
 from substitute.presentation.editor.catalog.snapshots import (
     CatalogSnapshotIdentity,
     CatalogSnapshotReadiness,
     CatalogSnapshotStatus,
 )
-from substitute.presentation.widgets.media_wall import unavailable_thumbnail_readiness
 
-from .model_choice_resolution_adapter import literal_model_choice_resolution
+from .model_choice_resolution_adapter import catalog_resolution
 from .model_choice_snapshot_values import (
     rich_choice_search_placeholder,
     suggestion_context,
+    thumbnail_readiness_for_resolution,
 )
 from .model_choice_snapshots import (
     PanelModelChoiceSnapshot,
@@ -45,17 +49,16 @@ from .model_choice_snapshots import (
 )
 
 
-def known_empty_model_kind(
+def known_model_kind(
     request: PanelModelChoiceSnapshotRequest,
     *,
-    options: Sequence[str],
     resolver: RichChoiceResolver,
 ) -> str | None:
-    """Resolve an empty picker from its authoritative Comfy field identity."""
+    """Resolve picker identity independently of catalog and thumbnail readiness."""
 
-    if options or not isinstance(request.node_type, str):
+    if not isinstance(request.node_type, str):
         return None
-    model_kind = model_kind_for_field(
+    model_kind = declared_model_kind_for_field(
         class_type=request.node_type,
         input_key=request.key,
     )
@@ -64,24 +67,35 @@ def known_empty_model_kind(
     return model_kind
 
 
-def build_known_empty_model_snapshot(
+def build_known_model_snapshot(
     request: PanelModelChoiceSnapshotRequest,
     *,
     identity: CatalogSnapshotIdentity,
     model_kind: str,
     resolver: RichChoiceResolver,
+    options: Sequence[str],
+    catalog_items: Sequence[ModelCatalogItem] | None,
 ) -> PanelModelChoiceSnapshot:
-    """Build an empty rich picker without requiring an impossible option match."""
+    """Preserve exact choices and the picker while enrichment becomes available."""
 
-    resolution = literal_model_choice_resolution(
-        options=(),
-        matched_kind=model_kind,
+    resolution = replace(
+        catalog_resolution(
+            options=options,
+            catalog_items=catalog_items or (),
+            matched_kind=model_kind,
+            reason="authoritative model field identity",
+        ),
+        should_use_rich_picker=True,
     )
     return PanelModelChoiceSnapshot(
         identity=identity,
-        status=CatalogSnapshotStatus(CatalogSnapshotReadiness.WARM),
+        status=CatalogSnapshotStatus(
+            CatalogSnapshotReadiness.WARM
+            if catalog_items is not None
+            else CatalogSnapshotReadiness.COLD
+        ),
         kind=PanelModelChoiceSnapshotKind.RICH_MODEL_PICKER,
-        options=(),
+        options=tuple(options),
         model_kind=model_kind,
         suggestion_context=suggestion_context(
             model_kind=model_kind,
@@ -90,7 +104,7 @@ def build_known_empty_model_snapshot(
         resolution=resolution,
         choice_source=PanelPreparedModelChoiceSource(
             resolver=resolver,
-            options=(),
+            options=options,
             context=RichChoiceContext(
                 node_class=(
                     request.node_type if isinstance(request.node_type, str) else None
@@ -102,10 +116,11 @@ def build_known_empty_model_snapshot(
             initial_resolution=resolution,
         ),
         search_placeholder=rich_choice_search_placeholder((model_kind,)),
-        thumbnail_readiness=unavailable_thumbnail_readiness(
-            "thumbnail_variant_unavailable"
+        thumbnail_readiness=thumbnail_readiness_for_resolution(
+            resolution,
+            repository_available=request.thumbnail_repository_available,
         ),
     )
 
 
-__all__ = ["build_known_empty_model_snapshot", "known_empty_model_kind"]
+__all__ = ["build_known_model_snapshot", "known_model_kind"]
