@@ -19,11 +19,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 import psutil  # type: ignore[import-untyped]
 import pytest
 
-from launcher.sugarsubstitute_launcher import application_instance_recovery
 from launcher.sugarsubstitute_launcher.application_instance_recovery import (
     terminate_verified_instance_owner,
 )
@@ -31,26 +31,6 @@ from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceBrokerError,
     ApplicationInstanceEndpoint,
 )
-
-
-class _Connection:
-    """Expose a kernel-identity result at the recovery boundary."""
-
-    def __init__(self, peer_process_id: int | None) -> None:
-        """Store the simulated endpoint owner."""
-
-        self._peer_process_id = peer_process_id
-        self.closed = False
-
-    def peer_process_id(self) -> int | None:
-        """Return the simulated peer identity."""
-
-        return self._peer_process_id
-
-    def close(self) -> None:
-        """Record connection cleanup."""
-
-        self.closed = True
 
 
 class _Process:
@@ -64,6 +44,10 @@ class _Process:
         self.terminated = False
         self.killed = False
         self.wait_count = 0
+
+    def create_time(self) -> float:
+        """Return the exact process incarnation captured before the hang."""
+        return 123.0
 
     def exe(self) -> str:
         """Return the simulated executable path."""
@@ -89,31 +73,22 @@ class _Process:
             raise psutil.TimeoutExpired(timeout, pid=4401)
 
 
-def test_recovery_refuses_pid_that_no_longer_owns_endpoint(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+def test_recovery_refuses_reused_pid(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """PID reuse or owner replacement must fail closed before process lookup."""
-
-    connection = _Connection(peer_process_id=9902)
-    monkeypatch.setattr(
-        application_instance_recovery,
-        "connect_instance_endpoint",
-        lambda _endpoint: connection,
+    """A new process with the same executable and PID must remain untouched."""
+    process = _Process(tmp_path / "SugarSubstitute.exe")
+    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    error = ApplicationInstanceBrokerError(
+        "unavailable",
+        owner_identity=ProcessIdentity(pid=4401, created_at=122.0),
+        endpoint=_recovery_error(owner_process_id=4401).endpoint,
     )
-    process_lookups: list[int] = []
-    monkeypatch.setattr(
-        psutil,
-        "Process",
-        lambda pid: process_lookups.append(pid),
-    )
-
     assert not terminate_verified_instance_owner(
-        _recovery_error(owner_process_id=4401),
-        expected_executable=tmp_path / "SugarSubstitute.exe",
+        error, expected_executable=tmp_path / "SugarSubstitute.exe"
     )
-    assert process_lookups == []
-    assert connection.closed
+    assert not process.terminated
+    assert not process.killed
 
 
 def test_recovery_refuses_same_pid_with_different_executable(
@@ -123,11 +98,6 @@ def test_recovery_refuses_same_pid_with_different_executable(
     """A matching endpoint PID is insufficient without executable identity."""
 
     process = _Process(tmp_path / "unrelated.exe")
-    monkeypatch.setattr(
-        application_instance_recovery,
-        "connect_instance_endpoint",
-        lambda _endpoint: _Connection(peer_process_id=4401),
-    )
     monkeypatch.setattr(
         psutil,
         "Process",
@@ -153,11 +123,6 @@ def test_recovery_terminates_only_reverified_exact_owner(
     executable = tmp_path / "SugarSubstitute.exe"
     process = _Process(executable, hang_on_terminate=hang_on_terminate)
     monkeypatch.setattr(
-        application_instance_recovery,
-        "connect_instance_endpoint",
-        lambda _endpoint: _Connection(peer_process_id=4401),
-    )
-    monkeypatch.setattr(
         psutil,
         "Process",
         lambda _pid: process,
@@ -177,7 +142,7 @@ def _recovery_error(*, owner_process_id: int) -> ApplicationInstanceBrokerError:
 
     return ApplicationInstanceBrokerError(
         "unavailable",
-        owner_process_id=owner_process_id,
+        owner_identity=ProcessIdentity(pid=owner_process_id, created_at=123.0),
         endpoint=ApplicationInstanceEndpoint(
             transport="windows-named-pipe",
             address=r"\\.\pipe\SugarSubstitute-test",

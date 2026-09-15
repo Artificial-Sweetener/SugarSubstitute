@@ -27,7 +27,7 @@ import shutil
 from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
 )
-from launcher.sugarsubstitute_launcher.process import start_detached_handoff
+from launcher.sugarsubstitute_launcher.process_execution import start_detached_handoff
 from sugarsubstitute_shared.process_identity import capture_process_identity
 from sugarsubstitute_shared.launcher_update.targets import (
     launcher_bundle_target_for_key,

@@ -25,7 +25,7 @@ from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import LauncherOperatingSystem
-from launcher.sugarsubstitute_launcher.process import spawn_detached_process
+from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from launcher.sugarsubstitute_launcher.runtime_paths import frozen_support_path
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
@@ -74,7 +74,7 @@ def present_crash_report(
     incident_id: str,
     environment: Mapping[str, str],
     *,
-    process_starter: LauncherUiProcessStarter = spawn_detached_process,
+    process_starter: LauncherUiProcessStarter = spawn_supervised_process,
 ) -> None:
     """Retain the supervising caller until its report child is dismissed."""
 
@@ -89,7 +89,7 @@ def run_crash_reporter(
     locale_override: str | None,
     environment: Mapping[str, str],
     *,
-    process_starter: LauncherUiProcessStarter = spawn_detached_process,
+    process_starter: LauncherUiProcessStarter = spawn_supervised_process,
 ) -> int:
     """Present one report whose Restart action belongs to the live supervisor."""
 
@@ -108,7 +108,7 @@ def run_pending_crash_reporter(
     locale_override: str | None,
     environment: Mapping[str, str],
     *,
-    process_starter: LauncherUiProcessStarter = spawn_detached_process,
+    process_starter: LauncherUiProcessStarter = spawn_supervised_process,
 ) -> int:
     """Dismiss a pending report into the launch already owned by its caller."""
 

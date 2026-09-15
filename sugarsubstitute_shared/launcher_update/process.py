@@ -61,7 +61,9 @@ def schedule_launcher_update(
     startupinfo = None
     if sys.platform == "win32":
         creationflags = (
-            subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+            subprocess.CREATE_NEW_PROCESS_GROUP
+            | subprocess.DETACHED_PROCESS
+            | subprocess.CREATE_BREAKAWAY_FROM_JOB
         )
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -87,4 +89,30 @@ def schedule_launcher_update(
     return process.pid
 
 
-__all__ = ["schedule_launcher_update"]
+def relaunch_updated_launcher(executable_path: Path) -> None:
+    """Start the newly promoted launcher without inheriting helper handles."""
+
+    creationflags = 0
+    startupinfo = None
+    if sys.platform == "win32":
+        creationflags = (
+            subprocess.CREATE_NEW_PROCESS_GROUP
+            | subprocess.DETACHED_PROCESS
+            | subprocess.CREATE_BREAKAWAY_FROM_JOB
+        )
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    subprocess.Popen(  # noqa: S603
+        [subprocess_path(executable_path)],
+        cwd=subprocess_working_directory(executable_path.parent),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+        creationflags=creationflags,
+        startupinfo=startupinfo,
+        shell=False,
+    )
+
+
+__all__ = ["schedule_launcher_update", "relaunch_updated_launcher"]

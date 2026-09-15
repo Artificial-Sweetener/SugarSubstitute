@@ -24,7 +24,7 @@ import sys
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.process import spawn_detached_process
+from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 
 
 pytestmark = pytest.mark.platforms("windows")
@@ -57,7 +57,7 @@ def test_spawned_qt_child_is_natively_visible(tmp_path: Path) -> None:
     )
     environment = dict(os.environ)
     environment["QT_QPA_PLATFORM"] = "windows"
-    process, _log_path = spawn_detached_process(
+    process, _log_path = spawn_supervised_process(
         (
             sys.executable,
             str(child_script),

@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
+from launcher.sugarsubstitute_launcher.process_execution import start_detached_handoff
+
 from collections.abc import Callable
-import subprocess
 import sys
 
 from PySide6.QtWidgets import QApplication
@@ -104,20 +105,6 @@ def _restart_application(layout: InstallLayout) -> None:
 
     if request_supervised_application_restart():
         return
-    startupinfo = None
-    creationflags = 0
-    if sys.platform == "win32":
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = 0
-        creationflags = subprocess.CREATE_NO_WINDOW
-    subprocess.Popen(
-        [str(layout.executable_path), f"--install-root={layout.root}"],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        close_fds=True,
-        creationflags=creationflags,
-        startupinfo=startupinfo,
-        shell=False,
+    start_detached_handoff(
+        [str(layout.executable_path), f"--install-root={layout.root}"]
     )

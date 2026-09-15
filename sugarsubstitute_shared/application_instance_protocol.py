@@ -23,6 +23,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 from typing import Literal, Protocol, Self, cast
+from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 
 _MAXIMUM_MESSAGE_BYTES = 1024 * 1024
@@ -37,14 +38,19 @@ class ApplicationInstanceBrokerError(RuntimeError):
         self,
         message: str,
         *,
-        owner_process_id: int | None = None,
+        owner_identity: ProcessIdentity | None = None,
         endpoint: ApplicationInstanceEndpoint | None = None,
     ) -> None:
         """Retain the verified owner and endpoint needed for explicit recovery."""
 
         super().__init__(message)
-        self.owner_process_id = owner_process_id
+        self.owner_identity = owner_identity
         self.endpoint = endpoint
+
+    @property
+    def owner_process_id(self) -> int | None:
+        """Project the verified identity for recovery presentation."""
+        return self.owner_identity.pid if self.owner_identity is not None else None
 
 
 class ApplicationInstanceConnection(Protocol):

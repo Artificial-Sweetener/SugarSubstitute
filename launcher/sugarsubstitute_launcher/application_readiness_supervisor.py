@@ -30,7 +30,7 @@ import time
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.process import spawn_detached_process
+from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
@@ -315,7 +315,7 @@ def _start_candidate_process(
 ) -> tuple[CandidateProcess, Path]:
     """Adapt the launcher process owner to the supervision port."""
 
-    process, log_path = spawn_detached_process(command, environment=environment)
+    process, log_path = spawn_supervised_process(command, environment=environment)
     return process, log_path
 
 

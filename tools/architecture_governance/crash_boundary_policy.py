@@ -151,6 +151,7 @@ _ALLOWED_DISPOSITIONS_BY_CATEGORY = {
 _RUNTIME_ROOTS = frozenset({"launcher", "substitute", "sugarsubstitute_shared"})
 _EXACT_RUNTIME_FILES = frozenset({"main.py", "sitecustomize.py"})
 _CALL_CATEGORIES = {
+    "windows.kernel32.CreateProcessW": "process",
     "subprocess.Popen": "process",
     "subprocess.run": "process",
     "subprocess.call": "process",
@@ -233,6 +234,7 @@ _CLASS_BASE_CATEGORIES = {
     "PySide6.QtCore.QRunnable": "qt_thread_class",
 }
 _FACTORY_RESULT_TYPES = {
+    "sugarsubstitute_shared.windows_process_job_api.load_kernel": "windows.kernel32",
     "asyncio.get_event_loop": "asyncio.AbstractEventLoop",
     "asyncio.get_running_loop": "asyncio.AbstractEventLoop",
     "asyncio.new_event_loop": "asyncio.AbstractEventLoop",
