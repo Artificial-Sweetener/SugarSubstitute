@@ -903,10 +903,10 @@ owner = "main window composition"
 rule = "STRUCT003"
 path = "substitute/presentation/shell/main_window_composition.py"
 kind = "remediation"
-justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, output and transfer composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Split feature-specific composition modules behind a narrow main-window assembly boundary."
+justification = "The assessed file mixes dependency capture from the main window, workflow lifecycle composition, editor metadata and busy-controller composition, shell and runtime controller composition, signal connection and reload integration. Extract editor composition behind a narrow main-window assembly boundary."
 issue = "chore:SS-ARCH-080"
 review_by = 2026-12-15
-max_lines = 1051
+max_lines = 895
 next_limit = 811
 debt = "SS-ARCH-080"
 
