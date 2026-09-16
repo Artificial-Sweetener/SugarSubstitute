@@ -23,7 +23,9 @@ from sugarsubstitute_shared.application_process_scope import ExactExecutableProc
 from pathlib import Path
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Sequence, Iterator
+from contextlib import contextmanager
+from launcher.sugarsubstitute_launcher import application_instance_recovery
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 import psutil  # type: ignore[import-untyped]
@@ -105,8 +107,28 @@ class _Process:
 
         _ = timeout
         self.wait_count += 1
+        if not self.terminated and not self.killed:
+            raise psutil.TimeoutExpired(timeout, pid=4401)
         if self._hang_on_terminate and self.wait_count == 1:
             raise psutil.TimeoutExpired(timeout, pid=4401)
+
+
+def _bind_process(monkeypatch: pytest.MonkeyPatch, process: _Process) -> None:
+    """Replace the process boundary without ever opening a real fixture PID."""
+
+    @contextmanager
+    def open_process(pid: int) -> Iterator[_Process]:
+        """Retain the deterministic candidate through the recovery transaction."""
+        assert pid == 4401
+        yield process
+
+    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    monkeypatch.setattr(
+        application_instance_recovery, "open_instance_process", open_process
+    )
+    from sugarsubstitute_shared import windows_process_security
+
+    monkeypatch.setattr(windows_process_security, "process_session_id", lambda _pid: 1)
 
 
 @pytest.mark.parametrize("copied_bundle", [False, True])
@@ -128,7 +150,7 @@ def test_normal_launch_recovers_the_authenticated_repair_owner(
         if copied_bundle
         else (),
     )
-    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    _bind_process(monkeypatch, process)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     failures = iter(
@@ -183,7 +205,7 @@ def test_recovery_refuses_copied_image_running_for_another_installation(
             f"--execute-repair-request={tmp_path / 'other' / '.repair' / 'prepared.json'}",
         ),
     )
-    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    _bind_process(monkeypatch, process)
     assert not terminate_verified_process(
         ProcessIdentity(4401, 123.0), scope=InstalledInvocationScope(layout)
     )
@@ -196,7 +218,7 @@ def test_recovery_refuses_reused_pid(
 ) -> None:
     """A new process with the same executable and PID must remain untouched."""
     process = _Process(tmp_path / "SugarSubstitute.exe")
-    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    _bind_process(monkeypatch, process)
     assert not terminate_verified_process(
         ProcessIdentity(pid=4401, created_at=122.0),
         scope=ExactExecutableProcessScope((tmp_path / "SugarSubstitute.exe",)),
@@ -212,11 +234,7 @@ def test_recovery_refuses_same_pid_with_different_executable(
     """A matching endpoint PID is insufficient without executable identity."""
 
     process = _Process(tmp_path / "unrelated.exe")
-    monkeypatch.setattr(
-        psutil,
-        "Process",
-        lambda _pid: process,
-    )
+    _bind_process(monkeypatch, process)
 
     assert not terminate_verified_process(
         ProcessIdentity(pid=4401, created_at=123.0),
@@ -236,11 +254,7 @@ def test_recovery_terminates_only_reverified_exact_owner(
 
     executable = tmp_path / "SugarSubstitute.exe"
     process = _Process(executable, hang_on_terminate=hang_on_terminate)
-    monkeypatch.setattr(
-        psutil,
-        "Process",
-        lambda _pid: process,
-    )
+    _bind_process(monkeypatch, process)
 
     assert terminate_verified_process(
         ProcessIdentity(pid=4401, created_at=123.0),
@@ -249,3 +263,32 @@ def test_recovery_terminates_only_reverified_exact_owner(
     assert process.terminated
     assert process.killed is hang_on_terminate
     assert process.wait_count == (2 if hang_on_terminate else 1)
+
+
+@pytest.mark.platforms("windows")
+@pytest.mark.parametrize("owner_session", [2, None])
+def test_automatic_recovery_preserves_other_or_unverified_sessions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, owner_session: int | None
+) -> None:
+    """Require same-session native evidence even when process discovery succeeds."""
+    from sugarsubstitute_shared import windows_process_security
+
+    executable = tmp_path / "SugarSubstitute.exe"
+    process = _Process(executable)
+    _bind_process(monkeypatch, process)
+
+    def session_id(pid: int) -> int:
+        """Model another desktop or unavailable native session metadata."""
+        if pid != 4401:
+            return 1
+        if owner_session is None:
+            raise OSError("Session query failed")
+        return owner_session
+
+    monkeypatch.setattr(windows_process_security, "process_session_id", session_id)
+    assert not terminate_verified_process(
+        ProcessIdentity(4401, 123.0),
+        scope=ExactExecutableProcessScope((executable,)),
+    )
+    assert not process.terminated
+    assert not process.killed
