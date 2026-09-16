@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 import math
+import sys
 
 import psutil  # type: ignore[import-untyped]
 
@@ -63,6 +64,13 @@ def wait_for_process_exit(
 ) -> None:
     """Wait for the captured incarnation; a replacement PID means it has exited."""
 
+    if sys.platform == "win32":
+        from sugarsubstitute_shared.windows_process_wait import (
+            wait_for_windows_process_exit,
+        )
+
+        wait_for_windows_process_exit(identity, timeout_seconds=timeout_seconds)
+        return
     try:
         process = psutil.Process(identity.pid)
         observed_creation = float(process.create_time())
