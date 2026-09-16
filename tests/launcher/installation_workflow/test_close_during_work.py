@@ -109,7 +109,7 @@ def test_close_during_initial_install_waits_for_its_safe_boundary(
 
     assert window.isVisible()
     assert "Finishing the current setup step before closing." in (
-        window.view.progress_log.log_view.toPlainText()
+        window.view.status_panel.progress_log.log_view.toPlainText()
     )
     release_install.set()
     wait_for_launcher_condition(

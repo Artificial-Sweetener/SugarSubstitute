@@ -25,10 +25,15 @@ from pathlib import Path
 from typing import cast
 
 from PySide6.QtCore import QCoreApplication
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
 from launcher.sugarsubstitute_launcher.application.installation.workflow import (
     InstallationWorkflow,
+)
+from launcher.sugarsubstitute_launcher.application.installation.progress import (
+    InstallationProgressObserver,
+    InstallationProgress,
+    InstallationStage,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.localization import (
@@ -159,6 +164,19 @@ def test_launcher_exposes_language_first_and_retranslates_immediately(
         application.processEvents()
         assert window.windowTitle() == "SugarSubstitute セットアップ"
         assert window.view.language_title_label.text() == "言語を選択"
+        window.show()
+        window.view.show_status_output()
+        page = window.view.status_panel
+        page.set_progress(InstallationProgress(InstallationStage.RUNTIME))
+        title = page.findChild(QLabel, "OnboardingPageTitle")
+        assert title is not None
+        assert title.text() == QCoreApplication.translate(
+            "LauncherMainWindow", "Setting up SugarSubstitute"
+        )
+        assert title.text() != "Setting up SugarSubstitute"
+        assert page.progress_bar.accessibleName() == QCoreApplication.translate(
+            "LauncherMainWindow", "Installing Python runtime and app dependencies."
+        )
     finally:
         window.close()
         runtime.manager.close()
@@ -180,6 +198,7 @@ def test_headless_locale_override_seeds_shared_durable_preference(
 
 def _unused_workflow_factory(
     _output_callback: Callable[[str], None],
+    _progress_observer: InstallationProgressObserver,
     _cancellation: Event,
 ) -> InstallationWorkflow:
     """Reject installation work in localization-only window tests."""

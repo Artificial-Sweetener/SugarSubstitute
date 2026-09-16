@@ -41,6 +41,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from launcher.sugarsubstitute_launcher.application.installation.progress import (  # noqa: E402
+    InstallationProgressObserver,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
 from launcher.sugarsubstitute_launcher.localization import (  # noqa: E402
     LauncherLocalizationRuntime,
@@ -116,7 +119,10 @@ class SideEffectAudit:
         self.target_mutations = 0
 
     def workflow_factory(
-        self, _log: Callable[[str], None], _cancellation: Event
+        self,
+        _log: Callable[[str], None],
+        _progress_observer: InstallationProgressObserver,
+        _cancellation: Event,
     ) -> Never:
         """Reject workflow construction before install or subprocess work exists."""
 
@@ -365,8 +371,12 @@ def _project_page(
         return
     if page == "install-complete":
         window.view.show_install_location()
-        window._append_log("Smoke: exact-version application payload verified.")
-        window._append_log("Smoke: setup handoff ready; no process was started.")
+        window.view.status_panel.append_log(
+            "Smoke: exact-version application payload verified."
+        )
+        window.view.status_panel.append_log(
+            "Smoke: setup handoff ready; no process was started."
+        )
         window.view.show_status_output()
         return
     if page.startswith("repair"):

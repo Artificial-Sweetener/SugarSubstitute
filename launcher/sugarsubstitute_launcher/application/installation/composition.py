@@ -21,19 +21,22 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from threading import Event
 
+from launcher.sugarsubstitute_launcher.application.installation.progress import (
+    InstallationProgressObserver,
+)
 from launcher.sugarsubstitute_launcher.application.installation.workflow import (
     InstallationWorkflow,
 )
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
-from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process import (
     start_installed_launcher_handoff,
 )
-from launcher.sugarsubstitute_launcher.runtime import UvManagedRuntimeInstaller
 from launcher.sugarsubstitute_launcher.installed_runtime_setup import (
     InstalledRuntimeSetup,
 )
+from launcher.sugarsubstitute_launcher.runtime import UvManagedRuntimeInstaller
 from launcher.sugarsubstitute_launcher.runtime_command import (
     SubprocessRuntimeCommandRunner,
 )
@@ -44,6 +47,7 @@ from launcher.sugarsubstitute_launcher.uv_tool import VerifiedUvExecutableProvid
 def build_installation_workflow(
     *,
     output_callback: Callable[[str], None] | None = None,
+    progress_observer: InstallationProgressObserver | None = None,
     cancellation: Event | None = None,
     admit_installation: Callable[[InstallLayout], bool] | None = None,
     process_starter: Callable[[Sequence[str]], None] = start_installed_launcher_handoff,
@@ -61,8 +65,9 @@ def build_installation_workflow(
                 runner=SubprocessRuntimeCommandRunner(
                     output_callback, cancellation=cancellation
                 ),
-            ),
+            )
         ),
         process_starter=process_starter,
+        progress_observer=progress_observer,
         admit_installation=admit_installation,
     )

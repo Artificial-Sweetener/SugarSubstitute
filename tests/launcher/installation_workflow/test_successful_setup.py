@@ -153,10 +153,13 @@ def test_frozen_setup_installs_in_current_window(
     assert window.view.install_path_edit.isEnabled() is False
     assert window.view.browse_button is not None
     assert window.view.browse_button.isEnabled() is False
-    assert "Installed launcher:" in window.view.progress_log.log_view.toPlainText()
+    assert (
+        "Installed launcher:"
+        in window.view.status_panel.progress_log.log_view.toPlainText()
+    )
     assert (
         "Starting installed launcher."
-        not in window.view.progress_log.log_view.toPlainText()
+        not in window.view.status_panel.progress_log.log_view.toPlainText()
     )
     close_and_delete_launcher_window(window)
 

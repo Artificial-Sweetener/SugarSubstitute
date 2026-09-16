@@ -129,10 +129,10 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
     assert window.view.browse_button is not None
     assert window.view.browse_button.isEnabled() is True
     assert window.view.primary_button.text() == "Install"
-    assert isinstance(window.view.progress_log, TerminalOutputView)
-    assert type(window.view.progress_log.log_view) is QPlainTextEdit
-    assert window.view.progress_log.log_view.minimumHeight() == 220
-    assert window.view.progress_log.log_view.maximumHeight() == 280
+    assert isinstance(window.view.status_panel.progress_log, TerminalOutputView)
+    assert type(window.view.status_panel.progress_log.log_view) is QPlainTextEdit
+    assert window.view.status_panel.progress_log.log_view.minimumHeight() == 220
+    assert window.view.status_panel.progress_log.log_view.maximumHeight() == 280
     guidance = window.view.install_location_guidance_label.text()
     target = detect_launcher_target()
     if target.operating_system is LauncherOperatingSystem.WINDOWS:
@@ -141,7 +141,7 @@ def test_launcher_initial_screen_matches_onboarding_step_one_shell(
         assert "~/Applications/SugarSubstitute" in guidance
     else:
         assert "~/.local/share/SugarSubstitute" in guidance
-    assert "Ready." in window.view.progress_log.log_view.toPlainText()
+    assert "Ready." in window.view.status_panel.progress_log.log_view.toPlainText()
     assert window.view.status_panel is not None
     assert window.view.status_panel.isHidden() is True
     assert "InstallerContentWash" in window.view.styleSheet()
@@ -305,11 +305,11 @@ def test_progress_details_receive_their_declared_console_height(
 
     try:
         compact_page_height = window.view.page_stack.height()
-        window.view.details_button.click()
+        window.view.status_panel.details_button.click()
         application.processEvents()
 
-        console = window.view.progress_log.log_view
-        assert window.view.details_button.isChecked() is True
+        console = window.view.status_panel.progress_log.log_view
+        assert window.view.status_panel.details_button.isChecked() is True
         assert console.isVisible() is True
         assert console.height() >= console.minimumHeight()
         assert window.view.page_stack.height() > compact_page_height
@@ -317,12 +317,12 @@ def test_progress_details_receive_their_declared_console_height(
             console.mapTo(window.view.page_stack, console.rect().bottomRight())
         )
 
-        window.view.details_button.click()
+        window.view.status_panel.details_button.click()
         application.processEvents()
         assert console.isVisible() is False
         assert window.view.page_stack.height() == compact_page_height
 
-        window.view.details_button.click()
+        window.view.status_panel.details_button.click()
         application.processEvents()
         assert console.isVisible() is True
         assert console.height() >= console.minimumHeight()
@@ -347,14 +347,14 @@ def test_failure_reveals_details_without_reentering_the_user_toggle(
     window.show()
     window.view.show_status_output()
     application.processEvents()
-    toggled = QSignalSpy(window.view.details_button.toggled)
+    toggled = QSignalSpy(window.view.status_panel.details_button.toggled)
 
     try:
         window.view.show_failure("Synthetic setup failure")
         application.processEvents()
 
-        assert window.view.details_button.isChecked() is True
-        assert window.view.progress_log.isVisible() is True
+        assert window.view.status_panel.details_button.isChecked() is True
+        assert window.view.status_panel.progress_log.isVisible() is True
         assert toggled.count() == 0
     finally:
         close_and_delete_launcher_window(window)
