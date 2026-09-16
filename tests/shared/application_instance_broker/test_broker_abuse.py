@@ -99,10 +99,12 @@ def test_child_crash_before_receipt_reaches_replacement_without_relaunch(
         forward_thread.join(timeout=2.0)
 
 
+@pytest.mark.parametrize("restart_requested", [False, True])
 def test_failed_presentation_is_retained_for_a_replacement_child(
     tmp_path: Path,
+    restart_requested: bool,
 ) -> None:
-    """Release the caller visibly while preserving work that no surface showed."""
+    """Keep the caller attached until a replacement presents its retained work."""
 
     broker = _elect_primary(tmp_path)
     first_client = ApplicationSupervisorClient.connect_from_environment(
@@ -114,6 +116,8 @@ def test_failed_presentation_is_retained_for_a_replacement_child(
     def reject(request: RoutedApplicationInvocation) -> None:
         """Report that the current child could not show a surface."""
 
+        if restart_requested:
+            assert first_client.request_restart()
         first_client.complete_invocation(
             request.request_id,
             outcome="unavailable",
@@ -126,9 +130,6 @@ def test_failed_presentation_is_retained_for_a_replacement_child(
     replacement_client: ApplicationSupervisorClient | None = None
     try:
         assert rejected.wait(2.0)
-        forward_thread.join(timeout=2.0)
-        assert len(forward_result) == 1
-        assert isinstance(forward_result[0], ApplicationInstanceBrokerError)
         first_client.close()
         replacement_client = ApplicationSupervisorClient.connect_from_environment(
             broker.child_environment({})
@@ -148,6 +149,10 @@ def test_failed_presentation_is_retained_for_a_replacement_child(
 
         replacement_client.bind_invocation_handler(present)
         assert delivered.wait(2.0)
+        forward_thread.join(timeout=2.0)
+        assert not forward_thread.is_alive()
+        assert forward_result == []
+        assert broker.consume_restart_request() is restart_requested
     finally:
         first_client.close()
         if replacement_client is not None:
@@ -215,9 +220,13 @@ def test_supervisor_shutdown_releases_waiter_and_endpoint_immediately(
 
 def test_application_handler_failure_does_not_kill_the_control_channel(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """One bad invocation must fail visibly while later launches still work."""
+    """Bound failed presentation by the deadline while later launches still work."""
 
+    monkeypatch.setattr(
+        application_instance_broker, "_SUPERVISOR_RECEIPT_DEADLINE_SECONDS", 0.1
+    )
     broker = _elect_primary(tmp_path)
     client = ApplicationSupervisorClient.connect_from_environment(
         broker.child_environment({})
@@ -236,6 +245,7 @@ def test_application_handler_failure_does_not_kill_the_control_channel(
     try:
         assert failed_handler_called.wait(2.0)
         first_thread.join(timeout=2.0)
+        assert not first_thread.is_alive()
         assert len(first_result) == 1
         assert isinstance(first_result[0], ApplicationInstanceBrokerError)
 

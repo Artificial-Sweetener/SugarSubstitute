@@ -262,7 +262,7 @@ class ApplicationInvocationRouter:
                 self._pending.appendleft(invocation)
 
     def _handle_child_message(self, message: Mapping[str, object]) -> None:
-        """Authenticate and settle one child presentation receipt."""
+        """Retain callers across unavailable children until presentation or deadline."""
 
         token = message.get("token")
         if not isinstance(token, str) or not secrets.compare_digest(
@@ -273,22 +273,27 @@ class ApplicationInvocationRouter:
         receipt = parse_application_invocation_receipt(message)
         with self._state_lock:
             invocation = self._inflight.pop(receipt.request_id, None)
+            if invocation is None:
+                _LOGGER.warning(
+                    "Ignored application presentation receipt without an active request",
+                    extra={"request_id": receipt.request_id},
+                )
+                return
+            if receipt.outcome != "presented":
+                self._pending.append(invocation)
+                _LOGGER.info(
+                    "Retained invocation for replacement surface | request_id=%s | "
+                    "surface=%s",
+                    receipt.request_id,
+                    receipt.surface,
+                )
+                return
             waiter = self._waiters.pop(receipt.request_id, None)
             waiter_timer = self._waiter_timers.pop(receipt.request_id, None)
             released = receipt.request_id in self._released_request_ids
-            if receipt.outcome == "presented":
-                self._released_request_ids.discard(receipt.request_id)
-            elif invocation is not None:
-                self._pending.append(invocation)
-                self._released_request_ids.add(receipt.request_id)
+            self._released_request_ids.discard(receipt.request_id)
         if waiter_timer is not None:
             waiter_timer.cancel()
-        if invocation is None:
-            _LOGGER.warning(
-                "Ignored application presentation receipt without an active request",
-                extra={"request_id": receipt.request_id},
-            )
-            return
         if waiter is None and released:
             _LOGGER.info(
                 "Application completed invocation after its launcher was released | "
