@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from threading import Event
+
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
@@ -96,7 +98,7 @@ def run_interactive_full_experience(
 
 
 def _synthetic_workflow_factory() -> Callable[
-    [Callable[[str], None]], InstallationWorkflow
+    [Callable[[str], None], Event], InstallationWorkflow
 ]:
     """Build an in-memory launcher workflow for the explicit full walkthrough."""
 
@@ -147,7 +149,9 @@ def _synthetic_workflow_factory() -> Callable[
 
             return SimpleNamespace(python_executable=layout.runtime_python)
 
-    def create_workflow(_log: Callable[[str], None]) -> InstallationWorkflow:
+    def create_workflow(
+        _log: Callable[[str], None], _cancellation: Event
+    ) -> InstallationWorkflow:
         """Compose the real workflow over inert boundary implementations."""
 
         return InstallationWorkflow(

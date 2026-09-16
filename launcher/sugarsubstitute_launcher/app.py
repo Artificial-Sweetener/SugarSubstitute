@@ -77,6 +77,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         invocation_path=frozen_invocation_path(),
         native_executable_path=native_frozen_executable_path(),
         working_directory_path=Path.cwd(),
+        launcher_ui_child=args.launcher_ui_child,
     )
     layout = startup_candidate.layout
     from launcher.sugarsubstitute_launcher.logging_setup import (
@@ -208,17 +209,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 complete_installed_app_handoff,
             )
 
-            complete_installed_app_handoff(
-                layout=layout,
-                broker=broker,
-                locale_argument=locale_argument,
-                no_update_check=args.no_update_check,
-                splash_session=splash_session,
-                handoff_geometry=args.handoff_geometry,
+            from launcher.sugarsubstitute_launcher.startup_plan import (
+                should_launch_installed_app,
             )
-            broker.close()
-            broker = None
-            return 0
+
+            if should_launch_installed_app(args=args, startup_plan=startup_plan):
+                complete_installed_app_handoff(
+                    layout=layout,
+                    broker=broker,
+                    locale_argument=locale_argument,
+                    no_update_check=args.no_update_check,
+                    splash_session=splash_session,
+                    handoff_geometry=args.handoff_geometry,
+                )
+                broker.close()
+                broker = None
+                return 0
         except ApplicationStartupCancelled:
             logging.getLogger(__name__).info(
                 "Installed application launch cancelled by the user"

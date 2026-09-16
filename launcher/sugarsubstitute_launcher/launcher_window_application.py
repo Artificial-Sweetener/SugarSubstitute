@@ -68,6 +68,7 @@ def run_launcher_window(
         locale_override=args.locale_override,
     )
     instance_control = start_application_instance_control()
+    resume_runtime = startup_plan.runtime_setup_pending and not args.repair
 
     def admit_installation(layout: InstallLayout) -> bool:
         """Require the supervising process before writing a selected folder."""
@@ -80,18 +81,31 @@ def run_launcher_window(
     try:
         window = LauncherMainWindow(
             initial_layout=startup_plan.layout,
-            continue_install=args.continue_install,
+            continue_install=args.continue_install and not resume_runtime,
             repair=args.repair,
             update_check_enabled=not args.no_update_check,
             initial_release_source=initial_install_release_source(args.manifest_url),
-            workflow_factory=lambda output_callback: build_installation_workflow(
-                output_callback=output_callback,
-                admit_installation=admit_installation,
-                process_starter=start_installed_launcher_handoff,
+            workflow_factory=lambda output_callback, cancellation: (
+                build_installation_workflow(
+                    output_callback=output_callback,
+                    cancellation=cancellation,
+                    admit_installation=admit_installation,
+                    process_starter=start_installed_launcher_handoff,
+                )
             ),
             localization_manager=localization_runtime.manager,
             handoff_geometry=args.handoff_geometry,
         )
+        if resume_runtime:
+            from PySide6.QtCore import QTimer
+            from launcher.sugarsubstitute_launcher.installed_runtime_setup import (
+                pending_runtime_application,
+            )
+
+            window.accept_installed_application(
+                pending_runtime_application(startup_plan.layout)
+            )
+            QTimer.singleShot(0, window.start_runtime_setup)
         if owns_application:
             window.handoff_completed.connect(application.quit)
         presenter = None

@@ -45,6 +45,7 @@ class LauncherStartupPlan:
     installed_config_found: bool
     installed_config_valid: bool
     config_error: str | None = None
+    runtime_setup_pending: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +108,7 @@ def resolve_startup_candidate(
     invocation_path: Path | None = None,
     native_executable_path: Path | None = None,
     working_directory_path: Path | None = None,
+    launcher_ui_child: bool = False,
 ) -> LauncherStartupCandidate:
     """Find a possible installed layout without reading its configuration."""
 
@@ -115,7 +117,10 @@ def resolve_startup_candidate(
         return LauncherStartupCandidate(
             layout=layout,
             installed_config_found=(
-                _matches_installed_executable(executable_path, layout.target)
+                (
+                    launcher_ui_child
+                    or _matches_installed_executable(executable_path, layout.target)
+                )
                 and layout.config_path.is_file()
             ),
         )
@@ -173,7 +178,7 @@ def resolve_startup_candidate(
         if candidate_layout.config_path.is_file():
             return LauncherStartupCandidate(
                 layout=candidate_layout,
-                installed_config_found=True,
+                installed_config_found=candidate_layout.config_path.is_file(),
             )
 
     return LauncherStartupCandidate(
@@ -270,6 +275,7 @@ def _resolve_installed_config_plan(layout: InstallLayout) -> LauncherStartupPlan
         layout=layout,
         installed_config_found=True,
         installed_config_valid=True,
+        runtime_setup_pending=config.runtime_setup_pending,
     )
 
 
@@ -285,6 +291,7 @@ def should_launch_installed_app(
     return (
         startup_plan.installed_config_found
         and startup_plan.installed_config_valid
+        and not startup_plan.runtime_setup_pending
         and is_installed_app_launchable(startup_plan.layout)
     )
 
@@ -310,6 +317,13 @@ def should_show_repair(
     if args.repair or app_launch_error is not None:
         return True
     if args.continue_install:
+        return False
+    if (
+        startup_plan.installed_config_valid
+        and startup_plan.runtime_setup_pending
+        and startup_plan.layout.app_entrypoint.is_file()
+        and (startup_plan.layout.app_dir / "requirements.txt").is_file()
+    ):
         return False
     return startup_plan.installed_config_found
 

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from threading import Event
+
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Any, cast
@@ -99,7 +101,7 @@ def workflow_factory(
     runtime_provisioner: object | None = None,
     process_starter: Callable[[Sequence[str]], None] = lambda _command: None,
     admit_installation: Callable[[InstallLayout], bool] | None = None,
-) -> Callable[[Callable[[str], None]], InstallationWorkflow]:
+) -> Callable[[Callable[[str], None], Event], InstallationWorkflow]:
     """Build test workflows from explicit installer boundary doubles."""
 
     resolved_layout_preparer = layout_preparer or LayoutInstaller()
@@ -110,6 +112,7 @@ def workflow_factory(
 
     def create_workflow(
         _output_callback: Callable[[str], None],
+        _cancellation: Event,
     ) -> InstallationWorkflow:
         """Return one workflow using the configured test boundaries."""
 

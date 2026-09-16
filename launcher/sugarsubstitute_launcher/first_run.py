@@ -123,6 +123,7 @@ class FirstRunInstaller:
             layout=layout,
             channel=manifest.channel,
             release_source=release_source_config_for(release_source),
+            runtime_setup_pending=True,
         ).save(layout.config_path)
         LauncherUpdateState.load(layout.state_path).with_installed_payload(
             version=payload_result.version,

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from threading import Event
+
 from collections.abc import Callable
 from pathlib import Path
 from typing import cast
@@ -178,6 +180,7 @@ def test_headless_locale_override_seeds_shared_durable_preference(
 
 def _unused_workflow_factory(
     _output_callback: Callable[[str], None],
+    _cancellation: Event,
 ) -> InstallationWorkflow:
     """Reject installation work in localization-only window tests."""
 

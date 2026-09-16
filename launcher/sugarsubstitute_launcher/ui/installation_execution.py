@@ -61,7 +61,7 @@ class QtInstallationExecutor(QObject):
         self._initial_worker: InitialInstallWorker | None = None
         self._setup_thread: QThread | None = None
         self._setup_worker: SetupWorker | None = None
-        self._stop_after_current_stage = Event()
+        self._cancellation = Event()
 
     @property
     def initial_running(self) -> bool:
@@ -120,13 +120,13 @@ class QtInstallationExecutor(QObject):
 
         if self._initial_thread is not None or self._setup_thread is not None:
             return False
-        self._stop_after_current_stage.clear()
+        self._cancellation.clear()
         thread = QThread(self)
         worker = SetupWorker(
             application=application,
             setup_command=setup_command,
             workflow_factory=self._workflow_factory,
-            stop_after_current_stage=self._stop_after_current_stage,
+            cancellation=self._cancellation,
         )
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
@@ -142,10 +142,10 @@ class QtInstallationExecutor(QObject):
         thread.start()
         return True
 
-    def request_stop_after_current_stage(self) -> None:
-        """Prevent setup handoff after the active transactional stage finishes."""
+    def request_cancel(self) -> None:
+        """Cancel owned runtime commands and prevent subsequent setup handoff."""
 
-        self._stop_after_current_stage.set()
+        self._cancellation.set()
 
     @Slot()
     def _finish_initial(self) -> None:
