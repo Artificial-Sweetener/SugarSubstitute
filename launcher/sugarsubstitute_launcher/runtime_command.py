@@ -21,14 +21,19 @@ from __future__ import annotations
 import logging
 import re
 import subprocess
-import sys
+from threading import Event
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
+
+from launcher.sugarsubstitute_launcher.runtime_command_execution import (
+    RuntimeCommandExecution,
+)
+
+from launcher.sugarsubstitute_launcher.runtime_models import RuntimeCommandCancelled
 
 from sugarsubstitute_shared.external_path_failure import external_long_path_error
 from sugarsubstitute_shared.windows_long_paths import (
     operational_path,
-    subprocess_working_directory,
 )
 
 
@@ -44,10 +49,16 @@ _BEARER_TOKEN_PATTERN = re.compile(r"(?i)\bBearer\s+[^\s]+")
 class SubprocessRuntimeCommandRunner:
     """Run runtime commands through subprocess without shell execution."""
 
-    def __init__(self, output_callback: Callable[[str], None] | None = None) -> None:
+    def __init__(
+        self,
+        output_callback: Callable[[str], None] | None = None,
+        *,
+        cancellation: Event | None = None,
+    ) -> None:
         """Store the optional output sink used by graphical installers."""
 
         self._output_callback = output_callback
+        self._execution = RuntimeCommandExecution(cancellation or Event())
 
     def run(
         self,
@@ -65,54 +76,43 @@ class SubprocessRuntimeCommandRunner:
             len(command),
             cwd,
         )
-        startupinfo = None
-        creationflags = 0
-        if sys.platform == "win32":
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = 0
-            creationflags = subprocess.CREATE_NO_WINDOW
-
         process_cwd = operational_path(cwd)
+        captured_output: list[str] = []
+
+        def receive(raw_line: bytes) -> None:
+            """Retain diagnostic output while isolating disconnected optional sinks."""
+            line = _decode_process_output_line(raw_line)
+            if not line:
+                return
+            captured_output.append(line)
+            if self._output_callback is not None:
+                try:
+                    self._output_callback(line)
+                except OSError as error:
+                    _LOGGER.warning(
+                        "Runtime progress sink disconnected; continuing "
+                        "command | error_type=%s",
+                        type(error).__name__,
+                    )
+                    self._output_callback = None
+
         try:
-            process = subprocess.Popen(  # noqa: S603
-                list(command),
-                cwd=subprocess_working_directory(process_cwd),
-                env=dict(env),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                stdin=subprocess.DEVNULL,
-                shell=False,
-                startupinfo=startupinfo,
-                creationflags=creationflags,
+            return_code = self._execution.run(
+                command, cwd=process_cwd, env=env, output=receive
             )
+        except RuntimeCommandCancelled:
+            _LOGGER.info(
+                "Runtime command cancelled and reclaimed | executable=%s",
+                executable_name,
+            )
+            raise
         except OSError as error:
             compatibility_error = external_long_path_error(
-                component=executable_name,
-                path=process_cwd,
-                detail=error,
+                component=executable_name, path=process_cwd, detail=error
             )
             if compatibility_error is not None:
                 raise compatibility_error from error
             raise
-        captured_output: list[str] = []
-        if process.stdout is not None:
-            for raw_line in process.stdout:
-                line = _decode_process_output_line(raw_line)
-                if line:
-                    captured_output.append(line)
-                    if self._output_callback is not None:
-                        try:
-                            self._output_callback(line)
-                        except OSError as error:
-                            _LOGGER.warning(
-                                "Runtime progress sink disconnected; continuing "
-                                "command | error_type=%s",
-                                type(error).__name__,
-                            )
-                            self._output_callback = None
-
-        return_code = process.wait()
         if return_code != 0:
             detail = "\n".join(captured_output)
             compatibility_error = external_long_path_error(
