@@ -308,7 +308,9 @@ def _start_candidate_process(
 ) -> tuple[CandidateProcess, Path]:
     """Adapt the launcher process owner to the supervision port."""
 
-    process, log_path = spawn_supervised_process(command, environment=environment)
+    process, log_path = spawn_supervised_process(
+        command, environment=environment, allow_handoff=True
+    )
     return process, log_path
 
 

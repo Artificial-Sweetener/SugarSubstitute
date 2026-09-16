@@ -314,7 +314,9 @@ def _start_application_process(
 ) -> tuple[SupervisedProcess, Path]:
     """Start an application through the launcher's existing process owner."""
 
-    return spawn_supervised_process(command, environment=environment)
+    return spawn_supervised_process(
+        command, environment=environment, allow_handoff=True
+    )
 
 
 def _installed_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:

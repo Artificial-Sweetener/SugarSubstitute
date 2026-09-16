@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import ExitStack
 from pathlib import Path
 import socket
 
@@ -30,12 +31,21 @@ from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
 )
 from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from tests.launcher.application_readiness.process_family_fixture import command
+from sugarsubstitute_shared.windows_process_handle_api import NativeProcessHandleApi
 
 pytestmark = pytest.mark.platforms("windows")
 
 
 @pytest.mark.parametrize(
-    "failure", ["candidate_stop", "supervisor_death", "root_exit", "handoff"]
+    "failure",
+    [
+        "candidate_stop",
+        "supervisor_death",
+        "root_exit",
+        "handoff",
+        "contained_handoff",
+        "wide_family",
+    ],
 )
 def test_supervised_family_cannot_outlive_its_owner(
     tmp_path: Path, failure: str
@@ -44,32 +54,48 @@ def test_supervised_family_cannot_outlive_its_owner(
     root = None
     retained_owner: psutil.Process | None = None
     family: list[psutil.Process] = []
-    with socket.socket() as listener:
+    with socket.socket() as listener, ExitStack() as process_handles:
         listener.bind(("127.0.0.1", 0))
-        listener.listen(3)
+        listener.listen(32)
         listener.settimeout(10)
         port = listener.getsockname()[1]
-        role = {"supervisor_death": "owner", "handoff": "handoff"}.get(
-            failure, "family"
-        )
+        role = {
+            "supervisor_death": "owner",
+            "handoff": "handoff",
+            "contained_handoff": "handoff",
+            "wide_family": "wide_family",
+        }.get(failure, "family")
         try:
             root, _log = spawn_supervised_process(
                 command(role, port, tmp_path),
                 startup_log_path=tmp_path / "owner.log",
+                allow_handoff=failure == "handoff",
             )
             retained_owner = psutil.Process(root.pid)
             records: dict[str, int] = {}
-            for _ in range(3 if role == "owner" else 2):
+            expected_records = {"owner": 3, "wide_family": 21}.get(role, 2)
+            for _ in range(expected_records):
                 connection, _address = listener.accept()
                 with connection:
                     connection.settimeout(5)
                     with connection.makefile("rb") as response:
                         record = json.loads(response.read())
                 records[record["role"]] = record["pid"]
+            assert len(records) == expected_records
             root_identity = retained_owner
             family = [root_identity, *root_identity.children(recursive=True)]
             identities = {process.pid: process for process in family}
             assert set(records.values()).issubset(identities)
+            native = NativeProcessHandleApi()
+            retained: dict[int, int] = {}
+            for member in family:
+                handle = native.open(member.pid)
+                assert handle is not None
+                process_handles.callback(native.close, handle)
+                assert (
+                    abs(native.creation_time(handle) - member.create_time()) < 0.000_001
+                )
+                retained[member.pid] = handle
             survivors: set[int] = set()
             if failure == "handoff":
                 handoff_root = identities[records["leaf"]]
@@ -99,6 +125,11 @@ def test_supervised_family_cannot_outlive_its_owner(
                 expected_stopped = [
                     process for process in family if process.pid not in survivors
                 ]
+            if failure != "supervisor_death":
+                assert all(
+                    native.wait(retained[process.pid], 0)
+                    for process in expected_stopped
+                ), "Supervision reported completion before native descendant exit"
             _gone, alive = psutil.wait_procs(expected_stopped, timeout=5)
             assert not alive, (
                 "Supervision left live processes requiring manual cleanup: "

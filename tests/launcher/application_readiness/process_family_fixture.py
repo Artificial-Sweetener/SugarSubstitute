@@ -21,6 +21,8 @@ from __future__ import annotations
 from launcher.sugarsubstitute_launcher.process_execution import ChildProcess
 
 import json
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 import os
 from pathlib import Path
 import socket
@@ -70,6 +72,14 @@ def main() -> None:
             command("family", port, Path(log_root)),
             startup_log_path=Path(log_root) / "family.log",
         )
+    elif role == "wide_family":
+        with ExitStack() as cleanup:
+            for index in range(20):
+                cleanup.enter_context(
+                    _running_leaf(f"leaf-{index}", port, Path(log_root))
+                )
+            _publish_and_block(role, port)
+        return
     elif role == "family":
         with subprocess.Popen(
             command("leaf", port, Path(log_root)),
@@ -90,6 +100,23 @@ def main() -> None:
         if child is not None and child.poll() is None:
             child.kill()
             child.wait(timeout=5)
+
+
+@contextmanager
+def _running_leaf(role: str, port: int, log_root: Path) -> Iterator[None]:
+    """Bound cleanup of each wide-family member if its owner exits normally."""
+    with subprocess.Popen(
+        command(role, port, log_root),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    ) as leaf:
+        try:
+            yield
+        finally:
+            leaf.kill()
+            leaf.wait(timeout=5)
 
 
 def _publish_and_block(role: str, port: int) -> None:

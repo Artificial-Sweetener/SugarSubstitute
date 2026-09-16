@@ -123,13 +123,15 @@ def spawn_supervised_process(
     *,
     environment: Mapping[str, str] | None = None,
     startup_log_path: Path | None = None,
+    allow_handoff: bool = False,
 ) -> tuple[ChildProcess, Path]:
-    """Keep the Windows child family within its supervisor's kernel lifetime."""
+    """Contain descendants unless this owner explicitly admits independent handoffs."""
     return _spawn_process(
         command,
         environment=environment,
         startup_log_path=startup_log_path,
         supervised=True,
+        allow_handoff=allow_handoff,
     )
 
 
@@ -139,6 +141,7 @@ def _spawn_process(
     environment: Mapping[str, str] | None,
     startup_log_path: Path | None,
     supervised: bool,
+    allow_handoff: bool = False,
 ) -> tuple[ChildProcess, Path]:
     """Prepare output and environment once for the selected lifetime owner."""
 
@@ -167,6 +170,7 @@ def _spawn_process(
                         environment=clean_frozen_parent_environment(environment),
                         cwd=working_directory,
                         output_fd=log_file.fileno(),
+                        allow_breakaway=allow_handoff,
                     )
                 else:
                     process = subprocess.Popen(  # noqa: S603

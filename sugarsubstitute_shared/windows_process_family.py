@@ -37,6 +37,7 @@ from sugarsubstitute_shared.windows_process_job_api import (
     StartupInfoEx,
     load_kernel,
 )
+from sugarsubstitute_shared.windows_job_completion import WindowsJobCompletion
 
 _LOGGER = logging.getLogger(__name__)
 _KILL_ON_JOB_CLOSE = 0x2000
@@ -60,6 +61,7 @@ class WindowsProcessFamily:
         self._kernel = load_kernel()
         self._job = job
         self._process = process
+        self._completion = WindowsJobCompletion(job)
         self.pid = pid
         self.args = tuple(args)
         self.returncode: int | None = None
@@ -77,6 +79,7 @@ class WindowsProcessFamily:
         cwd: Path | None,
         output_fd: int,
         error_fd: int | None = None,
+        allow_breakaway: bool = False,
     ) -> WindowsProcessFamily:
         """Assign the child atomically, eliminating the spawn-before-containment gap."""
         import msvcrt
@@ -95,7 +98,9 @@ class WindowsProcessFamily:
         if not job:
             raise ctypes.WinError(ctypes.get_last_error())
         limits = ExtendedLimits()
-        limits.basic.flags = _KILL_ON_JOB_CLOSE | _ALLOW_EXPLICIT_BREAKAWAY
+        limits.basic.flags = _KILL_ON_JOB_CLOSE
+        if allow_breakaway:
+            limits.basic.flags |= _ALLOW_EXPLICIT_BREAKAWAY
         handles: list[int] = []
         attributes_initialized = False
         size = ctypes.c_size_t()
@@ -258,8 +263,7 @@ class WindowsProcessFamily:
         with self._lock:
             if self.returncode is not None:
                 return
-            if not self._kernel.TerminateJobObject(self._job, 1):
-                raise ctypes.WinError(ctypes.get_last_error())
+            self._completion.terminate()
 
     def kill(self) -> None:
         """Use Windows' unconditional family termination for forced shutdown."""
@@ -272,8 +276,8 @@ class WindowsProcessFamily:
         code = wintypes.DWORD()
         if not self._kernel.GetExitCodeProcess(self._process, ctypes.byref(code)):
             raise ctypes.WinError(ctypes.get_last_error())
-        if not self._kernel.TerminateJobObject(self._job, 1):
-            raise ctypes.WinError(ctypes.get_last_error())
+        self._completion.terminate()
+        self._completion.wait(5.0)
         deadline = time.monotonic() + 5.0
         accounting = BasicAccounting()
         delay = Event()
