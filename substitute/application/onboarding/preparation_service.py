@@ -172,6 +172,18 @@ class OnboardingPreparationService:
             SetupTaskState.RUNNING,
             app_text("Preparing ComfyUI in the background."),
         )
+
+        def publish_workspace_status(message: str) -> None:
+            """Preserve semantic workspace activity in progress and diagnostics."""
+            self._emit(
+                on_progress,
+                generation,
+                SetupTaskId.COMFY_WORKSPACE,
+                SetupTaskState.RUNNING,
+                message,
+            )
+            on_log(message)
+
         if mode is ComfyTargetMode.MANAGED_LOCAL:
             self._managed_workspace_provisioner(
                 workspace=draft.managed_workspace_path,
@@ -181,7 +193,7 @@ class OnboardingPreparationService:
                 prefer_edge_comfy_channel=draft.prefer_edge_comfy_channel,
                 repair_existing_runtime=False,
                 refresh_core_nodepacks=frozenset(CoreNodepackId),
-                on_status=lambda message: on_log(app_text("%1", message)),
+                on_status=publish_workspace_status,
                 on_log=lambda message: on_log(app_text("%1", message)),
             )
         else:
@@ -193,7 +205,7 @@ class OnboardingPreparationService:
                 workspace=attached_workspace,
                 python_binding=attached_binding,
                 configure_model_root=False,
-                on_status=lambda message: on_log(app_text("%1", message)),
+                on_status=publish_workspace_status,
                 on_log=lambda message: on_log(app_text("%1", message)),
             )
         require_setup_current(cancellation)
