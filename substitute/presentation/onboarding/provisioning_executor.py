@@ -36,6 +36,9 @@ from substitute.application.execution import (
     TaskScope,
     TaskSubmitter,
 )
+from substitute.application.onboarding.setup_operation_lifetime import (
+    SetupOperationLifetime,
+)
 from substitute.application.onboarding import (
     OnboardingCompletionResult,
     OnboardingCredentialDraft,
@@ -172,9 +175,8 @@ class OnboardingProvisioningExecutor(QObject):
         super().__init__(owner)
         self._flow_service = flow_service
         self._preparation_service = preparation_service
-        self._generation = 0
-        self._preparation_generation = 0
-        self._preparation_active = False
+        self._provisioning_lifetime = SetupOperationLifetime()
+        self._preparation_lifetime = SetupOperationLifetime()
         self._queued_selection: ProvisioningSelection | None = None
         self._shutdown_requested = False
         if submitter is None:
@@ -211,9 +213,7 @@ class OnboardingProvisioningExecutor(QObject):
         service = self._preparation_service
         if service is None or self._shutdown_requested:
             return False
-        self._preparation_generation += 1
-        generation = self._preparation_generation
-        self._preparation_active = True
+        generation = self._preparation_lifetime.begin()
         self._preparation_scope.cancel_all(reason="preparation_inputs_changed")
         request: TaskRequest[OnboardingPreparationResult] = TaskRequest(
             identity=TaskIdentity(
@@ -236,7 +236,7 @@ class OnboardingProvisioningExecutor(QObject):
                     reason="onboarding_preparation_progress",
                 ),
                 on_log=lambda message: self._progress_publisher.publish(
-                    lambda: self.progress_log_emitted.emit(message),
+                    lambda: self._deliver_preparation_log(generation, message),
                     reason="onboarding_preparation_log",
                 ),
                 cancellation=token,
@@ -254,7 +254,7 @@ class OnboardingProvisioningExecutor(QObject):
 
         if self._shutdown_requested:
             return
-        if self._preparation_active:
+        if self._preparation_lifetime.active:
             self._queued_selection = selection
             return
         self._submit_final(selection)
@@ -262,8 +262,7 @@ class OnboardingProvisioningExecutor(QObject):
     def _submit_final(self, selection: ProvisioningSelection) -> None:
         """Submit final provisioning after background preparation reaches a barrier."""
 
-        self._generation += 1
-        request_id = self._generation
+        request_id = self._provisioning_lifetime.begin()
         self.started.emit()
         request = TaskRequest(
             identity=TaskIdentity(
@@ -290,16 +289,28 @@ class OnboardingProvisioningExecutor(QObject):
         )
 
     def _deliver_preparation_progress(self, event: SetupProgressEvent) -> None:
-        """Reject stale preparation progress before publishing it to presentation."""
+        """Publish preparation progress only while its operation remains active."""
 
-        if self._shutdown_requested or event.generation != self._preparation_generation:
+        if self._shutdown_requested or not self._preparation_lifetime.accepts_progress(
+            event.generation
+        ):
             return
         self.preparation_progress_changed.emit(event)
 
-    def _deliver_setup_progress(self, event: SetupProgressEvent) -> None:
-        """Publish only progress from the current final setup generation."""
+    def _deliver_preparation_log(
+        self, generation: int, message: ApplicationText
+    ) -> None:
+        """Retain current diagnostics without mixing superseded preparation output."""
+        if self._shutdown_requested or not self._preparation_lifetime.owns(generation):
+            return
+        self.progress_log_emitted.emit(message)
 
-        if self._shutdown_requested or event.generation != self._generation:
+    def _deliver_setup_progress(self, event: SetupProgressEvent) -> None:
+        """Publish final setup progress only until its terminal outcome is delivered."""
+
+        if self._shutdown_requested or not self._provisioning_lifetime.accepts_progress(
+            event.generation
+        ):
             return
         self.preparation_progress_changed.emit(event)
 
@@ -310,9 +321,10 @@ class OnboardingProvisioningExecutor(QObject):
     ) -> None:
         """Release the preparation barrier and route queued final work."""
 
-        if self._shutdown_requested or generation != self._preparation_generation:
+        if self._shutdown_requested or not self._preparation_lifetime.finish(
+            generation
+        ):
             return
-        self._preparation_active = False
         if outcome.cancelled:
             return
         if outcome.error is not None:
@@ -397,12 +409,13 @@ class OnboardingProvisioningExecutor(QObject):
         )
 
     def _deliver_progress(self, request_id: int, event: _ProgressEvent) -> None:
-        """Publish current provisioning progress from the owner thread."""
+        """Keep terminal status stable while retaining the current diagnostic history."""
 
-        if self._shutdown_requested or request_id != self._generation:
+        if self._shutdown_requested or not self._provisioning_lifetime.owns(request_id):
             return
         if event.kind == "status":
-            self.progress_status_changed.emit(event.message)
+            if self._provisioning_lifetime.accepts_progress(request_id):
+                self.progress_status_changed.emit(event.message)
         else:
             self.progress_log_emitted.emit(event.message)
 
@@ -413,7 +426,9 @@ class OnboardingProvisioningExecutor(QObject):
     ) -> None:
         """Publish a provisioning task outcome on the owner thread."""
 
-        if self._shutdown_requested or request_id != self._generation:
+        if self._shutdown_requested or not self._provisioning_lifetime.finish(
+            request_id
+        ):
             return
         if outcome.cancelled:
             return
