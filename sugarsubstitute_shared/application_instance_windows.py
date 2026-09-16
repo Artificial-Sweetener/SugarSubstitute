@@ -125,13 +125,15 @@ class WindowsNamedPipeListener:
             self._pending_handles.clear()
             accept_connection = self._active_accept_connection
             self._active_accept_connection = None
-        if accept_connection is not None:
-            accept_connection.close()
-        for handle in handles:
-            try:
-                CloseHandle(handle)
-            except OSError:
-                pass
+        try:
+            if accept_connection is not None:
+                accept_connection.close()
+        finally:
+            for handle in handles:
+                try:
+                    CloseHandle(handle)
+                except OSError:
+                    pass
 
     def _new_handle(self, *, first: bool = False) -> int:
         """Create one local-only pipe instance, optionally requiring first owner."""
@@ -161,7 +163,7 @@ class WindowsNamedPipeListener:
         )
 
     def _accept_connection(self) -> Connection:
-        """Accept one client while keeping a replacement pipe instance ready."""
+        """Transfer the accepted pipe only while this listener still owns it."""
 
         import _winapi
         from multiprocessing.connection import PipeConnection
@@ -193,14 +195,19 @@ class WindowsNamedPipeListener:
                     _result, native_error = overlapped.GetOverlappedResult(True)
                     if native_error:
                         raise OSError(native_error, "Named-pipe connection failed.")
-            return connection
-        except BaseException:
-            connection.close()
-            raise
-        finally:
             with self._lock:
-                if self._active_accept_connection is connection:
+                if self._closed:
+                    raise OSError("Application instance named-pipe listener is closed.")
+                self._active_accept_connection = None
+                return connection
+        except BaseException:
+            with self._lock:
+                owns_connection = self._active_accept_connection is connection
+                if owns_connection:
                     self._active_accept_connection = None
+            if owns_connection:
+                connection.close()
+            raise
 
 
 def connect_windows_named_pipe(
