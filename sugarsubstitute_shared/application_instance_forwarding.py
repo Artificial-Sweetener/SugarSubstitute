@@ -21,16 +21,22 @@ from collections.abc import Mapping
 import logging
 import os
 import secrets
+import sys
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceEndpoint,
     ApplicationInvocation,
     ApplicationInstanceBrokerError,
+    ApplicationInstanceFailureReason,
     RoutedApplicationInvocation,
+    NativeApplicationInstanceOwner,
     send_instance_message,
     receive_instance_message,
 )
 from sugarsubstitute_shared.application_instance_transport import (
     connect_instance_endpoint,
+)
+from sugarsubstitute_shared.application_instance_owner import (
+    capture_native_instance_owner,
 )
 from sugarsubstitute_shared.process_identity import (
     ProcessIdentity,
@@ -68,10 +74,17 @@ def forward_application_invocation(
         ) from error
     owner_process_id: int | None = None
     owner_identity: ProcessIdentity | None = None
+    native_owner: NativeApplicationInstanceOwner | None = None
     try:
         try:
             owner_process_id = connection.peer_process_id()
             owner_identity = _capture_owner(owner_process_id)
+            if owner_process_id is not None:
+                _require_accessible_owner_session(endpoint, owner_identity)
+                if owner_identity is not None:
+                    native_owner = capture_native_instance_owner(
+                        endpoint, owner_identity
+                    )
             send_instance_message(connection, request.to_message())
             response = receive_instance_message(
                 connection,
@@ -89,6 +102,7 @@ def forward_application_invocation(
                 "The active application did not present a usable window in time.",
                 owner_identity=owner_identity,
                 endpoint=endpoint,
+                native_owner=native_owner,
             ) from error
     finally:
         connection.close()
@@ -100,7 +114,9 @@ def forward_application_invocation(
             "The active application could not present a usable window.",
             owner_identity=owner_identity,
             endpoint=endpoint,
+            native_owner=native_owner,
         )
+    _require_accessible_owner_session(endpoint, owner_identity)
     _LOGGER.info(
         "Secondary invocation produced a visible surface | requester_pid=%s | "
         "owner_pid=%s | request_id=%s | surface=%s",
@@ -109,6 +125,42 @@ def forward_application_invocation(
         request.request_id,
         response.get("surface"),
     )
+
+
+def _require_accessible_owner_session(
+    endpoint: ApplicationInstanceEndpoint, owner: ProcessIdentity | None
+) -> None:
+    """Keep a different Windows desktop from acknowledging usable local activation."""
+    if sys.platform != "win32":
+        return
+    from sugarsubstitute_shared.windows_process_security import process_session_id
+
+    try:
+        if owner is None:
+            raise OSError("The native application owner could not be identified.")
+        requester_session = process_session_id(os.getpid())
+        owner_session = process_session_id(owner.pid)
+    except OSError as error:
+        raise ApplicationInstanceBrokerError(
+            "The active application's desktop session could not be verified.",
+            reason=ApplicationInstanceFailureReason.SESSION_UNVERIFIED,
+            owner_identity=owner,
+            endpoint=endpoint,
+        ) from error
+    if requester_session != owner_session:
+        _LOGGER.info(
+            "Application owner is on another desktop session | owner_pid=%s | "
+            "owner_session=%s | requester_session=%s",
+            owner.pid,
+            owner_session,
+            requester_session,
+        )
+        raise ApplicationInstanceBrokerError(
+            "The active application belongs to another Windows desktop session.",
+            reason=ApplicationInstanceFailureReason.OTHER_SESSION,
+            owner_identity=owner,
+            endpoint=endpoint,
+        )
 
 
 def _response_owner_process_id(

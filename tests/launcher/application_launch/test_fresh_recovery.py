@@ -42,9 +42,9 @@ from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceBrokerError,
     ApplicationInstanceEndpoint,
 )
+from sugarsubstitute_shared.application_instance_transport import instance_identity
 from sugarsubstitute_shared.application_instance_transport import (
     instance_endpoint,
-    instance_identity,
 )
 
 
@@ -70,7 +70,7 @@ def test_fresh_packaged_recovery_inspects_os_identity_when_pipe_is_busy(
 
     def present(**kwargs: object) -> InstanceRecoveryAction:
         """End this attempt after observing the recovery decision."""
-        offered.append(bool(kwargs["can_end_owner"]))
+        offered.append("can_end_owner" in kwargs)
         return InstanceRecoveryAction.EXIT
 
     # A packaged identity must be checked against the real executable before discovery.
@@ -85,7 +85,7 @@ def test_fresh_packaged_recovery_inspects_os_identity_when_pipe_is_busy(
 
 
 @pytest.mark.platforms("windows")
-def test_fresh_recovery_offers_and_ends_the_independently_verified_instance(
+def test_fresh_recovery_automatically_retires_the_independently_verified_instance(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -100,7 +100,8 @@ def test_fresh_recovery_offers_and_ends_the_independently_verified_instance(
     failures = iter(
         [
             ApplicationInstanceBrokerError(
-                "busy", endpoint=instance_endpoint(instance_identity(layout.root))
+                "busy",
+                endpoint=instance_endpoint(instance_identity(layout.root)),
             )
         ]
     )
@@ -123,19 +124,18 @@ def test_fresh_recovery_offers_and_ends_the_independently_verified_instance(
     def elect(
         _layout: InstallLayout, _arguments: Sequence[str]
     ) -> ApplicationInstanceBroker | None:
-        """Allow election after the user ends the earlier process."""
+        """Allow election after automatic retirement of the earlier process."""
         error = next(failures, None)
         if error is not None:
             raise error
         return None
 
     def present(**kwargs: object) -> InstanceRecoveryAction:
-        """Choose the real dialog's explicit recovery action."""
-        offered.append(bool(kwargs["can_end_owner"]))
-        return InstanceRecoveryAction.END_AND_RETRY
+        """Reject manual recovery for an independently verified unavailable owner."""
+        pytest.fail("Verified process required manual recovery")
 
     def terminate(identity: ProcessIdentity, *, scope: ApplicationProcessScope) -> bool:
-        """Record the exact identity authorized by the user's recovery action."""
+        """Record the exact identity selected for automatic retirement."""
         assert scope.accepts_executable(layout.executable_path)
         ended.append(identity)
         return True
@@ -155,7 +155,7 @@ def test_fresh_recovery_offers_and_ends_the_independently_verified_instance(
     ApplicationElectionRecovery(
         layout=layout, process_arguments=(), locale_override="en", elect=elect
     ).run()
-    assert offered == [True]
+    assert offered == []
     assert discovered == [layout.executable_path]
     assert ended == [identity]
 
@@ -205,7 +205,7 @@ def test_independent_discovery_requires_the_exact_installed_endpoint(
 
     def present(**kwargs: object) -> InstanceRecoveryAction:
         """Verify that an unqualified process cannot be offered for termination."""
-        assert not kwargs["can_end_owner"]
+        assert "can_end_owner" not in kwargs
         return InstanceRecoveryAction.EXIT
 
     monkeypatch.setattr(

@@ -25,6 +25,9 @@ import os
 from pathlib import Path
 import secrets
 from typing import Self
+from sugarsubstitute_shared.application_instance_protocol import (
+    ApplicationInstanceFailureReason,
+)
 
 
 _SCHEMA_VERSION = 1
@@ -35,7 +38,6 @@ class InstanceRecoveryAction(StrEnum):
     """Describe one user-selected response to failed instance activation."""
 
     RETRY = "retry"
-    END_AND_RETRY = "end-and-retry"
     EXIT = "exit"
 
 
@@ -44,30 +46,26 @@ class InstanceRecoveryRequest:
     """Carry one authenticated UI request and its response destination."""
 
     token: str
-    can_end_owner: bool
     response_path: Path
+    reason: ApplicationInstanceFailureReason
 
     @classmethod
-    def create(cls, exchange_directory: Path) -> tuple[Self, Path]:
+    def create(
+        cls,
+        exchange_directory: Path,
+        *,
+        reason: ApplicationInstanceFailureReason,
+    ) -> tuple[Self, Path]:
         """Create one request file in an owner-private temporary directory."""
 
         exchange_directory.mkdir(parents=True, exist_ok=True)
         request_path = exchange_directory / "request.json"
         request = cls(
             token=secrets.token_urlsafe(32),
-            can_end_owner=False,
             response_path=exchange_directory / "response.json",
+            reason=reason,
         )
         return request, request_path
-
-    def with_owner_termination(self, enabled: bool) -> Self:
-        """Return this request with explicit termination availability selected."""
-
-        return type(self)(
-            token=self.token,
-            can_end_owner=enabled,
-            response_path=self.response_path,
-        )
 
     def write(self, request_path: Path) -> None:
         """Atomically publish the request before starting the UI child."""
@@ -77,8 +75,10 @@ class InstanceRecoveryRequest:
             {
                 "schema_version": _SCHEMA_VERSION,
                 "token": self.token,
-                "can_end_owner": self.can_end_owner,
+                # Older packaged UI readers require this field; never grant control.
+                "can_end_owner": False,
                 "response_path": str(self.response_path),
+                "reason": self.reason.value,
             },
         )
 
@@ -90,12 +90,10 @@ class InstanceRecoveryRequest:
         if payload.get("schema_version") != _SCHEMA_VERSION:
             raise ValueError("Instance recovery request schema is unsupported.")
         token = payload.get("token")
-        can_end_owner = payload.get("can_end_owner")
         raw_response_path = payload.get("response_path")
         if (
             not isinstance(token, str)
             or not token
-            or not isinstance(can_end_owner, bool)
             or not isinstance(raw_response_path, str)
         ):
             raise ValueError("Instance recovery request is malformed.")
@@ -105,7 +103,16 @@ class InstanceRecoveryRequest:
             or response_path.parent.resolve() != request_path.parent.resolve()
         ):
             raise ValueError("Instance recovery response path is invalid.")
-        return cls(token, can_end_owner, response_path)
+        raw_reason = payload.get(
+            "reason", ApplicationInstanceFailureReason.UNAVAILABLE.value
+        )
+        if not isinstance(raw_reason, str):
+            raise ValueError("Instance recovery reason is malformed.")
+        return cls(
+            token,
+            response_path,
+            ApplicationInstanceFailureReason(raw_reason),
+        )
 
     def write_response(self, action: InstanceRecoveryAction) -> None:
         """Atomically publish one authenticated user decision."""

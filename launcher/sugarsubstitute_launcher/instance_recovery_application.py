@@ -58,7 +58,7 @@ def run_instance_recovery_window(
     try:
         action = present_instance_recovery_dialog(
             layout=layout,
-            can_end_owner=request.can_end_owner,
+            reason=request.reason,
         )
         request.write_response(action)
         return 0

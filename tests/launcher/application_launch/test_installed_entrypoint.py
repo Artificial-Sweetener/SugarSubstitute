@@ -467,7 +467,7 @@ def test_failed_secondary_activation_shows_recovery_and_retries(
     def present_recovery(**kwargs: object) -> InstanceRecoveryAction:
         """Record recovery eligibility and request a bounded retry."""
 
-        presented.append(bool(kwargs["can_end_owner"]))
+        presented.append("can_end_owner" in kwargs)
         return InstanceRecoveryAction.RETRY
 
     monkeypatch.setattr(

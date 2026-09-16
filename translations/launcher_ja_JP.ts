@@ -144,12 +144,7 @@
       <translation>このインストーラーに対応する正確なリリースをダウンロードして検証しています。現在のインストールはまだ変更されていません。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="60"></location>
-      <source>End unresponsive instance and retry</source>
-      <translation>応答しないインスタンスを終了して再試行</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="68"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="76"></location>
       <source>Exit</source>
       <translation>終了</translation>
     </message>
@@ -249,7 +244,7 @@
       <translation>言語</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="70"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="78"></location>
       <source>Launcher logs: %1</source>
       <translation>ランチャーログ: %1</translation>
     </message>
@@ -269,7 +264,7 @@
       <translation>SugarSubstitute を開く</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="64"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="72"></location>
       <source>Open launcher logs</source>
       <translation>ランチャーログを開く</translation>
     </message>
@@ -404,9 +399,14 @@
       <translation>アプリケーションを復元しています</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="55"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="69"></location>
       <source>Retry</source>
       <translation>再試行</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="51"></location>
+      <source>Return to that Windows session and close SugarSubstitute, then retry here.</source>
+      <translation>その Windows セッションに戻って SugarSubstitute を閉じてから、ここで再試行してください。</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="116"></location>
@@ -524,9 +524,19 @@
       <translation>SugarSubstitute セットアップ</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="42"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="57"></location>
+      <source>SugarSubstitute could not verify which Windows session owns the existing instance.</source>
+      <translation>起動中のインスタンスがどの Windows セッションに属しているか確認できませんでした。</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="45"></location>
       <source>SugarSubstitute did not open</source>
       <translation>SugarSubstitute を開けませんでした</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="48"></location>
+      <source>SugarSubstitute is open in another Windows session.</source>
+      <translation>SugarSubstitute は別の Windows セッションで開いています。</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="171"></location>
@@ -544,7 +554,7 @@
       <translation>技術的な詳細:</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="44"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="61"></location>
       <source>The existing SugarSubstitute instance did not present a usable window.</source>
       <translation>既存の SugarSubstitute インスタンスは使用可能なウィンドウを表示しませんでした。</translation>
     </message>
@@ -619,9 +629,9 @@
       <translation>ランチャー設定を書き込みました：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="49"></location>
-      <source>You can retry, open the launcher logs, or end the unresponsive instance and start again.</source>
-      <translation>再試行するか、ランチャーログを開くか、応答しないインスタンスを終了して再起動できます。</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="66"></location>
+      <source>You can retry or open the launcher logs for details.</source>
+      <translation>再試行するか、ランチャーのログを開いて詳細を確認できます。</translation>
     </message>
   </context>
   <context>
