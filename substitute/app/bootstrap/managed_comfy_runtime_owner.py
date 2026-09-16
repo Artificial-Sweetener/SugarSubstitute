@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from threading import Lock
+from typing import Protocol
 
 from substitute.application.execution import (
     ExecutionContext,
@@ -34,7 +35,20 @@ from substitute.shared.logging.logger import get_logger, log_info, log_warning
 
 _LOGGER = get_logger("app.bootstrap.managed_comfy_runtime_owner")
 
-ManagedStateCleanup = Callable[[object | None], object]
+
+class ManagedStateCleanupResult(Protocol):
+    """Require explicit cleanup evidence before replacing a managed process."""
+
+    @property
+    def managed_resource_present(self) -> bool:
+        """Report whether cleanup found a resource whose exit must be confirmed."""
+
+    @property
+    def termination_status(self) -> object | None:
+        """Expose the termination evidence produced by managed-state cleanup."""
+
+
+ManagedStateCleanup = Callable[[object | None], ManagedStateCleanupResult]
 ManagedStateLauncher = Callable[[], object | None]
 ManagedStateStopRequester = Callable[[object | None], None]
 
@@ -157,8 +171,11 @@ class ManagedComfyRuntimeOwner:
             prior_state = self.state
             self._request_stop(prior_state)
             cleanup_result = self._cleanup_state(prior_state)
-            termination_status = getattr(cleanup_result, "status", None)
-            if termination_status is not self._confirmed_termination_status:
+            if (
+                cleanup_result.managed_resource_present
+                and cleanup_result.termination_status
+                is not self._confirmed_termination_status
+            ):
                 raise RuntimeError("Managed Comfy termination could not be confirmed.")
             self.set_state(None)
             replacement_state = self._launch_state()

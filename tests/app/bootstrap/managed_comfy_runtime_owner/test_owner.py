@@ -109,7 +109,8 @@ class _Submitter:
 class _CleanupResult:
     """Expose one managed termination status."""
 
-    status: object
+    termination_status: object
+    managed_resource_present: bool = True
 
 
 def _managed_target() -> ComfyTargetConfiguration:
