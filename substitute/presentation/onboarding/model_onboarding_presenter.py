@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.onboarding.onboarding_download_text import (
+    download_action_text,
+)
+
 from collections.abc import Callable
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
@@ -51,7 +55,6 @@ from substitute.presentation.onboarding.onboarding_existing_model_page import (
 )
 from substitute.presentation.onboarding.onboarding_model_download_review_page import (
     ModelDownloadReviewPage,
-    download_action_text,
 )
 from substitute.presentation.onboarding.onboarding_models import OnboardingPageId
 from substitute.presentation.onboarding.onboarding_folder_setup_page import (

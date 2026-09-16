@@ -30,7 +30,7 @@ from substitute.presentation.onboarding.onboarding_completion_pages import (
 from substitute.presentation.onboarding.onboarding_folder_setup_page import (
     FolderSetupPage,
 )
-from substitute.presentation.onboarding.onboarding_page_stage import OnboardingPageStage
+from sugarsubstitute_shared.presentation.setup_page_stage import SetupPageStage
 from sugarsubstitute_shared.localization import app_text
 
 
@@ -38,7 +38,7 @@ def test_scan_feedback_resizes_the_page_without_overlapping_fields() -> None:
     """Let the geometry owner react when an existing page reveals scan feedback."""
     window = QWidget()
     layout = QVBoxLayout(window)
-    stage = OnboardingPageStage(window)
+    stage = SetupPageStage(window)
     layout.addWidget(stage)
     page = FolderSetupPage()
     stage.add_page(page)

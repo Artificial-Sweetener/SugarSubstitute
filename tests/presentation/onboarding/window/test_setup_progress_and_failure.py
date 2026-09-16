@@ -244,7 +244,6 @@ def test_visible_completion_and_failure_request_attention_once_each(
     """Deduplicate terminal attention without stealing focus in the window owner."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,

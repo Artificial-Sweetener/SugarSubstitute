@@ -51,7 +51,6 @@ def test_onboarding_window_shows_completion_page_after_provisioning(
     """Provisioning completion should route directly to its finished summary."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -88,7 +87,6 @@ def test_completed_provisioning_page_cannot_reopen_as_disabled_working_state(
     """Redirect any completed provisioning revisit to the completion page."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -121,7 +119,6 @@ def test_onboarding_window_uses_specific_action_labels(
     """Window should use page-specific action labels instead of generic wizard copy."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -156,7 +153,6 @@ def test_onboarding_window_renders_actionable_provisioning_failure_copy(
     """Provisioning failures should show guidance and preserve technical detail."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -210,7 +206,6 @@ def test_onboarding_window_retry_button_restarts_provisioning(
     """Provisioning retry should actually restart work after a failure."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -261,7 +256,6 @@ def test_onboarding_window_reenables_back_after_provisioning_failure(
     """A failed provisioning step should let the user return to the editable form."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -303,7 +297,6 @@ def test_provisioning_live_output_stays_inside_status_panel(
     """Expanded setup output should fit the fixed window without page scrolling."""
 
     application = ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -320,7 +313,7 @@ def test_provisioning_live_output_stays_inside_status_panel(
     )
     window._current_page = OnboardingPageId.PROVISIONING
     window.page_stack.setCurrentWidget(window.provisioning_page)
-    window.page_stage.refresh_current_page_height()
+    window.page_stage.refresh_layout()
     window.provisioning_page.set_model_download_progress(
         completed_bytes=1024,
         total_bytes=2048,
@@ -353,7 +346,7 @@ def test_provisioning_live_output_stays_inside_status_panel(
     assert status_contents.contains(
         window.provisioning_page.show_log_button.geometry().bottomRight()
     )
-    window.page_stage.refresh_current_page_height()
+    window.page_stage.refresh_layout()
     application.processEvents()
     page_height_before = window.provisioning_page.height()
 

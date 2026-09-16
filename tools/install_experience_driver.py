@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
@@ -478,11 +478,11 @@ def _assert_recommendation_page(
         raise RuntimeError(
             f"{family} recommendation grid does not contain ten choices."
         )
-    for index, _widget_item in enumerate(card_widgets):
-        row, column, _row_span, _column_span = cast(
-            tuple[int, int, int, int],
-            window.model_recommendation_page.card_grid.getItemPosition(index),
-        )
+    row_tops = sorted({card.y() for card in card_widgets})
+    for index, widget in enumerate(card_widgets):
+        row = row_tops.index(widget.y())
+        row_lefts = sorted(card.x() for card in card_widgets if card.y() == widget.y())
+        column = row_lefts.index(widget.x())
         if (row, column) != (index // 5, index % 5):
             raise RuntimeError(f"{family} recommendation grid is not 5 by 2.")
     for card, portrait in zip(card_widgets[:8], portraits, strict=True):

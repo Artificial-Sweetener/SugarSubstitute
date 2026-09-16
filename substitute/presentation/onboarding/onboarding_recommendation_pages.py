@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QWidget
 from qfluentwidgets import FluentIcon as FIF  # type: ignore[import-untyped]
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
@@ -56,9 +56,11 @@ from substitute.presentation.onboarding.onboarding_recommendation_loading import
     RecommendationLoadingGallery,
 )
 from substitute.presentation.widgets.busy_ring import BusyRing
+from substitute.presentation.onboarding.onboarding_model_card_layout import (
+    ModelCardLayout,
+)
 
 _CURATED_CARD_COUNT = 8
-_GRID_COLUMNS = 5
 
 
 class ModelRecommendationPage(OnboardingPageFrame):
@@ -81,7 +83,7 @@ class ModelRecommendationPage(OnboardingPageFrame):
             icon=FIF.PHOTO,
             parent=parent,
         )
-        self.content_column.setMinimumWidth(1068)
+        self.content_column.setMinimumWidth(0)
         self.content_column.setMaximumWidth(1068)
         self.setObjectName("OnboardingModelRecommendationPage")
         self._family_id: ModelFamilyId | None = None
@@ -89,10 +91,8 @@ class ModelRecommendationPage(OnboardingPageFrame):
         self._cards_by_version_id: dict[int, RecommendationCard] = {}
         self._import_overlay: ModelLinkImportOverlay | None = None
         self.card_host = QWidget(self)
-        self.card_grid = QGridLayout(self.card_host)
+        self.card_grid = ModelCardLayout(self.card_host)
         self.card_grid.setContentsMargins(0, 0, 0, 0)
-        self.card_grid.setHorizontalSpacing(10)
-        self.card_grid.setVerticalSpacing(10)
         self._loading_gallery = RecommendationLoadingGallery(
             host=self.card_host,
             grid=self.card_grid,
@@ -175,7 +175,7 @@ class ModelRecommendationPage(OnboardingPageFrame):
         self.loading_ring.stop()
         self.loading_row.hide()
         self.card_host.show()
-        for index, card in enumerate(page.cards[:_CURATED_CARD_COUNT]):
+        for card in page.cards[:_CURATED_CARD_COUNT]:
             widget = RecommendationCard(
                 card,
                 selected=card.recommendation.version_id in selected_version_ids,
@@ -183,17 +183,16 @@ class ModelRecommendationPage(OnboardingPageFrame):
             )
             widget.selection_changed.connect(self.selection_changed)
             widget.link_requested.connect(self.link_requested)
-            self._add_grid_widget(widget, index)
+            self.card_grid.addWidget(widget)
             self._cards_by_version_id[card.recommendation.version_id] = widget
-        for index in range(len(page.cards), _CURATED_CARD_COUNT):
-            self._add_grid_widget(
-                unavailable_recommendation_card(parent=self.card_host),
-                index,
+        for _index in range(len(page.cards), _CURATED_CARD_COUNT):
+            self.card_grid.addWidget(
+                unavailable_recommendation_card(parent=self.card_host)
             )
         self.import_card = civitai_action_card(parent=self.card_host)
         self.import_card.activated.connect(self._open_import_overlay)
         self._set_import_card_copy(page.imported_cards)
-        self._add_grid_widget(self.import_card, 8)
+        self.card_grid.addWidget(self.import_card)
         self.own_model_card = RecommendationActionCard(
             title=app_text("No thanks,\nI’ll bring my own"),
             helper="",
@@ -207,7 +206,7 @@ class ModelRecommendationPage(OnboardingPageFrame):
                 not bool(self.own_model_card.property("selected"))
             )
         )
-        self._add_grid_widget(self.own_model_card, 9)
+        self.card_grid.addWidget(self.own_model_card)
         self.empty_label.setVisible(len(page.cards) < _CURATED_CARD_COUNT)
 
     def show_import_results(
@@ -244,11 +243,6 @@ class ModelRecommendationPage(OnboardingPageFrame):
             return False
         card.set_thumbnail_unavailable()
         return True
-
-    def _add_grid_widget(self, widget: QWidget, index: int) -> None:
-        """Place one equal-size choice in the stable centered 5×2 grid."""
-
-        self.card_grid.addWidget(widget, index // _GRID_COLUMNS, index % _GRID_COLUMNS)
 
     def _clear_cards(self) -> None:
         """Remove prior cards before showing another family state."""
