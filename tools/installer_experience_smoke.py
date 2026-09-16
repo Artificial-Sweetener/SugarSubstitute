@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from threading import Event
+
 import argparse
 from dataclasses import asdict
 import json
@@ -113,7 +115,9 @@ class SideEffectAudit:
         self.handoff_calls = 0
         self.target_mutations = 0
 
-    def workflow_factory(self, _log: Callable[[str], None]) -> Never:
+    def workflow_factory(
+        self, _log: Callable[[str], None], _cancellation: Event
+    ) -> Never:
         """Reject workflow construction before install or subprocess work exists."""
 
         self.workflow_factory_calls += 1

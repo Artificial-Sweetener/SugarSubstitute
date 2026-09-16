@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from threading import Event
+
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -223,7 +225,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._install_app_payload()
             return
         if self._ui_state is LauncherUiState.INSTALL_RUNTIME:
-            self._start_setup_worker()
+            self.start_runtime_setup()
             return
         if self._ui_state is LauncherUiState.START_SETUP:
             self._start_setup_handoff()
@@ -332,7 +334,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
         self._show_status_output()
         try:
-            workflow = self._workflow_factory(self._append_log)
+            workflow = self._workflow_factory(self._append_log, Event())
             application = workflow.install_application(
                 create_continued_installation_request(self._initial_layout)
             )
@@ -343,10 +345,10 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._report_install_failure(error)
             return
 
-        self._accept_installed_application(application)
-        self._start_setup_worker()
+        self.accept_installed_application(application)
+        self.start_runtime_setup()
 
-    def _start_setup_worker(self) -> None:
+    def start_runtime_setup(self) -> None:
         """Start runtime provisioning and onboarding handoff in a worker thread."""
 
         if self.execution.initial_running:
@@ -388,7 +390,9 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
         self._append_log(launcher_text("Starting SugarSubstitute setup."))
         try:
-            self._workflow_factory(self._append_log).start_setup(self._setup_command)
+            self._workflow_factory(self._append_log, Event()).start_setup(
+                self._setup_command
+            )
         except Exception as error:
             self._append_log(launcher_text("Could not start SugarSubstitute setup."))
             self._append_log(launcher_text("Details: %1", error))
@@ -438,9 +442,9 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
                 launcher_text("Installer returned an invalid layout.")
             )
             return
-        self._accept_installed_application(result)
+        self.accept_installed_application(result)
 
-    def _accept_installed_application(self, application: InstalledApplication) -> None:
+    def accept_installed_application(self, application: InstalledApplication) -> None:
         """Store installed artifacts and project their visible completion details."""
 
         if self._localization_manager is not None:
@@ -499,7 +503,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._refresh_primary_button()
             return
         if self._ui_state is LauncherUiState.INSTALL_RUNTIME:
-            QTimer.singleShot(0, self._start_setup_worker)
+            QTimer.singleShot(0, self.start_runtime_setup)
 
     def _refresh_primary_button(self) -> None:
         """Project the current setup phase onto editable and primary controls."""

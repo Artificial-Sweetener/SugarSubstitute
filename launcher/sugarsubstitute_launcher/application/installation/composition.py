@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from threading import Event
 
 from launcher.sugarsubstitute_launcher.application.installation.workflow import (
     InstallationWorkflow,
@@ -30,6 +31,9 @@ from launcher.sugarsubstitute_launcher.process import (
     start_installed_launcher_handoff,
 )
 from launcher.sugarsubstitute_launcher.runtime import UvManagedRuntimeInstaller
+from launcher.sugarsubstitute_launcher.installed_runtime_setup import (
+    InstalledRuntimeSetup,
+)
 from launcher.sugarsubstitute_launcher.runtime_command import (
     SubprocessRuntimeCommandRunner,
 )
@@ -40,6 +44,7 @@ from launcher.sugarsubstitute_launcher.uv_tool import VerifiedUvExecutableProvid
 def build_installation_workflow(
     *,
     output_callback: Callable[[str], None] | None = None,
+    cancellation: Event | None = None,
     admit_installation: Callable[[InstallLayout], bool] | None = None,
     process_starter: Callable[[Sequence[str]], None] = start_installed_launcher_handoff,
 ) -> InstallationWorkflow:
@@ -48,11 +53,15 @@ def build_installation_workflow(
     return InstallationWorkflow(
         layout_preparer=LayoutInstaller(),
         artifact_installer=FirstRunInstaller(),
-        runtime_provisioner=UvManagedRuntimeInstaller(
-            uv_provider=VerifiedUvExecutableProvider(
-                bundled_uv_path=launcher_uv_path()
+        runtime_provisioner=InstalledRuntimeSetup(
+            UvManagedRuntimeInstaller(
+                uv_provider=VerifiedUvExecutableProvider(
+                    bundled_uv_path=launcher_uv_path()
+                ),
+                runner=SubprocessRuntimeCommandRunner(
+                    output_callback, cancellation=cancellation
+                ),
             ),
-            runner=SubprocessRuntimeCommandRunner(output_callback),
         ),
         process_starter=process_starter,
         admit_installation=admit_installation,

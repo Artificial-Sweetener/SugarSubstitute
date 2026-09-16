@@ -35,6 +35,7 @@ from launcher.sugarsubstitute_launcher.application.installation.workflow import 
     InstallationWorkflow,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.runtime_models import RuntimeCommandCancelled
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.ui.installer_errors import (
     launcher_failure_detail,
@@ -42,7 +43,7 @@ from launcher.sugarsubstitute_launcher.ui.installer_errors import (
 
 
 InstallationWorkflowFactory = Callable[
-    [Callable[[str], None]],
+    [Callable[[str], None], Event],
     InstallationWorkflow,
 ]
 
@@ -61,7 +62,7 @@ class SetupWorker(QObject):
         application: InstalledApplication,
         setup_command: Sequence[str],
         workflow_factory: InstallationWorkflowFactory,
-        stop_after_current_stage: Event,
+        cancellation: Event,
     ) -> None:
         """Store setup work that must not block the Qt event loop."""
 
@@ -69,22 +70,26 @@ class SetupWorker(QObject):
         self._application = application
         self._setup_command = list(setup_command)
         self._workflow_factory = workflow_factory
-        self._stop_after_current_stage = stop_after_current_stage
+        self._cancellation = cancellation
 
     @Slot()
     def run(self) -> None:
         """Provision the runtime, launch setup, and report progress through signals."""
 
-        workflow = self._workflow_factory(self.log.emit)
         try:
+            workflow = self._workflow_factory(self.log.emit, self._cancellation)
             completed = workflow.provision_runtime(self._application)
+        except RuntimeCommandCancelled:
+            self.log.emit(launcher_text("Setup stopped at a safe point."))
+            self.finished.emit()
+            return
         except Exception as error:
             self.failed.emit("runtime", launcher_failure_detail(error))
             self.finished.emit()
             return
 
         self.log.emit(launcher_text("Runtime ready: %1", completed.runtime_python))
-        if self._stop_after_current_stage.is_set():
+        if self._cancellation.is_set():
             self.log.emit(launcher_text("Setup stopped at a safe point."))
             self.finished.emit()
             return
@@ -134,7 +139,7 @@ class InitialInstallWorker(QObject):
         """Install permanent launcher files and the app payload."""
 
         try:
-            workflow = self._workflow_factory(self.log.emit)
+            workflow = self._workflow_factory(self.log.emit, Event())
             request = create_initial_installation_request(
                 layout=self._layout,
                 frozen_setup=self._frozen_setup,
