@@ -894,6 +894,10 @@ Prömpt prëvïëw:
       <translation>⟦Chöösë àn àccëssïblë ëxïstïng mödëls földër. ···⟧</translation>
     </message>
     <message>
+      <source>Choose an empty folder for managed ComfyUI</source>
+      <translation>⟦Chöösë àn ëmpty földër för mànàgëd CömfyÜÏ ···⟧</translation>
+    </message>
+    <message>
       <source>Choose an existing audio file</source>
       <translation>⟦Chöösë àn ëxïstïng àüdïö fïlë ···⟧</translation>
     </message>
@@ -1934,10 +1938,6 @@ Install these nodes now?</source>
       <translation>⟦Dëlëtë '%1'? ···⟧</translation>
     </message>
     <message>
-      <source>Delete the incomplete folder at %1.</source>
-      <translation>⟦Dëlëtë thë ïncömplëtë földër àt %1. ···⟧</translation>
-    </message>
-    <message>
       <source>Delete wildcard</source>
       <translation>⟦Dëlëtë wïldcàrd ···⟧</translation>
     </message>
@@ -2152,10 +2152,6 @@ Install these nodes now?</source>
     <message>
       <source>Emphasize first</source>
       <translation>⟦Ëmphàsïzë fïrst ···⟧</translation>
-    </message>
-    <message>
-      <source>Empty the folder at %1.</source>
-      <translation>⟦Ëmpty thë földër àt %1. ···⟧</translation>
     </message>
     <message>
       <source>Enable</source>
@@ -2522,6 +2518,10 @@ Install these nodes now?</source>
       <translation>⟦Glöbàl ···⟧</translation>
     </message>
     <message>
+      <source>Go back and choose an empty ComfyUI folder.</source>
+      <translation>⟦Gö bàck ànd chöösë àn ëmpty CömfyÜÏ földër. ···⟧</translation>
+    </message>
+    <message>
       <source>Go back to Integrations.</source>
       <translation>⟦Gö bàck tö Ïntëgràtïöns. ···⟧</translation>
     </message>
@@ -2628,10 +2628,6 @@ Install these nodes now?</source>
     <message>
       <source>Host cannot be blank.</source>
       <translation>⟦Höst cànnöt bë blànk. ···⟧</translation>
-    </message>
-    <message>
-      <source>If the folder already contains a partial install, delete it before retrying.</source>
-      <translation>⟦Ïf thë földër àlrëàdy cöntàïns à pàrtïàl ïnstàll, dëlëtë ït bëförë rëtryïng. ···⟧</translation>
     </message>
     <message>
       <source>If you are not sure, use Detect from running ComfyUI instead.</source>
@@ -3630,14 +3626,6 @@ I’ll bring my own</source>
     <message>
       <source>Or enable Win32 long paths in Windows, then try again.</source>
       <translation>⟦Ör ënàblë Wïn32 löng pàths ïn Wïndöws, thën try àgàïn. ···⟧</translation>
-    </message>
-    <message>
-      <source>Or go back and choose a different empty ComfyUI folder.</source>
-      <translation>⟦Ör gö bàck ànd chöösë à dïffërënt ëmpty CömfyÜÏ földër. ···⟧</translation>
-    </message>
-    <message>
-      <source>Or go back and choose a different empty folder.</source>
-      <translation>⟦Ör gö bàck ànd chöösë à dïffërënt ëmpty földër. ···⟧</translation>
     </message>
     <message>
       <source>Or go back and choose an install location on a drive with more free space.</source>
@@ -4852,8 +4840,8 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sëtüp stàtë cöüld nöt bë rëàd ···⟧</translation>
     </message>
     <message>
-      <source>Setup stopped before ComfyUI was ready. Read the live output below, fix the problem it mentions, and then try again.</source>
-      <translation>⟦Sëtüp stöppëd bëförë CömfyÜÏ wàs rëàdy. Rëàd thë lïvë öütpüt bëlöw, fïx thë pröblëm ït mëntïöns, ànd thën try àgàïn. ···⟧</translation>
+      <source>Setup stopped before ComfyUI was ready. Review the setup log for details, then try again.</source>
+      <translation>⟦Sëtüp stöppëd bëförë CömfyÜÏ wàs rëàdy. Rëvïëw thë sëtüp lög för dëtàïls, thën try àgàïn. ···⟧</translation>
     </message>
     <message>
       <source>Setup task activity</source>
@@ -5164,10 +5152,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Sübstïtütë càn dëtëct thë ënvïrönmënt fröm à rünnïng CömfyÜÏ, ör yöü càn sëlëct thë Pythön ëxëcütàblë mànüàlly. ···⟧</translation>
     </message>
     <message>
-      <source>Substitute can't install a fresh managed ComfyUI setup into a folder that already has other files in it.</source>
-      <translation>⟦Sübstïtütë càn't ïnstàll à frësh mànàgëd CömfyÜÏ sëtüp ïntö à földër thàt àlrëàdy hàs öthër fïlës ïn ït. ···⟧</translation>
-    </message>
-    <message>
       <source>Substitute checks for running ComfyUI processes before changing local environments.</source>
       <translation>⟦Sübstïtütë chëcks för rünnïng CömfyÜÏ pröcëssës bëförë chàngïng löcàl ënvïrönmënts. ···⟧</translation>
     </message>
@@ -5282,10 +5266,6 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Substitute found a setup problem</source>
       <translation>⟦Sübstïtütë föünd à sëtüp pröblëm ···⟧</translation>
-    </message>
-    <message>
-      <source>Substitute found leftover files in the selected ComfyUI folder, so it could not install a fresh managed setup there.</source>
-      <translation>⟦Sübstïtütë föünd lëftövër fïlës ïn thë sëlëctëd CömfyÜÏ földër, sö ït cöüld nöt ïnstàll à frësh mànàgëd sëtüp thërë. ···⟧</translation>
     </message>
     <message>
       <source>Substitute found more than one working Python environment and needs you to choose the one ComfyUI uses.</source>
@@ -5654,14 +5634,6 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thë CömfyÜÏ földër cöüldn't bë föünd ···⟧</translation>
     </message>
     <message>
-      <source>The ComfyUI folder needs to be cleared before setup can continue</source>
-      <translation>⟦Thë CömfyÜÏ földër nëëds tö bë clëàrëd bëförë sëtüp càn cöntïnüë ···⟧</translation>
-    </message>
-    <message>
-      <source>The ComfyUI folder needs to be empty first</source>
-      <translation>⟦Thë CömfyÜÏ földër nëëds tö bë ëmpty fïrst ···⟧</translation>
-    </message>
-    <message>
       <source>The Python environment is verified. Close ComfyUI to continue.</source>
       <translation>⟦Thë Pythön ënvïrönmënt ïs vërïfïëd. Clösë CömfyÜÏ tö cöntïnüë. ···⟧</translation>
     </message>
@@ -5830,6 +5802,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
       <translation>⟦Thë sëlëctëd Pythön ëxëcütàblë cöüld nöt bë vàlïdàtëd. ···⟧</translation>
     </message>
     <message>
+      <source>The selected folder contains files that setup cannot replace safely.</source>
+      <translation>⟦Thë sëlëctëd földër cöntàïns fïlës thàt sëtüp cànnöt rëplàcë sàfëly. ···⟧</translation>
+    </message>
+    <message>
       <source>The selected folder is not a complete ComfyUI installation.</source>
       <translation>⟦Thë sëlëctëd földër ïs nöt à cömplëtë CömfyÜÏ ïnstàllàtïön. ···⟧</translation>
     </message>
@@ -5932,6 +5908,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>This cube cannot be rendered because live Comfy metadata is unavailable.</source>
       <translation>⟦Thïs cübë cànnöt bë rëndërëd bëcàüsë lïvë Cömfy mëtàdàtà ïs ünàvàïlàblë. ···⟧</translation>
+    </message>
+    <message>
+      <source>This folder already contains ComfyUI. Choose Use My Current ComfyUI to connect it without replacing its files.</source>
+      <translation>⟦Thïs földër àlrëàdy cöntàïns CömfyÜÏ. Chöösë Üsë My Cürrënt CömfyÜÏ tö cönnëct ït wïthöüt rëplàcïng ïts fïlës. ···⟧</translation>
     </message>
     <message>
       <source>This is the address Substitute will use to reach ComfyUI.</source>
@@ -6332,6 +6312,10 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Use the suggested models folder or choose one already used by another WebUI.</source>
       <translation>⟦Üsë thë süggëstëd mödëls földër ör chöösë önë àlrëàdy üsëd by ànöthër WëbÜÏ. ···⟧</translation>
+    </message>
+    <message>
+      <source>Use your existing ComfyUI installation</source>
+      <translation>⟦Üsë yöür ëxïstïng CömfyÜÏ ïnstàllàtïön ···⟧</translation>
     </message>
     <message>
       <source>Used for authenticated CivitAI lookups and downloads.</source>

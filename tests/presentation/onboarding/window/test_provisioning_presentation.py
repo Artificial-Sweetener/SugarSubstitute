@@ -172,11 +172,11 @@ def test_onboarding_window_renders_actionable_provisioning_failure_copy(
     window = OnboardingWindow(controller=controller)
 
     failure = OnboardingProvisioningFailure(
-        headline="The ComfyUI folder needs to be cleared before setup can continue",
-        user_message="Substitute found leftover files in the selected ComfyUI folder.",
+        headline="Choose an empty folder for managed ComfyUI",
+        user_message="The selected folder contains files that setup cannot replace safely.",
         technical_detail="invalid ComfyUI repository",
         remediation_steps=(
-            f"Delete the incomplete folder at {tmp_path / 'comfyui'}.",
+            "Go back and choose an empty ComfyUI folder.",
             "Then run setup again.",
         ),
     )
@@ -185,11 +185,11 @@ def test_onboarding_window_renders_actionable_provisioning_failure_copy(
 
     assert (
         window.provisioning_page.status_label.text()
-        == "The ComfyUI folder needs to be cleared before setup can continue"
+        == "Choose an empty folder for managed ComfyUI"
     )
-    assert "leftover files" in window.provisioning_page.detail_label.text()
+    assert "cannot replace safely" in window.provisioning_page.detail_label.text()
     assert (
-        "Delete the incomplete folder" in window.provisioning_page.detail_label.text()
+        "choose an empty ComfyUI folder" in window.provisioning_page.detail_label.text()
     )
     assert (
         "invalid ComfyUI repository"

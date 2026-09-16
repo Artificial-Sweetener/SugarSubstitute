@@ -201,16 +201,15 @@ next_extraction = "Extract field metadata enrichment and override mutation from 
 id = "SS-ARCH-016"
 owner = "onboarding flow"
 paths = ["substitute/application/onboarding/flow_service.py"]
-fingerprint = "sha256:b59d5c4ae08ed3b3b6af26d78fb2f6bd946a5ac931c717fef3c990a4505faa0c"
+fingerprint = "sha256:3962f5802ed18760fc65485b6ccef05612a5f884da8892ce80aa682fa876b0cf"
 issue = "chore:SS-ARCH-016"
 review_by = 2026-12-15
 responsibilities = [
   "draft-state loading and recovery coordination",
   "managed, attached, and remote provisioning transaction orchestration",
   "external model-library configuration coordination",
-  "readiness and provisioning failure classification",
 ]
-next_extraction = "Extract target-specific provisioning strategies, external model-library configuration, and failure classifiers from the shared transaction sequence."
+next_extraction = "Extract target-specific provisioning strategies and external model-library configuration from the shared transaction sequence."
 
 [[debts]]
 id = "SS-ARCH-017"

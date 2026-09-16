@@ -64,7 +64,7 @@
       <translation>«%1»</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/preparation_service.py" line="184"></location>
+      <location filename="../substitute/application/onboarding/preparation_service.py" line="197"></location>
       <source>%1</source>
       <translation>%1</translation>
     </message>
@@ -150,7 +150,7 @@ Vista previa del prompt:
       <translation>No se pudo cambiar %1 a la versión que requiere el cubo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="931"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="148"></location>
       <source>%1 could not use this Windows path even though Substitute can.</source>
       <translation>%1 no pudo usar esta ruta de Windows, aunque Substitute sí puede.</translation>
     </message>
@@ -405,7 +405,7 @@ Vista previa del prompt:
       <translation>1 salida</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="930"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="147"></location>
       <source>A Windows component could not use this long path</source>
       <translation>Un componente de Windows no pudo usar esta ruta larga</translation>
     </message>
@@ -435,7 +435,7 @@ Vista previa del prompt:
       <translation>Hay otro ComfyUI en ejecución</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="916"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="133"></location>
       <source>A file or folder name is too long for Windows</source>
       <translation>Un nombre de archivo o carpeta es demasiado largo para Windows</translation>
     </message>
@@ -595,7 +595,7 @@ Vista previa del prompt:
       <translation>Añadir al diccionario</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="910"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="127"></location>
       <source>Add your CivitAI API key.</source>
       <translation>Añade tu clave de API de CivitAI.</translation>
     </message>
@@ -745,7 +745,7 @@ Vista previa del prompt:
       <translation>La carpeta de ComfyUI conectada no existe: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="494"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="483"></location>
       <source>Attached workspace: %1</source>
       <translation>Espacio de trabajo conectado: %1</translation>
     </message>
@@ -925,7 +925,7 @@ Vista previa del prompt:
       <translation>Cancelar tarea</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/splash_window.py" line="409"></location>
+      <location filename="../substitute/presentation/shell/splash_window.py" line="396"></location>
       <source>Cancel loading</source>
       <translation>Cancelar la carga</translation>
     </message>
@@ -990,22 +990,22 @@ Vista previa del prompt:
       <translation>Comprobar enlaces</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1267"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="477"></location>
       <source>Check that the ComfyUI folder still exists, or clear that field.</source>
       <translation>Comprueba que la carpeta de ComfyUI aún exista o borra ese campo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="863"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="80"></location>
       <source>Check that the folder still exists.</source>
       <translation>Comprueba que la carpeta aún exista.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1224"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="434"></location>
       <source>Check that the host and port are correct from this computer.</source>
       <translation>Comprueba que el host y el puerto sean correctos desde este equipo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1210"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="420"></location>
       <source>Check that the host and port match your ComfyUI window.</source>
       <translation>Comprueba que el host y el puerto coincidan con los de tu ventana de ComfyUI.</translation>
     </message>
@@ -1015,17 +1015,17 @@ Vista previa del prompt:
       <translation>Comprueba que la carpeta local de ComfyUI aún exista y elige la carpeta que contiene el archivo main.py de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1044"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="255"></location>
       <source>Check the live output for the custom-node problem.</source>
       <translation>Consulta la salida en directo para ver el problema del nodo personalizado.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1277"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="487"></location>
       <source>Check the managed ComfyUI folder and try again.</source>
       <translation>Comprueba la carpeta administrada de ComfyUI y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1010"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="221"></location>
       <source>Check your internet connection.</source>
       <translation>Comprueba tu conexión a Internet.</translation>
     </message>
@@ -1050,7 +1050,7 @@ Vista previa del prompt:
       <translation>Comprobando enlaces de modelos…</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="424"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="413"></location>
       <source>Checking that ComfyUI is ready.</source>
       <translation>Comprobando que ComfyUI esté listo.</translation>
     </message>
@@ -1060,7 +1060,7 @@ Vista previa del prompt:
       <translation>Comprobando el entorno de Python</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="718"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="707"></location>
       <source>Checking the remote ComfyUI connection.</source>
       <translation>Comprobando la conexión remota con ComfyUI.</translation>
     </message>
@@ -1150,7 +1150,7 @@ Vista previa del prompt:
       <translation>Elige un tamaño nuevo para el lienzo de Entrada y sus máscaras</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="937"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="154"></location>
       <source>Choose a shorter folder for this operation.</source>
       <translation>Elige una carpeta más corta para esta operación.</translation>
     </message>
@@ -1160,7 +1160,7 @@ Vista previa del prompt:
       <translation>Elegir una versión concreta del cubo</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1161"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="371"></location>
       <source>Choose a working Python for this ComfyUI setup</source>
       <translation>Elige una instalación de Python que funcione con esta configuración de ComfyUI</translation>
     </message>
@@ -1168,6 +1168,11 @@ Vista previa del prompt:
       <location filename="../substitute/presentation/onboarding/model_onboarding_presenter.py" line="207"></location>
       <source>Choose an accessible existing models folder.</source>
       <translation>Elige una carpeta de modelos existente y accesible.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="200"></location>
+      <source>Choose an empty folder for managed ComfyUI</source>
+      <translation>Elige una carpeta vacía para ComfyUI administrado</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/editor/panel/widgets/fields/native/audio_record_field.py" line="86"></location>
@@ -1275,7 +1280,7 @@ Vista previa del prompt:
       <translation>Elige el ejecutable de Python que usa esta instalación de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1176"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="386"></location>
       <source>Choose the Python this ComfyUI setup uses</source>
       <translation>Elige la instalación de Python que usa esta configuración de ComfyUI</translation>
     </message>
@@ -1295,12 +1300,12 @@ Vista previa del prompt:
       <translation>Elige la carpeta de ComfyUI existente que debe iniciar Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1132"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="342"></location>
       <source>Choose the folder that contains ComfyUI</source>
       <translation>Elige la carpeta que contiene ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="864"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="81"></location>
       <source>Choose the folder that contains ComfyUI's main.py file.</source>
       <translation>Elige la carpeta que contiene el archivo main.py de ComfyUI.</translation>
     </message>
@@ -1375,7 +1380,7 @@ Vista previa del prompt:
       <translation>Elige qué clasificaciones de imágenes de la wiki de Danbooru puede mostrar Substitute en las vistas previas.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1145"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="355"></location>
       <source>Choose which Python this ComfyUI setup uses</source>
       <translation>Elige qué instalación de Python usa esta configuración de ComfyUI</translation>
     </message>
@@ -1385,7 +1390,7 @@ Vista previa del prompt:
       <translation>Elige qué representación exportan arrastrar y copiar.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="463"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="452"></location>
       <source>Choose your existing ComfyUI folder</source>
       <translation>Elige tu carpeta de ComfyUI existente</translation>
     </message>
@@ -1825,7 +1830,7 @@ Vista previa del prompt:
       <translation>ComfyUI está cerrado. La instalación puede continuar.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="402"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="391"></location>
       <source>ComfyUI is ready for final checks.</source>
       <translation>ComfyUI está listo para las comprobaciones finales.</translation>
     </message>
@@ -1875,12 +1880,12 @@ Vista previa del prompt:
       <translation>ComfyUI necesita una reparación antes de poder iniciarse</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="445"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="434"></location>
       <source>ComfyUI passed its readiness checks.</source>
       <translation>ComfyUI superó las comprobaciones de preparación.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/preparation_service.py" line="205"></location>
+      <location filename="../substitute/application/onboarding/preparation_service.py" line="217"></location>
       <source>ComfyUI preparation is ready for final setup.</source>
       <translation>La preparación de ComfyUI está lista para la configuración final.</translation>
     </message>
@@ -1965,12 +1970,12 @@ Vista previa del prompt:
       <translation>Versión de ComfyUI: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1021"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="232"></location>
       <source>ComfyUI was downloaded, but some of its Python packages could not be installed.</source>
       <translation>ComfyUI se descargó, pero no se pudieron instalar algunos de sus paquetes de Python.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1039"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="250"></location>
       <source>ComfyUI was installed, but Substitute couldn't finish preparing the required node packs.</source>
       <translation>ComfyUI se instaló, pero Substitute no pudo terminar de preparar los paquetes de nodos necesarios.</translation>
     </message>
@@ -2025,12 +2030,12 @@ Vista previa del prompt:
       <translation>Confirma los detalles</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1105"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="315"></location>
       <source>Confirm the local host and port are free for Substitute to use.</source>
       <translation>Confirma que el host local y el puerto estén libres para que Substitute pueda usarlos.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1117"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="327"></location>
       <source>Confirm the remote host and port are correct.</source>
       <translation>Confirma que el host remoto y el puerto sean correctos.</translation>
     </message>
@@ -2468,11 +2473,6 @@ Install these nodes now?</source>
       <translation>¿Eliminar «%1»?</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="974"></location>
-      <source>Delete the incomplete folder at %1.</source>
-      <translation>Elimina la carpeta incompleta en %1.</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/managed_text_assets/managed_text_asset_modal.py" line="713"></location>
       <source>Delete wildcard</source>
       <translation>Eliminar comodín</translation>
@@ -2538,7 +2538,7 @@ Install these nodes now?</source>
       <translation>Modelo de difusión</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/cube_stack_presentation_controller.py" line="464"></location>
+      <location filename="../substitute/presentation/shell/cube_stack_presentation_controller.py" line="466"></location>
       <source>Direct Comfy workflows contain no cube stack.</source>
       <translation>Los flujos de trabajo directos de Comfy no contienen ninguna pila de cubos.</translation>
     </message>
@@ -2743,11 +2743,6 @@ Install these nodes now?</source>
       <translation>Dar prioridad al primero</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="994"></location>
-      <source>Empty the folder at %1.</source>
-      <translation>Vacía la carpeta en %1.</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/editor/panel/factories/field_pipeline.py" line="433"></location>
       <source>Enable</source>
       <translation>Activar</translation>
@@ -2924,7 +2919,7 @@ Install these nodes now?</source>
       <translation>No se pudo cargar el estado de la biblioteca de cubos desde el destino activo.</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="364"></location>
+      <location filename="../substitute/presentation/shell/output_image_preparation_dispatcher.py" line="371"></location>
       <source>Failed to load generated image.</source>
       <translation>No se pudo cargar la imagen generada.</translation>
     </message>
@@ -3041,7 +3036,7 @@ Install these nodes now?</source>
       <translation>Finalizando tu instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1045"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="256"></location>
       <source>Fix the reported issue if you can.</source>
       <translation>Corrige el problema notificado si es posible.</translation>
     </message>
@@ -3081,7 +3076,7 @@ Install these nodes now?</source>
       <translation>Espacio libre</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="950"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="167"></location>
       <source>Free space on the drive that contains %1.</source>
       <translation>Espacio libre en la unidad que contiene %1.</translation>
     </message>
@@ -3206,12 +3201,17 @@ Install these nodes now?</source>
       <translation>Preajustes globales</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="909"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="206"></location>
+      <source>Go back and choose an empty ComfyUI folder.</source>
+      <translation>Vuelve atrás y elige una carpeta vacía para ComfyUI.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="126"></location>
       <source>Go back to Integrations.</source>
       <translation>Vuelve a Integraciones.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1183"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="393"></location>
       <source>Go back to My Current ComfyUI.</source>
       <translation>Volver a Mi ComfyUI actual.</translation>
     </message>
@@ -3339,11 +3339,6 @@ Install these nodes now?</source>
       <location filename="../substitute/application/onboarding/comfy_connection_settings_service.py" line="502"></location>
       <source>Host cannot be blank.</source>
       <translation>El host no puede estar vacío.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1064"></location>
-      <source>If the folder already contains a partial install, delete it before retrying.</source>
-      <translation>Si la carpeta ya contiene una instalación parcial, elimínala antes de volver a intentarlo.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="323"></location>
@@ -3481,7 +3476,7 @@ Install these nodes now?</source>
       <translation>Paquetes instalados</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="357"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="346"></location>
       <source>Installing ComfyUI and finishing setup.</source>
       <translation>Instalando ComfyUI y finalizando la instalación.</translation>
     </message>
@@ -3551,7 +3546,7 @@ Install these nodes now?</source>
       <translation>Mantener v%1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1061"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="271"></location>
       <source>Keep your internet connection available while setup runs.</source>
       <translation>Mantén la conexión a Internet disponible durante la instalación.</translation>
     </message>
@@ -3806,12 +3801,12 @@ Install these nodes now?</source>
       <translation>La búsqueda ha fallado</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1209"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="419"></location>
       <source>Make sure ComfyUI is running at %1.</source>
       <translation>Asegúrate de que ComfyUI esté en ejecución en %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1271"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="481"></location>
       <source>Make sure ComfyUI is running at %1:%2.</source>
       <translation>Asegúrate de que ComfyUI esté en ejecución en %1:%2.</translation>
     </message>
@@ -3821,32 +3816,32 @@ Install these nodes now?</source>
       <translation>Asegúrate de que ComfyUI esté en ejecución en la dirección guardada y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1221"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="431"></location>
       <source>Make sure a ComfyUI server is running at %1.</source>
       <translation>Asegúrate de que haya un servidor de ComfyUI en ejecución en %1.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1027"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="238"></location>
       <source>Make sure security software is not blocking Python package downloads.</source>
       <translation>Asegúrate de que el software de seguridad no esté bloqueando las descargas de paquetes de Python.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1102"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="312"></location>
       <source>Make sure the folder points to the ComfyUI setup you want Substitute to launch.</source>
       <translation>Asegúrate de que la carpeta corresponda a la instalación de ComfyUI que quieres que inicie Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1058"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="268"></location>
       <source>Make sure the selected folder is writable and has enough free space.</source>
       <translation>Asegúrate de que la carpeta seleccionada tenga permisos de escritura y suficiente espacio libre.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1011"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="222"></location>
       <source>Make sure the selected folder is writable.</source>
       <translation>Asegúrate de que la carpeta seleccionada tenga permisos de escritura.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1118"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="328"></location>
       <source>Make sure this computer can reach the remote ComfyUI server.</source>
       <translation>Asegúrate de que este equipo pueda conectarse al servidor remoto de ComfyUI.</translation>
     </message>
@@ -3891,7 +3886,7 @@ Install these nodes now?</source>
       <translation>Instalación local administrada</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="321"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="310"></location>
       <source>Managed workspace: %1</source>
       <translation>Espacio de trabajo administrado: %1</translation>
     </message>
@@ -4291,7 +4286,7 @@ Install these nodes now?</source>
       <translation>Sin micrófono</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="418"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="407"></location>
       <source>No model downloads were selected.</source>
       <translation>No se seleccionaron descargas de modelos.</translation>
     </message>
@@ -4588,22 +4583,12 @@ Usaré el mío.</translation>
       <translation>Los servicios opcionales pueden ayudarte con los prompts y los modelos. Puedes cambiarlos más tarde en Configuración.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="938"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="155"></location>
       <source>Or enable Win32 long paths in Windows, then try again.</source>
       <translation>También puedes habilitar las rutas Win32 largas en Windows y volver a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="978"></location>
-      <source>Or go back and choose a different empty ComfyUI folder.</source>
-      <translation>También puedes volver atrás y elegir otra carpeta vacía para ComfyUI.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="995"></location>
-      <source>Or go back and choose a different empty folder.</source>
-      <translation>También puedes volver atrás y elegir otra carpeta vacía.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="954"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="171"></location>
       <source>Or go back and choose an install location on a drive with more free space.</source>
       <translation>También puedes volver atrás y elegir una ubicación de instalación en una unidad con más espacio libre.</translation>
     </message>
@@ -4843,12 +4828,12 @@ Usaré el mío.</translation>
       <translation>Preparando ComfyUI en segundo plano.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="367"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="356"></location>
       <source>Preparing ComfyUI.</source>
       <translation>Preparando ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="343"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="332"></location>
       <source>Preparing Substitute's local runtime.</source>
       <translation>Preparando el entorno local de Substitute.</translation>
     </message>
@@ -4868,7 +4853,7 @@ Usaré el mío.</translation>
       <translation>Preparando tareas de configuración…</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="970"></location>
+      <location filename="../substitute/app/bootstrap/ready_shell_controller.py" line="837"></location>
       <source>Preparing the application interface.</source>
       <translation>Preparando la interfaz de la aplicación.</translation>
     </message>
@@ -4878,17 +4863,17 @@ Usaré el mío.</translation>
       <translation>Preparando la descarga.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="562"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="551"></location>
       <source>Preparing the existing ComfyUI installation.</source>
       <translation>Preparando la instalación existente de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="554"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="543"></location>
       <source>Preparing your existing ComfyUI installation.</source>
       <translation>Preparando tu instalación existente de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="492"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="481"></location>
       <source>Preparing your existing ComfyUI setup.</source>
       <translation>Preparando tu configuración existente de ComfyUI.</translation>
     </message>
@@ -5233,17 +5218,17 @@ Usaré el mío.</translation>
       <translation>Remota</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="706"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="695"></location>
       <source>Remote ComfyUI does not need local workspace preparation.</source>
       <translation>ComfyUI remoto no necesita preparar un espacio de trabajo local.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="713"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="702"></location>
       <source>Remote ComfyUI does not use local model downloads.</source>
       <translation>ComfyUI remoto no utiliza descargas de modelos locales.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="656"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="645"></location>
       <source>Remote endpoint: %1:%2</source>
       <translation>Punto de conexión remoto: %1:%2</translation>
     </message>
@@ -5537,7 +5522,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Reintentar</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="911"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="128"></location>
       <source>Return to setup and try again.</source>
       <translation>Vuelve a la configuración e inténtalo de nuevo.</translation>
     </message>
@@ -5582,7 +5567,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Revisa los detalles del diagnóstico de SugarCubes y repara el paquete de cubos, la dependencia o la copia local indicados.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1278"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="488"></location>
       <source>Review the connection details and try again.</source>
       <translation>Revisa los detalles de la conexión y vuelve a intentarlo.</translation>
     </message>
@@ -5597,7 +5582,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Revisa los detalles siguientes, corrige el problema notificado y vuelve a intentarlo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1097"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="307"></location>
       <source>Review the existing ComfyUI folder and local address, then try again.</source>
       <translation>Revisa la carpeta existente de ComfyUI y la dirección local y vuelve a intentarlo.</translation>
     </message>
@@ -5612,7 +5597,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Revisa el host y el puerto para que Substitute sepa dónde encontrar ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1114"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="324"></location>
       <source>Review the remote address details, then try again.</source>
       <translation>Revisa los datos de la dirección remota y vuelve a intentarlo.</translation>
     </message>
@@ -5657,37 +5642,37 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Girar a la derecha</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/splash_process.py" line="252"></location>
+      <location filename="../substitute/app/bootstrap/splash_process.py" line="272"></location>
       <source>Run Sugar Substitute launch splash.</source>
       <translation>Ejecutar la pantalla de inicio de Sugar Substitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="388"></location>
+      <location filename="../substitute/app/bootstrap/shared_splash_host.py" line="394"></location>
       <source>Run SugarSubstitute splash host.</source>
       <translation>Ejecutar el host de la pantalla de inicio de SugarSubstitute.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1245"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="455"></location>
       <source>Run setup again after fixing the files mentioned in the live output.</source>
       <translation>Vuelve a ejecutar la instalación después de corregir los archivos mencionados en la salida en directo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1241"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="451"></location>
       <source>Run setup again so Substitute can finish installing ComfyUI.</source>
       <translation>Vuelve a ejecutar la instalación para que Substitute pueda terminar de instalar ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1249"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="459"></location>
       <source>Run setup again so Substitute can install its required Comfy nodepacks.</source>
       <translation>Vuelve a ejecutar la instalación para que Substitute pueda instalar los paquetes de nodos de Comfy que necesita.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1263"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="473"></location>
       <source>Run setup again so Substitute can install the correct backend for the detected hardware.</source>
       <translation>Vuelve a ejecutar la instalación para que Substitute pueda instalar el backend correcto para el hardware detectado.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1253"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="463"></location>
       <source>Run setup again so Substitute can validate the managed backend on this machine.</source>
       <translation>Vuelve a ejecutar la instalación para que Substitute pueda validar el backend administrado en este equipo.</translation>
     </message>
@@ -5712,7 +5697,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Contexto de ejecución</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="263"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="252"></location>
       <source>Runtime root: %1</source>
       <translation>Raíz del entorno de ejecución: %1</translation>
     </message>
@@ -5832,7 +5817,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardado. Reinicia Substitute para usar la nueva conexión con ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="269"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="258"></location>
       <source>Saving and applying setup choices.</source>
       <translation>Guardando y aplicando las opciones de configuración.</translation>
     </message>
@@ -5842,17 +5827,17 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Guardando la configuración de las vistas previas de generación.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="455"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="444"></location>
       <source>Saving the completed setup.</source>
       <translation>Guardando la configuración completada.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="654"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="643"></location>
       <source>Saving your remote ComfyUI connection.</source>
       <translation>Guardando tu conexión remota con ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="320"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="309"></location>
       <source>Saving your setup choices.</source>
       <translation>Guardando tus opciones de instalación.</translation>
     </message>
@@ -6052,7 +6037,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="318"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="307"></location>
       <source>Setup choices are ready.</source>
       <translation>Las opciones de configuración están listas.</translation>
     </message>
@@ -6062,17 +6047,17 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La instalación continuará automáticamente cuando se cierre ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="944"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="161"></location>
       <source>Setup could not finish while downloading or installing Python packages for ComfyUI.</source>
       <translation>La instalación no pudo terminar mientras se descargaban o instalaban paquetes de Python para ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1005"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="216"></location>
       <source>Setup couldn't download the ComfyUI files it needs.</source>
       <translation>La instalación no pudo descargar los archivos de ComfyUI que necesita.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="876"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="93"></location>
       <source>Setup details were saved, but Substitute still found a problem that needs attention before it can continue.</source>
       <translation>Se guardaron los detalles de instalación, pero Substitute encontró un problema que debes resolver antes de continuar.</translation>
     </message>
@@ -6087,7 +6072,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración está activa — %1 transcurrido</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="770"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="759"></location>
       <source>Setup is saved and ready.</source>
       <translation>La configuración está guardada y lista.</translation>
     </message>
@@ -6117,9 +6102,9 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>No se pudo leer el estado de la instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1052"></location>
-      <source>Setup stopped before ComfyUI was ready. Read the live output below, fix the problem it mentions, and then try again.</source>
-      <translation>La instalación se detuvo antes de que ComfyUI estuviera listo. Lee la salida en directo siguiente, corrige el problema indicado y vuelve a intentarlo.</translation>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="263"></location>
+      <source>Setup stopped before ComfyUI was ready. Review the setup log for details, then try again.</source>
+      <translation>La configuración se detuvo antes de que ComfyUI estuviera listo. Revisa el registro de configuración para obtener más información y vuelve a intentarlo.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_completion_pages.py" line="131"></location>
@@ -6142,7 +6127,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Gravedad: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="922"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="139"></location>
       <source>Shorten the file or folder name at %1, then try again.</source>
       <translation>Acorta el nombre de archivo o carpeta en %1 y vuelve a intentarlo.</translation>
     </message>
@@ -6362,7 +6347,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Inicia esta instalación de ComfyUI con el acceso directo, script o iniciador que uses habitualmente. Mantén abierto este instalador; Substitute la detectará automáticamente.</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="98"></location>
+      <location filename="../substitute/app/bootstrap/early_launch_splash.py" line="100"></location>
       <source>Starting SugarSubstitute.</source>
       <translation>Iniciando SugarSubstitute.</translation>
     </message>
@@ -6427,7 +6412,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Detener la generación</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1257"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="467"></location>
       <source>Stop the other process using %1:%2, or choose a different managed port.</source>
       <translation>Detén el otro proceso que usa %1:%2 o elige otro puerto administrado.</translation>
     </message>
@@ -6507,11 +6492,6 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute puede detectar el entorno desde un proceso de ComfyUI en ejecución, o puedes seleccionar manualmente el ejecutable de Python.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="988"></location>
-      <source>Substitute can't install a fresh managed ComfyUI setup into a folder that already has other files in it.</source>
-      <translation>Substitute no puede crear una instalación administrada nueva de ComfyUI en una carpeta que ya contiene otros archivos.</translation>
-    </message>
-    <message>
       <location filename="../substitute/presentation/onboarding/comfy_environment_pages.py" line="63"></location>
       <source>Substitute checks for running ComfyUI processes before changing local environments.</source>
       <translation>Substitute busca procesos de ComfyUI en ejecución antes de modificar los entornos locales.</translation>
@@ -6547,12 +6527,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute no pudo cerrarse por completo.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1111"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="321"></location>
       <source>Substitute could not finish this remote connection setup</source>
       <translation>Substitute no pudo terminar de configurar esta conexión remota</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1177"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="387"></location>
       <source>Substitute could not identify a working Python environment automatically.</source>
       <translation>Substitute no pudo identificar automáticamente un entorno de Python que funcionara.</translation>
     </message>
@@ -6567,7 +6547,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute no pudo cargar las definiciones actuales de nodos de Comfy necesarias.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1094"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="304"></location>
       <source>Substitute could not prepare this local ComfyUI setup</source>
       <translation>Substitute no pudo preparar esta instalación local de ComfyUI</translation>
     </message>
@@ -6582,47 +6562,47 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute no pudo actualizar este cubo desde la biblioteca de cubos: %1</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1204"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="414"></location>
       <source>Substitute couldn't connect to the local ComfyUI address you entered.</source>
       <translation>Substitute no pudo conectarse a la dirección local de ComfyUI que introdujiste.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1216"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="426"></location>
       <source>Substitute couldn't connect to the remote ComfyUI address you entered.</source>
       <translation>Substitute no pudo conectarse a la dirección remota de ComfyUI que introdujiste.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1004"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="215"></location>
       <source>Substitute couldn't download ComfyUI</source>
       <translation>Substitute no pudo descargar ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="858"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="75"></location>
       <source>Substitute couldn't find the local ComfyUI folder you entered.</source>
       <translation>Substitute no pudo encontrar la carpeta local de ComfyUI que introdujiste.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1020"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="231"></location>
       <source>Substitute couldn't finish installing ComfyUI</source>
       <translation>Substitute no pudo terminar de instalar ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1038"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="249"></location>
       <source>Substitute couldn't finish preparing ComfyUI</source>
       <translation>Substitute no pudo terminar de preparar ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1051"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="262"></location>
       <source>Substitute couldn't finish setting up ComfyUI</source>
       <translation>Substitute no pudo terminar de configurar ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="875"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="92"></location>
       <source>Substitute couldn't finish this setup</source>
       <translation>Substitute no pudo terminar esta instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1215"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="425"></location>
       <source>Substitute couldn't reach the remote ComfyUI server</source>
       <translation>Substitute no pudo conectarse al servidor remoto de ComfyUI</translation>
     </message>
@@ -6632,7 +6612,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute no pudo conectarse a la dirección guardada de ComfyUI</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1203"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="413"></location>
       <source>Substitute couldn't reach your ComfyUI setup</source>
       <translation>Substitute no pudo conectarse a tu instalación de ComfyUI</translation>
     </message>
@@ -6657,12 +6637,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute encontró un problema de instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="968"></location>
-      <source>Substitute found leftover files in the selected ComfyUI folder, so it could not install a fresh managed setup there.</source>
-      <translation>Substitute encontró archivos residuales en la carpeta de ComfyUI seleccionada, por lo que no pudo crear allí una instalación administrada nueva.</translation>
-    </message>
-    <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1146"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="356"></location>
       <source>Substitute found more than one working Python environment and needs you to choose the one ComfyUI uses.</source>
       <translation>Substitute encontró más de un entorno de Python que funciona y necesita que elijas el que usa ComfyUI.</translation>
     </message>
@@ -6717,12 +6692,12 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Contexto de operación de Substitute</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/onboarding/provisioning_executor.py" line="441"></location>
+      <location filename="../substitute/presentation/onboarding/provisioning_executor.py" line="456"></location>
       <source>Substitute ran into a setup problem</source>
       <translation>Substitute encontró un problema durante la instalación</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="943"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="160"></location>
       <source>Substitute ran out of temporary install space</source>
       <translation>Substitute se quedó sin espacio temporal de instalación</translation>
     </message>
@@ -6777,7 +6752,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>Substitute no se iniciará sobre otra aplicación que ya esté escuchando en el puerto administrado.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="355"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="344"></location>
       <source>Substitute's local runtime is ready.</source>
       <translation>El entorno local de Substitute está listo.</translation>
     </message>
@@ -6797,7 +6772,7 @@ No se conoce ninguna extensión solicitante.</translation>
       <translation>La configuración de carpetas guardada de Substitute necesita corrección</translation>
     </message>
     <message>
-      <location filename="../substitute/app/bootstrap/composition.py" line="2796"></location>
+      <location filename="../substitute/app/bootstrap/composition.py" line="2771"></location>
       <location filename="../substitute/app/bootstrap/composition.py" line="2802"></location>
       <source>Sugar Substitute</source>
       <translation>Sugar Substitute</translation>
@@ -7113,19 +7088,9 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Esa tecla no se puede usar como control.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="857"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="74"></location>
       <source>The ComfyUI folder couldn't be found</source>
       <translation>No se pudo encontrar la carpeta de ComfyUI</translation>
-    </message>
-    <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="965"></location>
-      <source>The ComfyUI folder needs to be cleared before setup can continue</source>
-      <translation>Es necesario vaciar la carpeta de ComfyUI antes de continuar con la instalación</translation>
-    </message>
-    <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="987"></location>
-      <source>The ComfyUI folder needs to be empty first</source>
-      <translation>La carpeta de ComfyUI debe estar vacía</translation>
     </message>
     <message>
       <location filename="../substitute/application/onboarding/comfy_environment_service.py" line="165"></location>
@@ -7138,7 +7103,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>El entorno de Python que usa esta instalación de ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1162"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="372"></location>
       <source>The Python executable you selected could not run this ComfyUI installation.</source>
       <translation>El ejecutable de Python que seleccionaste no pudo ejecutar esta instalación de ComfyUI.</translation>
     </message>
@@ -7178,7 +7143,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>El modelo descargado tiene un destino no válido.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="583"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="572"></location>
       <source>The existing ComfyUI installation is ready.</source>
       <translation>La instalación existente de ComfyUI está lista.</translation>
     </message>
@@ -7293,7 +7258,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>La receta se cargó con advertencias de la biblioteca de cubos.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="734"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="723"></location>
       <source>The remote ComfyUI connection is ready.</source>
       <translation>La conexión remota con ComfyUI está lista.</translation>
     </message>
@@ -7338,7 +7303,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudo validar el ejecutable de Python seleccionado.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1133"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="201"></location>
+      <source>The selected folder contains files that setup cannot replace safely.</source>
+      <translation>La carpeta seleccionada contiene archivos que la configuración no puede reemplazar de forma segura.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="343"></location>
       <source>The selected folder is not a complete ComfyUI installation.</source>
       <translation>La carpeta seleccionada no contiene una instalación completa de ComfyUI.</translation>
     </message>
@@ -7423,12 +7393,12 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Modo del tema</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1187"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="397"></location>
       <source>Then run setup again.</source>
       <translation>Después, vuelve a ejecutar la instalación.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1227"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="437"></location>
       <source>Then try again.</source>
       <translation>Después, vuelve a intentarlo.</translation>
     </message>
@@ -7448,7 +7418,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Estos modelos populares son compatibles con este selector. No se descargará nada hasta que elijas uno.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="903"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="120"></location>
       <source>This CivitAI model needs an API key</source>
       <translation>Este modelo de CivitAI necesita una clave de API</translation>
     </message>
@@ -7466,6 +7436,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/application/workflows/cube_runtime_issues.py" line="256"></location>
       <source>This cube cannot be rendered because live Comfy metadata is unavailable.</source>
       <translation>Este cubo no se puede mostrar porque los metadatos actuales de Comfy no están disponibles.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="187"></location>
+      <source>This folder already contains ComfyUI. Choose Use My Current ComfyUI to connect it without replacing its files.</source>
+      <translation>Esta carpeta ya contiene ComfyUI. Elige Usar mi ComfyUI actual para conectarlo sin reemplazar sus archivos.</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/onboarding/onboarding_connection_settings.py" line="99"></location>
@@ -7553,7 +7528,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Alternar modo normal/infinito</translation>
     </message>
     <message>
-      <location filename="../substitute/presentation/shell/cube_stack_presentation_controller.py" line="475"></location>
+      <location filename="../substitute/presentation/shell/cube_stack_presentation_controller.py" line="477"></location>
       <source>Toggle between expanded and compact cube cards.</source>
       <translation>Alterna entre tarjetas de cubos expandidas y compactas.</translation>
     </message>
@@ -7858,17 +7833,17 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Actualizando la receta...</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1169"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="379"></location>
       <source>Use Browse beside Python executable and choose the Python ComfyUI actually uses.</source>
       <translation>Usa Examinar junto a Ejecutable de Python y elige la instalación de Python que utiliza realmente ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1184"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="394"></location>
       <source>Use Browse beside Python executable and choose the Python ComfyUI uses.</source>
       <translation>Usa Examinar junto a Ejecutable de Python y elige la instalación de Python que usa ComfyUI.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="1153"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="363"></location>
       <source>Use Browse beside Python executable and choose this ComfyUI setup's Python.</source>
       <translation>Usa Examinar junto a Ejecutable de Python y elige la instalación de Python de esta configuración de ComfyUI.</translation>
     </message>
@@ -7908,7 +7883,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Usa las herramientas de etiquetas de Danbooru mientras escribes prompts.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="464"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="453"></location>
       <source>Use My Current ComfyUI needs the folder that contains your local ComfyUI installation.</source>
       <translation>Usar mi ComfyUI actual necesita la carpeta que contiene tu instalación local de ComfyUI.</translation>
     </message>
@@ -7966,6 +7941,11 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <location filename="../substitute/presentation/onboarding/onboarding_folder_setup_page.py" line="49"></location>
       <source>Use the suggested models folder or choose one already used by another WebUI.</source>
       <translation>Usa la carpeta de modelos sugerida o elige una que ya utilice otra WebUI.</translation>
+    </message>
+    <message>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="186"></location>
+      <source>Use your existing ComfyUI installation</source>
+      <translation>Usa tu instalación existente de ComfyUI</translation>
     </message>
     <message>
       <location filename="../substitute/presentation/settings/civitai_page.py" line="278"></location>
@@ -8173,7 +8153,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Windows DPAPI no está disponible en esta plataforma.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="917"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="134"></location>
       <source>Windows limits each individual file or folder name to 255 characters.</source>
       <translation>Windows limita a 255 caracteres cada nombre de archivo o carpeta.</translation>
     </message>
@@ -8288,7 +8268,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>No se pudo completar el guardado de recuperación, por lo que no se inició la generación.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="904"></location>
+      <location filename="../substitute/application/onboarding/failure_classifier.py" line="121"></location>
       <source>Your reviewed download plan is still selected. Add a CivitAI API key, then try setup again.</source>
       <translation>El plan de descargas revisado sigue seleccionado. Añade una clave de API de CivitAI y vuelve a intentar la configuración.</translation>
     </message>
@@ -8303,7 +8283,7 @@ En resumen: puedes aprender de SugarSubstitute, adaptarlo, ampliarlo y compartir
       <translation>Tu instalación actualizada se ha guardado. Cierra Substitute y vuelve a abrirlo para usar la nueva configuración.</translation>
     </message>
     <message>
-      <location filename="../substitute/application/onboarding/flow_service.py" line="323"></location>
+      <location filename="../substitute/application/onboarding/flow_service.py" line="312"></location>
       <source>[ManagedInstall] platform=%1 accelerator=%2 target=%3 python=%4 channel=%5 backend=%6 torch_channel=%7 stability=%8</source>
       <translation>[InstalaciónAdministrada] plataforma=%1 acelerador=%2 destino=%3 python=%4 canal=%5 backend=%6 canal_torch=%7 estabilidad=%8</translation>
     </message>
