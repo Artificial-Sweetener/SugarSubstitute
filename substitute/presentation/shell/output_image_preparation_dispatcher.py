@@ -135,6 +135,8 @@ class OutputImagePreparationDispatcher(QObject):
     def submit(self, request: OutputImageCommitRequest) -> None:
         """Retain one generated output until it can be prepared off-thread."""
 
+        if self._is_shutdown:
+            return
         sequence = next(self._request_ids)
         task_request = TaskRequest(
             identity=TaskIdentity(
@@ -186,6 +188,7 @@ class OutputImagePreparationDispatcher(QObject):
         self._submission_retry_timer.stop()
         self._queued_preparations.clear()
         self._settled_preparations.clear()
+        self._inflight_preparations = 0
         self._task_scope.close(reason="output_image_preparation_shutdown")
         if self._close_submitter is not None:
             self._close_submitter()
@@ -290,6 +293,8 @@ class OutputImagePreparationDispatcher(QObject):
     ) -> None:
         """Retain one completion until every earlier submission has settled."""
 
+        if self._is_shutdown:
+            return
         if was_inflight:
             self._inflight_preparations = max(0, self._inflight_preparations - 1)
         self._settled_preparations[sequence] = (outcome, request)
@@ -299,9 +304,11 @@ class OutputImagePreparationDispatcher(QObject):
     def _publish_settled_in_submission_order(self) -> None:
         """Publish the contiguous settled prefix in original callback order."""
 
-        while settled := self._settled_preparations.pop(
-            self._next_publication_sequence,
-            None,
+        while not self._is_shutdown and (
+            settled := self._settled_preparations.pop(
+                self._next_publication_sequence,
+                None,
+            )
         ):
             outcome, request = settled
             self._publish_outcome(outcome, request)

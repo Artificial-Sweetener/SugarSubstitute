@@ -48,12 +48,14 @@ from substitute.presentation.shell.generation_titlebar_control_registry import (
 from substitute.presentation.shell.main_window_dependencies import (
     MainWindowDependencies,
 )
+from substitute.presentation.shell.main_window_output_composition import (
+    compose_output_canvas_controllers,
+)
 from substitute.presentation.shell.main_window_composition import (
     connect_shell_signals,
     capture_dependencies,
     compose_editor_busy_controller,
     compose_editor_metadata_controllers,
-    compose_output_canvas_controllers,
     compose_runtime_controllers,
     compose_shell_controllers,
     compose_workflow_lifecycle_services,

@@ -65,9 +65,10 @@ from substitute.presentation.shell.generation_feedback_presenter import (
 from substitute.presentation.shell.generation_feedback_sink import (
     ShellGenerationFeedbackSink,
 )
-from substitute.presentation.shell.main_window_composition import (
+from substitute.presentation.shell.main_window_output_composition import (
     compose_output_canvas_controllers,
 )
+
 from substitute.presentation.shell.main_window_dependencies import (
     InstallationPathBundle,
 )

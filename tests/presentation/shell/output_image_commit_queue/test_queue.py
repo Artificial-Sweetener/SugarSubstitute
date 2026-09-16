@@ -45,6 +45,8 @@ from substitute.presentation.shell.output_image_commit_pipeline import (
 from substitute.presentation.shell.output_image_commit_queue import (
     PreparedOutputCommitQueue,
 )
+from tests.support.qt.lifecycle import destroy_qt_object, ensure_qt_application
+from tests.support.qt.semantic_wait import wait_for_queued_qt_turn
 
 
 def test_commit_queue_commits_one_prepared_output_per_tick() -> None:
@@ -175,6 +177,49 @@ def test_commit_queue_reports_capacity_only_after_decoded_pixels_leave() -> None
 
     assert queue.available_prepared_slots() == 1
     assert capacity_events == [1]
+
+
+def test_shutdown_discards_pending_and_late_commit_delivery() -> None:
+    """Retired queues must release pixels and never mutate or report into the shell."""
+
+    ensure_qt_application()
+    calls: list[str] = []
+    scheduler = CanvasProjectionScheduler(
+        project_workflow=lambda _workflow, _image: calls.append("project"),
+        active_workflow_id=lambda: "wf",
+        output_canvas_visible=lambda: True,
+    )
+
+    def commit(_output: PreparedOutputImage) -> None:
+        """Record any unintended commit after retirement."""
+        calls.append("commit")
+
+    queue = PreparedOutputCommitQueue(
+        commit_prepared=commit,
+        handle_failure=lambda _failure: calls.append("failure"),
+        projection_scheduler=scheduler,
+    )
+    output = _prepared("queued")
+    failure = FailedOutputImagePreparation(
+        request=output.request, message="decode failed"
+    )
+    try:
+        queue.enqueue_prepared(output)
+        queue.enqueue_failed(failure)
+        queue.shutdown()
+        queue.shutdown()
+        queue.enqueue_prepared(output)
+        queue.enqueue_failed(failure)
+        queue.drain_once()
+        wait_for_queued_qt_turn()
+        assert calls == []
+        assert queue.pending_count() == 0
+        assert queue.available_prepared_slots() == 0
+    finally:
+        queue.shutdown()
+        scheduler.shutdown()
+        destroy_qt_object(queue)
+        destroy_qt_object(scheduler)
 
 
 def _prepared(node_id: str) -> PreparedOutputImage:
