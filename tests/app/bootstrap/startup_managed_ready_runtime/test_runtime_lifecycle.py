@@ -27,7 +27,6 @@ from substitute.app.bootstrap.pre_show_restore_projection import (
 from substitute.app.bootstrap.ready_shell_controller import (
     ReadyShellBackendStateUpdater,
     ReadyShellBuildTask,
-    ReadyShellFailureQueue,
     ReadyShellInitialWorkspacePrehydrationTask,
     ReadyShellLocalEditorWarmupAdapter,
     ReadyShellManagedStartupPrelude,
@@ -39,6 +38,7 @@ from substitute.app.bootstrap.ready_shell_controller import (
     ReadyShellTargetActivationTask,
     ReadyShellStartupDiagnosticsUpdateAdapter,
 )
+from substitute.app.bootstrap.ready_shell_failure_queue import ReadyShellFailureQueue
 from substitute.app.bootstrap.ready_shell_reveal import ReadyShellRevealTask
 from substitute.app.bootstrap.startup_resources import StartupResourceRegistry
 from substitute.app.bootstrap.startup_timing import StartupTimer

@@ -34,12 +34,11 @@ next_extraction = "Extract recovery eligibility and background task execution fr
 id = "SS-ARCH-005"
 owner = "ready-shell startup"
 paths = ["substitute/app/bootstrap/ready_shell_controller.py"]
-fingerprint = "sha256:1d1cf4b9d75de051148e9aa85c6fcd418bb6112457365d31e3666af7225e89de"
+fingerprint = "sha256:2c42e6814d18ba9132fd1328e72fd5a91be0f7ddaa225daa338ec802c01af08a"
 issue = "chore:SS-ARCH-005"
 review_by = 2026-12-15
 responsibilities = [
   "ready-shell launch orchestration",
-  "failure queue and cancellation",
   "target activation and shell construction",
   "prompt editor and workspace warmup",
   "post-show hydration and diagnostics",
@@ -50,7 +49,7 @@ next_extraction = "Extract warmup and hydration task ownership from shell launch
 id = "SS-ARCH-006"
 owner = "startup managed-ready runtime"
 paths = ["substitute/app/bootstrap/startup_managed_ready_runtime.py"]
-fingerprint = "sha256:6ee1868a18bc94c62d60d0d75111654c6be177869e85dc65a2f80e018872e8d9"
+fingerprint = "sha256:efe78324b0bb4a605efd737f118a2d208862f76f756d0f4759d0a27034d5d3aa"
 issue = "chore:SS-ARCH-006"
 review_by = 2026-12-15
 responsibilities = [

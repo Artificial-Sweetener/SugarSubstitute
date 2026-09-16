@@ -26,11 +26,11 @@ from typing import Any
 from PySide6.QtCore import QObject, Signal
 
 from substitute.app.bootstrap.launch_splash import (
-    LaunchSplashClient,
     ProcessPumpTaskFactory,
     SplashCancelCallback,
     start_launch_splash,
 )
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.startup_timing import StartupTimer
 from substitute.app.bootstrap.startup_trace import trace_mark, trace_span
 from substitute.domain.appearance import AppearanceBackdropMode

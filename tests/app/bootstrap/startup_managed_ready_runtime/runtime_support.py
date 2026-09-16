@@ -17,6 +17,8 @@
 """Provide deterministic managed-ready runtime composition support."""
 
 from __future__ import annotations
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+
 
 from collections.abc import Callable
 from contextlib import AbstractContextManager, nullcontext
@@ -337,6 +339,9 @@ class _Splash:
         """Initialize the recorded line list."""
 
         self.lines: list[str] = []
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Accept producer progress through the complete splash contract."""
 
     def append_log(self, line: str) -> None:
         """Record one launch-splash line."""

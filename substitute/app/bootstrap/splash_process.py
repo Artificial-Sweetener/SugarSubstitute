@@ -32,6 +32,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtWidgets import QApplication
 
 from sugarsubstitute_shared.launch_splash.activity import SplashActivity
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
 
 from substitute.app.bootstrap.splash_arguments import (
     backdrop_mode_from_argument,
@@ -148,7 +149,7 @@ def decode_splash_message(line: str) -> dict[str, str] | None:
     line_value = payload.get("line")
     if isinstance(line_value, str):
         message["line"] = line_value
-    for key in ("initial", "long_wait", "extended_wait"):
+    for key in ("initial", "long_wait", "extended_wait", "completed", "total"):
         value = payload.get(key)
         if isinstance(value, str):
             message[key] = value
@@ -207,10 +208,29 @@ def _handle_message(
     if message_type == "clear_activity":
         splash.clear_activity()
         return
-    if message_type in {"log", "status", "fatal"}:
+    if message_type == "fatal":
         line = message.get("line", "")
         if line:
-            splash.append_log(line)
+            splash.show_failure(line)
+        return
+    if message_type in {"log", "status"}:
+        line = message.get("line", "")
+        if line:
+            progress = (
+                _progress_from_message(message) if message_type == "status" else None
+            )
+            if progress is not None:
+                splash.set_progress(progress, status=line)
+            else:
+                splash.append_log(line)
+
+
+def _progress_from_message(message: dict[str, str]) -> SplashProgress | None:
+    """Validate optional legacy pipe units using the shared completion contract."""
+    try:
+        return SplashProgress(int(message["completed"]), int(message["total"]))
+    except (KeyError, ValueError):
+        return None
 
 
 def _activity_from_message(message: dict[str, str]) -> SplashActivity | None:

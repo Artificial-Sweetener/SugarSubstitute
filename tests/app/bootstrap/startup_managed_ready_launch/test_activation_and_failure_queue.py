@@ -24,9 +24,9 @@ from substitute.app.bootstrap.startup_managed_ready_launch import (
     create_startup_managed_ready_launch_runtime,
 )
 from substitute.app.bootstrap.ready_shell_controller import (
-    ReadyShellFailureQueue,
     ReadyShellTargetActivationTask,
 )
+from substitute.app.bootstrap.ready_shell_failure_queue import ReadyShellFailureQueue
 from substitute.app.bootstrap.startup_resources import StartupResourceRegistry
 from substitute.app.bootstrap.startup_timing import StartupTimer
 

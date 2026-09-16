@@ -32,10 +32,10 @@ owner = "ready-shell startup"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/ready_shell_controller.py"
 kind = "remediation"
-justification = "The assessed file mixes ready-shell launch orchestration, failure queue and cancellation, target activation and shell construction, prompt editor and workspace warmup, post-show hydration and diagnostics. Extract warmup and hydration task ownership from shell launch coordination."
+justification = "The assessed file mixes ready-shell launch orchestration, target activation and shell construction, prompt editor and workspace warmup, post-show hydration and diagnostics. Failure queue composition now belongs to ready_shell_failure_queue. Extract warmup and hydration task ownership from shell launch coordination."
 issue = "chore:SS-ARCH-005"
 review_by = 2026-12-15
-max_lines = 1734
+max_lines = 1620
 next_limit = 1559
 debt = "SS-ARCH-005"
 
@@ -45,10 +45,10 @@ owner = "startup managed-ready runtime"
 rule = "STRUCT003"
 path = "substitute/app/bootstrap/startup_managed_ready_runtime.py"
 kind = "remediation"
-justification = "The assessed file mixes factory protocol declarations, ready-shell runtime resource graph composition, managed recovery and readiness binding, prompt editor and CuteCanvas warmup integration. Extract factory port declarations and feature-specific warmup adapters from runtime resource composition."
+justification = "The assessed file mixes factory protocol declarations, ready-shell runtime resource graph composition, managed recovery and readiness binding, prompt editor and CuteCanvas warmup integration. Migrating failure queue imports to its extracted owner adds two import delimiter lines without adding runtime responsibility. Extract factory port declarations and feature-specific warmup adapters from runtime resource composition."
 issue = "chore:SS-ARCH-006"
 review_by = 2026-12-15
-max_lines = 1122
+max_lines = 1124
 next_limit = 910
 debt = "SS-ARCH-006"
 

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
@@ -81,8 +82,13 @@ class _CloseSplash:
         """Store the call recorder and failure mode."""
 
         self._calls = calls
+        self.progress: list[SplashProgress] = []
         self._fail = fail
         self._acknowledged = acknowledged
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Record completion independently from lifecycle call ordering."""
+        self.progress.append(progress)
 
     def close(self) -> bool:
         """Record and optionally fail a splash close."""

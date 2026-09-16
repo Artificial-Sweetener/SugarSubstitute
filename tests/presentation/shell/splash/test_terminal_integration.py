@@ -402,6 +402,13 @@ def test_splash_window_keeps_wrapped_output_scrolled_to_newest_line(
     splash = splash_window_factory()
     splash.show()
 
+    from substitute.presentation.shell.splash_progress_panel import SplashProgressPanel
+
+    panel = splash.findChild(SplashProgressPanel)
+    assert panel is not None
+    panel.details_button.click()
+    assert panel.details.isVisible()
+
     wrapped_line = "wrapped splash output " + ("0123456789 " * 20)
     for index in range(25):
         splash.append_log(f"{index:02d}: {wrapped_line}\n")
