@@ -144,12 +144,7 @@
       <translation>正在下载并验证此安装程序对应的确切版本。当前安装尚未更改。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="60"></location>
-      <source>End unresponsive instance and retry</source>
-      <translation>结束无响应的实例并重试</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="68"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="76"></location>
       <source>Exit</source>
       <translation>退出</translation>
     </message>
@@ -249,7 +244,7 @@
       <translation>语言</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="70"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="78"></location>
       <source>Launcher logs: %1</source>
       <translation>启动器日志：%1</translation>
     </message>
@@ -269,7 +264,7 @@
       <translation>打开 SugarSubstitute</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="64"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="72"></location>
       <source>Open launcher logs</source>
       <translation>打开启动器日志</translation>
     </message>
@@ -404,9 +399,14 @@
       <translation>正在恢复应用程序</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="55"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="69"></location>
       <source>Retry</source>
       <translation>重试</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="51"></location>
+      <source>Return to that Windows session and close SugarSubstitute, then retry here.</source>
+      <translation>请返回该 Windows 会话并关闭 SugarSubstitute，然后在此处重试。</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="116"></location>
@@ -524,9 +524,19 @@
       <translation>SugarSubstitute 安装程序</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="42"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="57"></location>
+      <source>SugarSubstitute could not verify which Windows session owns the existing instance.</source>
+      <translation>SugarSubstitute 无法确认现有实例属于哪个 Windows 会话。</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="45"></location>
       <source>SugarSubstitute did not open</source>
       <translation>SugarSubstitute 未能打开</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="48"></location>
+      <source>SugarSubstitute is open in another Windows session.</source>
+      <translation>SugarSubstitute 已在另一个 Windows 会话中打开。</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="171"></location>
@@ -544,7 +554,7 @@
       <translation>技术详细信息：</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="44"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="61"></location>
       <source>The existing SugarSubstitute instance did not present a usable window.</source>
       <translation>现有的 SugarSubstitute 实例未显示可用窗口。</translation>
     </message>
@@ -619,9 +629,9 @@
       <translation>已写入启动器配置：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="49"></location>
-      <source>You can retry, open the launcher logs, or end the unresponsive instance and start again.</source>
-      <translation>您可以重试、打开启动器日志，或结束无响应的实例并重新启动。</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="66"></location>
+      <source>You can retry or open the launcher logs for details.</source>
+      <translation>您可以重试，或打开启动器日志查看详细信息。</translation>
     </message>
   </context>
   <context>

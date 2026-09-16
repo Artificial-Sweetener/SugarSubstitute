@@ -93,10 +93,8 @@ def test_frozen_caller_without_live_supervisor_recovers_before_repair(
     monkeypatch.setattr(repair_session_supervisor, "InstallLayout", FixtureLayout)
 
     def recover(**kwargs: object) -> InstanceRecoveryAction:
-        """Select End-and-retry without launching a desktop recovery window."""
-        offers.append(bool(kwargs["can_end_owner"]))
-        assert offers == [True], "Recovery did not remove the verified caller"
-        return InstanceRecoveryAction.END_AND_RETRY
+        """Fail if retiring the real frozen caller requires manual intervention."""
+        pytest.fail("Frozen caller required a user-operated recovery workflow")
 
     monkeypatch.setattr(
         launcher_ui_supervision, "supervise_instance_recovery_window", recover
@@ -166,7 +164,7 @@ def test_frozen_caller_without_live_supervisor_recovers_before_repair(
             process.wait(timeout=5)
             _gone, alive = psutil.wait_procs(family, timeout=5)
             assert not alive
-            assert offers == [True]
+            assert offers == []
             assert presented == [True]
         finally:
             if process.poll() is None:

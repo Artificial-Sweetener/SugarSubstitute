@@ -173,9 +173,8 @@ def test_normal_launch_recovers_the_authenticated_repair_owner(
         return None
 
     def present(**kwargs: object) -> InstanceRecoveryAction:
-        """Choose the actual recovery action offered by the application."""
-        assert kwargs["can_end_owner"]
-        return InstanceRecoveryAction.END_AND_RETRY
+        """Reject a manual workflow for automatic owner retirement."""
+        pytest.fail("Verified hung owner required manual recovery")
 
     monkeypatch.setattr(
         launcher_ui_supervision, "supervise_instance_recovery_window", present

@@ -144,12 +144,7 @@
       <translation>Descargando y verificando la versión exacta de este instalador. La instalación activa aún no se ha modificado.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="60"></location>
-      <source>End unresponsive instance and retry</source>
-      <translation>Finalizar la instancia que no responde y volver a intentarlo</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="68"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="76"></location>
       <source>Exit</source>
       <translation>Salir</translation>
     </message>
@@ -249,7 +244,7 @@
       <translation>Idioma</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="70"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="78"></location>
       <source>Launcher logs: %1</source>
       <translation>Registros del iniciador: %1</translation>
     </message>
@@ -269,7 +264,7 @@
       <translation>Abrir SugarSubstitute</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="64"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="72"></location>
       <source>Open launcher logs</source>
       <translation>Abrir registros del iniciador</translation>
     </message>
@@ -404,9 +399,14 @@
       <translation>Restaurando la aplicación</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="55"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="69"></location>
       <source>Retry</source>
       <translation>Volver a intentarlo</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="51"></location>
+      <source>Return to that Windows session and close SugarSubstitute, then retry here.</source>
+      <translation>Vuelve a esa sesión de Windows y cierra SugarSubstitute; después, vuelve a intentarlo aquí.</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/experience_pages.py" line="116"></location>
@@ -524,9 +524,19 @@
       <translation>Instalación de SugarSubstitute</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="42"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="57"></location>
+      <source>SugarSubstitute could not verify which Windows session owns the existing instance.</source>
+      <translation>SugarSubstitute no pudo verificar a qué sesión de Windows pertenece la instancia existente.</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="45"></location>
       <source>SugarSubstitute did not open</source>
       <translation>SugarSubstitute no se abrió</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="48"></location>
+      <source>SugarSubstitute is open in another Windows session.</source>
+      <translation>SugarSubstitute está abierto en otra sesión de Windows.</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="171"></location>
@@ -544,7 +554,7 @@
       <translation>Detalles técnicos:</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="44"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="61"></location>
       <source>The existing SugarSubstitute instance did not present a usable window.</source>
       <translation>La instancia existente de SugarSubstitute no mostró una ventana utilizable.</translation>
     </message>
@@ -619,9 +629,9 @@
       <translation>Configuración del iniciador guardada: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="49"></location>
-      <source>You can retry, open the launcher logs, or end the unresponsive instance and start again.</source>
-      <translation>Puedes volver a intentarlo, abrir los registros del iniciador o finalizar la instancia que no responde y empezar de nuevo.</translation>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="66"></location>
+      <source>You can retry or open the launcher logs for details.</source>
+      <translation>Puedes volver a intentarlo o abrir los registros del iniciador para ver los detalles.</translation>
     </message>
   </context>
   <context>

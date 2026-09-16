@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own launch election and verified recovery authority across user retries."""
+"""Own launch election and automatic recovery of verified unavailable owners."""
 
 from __future__ import annotations
 
@@ -30,8 +30,13 @@ from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
 from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceBrokerError,
+    ApplicationInstanceFailureReason,
 )
-from sugarsubstitute_shared.process_identity import ProcessIdentity
+from sugarsubstitute_shared.process_identity import (
+    ProcessIdentity,
+    ProcessIdentityError,
+    wait_for_process_exit,
+)
 from sugarsubstitute_shared.application_process_scope import (
     ApplicationProcessScope,
     ExactExecutableProcessScope,
@@ -41,7 +46,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ApplicationElectionRecovery:
-    """Keep authenticated owner proof for one interactive launch-recovery sequence."""
+    """Keep exact owner proof through automatic recovery and launch re-election."""
 
     def __init__(
         self,
@@ -65,8 +70,9 @@ class ApplicationElectionRecovery:
         self._verified_failure: ApplicationInstanceBrokerError | None = None
 
     def run(self) -> ApplicationInstanceBroker | None:
-        """Elect or offer recovery until this launch succeeds or the user exits."""
+        """Retire unavailable owners once before presenting an unrecovered failure."""
         self._verified_failure = None
+        attempted: set[ProcessIdentity] = set()
         while True:
             try:
                 return self._elect(self._layout, self._arguments)
@@ -84,35 +90,85 @@ class ApplicationElectionRecovery:
                     if proof is not None
                     else self._discover_owner(error)
                 )
+                if (
+                    error.reason is not ApplicationInstanceFailureReason.UNAVAILABLE
+                    and identity is not None
+                    and identity not in attempted
+                    and self._owner_has_exited(identity)
+                ):
+                    attempted.add(identity)
+                    self._verified_failure = None
+                    continue
+                if (
+                    error.reason is ApplicationInstanceFailureReason.UNAVAILABLE
+                    and identity is not None
+                    and identity not in attempted
+                ):
+                    attempted.add(identity)
+                    if self._retire_owner(identity):
+                        self._verified_failure = None
+                        continue
                 action = launcher_ui_supervision.supervise_instance_recovery_window(
                     layout=self._layout,
                     locale_override=self._locale,
-                    can_end_owner=identity is not None,
+                    reason=error.reason,
                     bundle_layout=self._presentation_layout,
                 )
                 if action is InstanceRecoveryAction.EXIT:
                     return None
-                if (
-                    action is InstanceRecoveryAction.END_AND_RETRY
-                    and identity is not None
-                ):
-                    from launcher.sugarsubstitute_launcher import (
-                        application_instance_recovery,
-                    )
-                    from launcher.sugarsubstitute_launcher.application_process_discovery import (
-                        InstalledInvocationScope,
-                    )
 
-                    if application_instance_recovery.terminate_verified_process(
-                        identity,
-                        scope=self._process_scope
-                        or (
-                            InstalledInvocationScope(self._layout)
-                            if bool(getattr(sys, "frozen", False))
-                            else ExactExecutableProcessScope((Path(sys.executable),))
-                        ),
-                    ):
-                        self._verified_failure = None
+    @staticmethod
+    def _owner_has_exited(identity: ProcessIdentity) -> bool:
+        """Discard obsolete session failures only after native incarnation exit proof."""
+        try:
+            wait_for_process_exit(identity, timeout_seconds=0)
+        except ProcessIdentityError:
+            _LOGGER.debug(
+                "Session-inaccessible owner exit was not established | owner_pid=%s",
+                identity.pid,
+                exc_info=True,
+            )
+            return False
+        _LOGGER.info(
+            "Session-inaccessible owner exited; repeating election | owner_pid=%s",
+            identity.pid,
+        )
+        return True
+
+    def _retire_owner(self, identity: ProcessIdentity) -> bool:
+        """Delegate exact native retirement without exposing process controls."""
+        from launcher.sugarsubstitute_launcher import application_instance_recovery
+        from launcher.sugarsubstitute_launcher.application_process_discovery import (
+            InstalledInvocationScope,
+        )
+        from sugarsubstitute_shared.application_instance_transport import (
+            instance_endpoint,
+            instance_identity,
+        )
+
+        failure = self._verified_failure
+        native_owner = failure.native_owner if failure is not None else None
+        scope = self._process_scope
+        if (
+            scope is None
+            and native_owner is not None
+            and (
+                native_owner.identity == identity
+                and native_owner.endpoint
+                == instance_endpoint(instance_identity(self._layout.root))
+            )
+        ):
+            scope = ExactExecutableProcessScope((native_owner.executable,))
+
+        return application_instance_recovery.terminate_verified_process(
+            identity,
+            scope=scope
+            or (
+                InstalledInvocationScope(self._layout)
+                if bool(getattr(sys, "frozen", False))
+                else ExactExecutableProcessScope((Path(sys.executable),))
+            ),
+        )
 
     def _discover_owner(
         self, error: ApplicationInstanceBrokerError

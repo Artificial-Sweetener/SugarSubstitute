@@ -32,6 +32,9 @@ from launcher.sugarsubstitute_launcher.application_lifecycle_supervisor import (
     ApplicationLifecycleSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_instance_protocol import (
+    ApplicationInstanceFailureReason,
+)
 from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
     InstanceRecoveryAction,
     InstanceRecoveryRequest,
@@ -119,7 +122,7 @@ def supervise_instance_recovery_window(
     *,
     layout: InstallLayout,
     locale_override: str | None,
-    can_end_owner: bool,
+    reason: ApplicationInstanceFailureReason,
     supervisor: LauncherUiCrashSupervisor | None = None,
     bundle_layout: InstallLayout | None = None,
 ) -> InstanceRecoveryAction:
@@ -129,9 +132,8 @@ def supervise_instance_recovery_window(
         prefix="SugarSubstitute-instance-recovery-"
     ) as temporary_directory:
         request, request_path = InstanceRecoveryRequest.create(
-            Path(temporary_directory)
+            Path(temporary_directory), reason=reason
         )
-        request = request.with_owner_termination(can_end_owner)
         request.write(request_path)
         child_arguments = [
             "--launcher-ui-child",

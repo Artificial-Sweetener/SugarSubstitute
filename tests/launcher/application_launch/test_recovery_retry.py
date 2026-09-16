@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Preserve verified recovery authority across failed launch retries."""
+"""Bound automatic retirement and preserve endpoint-scoped recovery authority."""
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def test_retry_preserves_only_the_matching_verified_owner(
     second_identity: ProcessIdentity | None,
     expected_identity: ProcessIdentity | None,
 ) -> None:
-    """Keep End and retry usable after a frozen owner's pipe queue fills."""
+    """Never reuse retired proof; automatically recover only a newly verified owner."""
     endpoint = ApplicationInstanceEndpoint("windows-named-pipe", "test-owner")
     identity = ProcessIdentity(123, 456.0)
     failures = iter(
@@ -95,7 +95,7 @@ def test_retry_preserves_only_the_matching_verified_owner(
             ),
         )
     )
-    actions = iter((InstanceRecoveryAction.RETRY, InstanceRecoveryAction.END_AND_RETRY))
+    actions = iter((InstanceRecoveryAction.RETRY, InstanceRecoveryAction.EXIT))
     eligibility: list[bool] = []
     terminated: list[ProcessIdentity | None] = []
 
@@ -110,7 +110,7 @@ def test_retry_preserves_only_the_matching_verified_owner(
 
     def present(**kwargs: object) -> InstanceRecoveryAction:
         """Record whether the actual recovery flow offers termination."""
-        eligibility.append(bool(kwargs["can_end_owner"]))
+        eligibility.append("can_end_owner" in kwargs)
         return next(actions)
 
     def terminate(identity: ProcessIdentity, *, scope: ApplicationProcessScope) -> bool:
@@ -130,8 +130,11 @@ def test_retry_preserves_only_the_matching_verified_owner(
         locale_override="en",
         elect=elect,
     ).run()
-    assert eligibility == [True, expected_identity is not None]
-    assert terminated == ([] if expected_identity is None else [expected_identity])
+    assert eligibility == ([False] if second_identity is None else [])
+    assert terminated == [
+        identity,
+        *([] if second_identity is None else [second_identity]),
+    ]
 
 
 @pytest.mark.parametrize("terminated_successfully", [True, False])
@@ -150,22 +153,27 @@ def test_termination_releases_proof_only_after_verified_completion(
             ApplicationInstanceBrokerError("busy", endpoint=endpoint),
         )
     )
-    actions = iter((InstanceRecoveryAction.END_AND_RETRY, InstanceRecoveryAction.EXIT))
+    actions = iter((InstanceRecoveryAction.RETRY, InstanceRecoveryAction.EXIT))
     eligibility: list[bool] = []
+    terminated: list[ProcessIdentity] = []
 
     def elect(
         _layout: InstallLayout, _arguments: Sequence[str]
     ) -> ApplicationInstanceBroker | None:
         """Present a subsequent failure after the termination outcome."""
-        raise next(failures)
+        failure = next(failures, None)
+        if failure is not None:
+            raise failure
+        return None
 
     def present(**kwargs: object) -> InstanceRecoveryAction:
         """Observe recovery availability until the user exits."""
-        eligibility.append(bool(kwargs["can_end_owner"]))
+        eligibility.append("can_end_owner" in kwargs)
         return next(actions)
 
     def terminate(identity: ProcessIdentity, *, scope: ApplicationProcessScope) -> bool:
         """Return the controlled OS termination result."""
+        terminated.append(identity)
         return terminated_successfully
 
     monkeypatch.setattr(
@@ -180,4 +188,5 @@ def test_termination_releases_proof_only_after_verified_completion(
         locale_override="en",
         elect=elect,
     ).run()
-    assert eligibility == [True, not terminated_successfully]
+    assert eligibility == ([False] if terminated_successfully else [False, False])
+    assert terminated == [ProcessIdentity(123, 456.0)]

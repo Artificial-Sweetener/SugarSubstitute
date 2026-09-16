@@ -34,10 +34,10 @@ from sugarsubstitute_shared.application_instance_broker import ApplicationInstan
 from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 from sugarsubstitute_shared.supervisor_handoff import with_supervisor_handoff
+from sugarsubstitute_shared.application_instance_transport import instance_identity
 from sugarsubstitute_shared.application_instance_transport import (
     bind_instance_listener,
     instance_endpoint,
-    instance_identity,
     endpoint_is_already_owned,
 )
 
@@ -241,12 +241,10 @@ def test_repair_election_failure_reaches_application_recovery(
     assert len(recovery_requests) == 1
 
 
-@pytest.mark.parametrize("action_name", ["EXIT", "RETRY", "END_AND_RETRY"])
 @pytest.mark.parametrize("has_supervisor", [True, False])
-def test_repair_handoff_wait_failure_offers_recovery_before_mutation(
+def test_repair_handoff_retires_unavailable_owner_before_mutation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    action_name: str,
     has_supervisor: bool,
 ) -> None:
     """Keep a stalled outgoing supervisor recoverable before repair acquires ownership."""
@@ -292,9 +290,9 @@ def test_repair_handoff_wait_failure_offers_recovery_before_mutation(
             raise ProcessIdentityError("controlled outgoing timeout")
 
     def recover(**kwargs: object) -> InstanceRecoveryAction:
-        """Allow exiting recovery without executing repair or touching a process."""
-        offered.append(bool(kwargs["can_end_owner"]))
-        return InstanceRecoveryAction[action_name]
+        """Record unexpected manual intervention before repair admission."""
+        offered.append("can_end_owner" in kwargs)
+        return InstanceRecoveryAction.EXIT
 
     def terminate(identity: ProcessIdentity, *, scope: ApplicationProcessScope) -> bool:
         """Record authenticated recovery without sending a signal to any process."""
@@ -326,6 +324,6 @@ def test_repair_handoff_wait_failure_offers_recovery_before_mutation(
         ).run(request)
         == 0
     )
-    assert offered == [True]
-    assert presentations == ([] if action_name == "EXIT" else [True])
-    assert terminated == ([outgoing] if action_name == "END_AND_RETRY" else [])
+    assert offered == []
+    assert presentations == [True]
+    assert terminated == [outgoing]
