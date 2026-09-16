@@ -115,7 +115,7 @@ class InstallationCloseCoordinator(QObject):
             self._view.repair_page.set_status(message, working=True)
         else:
             self._view.show_status_output()
-            self._view.append_log(message)
+            self._view.status_panel.show_stopping(message)
         _LOGGER.info(
             "Installer close deferred to a safe boundary | initial_running=%s | "
             "setup_running=%s | repair_running=%s",

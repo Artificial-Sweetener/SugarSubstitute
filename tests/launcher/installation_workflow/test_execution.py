@@ -20,6 +20,11 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+from PySide6.QtCore import QThread
+from launcher.sugarsubstitute_launcher.application.installation.progress import (
+    InstallationProgress,
+    InstallationStage,
+)
 
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstalledApplication,
@@ -45,6 +50,15 @@ def test_setup_execution_finishes_only_after_worker_thread_stops(
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     executor = QtInstallationExecutor(workflow_factory=workflow_factory())
     events: list[tuple[str, bool]] = []
+    progress: list[InstallationProgress] = []
+
+    def observe(value: object) -> None:
+        """Require workflow feedback to reach presentation on its owning thread."""
+        assert isinstance(value, InstallationProgress)
+        assert QThread.currentThread() is application.thread()
+        progress.append(value)
+
+    executor.progress.connect(observe)
     executor.setup_succeeded.connect(
         lambda: events.append(("succeeded", executor.setup_running))
     )
@@ -65,6 +79,12 @@ def test_setup_execution_finishes_only_after_worker_thread_stops(
     wait_for_launcher_condition(application, lambda: not executor.setup_running)
 
     assert events == [("succeeded", True), ("finished", False)]
+    assert progress == [
+        InstallationProgress(InstallationStage.RUNTIME),
+        InstallationProgress(InstallationStage.RUNTIME, True),
+        InstallationProgress(InstallationStage.HANDOFF),
+        InstallationProgress(InstallationStage.HANDOFF, True),
+    ]
 
 
 def test_setup_execution_waits_for_initial_thread_release(tmp_path: Path) -> None:

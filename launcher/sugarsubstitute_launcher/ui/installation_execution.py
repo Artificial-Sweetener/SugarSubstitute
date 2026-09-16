@@ -39,6 +39,7 @@ class QtInstallationExecutor(QObject):
     """Run installation workers and publish results after deterministic cleanup."""
 
     log = Signal(str)
+    progress = Signal(object)
     initial_failed = Signal(str)
     initial_succeeded = Signal(object)
     initial_presented_elsewhere = Signal()
@@ -98,6 +99,7 @@ class QtInstallationExecutor(QObject):
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.log.connect(self.log.emit)
+        worker.progress.connect(self.progress.emit)
         worker.failed.connect(self.initial_failed.emit)
         worker.succeeded.connect(self.initial_succeeded.emit)
         worker.presented_elsewhere.connect(self.initial_presented_elsewhere.emit)
@@ -131,6 +133,7 @@ class QtInstallationExecutor(QObject):
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.log.connect(self.log.emit)
+        worker.progress.connect(self.progress.emit)
         worker.failed.connect(self.setup_failed.emit)
         worker.succeeded.connect(self.setup_succeeded.emit)
         worker.finished.connect(thread.quit)

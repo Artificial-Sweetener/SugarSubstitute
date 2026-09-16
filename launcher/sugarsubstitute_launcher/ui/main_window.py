@@ -18,11 +18,10 @@
 
 from __future__ import annotations
 
-from threading import Event
-
 import logging
 from collections.abc import Callable
 from pathlib import Path
+from threading import Event
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QTimer, Signal, Slot
@@ -146,7 +145,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self.repair_execution = QtRepairPreparationExecutor(parent=self)
         self.repair_execution.succeeded.connect(self._handle_repair_prepared)
         self.repair_execution.failed.connect(self._handle_repair_preparation_failed)
-        self.execution.log.connect(self._append_log)
         self.execution.initial_failed.connect(self._handle_initial_install_failed)
         self.execution.initial_succeeded.connect(self._handle_initial_install_succeeded)
         self.execution.initial_presented_elsewhere.connect(
@@ -164,6 +162,8 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         )
         self.view.primary_requested.connect(self._handle_primary_clicked)
         self.view.back_requested.connect(self._handle_back_clicked)
+        self.execution.progress.connect(self.view.status_panel.set_progress)
+        self.execution.log.connect(self.view.status_panel.append_log)
         self._close_coordinator = InstallationCloseCoordinator(
             window=self,
             view=self.view,
@@ -177,20 +177,22 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._localization_manager.languageChanged.connect(
                 lambda _snapshot: self._retranslate_window()
             )
-        self._append_log(launcher_text("Ready."))
+        self.view.status_panel.append_log(launcher_text("Ready."))
         if continue_install:
-            self._append_log(
+            self.view.status_panel.append_log(
                 launcher_text("Continuing install from installed launcher.")
             )
         if repair:
-            self._append_log(launcher_text("Repair mode requested."))
+            self.view.status_panel.append_log(launcher_text("Repair mode requested."))
             self.view.show_repair_scope()
             self.view.repair_page.continue_requested.connect(
                 self._handle_repair_continue
             )
             self.view.repair_page.cancel_requested.connect(self.close)
         if not update_check_enabled:
-            self._append_log(launcher_text("Update check disabled for this launch."))
+            self.view.status_panel.append_log(
+                launcher_text("Update check disabled for this launch.")
+            )
         self._refresh_primary_button()
         place_launcher_window(self, self._handoff_geometry)
         apply_launcher_window_effects(self)
@@ -313,14 +315,16 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
     def _start_initial_install_worker(self) -> None:
         """Install launcher and app payload in the current setup window."""
 
-        self._show_status_output()
+        self.view.show_status_output()
         if self.execution.initial_running:
             return
 
         install_root = Path(self.view.install_path).expanduser()
         self.view.set_primary_action(text=launcher_text("Working..."), enabled=False)
         self.view.set_path_controls_enabled(False)
-        self._append_log(launcher_text("Preparing SugarSubstitute install."))
+        self.view.status_panel.append_log(
+            launcher_text("Preparing SugarSubstitute install.")
+        )
 
         self.execution.start_initial(
             layout=InstallLayout.from_root(install_root),
@@ -332,9 +336,13 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
     def _install_app_payload(self) -> None:
         """Install the app source payload for source-run development setup."""
 
-        self._show_status_output()
+        self.view.show_status_output()
         try:
-            workflow = self._workflow_factory(self._append_log, Event())
+            workflow = self._workflow_factory(
+                self.view.status_panel.append_log,
+                self.view.status_panel.set_progress,
+                Event(),
+            )
             application = workflow.install_application(
                 create_continued_installation_request(self._initial_layout)
             )
@@ -353,14 +361,18 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
 
         if self.execution.initial_running:
             return
-        self._show_status_output()
+        self.view.show_status_output()
         if self._installed_application is None:
-            self._append_log(launcher_text("Install root is not prepared yet."))
+            self.view.status_panel.append_log(
+                launcher_text("Install root is not prepared yet.")
+            )
             self._ui_state = LauncherUiState.PREPARE_INSTALL
             self._refresh_primary_button()
             return
         if self._setup_command is None:
-            self._append_log(launcher_text("Setup command is not available yet."))
+            self.view.status_panel.append_log(
+                launcher_text("Setup command is not available yet.")
+            )
             self._ui_state = LauncherUiState.INSTALL_APP
             self._refresh_primary_button()
             return
@@ -368,10 +380,12 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             return
 
         self.view.set_primary_action(text=launcher_text("Working..."), enabled=False)
-        self._append_log(
+        self.view.status_panel.append_log(
             launcher_text("Installing Python runtime and app dependencies.")
         )
-        self._append_log(launcher_text("This can take a while the first time."))
+        self.view.status_panel.append_log(
+            launcher_text("This can take a while the first time.")
+        )
 
         self.execution.start_setup(
             application=self._installed_application,
@@ -381,21 +395,29 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
     def _start_setup_handoff(self) -> None:
         """Start the installed app so it can enter onboarding/setup routing."""
 
-        self._show_status_output()
+        self.view.show_status_output()
         if self._setup_command is None:
-            self._append_log(launcher_text("Setup command is not available yet."))
+            self.view.status_panel.append_log(
+                launcher_text("Setup command is not available yet.")
+            )
             self._ui_state = LauncherUiState.INSTALL_APP
             self._refresh_primary_button()
             return
 
-        self._append_log(launcher_text("Starting SugarSubstitute setup."))
+        self.view.status_panel.append_log(
+            launcher_text("Starting SugarSubstitute setup.")
+        )
         try:
-            self._workflow_factory(self._append_log, Event()).start_setup(
-                self._setup_command
-            )
+            self._workflow_factory(
+                self.view.status_panel.append_log,
+                self.view.status_panel.set_progress,
+                Event(),
+            ).start_setup(self._setup_command)
         except Exception as error:
-            self._append_log(launcher_text("Could not start SugarSubstitute setup."))
-            self._append_log(launcher_text("Details: %1", error))
+            self.view.status_panel.append_log(
+                launcher_text("Could not start SugarSubstitute setup.")
+            )
+            self.view.status_panel.append_log(launcher_text("Details: %1", error))
             self._ui_state = LauncherUiState.START_SETUP
             self.view.show_failure(
                 launcher_text(
@@ -409,20 +431,24 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             self._refresh_primary_button()
             return
 
-        self._append_log(launcher_text("Started SugarSubstitute setup."))
+        self.view.status_panel.append_log(
+            launcher_text("Started SugarSubstitute setup.")
+        )
         self._ui_state = LauncherUiState.COMPLETE
         self._refresh_primary_button()
-        self._append_log(launcher_text("Waiting for the setup window to open."))
-        self._finish_successful_handoff()
+        self.view.status_panel.append_log(
+            launcher_text("Waiting for the setup window to open.")
+        )
+        self._close_coordinator.request_handoff()
 
     @Slot(str)
     def _handle_initial_install_failed(self, details: str) -> None:
         """Render initial install failure and restore the install action."""
 
-        self._append_log(
+        self.view.status_panel.append_log(
             launcher_text("Setup failed. Check the details below and try again.")
         )
-        self._append_log(launcher_text("Details: %1", details))
+        self.view.status_panel.append_log(launcher_text("Details: %1", details))
         self._ui_state = LauncherUiState.PREPARE_INSTALL
         self.view.show_failure(
             launcher_text("Setup could not continue. Review the details and try again.")
@@ -452,15 +478,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
                 application.layout.root, self._localization_manager.snapshot.requested
             )
         self._installed_application = application
-        self._append_log(
-            launcher_text(
-                "Installed app payload version: %1",
-                application.app_version,
-            )
-        )
-        self._append_log(
-            launcher_text("App entrypoint: %1", application.layout.app_entrypoint)
-        )
+        self.view.status_panel.record_installed_application(application)
         self._setup_command = append_handoff_geometry(
             application.app_command,
             self.frameGeometry(),
@@ -473,12 +491,16 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Render worker failure and restore the matching retry action."""
 
         if phase == "runtime":
-            self._append_log(launcher_text("Could not install the Python runtime."))
+            self.view.status_panel.append_log(
+                launcher_text("Could not install the Python runtime.")
+            )
             self._ui_state = LauncherUiState.INSTALL_RUNTIME
         else:
-            self._append_log(launcher_text("Could not start SugarSubstitute setup."))
+            self.view.status_panel.append_log(
+                launcher_text("Could not start SugarSubstitute setup.")
+            )
             self._ui_state = LauncherUiState.START_SETUP
-        self._append_log(launcher_text("Details: %1", details))
+        self.view.status_panel.append_log(launcher_text("Details: %1", details))
         self.view.show_failure(
             launcher_text("Setup could not continue. Review the details and try again.")
         )
@@ -520,10 +542,12 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Log one setup failure and show an actionable progress message."""
 
         _LOGGER.exception("Launcher setup failed.")
-        self._append_log(
+        self.view.status_panel.append_log(
             launcher_text("Setup failed. Check the details below and try again.")
         )
-        self._append_log(launcher_text("Details: %1", launcher_failure_detail(error)))
+        self.view.status_panel.append_log(
+            launcher_text("Details: %1", launcher_failure_detail(error))
+        )
         self.view.show_failure(
             launcher_text("Setup could not continue. Review the details and try again.")
         )
@@ -531,14 +555,3 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             stage=launcher_text("Install application"),
             details=launcher_failure_detail(error),
         )
-
-    @Slot(str)
-    def _append_log(self, message: str) -> None:
-        """Append one user-visible progress line through the installer view."""
-
-        self.view.append_log(message)
-
-    def _show_status_output(self) -> None:
-        """Reveal installer output once setup work has actually started."""
-
-        self.view.show_status_output()

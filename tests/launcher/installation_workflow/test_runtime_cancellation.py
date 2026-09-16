@@ -94,10 +94,13 @@ def test_setup_cancellation_releases_native_command_before_qt_completion(
         ControlledRuntime,
     )
     executor = QtInstallationExecutor(
-        workflow_factory=lambda output, cancellation: build_installation_workflow(
-            output_callback=output,
-            cancellation=cancellation,
-            process_starter=lambda command: handoffs.append(tuple(command)),
+        workflow_factory=lambda output, progress, cancellation: (
+            build_installation_workflow(
+                output_callback=output,
+                progress_observer=progress,
+                cancellation=cancellation,
+                process_starter=lambda command: handoffs.append(tuple(command)),
+            )
         )
     )
 

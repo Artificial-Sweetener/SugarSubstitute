@@ -36,6 +36,9 @@ from launcher.sugarsubstitute_launcher.application.installation.models import (
 from launcher.sugarsubstitute_launcher.application.installation.workflow import (
     InstallationWorkflow,
 )
+from launcher.sugarsubstitute_launcher.application.installation.progress import (
+    InstallationProgressObserver,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.localization import (
     LauncherLocalizationRuntime,
@@ -98,7 +101,7 @@ def run_interactive_full_experience(
 
 
 def _synthetic_workflow_factory() -> Callable[
-    [Callable[[str], None], Event], InstallationWorkflow
+    [Callable[[str], None], InstallationProgressObserver, Event], InstallationWorkflow
 ]:
     """Build an in-memory launcher workflow for the explicit full walkthrough."""
 
@@ -150,7 +153,9 @@ def _synthetic_workflow_factory() -> Callable[
             return SimpleNamespace(python_executable=layout.runtime_python)
 
     def create_workflow(
-        _log: Callable[[str], None], _cancellation: Event
+        _log: Callable[[str], None],
+        progress_observer: InstallationProgressObserver,
+        _cancellation: Event,
     ) -> InstallationWorkflow:
         """Compose the real workflow over inert boundary implementations."""
 
@@ -162,6 +167,7 @@ def _synthetic_workflow_factory() -> Callable[
                 SyntheticRuntimeProvisioner(),
             ),
             process_starter=lambda _command: None,
+            progress_observer=progress_observer,
         )
 
     return create_workflow

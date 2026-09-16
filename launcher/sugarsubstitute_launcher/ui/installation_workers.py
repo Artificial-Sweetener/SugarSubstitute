@@ -31,6 +31,9 @@ from launcher.sugarsubstitute_launcher.application.installation.models import (
 from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
     create_initial_installation_request,
 )
+from launcher.sugarsubstitute_launcher.application.installation.progress import (
+    InstallationProgressObserver,
+)
 from launcher.sugarsubstitute_launcher.application.installation.workflow import (
     InstallationWorkflow,
 )
@@ -43,7 +46,7 @@ from launcher.sugarsubstitute_launcher.ui.installer_errors import (
 
 
 InstallationWorkflowFactory = Callable[
-    [Callable[[str], None], Event],
+    [Callable[[str], None], InstallationProgressObserver, Event],
     InstallationWorkflow,
 ]
 
@@ -52,6 +55,7 @@ class SetupWorker(QObject):
     """Provision the runtime and hand off setup away from the UI thread."""
 
     log = Signal(str)
+    progress = Signal(object)
     failed = Signal(str, str)
     succeeded = Signal()
     finished = Signal()
@@ -77,7 +81,9 @@ class SetupWorker(QObject):
         """Provision the runtime, launch setup, and report progress through signals."""
 
         try:
-            workflow = self._workflow_factory(self.log.emit, self._cancellation)
+            workflow = self._workflow_factory(
+                self.log.emit, self.progress.emit, self._cancellation
+            )
             completed = workflow.provision_runtime(self._application)
         except RuntimeCommandCancelled:
             self.log.emit(launcher_text("Setup stopped at a safe point."))
@@ -111,6 +117,7 @@ class InitialInstallWorker(QObject):
     """Install launcher and app payload without blocking the setup window."""
 
     log = Signal(str)
+    progress = Signal(object)
     failed = Signal(str)
     succeeded = Signal(object)
     presented_elsewhere = Signal()
@@ -139,7 +146,9 @@ class InitialInstallWorker(QObject):
         """Install permanent launcher files and the app payload."""
 
         try:
-            workflow = self._workflow_factory(self.log.emit, Event())
+            workflow = self._workflow_factory(
+                self.log.emit, self.progress.emit, Event()
+            )
             request = create_initial_installation_request(
                 layout=self._layout,
                 frozen_setup=self._frozen_setup,

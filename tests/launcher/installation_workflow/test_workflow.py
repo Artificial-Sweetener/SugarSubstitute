@@ -31,6 +31,10 @@ from launcher.sugarsubstitute_launcher.application.installation.models import (
 from launcher.sugarsubstitute_launcher.application.installation.workflow import (
     InstallationWorkflow,
 )
+from launcher.sugarsubstitute_launcher.application.installation.progress import (
+    InstallationProgress,
+    InstallationStage,
+)
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.first_run import (
     ContinuedInstallResult,
@@ -209,6 +213,127 @@ def test_workflow_provisions_runtime_and_delegates_setup_handoff(
     assert completed.application == application
     assert completed.runtime_python == layout.runtime_python
     assert started_commands == [["python.exe", "main.py"]]
+
+
+def test_progress_advances_only_after_the_reported_work_returns(tmp_path: Path) -> None:
+    """Report stage boundaries from real workflow sequencing, never log messages."""
+    layout = InstallLayout.from_root(tmp_path / "install")
+    preparer = RecordingLayoutPreparer(layout)
+    artifacts = RecordingArtifactInstaller(layout)
+    runtime = RecordingRuntimeProvisioner(layout)
+    commands: list[list[str]] = []
+    evidence: list[tuple[InstallationProgress, int, int, int, int]] = []
+
+    def observe(progress: InstallationProgress) -> None:
+        """Sample external work completed at the instant feedback is delivered."""
+        evidence.append(
+            (
+                progress,
+                preparer.calls,
+                artifacts.payload_calls,
+                runtime.calls,
+                len(commands),
+            )
+        )
+
+    workflow = InstallationWorkflow(
+        layout_preparer=preparer,
+        artifact_installer=artifacts,
+        runtime_provisioner=runtime,
+        process_starter=lambda command: commands.append(list(command)),
+        progress_observer=observe,
+    )
+    application = workflow.install_application(
+        ApplicationInstallationRequest(
+            layout=layout,
+            release_source=UnusedReleaseSource(),
+            preparation=InstallationPreparation.PREPARE_LAYOUT,
+        )
+    )
+    workflow.provision_runtime(application)
+    workflow.start_setup(application.app_command)
+    assert evidence == [
+        (InstallationProgress(InstallationStage.PREPARATION), 0, 0, 0, 0),
+        (InstallationProgress(InstallationStage.PREPARATION, True), 1, 0, 0, 0),
+        (InstallationProgress(InstallationStage.APPLICATION), 1, 0, 0, 0),
+        (InstallationProgress(InstallationStage.APPLICATION, True), 1, 1, 0, 0),
+        (InstallationProgress(InstallationStage.RUNTIME), 1, 1, 0, 0),
+        (InstallationProgress(InstallationStage.RUNTIME, True), 1, 1, 1, 0),
+        (InstallationProgress(InstallationStage.HANDOFF), 1, 1, 1, 0),
+        (InstallationProgress(InstallationStage.HANDOFF, True), 1, 1, 1, 1),
+    ]
+    assert [event.completed for event, *_rest in evidence] == [0, 1, 1, 2, 2, 3, 3, 4]
+    assert all(event.total == 4 for event, *_rest in evidence)
+
+
+def test_failed_handoff_can_retry_without_reporting_false_completion(
+    tmp_path: Path,
+) -> None:
+    """A launch failure retains the completed runtime and reruns only handoff."""
+    layout = InstallLayout.from_root(tmp_path / "install")
+    events: list[InstallationProgress] = []
+    attempts = 0
+
+    def start(_command: object) -> None:
+        """Reject the first process admission and accept the explicit retry."""
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OSError("Cannot start setup")
+
+    workflow = InstallationWorkflow(
+        layout_preparer=RecordingLayoutPreparer(layout),
+        artifact_installer=RecordingArtifactInstaller(layout),
+        runtime_provisioner=RecordingRuntimeProvisioner(layout),
+        process_starter=start,
+        progress_observer=events.append,
+    )
+    with pytest.raises(OSError, match="Cannot start setup"):
+        workflow.start_setup(["launcher"])
+    assert events == [InstallationProgress(InstallationStage.HANDOFF)]
+    workflow.start_setup(["launcher"])
+    assert events == [
+        InstallationProgress(InstallationStage.HANDOFF),
+        InstallationProgress(InstallationStage.HANDOFF),
+        InstallationProgress(InstallationStage.HANDOFF, True),
+    ]
+
+
+def test_failed_progress_observer_cannot_prevent_installation(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Disable broken optional feedback once while completing all owned work."""
+    layout = InstallLayout.from_root(tmp_path / "install")
+    runtime = RecordingRuntimeProvisioner(layout)
+    commands: list[list[str]] = []
+    observations = 0
+
+    def observe(_progress: InstallationProgress) -> None:
+        """Simulate a disposed or otherwise unavailable presentation adapter."""
+        nonlocal observations
+        observations += 1
+        raise RuntimeError("Presentation unavailable")
+
+    workflow = InstallationWorkflow(
+        layout_preparer=RecordingLayoutPreparer(layout),
+        artifact_installer=RecordingArtifactInstaller(layout),
+        runtime_provisioner=runtime,
+        process_starter=lambda command: commands.append(list(command)),
+        progress_observer=observe,
+    )
+    application = workflow.install_application(
+        ApplicationInstallationRequest(
+            layout=layout,
+            release_source=UnusedReleaseSource(),
+            preparation=InstallationPreparation.PREPARE_LAYOUT,
+        )
+    )
+    workflow.provision_runtime(application)
+    workflow.start_setup(application.app_command)
+    assert observations == 1
+    assert runtime.calls == 1
+    assert commands == [["python.exe", "main.py"]]
+    assert "Presentation unavailable" in caplog.text
 
 
 @pytest.mark.parametrize("preparation", list(InstallationPreparation))
