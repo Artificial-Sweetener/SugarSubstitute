@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from tools.install_experience_desktop import reference_desktop
+
 from threading import Event
 
 import argparse
@@ -139,78 +141,79 @@ def run_headless_smoke(
     output_root = _require_artifact_root(artifact_root)
     output_root.mkdir(parents=True, exist_ok=True)
     application = _application()
-    setTheme(Theme.DARK)
-    audit = SideEffectAudit()
-    window, localization_runtime = _window(
-        application=application,
-        audit=audit,
-        repair=False,
-    )
-    prepare_opaque_dark_capture_surface(window)
-    sentinels = _create_protected_sentinels(output_root)
-    sentinel_hashes_before = _sentinel_hashes(sentinels)
-    window.show()
-    application.processEvents()
-    evidence: list[dict[str, object]] = []
-    try:
-        for page in _PAGES:
-            _project_page(window, page)
-            application.processEvents()
-            if window.failure_presenter.active_dialog is not None:
-                QTest.qWait(250)
-                application.processEvents()
-            screenshot_path = output_root / f"{page}.png"
-            save_opaque_dark_widget_capture(window, screenshot_path)
-            snapshot = window.view.experience_snapshot()
-            evidence.append(
-                {
-                    "scenario": page,
-                    "screenshot": str(screenshot_path),
-                    "snapshot": _snapshot_payload(snapshot),
-                    "status": _visible_status(window),
-                }
-            )
-    finally:
-        window.close()
-        localization_runtime.manager.close()
-        window.deleteLater()
+    with reference_desktop(application):
+        setTheme(Theme.DARK)
+        audit = SideEffectAudit()
+        window, localization_runtime = _window(
+            application=application,
+            audit=audit,
+            repair=False,
+        )
+        prepare_opaque_dark_capture_surface(window)
+        sentinels = _create_protected_sentinels(output_root)
+        sentinel_hashes_before = _sentinel_hashes(sentinels)
+        window.show()
         application.processEvents()
-    onboarding_evidence, onboarding_audit = capture_onboarding_matrix(
-        artifact_root=output_root,
-        install_root_locked=True,
-    )
-    evidence.extend(onboarding_evidence)
-    journey_invariants = _verify_full_journey_entry(evidence)
-    sentinel_hashes_after = _sentinel_hashes(sentinels)
-    if sentinel_hashes_after != sentinel_hashes_before:
-        raise SmokeBoundaryViolation("Smoke scenarios changed protected sentinels.")
-    result: dict[str, object] = {
-        "schema_version": 4,
-        "headless": os.environ.get("QT_QPA_PLATFORM") == "offscreen",
-        "production_windows": (
-            f"{LauncherMainWindow.__module__}.{LauncherMainWindow.__name__}",
-            "substitute.presentation.onboarding.onboarding_window.OnboardingWindow",
-        ),
-        "journey": ("bootstrap-launcher", "comfy-setup", "ready"),
-        "journey_invariants": journey_invariants,
-        "scenarios": evidence,
-        "side_effect_audit": {
-            "workflow_factory_calls": audit.workflow_factory_calls,
-            "manifest_loads": 0,
-            "network_calls": audit.network_calls,
-            "downloads": audit.download_calls,
-            "installs": audit.install_calls,
-            "git_calls": audit.git_calls,
-            "subprocesses": audit.subprocess_calls,
-            "handoffs": audit.handoff_calls,
-            "target_mutations": audit.target_mutations,
-            **onboarding_audit,
-        },
-        "protected_sentinels": sentinel_hashes_after,
-    }
-    evidence_path = output_root / "evidence.json"
-    evidence_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    return result
+        evidence: list[dict[str, object]] = []
+        try:
+            for page in _PAGES:
+                _project_page(window, page)
+                application.processEvents()
+                if window.failure_presenter.active_dialog is not None:
+                    QTest.qWait(250)
+                    application.processEvents()
+                screenshot_path = output_root / f"{page}.png"
+                save_opaque_dark_widget_capture(window, screenshot_path)
+                snapshot = window.view.experience_snapshot()
+                evidence.append(
+                    {
+                        "scenario": page,
+                        "screenshot": str(screenshot_path),
+                        "snapshot": _snapshot_payload(snapshot),
+                        "status": _visible_status(window),
+                    }
+                )
+        finally:
+            window.close()
+            localization_runtime.manager.close()
+            window.deleteLater()
+            application.processEvents()
+        onboarding_evidence, onboarding_audit = capture_onboarding_matrix(
+            artifact_root=output_root,
+            install_root_locked=True,
+        )
+        evidence.extend(onboarding_evidence)
+        journey_invariants = _verify_full_journey_entry(evidence)
+        sentinel_hashes_after = _sentinel_hashes(sentinels)
+        if sentinel_hashes_after != sentinel_hashes_before:
+            raise SmokeBoundaryViolation("Smoke scenarios changed protected sentinels.")
+        result: dict[str, object] = {
+            "schema_version": 4,
+            "headless": os.environ.get("QT_QPA_PLATFORM") == "offscreen",
+            "production_windows": (
+                f"{LauncherMainWindow.__module__}.{LauncherMainWindow.__name__}",
+                "substitute.presentation.onboarding.onboarding_window.OnboardingWindow",
+            ),
+            "journey": ("bootstrap-launcher", "comfy-setup", "ready"),
+            "journey_invariants": journey_invariants,
+            "scenarios": evidence,
+            "side_effect_audit": {
+                "workflow_factory_calls": audit.workflow_factory_calls,
+                "manifest_loads": 0,
+                "network_calls": audit.network_calls,
+                "downloads": audit.download_calls,
+                "installs": audit.install_calls,
+                "git_calls": audit.git_calls,
+                "subprocesses": audit.subprocess_calls,
+                "handoffs": audit.handoff_calls,
+                "target_mutations": audit.target_mutations,
+                **onboarding_audit,
+            },
+            "protected_sentinels": sentinel_hashes_after,
+        }
+        evidence_path = output_root / "evidence.json"
+        evidence_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        return result
 
 
 def _verify_full_journey_entry(

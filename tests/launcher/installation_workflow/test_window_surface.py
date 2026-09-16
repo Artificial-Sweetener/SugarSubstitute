@@ -18,8 +18,13 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import QRect
+from tests.support.qt.work_area import set_test_work_area
+
 import json
 from pathlib import Path
+
+import pytest
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QSignalSpy
@@ -55,9 +60,11 @@ from tests.launcher.installation_workflow.support import (
 
 
 def test_launcher_initial_screen_matches_onboarding_step_one_shell(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """The downloaded setup UI should present itself as onboarding step one."""
+    set_test_work_area(monkeypatch, QRect(0, 0, 1920, 1080))
 
     application = launcher_test_application()
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
@@ -244,9 +251,11 @@ def test_installer_qualification_clicks_visible_production_install_action(
 
 
 def test_launcher_page_fits_fixed_window_with_live_output_visible(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """The downloaded installer page should fit before and during install work."""
+    set_test_work_area(monkeypatch, QRect(0, 0, 1920, 1080))
 
     application = launcher_test_application()
     window = LauncherMainWindow(
@@ -286,9 +295,11 @@ def test_launcher_page_fits_fixed_window_with_live_output_visible(
 
 
 def test_progress_details_receive_their_declared_console_height(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """Opening progress details should allocate the console's readable height."""
+    set_test_work_area(monkeypatch, QRect(0, 0, 1920, 1080))
 
     application = launcher_test_application()
     window = LauncherMainWindow(

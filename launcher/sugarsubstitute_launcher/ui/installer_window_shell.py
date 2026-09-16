@@ -29,8 +29,6 @@ from launcher.sugarsubstitute_launcher.resources import launcher_icon
 from launcher.sugarsubstitute_launcher.ui.installer_style import apply_installer_style
 from launcher.sugarsubstitute_launcher.ui.installer_view import InstallerView
 from sugarsubstitute_shared.presentation.installer_surface import (
-    INSTALLER_WINDOW_HEIGHT,
-    INSTALLER_WINDOW_WIDTH,
     configure_installer_title_bar,
 )
 
@@ -48,8 +46,6 @@ def build_installer_window_shell(
     """Return the composed view while leaving action routing to its coordinator."""
     window.setWindowTitle(launcher_text("SugarSubstitute Setup"))
     window.setWindowIcon(launcher_icon())
-    window.resize(INSTALLER_WINDOW_WIDTH, INSTALLER_WINDOW_HEIGHT)
-    window.setFixedSize(INSTALLER_WINDOW_WIDTH, INSTALLER_WINDOW_HEIGHT)
     title_bar = TitleBar(window)
     configure_installer_title_bar(title_bar)
     window.setTitleBar(title_bar)

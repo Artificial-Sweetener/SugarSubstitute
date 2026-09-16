@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QVBoxLayout
 from qframelesswindow import AcrylicWindow  # type: ignore[import-untyped]
@@ -34,11 +34,15 @@ from launcher.sugarsubstitute_launcher.ui.window_effects import (
 )
 from sugarsubstitute_shared.presentation.installer_surface import (
     INSTALLER_CONTENT_MAX_WIDTH,
-    INSTALLER_WINDOW_HEIGHT,
-    INSTALLER_WINDOW_WIDTH,
     InstallerBodyMaterialSurface,
     InstallerBrandBar,
     configure_installer_title_bar,
+)
+
+
+from sugarsubstitute_shared.presentation.setup_page_stage import SetupPageStage
+from sugarsubstitute_shared.presentation.installer_window_geometry import (
+    InstallerWindowGeometry,
 )
 
 
@@ -56,7 +60,6 @@ class RepairWindow(AcrylicWindow):  # type: ignore[misc]
         self.setObjectName("LauncherWindow")
         self.setWindowTitle(launcher_text("SugarSubstitute Setup"))
         self.setWindowIcon(launcher_icon())
-        self.setFixedSize(INSTALLER_WINDOW_WIDTH, INSTALLER_WINDOW_HEIGHT)
         title_bar = TitleBar(self)
         configure_installer_title_bar(title_bar)
         self.setTitleBar(title_bar)
@@ -72,14 +75,20 @@ class RepairWindow(AcrylicWindow):  # type: ignore[misc]
         body_layout = QVBoxLayout(body)
         body_layout.setContentsMargins(0, 0, 0, 0)
         self.progress_view = RepairProgressView(body)
-        self.progress_view.setFixedWidth(INSTALLER_CONTENT_MAX_WIDTH)
-        body_layout.addWidget(self.progress_view, 1, Qt.AlignmentFlag.AlignHCenter)
+        self.progress_view.setProperty(
+            "installerContentWidth", INSTALLER_CONTENT_MAX_WIDTH
+        )
+        self.page_stage = SetupPageStage(body)
+        self.page_stage.add_page(self.progress_view)
+        self.page_stage.show_page(self.progress_view)
+        body_layout.addWidget(self.page_stage, 1)
         layout.addWidget(body, 1)
         self.progress_view.close_requested.connect(self.close)
         self.progress_view.primary_requested.connect(self.primary_requested)
         apply_installer_style(self, self.progress_view)
         apply_launcher_window_effects(self)
         self.titleBar.raise_()
+        self._window_geometry = InstallerWindowGeometry(self)
 
     def set_running(self, running: bool) -> None:
         """Let the execution controller own when closing is safe."""

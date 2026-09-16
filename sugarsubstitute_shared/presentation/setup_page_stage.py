@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own dynamic onboarding-page sizing and scroll geometry."""
+"""Own setup-page sizing and scrolling across installer processes."""
 
 from __future__ import annotations
 
@@ -30,11 +30,11 @@ from PySide6.QtWidgets import (
 )
 
 
-class OnboardingPageStage(QScrollArea):
+class SetupPageStage(QScrollArea):
     """Keep one dynamic page centered when it fits and scrollable when it grows."""
 
     def __init__(self, parent: QWidget) -> None:
-        """Build the page viewport and its single authoritative height owner."""
+        """Build the page viewport and its authoritative content geometry owner."""
 
         super().__init__(parent)
         self.setObjectName("OnboardingPageStage")
@@ -58,9 +58,9 @@ class OnboardingPageStage(QScrollArea):
         self._content_layout.addWidget(self.page_stack)
         self.setWidget(self.scroll_content)
 
-        self._height_refresh_timer = QTimer(self)
-        self._height_refresh_timer.setSingleShot(True)
-        self._height_refresh_timer.timeout.connect(self.refresh_current_page_height)
+        self._layout_refresh_timer = QTimer(self)
+        self._layout_refresh_timer.setSingleShot(True)
+        self._layout_refresh_timer.timeout.connect(self.refresh_layout)
 
     def add_page(self, page: QWidget) -> None:
         """Observe native layout requests from every mounted production page."""
@@ -74,23 +74,23 @@ class OnboardingPageStage(QScrollArea):
             watched is self.page_stack.currentWidget()
             and event.type() == QEvent.Type.LayoutRequest
         ):
-            self._height_refresh_timer.start(0)
+            self._layout_refresh_timer.start(0)
         return super().eventFilter(watched, event)
 
     def show_page(self, page: QWidget) -> None:
         """Display one page from its top and settle its current geometry."""
 
         self.page_stack.setCurrentWidget(page)
-        self.refresh_current_page_height()
+        self.refresh_layout()
         self.verticalScrollBar().setValue(0)
 
-    def schedule_current_page_height_refresh(self) -> None:
+    def schedule_layout_refresh(self) -> None:
         """Refresh after Qt applies a dynamic child visibility change."""
 
-        self.refresh_current_page_height()
-        self._height_refresh_timer.start(0)
+        self.refresh_layout()
+        self._layout_refresh_timer.start(0)
 
-    def refresh_current_page_height(self) -> None:
+    def refresh_layout(self) -> None:
         """Center fitting content and top-align overflowing content for scrolling."""
 
         page = self.page_stack.currentWidget()
@@ -100,14 +100,29 @@ class OnboardingPageStage(QScrollArea):
         page_height = 0
         for _pass in range(2):
             viewport_width = self.viewport().contentsRect().width()
-            self.page_stack.setFixedWidth(viewport_width)
+            preferred_width = page.property("installerContentWidth")
+            page_width = (
+                min(viewport_width, preferred_width)
+                if isinstance(preferred_width, int)
+                else viewport_width
+            )
+            self.page_stack.setFixedWidth(page_width)
             self.scroll_content.setFixedWidth(viewport_width)
             page_layout = page.layout()
             if page_layout is not None:
                 page_layout.activate()
             page.updateGeometry()
-            preferred_height = page.sizeHint().height()
+            preferred_height = (
+                page.heightForWidth(page_width)
+                if page.hasHeightForWidth()
+                else page.sizeHint().height()
+            )
             minimum_height = page.minimumSizeHint().height()
+            if page_layout is not None and page_layout.hasHeightForWidth():
+                minimum_height = max(
+                    minimum_height,
+                    page_layout.totalMinimumHeightForWidth(page_width),
+                )
             page_height = (
                 min(preferred_height, viewport_height)
                 if minimum_height <= viewport_height
@@ -130,7 +145,9 @@ class OnboardingPageStage(QScrollArea):
             if page_height <= viewport_height
             else Qt.AlignmentFlag.AlignTop
         )
-        self._content_layout.setAlignment(self.page_stack, alignment)
+        self._content_layout.setAlignment(
+            self.page_stack, alignment | Qt.AlignmentFlag.AlignHCenter
+        )
         content_height = max(page_height, viewport_height)
         self.scroll_content.setFixedSize(viewport_width, content_height)
         self._content_layout.activate()
@@ -141,13 +158,13 @@ class OnboardingPageStage(QScrollArea):
         """Recenter fitting content after the viewport receives final geometry."""
 
         super().resizeEvent(event)
-        self.schedule_current_page_height_refresh()
+        self.schedule_layout_refresh()
 
     def showEvent(self, event: QShowEvent) -> None:  # noqa: N802
         """Settle page alignment once the native window becomes visible."""
 
         super().showEvent(event)
-        self.schedule_current_page_height_refresh()
+        self.schedule_layout_refresh()
 
 
-__all__ = ["OnboardingPageStage"]
+__all__ = ["SetupPageStage"]

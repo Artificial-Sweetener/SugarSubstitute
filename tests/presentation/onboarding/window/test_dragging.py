@@ -49,7 +49,6 @@ def test_onboarding_window_starts_drag_from_passive_surface(
     """Passive Mica-backed onboarding surfaces should initiate system drag."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -99,7 +98,6 @@ def test_onboarding_window_does_not_start_drag_from_content_widgets(
     """Content widgets should not drag even if the event arrives on a drag surface."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,

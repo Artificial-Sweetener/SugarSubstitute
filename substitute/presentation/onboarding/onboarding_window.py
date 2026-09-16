@@ -26,8 +26,6 @@ from sugarsubstitute_shared.presentation.localization import (
     set_localized_window_title,
 )
 from sugarsubstitute_shared.presentation.installer_surface import (
-    INSTALLER_WINDOW_HEIGHT,
-    INSTALLER_WINDOW_WIDTH,
     InstallerBrandBar,
     InstallerBodyMaterialSurface,
     build_installer_surface_style_sheet,
@@ -42,6 +40,9 @@ from substitute.presentation.localization import (
 from collections.abc import Callable
 from pathlib import Path
 
+from sugarsubstitute_shared.presentation.installer_window_geometry import (
+    InstallerWindowGeometry,
+)
 from PySide6.QtCore import QEvent, QRect, Qt, Signal
 from PySide6.QtGui import QCloseEvent, QMouseEvent
 from PySide6.QtWidgets import (
@@ -108,8 +109,8 @@ from substitute.presentation.onboarding.onboarding_navigation_presentation impor
     onboarding_primary_button_label,
     onboarding_window_title,
 )
-from substitute.presentation.onboarding.onboarding_page_stage import (
-    OnboardingPageStage,
+from sugarsubstitute_shared.presentation.setup_page_stage import (
+    SetupPageStage,
 )
 from substitute.presentation.onboarding.onboarding_style_sheet import (
     build_onboarding_style_sheet,
@@ -188,7 +189,6 @@ class OnboardingWindow(SubstituteWindowFrame):
         )
         self._diagnostic_log_sink = diagnostic_log_sink or (lambda _line: None)
         self._install_root_locked = install_root_locked
-        self._initial_geometry = initial_geometry
         self._current_page = self._initial_page()
         self._provisioning_started = False
         self._last_completion: OnboardingCompletion | None = None
@@ -208,7 +208,6 @@ class OnboardingWindow(SubstituteWindowFrame):
             *window_title.arguments,
         )
         self.setWindowIcon(application_icon())
-        self.setFixedSize(INSTALLER_WINDOW_WIDTH, INSTALLER_WINDOW_HEIGHT)
         self.titleBar.minBtn.hide()
         self.titleBar.maxBtn.hide()
         configure_installer_title_bar(self.titleBar)
@@ -256,7 +255,12 @@ class OnboardingWindow(SubstituteWindowFrame):
         self._show_page(self._current_page)
         if self._install_root_locked:
             self._begin_preflight_gate(OnboardingPageId.TARGET_MODE)
-        self._place_initial_window()
+        self._window_geometry = InstallerWindowGeometry(
+            self,
+            initial_geometry=QRect(*initial_geometry)
+            if initial_geometry is not None
+            else None,
+        )
 
     def _build_ui(self) -> None:
         """Build the shared brand shell and dominant content area."""
@@ -297,7 +301,7 @@ class OnboardingWindow(SubstituteWindowFrame):
         self.issue_banner = OnboardingIssuePanel(self.content_panel)
         content_layout.addWidget(self.issue_banner)
 
-        self.page_stage = OnboardingPageStage(self.content_panel)
+        self.page_stage = SetupPageStage(self.content_panel)
         self.page_scroll_content = self.page_stage.scroll_content
         self.page_stack = self.page_stage.page_stack
         content_layout.addWidget(self.page_stage, 1)
@@ -1211,27 +1215,6 @@ class OnboardingWindow(SubstituteWindowFrame):
         if selected:
             self.folder_setup_page.managed_model_root_edit.setCursorPosition(0)
         self._model_presenter.confirm_existing_folder_path(selected)
-
-    def _center_on_screen(self) -> None:
-        """Center the onboarding window on the active screen."""
-
-        screen = self.screen()
-        if screen is None:
-            return
-        geometry = screen.availableGeometry()
-        self.move(
-            geometry.left() + (geometry.width() - self.width()) // 2,
-            geometry.top() + (geometry.height() - self.height()) // 2,
-        )
-
-    def _place_initial_window(self) -> None:
-        """Place onboarding on the handoff frame or center it by default."""
-
-        if self._initial_geometry is None:
-            self._center_on_screen()
-            return
-        x, y, width, height = self._initial_geometry
-        self.setGeometry(QRect(x, y, width, height))
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Emit close routing for non-launch exits before closing the window."""

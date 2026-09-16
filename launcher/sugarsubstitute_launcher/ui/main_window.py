@@ -82,8 +82,12 @@ from launcher.sugarsubstitute_launcher.ui.window_effects import (
 )
 from launcher.sugarsubstitute_launcher.ui.window_geometry import (
     append_handoff_geometry,
-    place_launcher_window,
+    parse_handoff_geometry,
     serialize_launcher_window,
+)
+
+from sugarsubstitute_shared.presentation.installer_window_geometry import (
+    InstallerWindowGeometry,
 )
 
 if TYPE_CHECKING:
@@ -124,7 +128,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._workflow_factory = workflow_factory
         self._localization_manager = localization_manager
         self._persist_language_preference = persist_language_preference
-        self._handoff_geometry = handoff_geometry
         self._repair_mode = repair
         self.failure_presenter = InstallerFailurePresenter(self)
         self._installed_application: InstalledApplication | None = None
@@ -194,7 +197,9 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
                 launcher_text("Update check disabled for this launch.")
             )
         self._refresh_primary_button()
-        place_launcher_window(self, self._handoff_geometry)
+        self._window_geometry = InstallerWindowGeometry(
+            self, initial_geometry=parse_handoff_geometry(handoff_geometry)
+        )
         apply_launcher_window_effects(self)
         QTimer.singleShot(0, self._finish_native_shell)
         if continue_install:
@@ -204,7 +209,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Reapply native material and center its final visible frame once."""
 
         apply_launcher_window_effects(self)
-        place_launcher_window(self, self._handoff_geometry)
+        self._window_geometry.place()
 
     @property
     def ui_state(self) -> LauncherUiState:

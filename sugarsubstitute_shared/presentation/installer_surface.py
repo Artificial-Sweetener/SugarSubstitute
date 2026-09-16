@@ -69,18 +69,6 @@ def expose_native_material(widget: QWidget) -> None:
     widget.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
 
 
-def center_installer_window(window: QWidget) -> bool:
-    """Center a fresh installer window within its assigned screen work area."""
-
-    screen = window.screen()
-    if screen is None:
-        return False
-    frame_center = window.frameGeometry().center()
-    target_center = screen.availableGeometry().center()
-    window.move(window.pos() + target_center - frame_center)
-    return True
-
-
 class InstallerBrandBar(QFrame):
     """Render the persistent wordmark and compact journey progress."""
 
@@ -279,7 +267,6 @@ __all__ = [
     "InstallerBrandBar",
     "InstallerBodyMaterialSurface",
     "build_installer_surface_style_sheet",
-    "center_installer_window",
     "configure_installer_title_bar",
     "expose_native_material",
     "installer_wordmark_path",

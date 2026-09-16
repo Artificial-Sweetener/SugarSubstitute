@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import QRect
+from tests.support.qt.work_area import set_test_work_area
+
 from pathlib import Path
 from typing import cast
 
@@ -50,7 +53,6 @@ def test_onboarding_window_renders_folder_and_integration_controls(
     """Folder and integration pages should expose the expected first-run controls."""
 
     application = ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -80,7 +82,7 @@ def test_onboarding_window_renders_folder_and_integration_controls(
     )
     window.show()
     application.processEvents()
-    window.page_stage.refresh_current_page_height()
+    window.page_stage.refresh_layout()
     assert window.page_stage.verticalScrollBar().maximum() == 0
     assert (
         window.integrations_page.civitai_api_key_edit.echoMode()
@@ -100,7 +102,6 @@ def test_existing_folder_action_keeps_computed_default_path(
     """Keep the computed Comfy default usable without an external WebUI path."""
 
     application = ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -141,9 +142,9 @@ def test_sparse_pages_are_centered_in_the_shared_stage(
     tmp_path: Path,
 ) -> None:
     """Center every fitting focal composition without synthetic overflow."""
+    set_test_work_area(monkeypatch, QRect(0, 0, 1920, 1080))
 
     application = ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -165,7 +166,7 @@ def test_sparse_pages_are_centered_in_the_shared_stage(
         OnboardingPageId.MANAGED_LOCAL,
     ):
         window._show_page(page_id)
-        window.page_stage.refresh_current_page_height()
+        window.page_stage.refresh_layout()
         application.processEvents()
         page = window._pages[page_id]
         content_column = page.content_column
@@ -196,7 +197,6 @@ def test_integration_page_presents_every_existing_capability_directly(
     """Present every service preference directly without an advanced tier."""
 
     application = ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -246,7 +246,6 @@ def test_onboarding_window_hides_saved_setup_issues_during_first_run(
     """First-run onboarding should not show repair copy before setup exists."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -275,7 +274,6 @@ def test_model_pages_name_the_active_progress_step_accurately(
     """Do not label the model decision as a generic confirmation step."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -310,7 +308,6 @@ def test_onboarding_window_hides_managed_model_folder_for_remote(
     """Remote setup should hide the local ComfyUI models folder field."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.REMOTE,
@@ -338,7 +335,6 @@ def test_onboarding_window_shows_model_folder_for_attached_local(
     """Attached-local setup should choose a model root for its ComfyUI workspace."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     attached_workspace = tmp_path / "ExistingComfyUI"
     draft = OnboardingDraft(
         installation_root=tmp_path,
@@ -374,7 +370,6 @@ def test_onboarding_window_renders_managed_runtime_summary(
     """Keep expert runtime controls inline without creating another window."""
 
     application = ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,

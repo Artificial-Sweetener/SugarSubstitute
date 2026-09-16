@@ -109,7 +109,6 @@ def test_onboarding_window_routes_controller_logs_into_shared_terminal_view(
 ) -> None:
     """Provisioning logs should render through the shared terminal view binding."""
 
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,

@@ -18,7 +18,16 @@
 
 from __future__ import annotations
 
+from substitute.presentation.onboarding.onboarding_download_text import (
+    download_action_text,
+)
+
+from substitute.presentation.onboarding.onboarding_download_cart_card import (
+    DownloadCartCard,
+)
 from pathlib import Path
+
+import pytest
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage
@@ -35,11 +44,9 @@ from substitute.domain.model_recommendations import (
     ModelRecommendation,
 )
 from substitute.presentation.onboarding.onboarding_model_download_review_page import (
-    DownloadCartCard,
     ModelDownloadReviewPage,
-    download_action_text,
 )
-from substitute.presentation.onboarding.onboarding_page_stage import OnboardingPageStage
+from sugarsubstitute_shared.presentation.setup_page_stage import SetupPageStage
 from substitute.shared.qt_thumbnail_codec import prepare_qt_thumbnail
 from tests.support.qt.lifecycle import ensure_qt_application
 
@@ -134,14 +141,17 @@ def test_two_model_checkout_centers_cards_and_portraits_without_overflow() -> No
     page.close()
 
 
-def test_nine_model_checkout_matches_picker_density_and_keeps_totals_in_hero() -> None:
+@pytest.mark.parametrize(("width", "columns"), ((1104, 5), (940, 4)))
+def test_nine_model_checkout_matches_picker_density_and_keeps_totals_in_hero(
+    width: int, columns: int
+) -> None:
     """Fit the supported cart in a centered five-column grid without hiding cost."""
 
     application = ensure_qt_application()
     page = ModelDownloadReviewPage()
     host = QWidget()
-    host.resize(1104, 548)
-    stage = OnboardingPageStage(host)
+    host.setFixedSize(width, 548)
+    stage = SetupPageStage(host)
     stage.setGeometry(host.rect())
     stage.add_page(page)
     model_root = Path("E:/models")
@@ -168,22 +178,30 @@ def test_nine_model_checkout_matches_picker_density_and_keeps_totals_in_hero() -
     stage.show_page(page)
     host.show()
     application.processEvents()
-    stage.refresh_current_page_height()
+    stage.refresh_layout()
     application.processEvents()
 
     cards = page.findChildren(DownloadCartCard)
     assert len(cards) == 9
-    assert len({card.parentWidget() for card in cards}) == 2
+    assert (
+        len({card.mapTo(page.cards_host, card.rect().topLeft()).y() for card in cards})
+        == (9 + columns - 1) // columns
+    )
+    for card in cards:
+        left = card.mapTo(page.cards_scroll.viewport(), card.rect().topLeft()).x()
+        assert left >= 0
+        assert left + card.width() <= page.cards_scroll.viewport().width()
     assert all(card.size().toTuple() == (204, 220) for card in cards)
     assert all(card.portrait.size().toTuple() == (184, 200) for card in cards)
     assert all("MiB" in card.portrait.accessibleDescription() for card in cards)
     assert not stage.verticalScrollBar().isVisible()
-    bottom_row = cards[5:]
+    bottom_row = cards[((len(cards) - 1) // columns) * columns :]
     row_left = bottom_row[0].mapToGlobal(bottom_row[0].rect().topLeft()).x()
     row_right = bottom_row[-1].mapToGlobal(bottom_row[-1].rect().topRight()).x()
     row_center = (row_left + row_right) // 2
-    page_center = page.mapToGlobal(page.rect().center()).x()
-    assert abs(row_center - page_center) <= 1
+    viewport = page.cards_scroll.viewport()
+    viewport_center = viewport.mapToGlobal(viewport.rect().center()).x()
+    assert abs(row_center - viewport_center) <= 1
     assert page.summary_panel.parentWidget() is page.hero_panel
     assert page.summary_panel.total_label.text() == "8.4 GiB"
     assert page.summary_panel.accessibleDescription() == str(model_root)
@@ -201,7 +219,7 @@ def test_large_checkout_scrolls_only_cards_and_keeps_summary_locked() -> None:
     page = ModelDownloadReviewPage()
     host = QWidget()
     host.resize(1104, 548)
-    stage = OnboardingPageStage(host)
+    stage = SetupPageStage(host)
     stage.setGeometry(host.rect())
     stage.add_page(page)
     model_root = Path("E:/models")
@@ -228,7 +246,7 @@ def test_large_checkout_scrolls_only_cards_and_keeps_summary_locked() -> None:
     stage.show_page(page)
     host.show()
     application.processEvents()
-    stage.refresh_current_page_height()
+    stage.refresh_layout()
     application.processEvents()
 
     summary_top = page.summary_panel.mapToGlobal(
