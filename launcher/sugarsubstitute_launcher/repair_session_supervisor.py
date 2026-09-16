@@ -44,9 +44,9 @@ from sugarsubstitute_shared.application_instance_broker import ApplicationInstan
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceBrokerError,
 )
+from sugarsubstitute_shared.application_instance_identity import instance_identity
 from sugarsubstitute_shared.application_instance_transport import (
     instance_endpoint,
-    instance_identity,
 )
 from sugarsubstitute_shared.supervisor_handoff import consume_supervisor_handoff
 from sugarsubstitute_shared.windows_long_paths import subprocess_path

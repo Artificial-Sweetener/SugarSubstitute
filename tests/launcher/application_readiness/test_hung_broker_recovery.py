@@ -33,10 +33,10 @@ from launcher.sugarsubstitute_launcher.application_instance_recovery import (
     terminate_verified_process,
 )
 from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
+from sugarsubstitute_shared.application_instance_identity import instance_identity
 from sugarsubstitute_shared.application_instance_transport import (
     connect_instance_endpoint,
     instance_endpoint,
-    instance_identity,
 )
 from tests.launcher.application_readiness.process_family_fixture import command
 

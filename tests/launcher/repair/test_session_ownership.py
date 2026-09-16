@@ -34,7 +34,7 @@ from sugarsubstitute_shared.application_instance_broker import ApplicationInstan
 from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 from sugarsubstitute_shared.supervisor_handoff import with_supervisor_handoff
-from sugarsubstitute_shared.application_instance_transport import instance_identity
+from sugarsubstitute_shared.application_instance_identity import instance_identity
 from sugarsubstitute_shared.application_instance_transport import (
     bind_instance_listener,
     instance_endpoint,
