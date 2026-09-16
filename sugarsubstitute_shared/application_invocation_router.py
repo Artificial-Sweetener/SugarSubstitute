@@ -120,28 +120,30 @@ class ApplicationInvocationRouter:
             _close_connection(child_socket)
 
     def register_child(self, connection: ApplicationInstanceConnection) -> None:
-        """Replace the supervised child channel and flush retained invocations."""
+        """Retain assigned invocations throughout child registration and delivery."""
 
         child_process_id = _peer_process_id(connection)
         with self._state_lock:
             previous = self._child_socket
             self._child_socket = connection
             pending = (*self._inflight.values(), *self._pending)
-            self._inflight.clear()
+            self._inflight = {
+                invocation.request_id: invocation for invocation in pending
+            }
             self._pending.clear()
-        if previous is not None:
-            _close_connection(previous)
-        send_instance_message(connection, {"status": "accepted"})
-        _LOGGER.info(
-            "Registered supervised application child | owner_pid=%s | child_pid=%s | "
-            "queued_invocations=%s",
-            os.getpid(),
-            child_process_id,
-            len(pending),
-        )
         try:
+            if previous is not None:
+                _close_connection(previous)
+            send_instance_message(connection, {"status": "accepted"})
+            _LOGGER.info(
+                "Registered supervised application child | owner_pid=%s | child_pid=%s | "
+                "queued_invocations=%s",
+                os.getpid(),
+                child_process_id,
+                len(pending),
+            )
             for invocation in pending:
-                self._deliver_or_queue(invocation)
+                self._deliver_or_queue(invocation, assigned_child=connection)
             while not self._closing.is_set():
                 self._handle_child_message(
                     connection, receive_instance_message(connection)
@@ -223,14 +225,21 @@ class ApplicationInvocationRouter:
             invocation.request_id,
             _peer_process_id(waiter),
         )
-        self._deliver_or_queue(invocation)
+        self._deliver_or_queue(invocation, assigned_child=None)
         return True
 
-    def _deliver_or_queue(self, invocation: RoutedApplicationInvocation) -> None:
-        """Deliver one request to the current child or retain it for replacement."""
+    def _deliver_or_queue(
+        self,
+        invocation: RoutedApplicationInvocation,
+        *,
+        assigned_child: ApplicationInstanceConnection | None,
+    ) -> None:
+        """Deliver new work or flush work only while its assigned child owns it."""
 
         with self._state_lock:
             child_socket = self._child_socket
+            if assigned_child is not None and child_socket is not assigned_child:
+                return
             if child_socket is None:
                 self._pending.append(invocation)
                 queue_depth = len(self._pending)
