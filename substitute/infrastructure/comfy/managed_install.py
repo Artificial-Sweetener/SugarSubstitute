@@ -24,6 +24,10 @@ from pathlib import Path
 from typing import Callable
 
 from substitute.domain.onboarding import ManagedComfySetupResult
+from substitute.domain.onboarding.workspace_conflicts import (
+    ManagedWorkspaceConflict,
+    ManagedWorkspaceConflictError,
+)
 from substitute.domain.comfy_nodepacks import CoreNodepackId
 from substitute.infrastructure.comfy.hardware_detection import detect_hardware
 from substitute.infrastructure.comfy.backend_model_root_configurator import (
@@ -216,16 +220,18 @@ def _ensure_managed_comfy_setup(
             and not workspace_main_path(workspace).exists()
             and any(workspace.iterdir())
         ):
-            raise RuntimeError(
-                "The selected ComfyUI folder already contains files. Clear that folder "
-                "or choose a different empty folder before trying again."
+            raise ManagedWorkspaceConflictError(
+                ManagedWorkspaceConflict.OCCUPIED_FOLDER,
+                "The selected ComfyUI folder already contains files. "
+                "Choose a different empty folder before trying again.",
             )
         if workspace.exists() and workspace_main_path(workspace).exists():
-            raise RuntimeError(
+            raise ManagedWorkspaceConflictError(
+                ManagedWorkspaceConflict.EXISTING_INSTALLATION,
                 "The managed ComfyUI folder contains an existing installation but "
                 "does not contain Substitute's managed Python environment. Choose "
                 "Use My Current ComfyUI for this folder, or choose an empty folder "
-                "for managed setup."
+                "for managed setup.",
             )
 
         trace_mark("managed_setup.detect_hardware.start")

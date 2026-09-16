@@ -244,11 +244,11 @@ def test_controller_emits_structured_failure_for_actionable_provisioning_errors(
         ),
         provision_result=None,
         provision_error=OnboardingProvisioningFailure(
-            headline="The ComfyUI folder needs to be cleared before setup can continue",
-            user_message="Substitute found leftover files in the selected ComfyUI folder.",
+            headline="Choose an empty folder for managed ComfyUI",
+            user_message="The selected folder contains files that setup cannot replace safely.",
             technical_detail="invalid ComfyUI repository",
             remediation_steps=(
-                f"Delete the incomplete folder at {context.managed_comfy_dir}.",
+                "Go back and choose an empty ComfyUI folder.",
                 "Then run setup again.",
             ),
         ),
@@ -274,5 +274,5 @@ def test_controller_emits_structured_failure_for_actionable_provisioning_errors(
     wait_for_qt_condition(lambda: len(failures) == 1)
 
     assert len(failures) == 1
-    assert failures[0].headline.startswith("The ComfyUI folder needs to be cleared")
-    assert "Delete the incomplete folder" in failures[0].remediation_steps[0]
+    assert failures[0].headline == "Choose an empty folder for managed ComfyUI"
+    assert "choose an empty ComfyUI folder" in failures[0].remediation_steps[0]

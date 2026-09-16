@@ -33,7 +33,9 @@ from sugarsubstitute_shared.model_acquisition import (
 
 from substitute.application.onboarding import (
     OnboardingDraftState,
-    OnboardingFlowService,
+)
+from substitute.application.onboarding.failure_classifier import (
+    OnboardingFailureClassifier,
 )
 from substitute.domain.onboarding import (
     ComfyPythonResolutionError,
@@ -47,7 +49,7 @@ def test_flow_service_maps_storage_exhaustion_to_temp_space_copy(
 ) -> None:
     """Storage exhaustion should produce install-drive temporary-space guidance."""
 
-    failure = OnboardingFlowService._build_provisioning_failure(
+    failure = OnboardingFailureClassifier.from_exception(
         draft=OnboardingDraftState(
             installation_root=tmp_path,
             target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
@@ -71,7 +73,7 @@ def test_flow_service_maps_external_long_path_failure_to_actionable_copy(
     """A known third-party path failure should name the boundary and both remedies."""
 
     long_path = tmp_path / "deep" / "ComfyUI"
-    failure = OnboardingFlowService._build_provisioning_failure(
+    failure = OnboardingFailureClassifier.from_exception(
         draft=OnboardingDraftState(
             installation_root=tmp_path,
             target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
@@ -99,7 +101,7 @@ def test_flow_service_maps_component_limit_to_specific_copy(tmp_path: Path) -> N
 
     offending_name = "x" * 256
     path = tmp_path / offending_name
-    failure = OnboardingFlowService._build_provisioning_failure(
+    failure = OnboardingFailureClassifier.from_exception(
         draft=OnboardingDraftState(
             installation_root=tmp_path,
             target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
@@ -148,7 +150,7 @@ def test_flow_service_maps_python_resolution_failures_to_browse_guidance(
 ) -> None:
     """Attached Python failures should tell the user where to make the choice."""
 
-    failure = OnboardingFlowService._build_provisioning_failure(
+    failure = OnboardingFailureClassifier.from_exception(
         draft=OnboardingDraftState(
             installation_root=tmp_path,
             target_mode=ComfyTargetMode.ATTACHED_LOCAL.value,
@@ -192,7 +194,7 @@ def test_flow_service_maps_specific_managed_failures_to_specific_copy(
 ) -> None:
     """Managed install failure classes should not collapse into one generic message."""
 
-    failure = OnboardingFlowService._build_provisioning_failure(
+    failure = OnboardingFailureClassifier.from_exception(
         draft=OnboardingDraftState(
             installation_root=tmp_path,
             target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
@@ -214,7 +216,7 @@ def test_flow_service_preserves_plan_with_civitai_credential_recovery(
 ) -> None:
     """Explain how to resume a reviewed model plan after an authenticated response."""
 
-    failure = OnboardingFlowService._build_provisioning_failure(
+    failure = OnboardingFailureClassifier.from_exception(
         draft=OnboardingDraftState(
             installation_root=tmp_path,
             target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
@@ -234,3 +236,53 @@ def test_flow_service_preserves_plan_with_civitai_credential_recovery(
         "Add your CivitAI API key.",
         "Return to setup and try again.",
     )
+
+
+@pytest.mark.parametrize(
+    "kind", ["existing", "occupied", "generic", "invalid-repository"]
+)
+def test_managed_recovery_preserves_existing_files_and_names_the_next_action(
+    tmp_path: Path, kind: str
+) -> None:
+    """Provide a recovery route without treating unknown failures as disposable data."""
+    from substitute.domain.onboarding.workspace_conflicts import (
+        ManagedWorkspaceConflict,
+        ManagedWorkspaceConflictError,
+    )
+
+    errors: dict[str, Exception] = {
+        "existing": ManagedWorkspaceConflictError(
+            ManagedWorkspaceConflict.EXISTING_INSTALLATION,
+            "arbitrary diagnostic wording",
+        ),
+        "occupied": ManagedWorkspaceConflictError(
+            ManagedWorkspaceConflict.OCCUPIED_FOLDER, "arbitrary diagnostic wording"
+        ),
+        "generic": RuntimeError("synthetic interrupted setup"),
+        "invalid-repository": RuntimeError("invalid ComfyUI repository"),
+    }
+    failure = OnboardingFailureClassifier.from_exception(
+        draft=OnboardingDraftState(
+            installation_root=tmp_path,
+            target_mode=ComfyTargetMode.MANAGED_LOCAL.value,
+            endpoint_host="127.0.0.1",
+            endpoint_port=8188,
+            managed_workspace_path=tmp_path / "comfyui",
+            attached_workspace_path=None,
+        ),
+        target_mode=ComfyTargetMode.MANAGED_LOCAL,
+        error=errors[kind],
+    )
+    steps = [render_source_application_text(step) for step in failure.remediation_steps]
+    assert not any(
+        "delete" in step.lower() or step.lower().startswith("empty the folder")
+        for step in steps
+    )
+    if kind == "existing":
+        assert failure.headline == "Use your existing ComfyUI installation"
+        assert "Use My Current ComfyUI" in failure.user_message
+    elif kind in {"occupied", "invalid-repository"}:
+        assert failure.headline == "Choose an empty folder for managed ComfyUI"
+        assert "Go back and choose an empty ComfyUI folder." in steps
+    else:
+        assert steps[-1] == "Then try again."

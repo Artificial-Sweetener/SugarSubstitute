@@ -175,11 +175,11 @@ owner = "onboarding flow"
 rule = "STRUCT003"
 path = "substitute/application/onboarding/flow_service.py"
 kind = "remediation"
-justification = "The assessed file mixes draft-state loading and recovery coordination, managed, attached, and remote provisioning transaction orchestration, external model-library configuration coordination, readiness and provisioning failure classification. Extract target-specific provisioning strategies, external model-library configuration, and failure classifiers from the shared transaction sequence."
+justification = "The assessed file mixes draft-state loading and recovery coordination, managed, attached, and remote provisioning transaction orchestration, external model-library configuration coordination. Extract target-specific provisioning strategies and external model-library configuration from the shared transaction sequence."
 issue = "chore:SS-ARCH-016"
 review_by = 2026-12-15
-max_lines = 1250
-next_limit = 1075
+max_lines = 790
+next_limit = 650
 debt = "SS-ARCH-016"
 
 [[waivers]]
