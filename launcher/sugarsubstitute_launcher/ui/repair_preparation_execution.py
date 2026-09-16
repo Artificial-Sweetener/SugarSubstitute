@@ -116,8 +116,8 @@ class QtRepairPreparationExecutor(QObject):
         worker.failed.connect(self.failed.emit)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._finish)
+        thread.finished.connect(thread.deleteLater)
         self._thread = thread
         self._worker = worker
         thread.start()
@@ -125,8 +125,10 @@ class QtRepairPreparationExecutor(QObject):
 
     @Slot()
     def _finish(self) -> None:
-        """Release worker ownership before publishing completion."""
+        """Join native worker destruction before releasing preparation wrappers."""
 
+        if self._thread is not None:
+            self._thread.wait()
         self._thread = None
         self._worker = None
         self.finished.emit()

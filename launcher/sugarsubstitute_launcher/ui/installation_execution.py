@@ -101,8 +101,8 @@ class QtInstallationExecutor(QObject):
         worker.succeeded.connect(self.initial_succeeded.emit)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._finish_initial)
+        thread.finished.connect(thread.deleteLater)
         self._initial_thread = thread
         self._initial_worker = worker
         thread.start()
@@ -133,8 +133,8 @@ class QtInstallationExecutor(QObject):
         worker.succeeded.connect(self.setup_succeeded.emit)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._finish_setup)
+        thread.finished.connect(thread.deleteLater)
         self._setup_thread = thread
         self._setup_worker = worker
         thread.start()
@@ -147,16 +147,20 @@ class QtInstallationExecutor(QObject):
 
     @Slot()
     def _finish_initial(self) -> None:
-        """Release initial-install objects before publishing stage completion."""
+        """Join deferred native destruction before releasing initial-install wrappers."""
 
+        if self._initial_thread is not None:
+            self._initial_thread.wait()
         self._initial_thread = None
         self._initial_worker = None
         self.initial_finished.emit()
 
     @Slot()
     def _finish_setup(self) -> None:
-        """Release setup objects before publishing stage completion."""
+        """Join deferred native destruction before publishing setup completion."""
 
+        if self._setup_thread is not None:
+            self._setup_thread.wait()
         self._setup_thread = None
         self._setup_worker = None
         self.setup_finished.emit()
