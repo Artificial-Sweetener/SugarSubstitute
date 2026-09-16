@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from collections.abc import Callable
 import logging
 from pathlib import Path
 import sys
@@ -77,6 +78,12 @@ class ApplicationInstanceReservation:
         finally:
             if self.platform_claim is not None:
                 self.platform_claim.close()
+
+
+SelectedInstallationReservation = Callable[
+    [Path, ApplicationInvocation, Callable[[], None]],
+    ApplicationInstanceReservation | None,
+]
 
 
 def application_instance_endpoints(

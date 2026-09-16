@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from sugarsubstitute_shared.application_instance_election import (
     ApplicationInstanceReservation,
+    SelectedInstallationReservation,
     reserve_application_instance,
 )
 
@@ -34,6 +35,7 @@ from typing import Self
 
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceConnection,
+    ApplicationInstanceBrokerError,
     ApplicationInvocation,
     BROKER_ENDPOINT_ENV,
     BROKER_TOKEN_ENV,
@@ -64,6 +66,7 @@ class ApplicationInstanceBroker:
         reservation: ApplicationInstanceReservation,
         child_token: str,
         accept_listener_invocations: bool,
+        reserve_selected: SelectedInstallationReservation | None = None,
     ) -> None:
         """Start accepting invocations on the already-claimed native endpoint."""
 
@@ -83,6 +86,7 @@ class ApplicationInstanceBroker:
                 reservation,
                 closing=self._closing,
                 handle_connection=self._handle_connection,
+                reserve_selected=reserve_selected,
             )
         except BaseException:
             self._router.close()
@@ -94,6 +98,7 @@ class ApplicationInstanceBroker:
         *,
         install_root: Path,
         invocation: ApplicationInvocation,
+        reserve_selected: SelectedInstallationReservation | None = None,
     ) -> Self | None:
         """Become the supervisor or forward this invocation to the elected owner."""
 
@@ -110,6 +115,7 @@ class ApplicationInstanceBroker:
                 reservation=reservation,
                 child_token=secrets.token_urlsafe(32),
                 accept_listener_invocations=True,
+                reserve_selected=reserve_selected,
             )
         except BaseException:
             reservation.close()
@@ -196,6 +202,28 @@ class ApplicationInstanceBroker:
                     extra={"request_kind": kind},
                 )
                 send_instance_message(connection, {"status": "rejected"})
+                return
+            if kind == "claim-installation":
+                root = message.get("install_root")
+                if not isinstance(root, str) or not Path(root).is_absolute():
+                    send_instance_message(connection, {"status": "rejected"})
+                    return
+                try:
+                    admitted = self._bindings.claim(
+                        Path(root),
+                        on_activity=lambda: send_instance_message(
+                            connection, {"status": "pending"}
+                        ),
+                    )
+                except ApplicationInstanceBrokerError:
+                    _LOGGER.warning(
+                        "Selected installation admission failed", exc_info=True
+                    )
+                    send_instance_message(connection, {"status": "rejected"})
+                    return
+                send_instance_message(
+                    connection, {"status": "admitted" if admitted else "presented"}
+                )
                 return
             if kind == "register-child":
                 retain_connection = True

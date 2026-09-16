@@ -209,3 +209,46 @@ def test_workflow_provisions_runtime_and_delegates_setup_handoff(
     assert completed.application == application
     assert completed.runtime_python == layout.runtime_python
     assert started_commands == [["python.exe", "main.py"]]
+
+
+@pytest.mark.parametrize("preparation", list(InstallationPreparation))
+def test_target_admission_precedes_every_installation_write(
+    tmp_path: Path, preparation: InstallationPreparation
+) -> None:
+    """Present an existing owner without preparing, copying or replacing files."""
+    from launcher.sugarsubstitute_launcher.application.installation.models import (
+        InstallationAlreadyPresented,
+    )
+
+    layout = InstallLayout.from_root(tmp_path / "selected")
+    preparer = RecordingLayoutPreparer(layout)
+    artifacts = RecordingArtifactInstaller(layout)
+    runtime = RecordingRuntimeProvisioner(layout)
+    requested: list[InstallLayout] = []
+
+    def present_existing(target: InstallLayout) -> bool:
+        """Record the target at the admission boundary."""
+        requested.append(target)
+        return False
+
+    workflow = InstallationWorkflow(
+        layout_preparer=preparer,
+        artifact_installer=artifacts,
+        runtime_provisioner=runtime,
+        process_starter=lambda _command: None,
+        admit_installation=present_existing,
+    )
+    with pytest.raises(InstallationAlreadyPresented):
+        workflow.install_application(
+            ApplicationInstallationRequest(
+                layout=layout,
+                release_source=UnusedReleaseSource(),
+                preparation=preparation,
+            )
+        )
+    assert requested == [layout]
+    assert preparer.calls == 0
+    assert artifacts.launcher_calls == 0
+    assert artifacts.payload_calls == 0
+    assert runtime.calls == 0
+    assert not layout.root.exists()

@@ -22,6 +22,7 @@ import sys
 from typing import cast
 
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupPlan
 from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
 
@@ -68,6 +69,14 @@ def run_launcher_window(
     )
     instance_control = start_application_instance_control()
 
+    def admit_installation(layout: InstallLayout) -> bool:
+        """Require the supervising process before writing a selected folder."""
+        if instance_control is None:
+            raise RuntimeError(
+                "Installation requires an active application supervisor."
+            )
+        return instance_control.claim_installation(layout.root)
+
     try:
         window = LauncherMainWindow(
             initial_layout=startup_plan.layout,
@@ -77,6 +86,7 @@ def run_launcher_window(
             initial_release_source=initial_install_release_source(args.manifest_url),
             workflow_factory=lambda output_callback: build_installation_workflow(
                 output_callback=output_callback,
+                admit_installation=admit_installation,
                 process_starter=start_installed_launcher_handoff,
             ),
             localization_manager=localization_runtime.manager,
