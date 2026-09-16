@@ -204,6 +204,12 @@ def _handle_session_message(
     if message.message_type == "clear_activity":
         splash.clear_activity()
         return
+    if message.message_type == "fatal" and message.line is not None:
+        splash.show_failure(message.line)
+        return
+    if message.progress is not None and message.line is not None:
+        splash.set_progress(message.progress, status=message.line)
+        return
     if message.line:
         splash.append_log(message.line)
 

@@ -21,6 +21,7 @@ from __future__ import annotations
 import socket
 
 from sugarsubstitute_shared.launch_splash.activity import SplashActivity
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
 from sugarsubstitute_shared.launch_splash.protocol import (
     SPLASH_MESSAGE_APPLIED_ACK,
     SplashSessionMessage,
@@ -62,6 +63,10 @@ class SocketSplashSessionClient:
         """Set the splash status text."""
 
         self._send("status", line=line)
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Publish completed units while retaining status-only host compatibility."""
+        self._send("status", line=status, progress=progress)
 
     def start_activity(self, activity: SplashActivity) -> None:
         """Start or replace one independently animated splash activity."""
@@ -109,6 +114,7 @@ class SocketSplashSessionClient:
         *,
         line: str | None,
         activity: SplashActivity | None = None,
+        progress: SplashProgress | None = None,
         timeout_seconds: float | None = None,
     ) -> None:
         """Send one message and wait until the local host consumes it."""
@@ -118,6 +124,7 @@ class SocketSplashSessionClient:
             token=self._spec.token,
             line=line,
             activity=activity,
+            progress=progress,
         )
         with socket.create_connection(
             (self._spec.host, self._spec.port),

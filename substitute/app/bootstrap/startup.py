@@ -20,10 +20,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Sequence
 
-from substitute.app.bootstrap.launch_splash import (
-    LaunchSplashClient,
-    SplashCancelCallback,
-)
+from substitute.app.bootstrap.launch_splash import SplashCancelCallback
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.startup_timing import StartupTimer, StartupTimingRecord
 from substitute.app.bootstrap.startup_cli import (
     parse_startup_cli_arguments,

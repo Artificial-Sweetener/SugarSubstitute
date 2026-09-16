@@ -17,6 +17,8 @@
 """Tests for bootstrap-owned early launch-splash composition."""
 
 from __future__ import annotations
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+
 
 from pathlib import Path
 import subprocess
@@ -69,6 +71,9 @@ class _Splash:
         """Create an empty splash call recorder."""
 
         self.lines: list[str] = []
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Accept producer progress through the complete splash contract."""
 
     def append_log(self, line: str) -> None:
         """Record one splash log line."""

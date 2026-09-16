@@ -23,7 +23,7 @@ from dataclasses import fields
 from pathlib import Path
 from typing import cast
 
-from substitute.app.bootstrap.launch_splash import LaunchSplashClient
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.startup_model_metadata import (
     ModelMetadataUpdateSignalBridgeProtocol,
 )

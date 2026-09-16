@@ -22,7 +22,7 @@ from collections.abc import Callable
 import time
 from typing import Protocol
 
-from PySide6.QtCore import QObject, QTimer, Slot
+from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
 from sugarsubstitute_shared.launch_splash.activity import (
     ACTIVITY_FRAME_SECONDS,
@@ -97,6 +97,8 @@ def _create_qt_activity_frame_scheduler(
 class SplashActivityPresenter(QObject):
     """Own splash activity timing independently from blocking producer work."""
 
+    textChanged = Signal(str)
+
     def __init__(
         self,
         *,
@@ -116,6 +118,7 @@ class SplashActivityPresenter(QObject):
         self._stream = stream
         self._clock = clock
         self._activity: SplashActivity | None = None
+        self._closed = False
         self._started_at = 0.0
         self._scheduler = scheduler_factory(
             self,
@@ -132,6 +135,8 @@ class SplashActivityPresenter(QObject):
     def start(self, activity: SplashActivity) -> None:
         """Start or replace the active operation and render its first frame."""
 
+        if self._closed:
+            return
         self._activity = activity
         self._started_at = self._clock()
         self.refresh()
@@ -143,6 +148,7 @@ class SplashActivityPresenter(QObject):
         self._scheduler.stop()
         self._activity = None
         self._stream.clear_transient_line()
+        self.textChanged.emit("")
 
     def restore_after_log(self, record: str) -> None:
         """Restore activity after a durable log replaced its transient row."""
@@ -158,13 +164,14 @@ class SplashActivityPresenter(QObject):
         if activity is None:
             return
         elapsed_seconds = max(0.0, self._clock() - self._started_at)
-        self._stream.append_line(
-            f"{render_splash_activity(activity, elapsed_seconds)}\r"
-        )
+        text = render_splash_activity(activity, elapsed_seconds)
+        self._stream.append_line(f"{text}\r")
+        self.textChanged.emit(text)
 
     def shutdown(self) -> None:
-        """Stop scheduling frames without mutating terminal history."""
+        """Permanently stop frame delivery without mutating terminal history."""
 
+        self._closed = True
         self._scheduler.stop()
         self._activity = None
 

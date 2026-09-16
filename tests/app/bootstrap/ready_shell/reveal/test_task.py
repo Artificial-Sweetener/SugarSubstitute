@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from typing import cast
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
 
 import pytest
 from PySide6.QtCore import QCoreApplication
@@ -407,10 +408,12 @@ def test_create_ready_shell_reveal_task_returns_task() -> None:
     assert isinstance(task, ready_shell_reveal.ReadyShellRevealTask)
 
 
+@pytest.mark.parametrize("progress_fails", [False, True])
 def test_real_shell_keeps_splash_until_replacement_surface_paints(
     monkeypatch: pytest.MonkeyPatch,
+    progress_fails: bool,
 ) -> None:
-    """The splash-to-shell handoff must contain no unpainted surface gap."""
+    """Reveal the painted shell even when the optional completion update fails."""
 
     application = ensure_qt_application()
     monkeypatch.setattr(
@@ -420,6 +423,14 @@ def test_real_shell_keeps_splash_until_replacement_surface_paints(
     )
     calls: list[str] = []
     window = QWidget()
+    splash = _CloseSplash(calls)
+    if progress_fails:
+
+        def fail_progress(progress: SplashProgress, *, status: str) -> None:
+            """Simulate a unavailable completion presentation during handoff."""
+            raise RuntimeError("completion presentation unavailable")
+
+        monkeypatch.setattr(splash, "set_progress", fail_progress)
 
     def show(frame: object, **_kwargs: object) -> object:
         """Show the exact production-shaped QWidget without pumping events."""
@@ -430,7 +441,7 @@ def test_real_shell_keeps_splash_until_replacement_surface_paints(
         return window
 
     ready_shell_reveal.reveal_ready_shell_main_window(
-        splash=_CloseSplash(calls),
+        splash=splash,
         shell_frame=window,
         initial_shell_placement=None,
         comfy_http_ready=True,
@@ -445,9 +456,11 @@ def test_real_shell_keeps_splash_until_replacement_surface_paints(
         schedule_readiness_receipt=lambda _window: True,
     )
 
+    assert splash.progress == []
     assert "splash:close" not in calls
     QCoreApplication.processEvents()
     QCoreApplication.processEvents()
+    assert splash.progress == ([] if progress_fails else [SplashProgress(1, 1)])
     assert "splash:close" in calls
     window.close()
     application.processEvents()

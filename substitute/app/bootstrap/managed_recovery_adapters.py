@@ -29,7 +29,7 @@ from sugarsubstitute_shared.launch_splash import (
 )
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
-from substitute.app.bootstrap.launch_splash import LaunchSplashClient
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.managed_compatibility_recovery import (
     ManagedCompatibilityCleanupResultProtocol,
     RecoveryLogCallback,

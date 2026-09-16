@@ -22,7 +22,7 @@ from collections.abc import Callable, MutableSequence
 from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
-from substitute.app.bootstrap.launch_splash import LaunchSplashClient
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.managed_target_activation import (
     fan_out_splash_and_shell_output,
 )

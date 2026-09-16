@@ -30,7 +30,7 @@ from substitute.app.bootstrap import startup_shell_flow
 from substitute.app.bootstrap.bootstrap_route_controller import (
     BootstrapRouteWindowProtocol,
 )
-from substitute.app.bootstrap.launch_splash import LaunchSplashClient
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.app.bootstrap.ready_shell_state import create_ready_shell_state_bundle
 from substitute.app.bootstrap.shell_reload_adapter import (
     create_startup_shell_reload_state,

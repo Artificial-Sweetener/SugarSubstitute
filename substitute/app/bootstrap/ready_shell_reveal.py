@@ -21,6 +21,11 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import ContextManager, Protocol
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+from sugarsubstitute_shared.localization import app_text
+from sugarsubstitute_shared.presentation.localization.application_message import (
+    render_application_text,
+)
 
 from sugarsubstitute_shared.qt_surface_readiness import (
     schedule_main_shell_readiness_receipt,
@@ -57,6 +62,9 @@ class ReadyShellRevealTimerProtocol(Protocol):
 
 class ReadyShellSplashProtocol(Protocol):
     """Close the launch splash when the ready shell becomes visible."""
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Publish replacement-surface readiness before closing startup feedback."""
 
     def close(self) -> object:
         """Close the splash surface and optionally report acknowledgement."""
@@ -254,6 +262,13 @@ def _close_splash_after_surface_paint(
 ) -> None:
     """Close the splash only after the replacement shell has painted."""
 
+    try:
+        splash.set_progress(
+            SplashProgress(1, 1),
+            status=render_application_text(app_text("Starting SugarSubstitute.")),
+        )
+    except Exception:
+        log_exception(_LOGGER, "Failed to publish splash completion after shell paint")
     try:
         with startup_timer.phase("startup.close_launch_splash"):
             with trace_span("launch_splash.close"):
