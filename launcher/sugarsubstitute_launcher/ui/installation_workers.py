@@ -25,6 +25,7 @@ from PySide6.QtCore import QObject, Signal, Slot
 
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstalledApplication,
+    InstallationAlreadyPresented,
     ReleaseManifestSource,
 )
 from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
@@ -107,6 +108,7 @@ class InitialInstallWorker(QObject):
     log = Signal(str)
     failed = Signal(str)
     succeeded = Signal(object)
+    presented_elsewhere = Signal()
     finished = Signal()
 
     def __init__(
@@ -163,6 +165,10 @@ class InitialInstallWorker(QObject):
                     application.layout.config_path,
                 )
             )
+        except InstallationAlreadyPresented:
+            self.presented_elsewhere.emit()
+            self.finished.emit()
+            return
         except Exception as error:
             self.failed.emit(launcher_failure_detail(error))
             self.finished.emit()

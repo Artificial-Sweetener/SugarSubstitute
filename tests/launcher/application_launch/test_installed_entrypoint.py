@@ -42,6 +42,12 @@ from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_instance_election import (
+    SelectedInstallationReservation,
+)
+from launcher.sugarsubstitute_launcher.selected_installation_admission import (
+    reserve_selected_installation,
+)
 from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
     InstanceRecoveryAction,
 )
@@ -421,9 +427,11 @@ def test_application_election_uses_the_resolved_installation_identity(
         *,
         install_root: Path,
         invocation: object,
+        reserve_selected: SelectedInstallationReservation,
     ) -> ApplicationInstanceBroker | None:
         """Record the native election inputs without opening an endpoint."""
 
+        assert reserve_selected is reserve_selected_installation
         arguments = getattr(invocation, "arguments")
         observed.append((install_root, tuple(arguments)))
         return None

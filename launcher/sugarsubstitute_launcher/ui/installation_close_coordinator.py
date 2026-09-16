@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from PySide6.QtCore import QEvent, QObject, QTimer
 from PySide6.QtGui import QCloseEvent
@@ -47,6 +48,7 @@ class InstallationCloseCoordinator(QObject):
         view: InstallerView,
         installation: QtInstallationExecutor,
         repair: QtRepairPreparationExecutor,
+        handoff_completed: Callable[[], None],
     ) -> None:
         """Bind the window, its worker owners, and visible progress surface."""
 
@@ -56,6 +58,8 @@ class InstallationCloseCoordinator(QObject):
         self._installation = installation
         self._repair = repair
         self._close_requested = False
+        self._handoff_requested = False
+        self._handoff_completed = handoff_completed
         window.installEventFilter(self)
 
     @property
@@ -67,12 +71,23 @@ class InstallationCloseCoordinator(QObject):
     def finish_if_safe(self) -> bool:
         """Schedule the requested close after the final worker releases ownership."""
 
-        if not self._close_requested or self._has_active_work():
+        if self._has_active_work() or not (
+            self._close_requested or self._handoff_requested
+        ):
             return False
         self._close_requested = False
+        if self._handoff_requested:
+            self._handoff_requested = False
+            self._handoff_completed()
         _LOGGER.info("Installer reached its requested safe close boundary")
         QTimer.singleShot(0, self._window.close)
         return True
+
+    def request_handoff(self) -> None:
+        """Hide completed setup and defer process exit until its workers finish."""
+        self._handoff_requested = True
+        self._window.hide()
+        self.finish_if_safe()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Intercept close only while this exact window still owns worker work."""

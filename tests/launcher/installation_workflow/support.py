@@ -98,6 +98,7 @@ def workflow_factory(
     artifact_installer: object | None = None,
     runtime_provisioner: object | None = None,
     process_starter: Callable[[Sequence[str]], None] = lambda _command: None,
+    admit_installation: Callable[[InstallLayout], bool] | None = None,
 ) -> Callable[[Callable[[str], None]], InstallationWorkflow]:
     """Build test workflows from explicit installer boundary doubles."""
 
@@ -117,6 +118,7 @@ def workflow_factory(
             artifact_installer=cast(Any, resolved_artifact_installer),
             runtime_provisioner=cast(Any, resolved_runtime_provisioner),
             process_starter=process_starter,
+            admit_installation=admit_installation,
         )
 
     return create_workflow

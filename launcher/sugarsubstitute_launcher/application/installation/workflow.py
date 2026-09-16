@@ -25,10 +25,14 @@ from launcher.sugarsubstitute_launcher.application.installation.models import (
     ArtifactInstaller,
     CompletedInstallation,
     InstallationPreparation,
+    InstallationAlreadyPresented,
     InstalledApplication,
     LayoutPreparer,
     RuntimeProvisioner,
 )
+
+
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 
 
 class InstallationWorkflow:
@@ -41,6 +45,7 @@ class InstallationWorkflow:
         artifact_installer: ArtifactInstaller,
         runtime_provisioner: RuntimeProvisioner,
         process_starter: Callable[[Sequence[str]], None],
+        admit_installation: Callable[[InstallLayout], bool] | None = None,
     ) -> None:
         """Store the adapters used by the installation use case."""
 
@@ -48,6 +53,7 @@ class InstallationWorkflow:
         self._artifact_installer = artifact_installer
         self._runtime_provisioner = runtime_provisioner
         self._process_starter = process_starter
+        self._admit_installation = admit_installation
 
     def install_application(
         self,
@@ -55,6 +61,10 @@ class InstallationWorkflow:
     ) -> InstalledApplication:
         """Prepare the requested layout and install its application payload."""
 
+        if self._admit_installation is not None and not self._admit_installation(
+            request.layout
+        ):
+            raise InstallationAlreadyPresented()
         launcher_installed = False
         if request.preparation is InstallationPreparation.INSTALL_LAUNCHER:
             launcher_result = self._artifact_installer.install_downloaded_launcher(

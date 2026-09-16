@@ -24,12 +24,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QTimer, Signal, Slot
-from PySide6.QtWidgets import QVBoxLayout
 from qframelesswindow import AcrylicWindow  # type: ignore[import-untyped]
-from qframelesswindow.titlebar import TitleBar  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstalledApplication,
+    InstallationAlreadyPresented,
     ReleaseManifestSource,
 )
 from launcher.sugarsubstitute_launcher.application.repair.models import RepairScope
@@ -41,7 +40,6 @@ from launcher.sugarsubstitute_launcher.language_preference import (
     persist_launcher_language_preference,
 )
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
-from launcher.sugarsubstitute_launcher.resources import launcher_icon
 from launcher.sugarsubstitute_launcher.runtime_paths import (
     current_frozen_executable_path,
 )
@@ -67,10 +65,9 @@ from launcher.sugarsubstitute_launcher.ui.installer_presentation import (
     LauncherUiState,
     primary_action_for,
 )
-from launcher.sugarsubstitute_launcher.ui.installer_style import (
-    apply_installer_style,
+from launcher.sugarsubstitute_launcher.ui.installer_window_shell import (
+    build_installer_window_shell,
 )
-from launcher.sugarsubstitute_launcher.ui.installer_view import InstallerView
 from launcher.sugarsubstitute_launcher.ui.launcher_theme import (
     configure_launcher_theme,
 )
@@ -86,11 +83,6 @@ from launcher.sugarsubstitute_launcher.ui.window_geometry import (
     append_handoff_geometry,
     place_launcher_window,
     serialize_launcher_window,
-)
-from sugarsubstitute_shared.presentation.installer_surface import (
-    INSTALLER_WINDOW_HEIGHT,
-    INSTALLER_WINDOW_WIDTH,
-    configure_installer_title_bar,
 )
 
 if TYPE_CHECKING:
@@ -134,7 +126,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._handoff_geometry = handoff_geometry
         self._repair_mode = repair
         self.failure_presenter = InstallerFailurePresenter(self)
-        self._setup_handoff_close_pending = False
         self._installed_application: InstalledApplication | None = None
         self._setup_command: list[str] | None = None
         self._ui_state = (
@@ -156,19 +147,30 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self.execution.log.connect(self._append_log)
         self.execution.initial_failed.connect(self._handle_initial_install_failed)
         self.execution.initial_succeeded.connect(self._handle_initial_install_succeeded)
+        self.execution.initial_presented_elsewhere.connect(
+            self._finish_successful_handoff
+        )
         self.execution.initial_finished.connect(self._handle_initial_install_finished)
         self.execution.setup_failed.connect(self._handle_setup_worker_failed)
-        self.execution.setup_succeeded.connect(self._handle_setup_worker_succeeded)
-        self.execution.setup_finished.connect(self._handle_setup_execution_finished)
+        self.execution.setup_succeeded.connect(self._finish_successful_handoff)
 
-        self._build_shell(initial_layout)
+        self.view = build_installer_window_shell(
+            self,
+            initial_install_path=str(initial_layout.root),
+            localization_manager=self._localization_manager,
+            show_language_first=(not self._continue_install and not self._repair_mode),
+        )
+        self.view.primary_requested.connect(self._handle_primary_clicked)
+        self.view.back_requested.connect(self._handle_back_clicked)
         self._close_coordinator = InstallationCloseCoordinator(
             window=self,
             view=self.view,
             installation=self.execution,
             repair=self.repair_execution,
+            handoff_completed=self.handoff_completed.emit,
         )
         self.repair_execution.finished.connect(self._close_coordinator.finish_if_safe)
+        self.execution.setup_finished.connect(self._close_coordinator.finish_if_safe)
         if self._localization_manager is not None:
             self._localization_manager.languageChanged.connect(
                 lambda _snapshot: self._retranslate_window()
@@ -205,34 +207,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         """Return the installer phase currently projected by the window."""
 
         return self._ui_state
-
-    def _build_shell(self, initial_layout: InstallLayout) -> None:
-        """Compose window chrome around the installer-owned view."""
-
-        self.setWindowTitle(launcher_text("SugarSubstitute Setup"))
-        self.setWindowIcon(launcher_icon())
-        self.resize(INSTALLER_WINDOW_WIDTH, INSTALLER_WINDOW_HEIGHT)
-        self.setFixedSize(INSTALLER_WINDOW_WIDTH, INSTALLER_WINDOW_HEIGHT)
-        title_bar = TitleBar(self)
-        configure_installer_title_bar(title_bar)
-        self.setTitleBar(title_bar)
-        self.titleBar.maxBtn.hide()
-        self.titleBar.minBtn.hide()
-
-        self.view = InstallerView(
-            initial_install_path=str(initial_layout.root),
-            localization_manager=self._localization_manager,
-            show_language_first=(not self._continue_install and not self._repair_mode),
-            parent=self,
-        )
-        self.view.primary_requested.connect(self._handle_primary_clicked)
-        self.view.back_requested.connect(self._handle_back_clicked)
-        body_layout = QVBoxLayout(self)
-        body_layout.setContentsMargins(0, 0, 0, 0)
-        body_layout.setSpacing(0)
-        body_layout.addWidget(self.view)
-        apply_installer_style(self, self.view)
-        self.titleBar.raise_()
 
     def _handle_primary_clicked(self) -> None:
         """Dispatch the primary button according to the current setup state."""
@@ -342,11 +316,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             return
 
         install_root = Path(self.view.install_path).expanduser()
-        if self._localization_manager is not None:
-            self._persist_language_preference(
-                install_root,
-                self._localization_manager.snapshot.requested,
-            )
         self.view.set_primary_action(text=launcher_text("Working..."), enabled=False)
         self.view.set_path_controls_enabled(False)
         self._append_log(launcher_text("Preparing SugarSubstitute install."))
@@ -367,6 +336,9 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             application = workflow.install_application(
                 create_continued_installation_request(self._initial_layout)
             )
+        except InstallationAlreadyPresented:
+            self._finish_successful_handoff()
+            return
         except Exception as error:
             self._report_install_failure(error)
             return
@@ -437,7 +409,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._ui_state = LauncherUiState.COMPLETE
         self._refresh_primary_button()
         self._append_log(launcher_text("Waiting for the setup window to open."))
-        self._close_after_successful_handoff()
+        self._finish_successful_handoff()
 
     @Slot(str)
     def _handle_initial_install_failed(self, details: str) -> None:
@@ -471,6 +443,10 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
     def _accept_installed_application(self, application: InstalledApplication) -> None:
         """Store installed artifacts and project their visible completion details."""
 
+        if self._localization_manager is not None:
+            self._persist_language_preference(
+                application.layout.root, self._localization_manager.snapshot.requested
+            )
         self._installed_application = application
         self._append_log(
             launcher_text(
@@ -506,32 +482,12 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._refresh_primary_button()
 
     @Slot()
-    def _handle_setup_worker_succeeded(self) -> None:
-        """Hide the installer and request deterministic worker shutdown."""
+    def _finish_successful_handoff(self) -> None:
+        """Retire this setup surface after another usable window accepts ownership."""
 
         self._ui_state = LauncherUiState.COMPLETE
         self._refresh_primary_button()
-        self.hide()
-        if not self.execution.setup_running:
-            self._close_after_successful_handoff()
-            return
-        self._setup_handoff_close_pending = True
-
-    def _close_after_successful_handoff(self) -> None:
-        """Close the installer after the installed app process has started."""
-
-        self.handoff_completed.emit()
-        QTimer.singleShot(0, self.close)
-
-    @Slot()
-    def _handle_setup_execution_finished(self) -> None:
-        """Complete a successful handoff after its Qt worker has stopped."""
-
-        if self._close_coordinator.finish_if_safe():
-            return
-        if self._setup_handoff_close_pending:
-            self._setup_handoff_close_pending = False
-            self._close_after_successful_handoff()
+        self._close_coordinator.request_handoff()
 
     @Slot()
     def _handle_initial_install_finished(self) -> None:

@@ -24,6 +24,7 @@ from launcher.sugarsubstitute_launcher.application.installation.workflow import 
     InstallationWorkflow,
 )
 from launcher.sugarsubstitute_launcher.first_run import FirstRunInstaller
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.process import (
     start_installed_launcher_handoff,
@@ -39,6 +40,7 @@ from launcher.sugarsubstitute_launcher.uv_tool import VerifiedUvExecutableProvid
 def build_installation_workflow(
     *,
     output_callback: Callable[[str], None] | None = None,
+    admit_installation: Callable[[InstallLayout], bool] | None = None,
     process_starter: Callable[[Sequence[str]], None] = start_installed_launcher_handoff,
 ) -> InstallationWorkflow:
     """Build the production installation workflow and its concrete adapters."""
@@ -53,4 +55,5 @@ def build_installation_workflow(
             runner=SubprocessRuntimeCommandRunner(output_callback),
         ),
         process_starter=process_starter,
+        admit_installation=admit_installation,
     )

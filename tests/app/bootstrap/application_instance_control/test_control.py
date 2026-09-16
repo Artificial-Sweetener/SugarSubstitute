@@ -44,6 +44,7 @@ class _RecordingSupervisorClient:
 
         self.handler: Callable[[RoutedApplicationInvocation], None] | None = None
         self.restart_requests = 0
+        self.installation_claims: list[Path] = []
         self.closed = False
         self.receipts: list[tuple[str, ApplicationInvocationOutcome, str]] = []
 
@@ -59,6 +60,11 @@ class _RecordingSupervisorClient:
         """Record one supervisor-owned restart request."""
 
         self.restart_requests += 1
+        return True
+
+    def claim_installation(self, install_root: Path) -> bool:
+        """Record folder admission delegated through the Qt bridge."""
+        self.installation_claims.append(install_root)
         return True
 
     def complete_invocation(

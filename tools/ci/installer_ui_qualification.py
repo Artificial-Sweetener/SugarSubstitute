@@ -25,6 +25,7 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+from time import sleep
 
 from launcher.sugarsubstitute_launcher.install_layout import (
     InstallLayout,
@@ -412,7 +413,7 @@ def _wait_for_readiness_receipt(
                     "Application readiness receipt did not match this CI launch."
                 )
             if receipt.surface in _INSTALLER_HANDOFF_SURFACES:
-                time.sleep(0.1)
+                sleep(0.1)
                 continue
             if receipt.surface is not ApplicationReadinessSurface.MAIN_SHELL:
                 raise InstallerLifecycleError(
@@ -420,7 +421,7 @@ def _wait_for_readiness_receipt(
                     f"{receipt.surface.value} != main_shell."
                 )
             return receipt
-        time.sleep(0.1)
+        sleep(0.1)
     diagnostics = "\n\n".join(
         f"{path}:\n{diagnostic_tail(path)}" for path in diagnostic_paths
     )
