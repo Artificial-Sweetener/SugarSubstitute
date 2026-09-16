@@ -98,3 +98,48 @@ def test_startup_recovers_interrupted_continuation(
         assert (
             LauncherUpdateState.load(layout.state_path).installed_app_version == "0.4.0"
         )
+
+
+@pytest.mark.parametrize("boundary", ["app_promoted", "config_partial"])
+def test_first_install_interruption_keeps_selected_root_on_ordinary_launch(
+    tmp_path: Path, boundary: str
+) -> None:
+    """Discover journaled first installation before configuration exists."""
+    from launcher.sugarsubstitute_launcher.startup_plan import resolve_startup_candidate
+
+    release = tmp_path / "release"
+    payload = write_valid_payload_zip(release / "app.zip")
+    write_manifest(release / "manifest.json", app_zip=payload)
+    layout = InstallLayout.from_root(tmp_path / "chosen-installation")
+    child = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "tests.launcher.installation_workflow.first_run.interruption_process",
+            str(layout.root),
+            str(release),
+            boundary,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        check=False,
+    )
+    assert child.returncode == 73, child.stderr
+    assert not layout.config_path.exists()
+    assert InstallationRecovery(layout).pending
+    candidate = resolve_startup_candidate(
+        explicit_install_root=None, executable_path=layout.executable_path
+    )
+    assert candidate.layout.root == layout.root
+    recovered = recover_startup_candidate(candidate)
+    assert recovered.layout.root == layout.root
+    assert not InstallationRecovery(layout).pending
+    if boundary == "config_partial":
+        assert recovered.installed_config_found
+        assert LauncherConfig.load(layout.config_path).runtime_setup_pending
+        assert layout.app_entrypoint.is_file()
+    else:
+        assert not recovered.installed_config_found
+        assert not layout.app_dir.exists()

@@ -32,7 +32,7 @@ from launcher.sugarsubstitute_launcher.platforms import (
     detect_launcher_target,
 )
 from sugarsubstitute_shared.windows_long_paths import operational_path
-from sugarsubstitute_shared.repair_recovery.journal import PENDING_JOURNAL
+from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
 
 
 _MAX_PACKAGED_ROOT_ANCESTORS = 6
@@ -111,7 +111,7 @@ def resolve_startup_candidate(
     working_directory_path: Path | None = None,
     launcher_ui_child: bool = False,
 ) -> LauncherStartupCandidate:
-    """Find a possible installed layout without reading its configuration."""
+    """Find configuration or recoverable installation work without reading either."""
 
     if explicit_install_root is not None:
         layout = InstallLayout.from_root(explicit_install_root)
@@ -178,7 +178,7 @@ def resolve_startup_candidate(
         checked_roots.add(candidate_layout.root)
         if (
             candidate_layout.config_path.is_file()
-            or (candidate_layout.root / PENDING_JOURNAL).is_file()
+            or InstallationRecovery(candidate_layout).pending
         ):
             return LauncherStartupCandidate(
                 layout=candidate_layout,
