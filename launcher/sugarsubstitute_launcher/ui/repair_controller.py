@@ -119,7 +119,14 @@ class RepairController(QObject):
 
     @Slot()
     def _finished(self) -> None:
-        """Enable terminal actions only after the thread can no longer mutate files."""
+        """Join native teardown before releasing the worker's Python wrapper.
+
+        Qt can deliver finished while deferred worker destruction is still running
+        on the native thread. Retain both wrappers until that destruction completes.
+        """
+        thread = self._thread
+        if thread is not None:
+            thread.wait()
         self._thread = None
         self._worker = None
         self._window.set_running(False)
