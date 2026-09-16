@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
@@ -41,6 +41,14 @@ class BrokerDouble:
         child = dict(environment)
         child["TEST_INSTANCE_BROKER"] = "connected"
         return child
+
+    def register_startup_resource(self, cleanup: Callable[[], None]) -> str:
+        """Reject unexpected generation transfer in an orchestration-only fixture."""
+        raise AssertionError("This fixture does not launch a frozen generation.")
+
+    def release_startup_resource(self, identity: str) -> None:
+        """Reject unexpected borrowed cleanup in an orchestration-only fixture."""
+        raise AssertionError("This fixture does not own a borrowed splash.")
 
     def consume_restart_request(self) -> bool:
         """Report no restart request for the recorded initial run."""

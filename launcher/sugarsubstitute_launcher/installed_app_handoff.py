@@ -37,15 +37,17 @@ from launcher.sugarsubstitute_launcher.release_sources import (
     ReleaseSource,
     release_source_from_config,
 )
+from launcher.sugarsubstitute_launcher.startup_splash_session import (
+    StartupSplashSession,
+)
 from launcher.sugarsubstitute_launcher.splash_session import (
-    LauncherSplashSession,
     append_splash_session_args,
 )
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
-from sugarsubstitute_shared.application_instance_broker import (
-    ApplicationInstanceBroker,
+from sugarsubstitute_shared.application_broker_session import (
+    ApplicationBrokerSession,
 )
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
 
@@ -56,10 +58,10 @@ _PRE_LAUNCH_MANIFEST_TIMEOUT_SECONDS = 3.0
 def complete_installed_app_handoff(
     *,
     layout: InstallLayout,
-    broker: ApplicationInstanceBroker,
+    broker: ApplicationBrokerSession,
     locale_argument: str,
     no_update_check: bool,
-    splash_session: LauncherSplashSession | None,
+    splash_session: StartupSplashSession | None,
     handoff_geometry: str | None,
 ) -> None:
     """Run update policy and start the installed app behind its visible splash."""
@@ -72,73 +74,77 @@ def complete_installed_app_handoff(
         no_update_check=no_update_check,
         progress=splash_session.client if splash_session is not None else None,
     )
-    if update_result.launcher_update_request_path is not None:
-        if splash_session is not None:
-            splash_session.close()
-        schedule_launcher_update(
-            request_path=Path(update_result.launcher_update_request_path),
-            runtime_python=layout.runtime_python,
-            app_dir=layout.app_dir,
-            relaunch=True,
-            wait_pid=os.getpid(),
-        )
-        return
+    try:
+        if update_result.launcher_update_request_path is not None:
+            if splash_session is not None:
+                splash_session.close()
+            schedule_launcher_update(
+                request_path=Path(update_result.launcher_update_request_path),
+                runtime_python=layout.runtime_python,
+                app_dir=layout.app_dir,
+                relaunch=True,
+                wait_pid=os.getpid(),
+            )
+            return
 
-    extra_arguments = [locale_argument]
-    if handoff_geometry:
-        extra_arguments.append(f"--handoff-geometry={handoff_geometry}")
-    app_command = append_splash_session_args(
-        build_app_launch_command(
-            layout=layout,
-            extra_args=extra_arguments,
-        ),
-        splash_session,
-    )
-    if update_result.pending_activation is not None:
-        attempted_version = update_result.attempted_version
-        if attempted_version is None:
-            raise RuntimeError("Prepared update is missing its attempted version.")
-        launch_prepared_update(
-            layout=layout,
-            command=app_command,
-            attempted_version=attempted_version,
-            environment=installed_application_environment(
-                broker,
-                remote_failure_reason=update_result.failure_reason,
+        extra_arguments = [locale_argument]
+        if handoff_geometry:
+            extra_arguments.append(f"--handoff-geometry={handoff_geometry}")
+        app_command = append_splash_session_args(
+            build_app_launch_command(
+                layout=layout,
+                extra_args=extra_arguments,
             ),
-            activation=update_result.pending_activation,
-            on_ready=(
-                splash_session.ensure_closed if splash_session is not None else None
-            ),
-            cancellation_requested=(
-                splash_session.cancellation_requested
-                if splash_session is not None
-                else None
-            ),
+            splash_session,
         )
-        _supervise_requested_restarts(
+        if update_result.pending_activation is not None:
+            attempted_version = update_result.attempted_version
+            if attempted_version is None:
+                raise RuntimeError("Prepared update is missing its attempted version.")
+            launch_prepared_update(
+                layout=layout,
+                command=app_command,
+                attempted_version=attempted_version,
+                environment=installed_application_environment(
+                    broker,
+                    remote_failure_reason=update_result.failure_reason,
+                ),
+                activation=update_result.pending_activation,
+                on_ready=(
+                    splash_session.ensure_closed if splash_session is not None else None
+                ),
+                cancellation_requested=(
+                    splash_session.cancellation_requested
+                    if splash_session is not None
+                    else None
+                ),
+            )
+            _supervise_requested_restarts(
+                broker=broker,
+                layout=layout,
+                command=app_command,
+                remote_failure_reason=update_result.failure_reason,
+            )
+            return
+        _supervise_application(
             broker=broker,
             layout=layout,
             command=app_command,
             remote_failure_reason=update_result.failure_reason,
+            splash_session=splash_session,
         )
-        return
-    _supervise_application(
-        broker=broker,
-        layout=layout,
-        command=app_command,
-        remote_failure_reason=update_result.failure_reason,
-        splash_session=splash_session,
-    )
+    finally:
+        if update_result.pending_activation is not None:
+            update_result.pending_activation.rollback()
 
 
 def _supervise_application(
     *,
-    broker: ApplicationInstanceBroker,
+    broker: ApplicationBrokerSession,
     layout: InstallLayout,
     command: list[str],
     remote_failure_reason: str | None,
-    splash_session: LauncherSplashSession | None = None,
+    splash_session: StartupSplashSession | None = None,
 ) -> None:
     """Supervise the initial child and every broker-authorized restart."""
 
@@ -168,7 +174,7 @@ def _supervise_application(
 
 def _supervise_requested_restarts(
     *,
-    broker: ApplicationInstanceBroker,
+    broker: ApplicationBrokerSession,
     layout: InstallLayout,
     command: list[str],
     remote_failure_reason: str | None,

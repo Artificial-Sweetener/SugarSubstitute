@@ -28,7 +28,9 @@ from launcher.sugarsubstitute_launcher.application.repair.integrity import (
 from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
 )
-from sugarsubstitute_shared.launcher_update.staging import validate_staged_bundle
+from sugarsubstitute_shared.launcher_update.bundle_validation import (
+    validate_launcher_bundle,
+)
 from sugarsubstitute_shared.launcher_update.targets import (
     launcher_bundle_target_for_key,
 )
@@ -45,7 +47,7 @@ def stage_independent_repair_bundle(request: PreparedRepairRequest) -> Path:
     target = launcher_bundle_target_for_key(request.target_key)
     source = request.staged_launcher_dir
     verify_directory_tree_sha256(source, expected=request.staged_launcher_sha256)
-    validate_staged_bundle(bundle_dir=source, target=target)
+    validate_launcher_bundle(bundle_dir=source, target=target)
     parent = request.install_root / ".repair" / "helper" / request.version
     retained = create_repair_artifact_directory(
         install_root=request.install_root,
@@ -56,7 +58,7 @@ def stage_independent_repair_bundle(request: PreparedRepairRequest) -> Path:
     try:
         shutil.copytree(source, bundle, symlinks=True)
         verify_directory_tree_sha256(bundle, expected=request.staged_launcher_sha256)
-        validate_staged_bundle(bundle_dir=bundle, target=target)
+        validate_launcher_bundle(bundle_dir=bundle, target=target)
     except (OSError, RuntimeError):
         _LOGGER.exception(
             "Could not prepare the independent repair bundle",

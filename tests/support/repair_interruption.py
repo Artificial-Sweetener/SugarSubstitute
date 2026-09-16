@@ -25,12 +25,12 @@ import sys
 from unittest.mock import patch
 
 from launcher.sugarsubstitute_launcher.application.repair.models import (
-    RepairDisposition,
     RepairOperation,
     RepairPlan,
     RepairReplacement,
     RepairScope,
 )
+from sugarsubstitute_shared.repair_recovery.disposition import RepairDisposition
 from launcher.sugarsubstitute_launcher.repair_transaction import RepairTransaction
 
 

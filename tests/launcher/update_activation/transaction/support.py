@@ -25,8 +25,8 @@ import zipfile
 
 from sugarsubstitute_shared.launcher_update.models import (
     LauncherBundleAsset,
-    LauncherUpdateRequest,
 )
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
 
 
 def _write_installed_layout(root: Path) -> Path:

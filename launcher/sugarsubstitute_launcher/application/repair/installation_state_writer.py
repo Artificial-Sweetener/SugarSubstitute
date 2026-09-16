@@ -31,7 +31,6 @@ from launcher.sugarsubstitute_launcher.config import (
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
-from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
 from launcher.sugarsubstitute_launcher.application.repair.execution_result import (
     RepairExecutionError,
 )
@@ -58,7 +57,7 @@ class RepairInstallationStateWriter(Protocol):
 
 
 class FreshRepairInstallationStateWriter:
-    """Own fresh launcher configuration and exact installed-version records."""
+    """Own fresh launcher configuration and repaired application version state."""
 
     def write(
         self,
@@ -66,7 +65,7 @@ class FreshRepairInstallationStateWriter:
         layout: InstallLayout,
         request: PreparedRepairRequest,
     ) -> None:
-        """Create default channel configuration and exact version records."""
+        """Create channel configuration and app state while retaining baseline identity."""
 
         manifest_url = (
             DEFAULT_CANARY_RELEASE_MANIFEST_URL
@@ -85,10 +84,6 @@ class FreshRepairInstallationStateWriter:
             version=request.version,
             channel=request.channel,
         ).save(layout.state_path)
-        LauncherInstallationRecord(
-            version=request.version,
-            target_key=request.target_key,
-        ).save(layout.launcher_installation_path)
 
     def validate(
         self,
@@ -96,18 +91,14 @@ class FreshRepairInstallationStateWriter:
         layout: InstallLayout,
         request: PreparedRepairRequest,
     ) -> None:
-        """Verify config and both exact installed-version records."""
+        """Verify configuration and the repaired application version."""
 
         config = LauncherConfig.load(layout.config_path)
         state = LauncherUpdateState.load(layout.state_path)
-        launcher = LauncherInstallationRecord.load(layout.launcher_installation_path)
         if (
             config.install_root.resolve() != layout.root
             or config.channel != request.channel
             or state.installed_app_version != request.version
-            or launcher is None
-            or launcher.version != request.version
-            or launcher.target_key != request.target_key
         ):
             raise RepairExecutionError(
                 "Repaired launcher state does not match the prepared release."

@@ -26,10 +26,7 @@ import psutil  # type: ignore[import-untyped]
 from sugarsubstitute_shared.application_process_scope import ApplicationProcessScope
 
 from sugarsubstitute_shared.process_identity import ProcessIdentity
-from sugarsubstitute_shared.windows_process_security import (
-    process_session_id,
-    process_user_sid,
-)
+from sugarsubstitute_shared import windows_process_security
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,19 +34,19 @@ _LOGGER = logging.getLogger(__name__)
 def find_previous_application_process(
     scope: ApplicationProcessScope,
 ) -> ProcessIdentity | None:
-    """Find the oldest earlier launcher in this executable's user and session.
+    """Find the oldest earlier launcher belonging to this installation account.
 
     Verify the caller's executable with Windows rather than trusting arguments or
     Python globals. Exclude newer launches so concurrent recovery cannot end a
-    replacement that started after this request. No process is terminated here.
+    replacement that started after this request. Desktop sessions do not divide
+    installation ownership. No process is terminated here.
     """
     try:
         caller = psutil.Process(os.getpid())
         if not scope.accepts_executable(Path(caller.exe())):
             return None
         caller_created = float(caller.create_time())
-        user = process_user_sid(caller.pid)
-        session = process_session_id(caller.pid)
+        user = windows_process_security.process_user_sid(caller.pid)
     except (OSError, psutil.Error):
         _LOGGER.exception("Could not verify the recovery launcher's OS identity")
         return None
@@ -65,7 +62,7 @@ def find_previous_application_process(
             created = float(process.create_time())
             if created >= caller_created:
                 continue
-            if process_user_sid(pid) != user or process_session_id(pid) != session:
+            if windows_process_security.process_user_sid(pid) != user:
                 continue
             if not scope.accepts_invocation(
                 image, tuple(process.cmdline()), Path(process.cwd())

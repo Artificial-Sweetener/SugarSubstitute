@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
@@ -43,6 +44,7 @@ class InstallLayout:
 
     root: Path
     target: LauncherTarget = field(default_factory=detect_launcher_target)
+    launcher_bundle_root: Path | None = None
 
     @classmethod
     def from_root(
@@ -53,9 +55,23 @@ class InstallLayout:
     ) -> Self:
         """Create an install layout from a user-selected root path."""
 
+        resolved_root = operational_path(root).resolve()
+        resolved_target = target or detect_launcher_target()
+        bundle_root: Path | None = None
+        if bool(getattr(sys, "frozen", False)):
+            from sugarsubstitute_shared.launcher_update.bundle_paths import (
+                LauncherBundlePaths,
+            )
+            from sugarsubstitute_shared.launcher_update.targets import (
+                launcher_bundle_target_for_key,
+            )
+
+            bundle_root = LauncherBundlePaths(resolved_root).payload_for_executable(
+                Path(sys.executable),
+                launcher_bundle_target_for_key(resolved_target.key),
+            )
         return cls(
-            root=operational_path(root).resolve(),
-            target=target or detect_launcher_target(),
+            root=resolved_root, target=resolved_target, launcher_bundle_root=bundle_root
         )
 
     @property
@@ -68,15 +84,18 @@ class InstallLayout:
     def bundle_path(self) -> Path:
         """Return the installed launcher bundle root for this target."""
 
+        root = self.launcher_bundle_root or self.root
         if self.target.bundle_root == Path("."):
-            return self.root
-        return self.root / self.target.bundle_root
+            return root
+        return root / self.target.bundle_root
 
     @property
     def launcher_support_path(self) -> Path:
         """Return the installed launcher support directory for this target."""
 
-        return self.root / self.target.support_relative_path
+        return (
+            self.launcher_bundle_root or self.root
+        ) / self.target.support_relative_path
 
     @property
     def launcher_ui_executable_path(self) -> Path | None:
@@ -139,12 +158,6 @@ class InstallLayout:
         """Return the independently versioned launcher installation record."""
 
         return self.launcher_dir / "installation.json"
-
-    @property
-    def launcher_update_request_path(self) -> Path:
-        """Return the single pending launcher replacement request path."""
-
-        return self.launcher_dir / "updates" / "pending.json"
 
     @property
     def logs_dir(self) -> Path:

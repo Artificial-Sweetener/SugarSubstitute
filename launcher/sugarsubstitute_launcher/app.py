@@ -21,16 +21,18 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
     from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupPlan
-    from launcher.sugarsubstitute_launcher.splash_session import LauncherSplashSession
-    from sugarsubstitute_shared.application_instance_broker import (
-        ApplicationInstanceBroker,
+    from launcher.sugarsubstitute_launcher.startup_splash_session import (
+        StartupSplashSession,
+    )
+    from sugarsubstitute_shared.application_broker_session import (
+        ApplicationBrokerSession,
     )
 
 
@@ -97,9 +99,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
     app_launch_error: Exception | None = None
-    broker: ApplicationInstanceBroker | None = None
+    broker: ApplicationBrokerSession | None = None
     startup_plan: LauncherStartupPlan | None = None
-    splash_session: LauncherSplashSession | None = None
+    splash_session: StartupSplashSession | None = None
+    startup_resource_registrar: Callable[[Callable[[], None]], str] | None = None
     from sugarsubstitute_shared.supervisor_handoff import supervisor_handoff_present
 
     if (
@@ -119,30 +122,111 @@ def main(argv: Sequence[str] | None = None) -> int:
             locale_override=args.locale_override,
             environment=os.environ,
         )
+    from sugarsubstitute_shared.application_broker_session import DELEGATED_LAUNCHER_ENV
+
+    delegated_launcher = os.environ.pop(DELEGATED_LAUNCHER_ENV, None) == "1"
     if not args.launcher_ui_child:
-        from launcher.sugarsubstitute_launcher.application_launch import (
-            elect_application,
+        if delegated_launcher:
+            from sugarsubstitute_shared.delegated_application_broker import (
+                DelegatedApplicationBroker,
+            )
+
+            broker = DelegatedApplicationBroker(os.environ)
+            from launcher.sugarsubstitute_launcher.splash_transfer import (
+                take_borrowed_splash_session,
+            )
+
+            splash_session = take_borrowed_splash_session(
+                os.environ, release=broker.release_startup_resource
+            )
+        else:
+            from launcher.sugarsubstitute_launcher.application_launch import (
+                elect_application,
+            )
+            from launcher.sugarsubstitute_launcher.application_election_recovery import (
+                ApplicationElectionRecovery,
+            )
+
+            election_recovery = ApplicationElectionRecovery(
+                layout=layout,
+                process_arguments=process_arguments,
+                locale_override=args.locale_override,
+                elect=elect_application,
+            )
+            broker = election_recovery.run()
+            if broker is None:
+                if splash_session is not None:
+                    splash_session.close()
+                return 0
+            startup_resource_registrar = broker.register_startup_resource
+    attempt_installed_app = (
+        not args.launcher_ui_child
+        and should_attempt_installed_app_launch(
+            args=args,
+            candidate=startup_candidate,
+        )
+    )
+    if not args.launcher_ui_child:
+        from launcher.sugarsubstitute_launcher.splash_session import (
+            start_launcher_splash_session,
         )
 
-        from launcher.sugarsubstitute_launcher.application_election_recovery import (
-            ApplicationElectionRecovery,
-        )
+        try:
+            if splash_session is None:
+                splash_session = start_launcher_splash_session(
+                    layout=layout, locale_override=args.locale_override
+                )
+            from launcher.sugarsubstitute_launcher.startup_recovery import (
+                recover_startup_candidate,
+            )
 
-        election_recovery = ApplicationElectionRecovery(
-            layout=layout,
-            process_arguments=process_arguments,
-            locale_override=args.locale_override,
-            elect=elect_application,
-        )
-        broker = election_recovery.run()
-        if broker is None:
+            try:
+                recovered_candidate = recover_startup_candidate(startup_candidate)
+                if recovered_candidate is not startup_candidate:
+                    startup_candidate = recovered_candidate
+                    attempt_installed_app = should_attempt_installed_app_launch(
+                        args=args, candidate=startup_candidate
+                    )
+            except Exception as error:
+                app_launch_error = error
+                logging.getLogger(__name__).exception(
+                    "Interrupted installation recovery failed; retaining recovery UI."
+                )
+            if app_launch_error is None and not delegated_launcher:
+                assert broker is not None
+                from launcher.sugarsubstitute_launcher.generation_dispatch import (
+                    dispatch_selected_launcher,
+                )
+
+                def resume_baseline_startup() -> None:
+                    """Replace the transferred session before continuing baseline startup."""
+                    nonlocal splash_session
+                    if splash_session is not None:
+                        splash_session.close()
+                    splash_session = start_launcher_splash_session(
+                        layout=layout, locale_override=args.locale_override
+                    )
+
+                selected_result = dispatch_selected_launcher(
+                    layout=layout,
+                    broker=broker,
+                    arguments=process_arguments[1:],
+                    splash_session=splash_session,
+                    register_startup_resource=startup_resource_registrar,
+                    on_baseline_fallback=resume_baseline_startup,
+                )
+                if selected_result is not None:
+                    broker.close()
+                    if splash_session is not None:
+                        splash_session.close()
+                    return selected_result
+        except BaseException:
+            if broker is not None:
+                broker.close()
             if splash_session is not None:
                 splash_session.close()
-            return 0
-    if not args.launcher_ui_child and should_attempt_installed_app_launch(
-        args=args,
-        candidate=startup_candidate,
-    ):
+            raise
+    if attempt_installed_app and app_launch_error is None:
         assert broker is not None
         from launcher.sugarsubstitute_launcher.splash_session import (
             start_launcher_splash_session,
@@ -152,11 +236,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
         try:
-            if splash_session is None:
-                splash_session = start_launcher_splash_session(
-                    layout=layout,
-                    locale_override=args.locale_override,
-                )
             if splash_session is None:
                 logging.getLogger(__name__).warning(
                     "Launcher splash unavailable; continuing supervised application "
@@ -333,8 +412,8 @@ def _configure_launch_error_logging(
 def _complete_launcher_surface_handoff(
     *,
     layout: InstallLayout,
-    splash_session: LauncherSplashSession | None,
-    broker: ApplicationInstanceBroker | None,
+    splash_session: StartupSplashSession | None,
+    broker: ApplicationBrokerSession | None,
     launch_error: Exception | None,
 ) -> None:
     """Retire the splash authority after the launcher window has painted."""
@@ -380,7 +459,7 @@ def _acknowledge_startup_incident_handled_by_repair(
 
 
 def _release_launch_ownership(
-    broker: ApplicationInstanceBroker | None,
+    broker: ApplicationBrokerSession | None,
 ) -> None:
     """Release parent launcher ownership after child UI reaches terminal state."""
 

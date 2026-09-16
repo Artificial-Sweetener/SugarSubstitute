@@ -94,7 +94,7 @@ class RepairProgressView(QWidget):
         self._primary.clicked.connect(self.primary_requested)
         self._primary.hide()
         self._close = cast(
-            QPushButton, PushButton(launcher_text("Close when finished"), self)
+            QPushButton, PushButton(launcher_text("Cancel repair"), self)
         )
         self._close.clicked.connect(self.close_requested)
         layout = QVBoxLayout(self)
@@ -135,7 +135,7 @@ class RepairProgressView(QWidget):
         self._step.clear()
         self._bar.setValue(0)
         self._primary.hide()
-        self._close.setText(launcher_text("Close when finished"))
+        self._close.setText(launcher_text("Cancel repair"))
         self._close.setEnabled(True)
         self._details.clear()
 
@@ -149,11 +149,14 @@ class RepairProgressView(QWidget):
         self._details.setPlainText(details)
 
     def set_close_pending(self) -> None:
-        """Acknowledge deferred close while keeping ongoing repair visible."""
+        """Acknowledge cancellation while the execution owner confirms safe shutdown."""
         self._description.setText(
-            launcher_text("This window will close when repair finishes.")
+            launcher_text(
+                "Stopping repair. This window will close when the repair process has stopped."
+            )
         )
         self._close.setEnabled(False)
+        self._primary.hide()
 
     def show_result(self, *, succeeded: bool, details: str = "") -> None:
         """Present an explicit next action after execution reaches a terminal state."""

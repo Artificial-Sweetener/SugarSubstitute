@@ -33,6 +33,7 @@ from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherMinimumVersionError,
     LauncherUpdateOrchestrator,
 )
+from launcher.sugarsubstitute_launcher.update_activation import PendingUpdateActivation
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.update_rollback_report import (
     UpdateRollbackReportStore,
@@ -278,7 +279,7 @@ def test_pre_launch_update_stages_newer_launcher_after_runtime_is_ready(
         launchers={layout.target.key: launcher_asset},
         installers={},
     )
-    stager = _LauncherStager(layout.launcher_update_request_path)
+    stager = _LauncherStager((layout.launcher_dir / "updates" / "fixture-request.json"))
 
     result = LauncherUpdateOrchestrator(
         payload_installer=_PayloadInstaller(version="0.11.0"),
@@ -294,7 +295,7 @@ def test_pre_launch_update_stages_newer_launcher_after_runtime_is_ready(
     )
 
     assert result.launcher_update_request_path == str(
-        layout.launcher_update_request_path
+        (layout.launcher_dir / "updates" / "fixture-request.json")
     )
     assert stager.versions == ["0.11.0"]
     assert stager.assets == [
@@ -444,13 +445,15 @@ class _PayloadInstaller:
     def install(
         self,
         *,
-        layout: InstallLayout,
+        activation: PendingUpdateActivation,
         manifest: ReleaseManifest,
     ) -> AppPayloadInstallResult:
         """Record one install and return a successful result."""
 
-        self.installed_layouts.append(layout)
-        return AppPayloadInstallResult(version=self._version, app_dir=layout.app_dir)
+        self.installed_layouts.append(activation.layout)
+        return AppPayloadInstallResult(
+            version=self._version, app_dir=activation.layout.app_dir
+        )
 
 
 class _RuntimeReconciler:
@@ -553,3 +556,28 @@ class _OfflineLauncherStager:
         """Raise the urllib connectivity error used by the production downloader."""
 
         raise URLError("offline")
+
+
+def test_busy_mutation_owner_does_not_fall_back_to_launch(tmp_path: Path) -> None:
+    """Propagate ownership contention instead of launching files being replaced."""
+    from concurrent.futures import ThreadPoolExecutor
+    from sugarsubstitute_shared.installation_mutation import (
+        InstallationMutationBusyError,
+        installation_mutation,
+    )
+
+    layout = InstallLayout.from_root(tmp_path / "install")
+    config = LauncherConfig.from_layout(layout=layout)
+    source = _ReleaseSource(_manifest(version="0.4.0"))
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with installation_mutation(layout.root):
+            result = pool.submit(
+                LauncherUpdateOrchestrator().run,
+                layout=layout,
+                config=config,
+                release_source=source,
+                no_update_check=False,
+            )
+            with pytest.raises(InstallationMutationBusyError):
+                result.result(timeout=10)
+    assert not layout.state_path.exists()

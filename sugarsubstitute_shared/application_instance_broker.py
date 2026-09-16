@@ -51,6 +51,9 @@ from sugarsubstitute_shared.application_instance_bindings import (
 )
 
 
+from sugarsubstitute_shared.startup_resource_owner import StartupResourceOwner
+
+
 _LOGGER = logging.getLogger(__name__)
 _MAXIMUM_PENDING_INVOCATIONS = 64
 _SUPERVISOR_RECEIPT_DEADLINE_SECONDS = 14.0
@@ -75,6 +78,8 @@ class ApplicationInstanceBroker:
         self._accept_listener_invocations = accept_listener_invocations
         self._closing = threading.Event()
         self._restart_requested = threading.Event()
+        self._restart_lock = threading.Lock()
+        self._startup_resources = StartupResourceOwner()
         self._router = ApplicationInvocationRouter(
             child_token=child_token,
             closing=self._closing,
@@ -90,6 +95,7 @@ class ApplicationInstanceBroker:
             )
         except BaseException:
             self._router.close()
+            self._startup_resources.close()
             raise
 
     @classmethod
@@ -135,10 +141,19 @@ class ApplicationInstanceBroker:
     def consume_restart_request(self) -> bool:
         """Return and clear the child's one pending supervised restart request."""
 
-        if not self._restart_requested.is_set():
-            return False
-        self._restart_requested.clear()
-        return True
+        with self._restart_lock:
+            if not self._restart_requested.is_set():
+                return False
+            self._restart_requested.clear()
+            return True
+
+    def register_startup_resource(self, cleanup: Callable[[], None]) -> str:
+        """Retain cleanup locally and return a generation-specific release identity."""
+        return self._startup_resources.register(cleanup)
+
+    def release_startup_resource(self, identity: str) -> bool:
+        """Release only the matching resource through its original process owner."""
+        return self._startup_resources.release(identity)
 
     def bind_startup_presenter(
         self,
@@ -154,6 +169,7 @@ class ApplicationInstanceBroker:
         if self._closing.is_set():
             return
         self._closing.set()
+        self._startup_resources.close()
         stopped = self._bindings.close()
         self._router.close()
         _LOGGER.info(
@@ -230,8 +246,27 @@ class ApplicationInstanceBroker:
                 self._router.register_child(connection)
                 return
             if kind == "restart":
-                self._restart_requested.set()
+                with self._restart_lock:
+                    self._restart_requested.set()
                 send_instance_message(connection, {"status": "accepted"})
+                return
+            if kind == "release-startup-resource":
+                identity = message.get("resource_identity")
+                released = isinstance(identity, str) and self.release_startup_resource(
+                    identity
+                )
+                send_instance_message(
+                    connection, {"status": "accepted" if released else "rejected"}
+                )
+                return
+            if kind == "supervisor-session":
+                send_instance_message(connection, {"status": "accepted"})
+                return
+            if kind == "consume-restart":
+                send_instance_message(
+                    connection,
+                    {"status": "accepted", "restart": self.consume_restart_request()},
+                )
                 return
             send_instance_message(connection, {"status": "rejected"})
         except (OSError, TimeoutError, ValueError, json.JSONDecodeError):

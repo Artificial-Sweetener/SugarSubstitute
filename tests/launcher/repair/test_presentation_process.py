@@ -42,8 +42,9 @@ from sugarsubstitute_shared.application_readiness import ApplicationReadinessSur
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
+@pytest.mark.parametrize("preparation_id", [None, "a" * 32])
 def test_repair_child_and_crash_runtime_survive_live_bundle_replacement(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, preparation_id: str | None
 ) -> None:
     """Retain diagnostics in the installation and load all native files independently."""
     layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
@@ -51,6 +52,8 @@ def test_repair_child_and_crash_runtime_survive_live_bundle_replacement(
         layout.root / ".repair/helper/1.2.3/session/bundle", target=WINDOWS_X64
     )
     staging = layout.root / ".repair/staging/1.2.3"
+    if preparation_id is not None:
+        staging = staging / preparation_id
     request = PreparedRepairRequest(
         layout.root,
         RepairScope.APPLICATION,
@@ -62,6 +65,7 @@ def test_repair_child_and_crash_runtime_survive_live_bundle_replacement(
         "a" * 64,
         "b" * 64,
         helper_bundle_dir=bundle.root,
+        preparation_id=preparation_id,
     )
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(bundle.executable_path))
@@ -139,6 +143,6 @@ def test_repair_child_and_crash_runtime_survive_live_bundle_replacement(
     assert observed == [
         (
             subprocess_path(bundle.launcher_ui_executable_path),
-            f"--repair-ui-request={subprocess_path(layout.root / '.repair/prepared.json')}",
+            f"--repair-ui-request={subprocess_path(request.request_path)}",
         )
     ]

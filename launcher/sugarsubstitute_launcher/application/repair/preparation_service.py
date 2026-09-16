@@ -20,6 +20,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
+from launcher.sugarsubstitute_launcher.application.repair.paths import (
+    RepairPreparationPaths,
+)
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.application.installation.models import (
@@ -148,7 +152,10 @@ class RepairPreparationService:
             raise RepairPreparationError(
                 f"Repair manifest has no launcher for {layout.target.key}."
             )
-        staging_root = layout.root / ".repair" / "staging" / version
+        preparation_id = uuid4().hex
+        paths = RepairPreparationPaths(layout.root, version, preparation_id)
+        staging_root = paths.staging_root
+        staging_root.mkdir(parents=True)
         staged_app = self._app_stager.stage(
             layout=layout,
             manifest=manifest,
@@ -168,6 +175,7 @@ class RepairPreparationService:
             destination_dir=staging_root / "launcher",
         )
         request = PreparedRepairRequest(
+            preparation_id=preparation_id,
             install_root=layout.root,
             scope=scope,
             version=version,
@@ -178,7 +186,7 @@ class RepairPreparationService:
             staged_app_sha256=directory_tree_sha256(staged_app.staging_dir),
             staged_launcher_sha256=directory_tree_sha256(staged_launcher),
         )
-        request_path = layout.root / ".repair" / "prepared.json"
+        request_path = paths.request_path
         request = request.with_helper_bundle(stage_independent_repair_bundle(request))
         request.save(request_path)
         return RepairPreparation(request=request, request_path=request_path)

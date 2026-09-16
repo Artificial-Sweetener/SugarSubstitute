@@ -24,8 +24,8 @@ import pytest
 
 from launcher.sugarsubstitute_launcher.application.repair.models import (
     ManagedComfyOwnership,
-    RepairDisposition,
 )
+from sugarsubstitute_shared.repair_recovery.disposition import RepairDisposition
 from launcher.sugarsubstitute_launcher.application.repair.plan_service import (
     RepairPlanError,
     RepairPlanService,

@@ -23,11 +23,9 @@ import os
 from pathlib import Path
 import secrets
 
-from launcher.sugarsubstitute_launcher.application.repair.models import (
-    RepairDisposition,
-)
-from launcher.sugarsubstitute_launcher.repair_errors import RepairTransactionError
-from launcher.sugarsubstitute_launcher.repair_journal_state import (
+from sugarsubstitute_shared.repair_recovery.disposition import RepairDisposition
+from sugarsubstitute_shared.repair_recovery.errors import RepairTransactionError
+from sugarsubstitute_shared.repair_recovery.state import (
     RepairJournal,
     RepairPathRecord,
     RepairPathState,

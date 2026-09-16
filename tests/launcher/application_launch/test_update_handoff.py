@@ -205,7 +205,9 @@ def test_launcher_bundle_update_handoff_does_not_start_the_old_app(
             return PreLaunchUpdateResult(
                 checked_manifest=True,
                 installed_update=True,
-                launcher_update_request_path=str(layout.launcher_update_request_path),
+                launcher_update_request_path=str(
+                    (layout.launcher_dir / "updates" / "fixture-request.json")
+                ),
             )
 
     monkeypatch.setattr(
@@ -234,4 +236,6 @@ def test_launcher_bundle_update_handoff_does_not_start_the_old_app(
     )
 
     assert closed == [True]
-    assert scheduled[0]["request_path"] == layout.launcher_update_request_path
+    assert scheduled[0]["request_path"] == (
+        layout.launcher_dir / "updates" / "fixture-request.json"
+    )

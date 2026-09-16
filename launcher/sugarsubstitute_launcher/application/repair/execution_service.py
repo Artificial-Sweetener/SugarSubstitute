@@ -18,6 +18,13 @@
 
 from __future__ import annotations
 
+from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
+
+from sugarsubstitute_shared.installation_mutation import (
+    InstallationMutationOwnership,
+    installation_mutation,
+)
+
 from pathlib import Path
 from launcher.sugarsubstitute_launcher.application.repair.progress import (
     RepairProgressObserver,
@@ -55,10 +62,15 @@ from launcher.sugarsubstitute_launcher.payload_staging import validate_app_paylo
 from launcher.sugarsubstitute_launcher.platforms import launcher_target_for_key
 from launcher.sugarsubstitute_launcher.repair_ownership import load_comfy_ownership
 from launcher.sugarsubstitute_launcher.repair_transaction import RepairTransaction
+from launcher.sugarsubstitute_launcher.application.repair.launcher_activation import (
+    PreparedLauncherRepair,
+)
 from launcher.sugarsubstitute_launcher.repair_attempt_artifacts import (
     stage_repair_attempt,
 )
-from sugarsubstitute_shared.launcher_update.staging import validate_staged_bundle
+from sugarsubstitute_shared.launcher_update.bundle_validation import (
+    validate_launcher_bundle,
+)
 from sugarsubstitute_shared.launcher_update.targets import (
     LauncherBundleTarget,
     launcher_bundle_target_for_key,
@@ -98,114 +110,120 @@ class RepairExecutionService:
         self._transaction = transaction or RepairTransaction()
         self._progress_observer = progress_observer
 
-    def execute_application(self, request: PreparedRepairRequest) -> CompletedRepair:
+    def execute_application(
+        self,
+        request: PreparedRepairRequest,
+        *,
+        mutation: InstallationMutationOwnership | None = None,
+    ) -> CompletedRepair:
         """Commit one prepared application repair or restore the prior install."""
 
-        if request.scope not in {
-            RepairScope.APPLICATION,
-            RepairScope.FULL_MANAGED_COMFY,
-        }:
-            raise RepairExecutionError(
-                f"Application executor cannot run scope: {request.scope.value}"
-            )
-        target = launcher_target_for_key(request.target_key)
-        layout = InstallLayout.from_root(request.install_root, target=target)
-        launcher_target = launcher_bundle_target_for_key(request.target_key)
-        ownership = load_comfy_ownership(layout)
-        repair_owned_nodes = _is_exact_managed_ownership(layout, ownership)
-        progress = RepairProgressTracker(
-            repair_nodes=repair_owned_nodes,
-            full_comfy=request.scope is RepairScope.FULL_MANAGED_COMFY,
-            observer=self._progress_observer,
-        )
-        progress.begin(RepairStage.VALIDATE_INPUT)
-        self._validate_staging(request=request, launcher_target=launcher_target)
-        request = stage_repair_attempt(request)
-        plan = RepairPlanService().build_application_plan(
-            layout=layout,
-            comfy_ownership=ownership if repair_owned_nodes else None,
-        )
-        replacements = [
-            RepairReplacement(
-                destination=layout.app_dir,
-                staged_path=request.staged_app_dir,
-            )
-        ]
-        replacements.extend(
-            RepairReplacement(
-                destination=layout.root / replacement_root,
-                staged_path=request.staged_launcher_dir / replacement_root,
-            )
-            for replacement_root in launcher_target.replacement_roots
-        )
-        runtime_result: list[RuntimeProvisioningOutcome] = []
-
-        def apply_repair() -> None:
-            """Provision every candidate component before final validation."""
-
-            progress.begin(RepairStage.PREPARE_RUNTIME)
-            runtime_result.append(self._runtime_provisioner.provision(layout=layout))
-            if repair_owned_nodes:
-                assert ownership is not None
-                progress.begin(RepairStage.RESTORE_NODES)
-                self._comfy_repairer.repair_owned_nodes(
-                    layout=layout,
-                    ownership=ownership,
-                )
-            progress.begin(RepairStage.SAVE_STATE)
-            self._state_writer.write(layout=layout, request=request)
-
-        def validate_repair() -> None:
-            """Prove the promoted release before the transaction can commit."""
-
-            progress.begin(RepairStage.VALIDATE_APPLICATION)
-            if (
-                len(runtime_result) != 1
-                or not runtime_result[0].python_executable.is_file()
-            ):
-                raise RepairExecutionError("Repaired runtime Python is unavailable.")
-            validate_app_payload(layout.app_dir)
-            if inspect_app_payload_version(layout.app_dir) != request.version:
+        with installation_mutation(
+            request.install_root, ownership=mutation
+        ) as operation:
+            if request.scope not in {
+                RepairScope.APPLICATION,
+                RepairScope.FULL_MANAGED_COMFY,
+            }:
                 raise RepairExecutionError(
-                    "Promoted application version does not match the repair request."
+                    f"Application executor cannot run scope: {request.scope.value}"
                 )
-            for replacement_root in launcher_target.replacement_roots:
-                if not (layout.root / replacement_root).exists():
-                    raise RepairExecutionError(
-                        f"Promoted launcher root is missing: {replacement_root}"
+            target = launcher_target_for_key(request.target_key)
+            layout = InstallLayout.from_root(request.install_root, target=target)
+            InstallationRecovery(layout).recover(ownership=operation)
+            launcher_target = launcher_bundle_target_for_key(request.target_key)
+            ownership = load_comfy_ownership(layout)
+            repair_owned_nodes = _is_exact_managed_ownership(layout, ownership)
+            progress = RepairProgressTracker(
+                repair_nodes=repair_owned_nodes,
+                full_comfy=request.scope is RepairScope.FULL_MANAGED_COMFY,
+                observer=self._progress_observer,
+            )
+            progress.begin(RepairStage.VALIDATE_INPUT)
+            self._validate_staging(request=request, launcher_target=launcher_target)
+            request = stage_repair_attempt(request)
+            plan = RepairPlanService().build_application_plan(
+                layout=layout,
+                comfy_ownership=ownership if repair_owned_nodes else None,
+            )
+            replacements = [
+                RepairReplacement(
+                    destination=layout.app_dir,
+                    staged_path=request.staged_app_dir,
+                )
+            ]
+            launcher_repair = PreparedLauncherRepair.prepare(request)
+            replacements.append(launcher_repair.replacement)
+            runtime_result: list[RuntimeProvisioningOutcome] = []
+
+            def apply_repair() -> None:
+                """Provision every candidate component before final validation."""
+
+                progress.begin(RepairStage.PREPARE_RUNTIME)
+                runtime_result.append(
+                    self._runtime_provisioner.provision(layout=layout)
+                )
+                if repair_owned_nodes:
+                    assert ownership is not None
+                    progress.begin(RepairStage.RESTORE_NODES)
+                    self._comfy_repairer.repair_owned_nodes(
+                        layout=layout,
+                        ownership=ownership,
                     )
-            if repair_owned_nodes:
-                assert ownership is not None
-                self._comfy_repairer.validate_owned_nodes(
+                progress.begin(RepairStage.SAVE_STATE)
+                self._state_writer.write(layout=layout, request=request)
+
+            def validate_repair() -> None:
+                """Prove the promoted release before the transaction can commit."""
+
+                progress.begin(RepairStage.VALIDATE_APPLICATION)
+                if (
+                    len(runtime_result) != 1
+                    or not runtime_result[0].python_executable.is_file()
+                ):
+                    raise RepairExecutionError(
+                        "Repaired runtime Python is unavailable."
+                    )
+                validate_app_payload(layout.app_dir)
+                if inspect_app_payload_version(layout.app_dir) != request.version:
+                    raise RepairExecutionError(
+                        "Promoted application version does not match the repair request."
+                    )
+                if repair_owned_nodes:
+                    assert ownership is not None
+                    self._comfy_repairer.validate_owned_nodes(
+                        layout=layout,
+                        ownership=ownership,
+                    )
+                self._state_writer.validate(layout=layout, request=request)
+                launcher_repair.validate()
+
+            progress.begin(RepairStage.RESTORE_APPLICATION)
+            quarantine = self._transaction.execute(
+                plan=plan,
+                replacements=tuple(replacements),
+                apply_repair=apply_repair,
+                validate_repair=validate_repair,
+                ownership=operation,
+            )
+            comfy_quarantine = (
+                self._execute_full_managed_comfy(
                     layout=layout,
                     ownership=ownership,
+                    progress=progress,
+                    candidate=request.staged_app_dir.parent / "full-comfy",
+                    mutation=operation,
                 )
-            self._state_writer.validate(layout=layout, request=request)
-
-        progress.begin(RepairStage.RESTORE_APPLICATION)
-        quarantine = self._transaction.execute(
-            plan=plan,
-            replacements=tuple(replacements),
-            apply_repair=apply_repair,
-            validate_repair=validate_repair,
-        )
-        comfy_quarantine = (
-            self._execute_full_managed_comfy(
-                layout=layout,
-                ownership=ownership,
-                progress=progress,
-                candidate=request.staged_app_dir.parent / "full-comfy",
+                if request.scope is RepairScope.FULL_MANAGED_COMFY
+                else None
             )
-            if request.scope is RepairScope.FULL_MANAGED_COMFY
-            else None
-        )
-        progress.complete()
-        return CompletedRepair(
-            version=request.version,
-            quarantine_root=quarantine,
-            repaired_managed_comfy_nodes=repair_owned_nodes,
-            comfy_quarantine_root=comfy_quarantine,
-        )
+            progress.complete()
+            return CompletedRepair(
+                version=request.version,
+                quarantine_root=quarantine,
+                repaired_managed_comfy_nodes=repair_owned_nodes,
+                comfy_quarantine_root=comfy_quarantine,
+            )
 
     def _execute_full_managed_comfy(
         self,
@@ -214,6 +232,7 @@ class RepairExecutionService:
         ownership: ManagedComfyOwnership | None,
         progress: RepairProgressTracker,
         candidate: Path,
+        mutation: InstallationMutationOwnership,
     ) -> Path:
         """Stage fresh core/runtime, then atomically preserve and promote boundaries."""
 
@@ -269,6 +288,7 @@ class RepairExecutionService:
             plan=plan,
             replacements=tuple(replacements),
             validate_repair=validate_comfy,
+            ownership=mutation,
         )
 
     @staticmethod
@@ -292,7 +312,7 @@ class RepairExecutionService:
             raise RepairExecutionError(
                 "Staged application version does not match the repair request."
             )
-        validate_staged_bundle(
+        validate_launcher_bundle(
             bundle_dir=request.staged_launcher_dir,
             target=launcher_target,
         )

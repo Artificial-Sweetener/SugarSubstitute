@@ -34,7 +34,7 @@ from launcher.sugarsubstitute_launcher.application.repair.plan_service import (
     RepairPlanService,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.repair_errors import RepairTransactionError
+from sugarsubstitute_shared.repair_recovery.errors import RepairTransactionError
 from launcher.sugarsubstitute_launcher.repair_transaction import (
     RepairTransaction,
 )

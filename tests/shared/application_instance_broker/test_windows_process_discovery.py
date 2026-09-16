@@ -29,6 +29,7 @@ import psutil  # type: ignore[import-untyped]
 import pytest
 
 from sugarsubstitute_shared import windows_application_processes as discovery
+from sugarsubstitute_shared import windows_process_security
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 from sugarsubstitute_shared.windows_process_security import (
     process_session_id,
@@ -78,9 +79,11 @@ def _install_processes(
     by_pid = {process.pid: process for process in processes}
     monkeypatch.setattr(psutil, "pids", lambda: list(by_pid))
     monkeypatch.setattr(psutil, "Process", lambda pid: by_pid[pid])
-    monkeypatch.setattr(discovery, "process_user_sid", lambda pid: by_pid[pid].user)
     monkeypatch.setattr(
-        discovery, "process_session_id", lambda pid: by_pid[pid].session
+        windows_process_security, "process_user_sid", lambda pid: by_pid[pid].user
+    )
+    monkeypatch.setattr(
+        windows_process_security, "process_session_id", lambda pid: by_pid[pid].session
     )
 
 
@@ -118,7 +121,7 @@ def test_discovery_selects_oldest_matching_earlier_instance(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Ignore unrelated installations, users, sessions, replacements and recycled PIDs."""
+    """Ignore unrelated installations, accounts, replacements and recycled PIDs."""
     executable = tmp_path / "installed" / "SugarSubstitute.exe"
     caller = _Process(os.getpid(), executable, 100.0)
     processes = [
@@ -127,7 +130,7 @@ def test_discovery_selects_oldest_matching_earlier_instance(
         _Process(2, executable, 20.0),
         _Process(3, tmp_path / "other" / "SugarSubstitute.exe", 1.0),
         _Process(4, executable, 1.0, user="user-b"),
-        _Process(5, executable, 1.0, session=2),
+        _Process(5, executable, 25.0, session=2),
         _Process(6, executable, 1.0, running=False),
         _Process(7, executable, 1.0, inaccessible=True),
         _Process(8, executable, 101.0),
@@ -137,6 +140,25 @@ def test_discovery_selects_oldest_matching_earlier_instance(
     assert discovery.find_previous_application_process(
         ExactExecutableProcessScope((executable,))
     ) == ProcessIdentity(2, 20.0)
+
+
+@pytest.mark.parametrize("owner_session", [1, 2])
+def test_discovery_keeps_same_account_owner_recoverable_across_sessions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, owner_session: int
+) -> None:
+    """Find the same installation owner even after the user changes desktop sessions."""
+    executable = tmp_path / "SugarSubstitute.exe"
+    _install_processes(
+        monkeypatch,
+        [
+            _Process(os.getpid(), executable, 100.0, session=1),
+            _Process(1, executable, 20.0, session=owner_session),
+            _Process(2, executable, 10.0, user="other-user", session=owner_session),
+        ],
+    )
+    assert discovery.find_previous_application_process(
+        ExactExecutableProcessScope((executable,))
+    ) == ProcessIdentity(1, 20.0)
 
 
 @pytest.mark.parametrize("caller_is_repair", [False, True])
@@ -156,7 +178,7 @@ def test_discovery_recognizes_both_installed_owner_roles(
             _Process(1, owner_executable, 20.0),
             _Process(2, tmp_path / "other" / "launcher-bin" / "Repair.exe", 1.0),
             _Process(3, repair, 1.0, user="other"),
-            _Process(4, repair, 1.0, session=2),
+            _Process(4, repair, 25.0, session=2),
         ],
     )
     assert discovery.find_previous_application_process(
@@ -165,7 +187,7 @@ def test_discovery_recognizes_both_installed_owner_roles(
 
 
 @pytest.mark.parametrize(
-    "mismatch", ["executable", "user", "session", "newer", "exited", "access"]
+    "mismatch", ["executable", "user", "newer", "exited", "access"]
 )
 def test_discovery_never_offers_an_ineligible_process(
     monkeypatch: pytest.MonkeyPatch,
@@ -180,8 +202,6 @@ def test_discovery_never_offers_an_ineligible_process(
         candidate.executable = tmp_path / "other" / "SugarSubstitute.exe"
     elif mismatch == "user":
         candidate.user = "other-user"
-    elif mismatch == "session":
-        candidate.session = 2
     elif mismatch == "newer":
         candidate.created = 101.0
     elif mismatch == "exited":

@@ -18,11 +18,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Self
-
-from sugarsubstitute_shared.windows_long_paths import operational_path
 
 from sugarsubstitute_shared.launcher_update.persistence import (
     read_json_object,
@@ -30,7 +28,6 @@ from sugarsubstitute_shared.launcher_update.persistence import (
 )
 
 LAUNCHER_INSTALLATION_SCHEMA_VERSION = 1
-LAUNCHER_UPDATE_REQUEST_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,73 +120,6 @@ class LauncherInstallationRecord:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class LauncherUpdateRequest:
-    """Describe one validated staged bundle awaiting detached promotion."""
-
-    install_root: Path
-    version: str
-    target_key: str
-    staged_bundle_dir: Path
-    relaunch: bool
-    wait_pid: int | None = None
-    schema_version: int = LAUNCHER_UPDATE_REQUEST_SCHEMA_VERSION
-
-    @classmethod
-    def load(cls, path: Path) -> Self:
-        """Load one pending launcher update request."""
-
-        payload = read_json_object(path)
-        if payload.get("schema_version") != LAUNCHER_UPDATE_REQUEST_SCHEMA_VERSION:
-            raise ValueError("Unsupported launcher update request schema.")
-        relaunch = payload.get("relaunch")
-        wait_pid = payload.get("wait_pid")
-        if not isinstance(relaunch, bool):
-            raise ValueError("Launcher update relaunch must be a boolean.")
-        if wait_pid is not None and (not isinstance(wait_pid, int) or wait_pid <= 0):
-            raise ValueError("Launcher update wait_pid must be a positive integer.")
-        return cls(
-            install_root=operational_path(_required_string(payload, "install_root")),
-            version=_required_string(payload, "version"),
-            target_key=_required_string(payload, "target_key"),
-            staged_bundle_dir=operational_path(
-                _required_string(payload, "staged_bundle_dir")
-            ),
-            relaunch=relaunch,
-            wait_pid=wait_pid,
-        )
-
-    def save(self, path: Path) -> None:
-        """Persist this pending request atomically."""
-
-        write_json_atomic(
-            path,
-            {
-                "schema_version": self.schema_version,
-                "install_root": str(self.install_root),
-                "relaunch": self.relaunch,
-                "staged_bundle_dir": str(self.staged_bundle_dir),
-                "target_key": self.target_key,
-                "version": self.version,
-                "wait_pid": self.wait_pid,
-            },
-        )
-
-    def with_process_behavior(
-        self,
-        *,
-        relaunch: bool,
-        wait_pid: int | None,
-    ) -> Self:
-        """Return this staged request with process handoff behavior."""
-
-        return replace(
-            self,
-            relaunch=relaunch,
-            wait_pid=wait_pid,
-        )
-
-
 def _required_string(payload: dict[str, Any], key: str) -> str:
     """Read one nonempty string from a decoded object."""
 
@@ -212,9 +142,7 @@ def _required_sha256(payload: dict[str, Any], key: str) -> str:
 
 __all__ = [
     "LAUNCHER_INSTALLATION_SCHEMA_VERSION",
-    "LAUNCHER_UPDATE_REQUEST_SCHEMA_VERSION",
     "LauncherBundleAsset",
     "LauncherInstallationRecord",
     "LauncherRelease",
-    "LauncherUpdateRequest",
 ]

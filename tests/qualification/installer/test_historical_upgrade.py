@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import subprocess
+import time
 from types import SimpleNamespace
 from typing import cast
 
@@ -288,10 +289,12 @@ def test_historical_installer_exercises_each_primary_phase(
         "tools.ci.drive_windows_installer._control_by_suffix",
         lambda _window, _suffix: _PrimaryButton(),
     )
+    process_sleep = time.sleep
     monkeypatch.setattr(
-        "tools.ci.drive_windows_installer.time.sleep",
-        lambda _seconds: None,
+        "tools.ci.drive_windows_installer.time",
+        SimpleNamespace(sleep=lambda _seconds: None, monotonic=time.monotonic),
     )
+    assert time.sleep is process_sleep
 
     onboarding_pid = _wait_for_onboarding_window(
         desktop=desktop,
