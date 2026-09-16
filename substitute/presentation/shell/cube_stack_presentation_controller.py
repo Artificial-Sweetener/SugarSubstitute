@@ -411,7 +411,9 @@ class CubeStackPresentationController(QObject):
             editor_surface.set_cube_stack_unavailable_progress(
                 frame.editor_gutter_progress
             )
-        self._splitter_controller.apply_stack_width_frame(frame.container_width)
+        self._splitter_controller.apply_stack_width_frame(
+            frame.container_width, resized_widget=self._container
+        )
         self._position_search_box()
 
     def _finish_transition(self, mode_value: object, generation: int) -> None:

@@ -62,13 +62,15 @@ def test_presentation_frames_transfer_from_fixed_origin_without_persisting(
     """Intermediate animation frames must neither drift nor replace durable sizes."""
 
     controller, _splitter = splitter_controller
+    details = _splitter.widget(0)
+    assert details is not None
     controller.remember_sizes((700, 500))
     origin = controller.current_sizes()
     assert controller.begin_stack_width_transition(300)
 
-    first = controller.apply_stack_width_frame(200)
-    second = controller.apply_stack_width_frame(100)
-    repeated = controller.apply_stack_width_frame(100)
+    first = controller.apply_stack_width_frame(200, resized_widget=details)
+    second = controller.apply_stack_width_frame(100, resized_widget=details)
+    repeated = controller.apply_stack_width_frame(100, resized_widget=details)
 
     assert first == (origin[0] - 100, origin[1] + 100)
     assert second == (origin[0] - 200, origin[1] + 200)
@@ -82,13 +84,15 @@ def test_retarget_uses_live_geometry_as_new_origin(
     """A reversal should continue from the rendered midpoint without a jump."""
 
     controller, _splitter = splitter_controller
+    details = _splitter.widget(0)
+    assert details is not None
     origin = controller.current_sizes()
     controller.begin_stack_width_transition(300)
-    midpoint = controller.apply_stack_width_frame(150)
+    midpoint = controller.apply_stack_width_frame(150, resized_widget=details)
 
     assert controller.begin_stack_width_transition(150)
     assert controller.current_sizes() == midpoint
-    assert controller.apply_stack_width_frame(300) == origin
+    assert controller.apply_stack_width_frame(300, resized_widget=details) == origin
 
 
 def test_direct_geometry_normalizes_to_preferred_cube_geometry_for_snapshot(
