@@ -193,6 +193,35 @@ def test_recovery_refuses_to_end_itself(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.platforms("windows")
+@pytest.mark.parametrize("owner_session", [2, None])
+def test_automatic_recovery_preserves_other_or_unverified_sessions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, owner_session: int | None
+) -> None:
+    """Require same-session native evidence even when process discovery succeeds."""
+    from sugarsubstitute_shared import windows_process_security
+
+    executable = tmp_path / "SugarSubstitute.exe"
+    process = _Process(executable)
+    _bind_process(monkeypatch, process)
+
+    def session_id(pid: int) -> int:
+        """Model another desktop or unavailable native session metadata."""
+        if pid != 4401:
+            return 1
+        if owner_session is None:
+            raise OSError("Session query failed")
+        return owner_session
+
+    monkeypatch.setattr(windows_process_security, "process_session_id", session_id)
+    assert not terminate_verified_process(
+        ProcessIdentity(4401, 123.0),
+        scope=ExactExecutableProcessScope((executable,)),
+    )
+    assert not process.terminated
+    assert not process.killed
+
+
 def test_recovery_refuses_copied_image_running_for_another_installation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -264,30 +293,25 @@ def test_recovery_terminates_only_reverified_exact_owner(
     assert process.wait_count == (2 if hang_on_terminate else 1)
 
 
-@pytest.mark.platforms("windows")
-@pytest.mark.parametrize("owner_session", [2, None])
-def test_automatic_recovery_preserves_other_or_unverified_sessions(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, owner_session: int | None
+@pytest.mark.parametrize(
+    "request_kind", ["attempt", "foreign-root", "bad-identity", "other-file"]
+)
+def test_repair_scope_recognizes_only_owned_attempt_requests(
+    tmp_path: Path, request_kind: str
 ) -> None:
-    """Require same-session native evidence even when process discovery succeeds."""
-    from sugarsubstitute_shared import windows_process_security
-
-    executable = tmp_path / "SugarSubstitute.exe"
-    process = _Process(executable)
-    _bind_process(monkeypatch, process)
-
-    def session_id(pid: int) -> int:
-        """Model another desktop or unavailable native session metadata."""
-        if pid != 4401:
-            return 1
-        if owner_session is None:
-            raise OSError("Session query failed")
-        return owner_session
-
-    monkeypatch.setattr(windows_process_security, "process_session_id", session_id)
-    assert not terminate_verified_process(
-        ProcessIdentity(4401, 123.0),
-        scope=ExactExecutableProcessScope((executable,)),
+    """Keep a retired attempt recoverable without accepting arbitrary helper work."""
+    layout = InstallLayout.from_root(tmp_path / "installation", target=WINDOWS_X64)
+    image = (
+        layout.root / ".repair/helper/1.2.3/session-owned/bundle/SugarSubstitute.exe"
     )
-    assert not process.terminated
-    assert not process.killed
+    request = layout.root / ".repair/staging/1.2.3" / ("a" * 32) / "request.json"
+    if request_kind == "foreign-root":
+        request = tmp_path / "other" / request.relative_to(layout.root)
+    elif request_kind == "bad-identity":
+        request = layout.root / ".repair/staging/1.2.3/not-an-attempt/request.json"
+    elif request_kind == "other-file":
+        request = request.with_name("unrelated.json")
+    scope = InstalledInvocationScope(layout)
+    assert scope.accepts_invocation(
+        image, (str(image), f"--execute-repair-request={request}"), layout.root
+    ) == (request_kind == "attempt")

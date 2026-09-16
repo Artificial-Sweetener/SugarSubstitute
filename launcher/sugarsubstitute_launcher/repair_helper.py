@@ -14,12 +14,24 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Execute and retire one authoritative request beneath its lifecycle owner."""
+"""Own recovery, execution, and retirement of one prepared repair without Qt."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from sugarsubstitute_shared.installation_mutation import (
+    InstallationMutationOwnership,
+    installation_mutation,
+)
+
+from typing import Protocol
 from pathlib import Path
+from collections.abc import Callable
+
+from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.application.repair.progress import (
+    RepairProgressObserver,
+)
 
 from launcher.sugarsubstitute_launcher.application.repair.execution_result import (
     CompletedRepair,
@@ -37,32 +49,53 @@ class RepairHelperError(RuntimeError):
     """Report an invalid helper request or incomplete repair handoff."""
 
 
-RepairExecutor = Callable[[PreparedRepairRequest], CompletedRepair]
+class RepairExecutor(Protocol):
+    """Execute one request within the explicitly retained installation operation."""
+
+    def __call__(
+        self, request: PreparedRepairRequest, *, mutation: InstallationMutationOwnership
+    ) -> CompletedRepair:
+        """Return the outcome without establishing a competing operation."""
+        ...
 
 
 def run_prepared_repair(
     request_path: Path,
     *,
     executor: RepairExecutor | None = None,
+    ownership: InstallationMutationOwnership | None = None,
+    progress_observer: RepairProgressObserver | None = None,
+    output_callback: Callable[[str], None] | None = None,
 ) -> CompletedRepair:
-    """Execute under established ownership and retire the request only after success."""
+    """Recover before constructing adapters and retire intent only after commit.
+
+    Keep installation authority in this execution boundary so presentation can
+    supervise or replace the execution process without implementing repair rules.
+    """
 
     request = load_prepared_repair_request(request_path)
-    execute = (
-        executor
-        or build_repair_execution_service(
-            target=launcher_target_for_key(request.target_key)
-        ).execute_application
-    )
-    result = execute(request)
-    request_path.unlink(missing_ok=True)
-    return result
+    with installation_mutation(request.install_root, ownership=ownership) as operation:
+        target = launcher_target_for_key(request.target_key)
+        InstallationRecovery(
+            InstallLayout.from_root(request.install_root, target=target)
+        ).recover(ownership=operation)
+        execute = (
+            executor
+            or build_repair_execution_service(
+                target=target,
+                progress_observer=progress_observer,
+                output_callback=output_callback,
+            ).execute_application
+        )
+        result = execute(request, mutation=operation)
+        request_path.unlink(missing_ok=True)
+        return result
 
 
 def load_prepared_repair_request(request_path: Path) -> PreparedRepairRequest:
     """Require the installation's authoritative handoff path before accepting work."""
     request = PreparedRepairRequest.load(request_path)
-    expected_path = request.install_root / ".repair" / "prepared.json"
+    expected_path = request.request_path
     if request_path.resolve() != expected_path.resolve():
         raise RepairHelperError(
             f"Repair request is outside its authoritative path: {request_path}"

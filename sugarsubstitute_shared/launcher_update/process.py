@@ -22,7 +22,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from sugarsubstitute_shared.launcher_update.models import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
 from sugarsubstitute_shared.subprocess_environment import (
     clean_frozen_parent_environment,
     standard_child_process_dll_search_path,
@@ -44,12 +44,16 @@ def schedule_launcher_update(
 ) -> int:
     """Persist process behavior and start the detached replacement helper."""
 
+    from sugarsubstitute_shared.process_identity import capture_process_identity
+
     request_path = operational_path(request_path)
     runtime_python = operational_path(runtime_python)
     app_dir = operational_path(app_dir)
     request = LauncherUpdateRequest.load(request_path).with_process_behavior(
         relaunch=relaunch,
-        wait_pid=wait_pid,
+        wait_identity=capture_process_identity(wait_pid)
+        if wait_pid is not None
+        else None,
     )
     request.save(request_path)
     environment = clean_frozen_parent_environment()

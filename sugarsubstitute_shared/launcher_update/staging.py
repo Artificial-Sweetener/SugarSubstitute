@@ -21,6 +21,8 @@ from __future__ import annotations
 import hashlib
 import shutil
 from pathlib import Path
+from uuid import uuid4
+from tempfile import TemporaryDirectory
 
 from sugarsubstitute_shared.launcher_version import safe_launcher_version
 from sugarsubstitute_shared.launcher_update.archive import safe_extract_zip
@@ -29,14 +31,14 @@ from sugarsubstitute_shared.launcher_update.downloader import (
 )
 from sugarsubstitute_shared.launcher_update.models import (
     LauncherBundleAsset,
-    LauncherUpdateRequest,
+)
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.bundle_validation import (
+    LauncherBundleValidationError,
+    validate_launcher_bundle,
 )
 from sugarsubstitute_shared.launcher_update.targets import LauncherBundleTarget
 from sugarsubstitute_shared.windows_long_paths import operational_path
-
-
-class LauncherBundleValidationError(RuntimeError):
-    """Report a launcher bundle that does not match its target contract."""
 
 
 class LauncherBundleStager:
@@ -63,14 +65,18 @@ class LauncherBundleStager:
 
         resolved_root = operational_path(install_root).resolve()
         update_root = resolved_root / "launcher" / "updates"
+        attempt_root = (
+            update_root / "staging" / safe_launcher_version(version) / uuid4().hex
+        )
+        attempt_root.mkdir(parents=True)
         version_root = self.stage_bundle(
             install_root=resolved_root,
             version=version,
             target=target,
             asset=asset,
-            destination_dir=(update_root / "staging" / safe_launcher_version(version)),
+            destination_dir=attempt_root / "payload",
         )
-        request_path = update_root / "pending.json"
+        request_path = attempt_root / "request.json"
         LauncherUpdateRequest(
             install_root=resolved_root,
             version=version,
@@ -100,58 +106,18 @@ class LauncherBundleStager:
                 f"Launcher staging path escapes its installation: {destination}"
             )
         update_root = resolved_root / "launcher" / "updates"
-        archive_path = update_root / "downloads" / asset.filename
-        self._downloader.download(asset=asset, destination=archive_path)
-        _verify_sha256(archive_path, expected=asset.sha256)
-        if destination.exists():
-            shutil.rmtree(destination)
-        safe_extract_zip(zip_path=archive_path, destination_dir=destination)
-        normalize_staged_bundle_permissions(bundle_dir=destination, target=target)
-        validate_staged_bundle(bundle_dir=destination, target=target)
+        download_root = update_root / "downloads"
+        download_root.mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(prefix="bundle-", dir=download_root) as temporary:
+            archive_path = Path(temporary) / "bundle.zip"
+            self._downloader.download(asset=asset, destination=archive_path)
+            _verify_sha256(archive_path, expected=asset.sha256)
+            if destination.exists():
+                shutil.rmtree(destination)
+            safe_extract_zip(zip_path=archive_path, destination_dir=destination)
+            normalize_staged_bundle_permissions(bundle_dir=destination, target=target)
+            validate_launcher_bundle(bundle_dir=destination, target=target)
         return destination
-
-
-def validate_staged_bundle(
-    *,
-    bundle_dir: Path,
-    target: LauncherBundleTarget,
-) -> None:
-    """Validate required paths and reject unexpected top-level content."""
-
-    if not (bundle_dir / target.executable_relative_path).is_file():
-        raise LauncherBundleValidationError(
-            "Launcher bundle is missing its target executable."
-        )
-    if not (bundle_dir / target.support_relative_path).is_dir():
-        raise LauncherBundleValidationError(
-            "Launcher bundle is missing its runtime support directory."
-        )
-    missing_files = [
-        str(path)
-        for path in target.required_file_relative_paths
-        if not (bundle_dir / path).is_file()
-    ]
-    if missing_files:
-        raise LauncherBundleValidationError(
-            "Launcher bundle is missing required files: " + ", ".join(missing_files)
-        )
-    missing_roots = [
-        str(path)
-        for path in target.replacement_roots
-        if not (bundle_dir / path).exists()
-    ]
-    if missing_roots:
-        raise LauncherBundleValidationError(
-            "Launcher bundle is missing replacement roots: " + ", ".join(missing_roots)
-        )
-    allowed_roots = {path.parts[0] for path in target.replacement_roots}
-    unexpected = sorted(
-        child.name for child in bundle_dir.iterdir() if child.name not in allowed_roots
-    )
-    if unexpected:
-        raise LauncherBundleValidationError(
-            f"Launcher bundle contains unexpected roots: {', '.join(unexpected)}"
-        )
 
 
 def normalize_staged_bundle_permissions(
@@ -183,7 +149,5 @@ def _verify_sha256(path: Path, *, expected: str) -> None:
 
 __all__ = [
     "LauncherBundleStager",
-    "LauncherBundleValidationError",
     "normalize_staged_bundle_permissions",
-    "validate_staged_bundle",
 ]

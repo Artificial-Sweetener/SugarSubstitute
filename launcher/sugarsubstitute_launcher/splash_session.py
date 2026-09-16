@@ -45,6 +45,9 @@ from sugarsubstitute_shared.launch_splash.session import (
 from sugarsubstitute_shared.launch_splash.session import validate_splash_session_spec
 
 if TYPE_CHECKING:
+    from launcher.sugarsubstitute_launcher.startup_splash_session import (
+        StartupSplashSession,
+    )
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 
 
@@ -315,7 +318,7 @@ def _parse_endpoint(endpoint: str) -> tuple[str, int]:
 
 def append_splash_session_args(
     command: Sequence[str],
-    session: LauncherSplashSession | None,
+    session: StartupSplashSession | None,
 ) -> list[str]:
     """Append splash handoff arguments when a launcher session exists."""
 

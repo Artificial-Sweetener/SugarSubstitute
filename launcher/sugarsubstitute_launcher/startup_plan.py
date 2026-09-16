@@ -32,6 +32,7 @@ from launcher.sugarsubstitute_launcher.platforms import (
     detect_launcher_target,
 )
 from sugarsubstitute_shared.windows_long_paths import operational_path
+from sugarsubstitute_shared.repair_recovery.journal import PENDING_JOURNAL
 
 
 _MAX_PACKAGED_ROOT_ANCESTORS = 6
@@ -175,7 +176,10 @@ def resolve_startup_candidate(
         if candidate_layout.root in checked_roots:
             continue
         checked_roots.add(candidate_layout.root)
-        if candidate_layout.config_path.is_file():
+        if (
+            candidate_layout.config_path.is_file()
+            or (candidate_layout.root / PENDING_JOURNAL).is_file()
+        ):
             return LauncherStartupCandidate(
                 layout=candidate_layout,
                 installed_config_found=candidate_layout.config_path.is_file(),

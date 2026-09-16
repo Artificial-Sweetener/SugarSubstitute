@@ -24,6 +24,7 @@ from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
 from launcher.sugarsubstitute_launcher.installer import LayoutInstaller
 from launcher.sugarsubstitute_launcher.launcher_bundle import LauncherBundleInstaller
 from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
@@ -37,6 +38,8 @@ from launcher.sugarsubstitute_launcher.release_sources import (
     release_source_config_for,
 )
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
+from launcher.sugarsubstitute_launcher.update_activation import PendingUpdateActivation
+from sugarsubstitute_shared.installation_mutation import installation_mutation
 
 
 ProcessStarter = Callable[[Sequence[str]], None]
@@ -89,16 +92,21 @@ class FirstRunInstaller:
     ) -> DownloadedLauncherInstallResult:
         """Install the permanent launcher bundle into the install root and hand off."""
 
-        layout_result = self._layout_installer.prepare(install_root)
-        manifest = release_source.load_manifest()
-        self._launcher_bundle_installer.install(
-            layout=layout_result.layout,
-            manifest=manifest,
-        )
-        continue_command = build_continue_install_command(
-            layout=layout_result.layout,
-            handoff_geometry=handoff_geometry,
-        )
+        with installation_mutation(install_root) as operation:
+            InstallationRecovery(InstallLayout.from_root(install_root)).recover(
+                ownership=operation
+            )
+            layout_result = self._layout_installer.prepare(install_root)
+            manifest = release_source.load_manifest()
+            self._launcher_bundle_installer.install(
+                layout=layout_result.layout,
+                manifest=manifest,
+                ownership=operation,
+            )
+            continue_command = build_continue_install_command(
+                layout=layout_result.layout,
+                handoff_geometry=handoff_geometry,
+            )
         if launch_installed:
             self._process_starter(continue_command)
         return DownloadedLauncherInstallResult(
@@ -114,23 +122,34 @@ class FirstRunInstaller:
     ) -> ContinuedInstallResult:
         """Install the latest app payload and return the app launch command."""
 
-        layout.create_base_directories()
-        manifest = release_source.load_manifest()
-        payload_result = self._payload_installer.install(
-            layout=layout, manifest=manifest
-        )
-        LauncherConfig.from_layout(
-            layout=layout,
-            channel=manifest.channel,
-            release_source=release_source_config_for(release_source),
-            runtime_setup_pending=True,
-        ).save(layout.config_path)
-        LauncherUpdateState.load(layout.state_path).with_installed_payload(
-            version=payload_result.version,
-            channel=manifest.channel,
-        ).save(layout.state_path)
-        return ContinuedInstallResult(
-            layout=layout,
-            app_command=build_app_launch_command(layout=layout),
-            app_version=payload_result.version,
-        )
+        with installation_mutation(layout.root) as operation:
+            InstallationRecovery(layout).recover(ownership=operation)
+            layout.create_base_directories()
+            manifest = release_source.load_manifest()
+            activation = PendingUpdateActivation.begin(
+                layout=layout,
+                operation=operation,
+                successful_state=LauncherUpdateState.load(
+                    layout.state_path
+                ).with_installed_payload(
+                    version=manifest.version, channel=manifest.channel
+                ),
+                successful_config=LauncherConfig.from_layout(
+                    layout=layout,
+                    channel=manifest.channel,
+                    release_source=release_source_config_for(release_source),
+                    runtime_setup_pending=True,
+                ),
+            )
+            try:
+                payload_result = self._payload_installer.install(
+                    activation=activation, manifest=manifest
+                )
+                activation.commit()
+            finally:
+                activation.rollback()
+            return ContinuedInstallResult(
+                layout=layout,
+                app_command=build_app_launch_command(layout=layout),
+                app_version=payload_result.version,
+            )

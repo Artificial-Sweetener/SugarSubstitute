@@ -22,9 +22,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from launcher.sugarsubstitute_launcher.application.repair.models import (
-    RepairDisposition,
-)
+from sugarsubstitute_shared.repair_recovery.disposition import RepairDisposition
 
 
 class RepairPhase(str, Enum):

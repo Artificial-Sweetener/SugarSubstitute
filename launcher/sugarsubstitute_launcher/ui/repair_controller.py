@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Callable
 
-from PySide6.QtCore import QObject, QThread, Slot
+from PySide6.QtCore import QCoreApplication, QObject, QThread, Slot
 
 from launcher.sugarsubstitute_launcher.application.repair.progress import RepairProgress
 from launcher.sugarsubstitute_launcher.application.repair.request import (
@@ -57,6 +57,7 @@ class RepairController(QObject):
         self._succeeded = False
         self._failure = ""
         self._close_pending = False
+        self._retire_host = False
         self._details: deque[str] = deque(maxlen=500)
         window.close_requested.connect(self._defer_close)
         window.primary_requested.connect(self._primary_action)
@@ -64,7 +65,7 @@ class RepairController(QObject):
     @Slot()
     def start(self) -> None:
         """Start one attempt only after the host surface has painted."""
-        if self._thread is not None:
+        if self._thread is not None or self._retire_host:
             return
         self._succeeded = False
         self._failure = ""
@@ -79,6 +80,7 @@ class RepairController(QObject):
         worker.output.connect(self._output)
         worker.succeeded.connect(self._success)
         worker.failed.connect(self._failed)
+        worker.fatal_failure.connect(self._fatal_failure)
         worker.finished.connect(worker.deleteLater)
         worker.finished.connect(thread.quit)
         thread.finished.connect(self._finished)
@@ -130,6 +132,10 @@ class RepairController(QObject):
         self._thread = None
         self._worker = None
         self._window.set_running(False)
+        if self._retire_host:
+            self._window.close()
+            QCoreApplication.exit(1)
+            return
         if self._close_pending:
             self._window.close()
             return
@@ -142,8 +148,15 @@ class RepairController(QObject):
 
     @Slot()
     def _defer_close(self) -> None:
-        """Remember the user's close choice until transaction work is finished."""
+        """Cancel the owned execution and close only after native cleanup completes."""
         self._close_pending = True
+        if self._worker is not None:
+            self._worker.request_cancel()
+
+    @Slot()
+    def _fatal_failure(self) -> None:
+        """Delegate failed native cleanup to the host's outer process-family owner."""
+        self._retire_host = True
 
     @Slot()
     def _primary_action(self) -> None:

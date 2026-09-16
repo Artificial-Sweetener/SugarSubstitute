@@ -61,9 +61,7 @@ class IndependentRepairPresentation:
         bundle = InstallLayout.from_root(request.helper_bundle_dir, target=target)
         command = build_launcher_ui_command(
             bundle,
-            (
-                f"--repair-ui-request={subprocess_path(installation.root / '.repair' / 'prepared.json')}",
-            ),
+            (f"--repair-ui-request={subprocess_path(request.request_path)}",),
         )
         crash = ApplicationCrashSupervisor(
             reporter_starter=partial(present_crash_report, bundle_layout=bundle),

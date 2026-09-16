@@ -49,7 +49,12 @@
       <translation>취소</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="187"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="138"></location>
+      <source>Cancel repair</source>
+      <translation>복구 취소</translation>
+    </message>
+    <message>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="191"></location>
       <source>Checking for SugarSubstitute updates.</source>
       <translation>SugarSubstitute 업데이트를 확인하는 중입니다.</translation>
     </message>
@@ -94,14 +99,9 @@
       <translation>언어 선택</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="164"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="167"></location>
       <source>Close</source>
       <translation>닫기</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="138"></location>
-      <source>Close when finished</source>
-      <translation>완료 후 닫기</translation>
     </message>
     <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/installer_presentation.py" line="50"></location>
@@ -144,7 +144,7 @@
       <translation>이 설치 프로그램의 정확한 릴리스를 다운로드하고 검증하고 있습니다. 현재 설치는 아직 변경되지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="76"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="78"></location>
       <source>Exit</source>
       <translation>종료</translation>
     </message>
@@ -189,7 +189,7 @@
       <translation>런타임 설치</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="284"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="293"></location>
       <source>Installed SugarSubstitute %1.</source>
       <translation>SugarSubstitute %1을(를) 설치했습니다.</translation>
     </message>
@@ -244,7 +244,7 @@
       <translation>언어</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="78"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="80"></location>
       <source>Launcher logs: %1</source>
       <translation>런처 로그: %1</translation>
     </message>
@@ -259,12 +259,12 @@
       <translation>다른 항목은 변경되지 않았습니다. 보고서를 확인한 다음 이 단계를 다시 시도하세요.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="173"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="176"></location>
       <source>Open SugarSubstitute</source>
       <translation>SugarSubstitute 열기</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="72"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="74"></location>
       <source>Open launcher logs</source>
       <translation>런처 로그 열기</translation>
     </message>
@@ -344,7 +344,7 @@
       <translation>Substitute 및 관리형 ComfyUI 복구</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="169"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="172"></location>
       <source>Repair complete</source>
       <translation>복구 완료</translation>
     </message>
@@ -369,7 +369,7 @@
       <translation>복구 모드가 요청되었습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="175"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="178"></location>
       <source>Repair needs attention</source>
       <translation>복구 확인 필요</translation>
     </message>
@@ -399,7 +399,7 @@
       <translation>애플리케이션 복원 중</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="69"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/instance_recovery_dialog.py" line="71"></location>
       <source>Retry</source>
       <translation>다시 시도</translation>
     </message>
@@ -414,7 +414,7 @@
       <translation>복구 검토</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="177"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="180"></location>
       <source>Review the details, then try the repair again.</source>
       <translation>세부 정보를 확인한 후 복구를 다시 시도하세요.</translation>
     </message>
@@ -519,6 +519,11 @@
       <translation>SugarSubstitute 런처를 %1(으)로 계속 업데이트하고 있습니다—네트워크 또는 느린 저장 장치로 인해 지연되고 있을 수 있습니다</translation>
     </message>
     <message>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="154"></location>
+      <source>Stopping repair. This window will close when the repair process has stopped.</source>
+      <translation>복구를 중지하고 있습니다. 복구 프로세스가 중지되면 이 창이 닫힙니다.</translation>
+    </message>
+    <message>
       <location filename="../launcher/sugarsubstitute_launcher/ui/main_window.py" line="212"></location>
       <source>SugarSubstitute Setup</source>
       <translation>SugarSubstitute 설정</translation>
@@ -539,7 +544,7 @@
       <translation>다른 Windows 세션에서 SugarSubstitute가 열려 있습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="171"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="174"></location>
       <source>SugarSubstitute is ready to open.</source>
       <translation>SugarSubstitute를 열 준비가 되었습니다.</translation>
     </message>
@@ -559,7 +564,7 @@
       <translation>기존 SugarSubstitute 인스턴스가 사용 가능한 창을 표시하지 않았습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="370"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="382"></location>
       <source>The launcher will restart to finish updating.</source>
       <translation>업데이트를 마치기 위해 실행기가 다시 시작됩니다.</translation>
     </message>
@@ -569,12 +574,7 @@
       <translation>처음에는 시간이 걸릴 수 있습니다.</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="154"></location>
-      <source>This window will close when repair finishes.</source>
-      <translation>복구가 완료되면 이 창이 닫힙니다.</translation>
-    </message>
-    <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="179"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_progress_view.py" line="182"></location>
       <source>Try again</source>
       <translation>다시 시도</translation>
     </message>

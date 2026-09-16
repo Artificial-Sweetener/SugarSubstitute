@@ -19,7 +19,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 from threading import Event
+
+import pytest
+from collections.abc import Callable
 
 from PySide6.QtCore import QCoreApplication, QEvent, QThread, Slot
 from PySide6.QtWidgets import QApplication, QPushButton
@@ -32,6 +36,11 @@ from launcher.sugarsubstitute_launcher.ui.repair_controller import RepairControl
 from launcher.sugarsubstitute_launcher.ui.repair_window import RepairWindow
 from launcher.sugarsubstitute_launcher.ui.repair_worker import RepairWorker
 from tests.support.qt.semantic_wait import wait_for_qt_condition
+from launcher.sugarsubstitute_launcher.repair_execution_supervisor import (
+    RepairExecutionSupervisor,
+)
+from sugarsubstitute_shared.installation_mutation import installation_mutation
+from launcher.sugarsubstitute_launcher.application.repair.progress import RepairProgress
 
 
 def _request(root: Path) -> PreparedRepairRequest:
@@ -58,6 +67,102 @@ def _dispose(window: RepairWindow) -> None:
     window.close()
     window.deleteLater()
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+@pytest.mark.platforms("windows")
+def test_close_cancels_frozen_native_repair_before_window_retires(
+    tmp_path: Path, qt_application_owner: QApplication
+) -> None:
+    """Close through the production controller and reclaim a frozen fixture's lock."""
+    supervisor = RepairExecutionSupervisor(
+        command_builder=lambda request: (
+            sys.executable,
+            "-m",
+            "tests.launcher.repair.execution_process_fixture",
+            str(request.install_root),
+        )
+    )
+    started = Event()
+
+    def create(request: PreparedRepairRequest) -> RepairWorker:
+        """Replace only the executable boundary, retaining the production worker."""
+        worker = RepairWorker(request, supervisor=supervisor)
+        worker.progress.connect(lambda _value: started.set())
+        return worker
+
+    window = RepairWindow()
+    controller = RepairController(window, _request(tmp_path), worker_factory=create)
+    window.show()
+    try:
+        controller.start()
+        wait_for_qt_condition(started.is_set)
+        assert not supervisor.safe_to_close
+        assert not window.close()
+        wait_for_qt_condition(lambda: not window.isVisible())
+        assert supervisor.safe_to_close
+        with installation_mutation(tmp_path) as ownership:
+            ownership.validate(tmp_path)
+    finally:
+        supervisor.request_cancel()
+        _dispose(window)
+
+
+def test_unconfirmed_cleanup_retires_host_without_user_retry(
+    tmp_path: Path,
+    qt_application_owner: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Retire the disposable UI host so its outer native owner reclaims the family."""
+    started, cancelled = Event(), Event()
+    attempts: list[RepairWorker] = []
+    exits: list[int] = []
+    monkeypatch.setattr(QCoreApplication, "exit", exits.append)
+
+    class UnconfirmedExecution(RepairExecutionSupervisor):
+        """Control only the external execution capability observed by the Qt adapter."""
+
+        @property
+        def safe_to_close(self) -> bool:
+            """Expose confirmation independently of a worker function returning."""
+            return False
+
+        def request_cancel(self) -> None:
+            """Record UI intent without confirming native termination."""
+            cancelled.set()
+
+        def run(
+            self,
+            request: PreparedRepairRequest,
+            *,
+            progress_observer: Callable[[RepairProgress], None],
+            output_callback: Callable[[str], None],
+        ) -> None:
+            """Return a cleanup error while the process boundary remains unconfirmed."""
+            started.set()
+            assert cancelled.wait(10)
+            raise OSError("Fixture native exit could not be confirmed")
+
+    def create(request: PreparedRepairRequest) -> RepairWorker:
+        """Retain attempts so another repair cannot silently replace blocked cleanup."""
+        worker = RepairWorker(request, supervisor=UnconfirmedExecution())
+        attempts.append(worker)
+        return worker
+
+    window = RepairWindow()
+    controller = RepairController(window, _request(tmp_path), worker_factory=create)
+    window.show()
+    try:
+        controller.start()
+        wait_for_qt_condition(started.is_set)
+        assert not window.close()
+        wait_for_qt_condition(lambda: not window.isVisible())
+        assert exits == [1]
+        controller.start()
+        assert len(attempts) == 1
+    finally:
+        for worker in attempts:
+            worker.request_cancel()
+        _dispose(window)
 
 
 def test_close_waits_for_active_worker_completion(

@@ -22,15 +22,13 @@ import logging
 
 from PySide6.QtCore import QObject, Signal, Slot
 
-from launcher.sugarsubstitute_launcher.application.repair.composition import (
-    build_repair_execution_service,
-)
 from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
 )
-from launcher.sugarsubstitute_launcher.platforms import launcher_target_for_key
-from launcher.sugarsubstitute_launcher.repair_recovery import recover_interrupted_repair
-from launcher.sugarsubstitute_launcher.repair_helper import run_prepared_repair
+from launcher.sugarsubstitute_launcher.repair_execution_supervisor import (
+    RepairExecutionCancelled,
+    RepairExecutionSupervisor,
+)
 from launcher.sugarsubstitute_launcher.ui.installer_errors import (
     launcher_failure_detail,
 )
@@ -46,27 +44,37 @@ class RepairWorker(QObject):
     output = Signal(str)
     succeeded = Signal()
     failed = Signal(str)
+    cancelled = Signal()
+    fatal_failure = Signal()
     finished = Signal()
 
-    def __init__(self, request: PreparedRepairRequest) -> None:
-        """Retain immutable retry inputs for one worker attempt."""
+    def __init__(
+        self,
+        request: PreparedRepairRequest,
+        *,
+        supervisor: RepairExecutionSupervisor | None = None,
+    ) -> None:
+        """Retain one process owner until every terminal resource has been released."""
         super().__init__()
         self._request = request
+        self._supervisor = supervisor or RepairExecutionSupervisor()
+
+    def request_cancel(self) -> None:
+        """Accept UI-thread cancellation without performing native work on that thread."""
+        self._supervisor.request_cancel()
 
     @Slot()
     def run(self) -> None:
-        """Recover interrupted mutations before executing a fresh candidate."""
+        """Adapt the Qt-free execution owner to one terminal signal sequence."""
         try:
-            recover_interrupted_repair(self._request.install_root)
-            service = build_repair_execution_service(
-                target=launcher_target_for_key(self._request.target_key),
+            self._supervisor.run(
+                self._request,
                 progress_observer=self.progress.emit,
                 output_callback=self.output.emit,
             )
-            run_prepared_repair(
-                self._request.install_root / ".repair" / "prepared.json",
-                executor=service.execute_application,
-            )
+        except RepairExecutionCancelled:
+            _LOGGER.info("Repair execution cancelled after owned process cleanup")
+            self.cancelled.emit()
         except Exception as error:
             _LOGGER.exception(
                 "Repair attempt failed",
@@ -75,7 +83,13 @@ class RepairWorker(QObject):
                     "repair_scope": self._request.scope.value,
                 },
             )
-            self.failed.emit(launcher_failure_detail(error))
+            if self._supervisor.safe_to_close:
+                self.failed.emit(launcher_failure_detail(error))
+            else:
+                _LOGGER.critical(
+                    "Repair cleanup could not be verified; retiring supervised host"
+                )
+                self.fatal_failure.emit()
         else:
             self.succeeded.emit()
         finally:

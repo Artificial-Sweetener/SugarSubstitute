@@ -24,14 +24,14 @@ from typing import cast
 from launcher.sugarsubstitute_launcher.cli import LauncherArguments
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupPlan
-from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
+from sugarsubstitute_shared.application_broker_session import ApplicationBrokerSession
 
 
 def run_launcher_window(
     *,
     args: LauncherArguments,
     startup_plan: LauncherStartupPlan,
-    broker: ApplicationInstanceBroker | None,
+    broker: ApplicationBrokerSession | None,
 ) -> int:
     """Show setup or repair UI after installed launch routing is complete."""
 

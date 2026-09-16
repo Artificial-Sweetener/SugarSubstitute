@@ -24,10 +24,10 @@ import shutil
 import tempfile
 
 from launcher.sugarsubstitute_launcher.application.repair.models import (
-    RepairDisposition,
     RepairPlan,
 )
-from launcher.sugarsubstitute_launcher.repair_errors import RepairTransactionError
+from sugarsubstitute_shared.repair_recovery.disposition import RepairDisposition
+from sugarsubstitute_shared.repair_recovery.errors import RepairTransactionError
 
 _LOGGER = logging.getLogger(__name__)
 

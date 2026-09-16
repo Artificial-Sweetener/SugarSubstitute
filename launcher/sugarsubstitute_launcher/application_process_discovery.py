@@ -75,15 +75,37 @@ class InstalledInvocationScope:
         """Keep the installation that the user's recovery action may affect."""
         self._root = layout.root.resolve()
         self._main_relative_path = layout.target.executable_relative_path
+        from sugarsubstitute_shared.launcher_update.bundle_paths import (
+            LauncherBundlePaths,
+        )
+        from sugarsubstitute_shared.launcher_update.targets import (
+            launcher_bundle_target_for_key,
+        )
+
+        self._generation_paths = LauncherBundlePaths(self._root)
+        self._bundle_target = launcher_bundle_target_for_key(layout.target.key)
+        self._owner_roles = {self._main_relative_path}
         self._executables = [layout.executable_path.resolve()]
         repair = layout.target.repair_executable_relative_path
         if repair is not None:
             self._executables.append((layout.root / repair).resolve())
+            self._owner_roles.add(repair)
+
+    def _is_generation_owner(self, executable: Path) -> bool:
+        """Recognize producer-owned launcher roles even after generation retirement."""
+        payload = self._generation_paths.payload_for_executable(
+            executable, self._bundle_target
+        )
+        return (
+            payload is not None
+            and executable.resolve().relative_to(payload) in self._owner_roles
+        )
 
     def accepts_executable(self, executable: Path) -> bool:
         """Recognize installed owners and the independently retained repair runtime."""
         return (
             executable.resolve() in self._executables
+            or self._is_generation_owner(executable)
             or repair_bundle_for_executable(
                 install_root=self._root,
                 executable=executable,
@@ -105,8 +127,15 @@ class InstalledInvocationScope:
         if request is not None:
             if not request.is_absolute():
                 request = working_directory / request
-            return request.resolve() == self._root / ".repair" / "prepared.json"
-        if executable.resolve() not in self._executables:
+            from launcher.sugarsubstitute_launcher.application.repair.paths import (
+                RepairPreparationPaths,
+            )
+
+            return RepairPreparationPaths.accepts_request(self._root, request)
+        if (
+            executable.resolve() not in self._executables
+            and not self._is_generation_owner(executable)
+        ):
             return False
         try:
             parsed = parse_launcher_args(arguments[1:], report_errors=False)

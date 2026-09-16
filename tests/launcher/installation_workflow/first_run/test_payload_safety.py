@@ -27,6 +27,8 @@ from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseManifest
 from launcher.sugarsubstitute_launcher.payload import AppPayloadInstaller
 from launcher.sugarsubstitute_launcher.payload_models import PayloadInstallError
+from launcher.sugarsubstitute_launcher.update_activation import PendingUpdateActivation
+from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from launcher.sugarsubstitute_launcher.payload_staging import (
     AppPayloadStager,
     extract_app_payload_archive,
@@ -57,10 +59,15 @@ def test_app_payload_installer_rejects_checksum_mismatch(tmp_path: Path) -> None
         installers={},
     )
 
-    with pytest.raises(PayloadInstallError, match="SHA256 mismatch"):
-        AppPayloadInstaller().install(
-            layout=InstallLayout.from_root(tmp_path / "install"), manifest=manifest
-        )
+    activation = PendingUpdateActivation.begin(
+        layout=InstallLayout.from_root(tmp_path / "install"),
+        successful_state=LauncherUpdateState(installed_app_version=manifest.version),
+    )
+    try:
+        with pytest.raises(PayloadInstallError, match="SHA256 mismatch"):
+            AppPayloadInstaller().install(activation=activation, manifest=manifest)
+    finally:
+        activation.rollback()
 
 
 def test_payload_staging_validates_candidate_without_mutating_active_app(

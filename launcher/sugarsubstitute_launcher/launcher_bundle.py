@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.installation_mutation import InstallationMutationOwnership
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,8 +31,8 @@ from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import (
     launcher_bundle_target_for_key,
 )
-from sugarsubstitute_shared.launcher_update.transaction import (
-    LauncherUpdateTransaction,
+from sugarsubstitute_shared.launcher_update.baseline_transaction import (
+    LauncherBaselineTransaction,
 )
 
 
@@ -49,18 +51,19 @@ class LauncherBundleInstaller:
         self,
         *,
         stager: LauncherBundleStager | None = None,
-        transaction: LauncherUpdateTransaction | None = None,
+        transaction: LauncherBaselineTransaction | None = None,
     ) -> None:
         """Store shared staging and promotion collaborators."""
 
         self._stager = stager or LauncherBundleStager()
-        self._transaction = transaction or LauncherUpdateTransaction()
+        self._transaction = transaction or LauncherBaselineTransaction()
 
     def install(
         self,
         *,
         layout: InstallLayout,
         manifest: ReleaseManifest,
+        ownership: InstallationMutationOwnership | None = None,
     ) -> LauncherBundleInstallResult:
         """Install the target launcher and persist its installed version."""
 
@@ -80,7 +83,7 @@ class LauncherBundleInstaller:
                 size_bytes=release_asset.size_bytes,
             ),
         )
-        self._transaction.apply(request_path=request_path)
+        self._transaction.apply(request_path=request_path, ownership=ownership)
         return LauncherBundleInstallResult(
             executable_path=layout.executable_path,
             support_dir=layout.launcher_support_path,

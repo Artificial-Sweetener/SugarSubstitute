@@ -25,11 +25,11 @@ import pytest
 from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import WINDOWS_X64_BUNDLE
-from sugarsubstitute_shared.launcher_update.transaction import (
-    LauncherUpdateTransaction,
-    LauncherUpdateTransactionError,
+from sugarsubstitute_shared.launcher_update.baseline_transaction import (
+    LauncherBaselineTransaction,
+    LauncherBaselineTransactionError,
 )
-import sugarsubstitute_shared.launcher_update.transaction as transaction_module
+import sugarsubstitute_shared.launcher_update.baseline_transaction as transaction_module
 
 from .support import _asset, _write_bundle, _write_installed_layout
 
@@ -48,7 +48,7 @@ def test_transaction_replaces_only_launcher_and_preserves_install_data(
         asset=_asset(archive),
     )
 
-    LauncherUpdateTransaction(wait_timeout_seconds=0).apply(request_path=request_path)
+    LauncherBaselineTransaction(wait_timeout_seconds=0).apply(request_path=request_path)
 
     assert (install_root / "SugarSubstitute.exe").read_text() == "new launcher"
     assert (
@@ -96,8 +96,8 @@ def test_transaction_rolls_back_both_bundle_roots_on_copy_failure(
 
     monkeypatch.setattr(transaction_module, "_copy_path", fail_second_copy)
 
-    with pytest.raises(LauncherUpdateTransactionError):
-        LauncherUpdateTransaction(wait_timeout_seconds=0).apply(
+    with pytest.raises(LauncherBaselineTransactionError):
+        LauncherBaselineTransaction(wait_timeout_seconds=0).apply(
             request_path=request_path
         )
 
@@ -150,8 +150,8 @@ def test_transaction_recovers_interrupted_backup_before_retry(
 
     monkeypatch.setattr(transaction_module, "_copy_path", fail_copy)
 
-    with pytest.raises(LauncherUpdateTransactionError):
-        LauncherUpdateTransaction(wait_timeout_seconds=0).apply(
+    with pytest.raises(LauncherBaselineTransactionError):
+        LauncherBaselineTransaction(wait_timeout_seconds=0).apply(
             request_path=request_path
         )
 
@@ -189,8 +189,8 @@ def test_first_install_rollback_removes_targets_that_were_initially_absent(
 
     monkeypatch.setattr(transaction_module, "_copy_path", fail_second_copy)
 
-    with pytest.raises(LauncherUpdateTransactionError):
-        LauncherUpdateTransaction(wait_timeout_seconds=0).apply(
+    with pytest.raises(LauncherBaselineTransactionError):
+        LauncherBaselineTransaction(wait_timeout_seconds=0).apply(
             request_path=request_path
         )
 

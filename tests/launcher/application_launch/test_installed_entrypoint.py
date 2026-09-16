@@ -33,6 +33,7 @@ from launcher.sugarsubstitute_launcher import app as launcher_app
 from launcher.sugarsubstitute_launcher import application_launch
 from launcher.sugarsubstitute_launcher import crash_routing
 from launcher.sugarsubstitute_launcher import installed_app_handoff
+from launcher.sugarsubstitute_launcher import generation_dispatch
 from launcher.sugarsubstitute_launcher import launcher_ui_supervision
 from launcher.sugarsubstitute_launcher import logging_setup
 from launcher.sugarsubstitute_launcher import localization
@@ -42,11 +43,11 @@ from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from sugarsubstitute_shared.application_instance_election import (
-    SelectedInstallationReservation,
-)
 from launcher.sugarsubstitute_launcher.selected_installation_admission import (
     reserve_selected_installation,
+)
+from sugarsubstitute_shared.application_instance_election import (
+    SelectedInstallationReservation,
 )
 from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
     InstanceRecoveryAction,
@@ -68,10 +69,15 @@ from tests.launcher.application_launch.instance_routing_support import (
 
 
 @pytest.mark.parametrize("splash_available", [True, False])
+@pytest.mark.parametrize(
+    ("delegated", "borrowed"), [(False, False), (True, False), (True, True)]
+)
 def test_installed_launcher_supervises_one_broker_authorized_child(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     splash_available: bool,
+    delegated: bool,
+    borrowed: bool,
 ) -> None:
     """The elected launcher should remain through the complete child lifetime."""
 
@@ -127,14 +133,58 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
         lambda **_kwargs: pytest.fail("Installed launch must not show setup UI."),
     )
 
+    if delegated:
+        from sugarsubstitute_shared import delegated_application_broker
+
+        monkeypatch.setenv("SUGAR_SUBSTITUTE_DELEGATED_LAUNCHER", "1")
+        monkeypatch.setattr(
+            delegated_application_broker,
+            "DelegatedApplicationBroker",
+            lambda _environment: broker,
+        )
+        monkeypatch.setattr(
+            application_launch,
+            "elect_application",
+            lambda *_args: pytest.fail(
+                "Delegated launcher must retain baseline election"
+            ),
+        )
+
+    inherited_arguments: list[str] = []
+    if borrowed:
+        from uuid import uuid4
+        from launcher.sugarsubstitute_launcher.splash_transfer import (
+            export_splash_session,
+        )
+        from sugarsubstitute_shared.launch_splash.session import (
+            create_splash_session_spec,
+            splash_session_args,
+        )
+
+        spec = create_splash_session_spec(port=12345)
+        for key, value in export_splash_session(
+            spec, resource_identity=uuid4().hex
+        ).items():
+            monkeypatch.setenv(key, value)
+        inherited_arguments = splash_session_args(spec)
+        monkeypatch.setattr(
+            splash_session,
+            "start_launcher_splash_session",
+            lambda **_kwargs: pytest.fail(
+                "Borrowed startup must not create a second splash."
+            ),
+        )
+
     assert launcher_app.main([]) == 0
     assert calls[0][0] == [
         subprocess_path(layout.runtime_python),
         subprocess_path(layout.app_entrypoint),
         f"--install-root={subprocess_path(layout.root)}",
         "--locale=en",
+        *inherited_arguments,
     ]
     assert calls[0][1]["TEST_INSTANCE_BROKER"] == "connected"
+    assert "SUGAR_SUBSTITUTE_DELEGATED_LAUNCHER" not in calls[0][1]
     assert broker.closed
 
 
@@ -229,6 +279,11 @@ def test_installed_launcher_performs_only_reviewed_work_before_splash(
         "complete_installed_app_handoff",
         lambda **_kwargs: events.append("handoff"),
     )
+    monkeypatch.setattr(
+        generation_dispatch,
+        "dispatch_selected_launcher",
+        lambda **_kwargs: events.append("generation-dispatch"),
+    )
     monkeypatch.setattr(launcher_app, "_configure_normal_logging", lambda _plan: None)
 
     assert launcher_app.main(["--locale=en"]) == 0
@@ -240,7 +295,7 @@ def test_installed_launcher_performs_only_reviewed_work_before_splash(
         "launch-route",
         "splash",
     ]
-    assert events[6:] == ["locale", "crash-recovery", "handoff"]
+    assert events[6:] == ["generation-dispatch", "locale", "crash-recovery", "handoff"]
 
 
 def test_pending_report_recovery_failure_does_not_open_repair(
@@ -431,8 +486,8 @@ def test_application_election_uses_the_resolved_installation_identity(
     ) -> ApplicationInstanceBroker | None:
         """Record the native election inputs without opening an endpoint."""
 
-        assert reserve_selected is reserve_selected_installation
         arguments = getattr(invocation, "arguments")
+        assert reserve_selected is reserve_selected_installation
         observed.append((install_root, tuple(arguments)))
         return None
 

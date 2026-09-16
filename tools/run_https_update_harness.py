@@ -265,7 +265,7 @@ def run_https_update_harness(
                 no_update_check=False,
                 progress=progress,
             )
-            _assert_prepared_update(
+            previous_app = _assert_prepared_update(
                 result=result,
                 layout=layout,
                 runtime_reconciler=runtime_reconciler,
@@ -277,7 +277,7 @@ def run_https_update_harness(
                     "Update did not preserve a pending activation."
                 )
             result.pending_activation.commit()
-            _assert_committed_update(layout)
+            _assert_committed_update(layout, previous_app)
             return HttpsUpdateHarnessResult(
                 harness_root=resolved_root,
                 install_root=install_root,
@@ -433,10 +433,14 @@ def _assert_prepared_update(
     runtime_reconciler: RecordingRuntimeReconciler,
     progress: RecordingProgress,
     request_paths: tuple[str, ...],
-) -> None:
+) -> Path:
     """Validate the downloaded update before first-launch activation."""
 
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+    from launcher.sugarsubstitute_launcher.update_activation_journal import (
+        load_update_journal,
+        previous_app_dir,
+    )
     from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 
     if not isinstance(layout, InstallLayout):
@@ -458,9 +462,11 @@ def _assert_prepared_update(
     main_text = (layout.app_dir / "main.py").read_text(encoding="utf-8")
     if f"new {NEW_VERSION}" not in main_text:
         raise HttpsUpdateHarnessError("Installed app payload was not promoted.")
-    previous_text = (layout.root / "app_previous" / "main.py").read_text(
-        encoding="utf-8"
-    )
+    journal = load_update_journal(layout)
+    if journal is None:
+        raise HttpsUpdateHarnessError("Prepared update has no recovery journal.")
+    previous_app = previous_app_dir(layout, journal)
+    previous_text = (previous_app / "main.py").read_text(encoding="utf-8")
     if f"old {OLD_VERSION}" not in previous_text:
         raise HttpsUpdateHarnessError("Previous payload was not preserved.")
     expected_progress = [
@@ -500,9 +506,10 @@ def _assert_prepared_update(
         raise HttpsUpdateHarnessError(
             "Update activity was not cleared after runtime preparation."
         )
+    return previous_app
 
 
-def _assert_committed_update(layout: InstallLayout) -> None:
+def _assert_committed_update(layout: InstallLayout, previous_app: Path) -> None:
     """Validate state advancement and backup retirement after activation."""
 
     from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
@@ -510,7 +517,7 @@ def _assert_committed_update(layout: InstallLayout) -> None:
     state = LauncherUpdateState.load(layout.state_path)
     if state.installed_app_version != NEW_VERSION:
         raise HttpsUpdateHarnessError(f"Unexpected committed state version: {state}")
-    if (layout.root / "app_previous").exists():
+    if previous_app.exists():
         raise HttpsUpdateHarnessError("Committed app backup was not retired.")
 
 

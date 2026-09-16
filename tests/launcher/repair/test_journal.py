@@ -23,8 +23,8 @@ from pathlib import Path
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.repair_errors import RepairTransactionError
-from launcher.sugarsubstitute_launcher.repair_recovery import recover_interrupted_repair
+from sugarsubstitute_shared.repair_recovery.errors import RepairTransactionError
+from sugarsubstitute_shared.repair_recovery.execution import recover_interrupted_repair
 
 
 def _legacy_journal(root: Path, *, phase: str, relocated: bool) -> Path:

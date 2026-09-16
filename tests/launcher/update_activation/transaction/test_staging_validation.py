@@ -25,7 +25,7 @@ import zipfile
 import pytest
 
 from sugarsubstitute_shared.launcher_update.archive import SecureArchiveError
-from sugarsubstitute_shared.launcher_update.models import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import (
     MACOS_ARM64_BUNDLE,

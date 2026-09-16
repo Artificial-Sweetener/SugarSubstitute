@@ -103,7 +103,6 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("hard_exit", "substitute/infrastructure/version_control/clone_entry.py", "<module>", "builtins.SystemExit", 1, "isolated_clone_entrypoint"),
     ("hard_exit", "sugarsubstitute_shared/launcher_update/helper.py", "<module>", "builtins.SystemExit", 1, "transactional_update_entrypoint"),
     ("hard_exit", "sugarsubstitute_shared/launcher_update/helper.py", "main", "builtins.SystemExit", 1, "transactional_update_handoff"),
-    ("hard_exit", "sugarsubstitute_shared/launcher_update/transaction.py", "_process_exists", "os.kill", 1, "process_liveness_probe"),
     ("qt_thread", "launcher/sugarsubstitute_launcher/ui/installation_execution.py", "QtInstallationExecutor.start_initial", "PySide6.QtCore.QThread", 1, "signal_reported_install_worker"),
     ("qt_thread", "launcher/sugarsubstitute_launcher/ui/installation_execution.py", "QtInstallationExecutor.start_setup", "PySide6.QtCore.QThread", 1, "signal_reported_install_worker"),
     ("qt_thread", "launcher/sugarsubstitute_launcher/ui/repair_preparation_execution.py", "QtRepairPreparationExecutor.start", "PySide6.QtCore.QThread", 1, "signal_reported_install_worker"),

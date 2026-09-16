@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import subprocess
+import time
 from types import SimpleNamespace
 from typing import cast
 
@@ -328,10 +329,12 @@ def test_stalled_installed_launcher_fails_at_progress_boundary(
         SimpleNamespace(pid=123, poll=lambda: None),
     )
     clock = iter((0.0, 121.0))
+    process_monotonic = time.monotonic
     monkeypatch.setattr(
-        "tools.ci.installer_ui_qualification.time.monotonic",
-        lambda: next(clock),
+        "tools.ci.installer_ui_qualification.time",
+        SimpleNamespace(monotonic=lambda: next(clock)),
     )
+    assert time.monotonic is process_monotonic
     monkeypatch.setattr(
         "tools.ci.installer_ui_qualification.process_tree_diagnostics",
         lambda pid: f"pid={pid}",

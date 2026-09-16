@@ -1181,19 +1181,6 @@ issue = "chore:SS-TEST-WAIVER-C0269"
 review_by = 2026-12-15
 
 [[waivers]]
-id = "SS-TEST-WAIVER-C0270"
-owner = "Windows updater process probe"
-kind = "classification"
-disposition = "platform_native"
-rule = "PROCESS001"
-candidates = ["PROCESS001|tests/launcher/update_activation/transaction/test_process_scheduling.py|<module>:unscoped-child-process:1"]
-paths = ["tests/launcher/update_activation/transaction/test_process_scheduling.py"]
-fingerprint = "sha256:c5d95cf6c268aa4cd4a5ee732dd00c88cdc8389995eabf183d6d6e355b89c21b"
-rationale = "This Windows-native test must keep a real child alive while the production PID probe observes it. Its unconditional finally block terminates the exact child, waits with a ten-second bound, then escalates to kill and a second bounded wait. A context-managed lifetime cannot preserve the live-process observation boundary."
-issue = "chore:SS-TEST-WAIVER-C0270"
-review_by = 2026-12-15
-
-[[waivers]]
 id = "SS-TEST-WAIVER-C0271"
 owner = "Real Comfy inpaint qualification harness"
 kind = "classification"
@@ -1386,4 +1373,17 @@ paths = ["tests/app/bootstrap/shutdown_coordinator/test_coordinator.py"]
 fingerprint = "sha256:a0cc395edcd41a9cce567a65b7480042a06d4d358c4e6c15614ce8f68ef8aabc"
 rationale = "This integration module repeatedly exercises production shutdown coordination through a real execution lane, worker-thread completion, Qt queued delivery, nested event loops, and QObject-owned timeout timers. Its duplicate-close contract triggered a PySide segmentation fault when a Linux xdist worker entered garbage collection during a later nested event loop after earlier coordinator lifecycles, while the retained process marker and fatal stack identified the exact boundary and the complete module passed in five independent fresh Windows processes. The shipped application owns one coordinator for one process lifetime. Fresh-process isolation preserves every shutdown assertion, bounds native failure at the module-process owner, and remains safely concurrent because each module process owns its application, execution runtime, events, and fake cleanup resources."
 issue = "chore:SS-TEST-WAIVER-C0286"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0287"
+owner = "Repair execution native descendant lifetime"
+kind = "classification"
+disposition = "platform_native"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/launcher/repair/execution_process_fixture.py|<module>:unscoped-child-process:1"]
+paths = ["tests/launcher/repair/execution_process_fixture.py"]
+fingerprint = "sha256:76474b29c35ba34885f5b8f54ddf4fc665441915bc9ee99204f5d3784bdf0706"
+rationale = "This Windows-only native fixture intentionally leaves a child holding a separate tmp_path mutation lock when its repair worker succeeds, crashes, or is cancelled. A context-managed Popen would wait in the fixture and prevent testing production family cleanup. The production RepairExecutionSupervisor owns the kernel Job Object containing worker and child, terminates the family in finally, and waits for retained native member handles before returning. Cancellation tests request shutdown in finally and bound the future wait. A frozen child has a sixty-second last-resort bound; the self-exiting variant receives a pipe signal or EOF from its parent and exits abruptly while holding mutation ownership. This variant tests natural descendant exit racing supervisor cleanup. Tests reacquire both native locks after cleanup without deleting files or manually ending descendants. The family lifetime test also retains exact native handles and requires completed exit immediately when supervision returns. No unrelated process is discovered or targeted."
+issue = "chore:SS-TEST-WAIVER-C0287"
 review_by = 2026-12-15

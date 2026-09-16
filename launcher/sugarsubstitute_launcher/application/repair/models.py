@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from sugarsubstitute_shared.repair_recovery.disposition import RepairDisposition
 from pathlib import Path
 
 
@@ -29,14 +30,6 @@ class RepairScope(str, Enum):
     APPLICATION = "application"
     OWNED_COMFY_NODES = "owned_comfy_nodes"
     FULL_MANAGED_COMFY = "full_managed_comfy"
-
-
-class RepairDisposition(str, Enum):
-    """Describe what repair does with one existing path."""
-
-    PRESERVE = "preserve"
-    REPLACE = "replace"
-    QUARANTINE = "quarantine"
 
 
 @dataclass(frozen=True, slots=True)

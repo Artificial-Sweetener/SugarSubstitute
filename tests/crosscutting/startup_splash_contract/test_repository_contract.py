@@ -20,7 +20,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.splash_first_governance import validate_repository
+from tools.splash_first_governance import (
+    repository_contracts,
+    validate_contract_source,
+    validate_repository,
+)
 
 
 def test_repository_executable_startup_is_splash_first() -> None:
@@ -29,3 +33,29 @@ def test_repository_executable_startup_is_splash_first() -> None:
     repository_root = Path(__file__).resolve().parents[3]
 
     assert validate_repository(repository_root) == ()
+
+
+def test_launcher_generation_work_remains_forbidden_before_splash() -> None:
+    """Permit delegated-session setup without permitting payload validation before feedback."""
+    contract = next(
+        item
+        for item in repository_contracts()
+        if item.relative_path == Path("launcher/sugarsubstitute_launcher/app.py")
+    )
+    source = """
+def main():
+    from launcher.sugarsubstitute_launcher.generation_dispatch import dispatch_selected_launcher
+    dispatch_selected_launcher()
+    start_launcher_splash_session()
+"""
+    diagnostics = validate_contract_source(
+        source, contract=contract, path=contract.relative_path
+    )
+    assert any(
+        item.code == "SPLASH003" and "generation_dispatch" in item.message
+        for item in diagnostics
+    )
+    assert any(
+        item.code == "SPLASH004" and "dispatch_selected_launcher" in item.message
+        for item in diagnostics
+    )

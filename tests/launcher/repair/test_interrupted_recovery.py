@@ -24,7 +24,7 @@ import sys
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.repair_recovery import recover_interrupted_repair
+from sugarsubstitute_shared.repair_recovery.execution import recover_interrupted_repair
 
 
 @pytest.mark.parametrize(

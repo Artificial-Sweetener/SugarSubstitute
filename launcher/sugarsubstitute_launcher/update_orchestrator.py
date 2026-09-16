@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.installation_mutation import InstallationMutationBusyError
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -41,9 +43,11 @@ from launcher.sugarsubstitute_launcher.runtime_reconciliation import (
 )
 from launcher.sugarsubstitute_launcher.update_activation import (
     PendingUpdateActivation,
-    UpdateRecoveryError,
-    recover_interrupted_update,
 )
+from launcher.sugarsubstitute_launcher.update_activation_journal import (
+    UpdateRecoveryError,
+)
+from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
 from launcher.sugarsubstitute_launcher.update_policy import (
     AppPayloadUpdateDecision,
     UpdateCheckDecision,
@@ -86,7 +90,7 @@ class AppPayloadInstallerProtocol(Protocol):
     def install(
         self,
         *,
-        layout: InstallLayout,
+        activation: PendingUpdateActivation,
         manifest: ReleaseManifest,
     ) -> AppPayloadInstallResult:
         """Install the manifest app payload."""
@@ -192,7 +196,11 @@ class LauncherUpdateOrchestrator:
                 release_source=release_source,
                 progress=progress,
             )
-        except (LauncherMinimumVersionError, UpdateRecoveryError):
+        except (
+            LauncherMinimumVersionError,
+            UpdateRecoveryError,
+            InstallationMutationBusyError,
+        ):
             raise
         except Exception as error:
             _LOGGER.warning(
@@ -215,7 +223,7 @@ class LauncherUpdateOrchestrator:
     ) -> PreLaunchUpdateResult:
         """Recover and run the supervisor-serialized update transaction."""
 
-        recover_interrupted_update(layout)
+        InstallationRecovery(layout).recover()
         state = LauncherUpdateState.load(layout.state_path)
         manifest = release_source.load_manifest()
         if manifest.channel != config.channel:
@@ -260,38 +268,42 @@ class LauncherUpdateOrchestrator:
                 layout=layout,
                 successful_state=successful_state,
             )
-            progress.start_activity(application_install_activity(manifest.version))
             try:
-                install_result = self._payload_installer.install(
-                    layout=layout,
-                    manifest=manifest,
-                )
-                progress.start_activity(application_dependencies_activity())
-                activation.prepare_runtime()
-                self._runtime_reconciler.reconcile(layout=layout, progress=progress)
-            except BaseException as error:
+                progress.start_activity(application_install_activity(manifest.version))
+                try:
+                    install_result = self._payload_installer.install(
+                        activation=activation,
+                        manifest=manifest,
+                    )
+                    progress.start_activity(application_dependencies_activity())
+                    activation.prepare_runtime()
+                    self._runtime_reconciler.reconcile(layout=layout, progress=progress)
+                except BaseException as error:
+                    progress.clear_activity()
+                    activation.rollback()
+                    self._rollback_reporter(
+                        install_root=layout.root,
+                        attempted_version=manifest.version,
+                        stage=UpdateRollbackStage.PREPARATION,
+                        error=error,
+                    )
+                    raise
                 progress.clear_activity()
-                activation.rollback()
-                self._rollback_reporter(
-                    install_root=layout.root,
+                progress.append_log(
+                    launcher_text(
+                        "Installed SugarSubstitute %1.",
+                        install_result.version,
+                    )
+                )
+                return PreLaunchUpdateResult(
+                    checked_manifest=True,
+                    installed_update=True,
+                    pending_activation=activation,
                     attempted_version=manifest.version,
-                    stage=UpdateRollbackStage.PREPARATION,
-                    error=error,
                 )
+            except BaseException:
+                activation.rollback()
                 raise
-            progress.clear_activity()
-            progress.append_log(
-                launcher_text(
-                    "Installed SugarSubstitute %1.",
-                    install_result.version,
-                )
-            )
-            return PreLaunchUpdateResult(
-                checked_manifest=True,
-                installed_update=True,
-                pending_activation=activation,
-                attempted_version=manifest.version,
-            )
 
         state.with_update_check(
             channel=manifest.channel,

@@ -22,12 +22,13 @@ from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.application.repair.models import (
     ManagedComfyOwnership,
-    RepairDisposition,
     RepairOperation,
     RepairPlan,
     RepairScope,
 )
+from sugarsubstitute_shared.repair_recovery.disposition import RepairDisposition
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.launcher_update.bundle_paths import LauncherBundlePaths
 from sugarsubstitute_shared.launcher_update.targets import (
     launcher_bundle_target_for_key,
 )
@@ -88,18 +89,28 @@ class RepairPlanService:
             ),
             self._operation(
                 layout.launcher_dir,
-                RepairDisposition.QUARANTINE,
-                "replaceable launcher state",
+                RepairDisposition.PRESERVE,
+                "launcher generations, selection, and baseline identity",
             ),
         ]
         launcher_target = launcher_bundle_target_for_key(layout.target.key)
         operations.extend(
             self._operation(
                 root / replacement_root,
-                RepairDisposition.REPLACE,
-                "installed launcher bundle",
+                RepairDisposition.PRESERVE,
+                "durable launch and recovery bootstrap",
             )
             for replacement_root in launcher_target.replacement_roots
+        )
+        operations.extend(
+            self._operation(
+                path, RepairDisposition.REPLACE, "repaired application state"
+            )
+            for path in (
+                layout.config_path,
+                layout.state_path,
+                LauncherBundlePaths(root).selection,
+            )
         )
         operations.extend(self._quarantine_unowned_root_entries(layout, operations))
         operations.extend(self._quarantine_replaceable_appdata(layout, operations))

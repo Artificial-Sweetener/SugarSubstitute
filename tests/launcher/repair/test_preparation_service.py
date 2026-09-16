@@ -199,3 +199,32 @@ def test_preparation_rejects_incomplete_exact_release_before_staging(
 
     assert app_stager.calls == 0
     assert launcher_stager.calls == 0
+
+
+def test_repeated_repair_preparation_preserves_the_first_attempt(
+    tmp_path: Path,
+) -> None:
+    """Keep each prepared request and staged input independent until execution."""
+    layout = InstallLayout.from_root(tmp_path / "installation", target=WINDOWS_X64)
+    service = RepairPreparationService(
+        app_stager=_AppStager(), launcher_stager=_LauncherStager()
+    )
+    first = service.prepare_application_repair(
+        layout=layout,
+        release_source=_ReleaseSource(_manifest()),
+        expected_version="1.2.3",
+    )
+    original = first.request_path.read_bytes()
+    app_original = (first.request.staged_app_dir / "version.txt").read_bytes()
+    second = service.prepare_application_repair(
+        layout=layout,
+        release_source=_ReleaseSource(_manifest()),
+        expected_version="1.2.3",
+    )
+    assert second.request_path != first.request_path
+    assert second.request.staged_app_dir != first.request.staged_app_dir
+    assert second.request.staged_launcher_dir != first.request.staged_launcher_dir
+    assert first.request_path.read_bytes() == original
+    assert (first.request.staged_app_dir / "version.txt").read_bytes() == app_original
+    assert PreparedRepairRequest.load(first.request_path) == first.request
+    assert PreparedRepairRequest.load(second.request_path) == second.request
