@@ -529,7 +529,7 @@ def test_macos_native_ownership_survives_repeated_election_and_reuse(
         MacOSMessagePortElection,
         acquire_macos_message_port,
     )
-    from sugarsubstitute_shared.application_instance_transport import instance_identity
+    from sugarsubstitute_shared.application_instance_identity import instance_identity
 
     identity = instance_identity(tmp_path)
     for _cycle in range(128):

@@ -42,7 +42,10 @@ from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceBrokerError,
     ApplicationInstanceEndpoint,
 )
-from sugarsubstitute_shared.application_instance_transport import instance_identity
+from sugarsubstitute_shared.application_instance_identity import instance_identity
+from sugarsubstitute_shared.application_instance_election import (
+    application_instance_endpoints,
+)
 from sugarsubstitute_shared.application_instance_transport import (
     instance_endpoint,
 )
@@ -85,9 +88,11 @@ def test_fresh_packaged_recovery_inspects_os_identity_when_pipe_is_busy(
 
 
 @pytest.mark.platforms("windows")
+@pytest.mark.parametrize("address_index", (0, 1))
 def test_fresh_recovery_automatically_retires_the_independently_verified_instance(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    address_index: int,
 ) -> None:
     """Recover a saturated pipe even though this invocation never connected to it."""
     layout = InstallLayout.from_root(tmp_path)
@@ -101,7 +106,7 @@ def test_fresh_recovery_automatically_retires_the_independently_verified_instanc
         [
             ApplicationInstanceBrokerError(
                 "busy",
-                endpoint=instance_endpoint(instance_identity(layout.root)),
+                endpoint=application_instance_endpoints(layout.root)[address_index],
             )
         ]
     )

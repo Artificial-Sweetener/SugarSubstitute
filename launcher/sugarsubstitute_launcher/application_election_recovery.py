@@ -141,9 +141,8 @@ class ApplicationElectionRecovery:
         from launcher.sugarsubstitute_launcher.application_process_discovery import (
             InstalledInvocationScope,
         )
-        from sugarsubstitute_shared.application_instance_transport import (
-            instance_endpoint,
-            instance_identity,
+        from sugarsubstitute_shared.application_instance_election import (
+            application_instance_endpoints,
         )
 
         failure = self._verified_failure
@@ -155,7 +154,7 @@ class ApplicationElectionRecovery:
             and (
                 native_owner.identity == identity
                 and native_owner.endpoint
-                == instance_endpoint(instance_identity(self._layout.root))
+                in application_instance_endpoints(self._layout.root)
             )
         ):
             scope = ExactExecutableProcessScope((native_owner.executable,))

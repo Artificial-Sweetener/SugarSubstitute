@@ -14,12 +14,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own fileless application election and supervisor IPC for one user session."""
+"""Own fileless application election and supervisor IPC for one installation account."""
 
 from __future__ import annotations
 
-from sugarsubstitute_shared.application_instance_forwarding import (
-    forward_application_invocation,
+from sugarsubstitute_shared.application_instance_election import (
+    ApplicationInstanceReservation,
+    reserve_application_instance,
 )
 
 from collections.abc import Callable, Mapping
@@ -28,15 +29,11 @@ import logging
 import os
 from pathlib import Path
 import secrets
-import sys
 import threading
-import time
-from typing import Protocol, Self
+from typing import Self
 
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceConnection,
-    ApplicationInstanceBrokerError,
-    ApplicationInstanceEndpoint,
     ApplicationInvocation,
     BROKER_ENDPOINT_ENV,
     BROKER_TOKEN_ENV,
@@ -47,12 +44,8 @@ from sugarsubstitute_shared.application_instance_protocol import (
 from sugarsubstitute_shared.application_invocation_router import (
     ApplicationInvocationRouter,
 )
-from sugarsubstitute_shared.application_instance_transport import (
-    ApplicationInstanceListener,
-    bind_instance_listener,
-    endpoint_is_already_owned,
-    instance_endpoint,
-    instance_identity,
+from sugarsubstitute_shared.application_instance_bindings import (
+    ApplicationInstanceBindings,
 )
 
 
@@ -62,31 +55,20 @@ _SUPERVISOR_RECEIPT_DEADLINE_SECONDS = 14.0
 _CONNECTION_HANDSHAKE_TIMEOUT_SECONDS = 2.0
 
 
-class _InstanceOwnerClaim(Protocol):
-    """Retain an auxiliary native ownership resource until broker shutdown."""
-
-    def close(self) -> None:
-        """Release native ownership idempotently."""
-
-
 class ApplicationInstanceBroker:
     """Elect one supervisor and route later invocations to its application child."""
 
     def __init__(
         self,
         *,
-        endpoint: ApplicationInstanceEndpoint,
-        listener: ApplicationInstanceListener,
+        reservation: ApplicationInstanceReservation,
         child_token: str,
-        owner_claim: _InstanceOwnerClaim | None,
         accept_listener_invocations: bool,
     ) -> None:
         """Start accepting invocations on the already-claimed native endpoint."""
 
-        self._endpoint = endpoint
-        self._listener = listener
+        self._endpoint = reservation.endpoint
         self._child_token = child_token
-        self._owner_claim = owner_claim
         self._accept_listener_invocations = accept_listener_invocations
         self._closing = threading.Event()
         self._restart_requested = threading.Event()
@@ -96,12 +78,15 @@ class ApplicationInstanceBroker:
             maximum_active_requests=_MAXIMUM_PENDING_INVOCATIONS,
             receipt_deadline_seconds=_SUPERVISOR_RECEIPT_DEADLINE_SECONDS,
         )
-        self._accept_thread = threading.Thread(
-            target=self._accept_connections,
-            name="application-instance-broker",
-            daemon=True,
-        )
-        self._accept_thread.start()
+        try:
+            self._bindings = ApplicationInstanceBindings(
+                reservation,
+                closing=self._closing,
+                handle_connection=self._handle_connection,
+            )
+        except BaseException:
+            self._router.close()
+            raise
 
     @classmethod
     def elect(
@@ -112,66 +97,23 @@ class ApplicationInstanceBroker:
     ) -> Self | None:
         """Become the supervisor or forward this invocation to the elected owner."""
 
-        identity = instance_identity(install_root)
-        endpoint = instance_endpoint(identity)
-        owner_claim: _InstanceOwnerClaim | None = None
-        if sys.platform.startswith("linux"):
-            from sugarsubstitute_shared.application_instance_linux import (
-                LinuxSessionBusElection,
-                acquire_linux_session_bus,
-            )
-
-            bus_result = acquire_linux_session_bus(identity)
-            if bus_result.election is LinuxSessionBusElection.SECONDARY:
-                forward_application_invocation(endpoint, invocation)
-                return None
-            owner_claim = bus_result.claim
-        elif sys.platform == "darwin":
-            from sugarsubstitute_shared.application_instance_macos import (
-                MacOSMessagePortElection,
-                acquire_macos_message_port,
-            )
-
-            message_port_result = acquire_macos_message_port(identity)
-            if message_port_result.election is MacOSMessagePortElection.SECONDARY:
-                forward_application_invocation(endpoint, invocation)
-                return None
-            owner_claim = message_port_result.claim
-        try:
-            listener = bind_instance_listener(endpoint)
-        except OSError as error:
-            if owner_claim is not None:
-                owner_claim.close()
-            if not endpoint_is_already_owned(error):
-                raise
-            try:
-                forward_application_invocation(endpoint, invocation)
-                _LOGGER.info(
-                    "Forwarded launch to the active application supervisor",
-                    extra={"instance_transport": endpoint.transport},
-                )
-                return None
-            except ApplicationInstanceBrokerError:
-                raise
-            except BaseException:
-                raise ApplicationInstanceBrokerError(
-                    "Application instance election lost, but the elected supervisor "
-                    "could not accept this invocation."
-                ) from error
+        reservation = reserve_application_instance(install_root, invocation)
+        if reservation is None:
+            return None
         _LOGGER.info(
-            "Elected application supervisor through native IPC | owner_pid=%s | "
-            "transport=%s",
+            "Elected application supervisor through native IPC | owner_pid=%s | transport=%s",
             os.getpid(),
-            endpoint.transport,
+            reservation.endpoint.transport,
         )
-        broker = cls(
-            endpoint=endpoint,
-            listener=listener,
-            child_token=secrets.token_urlsafe(32),
-            owner_claim=owner_claim,
-            accept_listener_invocations=True,
-        )
-        return broker
+        try:
+            return cls(
+                reservation=reservation,
+                child_token=secrets.token_urlsafe(32),
+                accept_listener_invocations=True,
+            )
+        except BaseException:
+            reservation.close()
+            raise
 
     def child_environment(
         self,
@@ -206,24 +148,13 @@ class ApplicationInstanceBroker:
         if self._closing.is_set():
             return
         self._closing.set()
-        try:
-            self._listener.close()
-        except OSError:
-            pass
+        stopped = self._bindings.close()
         self._router.close()
-        if threading.current_thread() is not self._accept_thread:
-            self._accept_thread.join(timeout=2.0)
-            if self._accept_thread.is_alive():
-                _LOGGER.warning("Application instance accept thread did not stop")
-        if self._owner_claim is not None:
-            self._owner_claim.close()
-            self._owner_claim = None
         _LOGGER.info(
-            "Application supervisor shutdown completed | owner_pid=%s | "
-            "transport=%s | accept_thread_stopped=%s",
+            "Application supervisor shutdown completed | owner_pid=%s | transport=%s | accept_threads_stopped=%s",
             os.getpid(),
             self._endpoint.transport,
-            not self._accept_thread.is_alive(),
+            stopped,
         )
 
     def __enter__(self) -> Self:
@@ -235,23 +166,6 @@ class ApplicationInstanceBroker:
         """Release native ownership when supervision finishes."""
 
         self.close()
-
-    def _accept_connections(self) -> None:
-        """Accept local requests until the supervisor releases ownership."""
-
-        while not self._closing.is_set():
-            try:
-                connection = self._listener.accept()
-            except OSError:
-                if not self._closing.is_set():
-                    time.sleep(0.01)
-                continue
-            threading.Thread(
-                target=self._handle_connection,
-                args=(connection,),
-                name="application-instance-request",
-                daemon=True,
-            ).start()
 
     def _handle_connection(self, connection: ApplicationInstanceConnection) -> None:
         """Validate and route one invocation or child control request."""

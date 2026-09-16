@@ -17,6 +17,7 @@
 """Prove exclusive native election across simultaneous independent processes."""
 
 from contextlib import ExitStack
+import os
 from pathlib import Path
 import socket
 import sys
@@ -34,8 +35,9 @@ pytestmark = pytest.mark.platforms("windows")
 
 
 @pytest.mark.parametrize("contenders", [2, 4])
+@pytest.mark.parametrize("distinct_launch_labels", [False, True])
 def test_simultaneous_launches_elect_one_owner_and_release_endpoint(
-    tmp_path: Path, contenders: int
+    tmp_path: Path, contenders: int, distinct_launch_labels: bool
 ) -> None:
     """Cross a process barrier together and leave no stale native ownership."""
     processes: list[ChildProcess] = []
@@ -47,6 +49,10 @@ def test_simultaneous_launches_elect_one_owner_and_release_endpoint(
         listener.settimeout(20)
         try:
             for index in range(contenders):
+                environment = dict(os.environ)
+                if distinct_launch_labels:
+                    for label in ("USERNAME", "SESSIONNAME", "XDG_SESSION_ID"):
+                        environment[label] = f"fixture-contender-{index}"
                 process, _log = spawn_supervised_process(
                     [
                         sys.executable,
@@ -55,6 +61,7 @@ def test_simultaneous_launches_elect_one_owner_and_release_endpoint(
                         str(tmp_path),
                         str(listener.getsockname()[1]),
                     ],
+                    environment=environment,
                     startup_log_path=tmp_path / f"contender-{index}.log",
                 )
                 processes.append(process)

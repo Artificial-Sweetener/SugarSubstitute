@@ -34,9 +34,8 @@ from launcher.sugarsubstitute_launcher.runtime_paths import (
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceEndpoint,
 )
-from sugarsubstitute_shared.application_instance_transport import (
-    instance_endpoint,
-    instance_identity,
+from sugarsubstitute_shared.application_instance_election import (
+    application_instance_endpoints,
 )
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 from launcher.sugarsubstitute_launcher.repair_artifact_storage import (
@@ -60,7 +59,7 @@ def discover_previous_installed_instance(
     scope = InstalledInvocationScope(layout)
     if executable is None or not scope.accepts_executable(executable):
         return None
-    if endpoint != instance_endpoint(instance_identity(layout.root)):
+    if endpoint not in application_instance_endpoints(layout.root):
         return None
     from sugarsubstitute_shared.windows_application_processes import (
         find_previous_application_process,
