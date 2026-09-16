@@ -659,7 +659,7 @@ kind = "remediation"
 justification = "The assessed file mixes overlay widget lifecycle and painting, pointer and keyboard drag session, animation state and raster warmup, reorder geometry and landing projection, autoscroll invalidation, performance counters and diagnostic publication. Extract animation/raster ownership and geometry projection from overlay interaction and widget lifecycle."
 issue = "chore:SS-ARCH-058"
 review_by = 2026-12-15
-max_lines = 901
+max_lines = 900
 next_limit = 720
 debt = "SS-ARCH-058"
 
