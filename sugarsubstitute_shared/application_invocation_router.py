@@ -143,7 +143,9 @@ class ApplicationInvocationRouter:
             for invocation in pending:
                 self._deliver_or_queue(invocation)
             while not self._closing.is_set():
-                self._handle_child_message(receive_instance_message(connection))
+                self._handle_child_message(
+                    connection, receive_instance_message(connection)
+                )
         except (OSError, ValueError, json.JSONDecodeError):
             pass
         finally:
@@ -256,13 +258,22 @@ class ApplicationInvocationRouter:
                 send_instance_message(child_socket, invocation.to_message())
         except OSError:
             with self._state_lock:
-                if self._child_socket is child_socket:
-                    self._child_socket = None
+                if self._child_socket is not child_socket:
+                    _LOGGER.info(
+                        "Ignored failed send from retired child | request_id=%s",
+                        invocation.request_id,
+                    )
+                    return
+                self._child_socket = None
                 self._inflight.pop(invocation.request_id, None)
                 self._pending.appendleft(invocation)
 
-    def _handle_child_message(self, message: Mapping[str, object]) -> None:
-        """Retain callers across unavailable children until presentation or deadline."""
+    def _handle_child_message(
+        self,
+        connection: ApplicationInstanceConnection,
+        message: Mapping[str, object],
+    ) -> None:
+        """Accept presentation only from the currently registered child channel."""
 
         token = message.get("token")
         if not isinstance(token, str) or not secrets.compare_digest(
@@ -272,6 +283,12 @@ class ApplicationInvocationRouter:
             raise ValueError("Application invocation receipt token is invalid.")
         receipt = parse_application_invocation_receipt(message)
         with self._state_lock:
+            if self._child_socket is not connection:
+                _LOGGER.info(
+                    "Ignored presentation receipt from retired child | request_id=%s",
+                    receipt.request_id,
+                )
+                return
             invocation = self._inflight.pop(receipt.request_id, None)
             if invocation is None:
                 _LOGGER.warning(
