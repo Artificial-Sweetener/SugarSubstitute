@@ -146,6 +146,16 @@ class SubprocessManagedComfyRepairer:
             destination=destination,
         )
 
+    def provision_full_managed_comfy(
+        self,
+        *,
+        layout: InstallLayout,
+        ownership: ManagedComfyOwnership,
+    ) -> None:
+        """Build and reconcile the active environment within the repair transaction."""
+
+        self._run("provision-full-managed-comfy", layout=layout, ownership=ownership)
+
     def validate_full_managed_comfy(
         self,
         *,

@@ -53,6 +53,14 @@ class ManagedComfyRepairer(Protocol):
     ) -> None:
         """Build a fresh managed workspace outside the active Comfy tree."""
 
+    def provision_full_managed_comfy(
+        self,
+        *,
+        layout: InstallLayout,
+        ownership: ManagedComfyOwnership,
+    ) -> None:
+        """Construct the promoted workspace runtime at its final location."""
+
     def validate_full_managed_comfy(
         self,
         *,
