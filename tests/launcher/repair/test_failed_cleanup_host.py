@@ -29,8 +29,17 @@ from sugarsubstitute_shared.installation_mutation import installation_mutation
 
 
 @pytest.mark.platforms("windows")
+@pytest.mark.parametrize(
+    "fixture,expected",
+    [
+        ("failed_cleanup_host", "both-owned"),
+        ("failed_preparation_cleanup_host", "descendant-owned"),
+    ],
+)
 def test_failed_native_cleanup_retires_host_and_reclaims_descendants(
     tmp_path: Path,
+    fixture: str,
+    expected: str,
 ) -> None:
     """Exercise real Qt cancellation and outer Windows containment without user retry."""
     environment = without_crash_supervision_environment()
@@ -39,7 +48,7 @@ def test_failed_native_cleanup_retires_host_and_reclaims_descendants(
         (
             sys.executable,
             "-m",
-            "tests.launcher.repair.failed_cleanup_host",
+            f"tests.launcher.repair.{fixture}",
             str(tmp_path),
         ),
         environment=environment,
@@ -49,7 +58,7 @@ def test_failed_native_cleanup_retires_host_and_reclaims_descendants(
         assert process.wait(timeout=30) == 1, log.read_text(encoding="utf-8")
         assert (tmp_path / "cancellation-observed.txt").read_text(
             encoding="utf-8"
-        ) == "both-owned"
+        ) == expected
         assert "Injected native family termination failure" in log.read_text(
             encoding="utf-8"
         )

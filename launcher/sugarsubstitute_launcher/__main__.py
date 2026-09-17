@@ -37,6 +37,9 @@ def run_launcher(launcher_main: Callable[[], int] | None = None) -> int:
         from launcher.sugarsubstitute_launcher.repair_execution_child import (
             run_repair_execution_invocation,
         )
+        from launcher.sugarsubstitute_launcher.repair_preparation_child import (
+            run_repair_preparation_invocation,
+        )
         from launcher.sugarsubstitute_launcher.repair_ui_entrypoint import (
             run_repair_ui_invocation,
         )
@@ -44,7 +47,9 @@ def run_launcher(launcher_main: Callable[[], int] | None = None) -> int:
             run_prepared_repair_invocation,
         )
 
-        result = run_repair_execution_invocation(sys.argv[1:])
+        result = run_repair_preparation_invocation(sys.argv[1:])
+        if result is None:
+            result = run_repair_execution_invocation(sys.argv[1:])
         if result is None:
             result = run_repair_ui_invocation(sys.argv[1:])
         if result is None:

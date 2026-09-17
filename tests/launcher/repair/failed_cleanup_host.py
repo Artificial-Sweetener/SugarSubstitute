@@ -34,7 +34,7 @@ from launcher.sugarsubstitute_launcher.process_execution import (
     ChildProcess,
     spawn_supervised_process,
 )
-from launcher.sugarsubstitute_launcher import repair_execution_supervisor as supervision
+from launcher.sugarsubstitute_launcher import repair_process_supervisor as supervision
 from launcher.sugarsubstitute_launcher.ui.repair_controller import RepairController
 from launcher.sugarsubstitute_launcher.ui.repair_window import RepairWindow
 from launcher.sugarsubstitute_launcher.ui.repair_worker import RepairWorker
@@ -107,14 +107,15 @@ def main() -> int:
         return boundary, log
 
     window = RepairWindow()
-    supervisor = supervision.RepairExecutionSupervisor(
-        command_builder=lambda candidate: (
+    supervisor = supervision.RepairProcessSupervisor(
+        command_builder=lambda: (
             sys.executable,
             "-m",
             "tests.launcher.repair.execution_process_fixture",
-            str(candidate.install_root),
+            str(request.install_root),
             "freeze_child",
-        )
+        ),
+        startup_log_path=root / "repair.log",
     )
 
     class CloseAfterProgress(QObject):

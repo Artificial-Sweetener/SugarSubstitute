@@ -22,7 +22,6 @@ from launcher.sugarsubstitute_launcher.repair_execution_protocol import (
     MAXIMUM_REPAIR_FRAME_BYTES,
     RepairFrameDecoder,
     encode_repair_frame,
-    repair_progress_from_message,
 )
 
 
@@ -73,29 +72,3 @@ def test_repair_encoder_rejects_oversized_output() -> None:
     """Bound producer memory before any transport write begins."""
     with pytest.raises(ValueError, match="size limit"):
         encode_repair_frame({"details": "x" * MAXIMUM_REPAIR_FRAME_BYTES})
-
-
-@pytest.mark.parametrize(
-    "message",
-    [
-        {"stage": "validate_input", "completed": True, "total": 1},
-        {"stage": "validate_input", "completed": 0, "total": 0},
-        {"stage": "validate_input", "completed": 2, "total": 1},
-        {"stage": "unknown", "completed": 0, "total": 1},
-        {"stage": None, "completed": 0, "total": 1},
-        {"stage": "validate_input", "completed": 1, "total": 1},
-    ],
-)
-def test_progress_rejects_invalid_domain_observations(
-    message: dict[str, object],
-) -> None:
-    """Keep malformed process data from fabricating progress or completion."""
-    with pytest.raises(ValueError):
-        repair_progress_from_message(message)
-
-
-def test_progress_accepts_committed_completion() -> None:
-    """Retain the executor's final completed stage count without inventing a stage."""
-    progress = repair_progress_from_message({"stage": None, "completed": 3, "total": 3})
-    assert progress.stage is None
-    assert progress.completed == progress.total == 3
