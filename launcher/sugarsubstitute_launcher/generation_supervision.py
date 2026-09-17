@@ -68,7 +68,7 @@ class LauncherGenerationSupervisor:
         command: Sequence[str],
         environment: Mapping[str, str],
     ) -> int:
-        """Retire failed startup before fallback and preserve deliberate Close."""
+        """Retire failed startup while preserving authenticated Close and handoff."""
         crash = ApplicationCrashSupervisor()
         prepared = crash.prepare(layout=layout, environment=environment)
         try:
@@ -86,12 +86,14 @@ class LauncherGenerationSupervisor:
             return 0
         except ApplicationReadinessError as error:
             if error.terminated_process is not None:
-                crash.supervise_process(
+                classified = crash.supervise_process(
                     layout=layout,
                     process=error.terminated_process,
                     prepared=prepared,
                     present_report=False,
                 )
+                if classified.return_code == 0 and classified.incident_id is None:
+                    return 0
             raise GenerationStartupError(
                 "Selected launcher failed visible readiness"
             ) from error
