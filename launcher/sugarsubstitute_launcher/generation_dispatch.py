@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import ExitStack
 import logging
 import os
 from pathlib import Path
@@ -122,23 +123,27 @@ def dispatch_selected_launcher(
         command.append(f"--install-root={layout.root}")
     environment = broker.child_environment(os.environ)
     environment[DELEGATED_LAUNCHER_ENV] = "1"
-    if splash_session is not None:
-        if register_startup_resource is None:
-            raise ValueError("Splash handoff requires its creating supervisor.")
-        from launcher.sugarsubstitute_launcher.splash_transfer import (
-            export_splash_session,
-        )
-
-        resource_identity = register_startup_resource(splash_session.close)
-        environment.update(
-            export_splash_session(
-                splash_session.client.spec, resource_identity=resource_identity
-            )
-        )
     try:
-        result = supervisor.supervise(
-            layout=layout, command=command, environment=environment
-        )
+        with ExitStack() as startup:
+            if splash_session is not None:
+                if register_startup_resource is None:
+                    raise ValueError("Splash handoff requires its creating supervisor.")
+                from launcher.sugarsubstitute_launcher.delegated_startup_presentation import (
+                    DelegatedStartupPresentation,
+                )
+
+                environment.update(
+                    startup.enter_context(
+                        DelegatedStartupPresentation(
+                            broker=broker,
+                            splash=splash_session,
+                            register_resource=register_startup_resource,
+                        )
+                    )
+                )
+            result = supervisor.supervise(
+                layout=layout, command=command, environment=environment
+            )
     except GenerationStartupError:
         _LOGGER.exception(
             "Selected launcher could not start; continuing baseline | generation=%s",
