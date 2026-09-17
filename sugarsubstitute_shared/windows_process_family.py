@@ -23,7 +23,6 @@ import ctypes
 from ctypes import wintypes
 import logging
 import math
-import os
 from pathlib import Path
 import subprocess
 from threading import Event, RLock
@@ -33,21 +32,15 @@ import weakref
 from sugarsubstitute_shared.windows_process_job_api import (
     ExtendedLimits,
     BasicAccounting,
-    ProcessInformation,
-    StartupInfoEx,
     load_kernel,
 )
+from sugarsubstitute_shared.windows_process_creation import create_windows_process
 from sugarsubstitute_shared.windows_job_completion import WindowsJobCompletion
 
 _LOGGER = logging.getLogger(__name__)
 _KILL_ON_JOB_CLOSE = 0x2000
 _ALLOW_EXPLICIT_BREAKAWAY = 0x0800
-_HANDLE_LIST_ATTRIBUTE = 0x00020002
-_JOB_LIST_ATTRIBUTE = 0x0002000D
-_EXTENDED_STARTUPINFO_PRESENT = 0x00080000
-_CREATE_UNICODE_ENVIRONMENT = 0x00000400
 _CREATE_NO_WINDOW = 0x08000000
-_STARTF_USESTDHANDLES = 0x00000100
 _WAIT_TIMEOUT = 258
 
 
@@ -82,17 +75,6 @@ class WindowsProcessFamily:
         allow_breakaway: bool = False,
     ) -> WindowsProcessFamily:
         """Assign the child atomically, eliminating the spawn-before-containment gap."""
-        import msvcrt
-
-        if not command or any("\0" in argument for argument in command):
-            raise ValueError("A process command must contain valid arguments.")
-        if any(
-            not key or "=" in key or "\0" in key or "\0" in value
-            for key, value in environment.items()
-        ):
-            raise ValueError(
-                "A process environment must contain valid names and values."
-            )
         kernel = load_kernel()
         job = kernel.CreateJobObjectW(None, None)
         if not job:
@@ -101,95 +83,20 @@ class WindowsProcessFamily:
         limits.basic.flags = _KILL_ON_JOB_CLOSE
         if allow_breakaway:
             limits.basic.flags |= _ALLOW_EXPLICIT_BREAKAWAY
-        handles: list[int] = []
-        attributes_initialized = False
-        size = ctypes.c_size_t()
-        attributes = None
         try:
             if not kernel.SetInformationJobObject(
                 job, 9, ctypes.byref(limits), ctypes.sizeof(limits)
             ):
                 raise ctypes.WinError(ctypes.get_last_error())
-            kernel.InitializeProcThreadAttributeList(None, 2, 0, ctypes.byref(size))
-            if not size.value:
-                raise ctypes.WinError(ctypes.get_last_error())
-            attributes = ctypes.create_string_buffer(size.value)
-            if not kernel.InitializeProcThreadAttributeList(
-                attributes, 2, 0, ctypes.byref(size)
-            ):
-                raise ctypes.WinError(ctypes.get_last_error())
-            attributes_initialized = True
-            with open(os.devnull, "rb") as null_input:
-                for fd in (
-                    null_input.fileno(),
-                    output_fd,
-                    output_fd if error_fd is None else error_fd,
-                ):
-                    duplicate = wintypes.HANDLE()
-                    current_process = kernel.GetCurrentProcess()
-                    if not kernel.DuplicateHandle(
-                        current_process,
-                        msvcrt.get_osfhandle(fd),
-                        current_process,
-                        ctypes.byref(duplicate),
-                        0,
-                        True,
-                        2,
-                    ):
-                        raise ctypes.WinError(ctypes.get_last_error())
-                    assert duplicate.value is not None
-                    handles.append(duplicate.value)
-                inherited = (wintypes.HANDLE * len(handles))(*handles)
-                jobs = (wintypes.HANDLE * 1)(job)
-                for key, values in (
-                    (_HANDLE_LIST_ATTRIBUTE, inherited),
-                    (_JOB_LIST_ATTRIBUTE, jobs),
-                ):
-                    if not kernel.UpdateProcThreadAttribute(
-                        attributes,
-                        0,
-                        key,
-                        ctypes.byref(values),
-                        ctypes.sizeof(values),
-                        None,
-                        None,
-                    ):
-                        raise ctypes.WinError(ctypes.get_last_error())
-                startup = StartupInfoEx()
-                startup.startup.size = ctypes.sizeof(startup)
-                startup.startup.flags = _STARTF_USESTDHANDLES
-                startup.startup.stdin = handles[0]
-                startup.startup.stdout = handles[1]
-                startup.startup.stderr = handles[2]
-                startup.attributes = ctypes.cast(attributes, ctypes.c_void_p)
-                process_info = ProcessInformation()
-                environment_block = ctypes.create_unicode_buffer(
-                    "\0".join(
-                        f"{key}={value}"
-                        for key, value in sorted(
-                            environment.items(), key=lambda item: item[0].upper()
-                        )
-                    )
-                    + "\0"
-                )
-                command_line = ctypes.create_unicode_buffer(
-                    subprocess.list2cmdline(command)
-                )
-                if not kernel.CreateProcessW(
-                    command[0],
-                    command_line,
-                    None,
-                    None,
-                    True,
-                    _EXTENDED_STARTUPINFO_PRESENT
-                    | _CREATE_UNICODE_ENVIRONMENT
-                    | _CREATE_NO_WINDOW,
-                    environment_block,
-                    str(cwd) if cwd is not None else None,
-                    ctypes.byref(startup),
-                    ctypes.byref(process_info),
-                ):
-                    raise ctypes.WinError(ctypes.get_last_error())
+            process_info = create_windows_process(
+                command,
+                environment=environment,
+                cwd=cwd,
+                output_fd=output_fd,
+                error_fd=error_fd,
+                job=job,
+                creation_flags=_CREATE_NO_WINDOW,
+            )
             kernel.CloseHandle(process_info.thread)
             family = cls(
                 job=job,
@@ -203,10 +110,6 @@ class WindowsProcessFamily:
             job = None
             return family
         finally:
-            if attributes_initialized:
-                kernel.DeleteProcThreadAttributeList(attributes)
-            for handle in handles:
-                kernel.CloseHandle(handle)
             if job:
                 kernel.CloseHandle(job)
 
