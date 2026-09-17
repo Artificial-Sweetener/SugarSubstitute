@@ -29,6 +29,10 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.crash_reporting import CrashIncidentStore
+from sugarsubstitute_shared.crash_reporting.protocol import (
+    CleanExitOutcome,
+    CrashRunContext,
+)
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
@@ -39,13 +43,32 @@ from sugarsubstitute_shared.application_readiness import (
 
 
 @pytest.mark.parametrize(
-    "outcome", ["spawn-error", "wait-error", "report-error", "crashed", "early-exit"]
+    "outcome",
+    [
+        "spawn-error",
+        "wait-error",
+        "report-error",
+        "crashed",
+        "early-exit",
+        "clean-handoff",
+        "unsigned-zero",
+        "intent-only",
+    ],
 )
 def test_generation_failure_distinguishes_startup_from_owned_lifetime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
 ) -> None:
     """Distinguish failed readiness from failures after a usable surface appeared."""
     layout = InstallLayout.from_root(tmp_path)
+    before_ready = outcome in {
+        "early-exit",
+        "clean-handoff",
+        "unsigned-zero",
+        "intent-only",
+    }
+    exit_code = (
+        0 if outcome in {"clean-handoff", "unsigned-zero", "intent-only"} else 73
+    )
 
     class Process:
         """Control the OS boundary while preserving crash classification."""
@@ -62,11 +85,11 @@ def test_generation_failure_distinguishes_startup_from_owned_lifetime(
             if outcome == "wait-error" and self.running:
                 raise OSError("wait failed")
             self.running = False
-            return 73
+            return exit_code
 
         def poll(self) -> int | None:
             """Expose the live state for failure cleanup."""
-            return None if self.running and outcome != "early-exit" else 73
+            return None if self.running and not before_ready else exit_code
 
         def terminate(self) -> None:
             """Retire a process that fails before readiness."""
@@ -86,7 +109,17 @@ def test_generation_failure_distinguishes_startup_from_owned_lifetime(
         assert allow_handoff
         if outcome == "spawn-error":
             raise OSError("spawn failed")
-        if outcome != "early-exit":
+        context = CrashRunContext.from_environment(environment)
+        assert context is not None
+        if outcome in {"clean-handoff", "intent-only"}:
+            context.write_exit_intent(
+                CleanExitOutcome.UPDATE_HANDOFF, process_id=process.pid
+            )
+        if outcome == "clean-handoff":
+            context.write_exit_receipt(
+                CleanExitOutcome.UPDATE_HANDOFF, process_id=process.pid
+            )
+        if not before_ready:
             publish_application_readiness_receipt(
                 receipt_path=Path(environment[READINESS_PATH_ENV]),
                 receipt=ApplicationReadinessReceipt(
@@ -115,9 +148,24 @@ def test_generation_failure_distinguishes_startup_from_owned_lifetime(
         with pytest.raises(generation_supervision.GenerationStartupError):
             supervisor.supervise(layout=layout, command=("fixture",), environment={})
         assert not process.killed
-    elif outcome == "early-exit":
+    elif outcome == "clean-handoff":
+        assert (
+            supervisor.supervise(layout=layout, command=("fixture",), environment={})
+            == 0
+        )
+        assert not process.running
+        assert (
+            CrashIncidentStore(layout.appdata_dir / "diagnostics" / "crashes").pending()
+            == ()
+        )
+    elif before_ready:
         with pytest.raises(generation_supervision.GenerationStartupError):
             supervisor.supervise(layout=layout, command=("fixture",), environment={})
+        incidents = CrashIncidentStore(
+            layout.appdata_dir / "diagnostics" / "crashes"
+        ).pending()
+        assert len(incidents) == 1
+        assert incidents[0].exit_code == exit_code
     elif outcome in {"wait-error", "report-error"}:
         error_type = OSError if outcome == "wait-error" else RuntimeError
         with pytest.raises(error_type):
