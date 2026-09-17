@@ -36,11 +36,10 @@ from launcher.sugarsubstitute_launcher.ui.repair_controller import RepairControl
 from launcher.sugarsubstitute_launcher.ui.repair_window import RepairWindow
 from launcher.sugarsubstitute_launcher.ui.repair_worker import RepairWorker
 from tests.support.qt.semantic_wait import wait_for_qt_condition
-from launcher.sugarsubstitute_launcher.repair_execution_supervisor import (
-    RepairExecutionSupervisor,
+from launcher.sugarsubstitute_launcher.repair_process_supervisor import (
+    RepairProcessSupervisor,
 )
 from sugarsubstitute_shared.installation_mutation import installation_mutation
-from launcher.sugarsubstitute_launcher.application.repair.progress import RepairProgress
 
 
 def _request(root: Path) -> PreparedRepairRequest:
@@ -74,13 +73,14 @@ def test_close_cancels_frozen_native_repair_before_window_retires(
     tmp_path: Path, qt_application_owner: QApplication
 ) -> None:
     """Close through the production controller and reclaim a frozen fixture's lock."""
-    supervisor = RepairExecutionSupervisor(
-        command_builder=lambda request: (
+    supervisor = RepairProcessSupervisor(
+        command_builder=lambda: (
             sys.executable,
             "-m",
             "tests.launcher.repair.execution_process_fixture",
-            str(request.install_root),
-        )
+            str(tmp_path),
+        ),
+        startup_log_path=tmp_path / "repair.log",
     )
     started = Event()
 
@@ -118,7 +118,7 @@ def test_unconfirmed_cleanup_retires_host_without_user_retry(
     exits: list[int] = []
     monkeypatch.setattr(QCoreApplication, "exit", exits.append)
 
-    class UnconfirmedExecution(RepairExecutionSupervisor):
+    class UnconfirmedExecution(RepairProcessSupervisor):
         """Control only the external execution capability observed by the Qt adapter."""
 
         @property
@@ -132,11 +132,10 @@ def test_unconfirmed_cleanup_retires_host_without_user_retry(
 
         def run(
             self,
-            request: PreparedRepairRequest,
             *,
-            progress_observer: Callable[[RepairProgress], None],
+            progress_observer: Callable[[dict[str, object]], None],
             output_callback: Callable[[str], None],
-        ) -> None:
+        ) -> dict[str, object]:
             """Return a cleanup error while the process boundary remains unconfirmed."""
             started.set()
             assert cancelled.wait(10)
@@ -144,7 +143,12 @@ def test_unconfirmed_cleanup_retires_host_without_user_retry(
 
     def create(request: PreparedRepairRequest) -> RepairWorker:
         """Retain attempts so another repair cannot silently replace blocked cleanup."""
-        worker = RepairWorker(request, supervisor=UnconfirmedExecution())
+        worker = RepairWorker(
+            request,
+            supervisor=UnconfirmedExecution(
+                command_builder=lambda: (), startup_log_path=tmp_path / "repair.log"
+            ),
+        )
         attempts.append(worker)
         return worker
 

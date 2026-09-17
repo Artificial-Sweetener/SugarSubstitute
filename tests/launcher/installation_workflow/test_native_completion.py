@@ -31,8 +31,8 @@ from shiboken6 import isValid
 from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstalledApplication,
 )
-from launcher.sugarsubstitute_launcher.application.repair.preparation_service import (
-    RepairPreparationService,
+from launcher.sugarsubstitute_launcher.repair_preparation_operation import (
+    RepairPreparationOperation,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.ui.installation_execution import (
@@ -109,8 +109,8 @@ def test_completion_releases_only_fully_stopped_native_workers(
             )
     else:
         monkeypatch.setattr(
-            RepairPreparationService,
-            "prepare_bound_application_repair",
+            RepairPreparationOperation,
+            "run",
             fail_external_work,
         )
         preparation = QtRepairPreparationExecutor()

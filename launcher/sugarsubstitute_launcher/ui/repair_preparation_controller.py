@@ -145,6 +145,8 @@ class RepairPreparationController(QObject):
     def _failed(self, details: str) -> None:
         """Restore the repair action after a staging or handoff failure."""
 
+        if self._close_requested():
+            return
         self._page.set_status(
             launcher_text(
                 "Repair could not be prepared. Nothing in the active installation was changed. Details: %1",

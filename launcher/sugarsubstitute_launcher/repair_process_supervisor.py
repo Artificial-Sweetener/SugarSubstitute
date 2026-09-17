@@ -21,23 +21,13 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 import json
 import logging
+from pathlib import Path
 import secrets
 import socket
 import subprocess
 from threading import Event
 import time
 
-from launcher.sugarsubstitute_launcher.application.repair.progress import (
-    RepairProgress,
-)
-from launcher.sugarsubstitute_launcher.application.repair.request import (
-    PreparedRepairRequest,
-)
-from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.launcher_ui_process import (
-    build_launcher_ui_command,
-)
-from launcher.sugarsubstitute_launcher.platforms import launcher_target_for_key
 from launcher.sugarsubstitute_launcher.process_execution import (
     ChildProcess,
     spawn_supervised_process,
@@ -46,7 +36,6 @@ from launcher.sugarsubstitute_launcher.repair_execution_protocol import (
     REPAIR_EXECUTION_ENDPOINT_ENV,
     RepairFrameDecoder,
     repair_message_details,
-    repair_progress_from_message,
 )
 from sugarsubstitute_shared.application_instance_protocol import (
     BROKER_ENDPOINT_ENV,
@@ -61,7 +50,6 @@ from sugarsubstitute_shared.application_readiness import (
 from sugarsubstitute_shared.crash_reporting.protocol import (
     without_crash_supervision_environment,
 )
-from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,34 +58,22 @@ class RepairProcessError(RuntimeError):
     """Report a failed, interrupted or invalid worker execution."""
 
 
-class RepairExecutionCancelled(RepairProcessError):
+class RepairProcessCancelled(RepairProcessError):
     """Report cancellation only after the owned process family has exited."""
 
 
-def build_repair_execution_command(request: PreparedRepairRequest) -> Sequence[str]:
-    """Use the retained bundle so mutation cannot replace the executing runtime."""
-    if request.helper_bundle_dir is None:
-        raise ValueError("Repair execution requires an independent launcher bundle.")
-    bundle = InstallLayout.from_root(
-        request.helper_bundle_dir, target=launcher_target_for_key(request.target_key)
-    )
-    return build_launcher_ui_command(
-        bundle, (f"--repair-worker-request={subprocess_path(request.request_path)}",)
-    )
-
-
-class RepairExecutionSupervisor:
+class RepairProcessSupervisor:
     """Keep one attempt's native family and cancellation authority outside its worker."""
 
     def __init__(
         self,
         *,
-        command_builder: Callable[
-            [PreparedRepairRequest], Sequence[str]
-        ] = build_repair_execution_command,
+        command_builder: Callable[[], Sequence[str]],
+        startup_log_path: Path,
     ) -> None:
         """Create a single-use attempt whose cancel signal is safe across threads."""
         self._command_builder = command_builder
+        self._startup_log_path = startup_log_path
         self._cancel = Event()
         self._process: ChildProcess | None = None
         self._started = False
@@ -114,17 +90,16 @@ class RepairExecutionSupervisor:
 
     def run(
         self,
-        request: PreparedRepairRequest,
         *,
-        progress_observer: Callable[[RepairProgress], None],
+        progress_observer: Callable[[dict[str, object]], None],
         output_callback: Callable[[str], None],
-    ) -> None:
-        """Execute once and release the entire family before reporting any outcome."""
+    ) -> dict[str, object]:
+        """Return the authenticated outcome only after the owned family has exited."""
         if self._started:
             raise RuntimeError("A repair execution supervisor cannot be reused.")
         self._started = True
         self._check_cancel()
-        command = self._command_builder(request)
+        command = self._command_builder()
         token = secrets.token_hex(32)
         environment = without_crash_supervision_environment()
         for key in (
@@ -143,19 +118,19 @@ class RepairExecutionSupervisor:
             environment[REPAIR_EXECUTION_ENDPOINT_ENV] = json.dumps(
                 {"port": listener.getsockname()[1], "token": token}
             )
+            self._check_cancel()
             process, _log = spawn_supervised_process(
                 command,
                 environment=environment,
-                startup_log_path=request.install_root
-                / ".repair"
-                / "diagnostics"
-                / "repair-execution.log",
+                startup_log_path=self._startup_log_path,
             )
             self._process = process
             self._safe_to_close = False
             try:
                 try:
-                    self._receive(listener, token, progress_observer, output_callback)
+                    terminal = self._receive(
+                        listener, token, progress_observer, output_callback
+                    )
                     exit_code = process.wait(timeout=10)
                 except (OSError, ValueError, subprocess.TimeoutExpired) as error:
                     raise RepairProcessError(
@@ -165,6 +140,8 @@ class RepairExecutionSupervisor:
                     raise RepairProcessError("Repair worker exited unsuccessfully.")
             finally:
                 self.stop()
+            self._check_cancel()
+            return terminal
 
     def stop(self) -> None:
         """Require native exit; an unverified family makes this host disposable."""
@@ -183,15 +160,15 @@ class RepairExecutionSupervisor:
     def _check_cancel(self) -> None:
         """Honor user intent independently of worker progress or responsiveness."""
         if self._cancel.is_set():
-            raise RepairExecutionCancelled("Repair execution was cancelled.")
+            raise RepairProcessCancelled("Repair execution was cancelled.")
 
     def _receive(
         self,
         listener: socket.socket,
         token: str,
-        progress: Callable[[RepairProgress], None],
+        progress: Callable[[dict[str, object]], None],
         output: Callable[[str], None],
-    ) -> None:
+    ) -> dict[str, object]:
         """Drain bounded frames while continuing to observe cancellation and child exit."""
         assert self._process is not None
         startup_deadline = time.monotonic() + 30
@@ -247,7 +224,7 @@ class RepairExecutionSupervisor:
                             "Repair worker sent data after its terminal outcome."
                         )
                     elif kind == "progress":
-                        progress(repair_progress_from_message(message))
+                        progress(message)
                     elif kind == "output":
                         output(repair_message_details(message))
                     elif kind in {"succeeded", "failed"}:
@@ -265,3 +242,4 @@ class RepairExecutionSupervisor:
                 )
             if terminal["kind"] == "failed":
                 raise RepairProcessError(repair_message_details(terminal))
+            return terminal

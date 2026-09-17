@@ -14,17 +14,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Execute prepared repair inside a parent-owned, Qt-free worker process."""
-
-from __future__ import annotations
+"""Prepare immutable repair artifacts within the parent's native process family."""
 
 from collections.abc import Sequence
 import logging
 from pathlib import Path
-
-from launcher.sugarsubstitute_launcher.repair_execution_progress import (
-    repair_progress_to_message,
-)
 
 from launcher.sugarsubstitute_launcher.repair_process_channel import (
     RepairProcessChannel,
@@ -33,9 +27,9 @@ from launcher.sugarsubstitute_launcher.repair_process_channel import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def run_repair_execution_invocation(arguments: Sequence[str]) -> int | None:
-    """Accept one private request only when an execution-control capability exists."""
-    prefix = "--repair-worker-request="
+def run_repair_preparation_invocation(arguments: Sequence[str]) -> int | None:
+    """Accept one private preparation only with a supervisor control capability."""
+    prefix = "--repair-preparation-input="
     values = [
         argument.removeprefix(prefix)
         for argument in arguments
@@ -44,23 +38,38 @@ def run_repair_execution_invocation(arguments: Sequence[str]) -> int | None:
     if not values:
         return None
     if len(arguments) != 1 or len(values) != 1 or not values[0]:
-        raise ValueError("Repair execution requires exactly one request path.")
+        raise ValueError("Repair preparation requires exactly one input path.")
     with RepairProcessChannel.connect() as output:
         try:
-            from launcher.sugarsubstitute_launcher.repair_helper import (
-                run_prepared_repair,
+            from launcher.sugarsubstitute_launcher.application.repair.preparation_service import (
+                RepairPreparationService,
+            )
+            from launcher.sugarsubstitute_launcher.repair_preparation_invocation import (
+                RepairPreparationInvocation,
+            )
+            from launcher.sugarsubstitute_launcher.repair_preparation_messages import (
+                preparation_progress_to_message,
             )
 
-            run_prepared_repair(
-                Path(values[0]),
+            invocation = RepairPreparationInvocation.load(Path(values[0]))
+            preparation = RepairPreparationService(
                 progress_observer=lambda progress: output.send(
-                    repair_progress_to_message(progress)
-                ),
-                output_callback=output.output,
+                    preparation_progress_to_message(progress)
+                )
+            ).prepare_bound_application_repair(
+                layout=invocation.layout,
+                release_source=invocation.source.source,
+                scope=invocation.scope,
             )
         except Exception as error:
-            _LOGGER.exception("Supervised repair execution failed")
+            _LOGGER.exception("Supervised repair preparation failed")
             output.send({"kind": "failed", "details": str(error)[:4096]})
             return 1
-        output.send({"kind": "succeeded"})
+        output.send(
+            {
+                "kind": "succeeded",
+                "version": preparation.request.version,
+                "preparation_id": preparation.request.preparation_id,
+            }
+        )
         return 0

@@ -25,9 +25,15 @@ from PySide6.QtCore import QObject, Signal, Slot
 from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
 )
-from launcher.sugarsubstitute_launcher.repair_execution_supervisor import (
-    RepairExecutionCancelled,
-    RepairExecutionSupervisor,
+from launcher.sugarsubstitute_launcher.repair_process_supervisor import (
+    RepairProcessCancelled,
+    RepairProcessSupervisor,
+)
+from launcher.sugarsubstitute_launcher.repair_execution_command import (
+    build_repair_execution_command,
+)
+from launcher.sugarsubstitute_launcher.repair_execution_progress import (
+    repair_progress_from_message,
 )
 from launcher.sugarsubstitute_launcher.ui.installer_errors import (
     launcher_failure_detail,
@@ -52,12 +58,18 @@ class RepairWorker(QObject):
         self,
         request: PreparedRepairRequest,
         *,
-        supervisor: RepairExecutionSupervisor | None = None,
+        supervisor: RepairProcessSupervisor | None = None,
     ) -> None:
         """Retain one process owner until every terminal resource has been released."""
         super().__init__()
         self._request = request
-        self._supervisor = supervisor or RepairExecutionSupervisor()
+        self._supervisor = supervisor or RepairProcessSupervisor(
+            command_builder=lambda: build_repair_execution_command(request),
+            startup_log_path=request.install_root
+            / ".repair"
+            / "diagnostics"
+            / "repair-execution.log",
+        )
 
     def request_cancel(self) -> None:
         """Accept UI-thread cancellation without performing native work on that thread."""
@@ -68,11 +80,10 @@ class RepairWorker(QObject):
         """Adapt the Qt-free execution owner to one terminal signal sequence."""
         try:
             self._supervisor.run(
-                self._request,
-                progress_observer=self.progress.emit,
+                progress_observer=self._progress,
                 output_callback=self.output.emit,
             )
-        except RepairExecutionCancelled:
+        except RepairProcessCancelled:
             _LOGGER.info("Repair execution cancelled after owned process cleanup")
             self.cancelled.emit()
         except Exception as error:
@@ -94,3 +105,7 @@ class RepairWorker(QObject):
             self.succeeded.emit()
         finally:
             self.finished.emit()
+
+    def _progress(self, message: dict[str, object]) -> None:
+        """Validate execution-domain counts before publishing to Qt presentation."""
+        self.progress.emit(repair_progress_from_message(message))

@@ -20,6 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import sys
 from threading import Event
+from typing import Never
 
 import pytest
 
@@ -27,10 +28,10 @@ from launcher.sugarsubstitute_launcher.application.repair.models import RepairSc
 from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
 )
-from launcher.sugarsubstitute_launcher.repair_execution_supervisor import (
-    RepairExecutionCancelled,
+from launcher.sugarsubstitute_launcher.repair_process_supervisor import (
+    RepairProcessCancelled,
     RepairProcessError,
-    RepairExecutionSupervisor,
+    RepairProcessSupervisor,
 )
 from sugarsubstitute_shared.installation_mutation import (
     installation_mutation,
@@ -40,6 +41,95 @@ from sugarsubstitute_shared.process_identity import (
     ProcessIdentityError,
     wait_for_process_exit,
 )
+
+
+def test_cancellation_before_start_never_builds_or_launches_a_child(
+    tmp_path: Path,
+) -> None:
+    """Keep early Close authoritative before native admission or source work starts."""
+
+    def reject_command() -> Never:
+        """Fail if a cancelled operation reaches its process boundary."""
+        raise AssertionError("Cancelled repair attempted to build a child command")
+
+    supervisor = RepairProcessSupervisor(
+        command_builder=reject_command, startup_log_path=tmp_path / "repair.log"
+    )
+    supervisor.request_cancel()
+    with pytest.raises(RepairProcessCancelled):
+        supervisor.run(
+            progress_observer=lambda value: None, output_callback=lambda line: None
+        )
+    assert supervisor.safe_to_close
+    assert not (tmp_path / ".repair").exists()
+
+
+def test_cancel_during_command_resolution_prevents_native_admission(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Observe Close again before entering the native child-creation boundary."""
+
+    def resolve_command() -> tuple[str, ...]:
+        """Deliver cancellation while resolving the immutable worker invocation."""
+        supervisor.request_cancel()
+        return (sys.executable, "-c", "pass")
+
+    def reject_spawn(*args: object, **kwargs: object) -> Never:
+        """Reject native admission after cancellation has already been requested."""
+        del args, kwargs
+        pytest.fail("Cancelled operation reached native child creation")
+
+    monkeypatch.setattr(
+        "launcher.sugarsubstitute_launcher.repair_process_supervisor.spawn_supervised_process",
+        reject_spawn,
+    )
+    supervisor = RepairProcessSupervisor(
+        command_builder=resolve_command,
+        startup_log_path=tmp_path / "repair.log",
+    )
+    with pytest.raises(RepairProcessCancelled):
+        supervisor.run(
+            progress_observer=lambda value: None, output_callback=lambda line: None
+        )
+    assert supervisor.safe_to_close
+
+
+@pytest.mark.platforms("windows")
+def test_cancel_during_native_exit_prevents_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Honor Close while the successful worker is still completing native cleanup."""
+    from sugarsubstitute_shared.windows_process_family import WindowsProcessFamily
+
+    native_wait = WindowsProcessFamily.wait
+    supervisor = RepairProcessSupervisor(
+        command_builder=lambda: (
+            sys.executable,
+            "-m",
+            "tests.launcher.repair.execution_process_fixture",
+            str(tmp_path),
+            "succeeded",
+        ),
+        startup_log_path=tmp_path / "repair.log",
+    )
+
+    def cancel_at_exit(
+        process: WindowsProcessFamily, timeout: float | None = None
+    ) -> int:
+        """Deliver Close at the native wait boundary without replacing native cleanup."""
+        supervisor.request_cancel()
+        return native_wait(process, timeout)
+
+    monkeypatch.setattr(WindowsProcessFamily, "wait", cancel_at_exit)
+    with pytest.raises(RepairProcessCancelled):
+        supervisor.run(
+            progress_observer=lambda _value: None,
+            output_callback=lambda _line: None,
+        )
+    assert supervisor.safe_to_close
+    with installation_mutation(tmp_path) as ownership:
+        ownership.validate(tmp_path)
 
 
 @pytest.mark.platforms("windows")
@@ -69,25 +159,24 @@ def test_terminal_outcomes_leave_no_mutation_owner(
         "a" * 64,
         "b" * 64,
     )
-    supervisor = RepairExecutionSupervisor(
-        command_builder=lambda candidate: (
+    supervisor = RepairProcessSupervisor(
+        command_builder=lambda: (
             sys.executable,
             "-m",
             "tests.launcher.repair.execution_process_fixture",
-            str(candidate.install_root),
+            str(request.install_root),
             outcome,
-        )
+        ),
+        startup_log_path=tmp_path / "repair.log",
     )
     if outcome.startswith("succeeded"):
         supervisor.run(
-            request,
             progress_observer=lambda _value: None,
             output_callback=lambda _line: None,
         )
     else:
         with pytest.raises(RepairProcessError):
             supervisor.run(
-                request,
                 progress_observer=lambda _value: None,
                 output_callback=lambda _line: None,
             )
@@ -132,20 +221,20 @@ def test_cancel_frozen_repair_releases_its_native_mutation_owner(
         "a" * 64,
         "b" * 64,
     )
-    supervisor = RepairExecutionSupervisor(
-        command_builder=lambda candidate: (
+    supervisor = RepairProcessSupervisor(
+        command_builder=lambda: (
             sys.executable,
             "-m",
             "tests.launcher.repair.execution_process_fixture",
-            str(candidate.install_root),
+            str(request.install_root),
             mode,
-        )
+        ),
+        startup_log_path=tmp_path / "repair.log",
     )
     started = Event()
     with ThreadPoolExecutor(max_workers=1) as execution:
         future = execution.submit(
             supervisor.run,
-            request,
             progress_observer=lambda _value: started.set(),
             output_callback=lambda _line: None,
         )
@@ -160,7 +249,7 @@ def test_cancel_frozen_repair_releases_its_native_mutation_owner(
                     with installation_mutation(tmp_path / "descendant"):
                         pytest.fail("The running descendant lost mutation ownership")
             supervisor.request_cancel()
-            with pytest.raises(RepairExecutionCancelled):
+            with pytest.raises(RepairProcessCancelled):
                 future.result(timeout=15)
             assert supervisor.safe_to_close
             try:

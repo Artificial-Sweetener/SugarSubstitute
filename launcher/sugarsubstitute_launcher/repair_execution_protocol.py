@@ -22,10 +22,6 @@ import json
 from collections.abc import Mapping
 from typing import cast
 
-from launcher.sugarsubstitute_launcher.application.repair.progress import (
-    RepairProgress,
-    RepairStage,
-)
 
 MAXIMUM_REPAIR_FRAME_BYTES = 64 * 1024
 REPAIR_EXECUTION_ENDPOINT_ENV = "SUGAR_SUBSTITUTE_REPAIR_EXECUTION_ENDPOINT"
@@ -80,26 +76,3 @@ def repair_message_details(message: dict[str, object]) -> str:
     if not isinstance(details, str):
         raise ValueError("Repair worker diagnostics are malformed.")
     return details
-
-
-def repair_progress_from_message(message: dict[str, object]) -> RepairProgress:
-    """Validate the executor's domain progress at the process boundary."""
-    stage, completed, total = (
-        message.get("stage"),
-        message.get("completed"),
-        message.get("total"),
-    )
-    if (
-        type(completed) is not int
-        or type(total) is not int
-        or not 0 <= completed <= total
-        or total <= 0
-    ):
-        raise ValueError("Repair worker progress counts are malformed.")
-    if stage is not None and not isinstance(stage, str):
-        raise ValueError("Repair worker progress stage is malformed.")
-    if (stage is None) != (completed == total):
-        raise ValueError("Repair worker progress completion is inconsistent.")
-    return RepairProgress(
-        RepairStage(stage) if stage is not None else None, completed, total
-    )

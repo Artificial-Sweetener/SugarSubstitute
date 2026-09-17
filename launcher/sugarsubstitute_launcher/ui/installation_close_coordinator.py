@@ -110,6 +110,7 @@ class InstallationCloseCoordinator(QObject):
             return
         self._close_requested = True
         self._installation.request_cancel()
+        self._repair.request_cancel()
         message = launcher_text("Finishing the current setup step before closing.")
         if self._repair.running:
             self._view.repair_page.set_status(message, working=True)

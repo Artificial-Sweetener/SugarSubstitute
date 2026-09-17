@@ -1384,6 +1384,19 @@ rule = "PROCESS001"
 candidates = ["PROCESS001|tests/launcher/repair/execution_process_fixture.py|<module>:unscoped-child-process:1"]
 paths = ["tests/launcher/repair/execution_process_fixture.py"]
 fingerprint = "sha256:76474b29c35ba34885f5b8f54ddf4fc665441915bc9ee99204f5d3784bdf0706"
-rationale = "This Windows-only native fixture intentionally leaves a child holding a separate tmp_path mutation lock when its repair worker succeeds, crashes, or is cancelled. A context-managed Popen would wait in the fixture and prevent testing production family cleanup. The production RepairExecutionSupervisor owns the kernel Job Object containing worker and child, terminates the family in finally, and waits for retained native member handles before returning. Cancellation tests request shutdown in finally and bound the future wait. A frozen child has a sixty-second last-resort bound; the self-exiting variant receives a pipe signal or EOF from its parent and exits abruptly while holding mutation ownership. This variant tests natural descendant exit racing supervisor cleanup. Tests reacquire both native locks after cleanup without deleting files or manually ending descendants. The family lifetime test also retains exact native handles and requires completed exit immediately when supervision returns. No unrelated process is discovered or targeted."
+rationale = "This Windows-only native fixture intentionally leaves a child holding a separate tmp_path mutation lock when its repair worker succeeds, crashes, or is cancelled. A context-managed Popen would wait in the fixture and prevent testing production family cleanup. The production RepairProcessSupervisor owns the kernel Job Object containing worker and child, terminates the family in finally, and waits for retained native member handles before returning. Cancellation tests request shutdown in finally and bound the future wait. A frozen child has a sixty-second last-resort bound; the self-exiting variant receives a pipe signal or EOF from its parent and exits abruptly while holding mutation ownership. This variant tests natural descendant exit racing supervisor cleanup. Tests reacquire both native locks after cleanup without deleting files or manually ending descendants. The family lifetime test also retains exact native handles and requires completed exit immediately when supervision returns. No unrelated process is discovered or targeted."
 issue = "chore:SS-TEST-WAIVER-C0287"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0288"
+owner = "Repair preparation blocked-read descendant lifetime"
+kind = "classification"
+disposition = "platform_native"
+rule = "PROCESS001"
+candidates = ["PROCESS001|tests/launcher/repair/blocked_preparation_fixture.py|<module>:unscoped-child-process:1"]
+paths = ["tests/launcher/repair/blocked_preparation_fixture.py"]
+fingerprint = "sha256:1ca18aac678af2cacbdbd4f55c2fd340c9724718e326c80b2e50daa476bf0aca"
+rationale = "This Windows-only fixture substitutes the HTTPS response read inside the production preparation bootstrap and deliberately leaves a descendant holding a tmp_path mutation lock while the parent read remains blocked. A context-managed child lifetime would obscure the native family cleanup being tested. The actual RepairProcessSupervisor owns both processes in its kernel Job Object. The production installer Close action requests cancellation, and the test waits at most five seconds for window and worker completion, verifies both captured PID/creation-time identities have exited, and reacquires descendant mutation ownership. The test finally requests Close and bounds Qt worker completion; both fixture waits have sixty-second last-resort bounds. No unrelated process is discovered, terminated, or used."
+issue = "chore:SS-TEST-WAIVER-C0288"
 review_by = 2026-12-15
