@@ -38,6 +38,7 @@ class RepairPreparationWorker(QObject):
     """Stage immutable release artifacts and publish a detached handoff request."""
 
     succeeded = Signal(object)
+    progress = Signal(object)
     failed = Signal(str)
     finished = Signal()
 
@@ -60,7 +61,9 @@ class RepairPreparationWorker(QObject):
         """Prepare repair artifacts while leaving active installation files untouched."""
 
         try:
-            preparation = RepairPreparationService().prepare_bound_application_repair(
+            preparation = RepairPreparationService(
+                progress_observer=self.progress.emit
+            ).prepare_bound_application_repair(
                 layout=self._layout,
                 release_source=self._release_source,
                 scope=self._scope,
@@ -77,6 +80,7 @@ class QtRepairPreparationExecutor(QObject):
     """Own one repair preparation thread and deterministic cleanup."""
 
     succeeded = Signal(object)
+    progress = Signal(object)
     failed = Signal(str)
     finished = Signal()
 
@@ -113,6 +117,7 @@ class QtRepairPreparationExecutor(QObject):
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.succeeded.connect(self.succeeded.emit)
+        worker.progress.connect(self.progress.emit)
         worker.failed.connect(self.failed.emit)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)

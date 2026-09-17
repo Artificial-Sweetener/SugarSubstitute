@@ -227,7 +227,7 @@ def test_close_during_repair_staging_prevents_repair_handoff(
         prepare_repair,
     )
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.launch_prepared_repair_helper",
+        "launcher.sugarsubstitute_launcher.ui.repair_preparation_controller.launch_prepared_repair_helper",
         lambda *, request_path: handoff_paths.append(request_path),
     )
     window = LauncherMainWindow(
@@ -249,7 +249,7 @@ def test_close_during_repair_staging_prevents_repair_handoff(
     release_staging.set()
     wait_for_launcher_condition(
         application,
-        lambda: not window.isVisible() and not window.repair_execution.running,
+        lambda: not window.isVisible() and not window.repair_preparation.running,
     )
     assert handoff_paths == []
     window.deleteLater()

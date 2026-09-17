@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-import shutil
+from collections.abc import Callable
 from pathlib import Path
 import ssl
 from urllib.parse import ParseResult, unquote, urlparse
@@ -26,6 +26,10 @@ import urllib.request
 
 from sugarsubstitute_shared.launcher_update.models import LauncherBundleAsset
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
+from sugarsubstitute_shared.asset_transfer import (
+    ObservedAssetTransfer,
+    TransferProgress,
+)
 
 
 class LauncherBundleDownloadError(RuntimeError):
@@ -40,11 +44,13 @@ class LauncherBundleDownloader:
         *,
         timeout_seconds: float = 60.0,
         tls_context: ssl.SSLContext | None = None,
+        progress_observer: Callable[[TransferProgress], None] | None = None,
     ) -> None:
         """Store the explicit remote request timeout and system trust context."""
 
         self._timeout_seconds = timeout_seconds
         self._tls_context = tls_context or SystemTrustTlsContext.create()
+        self._transfer = ObservedAssetTransfer(progress_observer)
 
     def download(self, *, asset: LauncherBundleAsset, destination: Path) -> Path:
         """Fetch one bundle and validate its declared size before promotion."""
@@ -64,14 +70,17 @@ class LauncherBundleDownloader:
                     ) as response,
                     partial.open("wb") as output,
                 ):
-                    shutil.copyfileobj(response, output)
+                    self._transfer.copy(response, output, total_bytes=asset.size_bytes)
             elif parsed.scheme == "file":
                 source = _file_url_path(parsed)
                 if not source.is_file():
                     raise LauncherBundleDownloadError(
                         f"Launcher bundle does not exist: {source}"
                     )
-                shutil.copyfile(source, partial)
+                with source.open("rb") as input_file, partial.open("wb") as output:
+                    self._transfer.copy(
+                        input_file, output, total_bytes=asset.size_bytes
+                    )
             else:
                 raise LauncherBundleDownloadError(
                     "Launcher bundle URLs must use HTTPS."

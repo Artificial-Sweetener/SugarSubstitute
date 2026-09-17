@@ -33,7 +33,6 @@ from typing import Never, cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtGui import QFont, QFontDatabase  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -57,8 +56,8 @@ from launcher.sugarsubstitute_launcher.ui.experience_models import (  # noqa: E4
 from launcher.sugarsubstitute_launcher.ui.main_window import (  # noqa: E402
     LauncherMainWindow,
 )
-from launcher.sugarsubstitute_launcher.ui.installer_presentation import (  # noqa: E402
-    LauncherUiState,
+from tools.install_experience_launcher_scenarios import (  # noqa: E402
+    project_launcher_page,
 )
 from tools.install_experience_onboarding import (  # noqa: E402
     capture_onboarding_matrix,
@@ -157,7 +156,7 @@ def run_headless_smoke(
         evidence: list[dict[str, object]] = []
         try:
             for page in _PAGES:
-                _project_page(window, page)
+                project_launcher_page(window, page)
                 application.processEvents()
                 if window.failure_presenter.active_dialog is not None:
                     QTest.qWait(250)
@@ -313,7 +312,7 @@ def run_interactive_smoke(
         audit=audit,
         repair=False,
     )
-    _project_page(window, page)
+    project_launcher_page(window, page)
     window.show()
     try:
         return int(application.exec())
@@ -346,75 +345,6 @@ def _window(
         localization_manager=localization_runtime.manager,
     )
     return window, localization_runtime
-
-
-def _project_page(
-    window: LauncherMainWindow,
-    page: str,
-) -> None:
-    """Drive real widgets into one deterministic smoke scenario."""
-
-    active_dialog = window.failure_presenter.active_dialog
-    if active_dialog is not None:
-        active_dialog.hide()
-        active_dialog.close()
-
-    if page == "language":
-        window.view.show_language_selection()
-        return
-    if page == "install":
-        if window.ui_state is LauncherUiState.SELECT_LANGUAGE:
-            window._handle_primary_clicked()
-        window.view.show_install_location()
-        return
-    if page == "install-failure":
-        window.view.show_install_location()
-        window.view.show_status_output()
-        window._handle_initial_install_failed("Simulated disk permission failure")
-        return
-    if page == "install-complete":
-        window.view.show_install_location()
-        window.view.status_panel.append_log(
-            "Smoke: exact-version application payload verified."
-        )
-        window.view.status_panel.append_log(
-            "Smoke: setup handoff ready; no process was started."
-        )
-        window.view.show_status_output()
-        return
-    if page.startswith("repair"):
-        window.view.show_repair_scope()
-        if page == "repair-full":
-            QTest.mouseClick(
-                window.view.repair_page.full_comfy_choice,
-                Qt.MouseButton.LeftButton,
-            )
-        elif page == "repair-working":
-            window.view.repair_page.set_status(
-                "Verifying exact-version files before changing the installation...",
-                working=True,
-            )
-        elif page == "repair-protected-data":
-            window.view.repair_page.set_status(
-                "Protected data verified: models, projects, outputs, inputs, user data, and third-party nodes are unchanged.",
-                working=False,
-            )
-        elif page == "repair-failure":
-            window._handle_repair_preparation_failed(
-                "Simulated locked application file"
-            )
-        elif page == "repair-rollback":
-            window.view.repair_page.set_status(
-                "Validation failed after replacement. The previous application was restored; protected data was unchanged.",
-                working=False,
-            )
-        elif page == "repair-complete":
-            window.view.repair_page.set_status(
-                "Repair completed and verified. SugarSubstitute is ready to start.",
-                working=False,
-            )
-        return
-    raise ValueError(f"Unsupported launcher smoke page: {page}")
 
 
 def _create_protected_sentinels(output_root: Path) -> tuple[Path, ...]:
