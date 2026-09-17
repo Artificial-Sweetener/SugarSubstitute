@@ -66,6 +66,7 @@ class ApplicationElectionRecovery:
             self._layout, process_scope=self._process_scope
         )
         while True:
+            recovery.begin_attempt()
             try:
                 return self._elect(self._layout, self._arguments)
             except ApplicationInstanceBrokerError as error:

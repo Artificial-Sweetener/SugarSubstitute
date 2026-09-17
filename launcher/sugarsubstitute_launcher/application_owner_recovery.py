@@ -52,14 +52,46 @@ class ApplicationOwnerRecovery:
         self._process_scope = process_scope
         self._verified_failure: ApplicationInstanceBrokerError | None = None
         self._attempted: set[ProcessIdentity] = set()
+        self._attempt_owner: ProcessIdentity | None = None
+
+    def begin_attempt(self) -> None:
+        """Bind fallback recovery to the process observed before admission begins."""
+        from launcher.sugarsubstitute_launcher.application_process_discovery import (
+            discover_previous_installed_instance,
+        )
+        from sugarsubstitute_shared.application_instance_election import (
+            application_instance_endpoints,
+        )
+
+        self._attempt_owner = discover_previous_installed_instance(
+            self._layout, application_instance_endpoints(self._layout.root)[0]
+        )
 
     def recover(self, error: ApplicationInstanceBrokerError) -> bool:
-        """Permit re-election only after verified exit or authorized retirement."""
+        """Recover admission without attributing a stale failure to a new owner."""
         self._observe_failure(error)
         proof = self._verified_failure
-        identity = (
-            proof.owner_identity if proof is not None else self._discover_owner(error)
-        )
+        if proof is not None:
+            identity = proof.owner_identity
+        else:
+            from sugarsubstitute_shared.application_instance_election import (
+                application_instance_endpoints,
+            )
+
+            if error.endpoint not in application_instance_endpoints(self._layout.root):
+                return False
+            identity = self._discover_owner(error)
+            if identity != self._attempt_owner:
+                _LOGGER.info(
+                    "Application ownership changed during admission; repeating election",
+                    extra={
+                        "previous_owner_process_id": (
+                            self._attempt_owner.pid if self._attempt_owner else None
+                        ),
+                        "owner_process_id": identity.pid if identity else None,
+                    },
+                )
+                return True
         if identity is None or identity in self._attempted:
             return False
         if error.reason is not ApplicationInstanceFailureReason.UNAVAILABLE:

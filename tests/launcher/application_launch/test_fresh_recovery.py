@@ -161,7 +161,7 @@ def test_fresh_recovery_automatically_retires_the_independently_verified_instanc
         layout=layout, process_arguments=(), locale_override="en", elect=elect
     ).run()
     assert offered == []
-    assert discovered == [layout.executable_path]
+    assert discovered and all(path == layout.executable_path for path in discovered)
     assert ended == [identity]
 
 
@@ -197,10 +197,19 @@ def test_independent_discovery_requires_the_exact_installed_endpoint(
     )
 
     def discover(
-        scope: ApplicationProcessScope,
+        candidate_scope: ApplicationProcessScope,
     ) -> ProcessIdentity:
-        """Reject any attempt to cross the recovery scope boundary."""
-        pytest.fail("Process discovery ran outside the installed endpoint scope")
+        """Permit an installed observation without authorizing an unrelated failure."""
+        if scope in {"source", "other-install"}:
+            pytest.fail("Process discovery ran outside the installed executable scope")
+        assert candidate_scope.accepts_executable(layout.executable_path)
+        return ProcessIdentity(4401, 123.0)
+
+    def reject_retirement(
+        identity: ProcessIdentity, *, scope: ApplicationProcessScope
+    ) -> bool:
+        """Reject destructive recovery attributed to an unrelated endpoint."""
+        pytest.fail("Unqualified endpoint permitted process retirement")
 
     def elect(
         _layout: InstallLayout, _arguments: Sequence[str]
@@ -215,6 +224,9 @@ def test_independent_discovery_requires_the_exact_installed_endpoint(
 
     monkeypatch.setattr(
         windows_application_processes, "find_previous_application_process", discover
+    )
+    monkeypatch.setattr(
+        application_instance_recovery, "terminate_verified_process", reject_retirement
     )
     monkeypatch.setattr(
         launcher_ui_supervision, "supervise_instance_recovery_window", present

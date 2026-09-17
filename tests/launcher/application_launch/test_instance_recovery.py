@@ -26,6 +26,7 @@ import sys
 from collections.abc import Sequence, Iterator
 from contextlib import contextmanager
 from launcher.sugarsubstitute_launcher import application_instance_recovery
+from sugarsubstitute_shared import windows_application_processes
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 import psutil  # type: ignore[import-untyped]
@@ -153,6 +154,11 @@ def test_normal_launch_recovers_the_authenticated_repair_owner(
     _bind_process(monkeypatch, process)
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    monkeypatch.setattr(
+        windows_application_processes,
+        "find_previous_application_process",
+        lambda _: None,
+    )
     failures = iter(
         (
             ApplicationInstanceBrokerError(
