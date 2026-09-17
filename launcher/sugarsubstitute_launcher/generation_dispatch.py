@@ -37,6 +37,7 @@ from sugarsubstitute_shared.application_broker_session import (
 from sugarsubstitute_shared.launcher_update.bundle_paths import LauncherBundlePaths
 from sugarsubstitute_shared.launcher_update.bundle_selection import (
     LauncherBundleSelection,
+    SelectedLauncherBundle,
 )
 from sugarsubstitute_shared.launcher_update.targets import (
     launcher_bundle_target_for_key,
@@ -89,13 +90,30 @@ def dispatch_selected_launcher(
         return None
     if candidate.generation is None:
         return None
+    from sugarsubstitute_shared.launcher_update.delegation_contract import (
+        supports_launcher_delegation,
+    )
+
+    if not supports_launcher_delegation(candidate.root, target):
+        _reject_generation(selection, candidate)
+        _LOGGER.warning(
+            "Selected launcher cannot share ownership; continuing baseline | generation=%s",
+            candidate.generation,
+        )
+        return None
     from launcher.sugarsubstitute_launcher.generation_supervision import (
         GenerationStartupError,
         LauncherGenerationSupervisor,
     )
 
     if supervisor is None:
-        supervisor = LauncherGenerationSupervisor()
+        supervisor = LauncherGenerationSupervisor(
+            cancellation_requested=(
+                splash_session.cancellation_requested
+                if splash_session is not None
+                else None
+            )
+        )
     command = [str(candidate.root / target.executable_relative_path), *arguments]
     if not any(
         arg == "--install-root" or arg.startswith("--install-root=")
@@ -130,6 +148,18 @@ def dispatch_selected_launcher(
     restart_requested = broker.consume_restart_request()
     if result == 0 and not restart_requested:
         return 0
+    _reject_generation(selection, candidate)
+    if result is None or restart_requested:
+        if on_baseline_fallback is not None:
+            on_baseline_fallback()
+        return None
+    return result
+
+
+def _reject_generation(
+    selection: LauncherBundleSelection, candidate: SelectedLauncherBundle
+) -> None:
+    """Retain a usable baseline even if the rejection record cannot be persisted."""
     try:
         selection.reject(candidate)
     except (OSError, ValueError):
@@ -137,8 +167,3 @@ def dispatch_selected_launcher(
             "Failed launcher generation could not be retired | generation=%s",
             candidate.generation,
         )
-    if result is None or restart_requested:
-        if on_baseline_fallback is not None:
-            on_baseline_fallback()
-        return None
-    return result

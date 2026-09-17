@@ -14,25 +14,52 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Contain a selected launcher before exposing fallback to its baseline."""
+"""Prove selected launcher readiness before accepting its owned lifetime."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 
+from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
+    ApplicationReadinessError,
+    ApplicationReadinessSupervisor,
+)
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
+    ApplicationStartupCancelled,
+    CandidateProcess,
+)
 from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
+from sugarsubstitute_shared.application_readiness import ApplicationReadinessSurface
 
 
 class GenerationStartupError(RuntimeError):
-    """Report a failure before a selected process family became live."""
+    """Report a retired generation that failed before exposing a usable surface."""
 
 
 class LauncherGenerationSupervisor:
-    """Keep selected process lifetime failures distinct from safe startup fallback."""
+    """Separate safe startup fallback from the lifetime of a usable generation."""
+
+    def __init__(
+        self,
+        *,
+        readiness: ApplicationReadinessSupervisor | None = None,
+        cancellation_requested: Callable[[], bool] | None = None,
+    ) -> None:
+        """Use the shared readiness owner for process cleanup and cancellation."""
+        self._readiness = readiness or ApplicationReadinessSupervisor(
+            process_starter=_start_generation,
+            cancellation_requested=cancellation_requested,
+            accepted_surfaces=(
+                ApplicationReadinessSurface.MAIN_SHELL,
+                ApplicationReadinessSurface.ONBOARDING,
+                ApplicationReadinessSurface.LAUNCHER_WINDOW,
+            ),
+        )
 
     def supervise(
         self,
@@ -41,15 +68,33 @@ class LauncherGenerationSupervisor:
         command: Sequence[str],
         environment: Mapping[str, str],
     ) -> int:
-        """Supervise the generation and reap its family before propagating errors."""
+        """Retire failed startup before fallback and preserve deliberate Close."""
         crash = ApplicationCrashSupervisor()
+        prepared = crash.prepare(layout=layout, environment=environment)
         try:
-            prepared = crash.prepare(layout=layout, environment=environment)
-            process, _log_path = spawn_supervised_process(
-                command, environment=prepared.environment, allow_handoff=True
+            process = self._readiness.launch_until_ready(
+                layout=layout, command=command, environment=prepared.environment
             )
-        except (OSError, ValueError) as error:
-            raise GenerationStartupError("Selected launcher could not start") from error
+        except ApplicationStartupCancelled as cancelled:
+            if cancelled.terminated_process is not None:
+                crash.supervise_process(
+                    layout=layout,
+                    process=cancelled.terminated_process,
+                    prepared=prepared,
+                    expected_cancellation=True,
+                )
+            return 0
+        except ApplicationReadinessError as error:
+            if error.terminated_process is not None:
+                crash.supervise_process(
+                    layout=layout,
+                    process=error.terminated_process,
+                    prepared=prepared,
+                    present_report=False,
+                )
+            raise GenerationStartupError(
+                "Selected launcher failed visible readiness"
+            ) from error
         try:
             return crash.supervise_process(
                 layout=layout, process=process, prepared=prepared
@@ -59,3 +104,15 @@ class LauncherGenerationSupervisor:
                 process.kill()
                 process.wait(timeout=10.0)
             raise
+
+
+def _start_generation(
+    command: Sequence[str], environment: Mapping[str, str]
+) -> tuple[CandidateProcess, Path]:
+    """Start a generation inside the same native family boundary as app candidates."""
+    try:
+        return spawn_supervised_process(
+            command, environment=environment, allow_handoff=True
+        )
+    except (OSError, ValueError) as error:
+        raise GenerationStartupError("Selected launcher could not start") from error

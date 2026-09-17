@@ -22,6 +22,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 import json
 import logging
+import os
 from pathlib import Path
 import secrets
 import subprocess
@@ -178,8 +179,10 @@ class ApplicationReadinessSupervisor:
                 "SugarSubstitute did not reveal its main window before the startup "
                 f"timeout. Startup log: {startup_log_path}."
             )
-        except BaseException:
+        except BaseException as error:
             stop_candidate_process(process)
+            if isinstance(error, ApplicationReadinessError):
+                error.terminated_process = process
             raise
         finally:
             receipt_path.unlink(missing_ok=True)
@@ -236,17 +239,17 @@ class ApplicationReadinessSupervisor:
         contract: _ReadinessContract,
         receipt: ApplicationReadinessReceipt,
     ) -> None:
-        """Project a validated child proof into its caller-owned contract."""
+        """Attest the validated child surface through this caller-owned process hop."""
 
         if contract.outer_receipt_path is None or contract.outer_token is None:
             return
         publish_application_readiness_receipt(
             receipt_path=contract.outer_receipt_path,
             receipt=ApplicationReadinessReceipt(
-                pid=receipt.pid,
+                pid=os.getpid(),
                 token=contract.outer_token,
                 surface=receipt.surface,
-                parent_pid=receipt.parent_pid,
+                parent_pid=os.getppid(),
             ),
         )
 

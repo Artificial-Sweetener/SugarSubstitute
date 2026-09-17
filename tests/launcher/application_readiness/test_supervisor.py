@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -190,6 +191,11 @@ def test_supervisor_preserves_outer_readiness_receipt(tmp_path: Path) -> None:
 
     assert result is process
     assert receipt_path.is_file()
+    forwarded = ApplicationReadinessReceipt.from_json(
+        json.loads(receipt_path.read_text())
+    )
+    assert forwarded.pid == os.getpid()
+    assert forwarded.parent_pid == os.getppid()
 
 
 def test_supervisor_rejects_partial_outer_readiness_contract(tmp_path: Path) -> None:

@@ -56,6 +56,11 @@ def test_dispatch_retains_baseline_authority_and_routes_failure(
     root = _write_installed_layout(tmp_path / "installation")
     staged = root / "launcher" / "updates" / "staged"
     _write_bundle_tree(staged, marker="candidate")
+    assets = staged / "launcher-bin" / "launcher_assets"
+    assets.mkdir()
+    (assets / "launcher-contract.json").write_text(
+        '{"schema_version": 1, "delegation_protocol": 1}'
+    )
     selection = LauncherBundleSelection(root, WINDOWS_X64_BUNDLE)
     candidate = selection.publish(staged, version="1")
     selection.activate(candidate)
@@ -111,6 +116,84 @@ def test_dispatch_retains_baseline_authority_and_routes_failure(
         )
         assert selection.resolve().root == (
             candidate.root if outcome == "closed" else root
+        )
+        owner.bind_startup_presenter(lambda _: "baseline")
+        assert (
+            ApplicationInstanceBroker.elect(
+                install_root=root,
+                invocation=ApplicationInvocation.capture(["launcher"]),
+            )
+            is None
+        )
+
+
+@pytest.mark.parametrize(
+    "contract",
+    [None, "{}", "{bad", '{"schema_version": 1, "delegation_protocol": 999}'],
+)
+@pytest.mark.parametrize("rejection_writable", [True, False])
+def test_incompatible_generation_keeps_working_baseline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    contract: str | None,
+    rejection_writable: bool,
+) -> None:
+    """Never start a selected launcher that cannot share the elected owner."""
+    from launcher.sugarsubstitute_launcher.generation_dispatch import (
+        dispatch_selected_launcher,
+    )
+
+    root = _write_installed_layout(tmp_path / "installation")
+    staged = root / "launcher" / "updates" / "staged"
+    _write_bundle_tree(staged, marker="historical")
+    if contract is not None:
+        assets = staged / "launcher-bin" / "launcher_assets"
+        assets.mkdir()
+        (assets / "launcher-contract.json").write_text(contract)
+    selection = LauncherBundleSelection(root, WINDOWS_X64_BUNDLE)
+    candidate = selection.publish(staged, version="1")
+    selection.activate(candidate)
+    layout = InstallLayout.from_root(root, target=WINDOWS_X64)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(layout.executable_path))
+    owner = ApplicationInstanceBroker.elect(
+        install_root=root, invocation=ApplicationInvocation.capture(["launcher"])
+    )
+    assert owner is not None
+
+    if not rejection_writable:
+
+        def reject_unwritable(self: LauncherBundleSelection, candidate: object) -> None:
+            """Model a read-only rejection record without weakening read validation."""
+            raise PermissionError("rejection record is read-only")
+
+        monkeypatch.setattr(LauncherBundleSelection, "reject", reject_unwritable)
+
+    class IncompatibleProcess:
+        """Fail if an incompatible external executable is admitted."""
+
+        def supervise(
+            self,
+            *,
+            layout: InstallLayout,
+            command: Sequence[str],
+            environment: Mapping[str, str],
+        ) -> int:
+            """Require compatibility resolution before process creation."""
+            pytest.fail("Incompatible generation was launched under the elected owner")
+
+    with owner:
+        assert (
+            dispatch_selected_launcher(
+                layout=layout,
+                broker=owner,
+                arguments=(),
+                supervisor=IncompatibleProcess(),
+            )
+            is None
+        )
+        assert selection.resolve().root == (
+            root if rejection_writable else candidate.root
         )
         owner.bind_startup_presenter(lambda _: "baseline")
         assert (

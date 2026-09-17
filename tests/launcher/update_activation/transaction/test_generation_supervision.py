@@ -29,15 +29,22 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.crash_reporting import CrashIncidentStore
+from sugarsubstitute_shared.application_readiness import (
+    ApplicationReadinessReceipt,
+    ApplicationReadinessSurface,
+    READINESS_PATH_ENV,
+    READINESS_TOKEN_ENV,
+    publish_application_readiness_receipt,
+)
 
 
 @pytest.mark.parametrize(
-    "outcome", ["spawn-error", "wait-error", "report-error", "crashed"]
+    "outcome", ["spawn-error", "wait-error", "report-error", "crashed", "early-exit"]
 )
 def test_generation_failure_distinguishes_startup_from_owned_lifetime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
 ) -> None:
-    """Allow startup fallback only before spawn and reap live children on failure."""
+    """Distinguish failed readiness from failures after a usable surface appeared."""
     layout = InstallLayout.from_root(tmp_path)
 
     class Process:
@@ -59,7 +66,11 @@ def test_generation_failure_distinguishes_startup_from_owned_lifetime(
 
         def poll(self) -> int | None:
             """Expose the live state for failure cleanup."""
-            return None if self.running else 73
+            return None if self.running and outcome != "early-exit" else 73
+
+        def terminate(self) -> None:
+            """Retire a process that fails before readiness."""
+            self.running = False
 
         def kill(self) -> None:
             """Record process-family termination through its owned handle."""
@@ -75,6 +86,16 @@ def test_generation_failure_distinguishes_startup_from_owned_lifetime(
         assert allow_handoff
         if outcome == "spawn-error":
             raise OSError("spawn failed")
+        if outcome != "early-exit":
+            publish_application_readiness_receipt(
+                receipt_path=Path(environment[READINESS_PATH_ENV]),
+                receipt=ApplicationReadinessReceipt(
+                    pid=process.pid,
+                    token=environment[READINESS_TOKEN_ENV],
+                    surface=ApplicationReadinessSurface.MAIN_SHELL,
+                    parent_pid=999,
+                ),
+            )
         return process, tmp_path / "startup.log"
 
     def report(
@@ -94,6 +115,9 @@ def test_generation_failure_distinguishes_startup_from_owned_lifetime(
         with pytest.raises(generation_supervision.GenerationStartupError):
             supervisor.supervise(layout=layout, command=("fixture",), environment={})
         assert not process.killed
+    elif outcome == "early-exit":
+        with pytest.raises(generation_supervision.GenerationStartupError):
+            supervisor.supervise(layout=layout, command=("fixture",), environment={})
     elif outcome in {"wait-error", "report-error"}:
         error_type = OSError if outcome == "wait-error" else RuntimeError
         with pytest.raises(error_type):
