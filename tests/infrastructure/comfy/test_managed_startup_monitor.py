@@ -21,6 +21,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import IO
 
+from sugarsubstitute_shared.localization import render_source_application_text
+
 from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
 )
@@ -165,9 +167,9 @@ def test_live_process_waits_beyond_five_minutes_until_user_cancels() -> None:
     assert result.canceled is True
     assert result.fatal_incident is None
     assert clock.current == 360.0
-    assert progress_messages[-1] == (
+    assert render_source_application_text(progress_messages[-1]) == (
         "Still waiting—custom nodes, slow storage, or a startup issue may be "
-        "delaying ComfyUI."
+        "delaying ComfyUI..."
     )
 
 

@@ -19,6 +19,9 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from collections.abc import Iterator
+from contextlib import contextmanager
+import socket
 
 import pytest
 
@@ -26,8 +29,12 @@ from substitute.application.execution import CancellationSource
 from substitute.infrastructure.comfy import managed_readiness
 
 
+@pytest.mark.parametrize("host", ["127.0.0.1", "localhost", "::1"])
+@pytest.mark.parametrize("status", [200, 503])
 def test_probe_http_ready_uses_system_stats_endpoint(
     monkeypatch: pytest.MonkeyPatch,
+    host: str,
+    status: int,
 ) -> None:
     """Readiness probe should use ComfyUI's HTTP API instead of a raw socket."""
 
@@ -54,7 +61,7 @@ def test_probe_http_ready_uses_system_stats_endpoint(
             observed["headers"] = headers
 
         def getresponse(self) -> SimpleNamespace:
-            return SimpleNamespace(status=200, read=lambda: b"{}")
+            return SimpleNamespace(status=status, read=lambda: b"{}")
 
         def close(self) -> None:
             observed["closed"] = True
@@ -63,15 +70,10 @@ def test_probe_http_ready_uses_system_stats_endpoint(
         "substitute.infrastructure.comfy.managed_readiness.http.client.HTTPConnection",
         _FakeConnection,
     )
-    monkeypatch.setattr(
-        managed_readiness,
-        "_local_port_is_available",
-        lambda **_kwargs: False,
-    )
 
-    assert managed_readiness.probe_http_ready(host="127.0.0.1", port=8188) is True
+    assert managed_readiness.probe_http_ready(host=host, port=8188) is (status == 200)
     assert observed == {
-        "host": "127.0.0.1",
+        "host": host,
         "port": 8188,
         "timeout": 0.35,
         "method": "GET",
@@ -81,95 +83,40 @@ def test_probe_http_ready_uses_system_stats_endpoint(
     }
 
 
-def test_probe_http_ready_skips_http_when_loopback_port_is_bindable(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("connected", [False, True])
+@pytest.mark.parametrize("ready", [False, True])
+def test_listener_observation_requires_tcp_and_http_readiness(
+    monkeypatch: pytest.MonkeyPatch, connected: bool, ready: bool
 ) -> None:
-    """Bindable loopback ports should avoid the failed HTTP readiness timeout."""
+    """Keep absent listeners cheap while requiring an actual Comfy HTTP response."""
+    connections: list[tuple[tuple[str, int], float]] = []
+    requests: list[tuple[str, int]] = []
+    closed: list[bool] = []
 
-    observed: list[tuple[str, int]] = []
+    @contextmanager
+    def connect(address: tuple[str, int], *, timeout: float) -> Iterator[None]:
+        """Model the external TCP connection boundary and its cleanup."""
+        connections.append((address, timeout))
+        if not connected:
+            raise ConnectionRefusedError("No listener")
+        try:
+            yield
+        finally:
+            closed.append(True)
 
-    class _FakeConnection:
-        """Record unexpected HTTP connection attempts."""
+    def respond(*, host: str, port: int) -> bool:
+        """Expose the independently tested HTTP result to listener classification."""
+        requests.append((host, port))
+        return ready
 
-        def __init__(self, host: str, port: int, timeout: float) -> None:
-            _ = timeout
-            observed.append((host, port))
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.managed_readiness.http.client.HTTPConnection",
-        _FakeConnection,
+    monkeypatch.setattr(socket, "create_connection", connect)
+    monkeypatch.setattr(managed_readiness, "probe_http_ready", respond)
+    assert managed_readiness.is_endpoint_listening("localhost", 8188) is (
+        connected and ready
     )
-    monkeypatch.setattr(
-        managed_readiness,
-        "_local_port_is_available",
-        lambda **_kwargs: True,
-    )
-
-    assert managed_readiness.probe_http_ready(host="127.0.0.1", port=8188) is False
-    assert observed == []
-
-
-def test_probe_http_ready_does_not_bind_probe_named_localhost(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Named hosts should keep the HTTP path to avoid resolver ambiguity."""
-
-    bind_probes: list[tuple[str, int]] = []
-    observed: dict[str, object] = {}
-
-    class _FakeConnection:
-        """Capture one readiness request for a named host."""
-
-        def __init__(self, host: str, port: int, timeout: float) -> None:
-            observed["host"] = host
-            observed["port"] = port
-            observed["timeout"] = timeout
-
-        def request(
-            self,
-            method: str,
-            path: str,
-            body: object | None = None,
-            headers: dict[str, str] | None = None,
-        ) -> None:
-            _ = body
-            observed["method"] = method
-            observed["path"] = path
-            observed["headers"] = headers
-
-        def getresponse(self) -> SimpleNamespace:
-            return SimpleNamespace(status=200, read=lambda: b"{}")
-
-        def close(self) -> None:
-            observed["closed"] = True
-
-    def record_bind_probe(*, host: str, port: int) -> bool:
-        """Record unexpected bind preflights for non-literal hosts."""
-
-        bind_probes.append((host, port))
-        return True
-
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.managed_readiness.http.client.HTTPConnection",
-        _FakeConnection,
-    )
-    monkeypatch.setattr(
-        managed_readiness,
-        "_local_port_is_available",
-        record_bind_probe,
-    )
-
-    assert managed_readiness.probe_http_ready(host="localhost", port=8188) is True
-    assert bind_probes == []
-    assert observed == {
-        "host": "localhost",
-        "port": 8188,
-        "timeout": 0.35,
-        "method": "GET",
-        "path": "/system_stats",
-        "headers": {"Connection": "close"},
-        "closed": True,
-    }
+    assert connections == [(("localhost", 8188), 0.005)]
+    assert requests == ([("localhost", 8188)] if connected else [])
+    assert closed == ([True] if connected else [])
 
 
 def test_wait_for_ready_retries_until_probe_succeeds(
