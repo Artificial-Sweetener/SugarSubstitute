@@ -50,6 +50,7 @@ def reserve_selected_installation(
     recovery = ApplicationOwnerRecovery(InstallLayout.from_root(install_root))
     while True:
         on_activity()
+        recovery.begin_attempt()
         try:
             return reserve_application_instance(install_root, invocation)
         except ApplicationInstanceBrokerError as error:
