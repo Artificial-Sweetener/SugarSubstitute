@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import shutil
 from pathlib import Path
 from uuid import uuid4
@@ -38,6 +39,9 @@ from sugarsubstitute_shared.launcher_update.bundle_validation import (
     validate_launcher_bundle,
 )
 from sugarsubstitute_shared.launcher_update.targets import LauncherBundleTarget
+from sugarsubstitute_shared.launcher_update.delegation_contract import (
+    validate_launcher_successor,
+)
 from sugarsubstitute_shared.windows_long_paths import operational_path
 
 
@@ -69,22 +73,35 @@ class LauncherBundleStager:
             update_root / "staging" / safe_launcher_version(version) / uuid4().hex
         )
         attempt_root.mkdir(parents=True)
-        version_root = self.stage_bundle(
-            install_root=resolved_root,
-            version=version,
-            target=target,
-            asset=asset,
-            destination_dir=attempt_root / "payload",
-        )
-        request_path = attempt_root / "request.json"
-        LauncherUpdateRequest(
-            install_root=resolved_root,
-            version=version,
-            target_key=target.key,
-            staged_bundle_dir=version_root,
-            relaunch=False,
-        ).save(request_path)
-        return request_path
+        try:
+            version_root = self.stage_bundle(
+                install_root=resolved_root,
+                version=version,
+                target=target,
+                asset=asset,
+                destination_dir=attempt_root / "payload",
+            )
+            validate_launcher_successor(
+                baseline=resolved_root, candidate=version_root, target=target
+            )
+            request_path = attempt_root / "request.json"
+            LauncherUpdateRequest(
+                install_root=resolved_root,
+                version=version,
+                target_key=target.key,
+                staged_bundle_dir=version_root,
+                relaunch=False,
+            ).save(request_path)
+            return request_path
+        except BaseException:
+            try:
+                shutil.rmtree(attempt_root)
+            except OSError:
+                logging.getLogger(__name__).exception(
+                    "Failed launcher staging could not be removed | attempt=%s",
+                    attempt_root,
+                )
+            raise
 
     def stage_bundle(
         self,

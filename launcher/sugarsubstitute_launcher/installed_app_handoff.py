@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 import os
+import logging
+from dataclasses import replace
 from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.application_launch import (
@@ -50,6 +52,7 @@ from sugarsubstitute_shared.application_broker_session import (
     ApplicationBrokerSession,
 )
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
+from sugarsubstitute_shared.process_identity import ProcessIdentityError
 
 
 _PRE_LAUNCH_MANIFEST_TIMEOUT_SECONDS = 3.0
@@ -76,16 +79,27 @@ def complete_installed_app_handoff(
     )
     try:
         if update_result.launcher_update_request_path is not None:
-            if splash_session is not None:
-                splash_session.close()
-            schedule_launcher_update(
-                request_path=Path(update_result.launcher_update_request_path),
-                runtime_python=layout.runtime_python,
-                app_dir=layout.app_dir,
-                relaunch=True,
-                wait_pid=os.getpid(),
-            )
-            return
+            try:
+                schedule_launcher_update(
+                    request_path=Path(update_result.launcher_update_request_path),
+                    runtime_python=layout.runtime_python,
+                    app_dir=layout.app_dir,
+                    relaunch=True,
+                    wait_pid=os.getpid(),
+                )
+            except (OSError, ValueError, ProcessIdentityError) as error:
+                logging.getLogger(__name__).warning(
+                    "Launcher update helper could not start; continuing installed app | request=%s",
+                    update_result.launcher_update_request_path,
+                    exc_info=True,
+                )
+                update_result = replace(
+                    update_result, failure_reason=type(error).__name__
+                )
+            else:
+                if splash_session is not None:
+                    splash_session.close()
+                return
 
         extra_arguments = [locale_argument]
         if handoff_geometry:
@@ -98,7 +112,7 @@ def complete_installed_app_handoff(
             layout=layout,
             command=app_command,
             locale_override=locale_argument.removeprefix("--locale="),
-            remote_failure_reason=update_result.failure_reason,
+            remote_failure_reason=update_result.remote_failure_reason,
         )
         if update_result.pending_activation is not None:
             attempted_version = update_result.attempted_version
@@ -110,7 +124,7 @@ def complete_installed_app_handoff(
                 attempted_version=attempted_version,
                 environment=installed_application_environment(
                     broker,
-                    remote_failure_reason=update_result.failure_reason,
+                    remote_failure_reason=update_result.remote_failure_reason,
                 ),
                 activation=update_result.pending_activation,
                 on_ready=lambda: supervisor.complete_startup(splash_session),

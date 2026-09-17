@@ -29,6 +29,20 @@ CONTRACT_FILENAME = "launcher-contract.json"
 SUPPORTED_DELEGATION_PROTOCOL = 1
 
 
+def validate_launcher_successor(
+    *, baseline: Path, candidate: Path, target: LauncherBundleTarget
+) -> None:
+    """Preserve the installed baseline's ownership protocol across replacement.
+
+    Standalone legacy baselines retain their existing update contract. A baseline
+    that delegates its native ownership must never select a second election owner.
+    """
+    if supports_launcher_delegation(
+        baseline, target
+    ) and not supports_launcher_delegation(candidate, target):
+        raise ValueError("Launcher successor does not support baseline delegation.")
+
+
 def supports_launcher_delegation(root: Path, target: LauncherBundleTarget) -> bool:
     """Read the sealed producer contract without executing incompatible code.
 
