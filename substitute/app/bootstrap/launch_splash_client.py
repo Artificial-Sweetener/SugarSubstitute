@@ -49,8 +49,8 @@ class LaunchSplashClient(SplashPresentationPort, Protocol):
 class InProcessSplashPort(SplashPresentationPort, Protocol):
     """Accept the native close acknowledgement at the local widget boundary."""
 
-    def close(self) -> bool | None:
-        """Close the native surface with its optional Qt acknowledgement."""
+    def dismiss(self) -> None:
+        """Dismiss the native surface without requesting startup cancellation."""
 
 
 class NullLaunchSplashClient:
@@ -106,4 +106,4 @@ class InProcessLaunchSplashClient:
     def close(self) -> None:
         """Close the in-process splash widget."""
 
-        self._splash_window.close()
+        self._splash_window.dismiss()

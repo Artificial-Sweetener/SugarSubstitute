@@ -239,7 +239,7 @@ def _apply_session_dispatch(
 def _close_splash_and_quit(*, splash: Any, app: QApplication) -> None:
     """Stop splash-owned native work before leaving the Qt event loop."""
 
-    splash.close()
+    splash.dismiss()
     app.quit()
 
 

@@ -133,6 +133,7 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
         """Build the splash window with one shared terminal output surface."""
 
         super().__init__(parent)
+        self._closure_requested = False
         self._localization: LocalizationBindings | None = None
         self._accent_color = accent_color
         window_icon = icon or application_icon()
@@ -252,10 +253,19 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
 
         self._feedback.clear_activity()
 
+    def dismiss(self) -> None:
+        """Dismiss the surface when its startup owner completes or retires it."""
+
+        self._closure_requested = True
+        self.close()
+
     def closeEvent(self, event: QCloseEvent) -> None:
-        """Stop activity scheduling before closing the splash window."""
+        """Cancel startup once for every user close, including native window commands."""
 
         self._feedback.shutdown()
+        if not self._closure_requested:
+            self._closure_requested = True
+            self.cancelRequested.emit()
         super().closeEvent(event)
 
     def paintEvent(self, event: object) -> None:
@@ -306,7 +316,7 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
                 titlebar.closeBtn.clicked.disconnect()
             except (RuntimeError, TypeError):
                 pass
-            titlebar.closeBtn.clicked.connect(self._request_cancel)
+            titlebar.closeBtn.clicked.connect(self.close)
             titlebar.raise_()
         except (AttributeError, RuntimeError) as error:
             _log_splash_warning(
@@ -400,13 +410,6 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
                 "Failed to localize splash titlebar",
                 error=repr(error),
             )
-
-    @Slot()
-    def _request_cancel(self) -> None:
-        """Emit the user-requested startup cancellation and close the helper window."""
-
-        self.cancelRequested.emit()
-        self.close()
 
     def _build_splash_visual(self, icon: QIcon | None, parent: QWidget) -> QWidget:
         """Return the animated splash visual or a static icon fallback."""
