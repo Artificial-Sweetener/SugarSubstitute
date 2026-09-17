@@ -98,6 +98,15 @@ def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
         "sugarsubstitute_shared.launcher_update.process.subprocess.Popen",
         fake_popen,
     )
+
+    def fake_native_launch(*args: object, **kwargs: object) -> int:
+        """Capture the same environment at the Windows creation boundary."""
+        return fake_popen(*args, env=kwargs["environment"]).pid
+
+    monkeypatch.setattr(
+        "sugarsubstitute_shared.windows_independent_process.start_independent_windows_process",
+        fake_native_launch,
+    )
     monkeypatch.setattr(
         update_process_module,
         "standard_child_process_dll_search_path",
@@ -211,6 +220,15 @@ def test_update_process_does_not_inherit_retired_crash_contract(
 
     monkeypatch.setattr(
         "sugarsubstitute_shared.launcher_update.process.subprocess.Popen", launch
+    )
+
+    def native_launch(*args: object, **kwargs: object) -> int:
+        """Observe sanitized state at the Windows native process boundary."""
+        return launch(*args, env=kwargs["environment"]).pid
+
+    monkeypatch.setattr(
+        "sugarsubstitute_shared.windows_independent_process.start_independent_windows_process",
+        native_launch,
     )
     if boundary == "schedule":
         request_path, runtime_python, app_dir = _write_scheduled_update_request(

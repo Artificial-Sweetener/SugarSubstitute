@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 import subprocess
 import sys
+import os
 
 from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
 from sugarsubstitute_shared.crash_reporting.protocol import (
@@ -66,63 +67,66 @@ def schedule_launcher_update(
     install_root = operational_path(request.install_root)
     log_path = install_root / "launcher" / "logs" / "launcher-update.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    creationflags = 0
-    startupinfo = None
-    if sys.platform == "win32":
-        creationflags = (
-            subprocess.CREATE_NEW_PROCESS_GROUP
-            | subprocess.DETACHED_PROCESS
-            | subprocess.CREATE_BREAKAWAY_FROM_JOB
-        )
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     with log_path.open("a", encoding="utf-8") as output:
-        with standard_child_process_dll_search_path():
-            process = subprocess.Popen(  # noqa: S603
-                [
-                    subprocess_path(runtime_python),
-                    "-m",
-                    "sugarsubstitute_shared.launcher_update.helper",
-                    subprocess_path(request_path),
-                ],
-                cwd=subprocess_working_directory(install_root),
-                env=environment,
-                stdin=subprocess.DEVNULL,
-                stdout=output,
-                stderr=subprocess.STDOUT,
-                close_fds=True,
-                creationflags=creationflags,
-                startupinfo=startupinfo,
-                shell=False,
-            )
-    return process.pid
+        return _start_independent(
+            [
+                subprocess_path(runtime_python),
+                "-m",
+                "sugarsubstitute_shared.launcher_update.helper",
+                subprocess_path(request_path),
+            ],
+            cwd=install_root,
+            environment=environment,
+            output_fd=output.fileno(),
+        )
 
 
 def relaunch_updated_launcher(executable_path: Path) -> None:
     """Start the newly promoted launcher without inheriting helper handles."""
 
-    creationflags = 0
-    startupinfo = None
-    if sys.platform == "win32":
-        creationflags = (
-            subprocess.CREATE_NEW_PROCESS_GROUP
-            | subprocess.DETACHED_PROCESS
-            | subprocess.CREATE_BREAKAWAY_FROM_JOB
+    with open(os.devnull, "wb") as output:
+        _start_independent(
+            [subprocess_path(executable_path)],
+            cwd=executable_path.parent,
+            environment=without_crash_supervision_environment(
+                clean_frozen_parent_environment()
+            ),
+            output_fd=output.fileno(),
         )
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-    subprocess.Popen(  # noqa: S603
-        [subprocess_path(executable_path)],
-        cwd=subprocess_working_directory(executable_path.parent),
-        env=without_crash_supervision_environment(clean_frozen_parent_environment()),
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        close_fds=True,
-        creationflags=creationflags,
-        startupinfo=startupinfo,
-        shell=False,
-    )
+
+
+def _start_independent(
+    command: list[str],
+    *,
+    cwd: Path,
+    environment: dict[str, str],
+    output_fd: int,
+) -> int:
+    """Require independent native lifetime before committing either update handoff."""
+    with standard_child_process_dll_search_path():
+        if sys.platform == "win32":
+            from sugarsubstitute_shared.windows_independent_process import (
+                start_independent_windows_process,
+            )
+
+            return start_independent_windows_process(
+                command,
+                environment=environment,
+                cwd=cwd,
+                output_fd=output_fd,
+            )
+        process = subprocess.Popen(
+            command,
+            cwd=subprocess_working_directory(cwd),
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=output_fd,
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+            start_new_session=True,
+            shell=False,
+        )
+        return process.pid
 
 
 __all__ = ["schedule_launcher_update", "relaunch_updated_launcher"]
