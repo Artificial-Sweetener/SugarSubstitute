@@ -121,21 +121,6 @@ responsibilities = [
 next_extraction = "Extract preview-source and visibility policy from cached network lookup and refresh orchestration."
 
 [[debts]]
-id = "SS-ARCH-011"
-owner = "application error reporting"
-paths = ["substitute/application/errors.py"]
-fingerprint = "sha256:44f7031b48d2d87f76b5b2c76425507a027d4e6c98855b51ee248f9e44d6ac20"
-issue = "chore:SS-ARCH-011"
-review_by = 2026-12-15
-responsibilities = [
-  "structured error and diagnostic models",
-  "exception and backend payload interpretation",
-  "user-visible report construction",
-  "technical text rendering",
-]
-next_extraction = "Extract error payload interpretation and report rendering from the immutable error model contract."
-
-[[debts]]
 id = "SS-ARCH-012"
 owner = "generation execution"
 paths = ["substitute/application/generation/generation_service.py"]

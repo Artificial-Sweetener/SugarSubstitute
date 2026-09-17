@@ -43,7 +43,7 @@ from sugarsubstitute_shared.crash_reporting import (
     CrashKind,
 )
 from substitute.application.crash_reports import build_crash_error_report
-from substitute.application.errors import render_error_report
+from substitute.application.error_report_builder import render_error_report
 
 
 _CHILD_MODULE = "tests.support.crash_reporting.fault_child"
