@@ -32,7 +32,6 @@ from launcher.sugarsubstitute_launcher.application.installation.models import (
     InstallationAlreadyPresented,
     ReleaseManifestSource,
 )
-from launcher.sugarsubstitute_launcher.application.repair.models import RepairScope
 from launcher.sugarsubstitute_launcher.application.installation.release_source_policy import (
     create_continued_installation_request,
 )
@@ -43,9 +42,6 @@ from launcher.sugarsubstitute_launcher.language_preference import (
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.runtime_paths import (
     current_frozen_executable_path,
-)
-from launcher.sugarsubstitute_launcher.repair_handoff import (
-    launch_prepared_repair_helper,
 )
 from launcher.sugarsubstitute_launcher.ui.installation_execution import (
     QtInstallationExecutor,
@@ -72,10 +68,11 @@ from launcher.sugarsubstitute_launcher.ui.installer_window_shell import (
 from launcher.sugarsubstitute_launcher.ui.launcher_theme import (
     configure_launcher_theme,
 )
-from launcher.sugarsubstitute_launcher.ui.experience_models import RepairChoice
+from launcher.sugarsubstitute_launcher.ui.repair_preparation_controller import (
+    RepairPreparationController,
+)
 from launcher.sugarsubstitute_launcher.ui.repair_preparation_execution import (
     QtRepairPreparationExecutor,
-    require_repair_preparation,
 )
 from launcher.sugarsubstitute_launcher.ui.window_effects import (
     apply_launcher_window_effects,
@@ -145,9 +142,7 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             workflow_factory=workflow_factory,
             parent=self,
         )
-        self.repair_execution = QtRepairPreparationExecutor(parent=self)
-        self.repair_execution.succeeded.connect(self._handle_repair_prepared)
-        self.repair_execution.failed.connect(self._handle_repair_preparation_failed)
+        repair_execution = QtRepairPreparationExecutor(parent=self)
         self.execution.initial_failed.connect(self._handle_initial_install_failed)
         self.execution.initial_succeeded.connect(self._handle_initial_install_succeeded)
         self.execution.initial_presented_elsewhere.connect(
@@ -171,10 +166,20 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
             window=self,
             view=self.view,
             installation=self.execution,
-            repair=self.repair_execution,
+            repair=repair_execution,
             handoff_completed=self.handoff_completed.emit,
         )
-        self.repair_execution.finished.connect(self._close_coordinator.finish_if_safe)
+        repair_execution.finished.connect(self._close_coordinator.finish_if_safe)
+        self.repair_preparation = RepairPreparationController(
+            window=self,
+            page=self.view.repair_page,
+            layout=initial_layout,
+            release_source=initial_release_source,
+            execution=repair_execution,
+            close_requested=lambda: self._close_coordinator.close_requested,
+            handoff_completed=self.handoff_completed.emit,
+            failure_presenter=self.failure_presenter,
+        )
         self.execution.setup_finished.connect(self._close_coordinator.finish_if_safe)
         if self._localization_manager is not None:
             self._localization_manager.languageChanged.connect(
@@ -188,9 +193,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         if repair:
             self.view.status_panel.append_log(launcher_text("Repair mode requested."))
             self.view.show_repair_scope()
-            self.view.repair_page.continue_requested.connect(
-                self._handle_repair_continue
-            )
             self.view.repair_page.cancel_requested.connect(self.close)
         if not update_check_enabled:
             self.view.status_panel.append_log(
@@ -251,71 +253,6 @@ class LauncherMainWindow(AcrylicWindow):  # type: ignore[misc]
         self._ui_state = LauncherUiState.SELECT_LANGUAGE
         self.view.show_language_selection()
         self._refresh_primary_button()
-
-    def _handle_repair_continue(self) -> None:
-        """Prepare the explicitly selected repair before detached replacement."""
-
-        if self.repair_execution.running:
-            return
-        scope = (
-            RepairScope.FULL_MANAGED_COMFY
-            if self.view.repair_page.choice is RepairChoice.FULL_MANAGED_COMFY
-            else RepairScope.APPLICATION
-        )
-        self.view.repair_page.set_status(
-            launcher_text(
-                "Downloading and verifying this installer's exact release. "
-                "Your active installation has not been changed yet."
-            ),
-            working=True,
-        )
-        self.repair_execution.start(
-            layout=self._initial_layout,
-            release_source=self._initial_release_source,
-            scope=scope,
-        )
-
-    @Slot(object)
-    def _handle_repair_prepared(self, result: object) -> None:
-        """Launch the independent helper only after every artifact is verified."""
-
-        if self._close_coordinator.close_requested:
-            return
-        try:
-            preparation = require_repair_preparation(result)
-            request = preparation.request.with_process_behavior(
-                wait_pid=None,
-                wait_process_created_at=None,
-                relaunch=True,
-            )
-            request.save(preparation.request_path)
-            launch_prepared_repair_helper(request_path=preparation.request_path)
-        except Exception as error:
-            _LOGGER.exception("Could not hand off prepared repair.")
-            self._handle_repair_preparation_failed(launcher_failure_detail(error))
-            return
-        self.view.repair_page.set_status(
-            launcher_text("Repair is ready. Closing this window to replace app files."),
-            working=True,
-        )
-        self.handoff_completed.emit()
-        QTimer.singleShot(0, self.close)
-
-    @Slot(str)
-    def _handle_repair_preparation_failed(self, details: str) -> None:
-        """Restore the repair action after a staging or handoff failure."""
-
-        self.view.repair_page.set_status(
-            launcher_text(
-                "Repair could not be prepared. Nothing in the active installation was changed. Details: %1",
-                details,
-            ),
-            working=False,
-        )
-        self.failure_presenter.show_failure(
-            stage=launcher_text("Prepare repair"),
-            details=details,
-        )
 
     def _start_initial_install_worker(self) -> None:
         """Install launcher and app payload in the current setup window."""
