@@ -261,7 +261,7 @@ class RepairExecutionService:
         plan = RepairPlanService().build_full_managed_comfy_plan(
             layout=layout,
             comfy_ownership=ownership,
-            replacement_names=replacement_names,
+            replacement_names=replacement_names | {".venv"},
         )
         active = ownership.workspace_root
         assert active is not None
@@ -270,7 +270,7 @@ class RepairExecutionService:
                 destination=active / name,
                 staged_path=candidate / name,
             )
-            for name in sorted(replacement_names)
+            for name in sorted(replacement_names - {".venv"})
         ]
         for node_name in ("substitute-backend", "SugarCubes"):
             replacements.append(
@@ -278,6 +278,14 @@ class RepairExecutionService:
                     destination=active / "custom_nodes" / node_name,
                     staged_path=candidate / "custom_nodes" / node_name,
                 )
+            )
+
+        def provision_comfy() -> None:
+            """Create path-bound runtime files only after their master is promoted."""
+
+            self._comfy_repairer.provision_full_managed_comfy(
+                layout=layout,
+                ownership=ownership,
             )
 
         def validate_comfy() -> None:
@@ -292,6 +300,7 @@ class RepairExecutionService:
         return self._transaction.execute(
             plan=plan,
             replacements=tuple(replacements),
+            apply_repair=provision_comfy,
             validate_repair=validate_comfy,
             ownership=mutation,
         )

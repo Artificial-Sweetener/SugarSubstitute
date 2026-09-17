@@ -89,6 +89,11 @@ class _RejectingStateWriter(FreshRepairInstallationStateWriter):
 class _ManagedComfyRepairer:
     """Restore exact representative owned nodes without network or subprocesses."""
 
+    def __init__(self, failure_phase: str | None = None) -> None:
+        """Select an optional external runtime failure during full repair."""
+
+        self.failure_phase = failure_phase
+
     def repair_owned_nodes(
         self,
         *,
@@ -137,6 +142,22 @@ class _ManagedComfyRepairer:
             node.mkdir(parents=True)
             (node / "version.txt").write_text("full-owned", encoding="utf-8")
 
+    def provision_full_managed_comfy(
+        self,
+        *,
+        layout: InstallLayout,
+        ownership: ManagedComfyOwnership,
+    ) -> None:
+        """Construct the active runtime only at its final managed location."""
+
+        assert ownership.workspace_root == layout.root / "comfyui"
+        runtime = layout.root / "comfyui" / ".venv"
+        assert not runtime.exists(), "A staged virtual environment cannot be promoted"
+        (runtime / "Scripts").mkdir(parents=True)
+        (runtime / "Scripts" / "python.exe").write_bytes(b"fresh-final")
+        if self.failure_phase == "provision":
+            raise RuntimeError("runtime construction failed")
+
     def validate_full_managed_comfy(
         self,
         *,
@@ -145,10 +166,14 @@ class _ManagedComfyRepairer:
     ) -> None:
         """Require fresh core/runtime and both owned packages after promotion."""
 
+        if self.failure_phase == "validate":
+            raise RuntimeError("runtime validation failed")
         assert ownership.workspace_root == layout.root / "comfyui"
         workspace = layout.root / "comfyui"
         assert (workspace / "main.py").read_text(encoding="utf-8") == "fresh-core"
-        assert (workspace / ".venv" / "Scripts" / "python.exe").is_file()
+        assert (
+            workspace / ".venv" / "Scripts" / "python.exe"
+        ).read_bytes() == b"fresh-final"
         for name in ("substitute-backend", "SugarCubes"):
             assert (workspace / "custom_nodes" / name / "version.txt").read_text(
                 encoding="utf-8"

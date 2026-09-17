@@ -65,6 +65,8 @@ def test_repairer_uses_repaired_runtime_and_exact_managed_workspace(
 
     repairer.repair_owned_nodes(layout=layout, ownership=ownership)
     repairer.validate_owned_nodes(layout=layout, ownership=ownership)
+    repairer.provision_full_managed_comfy(layout=layout, ownership=ownership)
+    repairer.validate_full_managed_comfy(layout=layout, ownership=ownership)
 
     prefix = (
         str(layout.runtime_python),
@@ -75,4 +77,6 @@ def test_repairer_uses_repaired_runtime_and_exact_managed_workspace(
     assert runner.commands == [
         (*prefix, "repair-owned-nodes", *suffix),
         (*prefix, "validate-owned-nodes", *suffix),
+        (*prefix, "provision-full-managed-comfy", *suffix),
+        (*prefix, "validate-full-managed-comfy", *suffix),
     ]

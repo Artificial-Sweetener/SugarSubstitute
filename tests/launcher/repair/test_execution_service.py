@@ -199,10 +199,14 @@ def test_execution_repairs_only_owned_nodes_when_managed_ownership_is_proven(
         ) == "new-owned"
 
 
+@pytest.mark.parametrize("failure_phase", [None, "provision", "validate"])
+@pytest.mark.parametrize("existing_runtime", [False, True])
 def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
     tmp_path: Path,
+    failure_phase: str | None,
+    existing_runtime: bool,
 ) -> None:
-    """Full repair should promote fresh core while protected and third-party bytes survive."""
+    """Construct at the final path, preserve user data, and roll back either runtime failure."""
 
     layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
     _write_old_install(layout)
@@ -218,8 +222,9 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
     )
     workspace = layout.root / "comfyui"
     (workspace / "main.py").write_text("old-core", encoding="utf-8")
-    (workspace / ".venv" / "Scripts").mkdir(parents=True)
-    (workspace / ".venv" / "Scripts" / "python.exe").write_bytes(b"old")
+    if existing_runtime:
+        (workspace / ".venv" / "Scripts").mkdir(parents=True)
+        (workspace / ".venv" / "Scripts" / "python.exe").write_bytes(b"old")
     protected = (
         workspace / "models" / "model.safetensors",
         workspace / "user" / "workflow.json",
@@ -235,13 +240,27 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
     before = {path: path.read_bytes() for path in protected}
 
     events: list[RepairProgress] = []
-    result = RepairExecutionService(
+    service = RepairExecutionService(
         runtime_provisioner=_RuntimeProvisioner(),
-        comfy_repairer=_ManagedComfyRepairer(),
+        comfy_repairer=_ManagedComfyRepairer(failure_phase),
         progress_observer=events.append,
-    ).execute_application(
-        _prepared_request(layout, scope=RepairScope.FULL_MANAGED_COMFY)
     )
+    request = _prepared_request(layout, scope=RepairScope.FULL_MANAGED_COMFY)
+    if failure_phase is not None:
+        with pytest.raises(RuntimeError, match="rolled back"):
+            service.execute_application(request)
+        assert (workspace / "main.py").read_text(encoding="utf-8") == "old-core"
+        if existing_runtime:
+            assert (
+                workspace / ".venv" / "Scripts" / "python.exe"
+            ).read_bytes() == b"old"
+        else:
+            assert not (workspace / ".venv").exists()
+        assert {path: path.read_bytes() for path in protected} == before
+        assert events[-1].stage is not None
+        assert not (layout.root / ".repair" / "pending.json").exists()
+        return
+    result = service.execute_application(request)
 
     assert result.comfy_quarantine_root is not None
     assert (workspace / "main.py").read_text(encoding="utf-8") == "fresh-core"

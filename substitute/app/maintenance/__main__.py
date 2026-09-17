@@ -39,6 +39,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "validate-owned-nodes",
             "stage-full-managed-comfy",
             "validate-full-managed-comfy",
+            "provision-full-managed-comfy",
         ),
     )
     parser.add_argument("--workspace", type=Path, required=True)
@@ -56,6 +57,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             install_root=arguments.install_root,
             destination=arguments.workspace,
         )
+    elif arguments.operation == "provision-full-managed-comfy":
+        FullManagedComfyMaintenanceService().provision(arguments.workspace)
     else:
         FullManagedComfyMaintenanceService().validate(arguments.workspace)
     return 0
