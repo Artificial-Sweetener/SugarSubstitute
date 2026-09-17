@@ -25,7 +25,10 @@ from typing import Any, cast
 
 import pytest
 
-from launcher.sugarsubstitute_launcher import installed_app_handoff
+from launcher.sugarsubstitute_launcher import (
+    installed_application_supervisor,
+    installed_app_handoff,
+)
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
@@ -47,6 +50,9 @@ class _Broker:
         """Store the restart decisions consumed after child exits."""
 
         self._restarts = iter(restarts)
+
+    def bind_startup_presenter(self, presenter: object) -> None:
+        """Accept presentation registration at the broker boundary."""
 
     def child_environment(self, environment: Mapping[str, str]) -> dict[str, str]:
         """Mark one environment as authenticated by the supervisor."""
@@ -77,6 +83,11 @@ def test_normal_handoff_supervises_restarts_with_the_same_broker(
 ) -> None:
     """A child restart should create another child, never another launcher."""
 
+    monkeypatch.setattr(
+        installed_application_supervisor,
+        "start_launcher_splash_session",
+        lambda **_: None,
+    )
     layout = _layout(tmp_path)
     broker = _Broker((True, False))
     environments: list[dict[str, str]] = []
@@ -105,7 +116,7 @@ def test_normal_handoff_supervises_restarts_with_the_same_broker(
 
     monkeypatch.setattr(installed_app_handoff, "LauncherUpdateOrchestrator", _NoUpdate)
     monkeypatch.setattr(
-        installed_app_handoff, "ApplicationLifecycleSupervisor", _Supervisor
+        installed_application_supervisor, "ApplicationLifecycleSupervisor", _Supervisor
     )
 
     installed_app_handoff.complete_installed_app_handoff(
@@ -131,6 +142,11 @@ def test_update_failure_state_is_forwarded_without_a_lock_file(
 ) -> None:
     """Carry sticky remote degradation through the broker-owned child channel."""
 
+    monkeypatch.setattr(
+        installed_application_supervisor,
+        "start_launcher_splash_session",
+        lambda **_: None,
+    )
     layout = _layout(tmp_path)
     captured: list[dict[str, str]] = []
 
@@ -166,7 +182,7 @@ def test_update_failure_state_is_forwarded_without_a_lock_file(
         _FailedUpdate,
     )
     monkeypatch.setattr(
-        installed_app_handoff, "ApplicationLifecycleSupervisor", _Supervisor
+        installed_application_supervisor, "ApplicationLifecycleSupervisor", _Supervisor
     )
 
     installed_app_handoff.complete_installed_app_handoff(
@@ -187,6 +203,11 @@ def test_launcher_bundle_update_handoff_does_not_start_the_old_app(
 ) -> None:
     """Let the durable launcher updater replace and relaunch the supervisor."""
 
+    monkeypatch.setattr(
+        installed_application_supervisor,
+        "start_launcher_splash_session",
+        lambda **_: None,
+    )
     layout = _layout(tmp_path)
     closed: list[bool] = []
     scheduled: list[dict[str, object]] = []
@@ -221,7 +242,7 @@ def test_launcher_bundle_update_handoff_does_not_start_the_old_app(
         lambda **kwargs: scheduled.append(kwargs),
     )
     monkeypatch.setattr(
-        installed_app_handoff,
+        installed_application_supervisor,
         "ApplicationLifecycleSupervisor",
         lambda: pytest.fail("The replaced launcher must not start the old app."),
     )
