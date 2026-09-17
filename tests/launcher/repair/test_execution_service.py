@@ -416,3 +416,23 @@ def test_repair_preserves_live_crash_diagnostics_and_child_output(
         child_stream.write(b"repair worker finished\n")
     assert fault.read_bytes() == b"retained diagnostic\ncrash runtime still active\n"
     assert child_log.read_bytes() == b"retained diagnostic\nrepair worker finished\n"
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_repair_retains_update_preferences(tmp_path: Path, enabled: bool) -> None:
+    """Repair must retain update consent and cadence while replacing damaged state."""
+    from launcher.sugarsubstitute_launcher.config import (
+        LauncherConfig,
+        UpdateCheckConfig,
+    )
+
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    preferences = UpdateCheckConfig(enabled=enabled, frequency="weekly")
+    LauncherConfig.from_layout(layout=layout, update_check=preferences).save(
+        layout.config_path
+    )
+    RepairExecutionService(
+        runtime_provisioner=_RuntimeProvisioner()
+    ).execute_application(_prepared_request(layout))
+    assert LauncherConfig.load(layout.config_path).update_check == preferences

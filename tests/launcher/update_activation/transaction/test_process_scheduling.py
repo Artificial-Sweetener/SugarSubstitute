@@ -179,3 +179,54 @@ def test_windows_update_wait_tracks_the_original_process(
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=5.0)
+
+
+@pytest.mark.parametrize("boundary", ["schedule", "relaunch"])
+def test_update_process_does_not_inherit_retired_crash_contract(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, boundary: str
+) -> None:
+    """Updater helpers and new launchers must start outside the outgoing crash session."""
+    from sugarsubstitute_shared.crash_reporting.protocol import (
+        CrashRunContext,
+        CRASH_RUN_TOKEN_ENV,
+    )
+
+    context = CrashRunContext.create(tmp_path / "diagnostics")
+    for key, value in context.environment({}).items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.delenv(CRASH_RUN_TOKEN_ENV)
+    monkeypatch.setenv("QUALIFICATION_TOKEN", "preserved")
+    environments: list[dict[str, str]] = []
+
+    class Process:
+        """Represent only the spawned process identifier at the external boundary."""
+
+        pid = 42
+
+    def launch(*args: object, **kwargs: object) -> Process:
+        """Capture the exact child contract without launching an uncontrolled application."""
+        environment = cast(dict[str, str] | None, kwargs.get("env"))
+        environments.append(dict(os.environ if environment is None else environment))
+        return Process()
+
+    monkeypatch.setattr(
+        "sugarsubstitute_shared.launcher_update.process.subprocess.Popen", launch
+    )
+    if boundary == "schedule":
+        request_path, runtime_python, app_dir = _write_scheduled_update_request(
+            tmp_path
+        )
+        update_process_module.schedule_launcher_update(
+            request_path=request_path,
+            runtime_python=runtime_python,
+            app_dir=app_dir,
+            relaunch=True,
+            wait_pid=None,
+        )
+    else:
+        update_process_module.relaunch_updated_launcher(
+            tmp_path / "SugarSubstitute.exe"
+        )
+    assert len(environments) == 1
+    assert CrashRunContext.from_environment(environments[0]) is None
+    assert environments[0]["QUALIFICATION_TOKEN"] == "preserved"

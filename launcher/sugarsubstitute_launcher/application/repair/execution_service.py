@@ -154,6 +154,7 @@ class RepairExecutionService:
             ]
             launcher_repair = PreparedLauncherRepair.prepare(request)
             replacements.append(launcher_repair.replacement)
+            update_check = self._state_writer.capture_update_preferences(layout)
             runtime_result: list[RuntimeProvisioningOutcome] = []
 
             def apply_repair() -> None:
@@ -171,7 +172,9 @@ class RepairExecutionService:
                         ownership=ownership,
                     )
                 progress.begin(RepairStage.SAVE_STATE)
-                self._state_writer.write(layout=layout, request=request)
+                self._state_writer.write(
+                    layout=layout, request=request, update_check=update_check
+                )
 
             def validate_repair() -> None:
                 """Prove the promoted release before the transaction can commit."""
@@ -195,7 +198,9 @@ class RepairExecutionService:
                         layout=layout,
                         ownership=ownership,
                     )
-                self._state_writer.validate(layout=layout, request=request)
+                self._state_writer.validate(
+                    layout=layout, request=request, update_check=update_check
+                )
                 launcher_repair.validate()
 
             progress.begin(RepairStage.RESTORE_APPLICATION)

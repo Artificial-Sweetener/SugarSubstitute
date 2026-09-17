@@ -23,6 +23,9 @@ import subprocess
 import sys
 
 from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
+from sugarsubstitute_shared.crash_reporting.protocol import (
+    without_crash_supervision_environment,
+)
 from sugarsubstitute_shared.subprocess_environment import (
     clean_frozen_parent_environment,
     standard_child_process_dll_search_path,
@@ -56,7 +59,9 @@ def schedule_launcher_update(
         else None,
     )
     request.save(request_path)
-    environment = clean_frozen_parent_environment()
+    environment = without_crash_supervision_environment(
+        clean_frozen_parent_environment()
+    )
     environment["PYTHONPATH"] = subprocess_path(app_dir)
     install_root = operational_path(request.install_root)
     log_path = install_root / "launcher" / "logs" / "launcher-update.log"
@@ -109,6 +114,7 @@ def relaunch_updated_launcher(executable_path: Path) -> None:
     subprocess.Popen(  # noqa: S603
         [subprocess_path(executable_path)],
         cwd=subprocess_working_directory(executable_path.parent),
+        env=without_crash_supervision_environment(clean_frozen_parent_environment()),
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
