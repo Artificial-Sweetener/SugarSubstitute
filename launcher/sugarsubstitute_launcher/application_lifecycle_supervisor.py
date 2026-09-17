@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping, Sequence
 from pathlib import Path
+import logging
 
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
@@ -37,7 +38,7 @@ from sugarsubstitute_shared.application_readiness import ApplicationReadinessSur
 
 
 class ApplicationLifecycleSupervisor:
-    """Require a visible shell before supervising the remaining process lifetime."""
+    """Coordinate visible readiness and authoritative terminal process classification."""
 
     def __init__(
         self,
@@ -99,13 +100,21 @@ class ApplicationLifecycleSupervisor:
             raise
         except ApplicationReadinessError as error:
             if error.terminated_process is not None:
-                self._crash.supervise_process(
+                outcome = self._crash.supervise_process(
                     layout=layout,
                     process=error.terminated_process,
                     prepared=prepared,
                     present_report=False,
                 )
-                error.incident_id = prepared.context.run_id
+                if outcome.incident_id is None:
+                    logging.getLogger(__name__).info(
+                        "Application closed cleanly before primary surface readiness | "
+                        "process_id=%s | exit_code=%s",
+                        error.terminated_process.pid,
+                        outcome.return_code,
+                    )
+                    return outcome.return_code
+                error.incident_id = outcome.incident_id
             raise
         if on_ready is not None:
             on_ready()
@@ -113,7 +122,7 @@ class ApplicationLifecycleSupervisor:
             layout=layout,
             process=process,
             prepared=prepared,
-        )
+        ).return_code
 
 
 __all__ = ["ApplicationLifecycleSupervisor"]

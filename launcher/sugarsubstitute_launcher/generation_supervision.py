@@ -53,7 +53,7 @@ class LauncherGenerationSupervisor:
         try:
             return crash.supervise_process(
                 layout=layout, process=process, prepared=prepared
-            )
+            ).return_code
         except BaseException:
             if process.poll() is None:
                 process.kill()

@@ -33,6 +33,7 @@ from launcher.sugarsubstitute_launcher.application_startup_contract import (
     CandidateProcess,
 )
 from launcher.sugarsubstitute_launcher.crash_supervisor import (
+    ClassifiedProcessExit,
     ApplicationCrashSupervisor,
     PreparedCrashRun,
 )
@@ -94,7 +95,7 @@ class CandidateCrashSupervisor(Protocol):
         process: CandidateProcess,
         prepared: PreparedCrashRun,
         expected_cancellation: bool = False,
-    ) -> int:
+    ) -> ClassifiedProcessExit:
         """Classify a candidate for the remainder of its lifetime."""
 
     def supervise(

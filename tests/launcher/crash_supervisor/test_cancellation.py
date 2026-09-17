@@ -59,7 +59,7 @@ def test_only_explicit_user_cancellation_suppresses_an_abnormal_exit_report(
             process=_ExitedProcess(),
             prepared=prepared,
             expected_cancellation=cancelled,
-        )
+        ).return_code
         == 1
     )
     assert bool(reports) is not cancelled
@@ -103,7 +103,7 @@ def test_cancellation_outcome_survives_unavailable_diagnostic_cleanup(
             process=_ExitedProcess(),
             prepared=prepared,
             expected_cancellation=True,
-        )
+        ).return_code
         == 1
     )
     assert reports == []

@@ -24,6 +24,7 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
+from launcher.sugarsubstitute_launcher.crash_supervisor import ClassifiedProcessExit
 
 from launcher.sugarsubstitute_launcher import application_lifecycle_supervisor
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
@@ -145,12 +146,12 @@ def test_pre_readiness_failure_defers_report_to_single_recovery_surface(
             process: object,
             prepared: object,
             present_report: bool = True,
-        ) -> int:
+        ) -> ClassifiedProcessExit:
             """Capture the presentation policy applied to the failure."""
 
             del layout, process, prepared
             self.calls.append(present_report)
-            return 1
+            return ClassifiedProcessExit(1, "startup-incident")
 
     monkeypatch.setattr(
         application_lifecycle_supervisor,
