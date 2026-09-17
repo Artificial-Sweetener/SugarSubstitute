@@ -34,7 +34,10 @@ from launcher.sugarsubstitute_launcher.repair_handoff_process_scope import (
     RepairHandoffProcessScope,
 )
 from launcher.sugarsubstitute_launcher.platforms import launcher_target_for_key
-from launcher.sugarsubstitute_launcher.process_execution import start_detached
+from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
+from sugarsubstitute_shared.crash_reporting.protocol import (
+    without_crash_supervision_environment,
+)
 from sugarsubstitute_shared.process_identity import (
     ProcessIdentity,
     ProcessIdentityError,
@@ -61,6 +64,28 @@ class RepairSessionPresentation(Protocol):
         """Return only when the visible child and its repair work have finished."""
 
 
+def run_repaired_application(
+    command: tuple[str, ...], environment: Mapping[str, str]
+) -> int:
+    """Keep the installed launcher contained until its entire session has ended.
+
+    Repair must not require permission to escape a containing Windows job.
+    Retaining its supervisor also gives the replacement a cleanup owner while
+    the installed entry point applies normal launcher-generation selection.
+    """
+    process, _log = spawn_supervised_process(
+        command,
+        environment=without_crash_supervision_environment(environment),
+        allow_handoff=True,
+    )
+    try:
+        return process.wait()
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=10.0)
+
+
 class RepairSessionSupervisor:
     """Keep normal launches from racing repair and release ownership before restart."""
 
@@ -69,13 +94,15 @@ class RepairSessionSupervisor:
         *,
         presentation: RepairSessionPresentation,
         process_waiter: Callable[[ProcessIdentity], None] = wait_for_process_exit,
-        app_starter: Callable[[tuple[str, ...]], None] = start_detached,
+        application_runner: Callable[
+            [tuple[str, ...], Mapping[str, str]], int
+        ] = run_repaired_application,
         environment: Mapping[str, str] | None = None,
     ) -> None:
         """Bind presentation and process boundaries without importing Qt."""
         self._presentation = presentation
         self._process_waiter = process_waiter
-        self._app_starter = app_starter
+        self._application_runner = application_runner
         self._environment = dict(os.environ if environment is None else environment)
 
     def run(self, request: PreparedRepairRequest) -> int:
@@ -128,10 +155,11 @@ class RepairSessionSupervisor:
             )
             open_requested = broker.consume_restart_request()
         if result == 0 and open_requested:
-            self._app_starter(
+            return self._application_runner(
                 (
                     subprocess_path(layout.executable_path),
                     f"--install-root={subprocess_path(layout.root)}",
-                )
+                ),
+                environment,
             )
         return result

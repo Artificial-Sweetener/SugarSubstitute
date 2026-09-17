@@ -37,6 +37,12 @@ from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRe
 from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
 
 
+from launcher.sugarsubstitute_launcher.config import UpdateCheckConfig
+from launcher.sugarsubstitute_launcher.application.repair.installation_state_writer import (
+    FreshRepairInstallationStateWriter,
+)
+
+
 class _RuntimeProvisioner:
     """Create a deterministic runtime candidate without subprocesses or downloads."""
 
@@ -51,10 +57,16 @@ class _RuntimeProvisioner:
         )
 
 
-class _RejectingStateWriter:
+class _RejectingStateWriter(FreshRepairInstallationStateWriter):
     """Inject final validation failure after all candidate components exist."""
 
-    def write(self, *, layout: InstallLayout, request: PreparedRepairRequest) -> None:
+    def write(
+        self,
+        *,
+        layout: InstallLayout,
+        request: PreparedRepairRequest,
+        update_check: UpdateCheckConfig,
+    ) -> None:
         """Create representative candidate launcher state."""
 
         del request
@@ -62,7 +74,11 @@ class _RejectingStateWriter:
         layout.state_path.write_text("candidate", encoding="utf-8")
 
     def validate(
-        self, *, layout: InstallLayout, request: PreparedRepairRequest
+        self,
+        *,
+        layout: InstallLayout,
+        request: PreparedRepairRequest,
+        update_check: UpdateCheckConfig,
     ) -> None:
         """Reject the candidate after observing its active location."""
 

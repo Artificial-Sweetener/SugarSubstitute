@@ -42,9 +42,11 @@ from sugarsubstitute_shared.application_instance_transport import (
 )
 
 
-@pytest.mark.parametrize("result", [0, 2, -1])
+@pytest.mark.parametrize(
+    "result, open_requested", [(0, True), (0, False), (2, True), (-1, True)]
+)
 def test_repair_session_owns_instance_until_presentation_finishes(
-    tmp_path: Path, result: int
+    tmp_path: Path, result: int, open_requested: bool
 ) -> None:
     """Normal startup cannot become owner during repair; relaunch follows release."""
     root = tmp_path / "installation"
@@ -81,7 +83,7 @@ def test_repair_session_owns_instance_until_presentation_finishes(
             events.append("presented")
             if result == -1:
                 raise RuntimeError("controlled presentation failure")
-            if result == 0:
+            if result == 0 and open_requested:
                 from sugarsubstitute_shared.application_supervisor_client import (
                     ApplicationSupervisorClient,
                 )
@@ -101,7 +103,7 @@ def test_repair_session_owns_instance_until_presentation_finishes(
         assert identity in (ProcessIdentity(77, 123.5), ProcessIdentity(88, 124.5))
         events.append(f"waited:{identity.pid}")
 
-    def start(command: tuple[str, ...]) -> None:
+    def start(command: tuple[str, ...], environment: Mapping[str, str]) -> int:
         """Prove the native ownership is released before normal launch starts."""
         assert command[0].endswith("SugarSubstitute.exe")
         broker = ApplicationInstanceBroker.elect(
@@ -110,23 +112,27 @@ def test_repair_session_owns_instance_until_presentation_finishes(
         assert broker is not None
         broker.close()
         events.append("launched")
+        assert not any("HANDOFF_SUPERVISOR" in key for key in environment)
+        return 23
 
     supervisor = RepairSessionSupervisor(
         presentation=Presentation(),
         process_waiter=wait,
-        app_starter=start,
+        application_runner=start,
         environment=with_supervisor_handoff({}, ProcessIdentity(88, 124.5)),
     )
     if result == -1:
         with pytest.raises(RuntimeError, match="controlled presentation failure"):
             supervisor.run(request)
     else:
-        assert supervisor.run(request) == result
+        assert supervisor.run(request) == (
+            23 if result == 0 and open_requested else result
+        )
     assert events == [
         "waited:88",
         "waited:77",
         "presented",
-        *(["launched"] if result == 0 else []),
+        *(["launched"] if result == 0 and open_requested else []),
     ]
     released = ApplicationInstanceBroker.elect(
         install_root=root, invocation=ApplicationInvocation.capture(())
