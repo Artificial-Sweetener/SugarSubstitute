@@ -30,7 +30,10 @@ from launcher.sugarsubstitute_launcher.application_startup_contract import (
 from launcher.sugarsubstitute_launcher.candidate_update_launch import (
     launch_prepared_update,
 )
-from launcher.sugarsubstitute_launcher.crash_supervisor import PreparedCrashRun
+from launcher.sugarsubstitute_launcher.crash_supervisor import (
+    ClassifiedProcessExit,
+    PreparedCrashRun,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.application_runtime_mode import (
     APPLICATION_RUNTIME_MODE_ENV,
@@ -153,14 +156,14 @@ class _CrashSupervisor:
         process: CandidateProcess,
         prepared: PreparedCrashRun,
         expected_cancellation: bool = False,
-    ) -> int:
+    ) -> ClassifiedProcessExit:
         """Record full-lifetime adoption of the ready candidate."""
 
         _ = layout
         _ = prepared
         self.adopted.append(process)
         self.cancellations.append(expected_cancellation)
-        return 0
+        return ClassifiedProcessExit(0)
 
     def supervise(
         self,
