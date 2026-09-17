@@ -53,6 +53,22 @@ def test_publication_does_not_activate_until_record_commit(tmp_path: Path) -> No
     assert (root / "launcher-bin" / "Repair.exe").read_text() == "old repair"
 
 
+def test_activation_rechecks_current_baseline_delegation_contract(
+    tmp_path: Path,
+) -> None:
+    """Retain the current installation if a published successor cannot share ownership."""
+    root, candidate, selection = _installation(tmp_path)
+    published = selection.publish(candidate, version="1.2.3")
+    contract = root / "launcher-bin/launcher_assets/launcher-contract.json"
+    contract.parent.mkdir(parents=True)
+    contract.write_text(
+        '{"schema_version":1,"delegation_protocol":1}', encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="delegation"):
+        selection.activate(published)
+    assert selection.resolve().root == root
+
+
 def test_prepared_selection_preserves_current_until_transaction_promotion(
     tmp_path: Path,
 ) -> None:

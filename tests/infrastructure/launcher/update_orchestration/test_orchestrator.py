@@ -30,7 +30,6 @@ from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset, ReleaseMani
 from launcher.sugarsubstitute_launcher.payload_models import AppPayloadInstallResult
 from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
-    LauncherMinimumVersionError,
     LauncherUpdateOrchestrator,
 )
 from launcher.sugarsubstitute_launcher.update_activation import PendingUpdateActivation
@@ -308,10 +307,10 @@ def test_pre_launch_update_stages_newer_launcher_after_runtime_is_ready(
     ]
 
 
-def test_pre_launch_update_blocks_app_below_unavailable_launcher_minimum(
+def test_pre_launch_update_preserves_app_below_unavailable_remote_minimum(
     tmp_path: Path,
 ) -> None:
-    """A manifest minimum must fail closed when its launcher asset is absent."""
+    """Withhold an incompatible remote payload while retaining the installed app."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     config = LauncherConfig.from_layout(layout=layout)
@@ -326,18 +325,23 @@ def test_pre_launch_update_blocks_app_below_unavailable_launcher_minimum(
         installers={},
     )
 
-    with pytest.raises(LauncherMinimumVersionError):
-        LauncherUpdateOrchestrator(
-            payload_installer=_PayloadInstaller(version="0.11.0"),
-            runtime_reconciler=_RuntimeReconciler(),
-            launcher_version="0.10.0",
-            now=_fixed_now,
-        ).run(
-            layout=layout,
-            config=config,
-            release_source=_ReleaseSource(manifest),
-            no_update_check=False,
-        )
+    installer = _PayloadInstaller(version="0.11.0")
+    result = LauncherUpdateOrchestrator(
+        payload_installer=installer,
+        runtime_reconciler=_RuntimeReconciler(),
+        launcher_version="0.10.0",
+        now=_fixed_now,
+    ).run(
+        layout=layout,
+        config=config,
+        release_source=_ReleaseSource(manifest),
+        no_update_check=False,
+    )
+    assert result.failure_reason == "LauncherMinimumVersionError"
+    assert result.remote_failure_reason is None
+    assert result.launcher_update_request_path is None
+    assert not result.installed_update
+    assert installer.installed_layouts == []
     assert not layout.state_path.exists()
 
 
@@ -382,6 +386,7 @@ def test_required_launcher_network_failure_still_launches_installed_app(
     )
 
     assert result.failure_reason == "URLError"
+    assert result.remote_failure_reason == "URLError"
     assert result.launcher_update_request_path is None
 
 

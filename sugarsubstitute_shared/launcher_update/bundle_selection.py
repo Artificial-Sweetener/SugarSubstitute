@@ -37,6 +37,9 @@ from sugarsubstitute_shared.launcher_update.bundle_validation import (
     validate_launcher_bundle,
 )
 from sugarsubstitute_shared.launcher_update.targets import LauncherBundleTarget
+from sugarsubstitute_shared.launcher_update.delegation_contract import (
+    validate_launcher_successor,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -132,6 +135,9 @@ class LauncherBundleSelection:
         verified = self._read_generation(generation)
         if verified != candidate:
             raise ValueError("Launcher generation does not match this installation.")
+        validate_launcher_successor(
+            baseline=self._root, candidate=verified.root, target=self._target
+        )
         current = self.resolve()
         if current.generation == generation:
             return None
