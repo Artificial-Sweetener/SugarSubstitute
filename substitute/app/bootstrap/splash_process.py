@@ -205,7 +205,7 @@ def _handle_message(
 
     message_type = message.get("type")
     if message_type == "close":
-        splash.close()
+        splash.dismiss()
         app.quit()
         return
     if message_type == "activity":
