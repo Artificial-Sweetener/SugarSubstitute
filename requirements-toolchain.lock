@@ -671,9 +671,9 @@ cuda-pathfinder==1.7.0 ; python_full_version < '3.15' and sys_platform == 'linux
 cuda-toolkit==13.0.3.0 ; sys_platform == 'linux' \
     --hash=sha256:d693caaa261214ddd7dbb60d68e71cbed884e68c2be7509778f3051da0b91c3f
     # via torch
-cutecanvas==1.0.8 \
-    --hash=sha256:6f9cb43e027240bedd046019d6a4c2b8a466f7e2c98ee729f41e16c110ccbcd3 \
-    --hash=sha256:91d057d95c9d20a6e6b9db3ef7e4369a89b8bacbfbc25dbe15e69d0cc3307088
+cutecanvas==1.0.9 \
+    --hash=sha256:0bd43bc2ee0cf5b47a52c833678b634a841b040dca2e3e04218ff729711ca2a4 \
+    --hash=sha256:84fbebb4e680494a6dd64288cc5d6186f6ae69197f736f340c3340ccacd38840
     # via -r requirements.txt
 cyclonedx-python-lib==11.12.0 \
     --hash=sha256:0e807521a921a5c3cb8ce1153f8a61d29eedfe76a46aac2796b7c6b573391a54 \

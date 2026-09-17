@@ -296,6 +296,10 @@ def test_pending_runtime_has_one_setup_path(
         build_launcher_localization_runtime,
     )
     application = launcher_test_application()
+    monkeypatch.setenv(
+        "SUGARSUBSTITUTE_RELEASE_ROOT",
+        str(incomplete_runtime.root.parent / "release"),
+    )
     payload_calls: list[InstallLayout] = []
     runtime_calls: list[InstallLayout] = []
     handoffs: list[Sequence[str]] = []
