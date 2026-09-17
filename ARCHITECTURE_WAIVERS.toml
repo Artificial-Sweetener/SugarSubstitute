@@ -105,19 +105,6 @@ next_limit = 500
 debt = "SS-ARCH-010"
 
 [[waivers]]
-id = "SS-WAIVER-R011"
-owner = "application error reporting"
-rule = "STRUCT003"
-path = "substitute/application/errors.py"
-kind = "remediation"
-justification = "The assessed file mixes structured error and diagnostic models, exception and backend payload interpretation, user-visible report construction, technical text rendering. Extract error payload interpretation and report rendering from the immutable error model contract."
-issue = "chore:SS-ARCH-011"
-review_by = 2026-12-15
-max_lines = 637
-next_limit = 509
-debt = "SS-ARCH-011"
-
-[[waivers]]
 id = "SS-WAIVER-R012"
 owner = "generation execution"
 rule = "STRUCT003"

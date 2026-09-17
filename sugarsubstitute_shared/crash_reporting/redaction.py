@@ -24,11 +24,11 @@ import re
 
 
 _SENSITIVE_NAME = re.compile(
-    r"(?:api[-_]?key|access[-_]?token|auth(?:orization)?|password|secret)",
+    r"(?:api[-_]?key|(?:access|session)[-_]?token|auth(?:orization)?|password|secret)",
     re.IGNORECASE,
 )
 _INLINE_SECRET = re.compile(
-    r"(?P<name>api[-_]?key|access[-_]?token|auth(?:orization)?|password|secret)"
+    r"(?P<name>api[-_]?key|(?:access|session)[-_]?token|auth(?:orization)?|password|secret)"
     r"(?P<separator>\s*[:=]\s*)(?P<value>[^\s,;]+)",
     re.IGNORECASE,
 )
