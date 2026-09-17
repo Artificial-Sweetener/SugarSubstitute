@@ -53,6 +53,25 @@ def configure_accent_color(*, accent_color: str) -> None:
     setThemeColor(QColor(accent_color))
 
 
+def schedule_splash_theme(*, theme_mode: str | None, accent_color: str | None) -> None:
+    """Defer Fluent setup until the lightweight paint callback has returned."""
+    from functools import partial
+    from PySide6.QtCore import QTimer
+
+    QTimer.singleShot(
+        0,
+        partial(
+            configure_theme,
+            theme_mode=(
+                AppearanceThemeMode.LIGHT
+                if theme_mode == AppearanceThemeMode.LIGHT.value
+                else AppearanceThemeMode.DARK
+            ),
+            accent_color=accent_color or DEFAULT_CUSTOM_ACCENT_COLOR,
+        ),
+    )
+
+
 def _qfluent_theme_value(
     *,
     theme_mode: AppearanceThemeMode,
@@ -69,4 +88,4 @@ def _qfluent_theme_value(
     return getattr(theme_namespace, mapping[theme_mode])
 
 
-__all__ = ["configure_accent_color", "configure_theme"]
+__all__ = ["configure_accent_color", "schedule_splash_theme", "configure_theme"]

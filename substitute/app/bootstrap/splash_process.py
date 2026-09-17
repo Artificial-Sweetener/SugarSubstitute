@@ -87,6 +87,14 @@ def main(argv: list[str] | None = None) -> int:
         backdrop_mode=backdrop_mode_from_argument(args.backdrop_mode),
         theme_mode=theme_mode_from_argument(args.theme_mode),
         accent_color=args.accent_color or "#E91E63",
+        defer_animation_until_first_paint=True,
+    )
+    from substitute.app.bootstrap.theme import schedule_splash_theme
+
+    splash.firstFramePainted.connect(
+        lambda: schedule_splash_theme(
+            theme_mode=args.theme_mode, accent_color=args.accent_color
+        )
     )
     splash.cancelRequested.connect(
         lambda: notify_cancel_requested(app=app, stream=sys.stdout)

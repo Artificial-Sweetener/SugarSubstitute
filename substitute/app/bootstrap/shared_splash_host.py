@@ -103,6 +103,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     splash_constructed_monotonic_ns = time.monotonic_ns()
 
+    from substitute.app.bootstrap.theme import schedule_splash_theme
+
+    splash.firstFramePainted.connect(
+        lambda: schedule_splash_theme(
+            theme_mode=args.theme_mode, accent_color=args.accent_color
+        )
+    )
+
     first_paint_monotonic_ns: list[int] = []
     splash.firstFramePainted.connect(
         lambda: (
