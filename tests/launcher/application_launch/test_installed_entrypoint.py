@@ -32,7 +32,10 @@ from launcher.sugarsubstitute_launcher.application_election_recovery import (
 from launcher.sugarsubstitute_launcher import app as launcher_app
 from launcher.sugarsubstitute_launcher import application_launch
 from launcher.sugarsubstitute_launcher import crash_routing
-from launcher.sugarsubstitute_launcher import installed_app_handoff
+from launcher.sugarsubstitute_launcher import (
+    installed_app_handoff,
+    installed_application_supervisor,
+)
 from launcher.sugarsubstitute_launcher import generation_dispatch
 from launcher.sugarsubstitute_launcher import launcher_ui_supervision
 from launcher.sugarsubstitute_launcher import logging_setup
@@ -115,6 +118,7 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
                 app_arguments=(),
                 client=None,
                 ensure_closed=lambda: None,
+                close=lambda: None,
                 cancellation_requested=lambda: False,
                 present=lambda: "startup-splash",
             )
@@ -123,7 +127,7 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
         ),
     )
     monkeypatch.setattr(
-        installed_app_handoff,
+        installed_application_supervisor,
         "ApplicationLifecycleSupervisor",
         _Supervisor,
     )
@@ -151,6 +155,8 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
         )
 
     inherited_arguments: list[str] = []
+    released_resources: list[str] = []
+    resource_identity: str | None = None
     if borrowed:
         from uuid import uuid4
         from launcher.sugarsubstitute_launcher.splash_transfer import (
@@ -161,9 +167,13 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
             splash_session_args,
         )
 
+        resource_identity = uuid4().hex
+        monkeypatch.setattr(
+            broker, "release_startup_resource", released_resources.append
+        )
         spec = create_splash_session_spec(port=12345)
         for key, value in export_splash_session(
-            spec, resource_identity=uuid4().hex
+            spec, resource_identity=resource_identity
         ).items():
             monkeypatch.setenv(key, value)
         inherited_arguments = splash_session_args(spec)
@@ -186,6 +196,7 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
     assert calls[0][1]["TEST_INSTANCE_BROKER"] == "connected"
     assert "SUGAR_SUBSTITUTE_DELEGATED_LAUNCHER" not in calls[0][1]
     assert broker.closed
+    assert released_resources == ([resource_identity] if borrowed else [])
 
 
 def test_installed_launcher_performs_only_reviewed_work_before_splash(
