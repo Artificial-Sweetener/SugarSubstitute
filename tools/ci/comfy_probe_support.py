@@ -230,23 +230,6 @@ def run_checked(
     )
 
 
-def git_output(workspace: Path, *arguments: str) -> str:
-    """Return normalized output from a read-only Git query."""
-
-    result = subprocess.run(
-        ["git", *arguments],
-        cwd=workspace,
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
-        timeout=30,
-    )
-    return result.stdout.strip()
-
-
 def log(message: str) -> None:
     """Emit one production installer progress line in CI."""
 
@@ -322,7 +305,6 @@ def _output_excerpt(output: Sequence[str]) -> str:
 __all__ = [
     "assert_manager_requirement",
     "assert_runtime",
-    "git_output",
     "log",
     "prepare_environment",
     "probe_server",

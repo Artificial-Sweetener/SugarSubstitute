@@ -43,10 +43,10 @@ from substitute.infrastructure.comfy.workspace_dependency_reconciler import (
     validate_attached_workspace_dependencies,
 )
 from tools.ci.comfy_support_matrix import matrix_entry
+from tools.ci.comfy_git import git_output
 from tools.ci.comfy_probe_support import (
     assert_manager_requirement,
     assert_runtime,
-    git_output,
     log,
     prepare_environment,
     probe_server,

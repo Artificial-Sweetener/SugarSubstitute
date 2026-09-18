@@ -32,6 +32,7 @@ import subprocess
 import tempfile
 from typing import Final
 
+from tools.ci.comfy_git import run_git
 from tools.ci.comfy_support_matrix import (
     COMFY_RELEASE_CONTRACTS,
     ComfySupportMatrixEntry,
@@ -67,6 +68,7 @@ def prepare_comfy_source_cache(
     _validate_destination(resolved_cache)
     expected_manifest = _expected_manifest(repository, contracts)
     if _cache_error(resolved_cache, expected_manifest, contracts) is None:
+        _configure_repository_paths(resolved_cache / _REPOSITORY_NAME)
         return PreparedComfySourceCache(
             cache_path=resolved_cache,
             repository_path=resolved_cache / _REPOSITORY_NAME,
@@ -191,6 +193,7 @@ def _acquire_source_repository(
     """Fetch all reviewed shallow snapshots in one fail-fast remote transaction."""
 
     _run_git(destination.parent, "init", "--bare", str(destination))
+    _configure_repository_paths(destination)
     refspecs = [
         f"+refs/tags/{contract.comfyui_tag}:refs/tags/{contract.comfyui_tag}"
         for contract in contracts
@@ -215,6 +218,11 @@ def _acquire_source_repository(
                 f"Upstream tag {contract.comfyui_tag!r} at {actual_commit!r} "
                 f"does not match the reviewed commit {contract.commit_sha!r}."
             )
+
+
+def _configure_repository_paths(repository: Path) -> None:
+    """Enable deep object access for Git's independently launched upload-pack process."""
+    _run_git(repository, "config", "core.longpaths", "true")
 
 
 def _cache_error(
@@ -333,18 +341,10 @@ def _git_output(repository: Path, *arguments: str) -> str:
 def _git_result(repository: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     """Execute Git without an interactive console or inherited noisy output."""
 
-    command = ["git", *arguments]
+    command = ["git", "-c", "core.longpaths=true", *arguments]
     try:
-        return subprocess.run(
-            command,
-            cwd=repository,
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            creationflags=(subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0),
-            timeout=_GIT_TIMEOUT_SECONDS,
+        return run_git(
+            repository, *arguments, check=False, timeout_seconds=_GIT_TIMEOUT_SECONDS
         )
     except subprocess.TimeoutExpired as error:
         raise RuntimeError(

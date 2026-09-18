@@ -34,10 +34,10 @@ from substitute.infrastructure.comfy.manager_provisioner import (
 from substitute.infrastructure.comfy.manager_runtime_probe import (
     detect_workspace_manager_runtime,
 )
+from tools.ci.comfy_git import git_output
 from tools.ci.comfy_probe_support import (
     assert_manager_requirement,
     assert_runtime,
-    git_output,
     log,
     prepare_environment,
     probe_server,
