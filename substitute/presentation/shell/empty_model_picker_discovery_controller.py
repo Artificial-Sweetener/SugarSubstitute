@@ -371,7 +371,7 @@ class EmptyModelPickerDiscoveryController(QObject):
         task.succeeded.connect(on_succeeded)
         task.failed.connect(self._show_failure)
         task.finished.connect(thread.quit)
-        thread.finished.connect(task.deleteLater)
+        task.finished.connect(task.deleteLater)
         thread.finished.connect(thread.deleteLater)
         thread.destroyed.connect(self._release_task)
         self._thread = thread
