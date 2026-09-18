@@ -54,11 +54,14 @@ class SubprocessRuntimeCommandRunner:
         output_callback: Callable[[str], None] | None = None,
         *,
         cancellation: Event | None = None,
+        timeout_seconds: float | None = None,
     ) -> None:
         """Store the optional output sink used by graphical installers."""
 
         self._output_callback = output_callback
-        self._execution = RuntimeCommandExecution(cancellation or Event())
+        self._execution = RuntimeCommandExecution(
+            cancellation or Event(), timeout_seconds=timeout_seconds
+        )
 
     def run(
         self,

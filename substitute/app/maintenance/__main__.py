@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -65,6 +66,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s %(name)s %(message)s", force=True
+    )
     raise SystemExit(main())
 
 

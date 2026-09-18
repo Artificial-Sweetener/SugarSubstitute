@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import logging
 from pathlib import Path
 
 from substitute.domain.comfy_nodepacks import CoreNodepackId
@@ -37,12 +38,15 @@ class OwnedNodeMaintenanceError(RuntimeError):
 
 
 NodepackRefresher = Callable[..., None]
+_LOGGER = logging.getLogger(__name__)
 
 
 class OwnedNodeMaintenanceService:
     """Compose existing nodepack policy for a repair-specific headless use case."""
 
-    def __init__(self, *, refresher: NodepackRefresher = refresh_core_comfy_nodepacks):
+    def __init__(
+        self, *, refresher: NodepackRefresher = refresh_core_comfy_nodepacks
+    ) -> None:
         """Store the production nodepack reconciliation boundary."""
 
         self._refresher = refresher
@@ -54,7 +58,12 @@ class OwnedNodeMaintenanceService:
         self._refresher(
             resolved,
             nodepacks=frozenset(CoreNodepackId),
+            on_log=self._report_activity,
         )
+
+    def _report_activity(self, message: str) -> None:
+        """Forward producer activity to the maintenance process's diagnostic stream."""
+        _LOGGER.info("Owned nodepack repair activity | message=%s", message)
 
     def validate(self, workspace: Path) -> None:
         """Raise unless identity, version, and sentinels match every exact pin."""
