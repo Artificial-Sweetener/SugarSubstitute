@@ -96,13 +96,13 @@ def main(argv: list[str] | None = None) -> int:
         os.environ.pop(APPLICATION_EXIT_AFTER_INVOCATIONS_ENV, "0")
     )
     crash_context = CrashRunContext.from_environment()
-    requested_restart = False
+    clean_exit_outcome: CleanExitOutcome | None = None
     control = None
 
     def record_invocation(invocation: ApplicationInvocation) -> None:
         """Persist deterministic evidence for every delivered secondary launch."""
 
-        nonlocal requested_restart
+        nonlocal clean_exit_outcome
         received_invocations.append(invocation)
         invocation_evidence_path(install_root).write_text(
             json.dumps(
@@ -131,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
             def request_restart_after_presentation() -> None:
                 """Restart only after the triggering invocation's surface paints."""
 
-                nonlocal requested_restart
+                nonlocal clean_exit_outcome
                 assert control is not None
                 accepted = control.request_restart()
                 restart_evidence_path(install_root).write_text(
@@ -151,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
                             CleanExitOutcome.RESTART,
                             process_id=os.getpid(),
                         )
-                    requested_restart = True
+                    clean_exit_outcome = CleanExitOutcome.RESTART
                     application.quit()
 
             run_after_surface_paint(window, request_restart_after_presentation)
@@ -160,7 +160,20 @@ def main(argv: list[str] | None = None) -> int:
             exit_after_invocations > 0
             and len(received_invocations) == exit_after_invocations
         ):
-            run_after_surface_paint(window, application.quit)
+
+            def request_close_after_presentation() -> None:
+                """Declare a controlled close before leaving the Qt event loop."""
+
+                nonlocal clean_exit_outcome
+                if crash_context is not None:
+                    crash_context.write_exit_intent(
+                        CleanExitOutcome.CLOSED,
+                        process_id=os.getpid(),
+                    )
+                clean_exit_outcome = CleanExitOutcome.CLOSED
+                application.quit()
+
+            run_after_surface_paint(window, request_close_after_presentation)
             window.update()
 
     evidence_path = invocation_evidence_path(install_root)
@@ -199,9 +212,9 @@ def main(argv: list[str] | None = None) -> int:
         stop_application_instance_control()
         _remove_owned_marker(marker_path)
         owner_marker_path.unlink(missing_ok=True)
-        if requested_restart and crash_context is not None:
+        if clean_exit_outcome is not None and crash_context is not None:
             crash_context.write_exit_receipt(
-                CleanExitOutcome.RESTART,
+                clean_exit_outcome,
                 process_id=os.getpid(),
             )
 

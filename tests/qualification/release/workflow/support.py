@@ -32,6 +32,7 @@ EXPECTED_ACTIONS = frozenset(
         "actions/checkout",
         "actions/cache",
         "actions/cache/restore",
+        "actions/cache/save",
         "actions/dependency-review-action",
         "actions/download-artifact",
         "actions/setup-node",

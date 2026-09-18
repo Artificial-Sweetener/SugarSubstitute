@@ -25,8 +25,9 @@ import yaml  # type: ignore[import-untyped]
 from tests.qualification.release.workflow.support import (
     PROJECT_ROOT,
     WORKFLOW_PATHS,
-    action_step,
     action_path,
+    action_step,
+    action_steps,
     assert_trusted_cache_policy,
     load_action,
     workflow_consumers,
@@ -383,6 +384,52 @@ def test_managed_runtime_cache_has_one_secure_checksum_owner() -> None:
     )
     assert "uses: actions/cache@" not in workflow_text
     assert "uses: actions/cache/restore@" not in workflow_text
+
+
+def test_crashpad_cache_is_exact_qualified_and_trusted_write_only() -> None:
+    """Reuse native outputs only across matching inputs and host toolchains."""
+
+    assert workflow_consumers("./.github/actions/prepare-crashpad-runtime") == {
+        "release-build.yml"
+    }
+    action = load_action("prepare-crashpad-runtime")
+    identity = str(action_step(action, "Resolve Crashpad cache identity")["run"])
+    for fragment in (
+        "$env:CACHE_EPOCH",
+        "${{ runner.os }}",
+        "${{ runner.arch }}",
+        "$env:CRASHPAD_TARGET",
+        "tools/build_crashpad_runtime.py",
+        "native/crashpad",
+        "Microsoft.VCToolsVersion.default.txt",
+        "windows-sdk=",
+        "xcodebuild -version",
+        "cc --version",
+        "SHA256",
+    ):
+        assert fragment in identity
+
+    restore = action_step(action, "Restore exact Crashpad runtime cache")
+    save = action_step(action, "Save qualified Crashpad runtime cache")
+    qualify = action_step(action, "Qualify Crashpad capture and idle footprint")
+    steps = action_steps(action)
+    assert restore["uses"] == (
+        "actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae"
+    )
+    assert save["uses"] == (
+        "actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae"
+    )
+    assert steps.index(qualify) < steps.index(save)
+    assert "steps.restore.outputs.cache-hit != 'true'" in str(save["if"])
+    save_condition = str(save["if"])
+    assert "github.ref == 'refs/heads/main'" in save_condition
+    assert "github.ref == 'refs/heads/canary'" in save_condition
+    assert "github.event_name == 'push'" in save_condition
+    assert "pull_request" not in save_condition
+    restore_inputs = restore["with"]
+    assert isinstance(restore_inputs, dict)
+    assert "restore-keys" not in restore_inputs
+    assert "tools/qualify_crashpad_runtime.py" in str(qualify["run"])
 
 
 def test_python_locks_cover_direct_requirements_with_hashes() -> None:

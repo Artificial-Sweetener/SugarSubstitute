@@ -234,13 +234,19 @@ def test_every_release_platform_builds_and_qualifies_crashpad_before_packaging()
     }
     for job_name, runtime_path in expected_runtime_paths.items():
         job = workflow["jobs"][job_name]
-        script = workflow_job_script(job)
-        build_position = script.index("build_crashpad_runtime.py")
-        qualify_position = script.index("qualify_crashpad_runtime.py")
-        packaging_position = script.index("PyInstaller")
-        assert build_position < qualify_position < packaging_position
-        assert "--with-probe" in script
-        assert f"--runtime-dir {runtime_path}" in script
+        steps = job["steps"]
+        crashpad_position = next(
+            index
+            for index, step in enumerate(steps)
+            if step.get("uses") == "./.github/actions/prepare-crashpad-runtime"
+        )
+        packaging_position = next(
+            index
+            for index, step in enumerate(steps)
+            if "PyInstaller" in step.get("run", "")
+        )
+        assert crashpad_position < packaging_position
+        assert steps[crashpad_position]["with"]["runtime-dir"] == runtime_path
         evidence_step = next(
             step
             for step in job["steps"]
@@ -249,6 +255,15 @@ def test_every_release_platform_builds_and_qualifies_crashpad_before_packaging()
         assert evidence_step["if"] == "always()"
         assert evidence_step["with"]["if-no-files-found"] == "error"
         assert evidence_step["with"]["retention-days"] == 1
+
+    crashpad_action = action_path("prepare-crashpad-runtime").read_text(
+        encoding="utf-8"
+    )
+    build_position = crashpad_action.index("tools/build_crashpad_runtime.py")
+    qualify_position = crashpad_action.index("tools/qualify_crashpad_runtime.py")
+    save_position = crashpad_action.index("actions/cache/save@")
+    assert build_position < qualify_position < save_position
+    assert "--with-probe" in crashpad_action
 
     linux_script = action_path("setup-crashpad-linux").read_text(encoding="utf-8")
     assert "./.github/actions/setup-crashpad-linux" in workflow_text(
