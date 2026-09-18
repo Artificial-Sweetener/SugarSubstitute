@@ -49,7 +49,6 @@ REVIEWED_CRASH_BOUNDARY_ROWS: tuple[CrashBoundaryInventoryRow, ...] = (
     ("process", "substitute/infrastructure/process/hidden_process_runner.py", "stream_command_collecting_output", "subprocess.Popen", 1, "external_tool_process"),
     ("process", "sugarsubstitute_shared/launcher_update/process.py", "_start_independent", "subprocess.Popen", 1, "transactional_launcher_handoff"),
     ("process", "launcher/sugarsubstitute_launcher/dev_install.py", "_run_runtime_script", "subprocess.run", 1, "external_runtime_install_command"),
-    ("process", "launcher/sugarsubstitute_launcher/managed_comfy_repair.py", "SubprocessManagedComfyRepairCommandRunner.run", "subprocess.run", 1, "external_comfy_command"),
     ("process", "substitute/infrastructure/comfy/hardware_linux.py", "_parse_lspci_output", "subprocess.run", 1, "external_hardware_probe"),
     ("process", "substitute/infrastructure/comfy/hardware_windows.py", "_read_windows_cim_adapters", "subprocess.run", 1, "external_hardware_probe"),
     ("process", "substitute/infrastructure/comfy/intel_xpu_detection.py", "read_intel_xpu_adapters", "subprocess.run", 1, "external_hardware_probe"),

@@ -33,6 +33,9 @@ from launcher.sugarsubstitute_launcher.application.repair.progress import (
 )
 from launcher.sugarsubstitute_launcher.runtime_resources import launcher_uv_path
 from launcher.sugarsubstitute_launcher.uv_tool import VerifiedUvExecutableProvider
+from launcher.sugarsubstitute_launcher.managed_comfy_repair import (
+    SubprocessManagedComfyRepairer,
+)
 
 
 def build_repair_execution_service(
@@ -50,4 +53,5 @@ def build_repair_execution_service(
             runner=SubprocessRuntimeCommandRunner(output_callback=output_callback),
         ),
         progress_observer=progress_observer,
+        comfy_repairer=SubprocessManagedComfyRepairer(output_callback=output_callback),
     )

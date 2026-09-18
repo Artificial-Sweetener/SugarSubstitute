@@ -20,7 +20,10 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
+import math
+import subprocess
 import sys
+from time import monotonic
 from tempfile import TemporaryDirectory
 from threading import Event
 from typing import BinaryIO
@@ -35,9 +38,16 @@ from sugarsubstitute_shared.subprocess_environment import (
 class RuntimeCommandExecution:
     """Keep cancellation responsive even when a child never finishes an output line."""
 
-    def __init__(self, cancellation: Event) -> None:
+    def __init__(
+        self, cancellation: Event, *, timeout_seconds: float | None = None
+    ) -> None:
         """Bind this command to its provisioning attempt's cancellation signal."""
         self._cancellation = cancellation
+        if timeout_seconds is not None and (
+            not math.isfinite(timeout_seconds) or timeout_seconds <= 0
+        ):
+            raise ValueError("Command timeout must be finite and positive.")
+        self._timeout_seconds = timeout_seconds
 
     def run(
         self,
@@ -49,6 +59,11 @@ class RuntimeCommandExecution:
     ) -> int:
         """Drain bounded output batches and reclaim execution on every exit path."""
         self._check_cancel()
+        deadline = (
+            None
+            if self._timeout_seconds is None
+            else monotonic() + self._timeout_seconds
+        )
         # Independent file descriptions avoid shared offsets and blocking pipe reads.
         with TemporaryDirectory(prefix="substitute-runtime-") as directory:
             path = Path(directory) / "output"
@@ -61,6 +76,14 @@ class RuntimeCommandExecution:
                     pending = b""
                     while True:
                         self._check_cancel()
+                        if (
+                            self._timeout_seconds is not None
+                            and deadline is not None
+                            and monotonic() >= deadline
+                        ):
+                            raise subprocess.TimeoutExpired(
+                                list(command), self._timeout_seconds
+                            )
                         pending = _drain(reader, pending, output)
                         code = process.poll()
                         if code is not None:

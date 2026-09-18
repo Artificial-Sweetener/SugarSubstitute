@@ -22,6 +22,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 from threading import Event
 
 import psutil  # type: ignore[import-untyped]  # psutil ships without type information.
@@ -31,6 +32,7 @@ from launcher.sugarsubstitute_launcher.runtime_command import (
     SubprocessRuntimeCommandRunner,
 )
 from launcher.sugarsubstitute_launcher.runtime_models import RuntimeCommandCancelled
+from launcher.sugarsubstitute_launcher import runtime_command_execution
 from sugarsubstitute_shared.process_identity import (
     ProcessIdentity,
     wait_for_process_exit,
@@ -112,6 +114,41 @@ def test_callback_failure_reclaims_native_runtime_child(tmp_path: Path) -> None:
                 env=os.environ,
             )
         assert children
+        assert all(not child.is_running() for child in children)
+    finally:
+        for child in children:
+            if child.is_running():
+                child.kill()
+                child.wait(5)
+
+
+@pytest.mark.platforms("windows")
+def test_runtime_deadline_reclaims_native_family(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A maintenance deadline must retire silent descendants before reporting timeout."""
+    now = [0.0]
+    monkeypatch.setattr(
+        runtime_command_execution, "monotonic", lambda: now[0], raising=False
+    )
+    children: list[psutil.Process] = []
+
+    def observe(line: str) -> None:
+        """Advance the controlled clock only after both real processes are admitted."""
+        children.extend(psutil.Process(pid) for pid in json.loads(line))
+        now[0] = 31.0
+
+    script = (
+        "import json, os, subprocess, sys; from threading import Event; "
+        "child = subprocess.Popen([sys.executable, '-c', 'from threading import Event; Event().wait(20)']); "
+        "print(json.dumps([os.getpid(), child.pid]), flush=True); Event().wait(20)"
+    )
+    try:
+        with pytest.raises(subprocess.TimeoutExpired):
+            SubprocessRuntimeCommandRunner(observe, timeout_seconds=30).run(
+                [sys.executable, "-c", script], cwd=tmp_path, env=os.environ
+            )
+        assert len(children) == 2
         assert all(not child.is_running() for child in children)
     finally:
         for child in children:
