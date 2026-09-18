@@ -350,8 +350,10 @@ isolation, timing, resources, or execution policy.
   a turn is ending.
 - Full-gate results remain valid for the exact commit-relevant worktree they verified and may be reused if that content has not changed. Staging, unstaging, and ignored verification artifacts do not invalidate them.
 - After a commit-relevant change, rerun every affected gate; rerun all gates when impact is uncertain.
-- CI must run the complete applicable suite on Windows, Linux, and macOS for
-  every change that is not documentation-only.
+- CI runs the complete applicable suite on Windows for every change that is
+  not documentation-only. Linux and macOS platform validation and release
+  builds are temporarily suspended pending dedicated maintainer validation.
+  Preserve portable implementations and tests for their eventual return.
 - Report which platforms were actually verified; do not infer cross-platform success from one operating system.
 - Failing and flaky applicable tests are blocking.
 

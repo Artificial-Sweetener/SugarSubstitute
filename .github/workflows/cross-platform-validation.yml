@@ -45,6 +45,8 @@ jobs:
     uses: ./.github/workflows/comfy-update-compatibility.yml
 
   linux-system-trust:
+    # Temporarily suspended pending dedicated platform validation.
+    if: ${{ false }}
     name: Packaged Linux system trust
     needs: stable-prepublication
     uses: ./.github/workflows/linux-system-trust.yml

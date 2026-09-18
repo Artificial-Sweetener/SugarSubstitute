@@ -41,7 +41,8 @@ def test_release_qualification_covers_clean_launch_and_upgrade_depth() -> None:
     assert "Windows x64" in orchestration_text
     assert "Linux x64" in orchestration_text
     assert "macOS Apple Silicon" in current_text
-    assert '@("windows", "linux", "macos")' in orchestration_text
+    assert '@("windows", "linux", "macos")' not in orchestration_text
+    assert '$macosCleanEnabled = "false"' in orchestration_text
     assert "update_platforms" in orchestration_text
     assert "./.github/workflows/managed-comfy-install.yml" in orchestration_text
     assert '$managedComfyEnabled = if ($scope -eq "managed-comfy")' in (

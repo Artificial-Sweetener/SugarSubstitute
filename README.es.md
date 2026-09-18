@@ -17,9 +17,9 @@
 
 No dejaba de construir las mismas secciones de un flujo de trabajo, activarlas y desactivarlas, moverlas y volver a conectarlas. Hasta que me cansé. Esas secciones se convirtieron en [**Cubos**](https://github.com/Artificial-Sweetener/SugarCubes), y la aplicación de escritorio que los rodea se convirtió en SugarSubstitute.
 
-**SugarSubstitute está en beta pública.** Windows x64, Apple Silicon y Linux x64 cuentan con instaladores específicos.
+**SugarSubstitute está en beta pública.** Windows x64 es actualmente la única plataforma con soporte activo.
 
-**[Descarga la última beta](#instalación)** para Windows x64, Apple Silicon o Linux x64.
+**[Descarga la última beta](#instalación)** para Windows x64.
 
 Consulta la [hoja de ruta](ROADMAP.md) para ver qué quiero crear a continuación y dime qué me falta.
 
@@ -72,30 +72,9 @@ La instalación administrada admite NVIDIA mediante CUDA, hardware AMD RDNA comp
 
 Siguiente paso: [elige cómo debe usar ComfyUI SugarSubstitute](#elige-tu-instalación-de-comfyui).
 
-### <img src="docs/release/platforms/apple.svg" width="22" height="22" alt=""> macOS Apple Silicon
+### Linux y macOS: soporte suspendido temporalmente
 
-**[Descarga el último instalador para macOS Apple Silicon](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg)**
-
-Abre el DMG, inicia SugarSubstitute Setup y usa la carpeta predeterminada `~/Applications/SugarSubstitute` u otra carpeta que te pertenezca. La instalación administrada utiliza la aceleración MPS de Apple en Apple Silicon. Los Mac con Intel no son compatibles.
-
-SugarSubstitute lleva una firma ad hoc, pero no está notarizada porque este proyecto no participa en el programa de pago para desarrolladores de Apple. macOS advertirá que no puede verificar al desarrollador. Si descargaste el DMG desde este repositorio, permite que se abra desde la configuración de Privacidad y seguridad de macOS.
-
-Solo he probado SugarSubstitute directamente en Windows. El paquete para macOS se compila en Apple Silicon mediante GitHub Actions, pero aún necesita que más personas lo usen en equipos Mac reales.
-
-Siguiente paso: [elige cómo debe usar ComfyUI SugarSubstitute](#elige-tu-instalación-de-comfyui).
-
-### <img src="docs/release/platforms/linux.svg" width="22" height="22" alt=""> Linux x64
-
-Elige el paquete adecuado para tu sistema:
-
-- **[Descarga la última AppImage para Linux x86_64](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-x86_64.AppImage)** si quieres un instalador portátil. Márcala como ejecutable y ábrela.
-- **[Descarga el último paquete Debian para Linux amd64](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-amd64.deb)** para Debian, Ubuntu y distribuciones relacionadas. Instala el paquete y ejecuta `sugarsubstitute-setup`.
-
-La carpeta de instalación predeterminada es `~/.local/share/SugarSubstitute`. La instalación administrada admite NVIDIA mediante CUDA, AMD mediante ROCm y GPU Intel mediante XPU. Actualmente no hay disponible ningún entorno administrado de Linux que funcione solo con CPU.
-
-Solo he probado SugarSubstitute directamente en Windows. Los paquetes para Linux se compilan en Linux mediante GitHub Actions, pero aún necesitan que más personas los usen en distribuciones y entornos de escritorio reales.
-
-Siguiente paso: [elige cómo debe usar ComfyUI SugarSubstitute](#elige-tu-instalación-de-comfyui).
+El soporte, las compilaciones y la validación automatizada de Linux y macOS están suspendidos temporalmente. Por ahora no contamos con personas dedicadas a probar estas plataformas. Queremos retomar el soporte cuando el responsable del proyecto pueda validarlas; aún no hay fecha de reanudación. Los paquetes anteriores no están validados y no recomendamos utilizarlos.
 
 ### Desde un clon de Git
 
@@ -111,18 +90,6 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest pytest-xdist ruff mypy pre-commit
 .\.venv\Scripts\pre-commit.exe install
 .\.venv\Scripts\python.exe main.py
-```
-
-En macOS o Linux, abre una terminal y ejecuta:
-
-```bash
-git clone https://github.com/Artificial-Sweetener/SugarSubstitute.git
-cd SugarSubstitute
-python3.12 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r requirements.txt pytest pytest-xdist ruff mypy pre-commit
-.venv/bin/pre-commit install
-.venv/bin/python main.py
 ```
 
 La primera ejecución desde el código fuente abre el mismo proceso de instalación que la aplicación empaquetada. Deja que cree un entorno administrado de ComfyUI o conéctalo a uno existente. Una vez terminada la instalación, vuelve a usar el último comando cada vez que quieras ejecutar tu copia de desarrollo.

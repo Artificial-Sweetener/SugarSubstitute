@@ -17,18 +17,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Linux x64
-            os: ubuntu-24.04
-            python-version: "3.12.13"
-            artifact: linux
+          # Temporarily suspended pending dedicated platform validation.
+          # - name: Linux x64
+          #   os: ubuntu-24.04
+          #   python-version: "3.12.13"
+          #   artifact: linux
           - name: Windows x64
             os: windows-latest
             python-version: "3.12.10"
             artifact: windows
-          - name: macOS Apple Silicon
-            os: macos-15
-            python-version: "3.12.10"
-            artifact: macos
+          # Temporarily suspended pending dedicated platform validation.
+          # - name: macOS Apple Silicon
+          #   os: macos-15
+          #   python-version: "3.12.10"
+          #   artifact: macos
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
