@@ -1400,3 +1400,29 @@ fingerprint = "sha256:1ca18aac678af2cacbdbd4f55c2fd340c9724718e326c80b2e50daa476
 rationale = "This Windows-only fixture substitutes the HTTPS response read inside the production preparation bootstrap and deliberately leaves a descendant holding a tmp_path mutation lock while the parent read remains blocked. A context-managed child lifetime would obscure the native family cleanup being tested. The actual RepairProcessSupervisor owns both processes in its kernel Job Object. The production installer Close action requests cancellation, and the test waits at most five seconds for window and worker completion, verifies both captured PID/creation-time identities have exited, and reacquires descendant mutation ownership. The test finally requests Close and bounds Qt worker completion; both fixture waits have sixty-second last-resort bounds. No unrelated process is discovered, terminated, or used."
 issue = "chore:SS-TEST-WAIVER-C0288"
 review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0289"
+owner = "Complete installer experience render matrix"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/qualification/installer/test_experience_smoke_matrix.py|isolated-module"]
+paths = ["tests/qualification/installer/test_experience_smoke_matrix.py"]
+fingerprint = "sha256:a8596572dfa356ea9f850afa2905d18f879f169d883ccee97408e5e7a4d0549d"
+rationale = "This qualification renders and validates 142 production installer and onboarding checkpoints through real Qt widgets and images. Its image validation exhausted worker-local native allocation after thousands of unrelated tests in a reused Windows xdist worker while the machine retained ample physical memory; the same complete contract passed immediately in a fresh process. The test owns only its repository qualification artifact directory and blocked side-effect adapters, with no network, subprocess, port, environment, or cross-process resource. Fresh-process isolation bounds the intended native render lifetime, preserves every semantic and pixel assertion, and remains safely concurrent."
+issue = "chore:SS-TEST-WAIVER-C0289"
+review_by = 2026-12-15
+
+[[waivers]]
+id = "SS-TEST-WAIVER-C0290"
+owner = "Concurrent native application election contract"
+kind = "classification"
+disposition = "process_isolated"
+rule = "ISOLATED001"
+candidates = ["ISOLATED001|tests/shared/application_instance_broker/test_concurrent_election.py|isolated-module"]
+paths = ["tests/shared/application_instance_broker/test_concurrent_election.py"]
+fingerprint = "sha256:565c56dced77ffb432eb9be58cae35b9c2672e2223d49cd19169b6fa28d0822f"
+rationale = "This Windows native integration module coordinates up to four simultaneous supervised child processes through a real socket barrier, named-pipe election, invocation forwarding, and kernel process-family cleanup. One contender timed out after unrelated process and Qt work in a reused xdist worker, while the exact four-contender case passed ten independent fresh processes and the complete parameter matrix passed ten fresh four-worker runs, covering 120 child processes. Each test owns a tmp_path identity, dynamically allocated port, supervised process families, and unique pipe identity. Fresh-process isolation preserves the real election race and cleanup assertions, bounds native parent-process state, and remains safely concurrent without global serialization."
+issue = "chore:SS-TEST-WAIVER-C0290"
+review_by = 2026-12-15

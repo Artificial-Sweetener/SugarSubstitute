@@ -331,6 +331,28 @@ def test_system_git_policy_rejects_unguarded_comfy_cli_calls(tmp_path: Path) -> 
     assert "protected Comfy Manager command owner" in error.message
 
 
+def test_system_git_policy_does_not_parse_excluded_generated_sources(
+    tmp_path: Path,
+) -> None:
+    """Keep generated resource modules outside authored policy inspection."""
+
+    _write_policy(tmp_path)
+    _write(
+        tmp_path / "substitute/generated.py",
+        "import subprocess\nsubprocess.run(['git', 'status'])\n",
+    )
+    policy_path = tmp_path / "governance/architecture/policy.toml"
+    policy_text = policy_path.read_text(encoding="utf-8").replace(
+        'excluded_paths = ["product/generated.py"]',
+        'excluded_paths = ["product/generated.py", "substitute/generated.py"]',
+    )
+    _write(policy_path, policy_text)
+
+    diagnostics = validate_repository(tmp_path, today=date(2026, 8, 11))
+
+    assert not any(item.path == "substitute/generated.py" for item in diagnostics)
+
+
 def test_current_repository_has_no_architecture_governance_errors() -> None:
     """The checked-in architectural state remains exact and enforceable."""
 

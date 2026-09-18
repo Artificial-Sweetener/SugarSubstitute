@@ -70,7 +70,9 @@ def validate_repository(
         *_validate_state(root, policy, state, current_date),
     ]
     diagnostics.extend(_validate_structure(root, policy, state, current_date))
-    diagnostics.extend(validate_system_git_policy(root))
+    diagnostics.extend(
+        validate_system_git_policy(root, excluded_paths=policy.excluded_paths)
+    )
     from tools.architecture_governance.crash_boundary_policy import (
         validate_crash_boundary_policy,
     )

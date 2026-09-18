@@ -59,6 +59,7 @@ class SplashSessionQtBridge(QObject):
     """Forward shared splash session messages onto the Qt GUI thread."""
 
     message_received = Signal(object)
+    message_acknowledged = Signal(object)
     invalid_message_received = Signal(str)
 
 
@@ -155,6 +156,9 @@ def main(argv: list[str] | None = None) -> int:
     bridge.message_received.connect(
         lambda dispatch: _apply_session_dispatch(dispatch, splash=splash, app=app)
     )
+    bridge.message_acknowledged.connect(
+        lambda message: _handle_acknowledged_message(message, app=app)
+    )
     bridge.invalid_message_received.connect(
         lambda _reason: None,
     )
@@ -163,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
         on_invalid_message=lambda error: bridge.invalid_message_received.emit(
             type(error).__name__
         ),
+        on_message_acknowledged=bridge.message_acknowledged.emit,
     )
     _clear_stale_cancel_signal(server=server)
     server.start()
@@ -200,7 +205,7 @@ def _handle_session_message(
     """Apply one authenticated shared-session message to the visible splash."""
 
     if message.message_type == "close":
-        _close_splash_and_quit(splash=splash, app=app)
+        splash.dismiss()
         return
     if message.message_type == "activate":
         _activate_splash(splash=splash, app=app)
@@ -234,6 +239,17 @@ def _apply_session_dispatch(
         _handle_session_message(dispatch.message, splash=splash, app=app)
     finally:
         dispatch.applied.set()
+
+
+def _handle_acknowledged_message(
+    message: SplashSessionMessage,
+    *,
+    app: QApplication,
+) -> None:
+    """Quit only after the close requester can observe applied-message receipt."""
+
+    if message.message_type == "close":
+        app.quit()
 
 
 def _close_splash_and_quit(*, splash: Any, app: QApplication) -> None:

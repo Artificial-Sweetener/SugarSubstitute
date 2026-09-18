@@ -59,6 +59,13 @@ class _ManagedJob:
     python_process: psutil.Process
 
 
+def _assert_process_exited(process: psutil.Process) -> None:
+    """Require Windows to retire the terminated process record within a deadline."""
+
+    _gone, alive = psutil.wait_procs((process,), timeout=10)
+    assert not alive, "Native fixture process did not complete exit"
+
+
 @pytest.fixture
 def managed_job(tmp_path: Path) -> Iterator[_ManagedJob]:
     """Publish child readiness over a bounded pipe and always retire the owned job."""
@@ -138,7 +145,7 @@ def test_recovered_job_cleanup_does_not_depend_on_taskkill(
     monkeypatch.setattr(subprocess, "run", unavailable)
     result = kill_managed_comfy_metadata(managed_job.launch.metadata)
     assert result.status is ManagedProcessTerminationStatus.TERMINATED_CONFIRMED
-    assert not managed_job.python_process.is_running()
+    _assert_process_exited(managed_job.python_process)
 
 
 def test_job_cleanup_ignores_a_reused_metadata_pid(
@@ -154,7 +161,7 @@ def test_job_cleanup_ignores_a_reused_metadata_pid(
     metadata = replace(managed_job.launch.metadata, pid=os.getpid())
     result = kill_managed_comfy_metadata(metadata)
     assert result.status is ManagedProcessTerminationStatus.TERMINATED_CONFIRMED
-    assert not managed_job.python_process.is_running()
+    _assert_process_exited(managed_job.python_process)
 
 
 @pytest.mark.parametrize("listener_resolved", [False, True])
@@ -192,4 +199,4 @@ def test_repeated_cleanup_accepts_an_already_retired_family(
         close_job_containment_handle(handle)
     repeated = kill_managed_comfy_metadata(managed_job.launch.metadata)
     assert repeated.status is ManagedProcessTerminationStatus.TERMINATED_CONFIRMED
-    assert not managed_job.python_process.is_running()
+    _assert_process_exited(managed_job.python_process)
