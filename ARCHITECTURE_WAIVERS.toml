@@ -325,18 +325,6 @@ max_lines = 540
 next_limit = 500
 debt = "SS-ARCH-028"
 
-[[waivers]]
-id = "SS-WAIVER-R030"
-owner = "managed Comfy launch"
-rule = "STRUCT003"
-path = "substitute/infrastructure/comfy/managed_launcher.py"
-kind = "remediation"
-justification = "Managed command construction now has a separate owner. The assessed file still mixes managed process state and synchronization, foreground and background subprocess spawning, background output pumping, and startup readiness adoption. Extract background output pumping from managed process state, spawning, and readiness ownership."
-issue = "chore:SS-ARCH-030"
-review_by = 2026-12-15
-max_lines = 683
-next_limit = 600
-debt = "SS-ARCH-030"
 
 [[waivers]]
 id = "SS-WAIVER-R032"
@@ -1222,17 +1210,6 @@ justification = "The module is the single explicit versioned JSON contract for w
 issue = "chore:SS-WAIVER-S020"
 review_by = 2026-12-15
 max_lines = 1035
-
-[[waivers]]
-id = "SS-WAIVER-S021"
-owner = "managed process termination"
-rule = "STRUCT003"
-path = "substitute/infrastructure/comfy/managed_shutdown.py"
-kind = "structural"
-justification = "The module owns one fail-safe process-termination contract and normalizes its result across Windows and POSIX. Platform-specific kill, descendant, signal, wait, verification, and diagnostic branches are alternative implementations of the same operation and must preserve identical termination semantics."
-issue = "chore:SS-WAIVER-S021"
-review_by = 2026-12-15
-max_lines = 505
 
 [[waivers]]
 id = "SS-WAIVER-S022"

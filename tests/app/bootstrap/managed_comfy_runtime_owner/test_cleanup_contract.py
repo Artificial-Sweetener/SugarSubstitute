@@ -32,7 +32,7 @@ from substitute.domain.onboarding import (
     ComfyTargetConfiguration,
     ComfyTargetMode,
 )
-from substitute.infrastructure.comfy.managed_shutdown import (
+from substitute.infrastructure.comfy.managed_termination_result import (
     ManagedProcessTerminationStatus,
 )
 from substitute.infrastructure.comfy.process_manager import kill_comfyui_state

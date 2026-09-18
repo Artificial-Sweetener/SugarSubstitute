@@ -116,7 +116,7 @@ class RepairExecutionService:
         *,
         mutation: InstallationMutationOwnership | None = None,
     ) -> CompletedRepair:
-        """Commit one prepared application repair or restore the prior install."""
+        """Restore requested components without requiring a runtime being replaced."""
 
         with installation_mutation(
             request.install_root, ownership=mutation
@@ -133,9 +133,12 @@ class RepairExecutionService:
             InstallationRecovery(layout).recover(ownership=operation)
             launcher_target = launcher_bundle_target_for_key(request.target_key)
             ownership = load_comfy_ownership(layout)
-            repair_owned_nodes = _is_exact_managed_ownership(layout, ownership)
+            repair_existing_nodes = (
+                request.scope is RepairScope.APPLICATION
+                and _is_exact_managed_ownership(layout, ownership)
+            )
             progress = RepairProgressTracker(
-                repair_nodes=repair_owned_nodes,
+                repair_nodes=repair_existing_nodes,
                 full_comfy=request.scope is RepairScope.FULL_MANAGED_COMFY,
                 observer=self._progress_observer,
             )
@@ -144,7 +147,7 @@ class RepairExecutionService:
             request = stage_repair_attempt(request)
             plan = RepairPlanService().build_application_plan(
                 layout=layout,
-                comfy_ownership=ownership if repair_owned_nodes else None,
+                comfy_ownership=ownership if repair_existing_nodes else None,
             )
             replacements = [
                 RepairReplacement(
@@ -164,7 +167,7 @@ class RepairExecutionService:
                 runtime_result.append(
                     self._runtime_provisioner.provision(layout=layout)
                 )
-                if repair_owned_nodes:
+                if repair_existing_nodes:
                     assert ownership is not None
                     progress.begin(RepairStage.RESTORE_NODES)
                     self._comfy_repairer.repair_owned_nodes(
@@ -192,7 +195,7 @@ class RepairExecutionService:
                     raise RepairExecutionError(
                         "Promoted application version does not match the repair request."
                     )
-                if repair_owned_nodes:
+                if repair_existing_nodes:
                     assert ownership is not None
                     self._comfy_repairer.validate_owned_nodes(
                         layout=layout,
@@ -226,7 +229,9 @@ class RepairExecutionService:
             return CompletedRepair(
                 version=request.version,
                 quarantine_root=quarantine,
-                repaired_managed_comfy_nodes=repair_owned_nodes,
+                repaired_managed_comfy_nodes=(
+                    repair_existing_nodes or comfy_quarantine is not None
+                ),
                 comfy_quarantine_root=comfy_quarantine,
             )
 

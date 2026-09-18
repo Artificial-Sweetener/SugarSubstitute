@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.infrastructure.comfy.managed_process_state import ManagedComfyState
+
 from pathlib import Path
 from typing import Any, cast
 
@@ -51,11 +53,9 @@ def test_activate_target_starts_launch_owned_managed_workspace(
     """Launch-owned targets should start managed Comfy and route startup output."""
 
     captured: dict[str, object] = {}
-    fake_state = process_manager.ManagedComfyState(
-        registry=ManagedProcessRegistry(tmp_path)
-    )
+    fake_state = ManagedComfyState(registry=ManagedProcessRegistry(tmp_path))
 
-    def _start_managed(**kwargs: object) -> process_manager.ManagedComfyState:
+    def _start_managed(**kwargs: object) -> ManagedComfyState:
         captured.update(kwargs)
         cast(Any, kwargs["on_log"])("log line")
         cast(Any, kwargs["on_status"])("status line")
@@ -141,9 +141,7 @@ def test_activate_target_routes_activation_line_without_splash(
 ) -> None:
     """Pre-theme activation should not require a visible splash reference."""
 
-    fake_state = process_manager.ManagedComfyState(
-        registry=ManagedProcessRegistry(tmp_path)
-    )
+    fake_state = ManagedComfyState(registry=ManagedProcessRegistry(tmp_path))
     monkeypatch.setattr(
         process_manager,
         "start_comfyui_background_managed",
@@ -170,11 +168,9 @@ def test_activate_target_detaches_unresponsive_splash_after_first_failure(
 ) -> None:
     """Managed output should stop retrying a splash endpoint that has gone away."""
 
-    fake_state = process_manager.ManagedComfyState(
-        registry=ManagedProcessRegistry(tmp_path)
-    )
+    fake_state = ManagedComfyState(registry=ManagedProcessRegistry(tmp_path))
 
-    def _start_managed(**kwargs: object) -> process_manager.ManagedComfyState:
+    def _start_managed(**kwargs: object) -> ManagedComfyState:
         """Emit two output records through the activation-owned callbacks."""
 
         cast(Any, kwargs["on_log"])("first output")

@@ -207,6 +207,10 @@ def _is_owned_listener_alive(
 ) -> bool:
     """Return whether the resolved listener still belongs to the owned metadata record."""
 
+    if metadata.containment_mode == "windows_job_object":
+        return listener_pid is not None and _inspect_windows_job(
+            metadata, listener_pid=listener_pid
+        )
     if not _is_owned_process_identity_alive(metadata):
         return False
     if listener_pid is None:
@@ -224,6 +228,8 @@ def _is_owned_listener_alive(
 def _is_owned_process_identity_alive(metadata: ManagedProcessMetadata) -> bool:
     """Return whether the saved pid still belongs to the expected managed process."""
 
+    if metadata.containment_mode == "windows_job_object":
+        return _inspect_windows_job(metadata)
     containment_status = describe_persisted_containment(metadata)
     if containment_status.managed_process_running:
         command_line = get_process_command_line(metadata.pid)
@@ -240,6 +246,25 @@ def _is_owned_process_identity_alive(metadata: ManagedProcessMetadata) -> bool:
     if not containment_status.managed_process_running:
         return False
     return False
+
+
+def _inspect_windows_job(
+    metadata: ManagedProcessMetadata, *, listener_pid: int | None = None
+) -> bool:
+    """Resolve family presence or listener membership from the recorded native job."""
+    from substitute.infrastructure.comfy.windows_managed_job import WindowsManagedJob
+
+    if metadata.job_name is None:
+        return False
+    job = WindowsManagedJob.open(metadata.job_name)
+    if job is None:
+        return False
+    with job:
+        return (
+            job.has_members()
+            if listener_pid is None
+            else job.contains_process(listener_pid)
+        )
 
 
 def _command_line_matches_metadata(

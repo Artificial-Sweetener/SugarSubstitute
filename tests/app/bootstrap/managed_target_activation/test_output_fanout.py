@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.infrastructure.comfy.managed_process_state import ManagedComfyState
+
 import json
 from pathlib import Path
 from typing import Any, cast
@@ -34,7 +36,6 @@ from substitute.domain.comfy_startup_diagnostics import (
     ComfyStartupIncidentKind,
     ComfyStartupIncidentSeverity,
 )
-from substitute.infrastructure.comfy import process_manager
 from substitute.infrastructure.comfy.managed_process_registry import (
     ManagedProcessRegistry,
 )
@@ -237,9 +238,7 @@ def test_managed_startup_fatal_incident_reads_state_result() -> None:
         message="Process exited.",
         fingerprint="fatal-a",
     )
-    state = process_manager.ManagedComfyState(
-        registry=ManagedProcessRegistry(Path("E:/state"))
-    )
+    state = ManagedComfyState(registry=ManagedProcessRegistry(Path("E:/state")))
     state.startup_result = ManagedStartupReadinessResult(
         ready=False,
         fatal_incident=incident,

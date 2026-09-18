@@ -18,16 +18,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from codecs import getincrementaldecoder
 from datetime import UTC, datetime
 from itertools import count
 import os
 from pathlib import Path
-from threading import Lock
-from time import perf_counter
-from typing import IO, Callable, Protocol, TypeVar
+from typing import IO, Callable
 
+from substitute.application.comfy_startup_diagnostics.startup_failure_report_service import (
+    build_startup_launch_exception_incident,
+)
 from substitute.application.execution import (
     CancellationSource,
     ExecutionContext,
@@ -41,8 +40,6 @@ from substitute.application.onboarding.managed_runtime_service import (
 )
 from substitute.domain.onboarding import (
     ComfyEndpoint,
-    ManagedRuntimeConfiguration,
-    ManagedRuntimeValidationStatus,
 )
 from substitute.domain.onboarding import ManagedRuntimeLaunchStatus
 from substitute.domain.comfy_manager import ComfyManagerKind
@@ -67,14 +64,6 @@ from substitute.infrastructure.comfy.manager_environment import (
 from substitute.infrastructure.comfy.managed_runtime_selection_policy import (
     HardwareAwareManagedRuntimeSelectionPolicy,
 )
-from substitute.infrastructure.comfy.managed_process_metadata import (
-    ContainmentMode,
-    ManagedProcessMetadata,
-)
-from substitute.infrastructure.comfy.managed_process_probe import (
-    ManagedListenerStatus,
-    probe_managed_listener,
-)
 from substitute.infrastructure.comfy.managed_process_registry import (
     ManagedProcessRegistry,
 )
@@ -83,8 +72,10 @@ from substitute.infrastructure.comfy.managed_startup_monitor import (
     ProgressCallback,
     wait_for_managed_startup_ready,
 )
-from substitute.infrastructure.comfy.managed_shutdown import (
+from substitute.infrastructure.comfy.managed_termination_result import (
     ManagedProcessTerminationStatus,
+)
+from substitute.infrastructure.comfy.managed_shutdown import (
     kill_managed_comfy_metadata,
 )
 from substitute.infrastructure.comfy.managed_validation import (
@@ -98,152 +89,24 @@ from substitute.infrastructure.onboarding.file_managed_runtime_repository import
 from substitute.shared.logging.logger import (
     get_logger,
     log_exception,
-    log_info,
-    log_warning_exception,
 )
 from sugarsubstitute_shared.windows_long_paths import operational_path
 
+from substitute.infrastructure.comfy.managed_process_state import (
+    ManagedComfyState,
+    ManagedTaskFactory,
+)
+from substitute.infrastructure.comfy.managed_output_pump import start_output_pump_task
+
+from substitute.infrastructure.comfy.managed_listener_adoption import (
+    resolve_managed_listener,
+)
+
 StatusCallback = Callable[[str], None]
 LogCallback = Callable[[str], None]
-TResult = TypeVar("TResult")
-LongLivedWork = Callable[[CancellationSource], TResult]
 
 _LOGGER = get_logger("infrastructure.comfy.managed_launcher")
 _MANAGED_LAUNCH_REQUEST_IDS = count(1)
-_STARTUP_HARNESS_ENV = "SUGAR_SUBSTITUTE_STARTUP_HARNESS"
-
-
-class ManagedLongLivedTaskHandle(Protocol):
-    """Describe the task lifecycle handle used by managed process startup."""
-
-    @property
-    def is_finished(self) -> bool:
-        """Return whether the task has reached a terminal state."""
-
-    def stop(self, *, reason: str) -> None:
-        """Request task cancellation."""
-
-
-ManagedTaskFactory = Callable[
-    [TaskIdentity, ExecutionContext, LongLivedWork[None], str],
-    ManagedLongLivedTaskHandle,
-]
-
-
-class ManagedComfyState:
-    """Track managed background ComfyUI process startup state."""
-
-    def __init__(self, *, registry: ManagedProcessRegistry) -> None:
-        """Initialize mutable managed process state."""
-
-        self.proc: ManagedProcessHandle | None = None
-        self.registry = registry
-        self.metadata: ManagedProcessMetadata | None = None
-        self.containment_handle: object | None = None
-        self.containment_mode: ContainmentMode | None = None
-        self.startup_result: ManagedStartupReadinessResult | None = None
-        self.launch_task: ManagedLongLivedTaskHandle | None = None
-        self._process_pumps: list[ManagedLongLivedTaskHandle] = []
-        self._stop_requested = False
-        self._spawn_lock = Lock()
-        self._state_lock = Lock()
-
-    @property
-    def stop_requested(self) -> bool:
-        """Return whether lifecycle shutdown has been requested."""
-
-        with self._state_lock:
-            return self._stop_requested
-
-    @property
-    def is_finished(self) -> bool:
-        """Return whether the startup task has finished."""
-
-        task = self.launch_task
-        return task is not None and task.is_finished
-
-    def request_stop(self, *, reason: str) -> None:
-        """Request startup cancellation without closing process-owned output."""
-
-        with self._state_lock:
-            self._stop_requested = True
-            launch_task = self.launch_task
-        if launch_task is not None:
-            launch_task.stop(reason=reason)
-
-    def wait_until_finished(self, *, timeout: float) -> None:
-        """Wait briefly for the startup task when the handle exposes waiting."""
-
-        task = self.launch_task
-        if task is None:
-            return
-        join = getattr(task, "join", None)
-        if callable(join):
-            join(timeout=timeout)
-            return
-        wait = getattr(task, "wait", None)
-        if callable(wait):
-            wait(timeout=timeout)
-            return
-
-    def set_launch_task(self, task: ManagedLongLivedTaskHandle) -> None:
-        """Store the task that owns managed startup execution."""
-
-        with self._state_lock:
-            self.launch_task = task
-
-    def add_process_pump(self, task: ManagedLongLivedTaskHandle) -> None:
-        """Store one task that pumps managed process output."""
-
-        with self._state_lock:
-            self._process_pumps.append(task)
-
-    def record_reused_metadata(self, metadata: ManagedProcessMetadata) -> None:
-        """Record metadata for a reused owned listener."""
-
-        with self._state_lock:
-            self.metadata = metadata
-            self.containment_mode = metadata.containment_mode
-
-    def record_startup_result(self, result: ManagedStartupReadinessResult) -> None:
-        """Record managed startup readiness output."""
-
-        with self._state_lock:
-            self.startup_result = result
-
-    def record_validated_metadata(
-        self,
-        metadata: ManagedProcessMetadata | None,
-    ) -> None:
-        """Record refreshed metadata after readiness validation."""
-
-        with self._state_lock:
-            self.metadata = metadata
-
-    def with_spawn_lock(self, action: Callable[[], TResult]) -> TResult:
-        """Run an action after any in-flight process spawn has quiesced."""
-
-        with self._spawn_lock:
-            return action()
-
-    def record_launch_result_if_running(
-        self,
-        launch_result: object,
-        *,
-        registry: ManagedProcessRegistry,
-    ) -> bool:
-        """Record one newly launched process unless shutdown was requested."""
-
-        with self._spawn_lock:
-            if self.stop_requested:
-                return False
-            process = getattr(launch_result, "process")
-            metadata = getattr(launch_result, "metadata")
-            self.proc = process
-            self.containment_handle = getattr(launch_result, "containment_handle")
-            self.metadata = registry.save(metadata)
-            self.containment_mode = metadata.containment_mode
-            return True
 
 
 def start_managed_comfy_subprocess(
@@ -264,7 +127,7 @@ def start_managed_comfy_subprocess(
         FileManagedRuntimeConfigurationRepository(runtime_state_dir),
         selection_policy=HardwareAwareManagedRuntimeSelectionPolicy(),
     )
-    _resolve_listener_state(
+    resolve_managed_listener(
         endpoint=endpoint,
         workspace=workspace,
         registry=registry,
@@ -353,8 +216,10 @@ def start_managed_comfy_background(
 
         trace_mark("managed_comfy.startup_task.start", request_id=request_id)
         try:
+            if cancellation.is_cancelled or state.stop_requested:
+                return
             with trace_span("managed_comfy.resolve_listener"):
-                existing_metadata = _resolve_listener_state(
+                existing_metadata = resolve_managed_listener(
                     endpoint=endpoint,
                     workspace=workspace,
                     registry=registry,
@@ -362,6 +227,7 @@ def start_managed_comfy_background(
                 )
             if existing_metadata is not None:
                 state.record_reused_metadata(existing_metadata)
+                state.record_startup_result(ManagedStartupReadinessResult(ready=True))
                 runtime_service.record_launch(
                     status=ManagedRuntimeLaunchStatus.REUSED_OWNED,
                     detail="Reused the existing healthy owned managed ComfyUI listener.",
@@ -441,8 +307,7 @@ def start_managed_comfy_background(
 
             if on_log is not None and stdout_stream is not None:
                 state.add_process_pump(
-                    _start_output_pump_task(
-                        state=state,
+                    start_output_pump_task(
                         request_id=next(_MANAGED_LAUNCH_REQUEST_IDS),
                         task_factory=process_pump_task_factory,
                         stdout_stream=stdout_stream,
@@ -498,6 +363,16 @@ def start_managed_comfy_background(
                 )
                 emit_log(on_log, f"[ERROR] {startup_result.fatal_incident.message}")
         except Exception as error:
+            state.record_startup_result(
+                ManagedStartupReadinessResult(ready=False, canceled=True)
+                if cancellation.is_cancelled or state.stop_requested
+                else ManagedStartupReadinessResult(
+                    ready=False,
+                    fatal_incident=build_startup_launch_exception_incident(
+                        workspace=str(workspace), error=error
+                    ),
+                )
+            )
             runtime_service.record_launch(
                 status=ManagedRuntimeLaunchStatus.FAILED,
                 detail=str(error).strip() or type(error).__name__,
@@ -508,6 +383,14 @@ def start_managed_comfy_background(
                 "Managed ComfyUI startup failed",
                 error_type=type(error).__name__,
             )
+
+        finally:
+            if state.startup_result is None and (
+                cancellation.is_cancelled or state.stop_requested
+            ):
+                state.record_startup_result(
+                    ManagedStartupReadinessResult(ready=False, canceled=True)
+                )
 
     state.set_launch_task(
         launch_task_factory(
@@ -527,109 +410,6 @@ def start_managed_comfy_background(
     return state
 
 
-def _start_output_pump_task(
-    *,
-    state: ManagedComfyState,
-    request_id: int,
-    task_factory: ManagedTaskFactory,
-    stdout_stream: IO[bytes],
-    on_log: LogCallback,
-) -> ManagedLongLivedTaskHandle:
-    """Start one process-pump task for managed Comfy output."""
-
-    def pump_output(cancellation: CancellationSource) -> None:
-        """Forward ComfyUI output records into the provided log callback."""
-
-        record_count = 0
-        max_on_log_ms = 0.0
-        total_on_log_ms = 0.0
-        started_at = perf_counter()
-        try:
-            for record in _iter_output_records(stdout_stream):
-                if cancellation.is_cancelled:
-                    return
-                record_count += 1
-                on_log_started_at = perf_counter()
-                _emit_process_output_record(
-                    on_log=on_log,
-                    record=record,
-                    request_id=request_id,
-                    record_count=record_count,
-                    diagnostic=False,
-                )
-                on_log_ms = (perf_counter() - on_log_started_at) * 1000.0
-                total_on_log_ms += on_log_ms
-                max_on_log_ms = max(max_on_log_ms, on_log_ms)
-        finally:
-            try:
-                if _managed_output_pump_diagnostics_enabled() and record_count:
-                    _emit_process_output_record(
-                        on_log=on_log,
-                        record=(
-                            "Substitute startup diagnostic "
-                            "event=managed_output_pump_timing "
-                            f"total_duration_ms="
-                            f"{round((perf_counter() - started_at) * 1000.0, 3)} "
-                            f"record_count={record_count} "
-                            f"total_on_log_ms={round(total_on_log_ms, 3)} "
-                            f"max_on_log_ms={round(max_on_log_ms, 3)}"
-                        ),
-                        request_id=request_id,
-                        record_count=record_count,
-                        diagnostic=True,
-                    )
-            finally:
-                stdout_stream.close()
-
-    return task_factory(
-        TaskIdentity(
-            request_id=request_id,
-            domain="managed_comfy_output_pump",
-        ),
-        ExecutionContext(
-            operation="managed_comfy_output_pump",
-            reason="managed_process_output",
-            lane="process_pump",
-        ),
-        pump_output,
-        "substitute-managed-comfy-output-pump",
-    )
-
-
-def _emit_process_output_record(
-    *,
-    on_log: LogCallback,
-    record: str,
-    request_id: int,
-    record_count: int,
-    diagnostic: bool,
-) -> None:
-    """Forward one process-output record without letting consumers stop pipe drain."""
-
-    try:
-        on_log(record)
-    except Exception as error:
-        log_warning_exception(
-            _LOGGER,
-            "Managed Comfy output consumer failed; continuing pipe drain",
-            error=error,
-            request_id=request_id,
-            record_count=record_count,
-            diagnostic=diagnostic,
-        )
-
-
-def _managed_output_pump_diagnostics_enabled() -> bool:
-    """Return whether harness output-pump diagnostics should be emitted."""
-
-    return os.environ.get(_STARTUP_HARNESS_ENV, "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-
-
 def _terminate_launch_result(
     launch_result: object,
     *,
@@ -646,82 +426,6 @@ def _terminate_launch_result(
         registry.clear_if_pid_matches(metadata.pid)
 
 
-def _managed_runtime_claims_workspace(
-    configuration: ManagedRuntimeConfiguration,
-    workspace: Path,
-) -> bool:
-    """Return whether active managed state claims the configured workspace."""
-
-    if configuration.workspace_path is None:
-        return configuration.validation_status is ManagedRuntimeValidationStatus.VALID
-    try:
-        claimed_workspace = Path(configuration.workspace_path).resolve()
-        configured_workspace = workspace.resolve()
-    except OSError:
-        claimed_workspace = Path(configuration.workspace_path)
-        configured_workspace = workspace
-    return claimed_workspace == configured_workspace
-
-
-def _resolve_listener_state(
-    *,
-    endpoint: ComfyEndpoint,
-    workspace: Path,
-    registry: ManagedProcessRegistry,
-    runtime_service: ManagedRuntimeService,
-) -> ManagedProcessMetadata | None:
-    """Resolve the endpoint ownership state before launching a managed process."""
-
-    metadata = registry.load()
-    probe = probe_managed_listener(
-        host=endpoint.host,
-        port=endpoint.port,
-        workspace=workspace,
-        metadata=metadata,
-    )
-    if probe.status is ManagedListenerStatus.ABSENT:
-        if metadata is not None:
-            registry.clear()
-        return None
-    if probe.status is ManagedListenerStatus.OWNED_HEALTHY:
-        log_info(
-            _LOGGER,
-            "Reusing healthy owned managed ComfyUI listener",
-            pid=probe.metadata.pid if probe.metadata is not None else None,
-            host=endpoint.host,
-            port=endpoint.port,
-        )
-        return probe.metadata
-    if probe.status is ManagedListenerStatus.OWNED_STALE:
-        stale_pid = probe.metadata.pid if probe.metadata is not None else None
-        assert probe.metadata is not None
-        termination = kill_managed_comfy_metadata(probe.metadata)
-        runtime_service.record_launch(
-            status=ManagedRuntimeLaunchStatus.STALE_REAPED,
-            detail=probe.reason,
-        )
-        if (
-            termination.status
-            is not ManagedProcessTerminationStatus.TERMINATED_CONFIRMED
-        ):
-            raise RuntimeError(
-                "Substitute found a stale managed ComfyUI process but could not "
-                "terminate it. Close any leftover ComfyUI windows or kill the "
-                "process manually, then try again."
-            )
-        registry.clear_if_pid_matches(stale_pid)
-        return None
-    runtime_service.record_launch(
-        status=ManagedRuntimeLaunchStatus.FOREIGN_LISTENER_BLOCKED,
-        detail=probe.reason,
-    )
-    raise RuntimeError(
-        "Another process is already using the managed ComfyUI address "
-        f"{endpoint.host}:{endpoint.port}. Substitute will not start over a "
-        "foreign listener."
-    )
-
-
 def _timestamp_now() -> str:
     """Return one UTC ISO timestamp for managed runtime metadata."""
 
@@ -733,53 +437,3 @@ def _managed_force_cpu_mode(runtime_service: ManagedRuntimeService) -> bool:
 
     configuration = runtime_service.load_persisted()
     return configuration.force_cpu_mode if configuration is not None else False
-
-
-def _iter_output_records(
-    stdout_stream: IO[bytes], *, chunk_size: int = 4096
-) -> Iterator[str]:
-    """Decode one byte stream into newline- and carriage-return-delimited records."""
-
-    decoder = getincrementaldecoder("utf-8")("replace")
-    pending_text = ""
-    while True:
-        chunk = stdout_stream.read(chunk_size)
-        if not chunk:
-            break
-        pending_text += decoder.decode(chunk)
-        extracted_records, pending_text = _split_complete_output_records(pending_text)
-        yield from extracted_records
-
-    pending_text += decoder.decode(b"", final=True)
-    extracted_records, pending_text = _split_complete_output_records(pending_text)
-    yield from extracted_records
-    if pending_text:
-        yield pending_text
-
-
-def _split_complete_output_records(text: str) -> tuple[tuple[str, ...], str]:
-    """Split decoded terminal text into complete records plus one trailing partial."""
-
-    record_start = 0
-    cursor = 0
-    records: list[str] = []
-    text_length = len(text)
-    while cursor < text_length:
-        character = text[cursor]
-        if character == "\r":
-            if cursor + 1 < text_length and text[cursor + 1] == "\n":
-                records.append(text[record_start : cursor + 2])
-                cursor += 2
-                record_start = cursor
-                continue
-            records.append(text[record_start : cursor + 1])
-            cursor += 1
-            record_start = cursor
-            continue
-        if character == "\n":
-            records.append(text[record_start : cursor + 1])
-            cursor += 1
-            record_start = cursor
-            continue
-        cursor += 1
-    return tuple(records), text[record_start:]
