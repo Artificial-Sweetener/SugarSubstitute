@@ -119,8 +119,15 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
 
     received: list[SplashSessionMessage] = []
     delivered = Event()
+    acknowledged = Event()
     handler = _RecordingHandler(received, delivered)
-    server = SplashSessionServer(message_handler=handler, token="x" * 32)
+    server = SplashSessionServer(
+        message_handler=handler,
+        token="x" * 32,
+        on_message_acknowledged=lambda message: (
+            acknowledged.set() if message.message_type == "close" else None
+        ),
+    )
     server.start()
     try:
         client = SocketSplashSessionClient(server.spec)
@@ -136,6 +143,7 @@ def test_socket_splash_session_client_delivers_messages_to_server() -> None:
         assert client.activate()
         assert client.close()
         assert delivered.wait(timeout=2.0)
+        assert acknowledged.wait(timeout=2.0)
     finally:
         server.close()
 

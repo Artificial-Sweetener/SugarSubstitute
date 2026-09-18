@@ -45,6 +45,7 @@ from substitute.presentation.shell.empty_model_picker_discovery_controller impor
 from sugarsubstitute_shared.model_acquisition import AcquisitionResult
 from sugarsubstitute_shared.model_discovery import ModelArtifactKind
 from substitute.domain.model_recommendations import ModelFamilyId
+from tests.support.qt.lifecycle import destroy_qt_object
 from tests.support.qt.semantic_wait import wait_for_qt_condition
 
 
@@ -216,6 +217,18 @@ def _suggestion(
     )
 
 
+def _dispose_controller(
+    controller: EmptyModelPickerDiscoveryController,
+    parent: QWidget,
+) -> None:
+    """Synchronously settle worker, modal, and parent native ownership."""
+
+    controller.close()
+    wait_for_qt_condition(lambda: not controller.running)
+    wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
+    destroy_qt_object(parent)
+
+
 def test_unavailable_target_does_not_open_discovery() -> None:
     """A target without acquisition support should fail before opening a modal."""
 
@@ -233,8 +246,7 @@ def test_unavailable_target_does_not_open_discovery() -> None:
 
     assert controller.request_for_empty_picker(context, lambda _value: None) is False
     assert parent.findChild(ModelDiscoveryModal) is None
-    controller.close()
-    parent.deleteLater()
+    _dispose_controller(controller, parent)
 
 
 def test_discovery_lifecycle_remains_animation_graph_free(tmp_path: Path) -> None:
@@ -258,9 +270,7 @@ def test_discovery_lifecycle_remains_animation_graph_free(tmp_path: Path) -> Non
     assert modal.findChildren(QAbstractAnimation) == []
     modal.reject()
     wait_for_qt_condition(lambda: not modal.isVisible())
-    controller.close()
-    wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
-    parent.deleteLater()
+    _dispose_controller(controller, parent)
 
 
 @pytest.mark.platforms("windows")
@@ -300,9 +310,7 @@ def test_repeated_discovery_lifecycles_remain_animation_graph_free(
         wait_for_qt_condition(lambda: not modal.isVisible())
 
     assert len(service.contexts) == 128
-    controller.close()
-    wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
-    parent.deleteLater()
+    _dispose_controller(controller, parent)
 
 
 def test_public_selection_downloads_refreshes_and_selects_exact_value(
@@ -338,9 +346,7 @@ def test_public_selection_downloads_refreshes_and_selects_exact_value(
     assert catalog.invalidated == ["diffusion_models"]
     assert catalog.refreshed == ["diffusion_models"]
     wait_for_qt_condition(lambda: not modal.isVisible())
-    controller.close()
-    wait_for_qt_condition(lambda: parent.findChild(ModelDiscoveryModal) is None)
-    parent.deleteLater()
+    _dispose_controller(controller, parent)
 
 
 def test_protected_selection_prompts_only_when_no_key_is_configured(
@@ -372,8 +378,7 @@ def test_protected_selection_prompts_only_when_no_key_is_configured(
     wait_for_qt_condition(lambda: bool(service.acquired))
 
     assert prompts == [modal]
-    controller.close()
-    parent.deleteLater()
+    _dispose_controller(controller, parent)
 
 
 def test_protected_selection_uses_existing_key_without_prompt(
@@ -409,8 +414,7 @@ def test_protected_selection_uses_existing_key_without_prompt(
     wait_for_qt_condition(lambda: bool(service.acquired))
 
     assert prompts == []
-    controller.close()
-    parent.deleteLater()
+    _dispose_controller(controller, parent)
 
 
 def test_cancelled_credential_prompt_never_starts_download(tmp_path: Path) -> None:
@@ -438,8 +442,7 @@ def test_cancelled_credential_prompt_never_starts_download(tmp_path: Path) -> No
 
     assert service.acquired == []
     assert modal.isVisible()
-    controller.close()
-    parent.deleteLater()
+    _dispose_controller(controller, parent)
 
 
 def test_one_thumbnail_failure_does_not_abort_remaining_gallery_work(
@@ -475,8 +478,7 @@ def test_one_thumbnail_failure_does_not_abort_remaining_gallery_work(
 
     assert service.thumbnail_calls == [first.identity, second.identity]
     assert "Choose a model" in modal.status_label.text()
-    controller.close()
-    parent.deleteLater()
+    _dispose_controller(controller, parent)
 
 
 def test_catalog_refresh_failure_never_publishes_unconfirmed_picker_value(
@@ -511,5 +513,4 @@ def test_catalog_refresh_failure_never_publishes_unconfirmed_picker_value(
     assert selected_values == []
     assert modal.cancel_button.isEnabled()
     assert modal.download_button.isEnabled()
-    controller.close()
-    parent.deleteLater()
+    _dispose_controller(controller, parent)

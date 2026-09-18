@@ -56,6 +56,10 @@ ISOLATED_TEST_MODULES = frozenset(
         # native work in a reused xdist worker; the shipped supervisor and this
         # bounded lane both own a fresh process for that native lifecycle.
         "tests/shared/application_instance_broker/test_broker.py",
+        # This native election contract fans out simultaneous supervised child
+        # processes. Fresh workers preserve the process-family and IPC lifetime,
+        # while repeated four-way overlap proves it remains parallel-safe.
+        "tests/shared/application_instance_broker/test_concurrent_election.py",
         # This real model-discovery modal can deadlock in qfluentwidgets style
         # application after unrelated native Qt work in a reused Windows xdist
         # worker. A fresh bounded process preserves the full modal contract and
@@ -69,6 +73,10 @@ ISOLATED_TEST_MODULES = frozenset(
         # This Windows native splash timing qualification requires a fresh
         # process so unrelated xdist pressure cannot distort its latency budget.
         "tests/qualification/startup_splash/test_source_first_paint.py",
+        # This complete installer matrix renders 142 production checkpoints.
+        # A fresh process bounds its native image and widget lifetime without
+        # retaining those resources in a reused xdist worker.
+        "tests/qualification/installer/test_experience_smoke_matrix.py",
         # This real-shell restore qualification can abort after prior native Qt
         # work in one xdist process, while fresh concurrent processes are stable.
         "tests/qualification/prompt_editor/abuse/test_restored_mounts.py",

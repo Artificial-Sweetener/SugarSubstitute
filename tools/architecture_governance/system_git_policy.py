@@ -30,7 +30,11 @@ _COMFY_CLI_MODULES = frozenset(
 )
 
 
-def validate_system_git_policy(root: Path) -> list[Diagnostic]:
+def validate_system_git_policy(
+    root: Path,
+    *,
+    excluded_paths: frozenset[str] = frozenset(),
+) -> list[Diagnostic]:
     """Return violations from authored runtime Python sources."""
 
     diagnostics: list[Diagnostic] = []
@@ -40,6 +44,8 @@ def validate_system_git_policy(root: Path) -> list[Diagnostic]:
             continue
         for path in sorted(source_root.rglob("*.py")):
             relative = path.relative_to(root).as_posix()
+            if relative in excluded_paths:
+                continue
             try:
                 tree = ast.parse(path.read_text(encoding="utf-8"), filename=relative)
             except (OSError, UnicodeError, SyntaxError):
