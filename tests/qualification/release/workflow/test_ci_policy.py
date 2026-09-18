@@ -247,8 +247,8 @@ def test_release_node_dependencies_use_exact_verified_versions() -> None:
         assert lock["packages"][f"node_modules/{dependency}"]["version"] == version
 
 
-def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
-    """Prevent version resolution until the exact release commit passes all tests."""
+def test_release_reuses_protected_canary_gates_with_safe_fallbacks() -> None:
+    """Avoid duplicate Canary gates while retaining Stable and manual verification."""
 
     release_workflow = yaml.safe_load(
         (PROJECT_ROOT / ".github" / "workflows" / "release.yml").read_text(
@@ -261,8 +261,10 @@ def test_main_release_requires_the_authoritative_cross_platform_suite() -> None:
 
     jobs = release_workflow["jobs"]
     preparation = jobs["prepare-release"]
-    assert preparation["name"] == "Test, build, stage, and qualify release"
+    assert preparation["name"] == "Verify, build, stage, and qualify release"
     assert preparation["uses"] == "./.github/workflows/release-prepublication.yml"
+    assert "github.event_name != 'push'" in preparation["with"]["run_tests"]
+    assert "github.ref_name != 'canary'" in preparation["with"]["run_tests"]
     assert (
         "github.event_name != 'workflow_dispatch'" in preparation["with"]["run_tests"]
     )
