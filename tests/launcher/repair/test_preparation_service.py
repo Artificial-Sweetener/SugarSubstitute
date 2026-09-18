@@ -24,8 +24,14 @@ from types import MappingProxyType
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application.repair import (
+from launcher.sugarsubstitute_launcher.application.repair.preparation_progress import (
+    PreparationProgress,
+    PreparationStage,
+)
+from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
+)
+from launcher.sugarsubstitute_launcher.application.repair.preparation_service import (
     RepairPreparationError,
     RepairPreparationService,
 )
@@ -92,10 +98,16 @@ class _LauncherStager:
     ) -> Path:
         """Create a representative staged launcher bundle."""
 
-        del install_root, target, asset
+        del install_root, asset
         self.calls += 1
         destination_dir.mkdir(parents=True)
-        (destination_dir / "version.txt").write_text(version, encoding="utf-8")
+        for relative in target.required_file_relative_paths:
+            path = destination_dir / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(version, encoding="utf-8")
+        (destination_dir / target.support_relative_path).mkdir(
+            parents=True, exist_ok=True
+        )
         return destination_dir
 
 
@@ -125,7 +137,7 @@ def _manifest(
 def test_preparation_stages_exact_version_without_touching_active_install(
     tmp_path: Path,
 ) -> None:
-    """Preparation should persist only staged artifacts and its handoff request."""
+    """Background preparation must finish the independent bundle before handoff."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute", target=WINDOWS_X64)
     layout.app_dir.mkdir(parents=True)
@@ -152,9 +164,119 @@ def test_preparation_stages_exact_version_without_touching_active_install(
     assert launcher_stager.calls == 1
     assert PreparedRepairRequest.load(preparation.request_path) == preparation.request
     assert preparation.request.version == "1.2.3"
+    assert preparation.request.helper_bundle_dir is not None
+    assert (
+        preparation.request.helper_bundle_dir / "launcher-bin/LauncherUi.exe"
+    ).is_file()
     assert preparation.request.staged_app_dir.is_relative_to(
         layout.root / ".repair" / "staging" / "1.2.3"
     )
+
+
+def test_preparation_reports_work_before_publishing_readiness(tmp_path: Path) -> None:
+    """Only report complete preparation after the immutable request can be reopened."""
+    layout = InstallLayout.from_root(tmp_path, target=WINDOWS_X64)
+    observations: list[PreparationProgress] = []
+
+    class ObservedAppStager(_AppStager):
+        """Observe reported work at the external payload boundary."""
+
+        def stage(
+            self,
+            *,
+            layout: InstallLayout,
+            manifest: ReleaseManifest,
+            destination_dir: Path,
+        ) -> StagedAppPayload:
+            """Require the phase to be visible before its potentially slow work starts."""
+            assert observations[-1].stage is PreparationStage.APPLICATION
+            assert observations[-1].completed_fraction < 1
+            return super().stage(
+                layout=layout, manifest=manifest, destination_dir=destination_dir
+            )
+
+    result = RepairPreparationService(
+        app_stager=ObservedAppStager(),
+        launcher_stager=_LauncherStager(),
+        progress_observer=observations.append,
+    ).prepare_bound_application_repair(
+        layout=layout, release_source=_ReleaseSource(_manifest())
+    )
+    assert observations[0].stage is PreparationStage.RELEASE
+    assert observations[-1].stage is PreparationStage.READY
+    assert observations[-1].completed_fraction == 1
+    assert PreparedRepairRequest.load(result.request_path) == result.request
+    fractions = [progress.completed_fraction for progress in observations]
+    assert fractions == sorted(fractions)
+
+
+@pytest.mark.parametrize("failure", ["helper", "request"])
+def test_failed_preparation_never_reports_ready_or_changes_active_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    """Keep late preparation failures distinct from a durable repair handoff."""
+    layout = InstallLayout.from_root(tmp_path, target=WINDOWS_X64)
+    layout.app_dir.mkdir(parents=True)
+    sentinel = layout.app_dir / "active.txt"
+    sentinel.write_bytes(b"installed application")
+    observations: list[PreparationProgress] = []
+
+    def fail_helper(request: PreparedRepairRequest) -> Path:
+        """Represent an unavailable destination for the independent helper."""
+        raise OSError("synthetic helper write failure")
+
+    def fail_request(request: PreparedRepairRequest, path: Path) -> None:
+        """Represent a failed durable request write after helper preparation."""
+        raise OSError("synthetic request write failure")
+
+    if failure == "helper":
+        monkeypatch.setattr(
+            "launcher.sugarsubstitute_launcher.application.repair."
+            "preparation_service.stage_independent_repair_bundle",
+            fail_helper,
+        )
+    else:
+        monkeypatch.setattr(PreparedRepairRequest, "save", fail_request)
+
+    service = RepairPreparationService(
+        app_stager=_AppStager(),
+        launcher_stager=_LauncherStager(),
+        progress_observer=observations.append,
+    )
+    with pytest.raises(OSError, match=f"synthetic {failure} write failure"):
+        service.prepare_bound_application_repair(
+            layout=layout, release_source=_ReleaseSource(_manifest())
+        )
+
+    assert observations[-1].stage is PreparationStage.HELPER
+    assert all(progress.completed_fraction < 1 for progress in observations)
+    assert sentinel.read_bytes() == b"installed application"
+
+
+def test_progress_presentation_failure_cannot_abort_preparation(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Persist usable repair inputs even when the presentation observer fails."""
+    calls = 0
+
+    def unavailable_view(progress: PreparationProgress) -> None:
+        """Represent a disposed presentation receiver during worker completion."""
+        nonlocal calls
+        calls += 1
+        raise RuntimeError("synthetic disposed progress receiver")
+
+    result = RepairPreparationService(
+        app_stager=_AppStager(),
+        launcher_stager=_LauncherStager(),
+        progress_observer=unavailable_view,
+    ).prepare_bound_application_repair(
+        layout=InstallLayout.from_root(tmp_path, target=WINDOWS_X64),
+        release_source=_ReleaseSource(_manifest()),
+    )
+
+    assert PreparedRepairRequest.load(result.request_path) == result.request
+    assert calls == 1
+    assert "synthetic disposed progress receiver" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -187,3 +309,32 @@ def test_preparation_rejects_incomplete_exact_release_before_staging(
 
     assert app_stager.calls == 0
     assert launcher_stager.calls == 0
+
+
+def test_repeated_repair_preparation_preserves_the_first_attempt(
+    tmp_path: Path,
+) -> None:
+    """Keep each prepared request and staged input independent until execution."""
+    layout = InstallLayout.from_root(tmp_path / "installation", target=WINDOWS_X64)
+    service = RepairPreparationService(
+        app_stager=_AppStager(), launcher_stager=_LauncherStager()
+    )
+    first = service.prepare_application_repair(
+        layout=layout,
+        release_source=_ReleaseSource(_manifest()),
+        expected_version="1.2.3",
+    )
+    original = first.request_path.read_bytes()
+    app_original = (first.request.staged_app_dir / "version.txt").read_bytes()
+    second = service.prepare_application_repair(
+        layout=layout,
+        release_source=_ReleaseSource(_manifest()),
+        expected_version="1.2.3",
+    )
+    assert second.request_path != first.request_path
+    assert second.request.staged_app_dir != first.request.staged_app_dir
+    assert second.request.staged_launcher_dir != first.request.staged_launcher_dir
+    assert first.request_path.read_bytes() == original
+    assert (first.request.staged_app_dir / "version.txt").read_bytes() == app_original
+    assert PreparedRepairRequest.load(first.request_path) == first.request
+    assert PreparedRepairRequest.load(second.request_path) == second.request

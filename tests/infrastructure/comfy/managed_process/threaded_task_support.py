@@ -18,6 +18,11 @@
 
 from __future__ import annotations
 
+from substitute.infrastructure.comfy.managed_process_state import (
+    LongLivedWork,
+    ManagedLongLivedTaskHandle,
+)
+
 import threading
 
 from substitute.application.execution import (
@@ -25,7 +30,6 @@ from substitute.application.execution import (
     ExecutionContext,
     TaskIdentity,
 )
-from substitute.infrastructure.comfy import managed_launcher
 
 
 class _ThreadedManagedTaskHandle:
@@ -33,7 +37,7 @@ class _ThreadedManagedTaskHandle:
 
     def __init__(
         self,
-        work: managed_launcher.LongLivedWork[None],
+        work: LongLivedWork[None],
         *,
         thread_name: str,
     ) -> None:
@@ -65,9 +69,9 @@ class _ThreadedManagedTaskHandle:
 def _managed_task_factory(
     identity: TaskIdentity,
     context: ExecutionContext,
-    work: managed_launcher.LongLivedWork[None],
+    work: LongLivedWork[None],
     thread_name: str,
-) -> managed_launcher.ManagedLongLivedTaskHandle:
+) -> ManagedLongLivedTaskHandle:
     """Create one test-owned managed long-lived task."""
 
     _ = identity, context

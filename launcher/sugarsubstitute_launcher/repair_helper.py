@@ -14,79 +14,93 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Run a prepared repair after its invoking launcher has exited."""
+"""Own recovery, execution, and retirement of one prepared repair without Qt."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from pathlib import Path
+from sugarsubstitute_shared.installation_mutation import (
+    InstallationMutationOwnership,
+    installation_mutation,
+)
 
-from launcher.sugarsubstitute_launcher.application.repair.execution_service import (
+from typing import Protocol
+from pathlib import Path
+from collections.abc import Callable
+
+from launcher.sugarsubstitute_launcher.installation_recovery import InstallationRecovery
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.application.repair.progress import (
+    RepairProgressObserver,
+)
+
+from launcher.sugarsubstitute_launcher.application.repair.execution_result import (
     CompletedRepair,
-    RepairExecutionService,
 )
 from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
 )
-from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.application.repair.composition import (
+    build_repair_execution_service,
+)
 from launcher.sugarsubstitute_launcher.platforms import launcher_target_for_key
-from launcher.sugarsubstitute_launcher.process import (
-    build_app_launch_command,
-    start_detached,
-)
-from sugarsubstitute_shared.process_identity import (
-    ProcessIdentity,
-    wait_for_process_exit,
-)
 
 
 class RepairHelperError(RuntimeError):
     """Report an invalid helper request or incomplete repair handoff."""
 
 
-RepairExecutor = Callable[[PreparedRepairRequest], CompletedRepair]
-ProcessWaiter = Callable[[ProcessIdentity], None]
-AppStarter = Callable[[tuple[str, ...]], None]
+class RepairExecutor(Protocol):
+    """Execute one request within the explicitly retained installation operation."""
+
+    def __call__(
+        self, request: PreparedRepairRequest, *, mutation: InstallationMutationOwnership
+    ) -> CompletedRepair:
+        """Return the outcome without establishing a competing operation."""
+        ...
 
 
 def run_prepared_repair(
     request_path: Path,
     *,
     executor: RepairExecutor | None = None,
-    process_waiter: ProcessWaiter = wait_for_process_exit,
-    app_starter: AppStarter | None = None,
+    ownership: InstallationMutationOwnership | None = None,
+    progress_observer: RepairProgressObserver | None = None,
+    output_callback: Callable[[str], None] | None = None,
 ) -> CompletedRepair:
-    """Wait for the exact caller, execute the repair, and optionally relaunch."""
+    """Recover before constructing adapters and retire intent only after commit.
 
+    Keep installation authority in this execution boundary so presentation can
+    supervise or replace the execution process without implementing repair rules.
+    """
+
+    request = load_prepared_repair_request(request_path)
+    with installation_mutation(request.install_root, ownership=ownership) as operation:
+        target = launcher_target_for_key(request.target_key)
+        InstallationRecovery(
+            InstallLayout.from_root(request.install_root, target=target)
+        ).recover(ownership=operation)
+        execute = (
+            executor
+            or build_repair_execution_service(
+                target=target,
+                progress_observer=progress_observer,
+                output_callback=output_callback,
+            ).execute_application
+        )
+        result = execute(request, mutation=operation)
+        request_path.unlink(missing_ok=True)
+        return result
+
+
+def load_prepared_repair_request(request_path: Path) -> PreparedRepairRequest:
+    """Require the installation's authoritative handoff path before accepting work."""
     request = PreparedRepairRequest.load(request_path)
-    expected_path = request.install_root / ".repair" / "prepared.json"
+    expected_path = request.request_path
     if request_path.resolve() != expected_path.resolve():
         raise RepairHelperError(
             f"Repair request is outside its authoritative path: {request_path}"
         )
-    if request.wait_pid is not None:
-        assert request.wait_process_created_at is not None
-        process_waiter(
-            ProcessIdentity(
-                pid=request.wait_pid,
-                created_at=request.wait_process_created_at,
-            )
-        )
-    execute = executor or RepairExecutionService().execute_application
-    result = execute(request)
-    request_path.unlink(missing_ok=True)
-    if request.relaunch:
-        target = launcher_target_for_key(request.target_key)
-        layout = InstallLayout.from_root(request.install_root, target=target)
-        command = tuple(build_app_launch_command(layout=layout))
-        (app_starter or _start_app)(command)
-    return result
+    return request
 
 
-def _start_app(command: tuple[str, ...]) -> None:
-    """Start the repaired application with normal hidden handoff behavior."""
-
-    start_detached(command)
-
-
-__all__ = ["RepairHelperError", "run_prepared_repair"]
+__all__ = ["RepairHelperError", "run_prepared_repair", "load_prepared_repair_request"]

@@ -195,6 +195,27 @@ def test_launch_splash_process_client_sends_activity_lifecycle_messages() -> Non
     assert fake_process.wait_calls == [2.0]
 
 
+def test_launch_splash_process_client_preserves_progress_units() -> None:
+    """Deliver measured units through the pipe without interpreting logs as progress."""
+    from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+
+    process = _FakeProcess()
+    process.stdin = _NonClosingStringIO()
+    client = LaunchSplashProcessClient(
+        process=cast(subprocess.Popen[str], process),
+        stdin=process.stdin,
+        process_pump_task_factory=_process_pump_task_factory,
+    )
+    client.set_progress(SplashProgress(2, 5), status="Preparing interface")
+    client.close()
+    assert decode_splash_message(process.stdin.getvalue().splitlines()[0]) == {
+        "type": "status",
+        "line": "Preparing interface",
+        "completed": "2",
+        "total": "5",
+    }
+
+
 def test_launch_splash_process_client_dispatches_helper_cancel_event() -> None:
     """Process client should invoke the parent cancel callback from helper stdout."""
 

@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Keep startup visible while an installed launcher awaits prior ownership."""
+"""Await exact outgoing ownership independently of startup presentation."""
 
 from __future__ import annotations
 
@@ -38,14 +38,18 @@ def wait_for_outgoing_supervisor(
     locale_override: str | None,
     environment: MutableMapping[str, str],
 ) -> LauncherSplashSession | None:
-    """Show startup, then await only the exact supervisor being replaced."""
+    """Attempt startup presentation, then await the exact outgoing supervisor."""
 
     splash_session = start_launcher_splash_session(
         layout=layout,
         locale_override=locale_override,
     )
     if splash_session is None:
-        raise RuntimeError("The installed handoff could not present a startup surface.")
+        _LOGGER.warning(
+            "Handoff splash unavailable; continuing exact supervisor handoff | "
+            "install_root=%s",
+            layout.root,
+        )
     from sugarsubstitute_shared.process_identity import (
         ProcessIdentityError,
         wait_for_process_exit,
@@ -55,7 +59,8 @@ def wait_for_outgoing_supervisor(
     try:
         identity = consume_supervisor_handoff(environment)
     except (TypeError, ValueError):
-        splash_session.close()
+        if splash_session is not None:
+            splash_session.close()
         raise
     if identity is None:
         return splash_session

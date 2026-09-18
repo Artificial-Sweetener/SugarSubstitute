@@ -209,17 +209,7 @@ class _Signal:
 
 
 class _MetadataBridge:
-    """Record metadata coalescing requests."""
-
-    def __init__(self) -> None:
-        """Create empty coalescing records."""
-
-        self.begin_calls = 0
-
-    def begin_startup_coalescing(self) -> None:
-        """Record coalescing start."""
-
-        self.begin_calls += 1
+    """Accept metadata updates from composed startup work."""
 
     def emit_model_updated(self, event: object) -> None:
         """Accept model metadata update events."""

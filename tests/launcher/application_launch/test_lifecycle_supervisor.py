@@ -18,16 +18,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
+from launcher.sugarsubstitute_launcher.crash_supervisor import ClassifiedProcessExit
 
 from launcher.sugarsubstitute_launcher import application_lifecycle_supervisor
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
+)
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
     CandidateProcess,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -48,9 +51,15 @@ def test_normal_lifecycle_accepts_every_painted_primary_application_surface(
             self,
             *,
             accepted_surfaces: tuple[ApplicationReadinessSurface, ...],
+            cancellation_requested: object = None,
+            process_starter: Callable[
+                [Sequence[str], Mapping[str, str]], tuple[CandidateProcess, Path]
+            ]
+            | None,
         ) -> None:
             """Record the accepted painted surfaces."""
 
+            assert process_starter is None
             captured_surfaces.append(frozenset(accepted_surfaces))
 
     class _CrashSupervisor:
@@ -137,12 +146,12 @@ def test_pre_readiness_failure_defers_report_to_single_recovery_surface(
             process: object,
             prepared: object,
             present_report: bool = True,
-        ) -> int:
+        ) -> ClassifiedProcessExit:
             """Capture the presentation policy applied to the failure."""
 
             del layout, process, prepared
             self.calls.append(present_report)
-            return 1
+            return ClassifiedProcessExit(1, "startup-incident")
 
     monkeypatch.setattr(
         application_lifecycle_supervisor,

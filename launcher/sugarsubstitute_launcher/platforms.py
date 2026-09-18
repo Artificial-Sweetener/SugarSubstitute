@@ -89,6 +89,18 @@ class LauncherTarget:
     installer_payload_archive_prefix: str
     executable_install_root_parent: int
     icon_asset_name: str
+    repair_executable_relative_path: Path | None = None
+
+    def install_root_for_repair_executable(self, executable_path: Path) -> Path | None:
+        """Recognize the packaged repair entry point independently of extraction."""
+        relative = self.repair_executable_relative_path
+        if relative is None:
+            return None
+        executable = executable_path.expanduser().resolve()
+        if len(executable.parts) <= len(relative.parts):
+            return None
+        root = executable.parents[len(relative.parts) - 1]
+        return root if (root / relative).resolve() == executable else None
 
     @property
     def key(self) -> str:
@@ -170,6 +182,7 @@ WINDOWS_X64 = LauncherTarget(
     ),
     executable_install_root_parent=0,
     icon_asset_name="app_icon.ico",
+    repair_executable_relative_path=WINDOWS_X64_BUNDLE.repair_executable_relative_path,
 )
 
 MACOS_ARM64 = LauncherTarget(

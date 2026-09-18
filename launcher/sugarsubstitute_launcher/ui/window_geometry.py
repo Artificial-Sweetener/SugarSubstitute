@@ -23,10 +23,6 @@ from collections.abc import Sequence
 from PySide6.QtCore import QRect
 from PySide6.QtWidgets import QWidget
 
-from sugarsubstitute_shared.presentation.installer_surface import (
-    center_installer_window,
-)
-
 
 def parse_handoff_geometry(raw_value: str | None) -> QRect | None:
     """Parse an `x,y,width,height` handoff geometry string."""
@@ -60,16 +56,6 @@ def append_handoff_geometry(
     return [*command, f"--handoff-geometry={serialize_handoff_geometry(geometry)}"]
 
 
-def place_launcher_window(window: QWidget, raw_geometry: str | None) -> None:
-    """Apply valid handoff placement or center a fresh launcher surface."""
-
-    geometry = parse_handoff_geometry(raw_geometry)
-    if geometry is None:
-        center_installer_window(window)
-        return
-    window.setGeometry(geometry)
-
-
 def serialize_launcher_window(window: QWidget) -> str:
     """Serialize the current launcher frame for its next process handoff."""
 
@@ -79,7 +65,6 @@ def serialize_launcher_window(window: QWidget) -> str:
 __all__ = [
     "append_handoff_geometry",
     "parse_handoff_geometry",
-    "place_launcher_window",
     "serialize_handoff_geometry",
     "serialize_launcher_window",
 ]

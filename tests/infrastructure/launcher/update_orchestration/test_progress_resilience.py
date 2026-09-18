@@ -28,6 +28,7 @@ from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioning
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
     LauncherUpdateOrchestrator,
 )
+from launcher.sugarsubstitute_launcher.update_activation import PendingUpdateActivation
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
 from sugarsubstitute_shared.launch_splash import SplashActivity
 
@@ -78,6 +79,7 @@ def test_disconnected_splash_does_not_discard_prepared_update(
     assert result.installed_update is True
     assert result.failure_reason is None
     assert result.pending_activation is not None
+    result.pending_activation.commit()
     assert result.attempted_version == "0.4.0"
 
 
@@ -125,13 +127,15 @@ class _PayloadInstaller:
     def install(
         self,
         *,
-        layout: InstallLayout,
+        activation: PendingUpdateActivation,
         manifest: ReleaseManifest,
     ) -> AppPayloadInstallResult:
         """Return the prepared payload result."""
 
         _ = manifest
-        return AppPayloadInstallResult(version=self._version, app_dir=layout.app_dir)
+        return AppPayloadInstallResult(
+            version=self._version, app_dir=activation.layout.app_dir
+        )
 
 
 class _RuntimeReconciler:

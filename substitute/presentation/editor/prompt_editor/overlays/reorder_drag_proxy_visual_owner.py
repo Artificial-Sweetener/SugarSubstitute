@@ -306,10 +306,9 @@ class PromptReorderDragProxyVisualOwner:
         self.proxy.hide()
 
     def close(self) -> None:
-        """Hide and schedule deletion of the owned proxy widget."""
+        """Hide the proxy until reuse or destruction of its logical owner."""
 
         self.proxy.hide()
-        self.proxy.deleteLater()
 
 
 __all__ = [

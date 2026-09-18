@@ -45,7 +45,6 @@ from substitute.presentation.editor.prompt_editor.core.projection.tokens import 
     PromptProjectionTokenKind,
 )
 from ..core.state.semantic_state import PromptEditorSemanticSnapshot
-from ..projection.tokens import emphasis_weight_font
 from .token_weight_geometry import (
     PromptTokenWeightControlGeometry,
     PromptTokenWeightGeometry,
@@ -110,27 +109,6 @@ class PromptTokenWeightControlsSurface(Protocol):
     def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the viewport-local painted weight rect for one weighted token."""
 
-    def start_exact_weight_edit(self, token: PromptProjectionToken) -> None:
-        """Start one projection-owned exact weight edit session."""
-
-    def update_exact_weight_edit(
-        self,
-        *,
-        buffer_text: str,
-        caret_index: int,
-        select_all: bool,
-    ) -> None:
-        """Update the active projection-owned exact weight edit state."""
-
-    def clear_exact_weight_edit(self) -> None:
-        """Clear any active projection-owned exact weight edit session."""
-
-    def exact_weight_edit_token(self) -> PromptProjectionToken | None:
-        """Return the projection token currently owning exact edit mode."""
-
-    def exact_weight_edit_active(self) -> bool:
-        """Return whether exact weight edit mode is currently active."""
-
 
 class PromptTokenWeightExactEditHost(Protocol):
     """Coordinate projection-owned exact edit lifecycle for token controls."""
@@ -153,13 +131,8 @@ class PromptTokenWeightExactEditHost(Protocol):
     def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the viewport-local painted weight rect for one weighted token."""
 
-    def update_exact_weight_caret(
-        self,
-        *,
-        token: PromptProjectionToken,
-        caret_index: int,
-    ) -> None:
-        """Move the active exact-weight edit caret."""
+    def handle_exact_weight_mouse(self, event: QMouseEvent) -> None:
+        """Route viewport input through the native numeric control."""
 
     def handle_exact_weight_key_press(self, event: QKeyEvent) -> bool:
         """Handle one exact-weight edit key press."""
@@ -915,25 +888,6 @@ class PromptTokenWeightControls(QWidget):
             return None
         return geometry.weight_text_rect
 
-    @staticmethod
-    def _exact_edit_state_for_token(
-        token: PromptProjectionToken,
-    ) -> tuple[str, int, bool] | None:
-        """Return the projection-owned edit buffer state for one exact-edit token."""
-
-        if token.editing_value_text is None:
-            return None
-        caret_index = (
-            len(token.editing_value_text)
-            if token.editing_caret_index is None
-            else token.editing_caret_index
-        )
-        return (
-            token.editing_value_text,
-            caret_index,
-            token.editing_select_all,
-        )
-
     def _start_exact_weight_edit(self, token: PromptProjectionToken) -> None:
         """Enter projection-owned exact edit mode for one emphasis number."""
 
@@ -999,15 +953,8 @@ class PromptTokenWeightControls(QWidget):
             else self._exact_edit_host.token_weight_text_rect(token)
         )
         if weight_rect is not None and weight_rect.contains(event.position()):
-            if token is not None:
-                self._exact_edit_host.update_exact_weight_caret(
-                    token=token,
-                    caret_index=self._nearest_exact_weight_caret_index(
-                        event.position(),
-                        token,
-                    ),
-                )
-                self.refresh_geometry()
+            self._exact_edit_host.handle_exact_weight_mouse(event)
+            self.refresh_geometry()
             event.accept()
             return True
         self._finalize_exact_weight_edit()
@@ -1035,36 +982,6 @@ class PromptTokenWeightControls(QWidget):
             pointer_global_position=QPointF(QCursor.pos()),
             source_token=self._exact_edit_host.exact_weight_edit_token(),
             show_weight_preview=False,
-        )
-
-    def _exact_weight_font(self) -> QFont:
-        """Return the font used by exact edit mode so it matches rendered weights."""
-
-        return emphasis_weight_font(self._surface_widget.font())
-
-    def _nearest_exact_weight_caret_index(
-        self,
-        viewport_position: QPointF,
-        token: PromptProjectionToken,
-    ) -> int:
-        """Return the nearest caret boundary for one viewport-local exact edit click."""
-
-        buffer_state = self._exact_edit_state_for_token(token)
-        if buffer_state is None:
-            return 0
-        buffer_text, _, _ = buffer_state
-        weight_rect = self._exact_edit_host.token_weight_text_rect(token)
-        if weight_rect is None:
-            return len(buffer_text)
-        metrics = QFontMetricsF(self._exact_weight_font())
-        text_left = weight_rect.left()
-        boundaries = [
-            text_left + metrics.horizontalAdvance(buffer_text[:index])
-            for index in range(len(buffer_text) + 1)
-        ]
-        return min(
-            range(len(boundaries)),
-            key=lambda index: abs(boundaries[index] - viewport_position.x()),
         )
 
     def _set_pointer_from_viewport(self, viewport_position: QPointF) -> None:

@@ -21,6 +21,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from PySide6.QtCore import QPropertyAnimation
+
 from substitute.presentation.cubes.cube_stack_metrics import (
     CUBE_STACK_COMPACT_WIDTH,
     CUBE_STACK_EXPANDED_WIDTH,
@@ -30,6 +32,9 @@ from substitute.presentation.editor.panel.content_gutter_controller import (
 )
 from substitute.presentation.shell.cube_stack_presentation_models import (
     CubeStackPresentationMode,
+)
+from substitute.presentation.shell.cube_stack_presentation_transition import (
+    CubeStackPresentationTransition,
 )
 from tests.qualification.comfy.bundled_workflows.direct_workflow_harness.rendering import (
     capture_layout,
@@ -97,6 +102,40 @@ def test_real_shell_cube_direct_animation_and_artifacts(tmp_path: Path) -> None:
             (artifact_root / name).stat().st_size > 1000
             for name in ("cube.png", "mid.png", "direct.png", "restored.png")
         )
+    finally:
+        harness.close()
+
+
+def test_skipped_animation_frames_preserve_editor_and_canvas_widths(
+    tmp_path: Path,
+) -> None:
+    """Keep final splitter geometry correct when a busy event loop skips frames."""
+    harness = DirectWorkflowShell(tmp_path)
+    try:
+        before = layout_probe(harness, "cube")
+        harness.activate_direct(animated=True)
+        harness.wait_for_intermediate_transition()
+        transition = harness.shell.cube_stack_presentation_controller.findChild(
+            CubeStackPresentationTransition
+        )
+        assert transition is not None
+        animation = transition.findChild(QPropertyAnimation)
+        assert animation is not None
+        animation.setCurrentTime(animation.duration())
+        harness.wait_for_transition()
+        direct = layout_probe(harness, "direct")
+        assert not direct.animating
+        assert direct.container_width == 0
+        assert direct.editor_width == before.editor_width
+        assert direct.canvas_width == before.canvas_width + CUBE_STACK_EXPANDED_WIDTH
+
+        harness.activate_cube(animated=True)
+        harness.wait_for_intermediate_transition()
+        animation.setCurrentTime(animation.duration())
+        harness.wait_for_transition()
+        restored = layout_probe(harness, "restored")
+        assert restored.editor_width == before.editor_width
+        assert restored.splitter_sizes == before.splitter_sizes
     finally:
         harness.close()
 

@@ -18,12 +18,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable
 import logging
 from pathlib import Path
-import subprocess
-import sys
-from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.application.repair.models import (
     ManagedComfyOwnership,
@@ -31,71 +28,18 @@ from launcher.sugarsubstitute_launcher.application.repair.models import (
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.subprocess_environment import (
     clean_frozen_parent_environment,
-    standard_child_process_dll_search_path,
 )
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
-    subprocess_working_directory,
 )
+
+from launcher.sugarsubstitute_launcher.runtime_command import (
+    SubprocessRuntimeCommandRunner,
+)
+from launcher.sugarsubstitute_launcher.runtime_models import RuntimeCommandRunner
 
 _LOGGER = logging.getLogger(__name__)
 _MAINTENANCE_TIMEOUT_SECONDS = 1800.0
-
-
-class ManagedComfyRepairCommandRunner(Protocol):
-    """Run one bounded application maintenance command."""
-
-    def run(
-        self,
-        command: Sequence[str],
-        *,
-        cwd: Path,
-        env: Mapping[str, str],
-    ) -> None:
-        """Run the command or raise with captured failure context."""
-
-
-class SubprocessManagedComfyRepairCommandRunner:
-    """Run maintenance hidden, without a shell, and with a hard deadline."""
-
-    def run(
-        self,
-        command: Sequence[str],
-        *,
-        cwd: Path,
-        env: Mapping[str, str],
-    ) -> None:
-        """Run one maintenance child and retain bounded diagnostic output."""
-
-        startupinfo = None
-        creationflags = 0
-        if sys.platform == "win32":
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = 0
-            creationflags = subprocess.CREATE_NO_WINDOW
-        with standard_child_process_dll_search_path():
-            result = subprocess.run(  # noqa: S603
-                list(command),
-                cwd=subprocess_working_directory(cwd),
-                env=dict(env),
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=_MAINTENANCE_TIMEOUT_SECONDS,
-                check=False,
-                shell=False,
-                startupinfo=startupinfo,
-                creationflags=creationflags,
-            )
-        if result.returncode != 0:
-            output = (result.stdout + "\n" + result.stderr).strip()
-            raise RuntimeError(
-                "Managed Comfy maintenance failed "
-                f"with exit code {result.returncode}: {output[-8000:]}"
-            )
 
 
 class SubprocessManagedComfyRepairer:
@@ -104,11 +48,14 @@ class SubprocessManagedComfyRepairer:
     def __init__(
         self,
         *,
-        runner: ManagedComfyRepairCommandRunner | None = None,
+        runner: RuntimeCommandRunner | None = None,
+        output_callback: Callable[[str], None] | None = None,
     ) -> None:
         """Store the bounded hidden subprocess adapter."""
 
-        self._runner = runner or SubprocessManagedComfyRepairCommandRunner()
+        self._runner = runner or SubprocessRuntimeCommandRunner(
+            output_callback, timeout_seconds=_MAINTENANCE_TIMEOUT_SECONDS
+        )
 
     def repair_owned_nodes(
         self,
@@ -145,6 +92,16 @@ class SubprocessManagedComfyRepairer:
             ownership=ownership,
             destination=destination,
         )
+
+    def provision_full_managed_comfy(
+        self,
+        *,
+        layout: InstallLayout,
+        ownership: ManagedComfyOwnership,
+    ) -> None:
+        """Build and reconcile the active environment within the repair transaction."""
+
+        self._run("provision-full-managed-comfy", layout=layout, ownership=ownership)
 
     def validate_full_managed_comfy(
         self,
@@ -204,7 +161,5 @@ class SubprocessManagedComfyRepairer:
 
 
 __all__ = [
-    "ManagedComfyRepairCommandRunner",
-    "SubprocessManagedComfyRepairCommandRunner",
     "SubprocessManagedComfyRepairer",
 ]

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.error_report_presentation import (
+    ErrorReportPresentation,
+)
+
 import platform
 
 from PySide6.QtWidgets import QWidget
@@ -25,7 +29,6 @@ from shiboken6 import isValid
 
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from sugarsubstitute_shared.presentation.error_report_dialog import (
-    ErrorReportPresentation,
     SharedErrorReportDialog,
 )
 from sugarsubstitute_shared.presentation.error_report_glyph import ReportSeverity

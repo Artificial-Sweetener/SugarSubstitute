@@ -42,6 +42,32 @@ from sugarsubstitute_shared.installer_qualification import (
     InstallerQualificationPlan,
 )
 from tests.launcher.support import write_launcher_executable
+from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
+
+
+@pytest.mark.parametrize("configured", [False, True])
+def test_installed_repair_resolves_its_root_without_the_main_executable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, configured: bool
+) -> None:
+    """Repair must retain its installation even when the main launcher is missing."""
+    from launcher.sugarsubstitute_launcher import startup_plan
+
+    layout = InstallLayout.from_root(tmp_path / "installation", target=WINDOWS_X64)
+    repair = layout.launcher_support_path / "Repair.exe"
+    repair.parent.mkdir(parents=True)
+    repair.write_bytes(b"repair")
+    if configured:
+        LauncherConfig.from_layout(layout=layout).save(layout.config_path)
+    monkeypatch.setattr(startup_plan, "detect_launcher_target", lambda: WINDOWS_X64)
+    candidate = resolve_startup_candidate(
+        explicit_install_root=None,
+        executable_path=repair,
+        invocation_path=repair,
+        frozen_support_path=tmp_path / "_MEI1234",
+        working_directory_path=tmp_path,
+    )
+    assert candidate.layout == layout
+    assert candidate.installed_config_found is configured
 
 
 def test_startup_candidate_does_not_read_installed_configuration(

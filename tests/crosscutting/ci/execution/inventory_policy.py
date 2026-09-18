@@ -104,7 +104,7 @@ DOCUMENTED_NON_EXECUTION_FILES = {
     "substitute/application/recipes/model_hash_lookup.py": frozenset(
         {"threading.RLock"}
     ),
-    "substitute/infrastructure/comfy/managed_launcher.py": frozenset(
+    "substitute/infrastructure/comfy/managed_process_state.py": frozenset(
         {"threading.Lock"}
     ),
     "substitute/infrastructure/external/comfy_object_info_client.py": frozenset(

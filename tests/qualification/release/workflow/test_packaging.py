@@ -376,12 +376,7 @@ def test_release_publisher_includes_installer_and_managed_payload_artifacts() ->
     config = (PROJECT_ROOT / ".releaserc.cjs").read_text(encoding="utf-8")
     expected_fragments = (
         "SugarSubstitute-*-Windows-x64-Setup.exe",
-        "SugarSubstitute-*-macOS-Apple-Silicon.dmg",
-        "SugarSubstitute-*-Linux-x86_64.AppImage",
-        "SugarSubstitute-*-Linux-amd64.deb",
         "installer-payload-windows-x64-v*.zip",
-        "installer-payload-macos-arm64-v*.zip",
-        "installer-payload-linux-x64-v*.zip",
     )
     assert all(fragment in config for fragment in expected_fragments)
 
@@ -414,19 +409,19 @@ def test_release_notes_link_directly_to_tagged_platform_installers(
         "releases/download/v1.2.3"
     )
     assert f"{asset_root}/SugarSubstitute-1.2.3-Windows-x64-Setup.exe" in notes
-    assert f"{asset_root}/SugarSubstitute-1.2.3-macOS-Apple-Silicon.dmg" in notes
-    assert f"{asset_root}/SugarSubstitute-1.2.3-Linux-x86_64.AppImage" in notes
-    assert f"{asset_root}/SugarSubstitute-1.2.3-Linux-amd64.deb" in notes
+    assert f"{asset_root}/SugarSubstitute-1.2.3-macOS-Apple-Silicon.dmg" not in notes
+    assert f"{asset_root}/SugarSubstitute-1.2.3-Linux-x86_64.AppImage" not in notes
+    assert f"{asset_root}/SugarSubstitute-1.2.3-Linux-amd64.deb" not in notes
     icon_root = (
         "https://raw.githubusercontent.com/Artificial-Sweetener/Substitute-Test/"
         "v1.2.3/docs/release/platforms"
     )
-    assert "Download the installer for your platform:" in notes
-    assert notes.count("<img ") == 3
+    assert "Linux and macOS support is temporarily suspended" in notes
+    assert notes.count("<img ") == 1
     assert f'{icon_root}/windows.svg"' in notes
-    assert f'{icon_root}/apple.svg"' in notes
-    assert f'{icon_root}/linux.svg"' in notes
+    assert f'{icon_root}/apple.svg"' not in notes
+    assert f'{icon_root}/linux.svg"' not in notes
     assert "Choose the installer for your platform." not in notes
-    assert "not notarized" in notes
+    assert "no restart date yet" in notes
     assert "checks for application updates when it starts" in notes
     assert "releases/latest/download" not in notes

@@ -24,8 +24,8 @@ from sugarsubstitute_shared.launcher_update.models import (
     LauncherBundleAsset,
     LauncherInstallationRecord,
     LauncherRelease,
-    LauncherUpdateRequest,
 )
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
 from sugarsubstitute_shared.launcher_update.targets import (
     LauncherBundleTarget,

@@ -25,7 +25,7 @@ from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import LauncherOperatingSystem
-from launcher.sugarsubstitute_launcher.process import spawn_detached_process
+from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from launcher.sugarsubstitute_launcher.runtime_paths import frozen_support_path
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
@@ -69,18 +69,23 @@ def build_launcher_ui_command(
     )
 
 
-def start_crash_reporter(
+def present_crash_report(
     layout: InstallLayout,
     incident_id: str,
     environment: Mapping[str, str],
     *,
-    process_starter: LauncherUiProcessStarter = spawn_detached_process,
+    process_starter: LauncherUiProcessStarter = spawn_supervised_process,
+    bundle_layout: InstallLayout | None = None,
 ) -> None:
-    """Start one nonblocking crash report in the Qt-capable launcher child."""
+    """Retain ownership while presenting from the available launcher bundle."""
 
-    process_starter(
-        _build_crash_report_command(layout, incident_id, locale_override=None),
-        environment=environment,
+    run_crash_reporter(
+        layout,
+        incident_id,
+        None,
+        environment,
+        process_starter=process_starter,
+        bundle_layout=bundle_layout,
     )
 
 
@@ -90,12 +95,38 @@ def run_crash_reporter(
     locale_override: str | None,
     environment: Mapping[str, str],
     *,
-    process_starter: LauncherUiProcessStarter = spawn_detached_process,
+    process_starter: LauncherUiProcessStarter = spawn_supervised_process,
+    bundle_layout: InstallLayout | None = None,
 ) -> int:
-    """Present one pending crash report before normal launch continues."""
+    """Keep incident storage independent of the executable hosting its report."""
 
     process, _log_path = process_starter(
-        _build_crash_report_command(layout, incident_id, locale_override),
+        _build_crash_report_command(
+            layout,
+            incident_id,
+            locale_override,
+            continue_launch=False,
+            bundle_layout=bundle_layout,
+        ),
+        environment=environment,
+    )
+    return process.wait()
+
+
+def run_pending_crash_reporter(
+    layout: InstallLayout,
+    incident_id: str,
+    locale_override: str | None,
+    environment: Mapping[str, str],
+    *,
+    process_starter: LauncherUiProcessStarter = spawn_supervised_process,
+) -> int:
+    """Dismiss a pending report into the launch already owned by its caller."""
+
+    process, _log_path = process_starter(
+        _build_crash_report_command(
+            layout, incident_id, locale_override, continue_launch=True
+        ),
         environment=environment,
     )
     return process.wait()
@@ -105,8 +136,11 @@ def _build_crash_report_command(
     layout: InstallLayout,
     incident_id: str,
     locale_override: str | None,
+    *,
+    continue_launch: bool,
+    bundle_layout: InstallLayout | None = None,
 ) -> tuple[str, ...]:
-    """Build one dedicated report invocation without entering setup or repair."""
+    """Bind the installation's report to its available presentation bundle."""
 
     arguments = [
         "--launcher-ui-child",
@@ -115,7 +149,9 @@ def _build_crash_report_command(
     ]
     if locale_override is not None:
         arguments.append(f"--locale={locale_override}")
-    return build_launcher_ui_command(layout, arguments)
+    if continue_launch:
+        arguments.append("--crash-report-continues-launch")
+    return build_launcher_ui_command(bundle_layout or layout, arguments)
 
 
 def _installed_windows_ui_executable(layout: InstallLayout) -> Path | None:
@@ -123,6 +159,9 @@ def _installed_windows_ui_executable(layout: InstallLayout) -> Path | None:
 
     if layout.target.operating_system is not LauncherOperatingSystem.WINDOWS:
         return None
+    repair_root = layout.target.install_root_for_repair_executable(Path(sys.executable))
+    if repair_root == layout.root.resolve():
+        return layout.launcher_ui_executable_path
     support_path = frozen_support_path()
     if support_path is None:
         return None
@@ -136,5 +175,6 @@ __all__ = [
     "LauncherUiProcessStarter",
     "build_launcher_ui_command",
     "run_crash_reporter",
-    "start_crash_reporter",
+    "present_crash_report",
+    "run_pending_crash_reporter",
 ]

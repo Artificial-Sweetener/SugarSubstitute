@@ -69,23 +69,13 @@ def expose_native_material(widget: QWidget) -> None:
     widget.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
 
 
-def center_installer_window(window: QWidget) -> bool:
-    """Center a fresh installer window within its assigned screen work area."""
-
-    screen = window.screen()
-    if screen is None:
-        return False
-    frame_center = window.frameGeometry().center()
-    target_center = screen.availableGeometry().center()
-    window.move(window.pos() + target_center - frame_center)
-    return True
-
-
 class InstallerBrandBar(QFrame):
     """Render the persistent wordmark and compact journey progress."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
-        """Build the Mica-revealing top bar used across process handoff."""
+    def __init__(
+        self, parent: QWidget | None = None, *, show_progress: bool = True
+    ) -> None:
+        """Show journey progress only when this shell owns a multi-screen journey."""
 
         super().__init__(parent)
         self.setObjectName("InstallerBrandBar")
@@ -140,6 +130,7 @@ class InstallerBrandBar(QFrame):
         self.progress_bar.setValue(1)
         progress_layout.addWidget(self.progress_bar)
         layout.addWidget(progress_host, alignment=Qt.AlignmentFlag.AlignVCenter)
+        progress_host.setVisible(show_progress)
 
     def set_progress(self, *, current: int, total: int, description: str) -> None:
         """Project compact semantic progress without adding another text block."""
@@ -276,7 +267,6 @@ __all__ = [
     "InstallerBrandBar",
     "InstallerBodyMaterialSurface",
     "build_installer_surface_style_sheet",
-    "center_installer_window",
     "configure_installer_title_bar",
     "expose_native_material",
     "installer_wordmark_path",

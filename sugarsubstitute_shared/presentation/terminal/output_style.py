@@ -23,6 +23,9 @@ from dataclasses import dataclass
 from PySide6.QtGui import QColor, QFont, QFontDatabase
 
 
+TERMINAL_CORNER_RADIUS = 6
+
+
 _TERMINAL_FONT_FALLBACKS = (
     "Cascadia Mono",
     "Cascadia Code",
@@ -91,22 +94,28 @@ def build_terminal_output_stylesheet(
 
     resolved = appearance or _qfluent_output_appearance()
     if resolved.dark_theme:
-        return """
+        return (
+            """
         QFrame#TerminalOutputView {
             background-color: rgba(8, 10, 12, 0.97);
             border: 1px solid rgba(255, 255, 255, 0.22);
             border-bottom: 1px solid rgba(255, 255, 255, 0.44);
-            border-radius: 6px;
+            border-radius: %dpx;
         }
     """
-    return """
+            % TERMINAL_CORNER_RADIUS
+        )
+    return (
+        """
         QFrame#TerminalOutputView {
             background-color: rgba(252, 253, 255, 0.96);
             border: 1px solid rgba(0, 0, 0, 0.16);
             border-bottom: 1px solid rgba(0, 0, 0, 0.24);
-            border-radius: 6px;
+            border-radius: %dpx;
         }
     """
+        % TERMINAL_CORNER_RADIUS
+    )
 
 
 def build_terminal_output_log_stylesheet(

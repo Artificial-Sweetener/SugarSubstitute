@@ -29,8 +29,11 @@ import time
 from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.launcher_ui_process import start_crash_reporter
-from launcher.sugarsubstitute_launcher.process import spawn_detached_process
+from launcher.sugarsubstitute_launcher.completed_run_artifacts import (
+    CompletedRunArtifacts,
+)
+from launcher.sugarsubstitute_launcher.launcher_ui_process import present_crash_report
+from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from sugarsubstitute_shared.crash_reporting import (
     CrashAttribution,
     CrashBoundary,
@@ -72,6 +75,14 @@ class PreparedCrashRun:
     started_at_ns: int
 
 
+@dataclass(frozen=True, slots=True)
+class ClassifiedProcessExit:
+    """Carry the crash owner's terminal decision without reconstructing its evidence."""
+
+    return_code: int
+    incident_id: str | None = None
+
+
 class ApplicationCrashSupervisor:
     """Retain application ownership until its terminal state is classified."""
 
@@ -86,7 +97,7 @@ class ApplicationCrashSupervisor:
         """Store process, reporter, and clock boundaries for deterministic proof."""
 
         self._process_starter = process_starter or _start_application_process
-        self._reporter_starter = reporter_starter or start_crash_reporter
+        self._reporter_starter = reporter_starter or present_crash_report
         self._native_runtime_resolver = (
             native_runtime_resolver or _installed_native_runtime
         )
@@ -113,7 +124,7 @@ class ApplicationCrashSupervisor:
             layout=layout,
             process=process,
             prepared=prepared,
-        )
+        ).return_code
 
     def prepare(
         self,
@@ -142,8 +153,9 @@ class ApplicationCrashSupervisor:
         process: SupervisedProcess,
         prepared: PreparedCrashRun,
         present_report: bool = True,
-    ) -> int:
-        """Classify one terminated process and optionally present its incident."""
+        expected_cancellation: bool = False,
+    ) -> ClassifiedProcessExit:
+        """Return the authoritative termination classification after diagnostic cleanup."""
 
         return_code = process.wait()
         context = prepared.context
@@ -151,9 +163,20 @@ class ApplicationCrashSupervisor:
             context.crashpad_database,
             prepared.started_at_ns,
         )
-        if context.validates_clean_exit() and return_code == 0:
-            _discard_clean_run_artifacts(context, minidump=minidump)
-            return return_code
+        if expected_cancellation or (
+            context.validates_clean_exit() and return_code == 0
+        ):
+            CompletedRunArtifacts(context).discard(minidump=minidump)
+            if expected_cancellation:
+                _LOGGER.info(
+                    "Application startup cancelled by the user",
+                    extra={
+                        "run_id": context.run_id,
+                        "process_id": process.pid,
+                        "exit_code": return_code,
+                    },
+                )
+            return ClassifiedProcessExit(return_code)
 
         incident = self._resolve_incident(
             context=context,
@@ -179,7 +202,7 @@ class ApplicationCrashSupervisor:
                 "incident_id=%s",
                 incident.incident_id,
             )
-        return return_code
+        return ClassifiedProcessExit(return_code, incident.incident_id)
 
     @staticmethod
     def _resolve_incident(
@@ -299,7 +322,9 @@ def _start_application_process(
 ) -> tuple[SupervisedProcess, Path]:
     """Start an application through the launcher's existing process owner."""
 
-    return spawn_detached_process(command, environment=environment)
+    return spawn_supervised_process(
+        command, environment=environment, allow_handoff=True
+    )
 
 
 def _installed_native_runtime(layout: InstallLayout) -> tuple[Path, Path]:
@@ -324,42 +349,9 @@ def _newest_minidump(database: Path, started_at_ns: int) -> Path | None:
     return max(candidates, default=(0, None), key=lambda item: item[0])[1]
 
 
-def _discard_clean_run_artifacts(
-    context: CrashRunContext,
-    *,
-    minidump: Path | None,
-) -> None:
-    """Remove only known per-run files after authenticated clean termination."""
-
-    if minidump is not None:
-        minidump.unlink(missing_ok=True)
-        crashpad_attachment_directory = (
-            context.crashpad_database / "attachments" / minidump.stem
-        )
-        crashpad_fault_log = crashpad_attachment_directory / "python-fault.log"
-        crashpad_fault_log.unlink(missing_ok=True)
-        try:
-            crashpad_attachment_directory.rmdir()
-        except OSError:
-            pass
-    for path in (context.exit_intent_path, context.exit_receipt_path):
-        path.unlink(missing_ok=True)
-    lifecycle_directory = context.exit_intent_path.parent
-    try:
-        lifecycle_directory.rmdir()
-    except OSError:
-        pass
-    incident_directory = context.incident_root / context.run_id
-    fault_log = incident_directory / "python-fault.log"
-    fault_log.unlink(missing_ok=True)
-    try:
-        incident_directory.rmdir()
-    except OSError:
-        pass
-
-
 __all__ = [
     "ApplicationCrashSupervisor",
+    "ClassifiedProcessExit",
     "PreparedCrashRun",
     "SupervisedProcess",
 ]

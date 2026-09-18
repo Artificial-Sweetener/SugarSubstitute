@@ -19,6 +19,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from collections.abc import Callable
+import logging
+import os
+import subprocess
+import sys
 
 import pytest
 
@@ -41,6 +46,7 @@ def test_repair_refreshes_every_owned_nodepack(tmp_path: Path) -> None:
         selected_workspace: Path,
         *,
         nodepacks: frozenset[CoreNodepackId],
+        on_log: Callable[[str], None],
     ) -> None:
         """Record the repair reconciliation request."""
 
@@ -80,3 +86,49 @@ def test_validation_requires_exact_versions_and_sentinels(tmp_path: Path) -> Non
 
     with pytest.raises(OwnedNodeMaintenanceError, match=first.required_version):
         service.validate(workspace)
+
+
+def test_repair_publishes_nodepack_activity(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Keep real nodepack activity observable while maintenance is still running."""
+    workspace = tmp_path / "comfyui"
+    workspace.mkdir()
+
+    def refresh(
+        selected_workspace: Path,
+        *,
+        nodepacks: frozenset[CoreNodepackId],
+        on_log: Callable[[str], None] | None = None,
+    ) -> None:
+        """Emit activity through the external reconciliation boundary."""
+        assert selected_workspace == workspace.resolve()
+        assert nodepacks == frozenset(CoreNodepackId)
+        if on_log is not None:
+            on_log("Downloaded the pinned nodepack source.")
+        assert "Downloaded the pinned nodepack source." in caplog.text
+
+    with caplog.at_level(logging.INFO):
+        OwnedNodeMaintenanceService(refresher=refresh).repair(workspace)
+
+
+def test_maintenance_entrypoint_emits_activity_to_parent(tmp_path: Path) -> None:
+    """Expose normal maintenance activity through the real CLI diagnostic stream."""
+    script = (
+        "import logging, runpy, sys; "
+        "from substitute.app.maintenance.owned_nodes import OwnedNodeMaintenanceService; "
+        "OwnedNodeMaintenanceService.repair = lambda self, workspace: "
+        "logging.getLogger('substitute.app.maintenance.owned_nodes').info('maintenance activity witness'); "
+        "sys.argv = ['maintenance', 'repair-owned-nodes', '--workspace', sys.argv[1]]; "
+        "runpy.run_module('substitute.app.maintenance', run_name='__main__')"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(tmp_path)],
+        env=os.environ,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=True,
+        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+    )
+    assert "maintenance activity witness" in result.stderr

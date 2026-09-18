@@ -23,6 +23,7 @@ from collections.abc import Callable, MutableMapping
 import json
 import logging
 import os
+from pathlib import Path
 import threading
 from typing import Self
 
@@ -168,6 +169,38 @@ class ApplicationSupervisorClient:
                 connection.close()
         except OSError:
             return False
+
+    def claim_installation(self, install_root: Path) -> bool:
+        """Ask the retained supervisor to admit mutation of the selected folder.
+
+        A false result means an existing owner presented its window. Communication
+        failure raises, so loss of supervision cannot authorize installation.
+        Call from the installation worker because presentation can take time.
+        """
+        with_connection = connect_instance_endpoint(self._endpoint)
+        try:
+            send_instance_message(
+                with_connection,
+                {
+                    "kind": "claim-installation",
+                    "token": self._token,
+                    "install_root": str(install_root.resolve()),
+                },
+            )
+            while True:
+                response = receive_instance_message(
+                    with_connection, timeout_seconds=20.0
+                )
+                status = response.get("status")
+                if status != "pending":
+                    break
+            if status not in ("admitted", "presented"):
+                raise ApplicationInstanceBrokerError(
+                    "The supervisor could not admit installation."
+                )
+            return status == "admitted"
+        finally:
+            with_connection.close()
 
     def bind_disconnect_handler(self, handler: Callable[[], None]) -> None:
         """Bind child shutdown to loss of the authoritative supervisor."""

@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import QRect
+from tests.support.qt.work_area import set_test_work_area
+
 from pathlib import Path
 from typing import cast
 
@@ -60,7 +63,6 @@ def test_onboarding_clean_preflight_skips_the_warning_page(
     """A passing safety check should advance without exposing its warning page."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -100,7 +102,6 @@ def test_locked_install_root_checks_in_place_without_showing_warning(
     """Launcher-owned folder setup should check quietly on its first visible page."""
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,
@@ -137,9 +138,9 @@ def test_onboarding_running_preflight_updates_live_until_comfy_stops(
     tmp_path: Path,
 ) -> None:
     """A detected process should reveal the warning until ComfyUI exits."""
+    set_test_work_area(monkeypatch, QRect(0, 0, 1920, 1080))
 
     ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,

@@ -22,6 +22,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import time
 from types import SimpleNamespace
 from typing import cast
 
@@ -73,10 +74,12 @@ def test_readiness_wait_observes_launcher_handoff_until_main_shell(
             ),
         )
 
+    process_sleep = time.sleep
     monkeypatch.setattr(
-        "tools.ci.installer_ui_qualification.time.sleep",
+        "tools.ci.installer_ui_qualification.sleep",
         publish_main_shell,
     )
+    assert time.sleep is process_sleep
 
     receipt = installer_ui_qualification._wait_for_readiness_receipt(
         readiness_path=readiness_path,

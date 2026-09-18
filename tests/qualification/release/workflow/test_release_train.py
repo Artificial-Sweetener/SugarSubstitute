@@ -218,4 +218,8 @@ def test_canary_release_notes_direct_normal_users_to_stable(tmp_path: Path) -> N
     assert f"[Download the latest Stable release instead]({stable_url})" in notes
     assert "DO NOT download this Canary build for normal use" in notes
     assert "Canary builds are intended only for testers" in notes
+    assert "Linux and macOS support is temporarily suspended" in notes
+    assert ".dmg" not in notes
+    assert ".AppImage" not in notes
+    assert ".deb" not in notes
     assert "releases/download/canary-latest/SugarSubstitute-0.21.0.42" in notes

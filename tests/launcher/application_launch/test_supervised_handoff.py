@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from launcher.sugarsubstitute_launcher import process
+from launcher.sugarsubstitute_launcher import process, process_execution
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from sugarsubstitute_shared.process_identity import ProcessIdentity
 from sugarsubstitute_shared.supervisor_handoff import (
@@ -149,14 +149,15 @@ def test_detached_handoff_drops_completed_crash_supervision(
         captured["command"] = command
         captured.update(options)
 
-    monkeypatch.setattr(process, "start_detached", _start_detached)
+    monkeypatch.setattr(process_execution, "start_detached", _start_detached)
 
-    process.start_detached_handoff(["SugarSubstitute.exe"])
+    process_execution.start_detached_handoff(["SugarSubstitute.exe"])
 
     environment = captured["environment"]
     assert isinstance(environment, dict)
     assert environment["SUGAR_SUBSTITUTE_UNRELATED"] == "preserved"
     assert set(crash_names).isdisjoint(environment)
     assert (
-        captured["startup_timeout_seconds"] == process.HANDOFF_STARTUP_TIMEOUT_SECONDS
+        captured["startup_timeout_seconds"]
+        == process_execution.HANDOFF_STARTUP_TIMEOUT_SECONDS
     )

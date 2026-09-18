@@ -25,6 +25,7 @@ import pytest
 from substitute.application.model_metadata import ModelCatalogSnapshot
 from substitute.application.node_behavior import FieldBehavior, FieldPresentation
 from substitute.application.model_metadata import (
+    ModelCatalogItem,
     ModelChoiceCatalogIndex,
     RichChoiceResolver,
 )
@@ -81,6 +82,58 @@ class _EmptyWarmCatalog:
         """Return one warm empty snapshot."""
 
         return ModelCatalogSnapshot(kind=kind, items=(), generation=1)
+
+
+class _PendingModelCatalog:
+    """Expose unavailable enrichment while preserving a nonblocking GUI boundary."""
+
+    def cached_snapshot_nowait(self, kind: str) -> ModelCatalogSnapshot | None:
+        """Keep the catalog cold until background preparation completes."""
+        return None
+
+    def list_models(self, kind: str) -> tuple[ModelCatalogItem, ...]:
+        """Reject foreground discovery during field construction."""
+        raise AssertionError("Field construction must not list models")
+
+    def refresh_models(self, kind: str) -> tuple[ModelCatalogItem, ...]:
+        """Reject foreground refresh during field construction."""
+        raise AssertionError("Field construction must not refresh models")
+
+    def invalidate(self, kind: str | None = None) -> None:
+        """Keep this synthetic catalog cold."""
+
+
+@pytest.mark.parametrize("options", [("Anima/model.safetensors",), ()])
+def test_known_model_field_keeps_thumbnail_picker_before_catalog_preparation(
+    options: tuple[str, ...],
+) -> None:
+    """A recognized model field must retain its picker independently of cache timing."""
+    catalog = _PendingModelCatalog()
+    resolver = RichChoiceResolver(
+        catalog_index=ModelChoiceCatalogIndex(model_catalog=catalog)
+    )
+    snapshot = PanelModelChoiceSnapshotController(
+        model_catalog_service=catalog,
+        model_choice_resolver=resolver,
+    ).snapshot_for_field(
+        PanelModelChoiceSnapshotRequest(
+            field_behavior=FieldBehavior(field_key="diffusion_model"),
+            node_name="models",
+            key="diffusion_model",
+            value=options[0] if options else "",
+            node_type="SimpleSyrup.SimpleLoadAnima",
+            field_type="LIST",
+            field_info=[list(options), {}],
+            node_definition_gateway=None,
+            target_model="Anima",
+        )
+    )
+
+    assert snapshot.should_build_picker
+    assert snapshot.model_kind == "diffusion_models"
+    assert snapshot.options == options
+    assert snapshot.resolution is not None
+    assert tuple(item.value for item in snapshot.resolution.items) == options
 
 
 def _empty_snapshot(

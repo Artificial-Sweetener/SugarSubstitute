@@ -33,7 +33,6 @@ from launcher.sugarsubstitute_launcher.splash_session import (
 )
 from sugarsubstitute_shared.windows_long_paths import (
     subprocess_path,
-    subprocess_working_directory,
 )
 
 
@@ -61,7 +60,7 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
     session = start_launcher_splash_session(
         layout=layout,
         locale_override="ja",
-        popen=cast(Any, _fake_popen),
+        process_starter=cast(Any, _fake_popen),
     )
 
     assert session is not None
@@ -77,11 +76,11 @@ def test_launcher_splash_session_starts_host_and_returns_app_args(
         "substitute.app.bootstrap.shared_splash_host",
         "--locale=ja",
     ]
-    assert calls[0]["cwd"] == subprocess_working_directory(layout.root)
-    assert calls[0]["env"]["PYTHONPATH"] == subprocess_path(layout.app_dir)
+    assert calls[0]["cwd"] == layout.root
+    assert calls[0]["environment"]["PYTHONPATH"] == subprocess_path(layout.app_dir)
     assert (
         int(
-            calls[0]["env"][
+            calls[0]["environment"][
                 "SUGAR_SUBSTITUTE_SPLASH_HOST_PROCESS_REQUESTED_MONOTONIC_NS"
             ]
         )
@@ -108,7 +107,7 @@ def test_launcher_splash_session_returns_none_for_invalid_ready_payload(
         start_launcher_splash_session(
             layout=layout,
             locale_override="en",
-            popen=cast(Any, _fake_popen),
+            process_starter=cast(Any, _fake_popen),
         )
         is None
     )
@@ -123,6 +122,38 @@ def test_append_splash_session_args_preserves_command_without_session() -> None:
         "python",
         "main.py",
     ]
+
+
+def test_splash_cancellation_is_scoped_to_its_authenticated_session(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """A different splash's cancellation cannot cancel this launch."""
+    import tempfile
+    from sugarsubstitute_shared.launch_splash.client import SocketSplashSessionClient
+    from sugarsubstitute_shared.launch_splash.session import (
+        SplashSessionSpec,
+        splash_cancel_signal_path,
+    )
+
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    spec = SplashSessionSpec(
+        host="127.0.0.1", port=49152, token="a" * 32, host_pid=1234
+    )
+    other = SplashSessionSpec(
+        host="127.0.0.1", port=49153, token="b" * 32, host_pid=1235
+    )
+    session = LauncherSplashSession(
+        client=SocketSplashSessionClient(spec),
+        app_arguments=(),
+        host_pid=1234,
+        process=cast(Any, _FakeProcess(stdout="")),
+    )
+    assert not session.cancellation_requested()
+    splash_cancel_signal_path(other).write_text("cancel\n", encoding="utf-8")
+    assert not session.cancellation_requested()
+    splash_cancel_signal_path(spec).write_text("cancel\n", encoding="utf-8")
+    assert session.cancellation_requested()
 
 
 def test_unacknowledged_splash_close_terminates_the_owned_process() -> None:
@@ -152,7 +183,7 @@ class _UnresponsiveClient:
 
 
 class _FakeProcess:
-    """Provide the subset of `Popen[str]` used by splash session startup tests."""
+    """Provide the process-control and text-pipe boundary used by splash startup."""
 
     def __init__(
         self,

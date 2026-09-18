@@ -20,16 +20,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import QSignalBlocker, Qt, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
     QMessageBox,
-    QProgressBar,
-    QScrollArea,
-    QSizePolicy,
-    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -38,7 +34,6 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
     CaptionLabel,
     ComboBox,
     FluentIcon as FIF,
-    IconWidget,
     LineEdit,
     PrimaryPushButton,
     PushButton,
@@ -54,9 +49,14 @@ from launcher.sugarsubstitute_launcher.ui.experience_pages import RepairScopePag
 from launcher.sugarsubstitute_launcher.ui.installer_errors import (
     install_location_guidance,
 )
-from launcher.sugarsubstitute_launcher.ui.installation_activity_presenter import (
-    InstallationActivityPresenter,
+from launcher.sugarsubstitute_launcher.ui.installation_progress_page import (
+    InstallationProgressPage,
 )
+from launcher.sugarsubstitute_launcher.ui.installer_page_layout import (
+    create_installer_page,
+    build_installer_hero,
+)
+from sugarsubstitute_shared.presentation.setup_page_stage import SetupPageStage
 from sugarsubstitute_shared.localization import load_language_manifest
 from sugarsubstitute_shared.presentation.installer_surface import (
     INSTALLER_CONTENT_MAX_WIDTH,
@@ -67,7 +67,6 @@ from sugarsubstitute_shared.presentation.installer_surface import (
 from sugarsubstitute_shared.presentation.localization.language_selector import (
     ManifestLanguageComboBox,
 )
-from sugarsubstitute_shared.presentation.terminal import TerminalOutputView
 
 if TYPE_CHECKING:
     from sugarsubstitute_shared.presentation.localization import TranslationManager
@@ -101,18 +100,10 @@ class InstallerView(QWidget):
         self.install_path_edit = LineEdit(self)
         self.install_path_edit.setObjectName("LauncherInstallPathEdit")
         self.install_path_edit.setText(initial_install_path)
-        self.progress_log = TerminalOutputView(
-            self,
-            min_height=220,
-            max_height=280,
-            use_qfluent_chrome=False,
-            observe_qfluent_theme=False,
-        )
         self.primary_button = PrimaryPushButton(self)
         self.back_button = PushButton(self)
         self.browse_button = PushButton(self)
         self.install_location_guidance_label = CaptionLabel(self)
-        self.status_panel = QFrame(self)
         self._build_shell()
         self._build_pages()
         if show_language_first:
@@ -138,17 +129,11 @@ class InstallerView(QWidget):
         self.primary_button.setText(text)
         self.primary_button.setEnabled(enabled)
 
-    def append_log(self, message: str) -> None:
-        """Append diagnostics while promoting the latest activity to the page."""
-
-        self.progress_log.append_line(f"{message}\n")
-        self._activity_presenter.start(message)
-
     def show_status_output(self) -> None:
         """Show calm progress while keeping console details collapsed."""
 
         self._experience_page = ExperiencePage.PROGRESS
-        self._activate_page(self.status_panel)
+        self.page_stage.show_page(self.status_panel)
         self.back_button.hide()
         self._set_progress(2, 5, launcher_text("Installing SugarSubstitute"))
 
@@ -156,17 +141,13 @@ class InstallerView(QWidget):
         """Reveal diagnostics after a failure and retain the retry action."""
 
         self._experience_page = ExperiencePage.FAILURE
-        self._activity_presenter.stop()
-        self.activity_label.setText(message)
-        with QSignalBlocker(self.details_button):
-            self.details_button.setChecked(True)
-        self._set_log_visible(True)
+        self.status_panel.show_failure(message)
 
     def show_language_selection(self) -> None:
         """Present the language decision before any installation question."""
 
         self._experience_page = ExperiencePage.LANGUAGE
-        self._activate_page(self.language_page)
+        self.page_stage.show_page(self.language_page)
         self.back_button.hide()
         self.primary_button.show()
         self._set_progress(1, 5, launcher_text("Language"))
@@ -176,7 +157,7 @@ class InstallerView(QWidget):
         """Reveal recovery without inserting first-run language onboarding."""
 
         self._experience_page = ExperiencePage.REPAIR_SCOPE
-        self._activate_page(self.repair_page)
+        self.page_stage.show_page(self.repair_page)
         self.back_button.hide()
         self.primary_button.hide()
         self._set_progress(1, 4, launcher_text("Choose repair"))
@@ -186,7 +167,7 @@ class InstallerView(QWidget):
 
         self._retranslate_install_page()
         self._experience_page = ExperiencePage.INSTALL_LOCATION
-        self._activate_page(self.install_location_page)
+        self.page_stage.show_page(self.install_location_page)
         self.back_button.setText(launcher_text("Back"))
         self.back_button.setVisible(self._localization_manager is not None)
         self.primary_button.show()
@@ -246,30 +227,9 @@ class InstallerView(QWidget):
         content_layout.setContentsMargins(44, 26, 44, 24)
         content_layout.setSpacing(16)
 
-        self.page_stage = QScrollArea(self.content_panel)
-        self.page_stage.setObjectName("OnboardingPageStage")
-        self.page_stage.setWidgetResizable(True)
-        self.page_stage.setFrameShape(QFrame.Shape.NoFrame)
-        self.page_stage.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        self.page_stage.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.page_scroll_content = QWidget(self.page_stage)
-        self.page_scroll_content.setObjectName("OnboardingPageScrollContent")
-        stage_layout = QVBoxLayout(self.page_scroll_content)
-        stage_layout.setContentsMargins(0, 0, 0, 0)
-        stage_layout.setSpacing(0)
-        stage_layout.addStretch(1)
-        self.page_stack = QStackedWidget(self.page_stage)
-        self.page_stack.setObjectName("OnboardingPageStack")
-        self.page_stack.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Maximum,
-        )
-        self.page_stack.setMaximumWidth(INSTALLER_CONTENT_MAX_WIDTH)
-        stage_layout.addWidget(self.page_stack, alignment=Qt.AlignmentFlag.AlignCenter)
-        stage_layout.addStretch(1)
-        self.page_stage.setWidget(self.page_scroll_content)
+        self.page_stage = SetupPageStage(self.content_panel)
+        self.page_scroll_content = self.page_stage.scroll_content
+        self.page_stack = self.page_stage.page_stack
         content_layout.addWidget(self.page_stage, 1)
 
         self.footer_row = QFrame(self.content_panel)
@@ -293,36 +253,13 @@ class InstallerView(QWidget):
         self.progress_helper_label = CaptionLabel(self)
         self.progress_helper_label.hide()
 
-    def _activate_page(self, page: QFrame) -> None:
-        """Center one page at its declared visual width and reset scrolling."""
-
-        self.page_stack.setCurrentWidget(page)
-        content_width = page.property("installerContentWidth")
-        if not isinstance(content_width, int):
-            content_width = INSTALLER_CONTENT_MAX_WIDTH
-        self.page_stack.setFixedWidth(content_width)
-        self._refresh_active_page_height()
-        self.page_stage.verticalScrollBar().setValue(0)
-
-    def _refresh_active_page_height(self) -> None:
-        """Allocate the current page's full height after dynamic content changes."""
-
-        page = self.page_stack.currentWidget()
-        if page is None:
-            return
-        page_layout = page.layout()
-        if page_layout is not None:
-            page_layout.invalidate()
-            page_layout.activate()
-        page.updateGeometry()
-        self.page_stack.setFixedHeight(page.sizeHint().height())
-
     def _build_pages(self) -> None:
         """Build the bounded launcher pages owned by this process."""
 
         self.language_page = self._build_language_page()
         self.install_location_page = self._build_install_location_page()
-        self.status_panel = self._build_progress_page()
+        self.status_panel = InstallationProgressPage(self.page_stack)
+        self.status_panel.geometry_changed.connect(self.page_stage.refresh_layout)
         self.repair_page = RepairScopePage(self.page_stack)
         for page in (
             self.language_page,
@@ -330,7 +267,7 @@ class InstallerView(QWidget):
             self.status_panel,
             self.repair_page,
         ):
-            self.page_stack.addWidget(page)
+            self.page_stage.add_page(page)
         self.repair_page.setProperty(
             "installerContentWidth", INSTALLER_CONTENT_MAX_WIDTH
         )
@@ -338,11 +275,11 @@ class InstallerView(QWidget):
     def _build_language_page(self) -> QFrame:
         """Build a quiet language-first page backed by the locale manifest."""
 
-        page, layout = self._new_page("LauncherLanguagePage")
+        page, layout = create_installer_page(self.page_stack, "LauncherLanguagePage")
         page.setMinimumWidth(620)
         page.setMaximumWidth(620)
         page.setProperty("installerContentWidth", 620)
-        icon_row, text_layout = self._hero_row(page, FIF.LANGUAGE, centered=True)
+        icon_row, text_layout = build_installer_hero(page, FIF.LANGUAGE, centered=True)
         self.language_title_label = SubtitleLabel(page)
         self.language_title_label.setObjectName("OnboardingPageTitle")
         self.language_title_label.setMinimumWidth(420)
@@ -386,8 +323,8 @@ class InstallerView(QWidget):
     def _build_install_location_page(self) -> QFrame:
         """Build the single install-location decision without support prose."""
 
-        page, layout = self._new_page("OnboardingPageFrame")
-        icon_row, text_layout = self._hero_row(page, FIF.FOLDER)
+        page, layout = create_installer_page(self.page_stack, "OnboardingPageFrame")
+        icon_row, text_layout = build_installer_hero(page, FIF.FOLDER)
         self.install_title_label = SubtitleLabel(page)
         self.install_title_label.setObjectName("OnboardingPageTitle")
         self.install_description_label = BodyLabel(page)
@@ -418,82 +355,6 @@ class InstallerView(QWidget):
         self._retranslate_install_page()
         return page
 
-    def _build_progress_page(self) -> QFrame:
-        """Build a focused progress page with optional technical output."""
-
-        page, layout = self._new_page("LauncherProgressPage")
-        icon_row, text_layout = self._hero_row(page, FIF.SYNC)
-        title = SubtitleLabel(launcher_text("Setting up SugarSubstitute"), page)
-        title.setObjectName("OnboardingPageTitle")
-        self.activity_label = BodyLabel(launcher_text("Getting things ready…"), page)
-        self.activity_label.setObjectName("LauncherCurrentActivity")
-        self.activity_label.setWordWrap(True)
-        text_layout.addWidget(title)
-        text_layout.addWidget(self.activity_label)
-        self._activity_presenter = InstallationActivityPresenter(
-            label=self.activity_label,
-            parent=self,
-        )
-        layout.addLayout(icon_row)
-        layout.addSpacing(12)
-
-        progress = QProgressBar(page)
-        progress.setObjectName("LauncherInstallProgress")
-        progress.setRange(0, 0)
-        progress.setTextVisible(False)
-        progress.setFixedHeight(5)
-        layout.addWidget(progress)
-        self.details_button = PushButton(launcher_text("Show details"), page)
-        self.details_button.setCheckable(True)
-        self.details_button.toggled.connect(self._set_log_visible)
-        layout.addWidget(self.details_button, alignment=Qt.AlignmentFlag.AlignLeft)
-        self.progress_log.setParent(page)
-        self.progress_log.hide()
-        layout.addWidget(self.progress_log)
-        layout.addStretch(1)
-        return page
-
-    def _new_page(self, object_name: str) -> tuple[QFrame, QVBoxLayout]:
-        """Create one centered page with the shared readable width."""
-
-        page = QFrame(self.page_stack)
-        page.setObjectName(object_name)
-        page.setMinimumWidth(760)
-        page.setMaximumWidth(INSTALLER_CONTENT_MAX_WIDTH)
-        page.setProperty("installerContentWidth", INSTALLER_CONTENT_MAX_WIDTH)
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(24, 20, 24, 20)
-        layout.setSpacing(12)
-        return page, layout
-
-    @staticmethod
-    def _hero_row(
-        page: QWidget,
-        icon: FIF,
-        *,
-        centered: bool = False,
-    ) -> tuple[QHBoxLayout, QVBoxLayout]:
-        """Create a compact icon-and-heading row for one launcher page."""
-
-        row = QHBoxLayout()
-        row.setSpacing(16)
-        if centered:
-            row.addStretch(1)
-        badge = QFrame(page)
-        badge.setObjectName("OnboardingHeroBadge")
-        badge_layout = QVBoxLayout(badge)
-        badge_layout.setContentsMargins(11, 11, 11, 11)
-        icon_widget = IconWidget(icon, badge)
-        icon_widget.setFixedSize(24, 24)
-        badge_layout.addWidget(icon_widget)
-        row.addWidget(badge, alignment=Qt.AlignmentFlag.AlignTop)
-        text_layout = QVBoxLayout()
-        text_layout.setSpacing(6)
-        row.addLayout(text_layout, 0 if centered else 1)
-        if centered:
-            row.addStretch(1)
-        return row, text_layout
-
     def _set_progress(self, current: int, total: int, title: str) -> None:
         """Update the persistent compact journey indicator."""
 
@@ -503,15 +364,6 @@ class InstallerView(QWidget):
             total=total,
             description=description,
         )
-
-    def _set_log_visible(self, visible: bool) -> None:
-        """Toggle technical output without changing the primary flow."""
-
-        self.progress_log.setVisible(visible)
-        self.details_button.setText(
-            launcher_text("Hide details") if visible else launcher_text("Show details")
-        )
-        self._refresh_active_page_height()
 
     def _retranslate_language_page(self) -> None:
         """Immediately preview the selected locale on the first page."""

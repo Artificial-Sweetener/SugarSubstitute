@@ -11,13 +11,13 @@ PySide6-Fluent-Widgets[full]==1.11.3
 PySideSix-Frameless-Window==0.8.2
 ferrastra==1.0.2
 qpane==3.0.5
-cutecanvas[sam]==1.0.8
+cutecanvas[sam]==1.0.9
 
 # Networking and IO
 requests==2.34.2
 ijson==3.5.1
 truststore==0.10.4
-websocket-client==1.9.0  # Provides the `websocket` import; do NOT add the legacy `websocket` package
+websocket-client==1.9.2  # Provides the `websocket` import; do NOT add the legacy `websocket` package
 keyring==25.7.0
 jeepney==0.9.0; sys_platform == "linux"
 

@@ -184,7 +184,7 @@ def test_platform_skip_reason_reports_applicability() -> None:
 def test_constrained_inventory_covers_existing_xdist_sensitive_modules() -> None:
     """Keep actual xdist environment readers out of the xdist partition."""
 
-    policy = load_test_policy(PROJECT_ROOT / "TEST_POLICY.toml")
+    policy = load_test_policy(PROJECT_ROOT / "governance/testing/policy.toml")
     discovered = frozenset(
         candidate.path
         for candidate in discover_test_candidates(PROJECT_ROOT, policy)

@@ -17,6 +17,8 @@
 """Provide deterministic managed-recovery adapter test collaborators."""
 
 from __future__ import annotations
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+
 import ast
 from pathlib import Path
 from typing import Any
@@ -67,6 +69,10 @@ FORBIDDEN_ADAPTER_IMPORT_PREFIXES = (
 
 class _DisposedSplash:
     """Raise when late recovery output reaches a disposed splash."""
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Reject progress after the fake presentation surface is disposed."""
+        raise RuntimeError("disposed")
 
     def append_log(self, _line: str) -> None:
         """Simulate a disposed splash client."""
@@ -138,6 +144,9 @@ class _Splash:
         self.lines: list[str] = []
         self.activities: list[SplashActivity] = []
         self.clear_activity_calls = 0
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Accept producer progress through the complete splash contract."""
 
     def append_log(self, line: str) -> None:
         """Record one splash line."""

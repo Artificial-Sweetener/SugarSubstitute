@@ -38,9 +38,9 @@ from substitute.application.comfy_startup_diagnostics import (
 )
 from substitute.domain.onboarding import InstallationContext
 from substitute.infrastructure.comfy.managed_launcher import (
-    ManagedTaskFactory,
     start_managed_comfy_background,
 )
+from substitute.infrastructure.comfy.managed_process_state import ManagedTaskFactory
 from substitute.presentation.qt.execution import QtOwnerThreadDispatcher
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,

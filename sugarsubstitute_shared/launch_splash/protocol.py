@@ -23,6 +23,7 @@ import json
 from typing import Final
 
 from sugarsubstitute_shared.launch_splash.activity import SplashActivity
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
 
 
 MAX_SPLASH_MESSAGE_BYTES: Final = 16 * 1024
@@ -44,6 +45,7 @@ class SplashSessionMessage:
     token: str
     line: str | None = None
     activity: SplashActivity | None = None
+    progress: SplashProgress | None = None
 
 
 def encode_splash_session_message(message: SplashSessionMessage) -> bytes:
@@ -61,6 +63,11 @@ def encode_splash_session_message(message: SplashSessionMessage) -> bytes:
             "initial": message.activity.initial_text,
             "long_wait": message.activity.long_wait_text,
             "extended_wait": message.activity.extended_wait_text,
+        }
+    if message.progress is not None:
+        payload["progress"] = {
+            "completed": message.progress.completed,
+            "total": message.progress.total,
         }
     encoded = json.dumps(payload, ensure_ascii=True, separators=(",", ":")).encode(
         "utf-8"
@@ -100,11 +107,13 @@ def decode_splash_session_message(
     if line is not None and not isinstance(line, str):
         raise SplashSessionMessageError("Splash session line must be text.")
     activity = _decode_activity(activity_payload)
+    progress = _decode_progress(payload.get("progress"))
     message = SplashSessionMessage(
         message_type=message_type,
         token=token,
         line=line,
         activity=activity,
+        progress=progress,
     )
     _validate_message(message)
     return message
@@ -117,6 +126,8 @@ def _validate_message(message: SplashSessionMessage) -> None:
         raise SplashSessionMessageError(
             f"Unsupported splash session message type: {message.message_type}"
         )
+    if message.progress is not None and message.message_type != "status":
+        raise SplashSessionMessageError("Only status messages can carry progress.")
     if not message.token:
         raise SplashSessionMessageError("Splash session token must not be empty.")
     if message.message_type in {"log", "status", "fatal"} and not message.line:
@@ -170,3 +181,19 @@ def _decode_activity(payload: object) -> SplashActivity | None:
         raise SplashSessionMessageError(
             "Splash session activity copy is invalid."
         ) from error
+
+
+def _decode_progress(payload: object) -> SplashProgress | None:
+    """Validate optional completion without changing the legacy status envelope."""
+    if payload is None:
+        return None
+    if not isinstance(payload, dict):
+        raise SplashSessionMessageError("Splash progress must be an object.")
+    completed = payload.get("completed")
+    total = payload.get("total")
+    if type(completed) is not int or type(total) is not int:
+        raise SplashSessionMessageError("Splash progress units must be integers.")
+    try:
+        return SplashProgress(completed, total)
+    except ValueError as error:
+        raise SplashSessionMessageError("Splash progress units are invalid.") from error

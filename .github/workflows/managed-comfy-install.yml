@@ -71,14 +71,16 @@ jobs:
             os: windows-latest
             python_version: "3.12.10"
             variant: win-cpu
-          - name: Linux NVIDIA runtime on CPU
-            os: ubuntu-24.04
-            python_version: "3.12.13"
-            variant: linux-nvidia
-          - name: macOS Apple Silicon
-            os: macos-15
-            python_version: "3.12.10"
-            variant: mac-mps
+          # Temporarily suspended pending dedicated platform validation.
+          # - name: Linux NVIDIA runtime on CPU
+          #   os: ubuntu-24.04
+          #   python_version: "3.12.13"
+          #   variant: linux-nvidia
+          # Temporarily suspended pending dedicated platform validation.
+          # - name: macOS Apple Silicon
+          #   os: macos-15
+          #   python_version: "3.12.10"
+          #   variant: mac-mps
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 

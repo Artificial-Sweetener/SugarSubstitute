@@ -25,7 +25,7 @@ import zipfile
 import pytest
 
 from sugarsubstitute_shared.launcher_update.archive import SecureArchiveError
-from sugarsubstitute_shared.launcher_update.models import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
 from sugarsubstitute_shared.launcher_update.targets import (
     MACOS_ARM64_BUNDLE,
@@ -65,6 +65,50 @@ def test_stager_verifies_and_persists_complete_bundle(tmp_path: Path) -> None:
         request.staged_bundle_dir / "launcher-bin" / "LauncherUi.exe"
     ).read_text() == "new UI"
     assert (request.staged_bundle_dir / "launcher-bin" / "runtime.txt").is_file()
+
+
+@pytest.mark.parametrize("compatible", [False, True])
+def test_stager_preserves_baseline_ownership_contract(
+    tmp_path: Path, compatible: bool
+) -> None:
+    """Never schedule a successor that cannot participate in baseline ownership."""
+    root = _write_installed_layout(tmp_path / "install")
+    relative = Path("launcher-bin/launcher_assets/launcher-contract.json")
+    contract = '{"schema_version":1,"delegation_protocol":1}'
+    (root / relative).parent.mkdir(parents=True)
+    (root / relative).write_text(contract, encoding="utf-8")
+    archive = _write_bundle(tmp_path / "launcher.zip", marker="candidate")
+    if compatible:
+        with zipfile.ZipFile(archive, "a") as bundle:
+            bundle.writestr(relative.as_posix(), contract)
+    if compatible:
+        request = LauncherBundleStager().stage(
+            install_root=root,
+            version="0.11.0",
+            target=WINDOWS_X64_BUNDLE,
+            asset=_asset(archive),
+        )
+        assert request.is_file()
+    else:
+        retained = (
+            root / "launcher/updates/staging/0.11.0/already-prepared/preserve.txt"
+        )
+        retained.parent.mkdir(parents=True)
+        retained.write_text("retained", encoding="utf-8")
+        for _ in range(2):
+            with pytest.raises(ValueError, match="delegation"):
+                LauncherBundleStager().stage(
+                    install_root=root,
+                    version="0.11.0",
+                    target=WINDOWS_X64_BUNDLE,
+                    asset=_asset(archive),
+                )
+        assert list((root / "launcher/updates").rglob("request.json")) == []
+        assert list((root / "launcher/updates/staging/0.11.0").iterdir()) == [
+            retained.parent
+        ]
+        assert retained.read_text(encoding="utf-8") == "retained"
+    assert (root / "SugarSubstitute.exe").read_text() == "old launcher"
 
 
 def test_stager_rejects_archive_path_traversal(tmp_path: Path) -> None:

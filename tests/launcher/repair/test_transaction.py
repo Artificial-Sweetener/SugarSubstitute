@@ -23,15 +23,17 @@ from pathlib import Path
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application.repair import (
+from launcher.sugarsubstitute_launcher.application.repair.plan_service import (
     RepairPlanService,
+)
+from launcher.sugarsubstitute_launcher.application.repair.models import (
     RepairReplacement,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.repair_recovery.execution import recover_interrupted_repair
+from sugarsubstitute_shared.repair_recovery.errors import RepairTransactionError
 from launcher.sugarsubstitute_launcher.repair_transaction import (
     RepairTransaction,
-    RepairTransactionError,
-    recover_interrupted_repair,
 )
 
 
@@ -199,3 +201,31 @@ def test_recovery_rejects_journal_path_traversal_without_mutation(
         recover_interrupted_repair(layout.root)
 
     assert (external / "version.txt").read_text(encoding="utf-8") == "safe"
+
+
+@pytest.mark.parametrize("identifier", ["../escaped", "existing"])
+def test_transaction_rejects_unsafe_or_reused_identity(
+    tmp_path: Path, identifier: str
+) -> None:
+    """Never overwrite another transaction's originals or escape quarantine."""
+    layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
+    _write_tree(layout.app_dir, "original")
+    staged = tmp_path / "staged-app"
+    _write_tree(staged, "candidate")
+    quarantine = layout.root / ".repair/quarantine/existing"
+    _write_tree(quarantine, "previous-transaction")
+    plan = RepairPlanService().build_application_plan(layout=layout)
+
+    with pytest.raises(RepairTransactionError):
+        RepairTransaction().execute(
+            plan=plan,
+            replacements=(RepairReplacement(layout.app_dir, staged),),
+            transaction_id=identifier,
+        )
+
+    assert (layout.app_dir / "version.txt").read_text(encoding="utf-8") == "original"
+    assert (staged / "version.txt").read_text(encoding="utf-8") == "candidate"
+    assert (quarantine / "version.txt").read_text(
+        encoding="utf-8"
+    ) == "previous-transaction"
+    assert not (layout.root / ".repair/pending.json").exists()

@@ -23,6 +23,9 @@ from pathlib import Path
 
 from substitute.app.maintenance.owned_nodes import OwnedNodeMaintenanceService
 from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy_setup
+from substitute.infrastructure.comfy.manager_runtime_probe import (
+    detect_workspace_manager_runtime,
+)
 from substitute.infrastructure.comfy.managed_validation import (
     workspace_main_path,
     workspace_python_path,
@@ -61,8 +64,22 @@ class FullManagedComfyMaintenanceService:
         )
         self.validate(candidate)
 
+    def provision(self, workspace: Path) -> None:
+        """Construct and reconcile the final runtime under the caller's transaction."""
+
+        ensure_managed_comfy_setup(
+            workspace=workspace,
+            repair_existing_runtime=True,
+            on_status=lambda message: _LOGGER.info(
+                "Promoted managed Comfy provisioning status | message=%s", message
+            ),
+            on_log=lambda message: _LOGGER.info(
+                "Promoted managed Comfy provisioning output | message=%s", message
+            ),
+        )
+
     def validate(self, workspace: Path) -> None:
-        """Require core, runtime, and both exact app-owned nodepacks."""
+        """Require exact nodepacks and an executable Manager runtime at this location."""
 
         resolved = workspace.resolve()
         if workspace.is_symlink() or not resolved.is_dir():
@@ -80,6 +97,9 @@ class FullManagedComfyMaintenanceService:
                 + ", ".join(str(path) for path in missing)
             )
         OwnedNodeMaintenanceService().validate(resolved)
+        detect_workspace_manager_runtime(
+            resolved, python_executable=workspace_python_path(resolved)
+        )
 
 
 def _require_staging_destination(install_root: Path, destination: Path) -> Path:

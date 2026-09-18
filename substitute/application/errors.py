@@ -14,24 +14,23 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Describe structured user-visible errors and Comfy-style report rendering."""
+"""Describe structured user-visible errors and interpret failure payloads."""
 
 from __future__ import annotations
 
 from sugarsubstitute_shared.localization import (
     ApplicationText,
     app_text,
-    render_source_application_text,
 )
 
-import json
 import platform
 import sys
 import traceback as traceback_module
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 
+from substitute.application.diagnostic_json import diagnostic_json_text
 from substitute.domain.common import WorkflowId
 
 
@@ -174,7 +173,7 @@ def build_execution_error_report(
     traceback_lines = _traceback_lines(data.get("traceback"))
     technical_detail = "\n".join(traceback_lines) if traceback_lines else None
     if technical_detail is None:
-        technical_detail = _json_text(data)
+        technical_detail = diagnostic_json_text(data)
     return ErrorReport(
         kind=ErrorReportKind.EXECUTION,
         severity=DiagnosticSeverity.ERROR,
@@ -227,7 +226,7 @@ def build_prompt_validation_error_report(
         message=message,
         stage="queue",
         workflow_id=workflow_id,
-        technical_detail=_json_text(response_payload),
+        technical_detail=diagnostic_json_text(response_payload),
         prompt_validation=validation_report,
         runtime=runtime or RuntimeReportContext(),
     )
@@ -314,72 +313,6 @@ def build_cube_library_drift_report(
         operation_context=context,
         runtime=runtime or RuntimeReportContext(),
     )
-
-
-ReportTextRenderer = Callable[[ApplicationText], str]
-
-
-def render_error_report(
-    report: ErrorReport,
-    text_renderer: ReportTextRenderer = render_source_application_text,
-) -> str:
-    """Render a structured error report as deterministic copyable plain text."""
-
-    sections: list[str] = []
-    sections.append(_render_summary(report, text_renderer))
-    sections.append(_render_workflow_context(report, text_renderer))
-    if report.node is not None:
-        sections.append(_render_node_context(report.node, text_renderer))
-    if report.prompt_validation is not None:
-        sections.append(
-            _render_prompt_validation(report.prompt_validation, text_renderer)
-        )
-    if report.operation_context is not None:
-        sections.append(
-            _render_substitute_operation_context(
-                report.operation_context,
-                text_renderer,
-            )
-        )
-    if report.technical_detail and not report.traceback:
-        sections.append(_render_technical_detail(report, text_renderer))
-    if report.traceback:
-        sections.append(
-            _render_block(
-                text_renderer(app_text("Traceback")),
-                "\n".join(report.traceback),
-            )
-        )
-    if report.node is not None and report.node.current_inputs is not None:
-        sections.append(
-            _render_block(
-                text_renderer(app_text("Current inputs")),
-                _json_text(report.node.current_inputs),
-            )
-        )
-    if report.node is not None and report.node.current_outputs is not None:
-        sections.append(
-            _render_block(
-                text_renderer(app_text("Current outputs")),
-                _json_text(report.node.current_outputs),
-            )
-        )
-    sections.append(_render_runtime_context(report.runtime, text_renderer))
-    if report.runtime.server_logs:
-        sections.append(
-            _render_block(
-                text_renderer(app_text("Comfy startup logs")),
-                report.runtime.server_logs,
-            )
-        )
-    if report.runtime.workflow_json:
-        sections.append(
-            _render_block(
-                text_renderer(app_text("Workflow JSON")),
-                report.runtime.workflow_json,
-            )
-        )
-    return "\n\n".join(section for section in sections if section.strip())
 
 
 def _prompt_node_errors(
@@ -480,207 +413,6 @@ def _prompt_validation_message(top_level_error: object) -> ApplicationText:
     )
 
 
-def _render_summary(
-    report: ErrorReport,
-    text_renderer: ReportTextRenderer,
-) -> str:
-    """Render the top-level report summary section."""
-
-    heading = text_renderer(app_text("Error summary"))
-    lines = [
-        heading,
-        "-" * len(heading),
-        text_renderer(app_text("Severity: %1", report.severity.value)),
-        text_renderer(app_text("Kind: %1", report.kind.value)),
-        text_renderer(app_text("Title: %1", report.title)),
-        text_renderer(app_text("Message: %1", report.message)),
-        text_renderer(app_text("Stage: %1", report.stage)),
-    ]
-    if report.exception_type:
-        lines.append(
-            text_renderer(app_text("Exception type: %1", report.exception_type))
-        )
-    return "\n".join(lines)
-
-
-def _render_workflow_context(
-    report: ErrorReport,
-    text_renderer: ReportTextRenderer,
-) -> str:
-    """Render workflow and prompt identifiers."""
-
-    heading = text_renderer(app_text("Workflow and prompt context"))
-    unknown = app_text("unknown")
-    lines = [heading, "-" * len(heading)]
-    lines.append(
-        text_renderer(app_text("Workflow ID: %1", report.workflow_id or unknown))
-    )
-    lines.append(text_renderer(app_text("Prompt ID: %1", report.prompt_id or unknown)))
-    return "\n".join(lines)
-
-
-def _render_node_context(
-    node: ErrorNodeContext,
-    text_renderer: ReportTextRenderer,
-) -> str:
-    """Render node identifiers and execution state."""
-
-    heading = text_renderer(app_text("Node context"))
-    unknown = app_text("unknown")
-    lines = [
-        heading,
-        "-" * len(heading),
-        text_renderer(app_text("Node ID: %1", node.node_id or unknown)),
-        text_renderer(app_text("Node type: %1", node.node_type or unknown)),
-        text_renderer(
-            app_text(
-                "Executed nodes: %1",
-                ", ".join(node.executed) if node.executed else app_text("none"),
-            )
-        ),
-    ]
-    return "\n".join(lines)
-
-
-def _render_prompt_validation(
-    report: PromptValidationReport,
-    text_renderer: ReportTextRenderer,
-) -> str:
-    """Render prompt validation errors grouped by node."""
-
-    heading = text_renderer(app_text("Prompt validation errors"))
-    lines = [heading, "-" * len(heading)]
-    if report.status_code is not None:
-        lines.append(text_renderer(app_text("HTTP status: %1", report.status_code)))
-    if report.top_level_error is not None:
-        lines.append(text_renderer(app_text("Top-level error:")))
-        lines.append(_json_text(report.top_level_error))
-    for node_error in report.node_errors:
-        lines.append("")
-        route = (
-            f" [{node_error.cube_alias}.{node_error.node_name}]"
-            if node_error.cube_alias and node_error.node_name
-            else f" [{node_error.node_title}]"
-            if node_error.node_title
-            else ""
-        )
-        node_type = f" - {node_error.class_type}" if node_error.class_type else ""
-        lines.append(
-            text_renderer(app_text("Node %1%2%3", node_error.node_id, node_type, route))
-        )
-        for message in node_error.messages:
-            prefix = f"  {message.input_name}: " if message.input_name else "  - "
-            detail = f": {message.details}" if message.details else ""
-            lines.append(f"{prefix}{message.message}{detail}")
-    if not report.node_errors:
-        lines.append(
-            text_renderer(app_text("No node-specific validation errors were reported."))
-        )
-    if report.raw_response_text:
-        lines.append("")
-        lines.append(text_renderer(app_text("Raw response text:")))
-        lines.append(report.raw_response_text)
-    return "\n".join(lines)
-
-
-def _render_substitute_operation_context(
-    context: SubstituteOperationContext,
-    text_renderer: ReportTextRenderer,
-) -> str:
-    """Render Substitute operation context for local application failures."""
-
-    heading = text_renderer(app_text("Substitute operation context"))
-    lines = [heading, "-" * len(heading)]
-    rows = (
-        (app_text("Operation"), context.operation),
-        (app_text("Workflow ID"), context.workflow_id),
-        (app_text("Workflow name"), context.workflow_name),
-        (app_text("Path"), context.path),
-        (app_text("Node ID"), context.node_id),
-        (app_text("Node name"), context.node_name),
-        (app_text("Cube ID"), context.cube_id),
-        (app_text("Cube alias"), context.cube_alias),
-        (app_text("Package"), context.package_name),
-        (app_text("Trace ID"), context.trace_id),
-    )
-    for label, value in rows:
-        if value:
-            lines.append(text_renderer(app_text("%1: %2", label, value)))
-    for key in sorted(context.values):
-        context_value = context.values[key]
-        dynamic_label = str(key).replace("_", " ").title()
-        lines.append(f"{dynamic_label}: {_context_value_text(context_value)}")
-    return "\n".join(lines)
-
-
-def _render_runtime_context(
-    runtime: RuntimeReportContext,
-    text_renderer: ReportTextRenderer,
-) -> str:
-    """Render runtime and system context available at report creation."""
-
-    heading = text_renderer(app_text("Runtime and system information"))
-    unknown = app_text("unknown")
-    lines = [heading, "-" * len(heading)]
-    lines.append(
-        text_renderer(app_text("ComfyUI version: %1", runtime.comfy_version or unknown))
-    )
-    lines.append(
-        text_renderer(
-            app_text("Substitute version: %1", runtime.substitute_version or unknown)
-        )
-    )
-    lines.append(text_renderer(app_text("OS: %1", runtime.os_name or unknown)))
-    lines.append(
-        text_renderer(app_text("Python: %1", runtime.python_version or unknown))
-    )
-    lines.append(
-        text_renderer(
-            app_text("Embedded Python: %1", runtime.embedded_python or unknown)
-        )
-    )
-    lines.append(
-        text_renderer(app_text("PyTorch: %1", runtime.pytorch_version or unknown))
-    )
-    lines.append(
-        text_renderer(
-            app_text(
-                "Devices: %1",
-                ", ".join(runtime.devices) if runtime.devices else unknown,
-            )
-        )
-    )
-    lines.append(
-        text_renderer(
-            app_text(
-                "Launch args: %1",
-                " ".join(runtime.launch_args) if runtime.launch_args else "",
-            )
-        )
-    )
-    return "\n".join(lines)
-
-
-def _render_block(title: str, body: str) -> str:
-    """Render a titled free-form report block."""
-
-    return f"{title}\n{'-' * len(title)}\n{body}"
-
-
-def _render_technical_detail(
-    report: ErrorReport,
-    text_renderer: ReportTextRenderer,
-) -> str:
-    """Render report-specific technical detail outside the compact summary."""
-
-    title = (
-        app_text("Cube Library warnings")
-        if report.kind == ErrorReportKind.CUBE_LIBRARY_DRIFT
-        else app_text("Technical detail")
-    )
-    return _render_block(text_renderer(title), report.technical_detail or "")
-
-
 def _traceback_lines(value: object) -> tuple[str, ...]:
     """Return traceback lines from Comfy's traceback field."""
 
@@ -721,25 +453,6 @@ def _exception_traceback_lines(error: BaseException) -> tuple[str, ...]:
     )
 
 
-def _context_value_text(value: object) -> str:
-    """Return deterministic display text for one operation context value."""
-
-    if isinstance(value, str):
-        return value
-    if isinstance(value, int | float | bool) or value is None:
-        return str(value)
-    return _json_text(value)
-
-
-def _json_text(value: object) -> str:
-    """Return deterministic JSON text with a safe fallback for unknown objects."""
-
-    try:
-        return json.dumps(value, indent=2, sort_keys=True, default=str)
-    except TypeError:
-        return str(value)
-
-
 __all__ = [
     "DiagnosticSeverity",
     "ErrorNodeContext",
@@ -748,7 +461,6 @@ __all__ = [
     "PromptNodeError",
     "PromptValidationMessage",
     "PromptValidationReport",
-    "ReportTextRenderer",
     "RuntimeReportContext",
     "SubstituteOperationContext",
     "build_comfy_connection_error_report",
@@ -756,5 +468,4 @@ __all__ = [
     "build_execution_error_report",
     "build_prompt_validation_error_report",
     "build_substitute_exception_report",
-    "render_error_report",
 ]

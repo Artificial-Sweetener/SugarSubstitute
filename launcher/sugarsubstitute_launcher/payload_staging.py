@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 import shutil
+from tempfile import TemporaryDirectory
 
 from launcher.sugarsubstitute_launcher.downloader import AssetDownloader
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
@@ -58,15 +59,19 @@ class AppPayloadStager:
             raise PayloadInstallError(
                 f"Payload staging path escapes its installation: {destination}"
             )
-        payload_path = layout.downloads_dir / manifest.version / manifest.app.filename
-        self._downloader.download(asset=manifest.app, destination_path=payload_path)
-        verify_sha256(path=payload_path, expected_sha256=manifest.app.sha256)
-        _remove_directory(destination)
-        extract_app_payload_archive(
-            zip_path=payload_path,
-            destination_dir=destination,
-        )
-        validate_app_payload(destination)
+        layout.downloads_dir.mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(
+            prefix="payload-", dir=layout.downloads_dir
+        ) as temporary:
+            payload_path = Path(temporary) / "payload.zip"
+            self._downloader.download(asset=manifest.app, destination_path=payload_path)
+            verify_sha256(path=payload_path, expected_sha256=manifest.app.sha256)
+            _remove_directory(destination)
+            extract_app_payload_archive(
+                zip_path=payload_path,
+                destination_dir=destination,
+            )
+            validate_app_payload(destination)
         return StagedAppPayload(version=manifest.version, staging_dir=destination)
 
 

@@ -435,7 +435,7 @@ def test_model_choice_snapshot_uses_local_metadata_bootstrap_for_thumbnails() ->
 def test_choice_factory_keeps_unverified_model_list_as_combo(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A model-like field name should remain a combo without catalog evidence."""
+    """An unknown node's model-like field name alone must not select a picker."""
 
     monkeypatch.setattr(choice_factory, "EditorChoiceComboBox", _FakeComboBox)
     field_behavior = FieldBehavior(field_key="ckpt_name")
@@ -453,14 +453,14 @@ def test_choice_factory_keeps_unverified_model_list_as_combo(
                 node_name="checkpoint",
                 key="ckpt_name",
                 value="base-a.safetensors",
-                node_type="CheckpointLoaderSimple",
+                node_type="UnverifiedCustomLoader",
                 field_type="LIST",
                 field_info=[["base-a.safetensors", "base-b.safetensors"], {}],
                 catalog=_FakeModelCatalog(()),
                 resolver=_rich_choice_resolver(_FakeModelCatalog(())),
             ),
             field_type="LIST",
-            node_type="CheckpointLoaderSimple",
+            node_type="UnverifiedCustomLoader",
             field_info=[["base-a.safetensors", "base-b.safetensors"], {}],
         )
     )

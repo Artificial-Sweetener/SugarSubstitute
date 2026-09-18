@@ -22,6 +22,11 @@ from pathlib import Path
 
 import pytest
 
+from substitute.domain.onboarding.workspace_conflicts import (
+    ManagedWorkspaceConflict,
+    ManagedWorkspaceConflictError,
+)
+
 from substitute.infrastructure.comfy import managed_install
 from substitute.infrastructure.comfy import managed_existing_setup_operations
 from substitute.infrastructure.comfy import managed_workspace_provisioning
@@ -134,10 +139,12 @@ def test_ensure_managed_comfy_setup_rejects_nonempty_unmanaged_workspace(
         _reject_hardware_probe,
     )
 
-    with pytest.raises(RuntimeError, match="already contains files"):
+    with pytest.raises(ManagedWorkspaceConflictError) as failure:
         managed_install.ensure_managed_comfy_setup(
             workspace=tmp_path,
         )
+    assert failure.value.reason is ManagedWorkspaceConflict.OCCUPIED_FOLDER
+    assert (tmp_path / "notes.txt").read_text(encoding="utf-8") == "unexpected"
 
 
 def test_ensure_managed_comfy_setup_rejects_unmanaged_install_before_hardware(
@@ -153,8 +160,10 @@ def test_ensure_managed_comfy_setup_rejects_unmanaged_install_before_hardware(
         _reject_hardware_probe,
     )
 
-    with pytest.raises(RuntimeError, match="existing installation"):
+    with pytest.raises(ManagedWorkspaceConflictError) as failure:
         managed_install.ensure_managed_comfy_setup(workspace=tmp_path)
+    assert failure.value.reason is ManagedWorkspaceConflict.EXISTING_INSTALLATION
+    assert workspace_main_path(tmp_path).read_text(encoding="utf-8") == "main"
 
 
 def test_ensure_managed_comfy_setup_migrates_legacy_nested_workspace(

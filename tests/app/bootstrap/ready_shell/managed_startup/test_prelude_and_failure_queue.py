@@ -17,12 +17,15 @@
 """Tests for ready-shell startup task orchestration."""
 
 from __future__ import annotations
+from sugarsubstitute_shared.launch_splash.progress import SplashProgress
+
 
 from collections.abc import Callable
 from pathlib import Path
 
 from substitute.app.bootstrap import (
     ready_shell_controller,
+    ready_shell_failure_queue,
     startup_warmup_controller,
 )
 from substitute.app.bootstrap.startup_timing import StartupTimer
@@ -62,6 +65,11 @@ class _FailureQueueSplash:
         """Store the shared call recorder."""
 
         self._calls = calls
+        self.progress: list[SplashProgress] = []
+
+    def set_progress(self, progress: SplashProgress, *, status: str) -> None:
+        """Record producer completion without contaminating cleanup call ordering."""
+        self.progress.append(progress)
 
     def close(self) -> None:
         """Record cleanup of the startup splash."""
@@ -166,7 +174,7 @@ def test_ready_shell_failure_queue_cancels_owned_queue_on_startup_cancel() -> No
         nonlocal cancelled
         cancelled = True
 
-    failure_queue = ready_shell_controller.ReadyShellFailureQueue(
+    failure_queue = ready_shell_failure_queue.ReadyShellFailureQueue(
         is_startup_cancelled=lambda: cancelled,
         mark_startup_cancelled=mark_cancelled,
         readiness_timers=lambda: (),
@@ -191,10 +199,42 @@ def test_ready_shell_failure_queue_cancels_owned_queue_on_startup_cancel() -> No
     assert calls == ["splash:close", "cleanup", "quit"]
 
 
+def test_failure_queue_publishes_work_without_claiming_surface_readiness() -> None:
+    """Count successful GUI tasks and reserve completion for the painted shell."""
+    scheduled: list[Callable[[], None]] = []
+    splash = _FailureQueueSplash([])
+    queue = ready_shell_failure_queue.create_ready_shell_failure_queue(
+        is_startup_cancelled=lambda: False,
+        mark_startup_cancelled=lambda: None,
+        readiness_timers=lambda: (),
+        runtime_compatibility_probes=lambda: (),
+        managed_comfy_state=lambda: None,
+        splash=lambda: splash,
+        cleanup=lambda: None,
+        quit_app=lambda: None,
+        trace_fields=lambda: {},
+        managed_failure_report_factory=lambda _incident: object(),
+        present_startup_failure_report=lambda _report: None,
+        scheduler=lambda _delay, callback: scheduled.append(callback),
+        startup_timer=StartupTimer(),
+    )
+    queue.add_task("prepare_main_window", lambda: None)
+    queue.add_task("build_main_window", lambda: None)
+    queue.start_queue()
+    while scheduled:
+        scheduled.pop(0)()
+    assert splash.progress == [
+        SplashProgress(0, 3),
+        SplashProgress(1, 3),
+        SplashProgress(1, 3),
+        SplashProgress(2, 3),
+    ]
+
+
 def test_create_ready_shell_failure_queue_returns_failure_queue() -> None:
     """Ready-shell failure queue construction should live in its owner."""
 
-    failure_queue = ready_shell_controller.create_ready_shell_failure_queue(
+    failure_queue = ready_shell_failure_queue.create_ready_shell_failure_queue(
         is_startup_cancelled=lambda: False,
         mark_startup_cancelled=lambda: None,
         readiness_timers=lambda: (),
@@ -210,7 +250,7 @@ def test_create_ready_shell_failure_queue_returns_failure_queue() -> None:
         startup_timer=StartupTimer(),
     )
 
-    assert isinstance(failure_queue, ready_shell_controller.ReadyShellFailureQueue)
+    assert isinstance(failure_queue, ready_shell_failure_queue.ReadyShellFailureQueue)
 
 
 def test_ready_shell_local_editor_warmup_adapter_uses_live_startup_state() -> None:

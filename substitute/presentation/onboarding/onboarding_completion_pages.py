@@ -30,7 +30,7 @@ from substitute.presentation.localization import (
 )
 
 
-from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -60,8 +60,6 @@ from substitute.presentation.onboarding.setup_activity_presenter import (
 
 class ProvisioningPage(OnboardingPageFrame):
     """Display honest setup progress with an opt-in technical transcript."""
-
-    content_height_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the setup progress page with status-first hierarchy."""
@@ -270,13 +268,9 @@ class ProvisioningPage(OnboardingPageFrame):
         """Render exact aggregate model-transfer byte progress."""
 
         if total_bytes <= 0:
-            visibility_changed = self.model_progress_bar.isVisible()
             self.model_progress_bar.hide()
             self.model_progress_label.hide()
-            if visibility_changed:
-                self.content_height_changed.emit()
             return
-        visibility_changed = not self.model_progress_bar.isVisible()
         safe_completed = max(0, min(completed_bytes, total_bytes))
         self.model_progress_bar.setValue(round((safe_completed / total_bytes) * 100))
         self.model_progress_bar.show()
@@ -302,8 +296,6 @@ class ProvisioningPage(OnboardingPageFrame):
                 f"{completed_mib:,.1f}",
                 f"{total_mib:,.1f}",
             )
-        if visibility_changed:
-            self.content_height_changed.emit()
         elif current_item:
             set_localized_text(
                 self.model_progress_label,
@@ -339,7 +331,6 @@ class ProvisioningPage(OnboardingPageFrame):
             status_layout.invalidate()
         self.status_panel.updateGeometry()
         self.updateGeometry()
-        self.content_height_changed.emit()
 
     def set_output_stream(self, stream: TerminalOutputStream | None) -> None:
         """Bind the shared onboarding output stream to the details surface."""
@@ -390,8 +381,6 @@ class ProvisioningPage(OnboardingPageFrame):
 
 class CompletionPage(OnboardingPageFrame):
     """Display a confident finish state after setup or repair succeeds."""
-
-    content_height_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Build the completion page with primary success and optional details."""
@@ -478,7 +467,6 @@ class CompletionPage(OnboardingPageFrame):
             self.details_button,
             "Hide details" if visible else "Show details",
         )
-        self.content_height_changed.emit()
 
 
 __all__ = ["CompletionPage", "ProvisioningPage"]

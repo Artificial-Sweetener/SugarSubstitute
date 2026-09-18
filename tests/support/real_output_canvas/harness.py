@@ -360,18 +360,13 @@ class RealShellOutputCanvasHarness:
         self.process_events()
 
     def wait_for_output_count(self, alias: str, count: int) -> None:
-        """Wait until a workflow has registered count Output images."""
+        """Wait for output registration and retain owner state on a delivery timeout."""
 
-        workflow_id = self.workflows[alias].workflow_id
-        self.wait_until(
-            lambda: (
-                len(
-                    self.shell.workflow_session_service.workflows[
-                        workflow_id
-                    ].output_image_uuids
-                )
-                == count
-            )
+        wait_for_qt_condition(
+            lambda: self.output_count(alias) == count,
+            timeout_ms=2500,
+            description=f"{count} registered outputs for workflow {alias}",
+            state=self.fingerprint,
         )
 
     def output_count(self, alias: str) -> int:

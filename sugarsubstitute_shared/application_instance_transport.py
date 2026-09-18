@@ -19,9 +19,7 @@
 from __future__ import annotations
 
 import errno
-import hashlib
 import os
-from pathlib import Path
 import sys
 import time
 from typing import Protocol
@@ -47,15 +45,6 @@ class ApplicationInstanceListener(Protocol):
 
 class InstanceEndpointUnavailableError(OSError):
     """Report an elected owner whose local endpoint never became available."""
-
-
-def instance_identity(install_root: Path) -> str:
-    """Return a private name stable for one root, user, and desktop session."""
-
-    normalized_root = os.path.normcase(str(install_root.expanduser().resolve()))
-    user = os.environ.get("USERNAME") or os.environ.get("USER") or str(_user_id())
-    payload = f"{normalized_root}\0{user}\0{_session_identity()}"
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
 
 
 def instance_endpoint(identity: str) -> ApplicationInstanceEndpoint:
@@ -133,32 +122,6 @@ def endpoint_is_already_owned(error: OSError) -> bool:
     return error.errno in {errno.EADDRINUSE, errno.EACCES}
 
 
-def _user_id() -> int:
-    """Return the numeric local user when the platform exposes one."""
-
-    getuid = getattr(os, "getuid", None)
-    return int(getuid()) if callable(getuid) else 0
-
-
-def _session_identity() -> str:
-    """Return a stable desktop-session label for native endpoint scoping."""
-
-    for name in ("XDG_SESSION_ID", "WAYLAND_DISPLAY", "DISPLAY", "SESSIONNAME"):
-        value = os.environ.get(name)
-        if value:
-            return value
-    if os.name == "nt":
-        import ctypes
-        from ctypes import wintypes
-
-        session_id = wintypes.DWORD()
-        if ctypes.WinDLL("kernel32", use_last_error=True).ProcessIdToSessionId(
-            os.getpid(), ctypes.byref(session_id)
-        ):
-            return str(session_id.value)
-    return "default"
-
-
 __all__ = [
     "ApplicationInstanceListener",
     "InstanceEndpointUnavailableError",
@@ -166,5 +129,4 @@ __all__ = [
     "connect_instance_endpoint",
     "endpoint_is_already_owned",
     "instance_endpoint",
-    "instance_identity",
 ]

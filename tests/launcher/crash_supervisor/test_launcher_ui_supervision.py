@@ -34,6 +34,9 @@ from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
     InstanceRecoveryAction,
     InstanceRecoveryRequest,
 )
+from sugarsubstitute_shared.application_instance_protocol import (
+    ApplicationInstanceFailureReason,
+)
 from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
 
 
@@ -65,6 +68,10 @@ class RecordingSupervisor:
 class RecoveryDecisionSupervisor(RecordingSupervisor):
     """Write a simulated action through the real authenticated child contract."""
 
+    expected_reason: ApplicationInstanceFailureReason = (
+        ApplicationInstanceFailureReason.UNAVAILABLE
+    )
+
     def supervise(
         self,
         *,
@@ -90,7 +97,7 @@ class RecoveryDecisionSupervisor(RecordingSupervisor):
             )
         )
         request = InstanceRecoveryRequest.read(request_path)
-        assert request.can_end_owner
+        assert request.reason is self.expected_reason
         request.write_response(InstanceRecoveryAction.RETRY)
         return 0
 
@@ -200,20 +207,23 @@ def test_frozen_installed_launcher_uses_its_ui_executable(
     assert "--launcher-ui-child" in command
 
 
+@pytest.mark.parametrize("reason", list(ApplicationInstanceFailureReason))
 def test_instance_recovery_uses_supervised_ui_child_and_authenticated_decision(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    reason: ApplicationInstanceFailureReason,
 ) -> None:
     """The headless supervisor must never import Qt to collect a recovery action."""
 
     layout = InstallLayout.from_root(tmp_path / "SugarSubstitute")
     supervisor = RecoveryDecisionSupervisor()
+    supervisor.expected_reason = reason
     monkeypatch.setattr(sys, "frozen", False, raising=False)
 
     result = supervise_instance_recovery_window(
         layout=layout,
         locale_override="en",
-        can_end_owner=True,
+        reason=reason,
         supervisor=supervisor,
     )
 
@@ -235,20 +245,38 @@ def test_missing_recovery_child_receipt_fails_to_safe_exit(tmp_path: Path) -> No
         supervise_instance_recovery_window(
             layout=layout,
             locale_override=None,
-            can_end_owner=True,
+            reason=ApplicationInstanceFailureReason.UNAVAILABLE,
             supervisor=RecordingSupervisor(),
         )
         is InstanceRecoveryAction.EXIT
     )
 
 
-def test_oversized_recovery_exchange_is_rejected_before_json_parsing(
-    tmp_path: Path,
+def test_repair_recovery_uses_independent_bundle_with_installed_identity(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """A damaged private exchange cannot force an unbounded launcher read."""
-
-    _request, request_path = InstanceRecoveryRequest.create(tmp_path / "exchange")
-    request_path.write_bytes(b"{" + (b" " * (17 * 1024)) + b"}")
-
-    with pytest.raises(ValueError, match="size limit"):
-        InstanceRecoveryRequest.read(request_path)
+    """Recover ownership even when the installation has no runnable UI payload."""
+    layout = InstallLayout.from_root(tmp_path / "installation", target=WINDOWS_X64)
+    bundle = InstallLayout.from_root(tmp_path / "independent", target=WINDOWS_X64)
+    ui = bundle.launcher_support_path / "LauncherUi.exe"
+    ui.parent.mkdir(parents=True)
+    ui.write_bytes(b"fixture UI executable")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(bundle.executable_path))
+    monkeypatch.setattr(
+        sys, "_MEIPASS", str(bundle.launcher_support_path), raising=False
+    )
+    supervisor = RecoveryDecisionSupervisor()
+    result = supervise_instance_recovery_window(
+        layout=layout,
+        bundle_layout=bundle,
+        locale_override="en",
+        reason=ApplicationInstanceFailureReason.UNAVAILABLE,
+        supervisor=supervisor,
+    )
+    assert result is InstanceRecoveryAction.RETRY
+    installation, command, _environment = supervisor.calls[0]
+    assert installation == layout
+    assert command[0] == str(ui)
+    assert f"--install-root={layout.root}" in command
+    assert not layout.launcher_support_path.exists()

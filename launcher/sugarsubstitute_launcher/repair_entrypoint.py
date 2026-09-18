@@ -38,16 +38,11 @@ def run_repair(
 ) -> int:
     """Enter the normal launcher route with repair selected explicitly."""
 
-    execution_path = _execution_request_path(sys.argv[1:])
-    if execution_path is not None:
-        if prepared_runner is None:
-            from launcher.sugarsubstitute_launcher.repair_helper import (
-                run_prepared_repair,
-            )
-
-            prepared_runner = run_prepared_repair
-        prepared_runner(execution_path)
-        return 0
+    result = run_prepared_repair_invocation(
+        sys.argv[1:], prepared_runner=prepared_runner
+    )
+    if result is not None:
+        return result
     if launcher_main is None:
         from launcher.sugarsubstitute_launcher.app import main
 
@@ -55,7 +50,35 @@ def run_repair(
     return launcher_main(repair_arguments(sys.argv[1:]))
 
 
-def _execution_request_path(arguments: Sequence[str]) -> Path | None:
+def run_prepared_repair_invocation(
+    arguments: Sequence[str],
+    *,
+    prepared_runner: Callable[[Path], object] | None = None,
+) -> int | None:
+    """Dispatch the same detached execution contract from every packaged entry point."""
+    execution_path = prepared_repair_request_path(arguments)
+    if execution_path is not None:
+        if prepared_runner is None:
+            from launcher.sugarsubstitute_launcher.repair_helper import (
+                load_prepared_repair_request,
+            )
+            from launcher.sugarsubstitute_launcher.repair_presentation_process import (
+                IndependentRepairPresentation,
+            )
+            from launcher.sugarsubstitute_launcher.repair_session_supervisor import (
+                RepairSessionSupervisor,
+            )
+
+            request = load_prepared_repair_request(execution_path)
+            return RepairSessionSupervisor(
+                presentation=IndependentRepairPresentation()
+            ).run(request)
+        prepared_runner(execution_path)
+        return 0
+    return None
+
+
+def prepared_repair_request_path(arguments: Sequence[str]) -> Path | None:
     """Extract one internal detached-execution request path."""
 
     values = tuple(
@@ -76,4 +99,4 @@ if __name__ == "__main__":
     raise SystemExit(run_repair())
 
 
-__all__ = ["repair_arguments", "run_repair"]
+__all__ = ["repair_arguments", "run_repair", "run_prepared_repair_invocation"]

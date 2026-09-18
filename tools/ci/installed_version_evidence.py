@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-import time
+from time import monotonic, sleep
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.update_state import LauncherUpdateState
@@ -52,14 +52,14 @@ def wait_for_installed_version(
 ) -> None:
     """Wait until candidate readiness has been committed to durable update state."""
 
-    deadline = time.monotonic() + timeout_seconds
+    deadline = monotonic() + timeout_seconds
     last_error: Exception | None = None
-    while time.monotonic() < deadline:
+    while monotonic() < deadline:
         try:
             assert_installed_version(install_root, expected_version)
         except (InstallerLifecycleError, OSError) as error:
             last_error = error
-            time.sleep(0.05)
+            sleep(0.05)
             continue
         return
     raise InstallerLifecycleError(

@@ -169,7 +169,6 @@ class NonessentialStartupWarmupLauncher:
             state=self._state,
             comfy_http_ready=self._comfy_http_ready(),
             readiness_state=self._readiness_state,
-            metadata_update_bridge=self._metadata_update_bridge(),
             start_backend_editor_warmup=self._start_backend_editor_warmup,
             start_cube_icon_warmup=self._start_cube_icon_warmup,
             start_model_metadata_refresh=self._start_model_metadata_refresh,
@@ -637,7 +636,6 @@ def start_nonessential_startup_warmups(
     state: StartupWarmupState,
     comfy_http_ready: bool,
     readiness_state: NonessentialWarmupReadinessStateProtocol,
-    metadata_update_bridge: object | None,
     start_backend_editor_warmup: Callable[[], None],
     start_cube_icon_warmup: Callable[[], None],
     start_model_metadata_refresh: Callable[[], None],
@@ -660,13 +658,6 @@ def start_nonessential_startup_warmups(
         )
         return
     state.nonessential_started = True
-    begin_metadata_coalescing = getattr(
-        metadata_update_bridge,
-        "begin_startup_coalescing",
-        None,
-    )
-    if callable(begin_metadata_coalescing):
-        begin_metadata_coalescing()
     start_backend_editor_warmup()
     start_cube_icon_warmup()
     start_model_metadata_refresh()

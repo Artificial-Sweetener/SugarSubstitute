@@ -126,3 +126,58 @@ def test_gui_startup_queue_reports_failed_task_name() -> None:
     scheduled.pop(0)()
 
     assert failures == ["build_main_window"]
+
+
+def test_progress_follows_completed_callbacks_without_claiming_failed_work() -> None:
+    """Only a successful callback can advance the queue's completion count."""
+    from substitute.app.bootstrap.gui_startup_queue import GuiStartupProgress
+
+    scheduled: list[Callable[[], None]] = []
+    events: list[GuiStartupProgress] = []
+    calls: list[str] = []
+
+    def fail() -> None:
+        """Fail before publishing a completed stage."""
+        raise RuntimeError("fixture failure")
+
+    queue = GuiStartupTaskQueue(
+        scheduler=lambda _delay, callback: scheduled.append(callback),
+        progress_observer=events.append,
+    )
+    queue.add("first", lambda: calls.append("first"))
+    queue.add("second", fail)
+    queue.start()
+    assert events == []
+    scheduled.pop(0)()
+    assert calls == ["first"]
+    scheduled.pop(0)()
+    assert events == [
+        GuiStartupProgress("first", 0, 2, False),
+        GuiStartupProgress("first", 1, 2, True),
+        GuiStartupProgress("second", 1, 2, False),
+    ]
+    assert not scheduled
+
+
+def test_progress_failure_cannot_cancel_startup() -> None:
+    """Disable optional failed presentation while completing the queued work."""
+    from substitute.app.bootstrap.gui_startup_queue import GuiStartupProgress
+
+    scheduled: list[Callable[[], None]] = []
+    calls: list[str] = []
+
+    def observe(_value: GuiStartupProgress) -> None:
+        """Represent a disposed progress surface."""
+        calls.append("observer")
+        raise RuntimeError("surface unavailable")
+
+    queue = GuiStartupTaskQueue(
+        scheduler=lambda _delay, callback: scheduled.append(callback),
+        progress_observer=observe,
+    )
+    queue.add("first", lambda: calls.append("first"))
+    queue.add("second", lambda: calls.append("second"))
+    queue.start()
+    while scheduled:
+        scheduled.pop(0)()
+    assert calls == ["observer", "first", "second"]

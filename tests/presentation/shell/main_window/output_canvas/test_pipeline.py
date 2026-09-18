@@ -22,7 +22,7 @@ from collections.abc import Callable
 
 import pytest
 
-from substitute.presentation.shell import main_window_composition
+from substitute.presentation.shell import main_window_output_composition
 
 
 class _PromptActivity:
@@ -46,6 +46,9 @@ class _OutputImagePipeline:
         """Store pipeline construction inputs."""
 
         self.kwargs = kwargs
+
+    def shutdown(self) -> None:
+        """Represent retirement of all output pipeline collaborators."""
 
 
 class _PreparationDispatcher:
@@ -102,7 +105,7 @@ class _Shell:
         self.canvas_io_service = object()
         self.workspace_canvas_actions = object()
         self.output_canvas_projection_coordinator = object()
-        self.canvas_host = object()
+        self.canvas_host = _CanvasHost()
         self.generation_job_queue_service = object()
         self.output_floating_chrome_factory = _FloatingChromeFactory()
         self.prompt_interaction_activity_tracker = _PromptActivity()
@@ -112,36 +115,60 @@ class _Shell:
         self.output_transfer_lifecycle: object | None = None
 
 
+class _OutputDocument:
+    """Provide the document cleanup endpoint owned by the shell."""
+
+    def close(self) -> None:
+        """Represent release of the Output document and workspace."""
+
+
+class _CanvasHost:
+    """Expose the Output document to shell composition."""
+
+    def __init__(self) -> None:
+        """Create a document with an observable cleanup endpoint."""
+
+        self.document = _OutputDocument()
+
+    def canvas_for(self, route: str) -> _CanvasHost:
+        """Return the Output view for the requested route."""
+
+        assert route == "Output"
+        return self
+
+
 def test_compose_output_canvas_controllers_assigns_pipeline_and_strip_registry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Compose output pipeline, transfer lifecycle, and progress-strip registry."""
 
     monkeypatch.setattr(
-        main_window_composition,
+        main_window_output_composition,
         "OutputImagePipeline",
         _OutputImagePipeline,
     )
     monkeypatch.setattr(
-        main_window_composition,
+        main_window_output_composition,
         "GenerationProgressStripRegistry",
         _ProgressStripRegistry,
     )
     transfer_lifecycle = object()
     monkeypatch.setattr(
-        main_window_composition,
+        main_window_output_composition,
         "_compose_output_transfer_lifecycle",
         lambda _shell: transfer_lifecycle,
     )
     preparation_dispatcher = _PreparationDispatcher()
     monkeypatch.setattr(
-        main_window_composition,
+        main_window_output_composition,
         "_output_image_preparation_dispatcher",
         lambda _shell: preparation_dispatcher,
     )
     shell = _Shell()
 
-    composition = main_window_composition.compose_output_canvas_controllers(shell)
+    composition = main_window_output_composition.compose_output_canvas_controllers(
+        shell
+    )
 
     assert composition.output_image_pipeline is shell.output_image_pipeline
     assert (
@@ -175,5 +202,6 @@ def test_compose_output_canvas_controllers_assigns_pipeline_and_strip_registry(
     assert registry.parent is shell
     assert shell.output_floating_chrome_factory.registrations == [registry]
     assert shell.shell_resource_lifecycle.registrations == [
-        ("output_image_preparation", preparation_dispatcher.shutdown)
+        ("output_document", shell.canvas_host.document.close),
+        ("output_image_pipeline", pipeline.shutdown),
     ]

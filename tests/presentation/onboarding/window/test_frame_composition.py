@@ -18,6 +18,9 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import QRect
+from tests.support.qt.work_area import set_test_work_area
+
 from pathlib import Path
 from typing import cast
 
@@ -57,8 +60,11 @@ from tests.support.qt.lifecycle import ensure_qt_application
 from .controller_double import _FakeController
 
 
-def test_onboarding_window_uses_handoff_geometry(tmp_path: Path) -> None:
+def test_onboarding_window_uses_handoff_geometry(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Installer handoff geometry should place onboarding on the same frame."""
+    set_test_work_area(monkeypatch, QRect(0, 0, 1920, 1080))
 
     ensure_qt_application()
     draft = OnboardingDraft(
@@ -78,8 +84,8 @@ def test_onboarding_window_uses_handoff_geometry(tmp_path: Path) -> None:
         initial_geometry=(20, 30, 1260, 800),
     )
 
-    assert window.geometry().x() == 20
-    assert window.geometry().y() == 30
+    assert window.frameGeometry().x() == 20
+    assert window.frameGeometry().y() == 30
     assert window.width() == 1180
     assert window.height() == 760
     window._emit_close_requested_on_close = False
@@ -91,9 +97,9 @@ def test_onboarding_window_builds_all_required_pages(
     tmp_path: Path,
 ) -> None:
     """Window should materialize every dedicated onboarding page."""
+    set_test_work_area(monkeypatch, QRect(0, 0, 1920, 1080))
 
     application = ensure_qt_application()
-    monkeypatch.setattr(OnboardingWindow, "_center_on_screen", lambda self: None)
     draft = OnboardingDraft(
         installation_root=tmp_path,
         target_mode=OnboardingTargetMode.MANAGED_LOCAL,

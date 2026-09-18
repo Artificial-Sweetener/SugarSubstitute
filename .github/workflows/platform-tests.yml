@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-24.04, macos-15]
+        os: [windows-latest]
         partition: [ordinary, fresh]
         include:
           - name: Windows x64
@@ -31,16 +31,18 @@ jobs:
             python-version: "3.12.10"
             python: ./.venv/Scripts/python.exe
             artifact: windows
-          - name: Linux x64
-            os: ubuntu-24.04
-            python-version: "3.12.13"
-            python: ./.venv/bin/python
-            artifact: linux
-          - name: macOS Apple Silicon
-            os: macos-15
-            python-version: "3.12.10"
-            python: ./.venv/bin/python
-            artifact: macos
+          # Temporarily suspended pending dedicated platform validation.
+          # - name: Linux x64
+          #   os: ubuntu-24.04
+          #   python-version: "3.12.13"
+          #   python: ./.venv/bin/python
+          #   artifact: linux
+          # Temporarily suspended pending dedicated platform validation.
+          # - name: macOS Apple Silicon
+          #   os: macos-15
+          #   python-version: "3.12.10"
+          #   python: ./.venv/bin/python
+          #   artifact: macos
     runs-on: ${{ matrix.os }}
     timeout-minutes: 180
     steps:

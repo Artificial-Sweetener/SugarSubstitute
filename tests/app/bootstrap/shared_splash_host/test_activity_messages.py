@@ -51,7 +51,7 @@ class _Splash:
 
         self.lines.append(line)
 
-    def close(self) -> None:
+    def dismiss(self) -> None:
         """Record host-requested splash closure."""
 
         self.close_calls += 1
@@ -100,3 +100,28 @@ def test_shared_splash_host_dispatches_activity_across_application_handoff() -> 
     assert splash.clear_calls == 1
     assert splash.close_calls == 1
     assert application.quit_calls == 1
+
+
+def test_authenticated_owner_close_does_not_cancel_the_production_splash() -> None:
+    """Readiness dismissal must not feed a user-cancel event back to its owner."""
+
+    from substitute.presentation.shell.splash_window import SplashWindow
+    from tests.support.qt.lifecycle import ensure_qt_application, destroy_qt_object
+
+    ensure_qt_application()
+    splash = SplashWindow(backdrop_mode=None, defer_animation_until_first_paint=True)
+    application = _Application()
+    cancellations: list[bool] = []
+    splash.cancelRequested.connect(lambda: cancellations.append(True))
+    try:
+        splash.show()
+        _handle_session_message(
+            SplashSessionMessage("close", "token"),
+            splash=splash,
+            app=cast(Any, application),
+        )
+        assert not splash.isVisible()
+        assert not cancellations
+        assert application.quit_calls == 1
+    finally:
+        destroy_qt_object(splash)

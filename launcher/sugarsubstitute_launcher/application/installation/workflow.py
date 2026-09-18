@@ -25,10 +25,17 @@ from launcher.sugarsubstitute_launcher.application.installation.models import (
     ArtifactInstaller,
     CompletedInstallation,
     InstallationPreparation,
+    InstallationAlreadyPresented,
     InstalledApplication,
     LayoutPreparer,
     RuntimeProvisioner,
 )
+from launcher.sugarsubstitute_launcher.application.installation.progress import (
+    InstallationProgressObserver,
+    InstallationProgressReporter,
+    InstallationStage,
+)
+from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 
 
 class InstallationWorkflow:
@@ -41,6 +48,8 @@ class InstallationWorkflow:
         artifact_installer: ArtifactInstaller,
         runtime_provisioner: RuntimeProvisioner,
         process_starter: Callable[[Sequence[str]], None],
+        progress_observer: InstallationProgressObserver | None = None,
+        admit_installation: Callable[[InstallLayout], bool] | None = None,
     ) -> None:
         """Store the adapters used by the installation use case."""
 
@@ -48,6 +57,8 @@ class InstallationWorkflow:
         self._artifact_installer = artifact_installer
         self._runtime_provisioner = runtime_provisioner
         self._process_starter = process_starter
+        self._progress = InstallationProgressReporter(progress_observer)
+        self._admit_installation = admit_installation
 
     def install_application(
         self,
@@ -55,6 +66,11 @@ class InstallationWorkflow:
     ) -> InstalledApplication:
         """Prepare the requested layout and install its application payload."""
 
+        self._progress.publish(InstallationStage.PREPARATION)
+        if self._admit_installation is not None and not self._admit_installation(
+            request.layout
+        ):
+            raise InstallationAlreadyPresented()
         launcher_installed = False
         if request.preparation is InstallationPreparation.INSTALL_LAUNCHER:
             launcher_result = self._artifact_installer.install_downloaded_launcher(
@@ -70,10 +86,13 @@ class InstallationWorkflow:
         else:
             layout = request.layout
 
+        self._progress.publish(InstallationStage.PREPARATION, finished=True)
+        self._progress.publish(InstallationStage.APPLICATION)
         payload_result = self._artifact_installer.continue_install(
             layout=layout,
             release_source=request.release_source,
         )
+        self._progress.publish(InstallationStage.APPLICATION, finished=True)
         return InstalledApplication(
             layout=payload_result.layout,
             app_command=tuple(payload_result.app_command),
@@ -87,7 +106,9 @@ class InstallationWorkflow:
     ) -> CompletedInstallation:
         """Provision the managed runtime for installed application artifacts."""
 
+        self._progress.publish(InstallationStage.RUNTIME)
         runtime_result = self._runtime_provisioner.provision(layout=application.layout)
+        self._progress.publish(InstallationStage.RUNTIME, finished=True)
         return CompletedInstallation(
             application=application,
             runtime_python=runtime_result.python_executable,
@@ -99,4 +120,6 @@ class InstallationWorkflow:
     ) -> None:
         """Start the installed application setup process."""
 
+        self._progress.publish(InstallationStage.HANDOFF)
         self._process_starter(command)
+        self._progress.publish(InstallationStage.HANDOFF, finished=True)
