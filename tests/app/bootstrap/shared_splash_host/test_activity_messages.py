@@ -22,7 +22,10 @@ from typing import Any, cast
 
 from sugarsubstitute_shared.launch_splash import SplashActivity, SplashSessionMessage
 
-from substitute.app.bootstrap.shared_splash_host import _handle_session_message
+from substitute.app.bootstrap.shared_splash_host import (
+    _handle_acknowledged_message,
+    _handle_session_message,
+)
 
 
 class _Splash:
@@ -99,6 +102,10 @@ def test_shared_splash_host_dispatches_activity_across_application_handoff() -> 
     assert splash.lines == ["Downloaded package metadata."]
     assert splash.clear_calls == 1
     assert splash.close_calls == 1
+    assert application.quit_calls == 0
+
+    _handle_acknowledged_message(messages[-1], app=cast(Any, application))
+
     assert application.quit_calls == 1
 
 
@@ -122,6 +129,13 @@ def test_authenticated_owner_close_does_not_cancel_the_production_splash() -> No
         )
         assert not splash.isVisible()
         assert not cancellations
+        assert application.quit_calls == 0
+
+        _handle_acknowledged_message(
+            SplashSessionMessage("close", "token"),
+            app=cast(Any, application),
+        )
+
         assert application.quit_calls == 1
     finally:
         destroy_qt_object(splash)
