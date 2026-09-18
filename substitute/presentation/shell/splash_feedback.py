@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import TYPE_CHECKING
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 from sugarsubstitute_shared.presentation.terminal.output_stream import (
     TerminalOutputStream,
@@ -40,6 +41,8 @@ if TYPE_CHECKING:
 
 class SplashFeedback(QWidget):
     """Compose diagnostics, operation activity and completion under one lifetime."""
+
+    detailsVisibilityChanged = Signal(bool)
 
     def __init__(
         self,
@@ -72,6 +75,7 @@ class SplashFeedback(QWidget):
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(0)
         self._layout.addWidget(self._terminal)
+        self._terminal.hide()
 
     def enrich(self) -> None:
         """Mount Fluent controls once the window permits heavier presentation imports."""
@@ -87,6 +91,7 @@ class SplashFeedback(QWidget):
         self._layout.removeWidget(self._terminal)
         self._panel = SplashProgressPanel(details=self._terminal, parent=self)
         self._layout.addWidget(self._panel)
+        self._panel.detailsVisibilityChanged.connect(self.detailsVisibilityChanged)
         self._presenter = SplashActivityPresenter(
             stream=self._stream, parent=self, clock=self._clock
         )
@@ -98,7 +103,18 @@ class SplashFeedback(QWidget):
             return
         self._stream.append_line(line)
         if self._panel is not None:
+            from substitute.application.comfy_startup_status import (
+                describe_comfy_startup_output,
+            )
+            from sugarsubstitute_shared.presentation.localization import (
+                render_application_text,
+            )
+
             self._panel.record_activity()
+            status = describe_comfy_startup_output(line)
+            if status is not None:
+                assert self._presenter is not None
+                self._presenter.set_detail(render_application_text(status))
         if self._presenter is not None:
             self._presenter.restore_after_log(line)
 
@@ -106,6 +122,8 @@ class SplashFeedback(QWidget):
         """Forward producer-owned units into the mounted completion panel."""
         self.enrich()
         assert self._panel is not None
+        assert self._presenter is not None
+        self._presenter.clear_detail()
         self._panel.set_progress(progress, status=status)
 
     def start_activity(self, activity: SplashActivity) -> None:
@@ -133,3 +151,14 @@ class SplashFeedback(QWidget):
         """Stop owned activity callbacks when the containing window closes."""
         if self._presenter is not None:
             self._presenter.shutdown()
+
+    @property
+    def details_visible(self) -> bool:
+        """Expose the panel's authoritative disclosure state to the window layout."""
+        return self._panel is not None and self._panel.details_visible
+
+    def set_details_visible(self, visible: bool) -> None:
+        """Delegate titlebar disclosure to the diagnostics panel."""
+        self.enrich()
+        assert self._panel is not None
+        self._panel.set_details_visible(visible)

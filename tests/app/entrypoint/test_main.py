@@ -26,6 +26,7 @@ from typing import Any, cast
 import pytest
 
 import main as app_entrypoint
+from substitute.app.bootstrap.launch_splash_client import NullLaunchSplashClient
 from substitute.app.bootstrap.startup_timing import StartupTimingRecord
 import sugarsubstitute_shared.localization as shared_localization
 from sugarsubstitute_shared.crash_reporting.protocol import CleanExitOutcome
@@ -121,6 +122,8 @@ def test_main_starts_early_splash_and_passes_it_to_bootstrap(
         ),
     ]
     assert splash.closed is False
+    assert len(splash.lines) == 1
+    assert splash.lines[0] != "Loading application components."
 
 
 def test_main_closes_early_splash_when_bootstrap_fails(
@@ -196,13 +199,18 @@ def test_entrypoint_delegates_unsupervised_source_execution(
     assert raised.value.code == 19
 
 
-class _Splash:
+class _Splash(NullLaunchSplashClient):
     """Record close calls from the root entrypoint."""
 
     def __init__(self) -> None:
         """Initialize the splash as open."""
 
         self.closed = False
+        self.lines: list[str] = []
+
+    def append_log(self, line: str) -> None:
+        """Record localized milestones sent before full bootstrap imports."""
+        self.lines.append(line)
 
     def close(self) -> None:
         """Record that the splash was closed."""

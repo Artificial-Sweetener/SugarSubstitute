@@ -39,10 +39,10 @@ def panel() -> Iterator[SplashProgressPanel]:
 
 
 def test_initial_activity_claims_no_completion(panel: SplashProgressPanel) -> None:
-    """Keep unknown work animated without filling a fabricated percentage."""
-    assert panel.activity.isVisible()
-    assert panel.activity.isStarted()
-    assert not panel.progress.isVisible()
+    """Keep unknown work empty and its unfilled track stationary."""
+    assert panel.progress.isVisible()
+    assert panel.progress.value() == 0
+    assert not panel.progress.activity_running
     assert not panel.details.isVisible()
 
 
@@ -57,21 +57,22 @@ def test_milestones_and_log_activity_have_separate_meanings(
     assert panel.status.text() == "Preparing workspace"
     panel.record_activity()
     assert panel.progress.value() == 2
-    panel.details_button.click()
+    panel.set_details_visible(not panel.details_visible)
     assert panel.details.isVisible()
-    panel.details_button.click()
+    panel.set_details_visible(not panel.details_visible)
     assert not panel.details.isVisible()
     assert panel.progress.value() == 2
 
 
 def test_completion_and_hide_stop_activity(panel: SplashProgressPanel) -> None:
     """Release animation work without altering completed units."""
+    panel.set_progress(SplashProgress(2, 5), status="Preparing workspace")
     panel.hide()
-    assert not panel.activity.isStarted()
+    assert not panel.progress.activity_running
     panel.show()
-    assert panel.activity.isStarted()
+    assert panel.progress.activity_running
     panel.set_progress(SplashProgress(5, 5), status="Ready")
-    assert not panel.activity.isStarted()
+    assert not panel.progress.activity_running
     assert panel.progress.value() == 5
     panel.record_activity()
     assert panel.progress.value() == 5
@@ -118,7 +119,7 @@ def test_activity_before_milestones_returns_to_initial_status(
     panel.set_activity_status("Checking installation")
     panel.set_activity_status("")
     assert panel.status.text() == initial_status
-    assert panel.activity.isStarted()
+    assert not panel.progress.activity_running
 
 
 @pytest.mark.parametrize("transport", ["shared", "pipe", "in_process"])
@@ -173,7 +174,7 @@ def test_client_progress_reaches_the_production_splash(transport: str) -> None:
         splash.append_log("Loaded backend modules")
         assert panel.progress.value() == 2
         assert panel.status.text() == "Preparing workspace"
-        panel.details_button.click()
+        panel.set_details_visible(not panel.details_visible)
         assert "Loaded backend modules" in splash.log_view.toPlainText()
     finally:
         destroy_qt_object(splash)
@@ -211,7 +212,7 @@ def test_fatal_message_exposes_diagnostics_and_stops_progress(transport: str) ->
         assert panel is not None
         assert panel.status.text() == "Backend could not start"
         assert panel.details.isVisible()
-        assert not panel.activity.isStarted()
+        assert not panel.progress.activity_running
         assert "Backend could not start" in splash.log_view.toPlainText()
         splash.set_progress(SplashProgress(3, 5), status="Preparing workspace")
         assert panel.status.text() == "Backend could not start"

@@ -43,7 +43,7 @@ from tests.support.qt.semantic_wait import wait_for_qt_condition
 _MAX_BOTTOM_CHROME_GAP_PX = 8
 _EXPECTED_SPLASH_SIZE = (558, 558)
 _EXPECTED_MASCOT_GEOMETRY = (83, 7, 387, 386)
-_EXPECTED_CONSOLE_GEOMETRY = (6, 358, 546, 193)
+_EXPECTED_CONSOLE_GEOMETRY = (24, 356, 510, 178)
 
 
 class SplashWindowFactory(Protocol):
@@ -223,8 +223,7 @@ def test_splash_window_routes_append_log_through_shared_terminal_view(
 
     terminal_section = splash.findChild(QWidget, "SplashTerminalSection")
     assert terminal_section is not None
-    assert terminal_section.minimumHeight() == terminal_section.maximumHeight()
-    assert terminal_section.minimumHeight() >= 150
+    assert not splash._feedback.details_visible
     assert splash.log_view.minimumHeight() == 0
     assert splash.log_view.maximumHeight() == 16777215
     assert splash.log_view.toPlainText() == "Starting"
@@ -246,13 +245,13 @@ def test_splash_window_keeps_activity_visible_around_durable_logs(
 
     splash.start_activity(activity)
     QApplication.processEvents()
-    assert splash.log_view.toPlainText() == "Updating SugarCubes. · 0:00"
+    assert splash.log_view.toPlainText() == "Updating SugarCubes."
 
     splash.append_log("Downloaded package metadata.\n")
     QApplication.processEvents()
     assert splash.log_view.toPlainText().splitlines() == [
         "Downloaded package metadata.",
-        "Updating SugarCubes. · 0:00",
+        "Updating SugarCubes.",
     ]
 
     splash.clear_activity()
@@ -332,10 +331,12 @@ def test_splash_window_uses_psd_fixed_layout_geometry(
     monkeypatch: pytest.MonkeyPatch,
     splash_window_factory: SplashWindowFactory,
 ) -> None:
-    """Splash window should match the fixed PSD layer geometry."""
+    """Expanded splash should preserve the established mascot and console placement."""
 
     monkeypatch.setattr(SplashWindow, "center_on_screen", lambda self: None)
     splash = splash_window_factory()
+
+    splash._feedback.set_details_visible(True)
 
     visual = splash.findChild(SplashPaperFlipWidget, "SplashPaperFlipWidget")
     terminal_section = splash.findChild(QWidget, "SplashTerminalSection")
@@ -406,7 +407,7 @@ def test_splash_window_keeps_wrapped_output_scrolled_to_newest_line(
 
     panel = splash.findChild(SplashProgressPanel)
     assert panel is not None
-    panel.details_button.click()
+    panel.set_details_visible(not panel.details_visible)
     assert panel.details.isVisible()
 
     wrapped_line = "wrapped splash output " + ("0123456789 " * 20)
@@ -424,3 +425,29 @@ def test_splash_window_keeps_wrapped_output_scrolled_to_newest_line(
     assert splash.log_view.toPlainText().splitlines()[-1] == f"24: {wrapped_line}"
     assert splash.log_view.toPlainText().endswith("\n") is False
     assert _end_of_document_bottom_gap(splash) <= _MAX_BOTTOM_CHROME_GAP_PX
+
+
+@pytest.mark.parametrize("theme_mode", ["dark", "light"])
+def test_deferred_splash_applies_material_before_first_frame(
+    monkeypatch: pytest.MonkeyPatch, theme_mode: str
+) -> None:
+    """Prepare native appearance while hidden and never switch material after paint."""
+    events: list[tuple[str, bool]] = []
+
+    def apply_backdrop(window: SplashWindow) -> None:
+        """Observe the native material boundary without invoking the compositor."""
+        events.append(("backdrop", window.isVisible()))
+        assert window._dark_theme_enabled == (theme_mode == "dark")
+
+    monkeypatch.setattr(SplashWindow, "_apply_backdrop", apply_backdrop)
+    splash = SplashWindow(theme_mode=theme_mode, defer_animation_until_first_paint=True)
+    try:
+        assert events == [("backdrop", False)]
+        splash.firstFramePainted.connect(
+            lambda: events.append(("paint", splash.isVisible()))
+        )
+        splash.show()
+        wait_for_qt_condition(lambda: not splash._defer_animation_until_first_paint)
+        assert events == [("backdrop", False), ("paint", True)]
+    finally:
+        destroy_qt_object(splash)

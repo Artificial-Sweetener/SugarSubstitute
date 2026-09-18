@@ -38,38 +38,38 @@ _ACTIVITY = SplashActivity(
 @pytest.mark.parametrize(
     ("elapsed_seconds", "expected_stage", "expected_text"),
     (
-        (0.0, SplashActivityStage.INITIAL, "Updating SugarCubes. · 0:00"),
-        (1.0, SplashActivityStage.INITIAL, "Updating SugarCubes.. · 0:01"),
-        (2.0, SplashActivityStage.INITIAL, "Updating SugarCubes... · 0:02"),
+        (0.0, SplashActivityStage.INITIAL, "Updating SugarCubes."),
+        (1.0, SplashActivityStage.INITIAL, "Updating SugarCubes.."),
+        (2.0, SplashActivityStage.INITIAL, "Updating SugarCubes..."),
         (
             120.0,
             SplashActivityStage.LONG_WAIT,
-            "Updating SugarCubes is taking longer than usual. · 2:00",
+            "Updating SugarCubes is taking longer than usual.",
         ),
         (
             121.0,
             SplashActivityStage.LONG_WAIT,
-            "Updating SugarCubes is taking longer than usual.. · 2:01",
+            "Updating SugarCubes is taking longer than usual..",
         ),
         (
             122.0,
             SplashActivityStage.LONG_WAIT,
-            "Updating SugarCubes is taking longer than usual... · 2:02",
+            "Updating SugarCubes is taking longer than usual...",
         ),
         (
             300.0,
             SplashActivityStage.EXTENDED_WAIT,
-            "Still updating SugarCubes—network may be slow. · 5:00",
+            "Still updating SugarCubes—network may be slow.",
         ),
         (
             301.0,
             SplashActivityStage.EXTENDED_WAIT,
-            "Still updating SugarCubes—network may be slow.. · 5:01",
+            "Still updating SugarCubes—network may be slow..",
         ),
         (
             302.0,
             SplashActivityStage.EXTENDED_WAIT,
-            "Still updating SugarCubes—network may be slow... · 5:02",
+            "Still updating SugarCubes—network may be slow...",
         ),
     ),
 )
@@ -87,7 +87,7 @@ def test_splash_activity_cycles_dots_through_every_wait_stage(
 def test_splash_activity_clamps_negative_elapsed_time() -> None:
     """A clock adjustment should retain the first visible activity frame."""
 
-    assert render_splash_activity(_ACTIVITY, -10.0) == "Updating SugarCubes. · 0:00"
+    assert render_splash_activity(_ACTIVITY, -10.0) == "Updating SugarCubes."
 
 
 @pytest.mark.parametrize(

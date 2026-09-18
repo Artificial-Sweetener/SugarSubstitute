@@ -88,7 +88,7 @@ def format_activity_elapsed(elapsed_seconds: float) -> str:
 
 
 def render_splash_activity(activity: SplashActivity, elapsed_seconds: float) -> str:
-    """Render localized activity, independent motion, and its elapsed duration."""
+    """Render localized activity and animated dots without exposing elapsed time."""
 
     stage = splash_activity_stage(elapsed_seconds)
     if stage is SplashActivityStage.EXTENDED_WAIT:
@@ -98,7 +98,7 @@ def render_splash_activity(activity: SplashActivity, elapsed_seconds: float) -> 
     else:
         base_text = activity.initial_text
     activity_text = f"{base_text.rstrip('.…')}{splash_activity_dots(elapsed_seconds)}"
-    return f"{activity_text} · {format_activity_elapsed(elapsed_seconds)}"
+    return activity_text
 
 
 __all__ = [
