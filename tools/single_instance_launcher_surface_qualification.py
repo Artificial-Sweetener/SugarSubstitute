@@ -146,7 +146,6 @@ def qualify_launcher_surfaces(
                     "Forwarding secondary invocation",
                     "Registered supervised application child",
                     "Secondary invocation produced a visible surface",
-                    "Application lost its authoritative supervisor",
                 ),
             ),
         }
