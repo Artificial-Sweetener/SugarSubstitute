@@ -17,7 +17,7 @@ parallel-safe execution, reproducibility, and efficient developer feedback.
   verification rules remain in force.
 - This file governs test placement, test strength, execution isolation,
   determinism, runtime efficiency, fixtures, harnesses, and test-suite changes.
-- `TEST_POLICY.toml`, `TEST_DEBT.toml`, and `TEST_WAIVERS.toml` are the
+- `governance/testing/policy.toml`, `governance/testing/debt.toml`, and `governance/testing/waivers.toml` are the
   authoritative machine-enforced current state for test-layout and execution
   review candidates.
 - Existing noncompliant tests are migration work, not precedent for new or
