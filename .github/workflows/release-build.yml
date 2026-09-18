@@ -127,6 +127,8 @@ jobs:
           retention-days: 1
 
   build-macos:
+    # Temporarily suspended pending dedicated platform validation.
+    if: ${{ false }}
     name: Build macOS Apple Silicon installer
     runs-on: macos-latest
 
@@ -199,6 +201,8 @@ jobs:
           retention-days: 1
 
   build-linux:
+    # Temporarily suspended pending dedicated platform validation.
+    if: ${{ false }}
     name: Build Linux x64 installers
     runs-on: ubuntu-24.04
 

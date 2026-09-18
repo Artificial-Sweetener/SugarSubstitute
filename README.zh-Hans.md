@@ -17,9 +17,9 @@
 
 我总在搭建相同的工作流片段：开开关关、挪来挪去，然后再把线一根根接回去。终于有一天，我受够了。那些片段变成了 [**Cubes**](https://github.com/Artificial-Sweetener/SugarCubes)，围绕它们打造的桌面应用则成了 SugarSubstitute。
 
-**SugarSubstitute 目前处于公开测试阶段。** Windows x64、Apple Silicon 和 Linux x64 均有专用安装程序。
+**SugarSubstitute 目前处于公开测试阶段。** 目前只有 Windows x64 获得积极支持。
 
-**[下载最新测试版](#安装)**，支持 Windows x64、Apple Silicon 和 Linux x64。
+**[下载最新测试版](#安装)**，适用于 Windows x64。
 
 看看[路线图](ROADMAP.md)，了解我接下来想做什么，也欢迎告诉我还漏了什么。
 
@@ -72,30 +72,9 @@ SugarSubstitute 目前是公开测试版。我确实用它干活，但我也知�
 
 下一步：[选择 SugarSubstitute 使用 ComfyUI 的方式](#选择-comfyui-设置方式)。
 
-### <img src="docs/release/platforms/apple.svg" width="22" height="22" alt=""> macOS Apple Silicon
+### Linux 和 macOS：暂时停止支持
 
-**[下载最新 macOS Apple Silicon 安装程序](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg)**
-
-打开 DMG，启动 SugarSubstitute Setup，然后使用默认的 `~/Applications/SugarSubstitute` 文件夹，或者选择另一个归你所有的文件夹。托管设置会在 Apple Silicon 上使用 Apple 的 MPS 加速。不支持 Intel Mac。
-
-SugarSubstitute 采用临时签名，但没有经过公证，因为本项目没有加入 Apple 的付费 Developer Program。macOS 会警告无法验证开发者。如果 DMG 是从本仓库下载的，请在 macOS 的“隐私与安全性”设置中允许它打开。
-
-我只在 Windows 上亲自测试过 SugarSubstitute。macOS 软件包通过 GitHub Actions 在 Apple Silicon 上构建，但仍然需要更多人在真实的 Mac 上使用和反馈。
-
-下一步：[选择 SugarSubstitute 使用 ComfyUI 的方式](#选择-comfyui-设置方式)。
-
-### <img src="docs/release/platforms/linux.svg" width="22" height="22" alt=""> Linux x64
-
-选择适合你系统的软件包：
-
-- **[下载最新 Linux x86_64 AppImage](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-x86_64.AppImage)**，作为便携式安装程序使用。将它标记为可执行文件，然后运行。
-- **[下载最新 Linux amd64 Debian 软件包](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-amd64.deb)**，适用于 Debian、Ubuntu 及相关发行版。安装软件包，然后运行 `sugarsubstitute-setup`。
-
-默认安装文件夹是 `~/.local/share/SugarSubstitute`。托管设置支持通过 CUDA 使用 NVIDIA、通过 ROCm 使用 AMD，以及通过 XPU 使用 Intel GPU。目前还没有可用的 Linux 托管纯 CPU 环境。
-
-我只在 Windows 上亲自测试过 SugarSubstitute。Linux 软件包通过 GitHub Actions 在 Linux 上构建，但仍然需要更多人在真实的发行版和桌面环境中使用和反馈。
-
-下一步：[选择 SugarSubstitute 使用 ComfyUI 的方式](#选择-comfyui-设置方式)。
+Linux 和 macOS 的支持、构建及自动平台验证暂时停止。目前没有专人负责测试这两个平台。我们计划在维护者亲自完成验证后恢复支持，但尚未确定恢复日期。以往的软件包也未通过验证，不建议使用。
 
 ### 从 Git 克隆运行
 
@@ -111,18 +90,6 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest pytest-xdist ruff mypy pre-commit
 .\.venv\Scripts\pre-commit.exe install
 .\.venv\Scripts\python.exe main.py
-```
-
-在 macOS 或 Linux 上，打开终端并运行：
-
-```bash
-git clone https://github.com/Artificial-Sweetener/SugarSubstitute.git
-cd SugarSubstitute
-python3.12 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r requirements.txt pytest pytest-xdist ruff mypy pre-commit
-.venv/bin/pre-commit install
-.venv/bin/python main.py
 ```
 
 第一次从源码启动时，会打开与打包应用相同的设置流程。让它创建一个托管 ComfyUI 环境，或连接现有环境。设置完成后，每次想运行开发检出时，再执行最后一条命令即可。

@@ -22,6 +22,8 @@ permissions:
 
 jobs:
   linux-distro-trust:
+    # Temporarily suspended pending dedicated platform validation.
+    if: ${{ false }}
     name: Packaged Linux trust (${{ matrix.name }})
     strategy:
       fail-fast: false

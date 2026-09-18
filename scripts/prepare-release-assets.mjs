@@ -38,42 +38,15 @@ const projectRoot = resolve(fileURLToPath(new URL("../", import.meta.url)));
 const releaseChannelDir = join(projectRoot, ".local-release-channel");
 const releaseInputsDir = join(projectRoot, "build", "release-inputs");
 const windowsDir = join(releaseInputsDir, "windows");
-const macosDir = join(releaseInputsDir, "macos");
-const linuxDir = join(releaseInputsDir, "linux");
 const setupExePath = join(windowsDir, "SugarSubstitute-Setup-Windows-x64.exe");
 const windowsInstallerPayload = join(
   windowsDir,
   "installer-payload-windows-x64.zip",
 );
-const macosInstallerPayload = join(
-  macosDir,
-  "installer-payload-macos-arm64.zip",
-);
-const macosInstallerPath = join(
-  macosDir,
-  "SugarSubstitute-Installer-macOS-Apple-Silicon.dmg",
-);
-const linuxInstallerPayload = join(
-  linuxDir,
-  "installer-payload-linux-x64.zip",
-);
-const linuxAppImagePath = join(
-  linuxDir,
-  "SugarSubstitute-Installer-Linux-x86_64.AppImage",
-);
-const linuxDebPath = join(
-  linuxDir,
-  "SugarSubstitute-Installer-Linux-amd64.deb",
-);
 const pythonPath = resolvePythonPath(projectRoot);
 
 assertFile(setupExePath, "setup executable");
 assertFile(windowsInstallerPayload, "Windows installer payload");
-assertFile(macosInstallerPayload, "Apple Silicon installer payload");
-assertFile(macosInstallerPath, "Apple Silicon installer DMG");
-assertFile(linuxInstallerPayload, "Linux installer payload");
-assertFile(linuxAppImagePath, "Linux AppImage installer");
-assertFile(linuxDebPath, "Linux Debian installer");
 
 rmSync(releaseChannelDir, { force: true, recursive: true });
 updateReleaseVersions(new URL("../", import.meta.url), nextVersion, releaseChannel);
@@ -95,24 +68,6 @@ const buildResult = spawnSync(
     "windows_x64",
     "exe",
     setupExePath,
-    "--platform-input",
-    "macos_arm64",
-    macosInstallerPayload,
-    "--installer-input",
-    "macos_arm64",
-    "dmg",
-    macosInstallerPath,
-    "--platform-input",
-    "linux_x64",
-    linuxInstallerPayload,
-    "--installer-input",
-    "linux_x64",
-    "appimage",
-    linuxAppImagePath,
-    "--installer-input",
-    "linux_x64",
-    "deb",
-    linuxDebPath,
     "--asset-base-url",
     assetBaseUrl,
   ],
@@ -137,35 +92,6 @@ assertFile(join(releaseChannelDir, "checksums.txt"), "release checksums");
 assertFile(
   join(releaseChannelDir, `SugarSubstitute-app-v${nextVersion}.zip`),
   "app payload",
-);
-assertFile(
-  join(
-    releaseChannelDir,
-    `SugarSubstitute-installer-payload-macos-arm64-v${nextVersion}.zip`,
-  ),
-  "Apple Silicon installer payload",
-);
-assertFile(
-  join(
-    releaseChannelDir,
-    `SugarSubstitute-${nextVersion}-macOS-Apple-Silicon.dmg`,
-  ),
-  "Apple Silicon installer DMG",
-);
-assertFile(
-  join(releaseChannelDir, `SugarSubstitute-${nextVersion}-Linux-x86_64.AppImage`),
-  "Linux AppImage installer",
-);
-assertFile(
-  join(releaseChannelDir, `SugarSubstitute-${nextVersion}-Linux-amd64.deb`),
-  "Linux Debian installer",
-);
-assertFile(
-  join(
-    releaseChannelDir,
-    `SugarSubstitute-installer-payload-linux-x64-v${nextVersion}.zip`,
-  ),
-  "Linux installer payload",
 );
 assertFile(
   join(

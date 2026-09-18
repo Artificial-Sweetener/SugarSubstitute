@@ -77,32 +77,12 @@ module.exports = {
             label: "SugarSubstitute Installer for Windows x64",
           },
           {
-            path: ".local-release-channel/SugarSubstitute-*-macOS-Apple-Silicon.dmg",
-            label: "SugarSubstitute Installer for macOS Apple Silicon",
-          },
-          {
-            path: ".local-release-channel/SugarSubstitute-*-Linux-x86_64.AppImage",
-            label: "SugarSubstitute AppImage for Linux x64",
-          },
-          {
-            path: ".local-release-channel/SugarSubstitute-*-Linux-amd64.deb",
-            label: "SugarSubstitute Debian package for Linux x64",
-          },
-          {
             path: ".local-release-channel/SugarSubstitute-app-v*.zip",
             label: "SugarSubstitute app payload",
           },
           {
             path: ".local-release-channel/SugarSubstitute-installer-payload-windows-x64-v*.zip",
             label: "SugarSubstitute installer payload for Windows x64",
-          },
-          {
-            path: ".local-release-channel/SugarSubstitute-installer-payload-macos-arm64-v*.zip",
-            label: "SugarSubstitute installer payload for macOS Apple Silicon",
-          },
-          {
-            path: ".local-release-channel/SugarSubstitute-installer-payload-linux-x64-v*.zip",
-            label: "SugarSubstitute installer payload for Linux x64",
           },
           {
             path: ".local-release-channel/manifest.json",
