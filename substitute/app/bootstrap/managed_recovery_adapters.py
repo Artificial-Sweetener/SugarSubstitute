@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.infrastructure.comfy.managed_process_state import ManagedComfyState
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,9 +58,9 @@ from substitute.domain.onboarding.models import (
     ComfyTargetMode,
 )
 from substitute.infrastructure.comfy import process_manager
-from substitute.infrastructure.comfy.managed_launcher import ManagedTaskFactory
+from substitute.infrastructure.comfy.managed_process_state import ManagedTaskFactory
 from substitute.infrastructure.comfy.managed_install import ensure_managed_comfy_setup
-from substitute.infrastructure.comfy.managed_shutdown import (
+from substitute.infrastructure.comfy.managed_termination_result import (
     ManagedProcessTerminationStatus,
 )
 from substitute.infrastructure.comfy.manager_provisioner import (
@@ -418,7 +420,7 @@ def cleanup_managed_recovery_state(
 ) -> ManagedCompatibilityCleanupResultProtocol:
     """Clean one managed Comfy state through the infrastructure adapter."""
 
-    managed_state = cast(process_manager.ManagedComfyState | None, state)
+    managed_state = cast(ManagedComfyState | None, state)
     if managed_state is None:
         return process_manager.kill_comfyui_state(None)
     return managed_state.with_spawn_lock(

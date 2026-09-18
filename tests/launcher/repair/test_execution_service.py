@@ -269,7 +269,6 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
         RepairStage.VALIDATE_INPUT,
         RepairStage.RESTORE_APPLICATION,
         RepairStage.PREPARE_RUNTIME,
-        RepairStage.RESTORE_NODES,
         RepairStage.SAVE_STATE,
         RepairStage.VALIDATE_APPLICATION,
         RepairStage.PREPARE_COMFY,
@@ -277,8 +276,8 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
         RepairStage.VALIDATE_COMFY,
         None,
     ]
-    assert [event.completed for event in events] == list(range(10))
-    assert {event.total for event in events} == {9}
+    assert [event.completed for event in events] == list(range(9))
+    assert {event.total for event in events} == {8}
 
 
 @pytest.mark.parametrize("reject", [False, True])

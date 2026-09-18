@@ -36,7 +36,7 @@ from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedContainmentLaunchRequest,
     ManagedContainmentLaunchResult,
 )
-from substitute.infrastructure.comfy.managed_shutdown import (
+from substitute.infrastructure.comfy.managed_termination_result import (
     ManagedProcessTerminationResult,
     ManagedProcessTerminationStatus,
 )

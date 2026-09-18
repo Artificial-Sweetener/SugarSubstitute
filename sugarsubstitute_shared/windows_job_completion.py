@@ -40,12 +40,6 @@ class WindowsJobCompletion:
         """Keep retained references non-inheritable and scoped to this supervisor."""
         self._job = job
         self._kernel = load_kernel()
-        self._kernel.IsProcessInJob.argtypes = [
-            wintypes.HANDLE,
-            wintypes.HANDLE,
-            ctypes.POINTER(wintypes.BOOL),
-        ]
-        self._kernel.IsProcessInJob.restype = wintypes.BOOL
         self._native = NativeProcessHandleApi()
         self._members: list[int] = []
         self._sealed = False

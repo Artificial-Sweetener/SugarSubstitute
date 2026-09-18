@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.infrastructure.comfy import managed_listener_adoption
+
 from pathlib import Path
 import subprocess
 import threading
@@ -70,7 +72,7 @@ def test_background_start_reuses_healthy_owned_listener_without_spawning(
     )
     status_lines: list[str] = []
     monkeypatch.setattr(
-        managed_launcher,
+        managed_listener_adoption,
         "probe_managed_listener",
         lambda **kwargs: ManagedListenerProbeResult(
             status=ManagedListenerStatus.OWNED_HEALTHY,
@@ -98,6 +100,7 @@ def test_background_start_reuses_healthy_owned_listener_without_spawning(
     state.wait_until_finished(timeout=2)
 
     assert state.proc is None
+    assert state.startup_result == ManagedStartupReadinessResult(ready=True)
     assert state.metadata == metadata
     assert status_lines == ["Reusing the existing managed ComfyUI instance."]
     assert popen_calls == []
@@ -123,7 +126,7 @@ def test_background_start_returns_before_listener_probe_completes(
         )
 
     monkeypatch.setattr(
-        managed_launcher,
+        managed_listener_adoption,
         "probe_managed_listener",
         probe_managed_listener,
     )
@@ -187,13 +190,13 @@ def test_background_start_reaps_stale_owned_listener_before_spawn(
         ),
     ]
     monkeypatch.setattr(
-        managed_launcher,
+        managed_listener_adoption,
         "probe_managed_listener",
         lambda **kwargs: probe_results.pop(0),
     )
     killed_pids: list[int | None] = []
     monkeypatch.setattr(
-        managed_launcher,
+        managed_listener_adoption,
         "kill_managed_comfy_metadata",
         lambda metadata, **kwargs: _record_termination(
             killed_pids,
@@ -239,7 +242,7 @@ def test_background_start_refuses_foreign_listener(
 
     log_lines: list[str] = []
     monkeypatch.setattr(
-        managed_launcher,
+        managed_listener_adoption,
         "probe_managed_listener",
         lambda **kwargs: ManagedListenerProbeResult(
             status=ManagedListenerStatus.FOREIGN,
