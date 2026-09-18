@@ -18,11 +18,12 @@
 
 from __future__ import annotations
 
+from launcher.sugarsubstitute_launcher.process_execution import ChildProcess
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 import os
 from pathlib import Path
-import subprocess
 import sys
 
 import pytest
@@ -34,7 +35,7 @@ from launcher.sugarsubstitute_launcher.crash_supervisor import (
     ApplicationCrashSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.process import spawn_detached_process
+from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from sugarsubstitute_shared.crash_reporting import (
     CrashAttribution,
     CrashBoundary,
@@ -42,7 +43,7 @@ from sugarsubstitute_shared.crash_reporting import (
     CrashKind,
 )
 from substitute.application.crash_reports import build_crash_error_report
-from substitute.application.errors import render_error_report
+from substitute.application.error_report_builder import render_error_report
 
 
 _CHILD_MODULE = "tests.support.crash_reporting.fault_child"
@@ -123,10 +124,10 @@ _FAULTS = (
 def _start_child(
     command: Sequence[str],
     environment: Mapping[str, str],
-) -> tuple[subprocess.Popen[bytes], Path]:
+) -> tuple[ChildProcess, Path]:
     """Start a destructive child without sharing its console streams."""
 
-    return spawn_detached_process(
+    return spawn_supervised_process(
         command,
         environment=environment,
     )
@@ -261,7 +262,7 @@ class _RealCandidateReadiness:
         layout: InstallLayout,
         command: Sequence[str],
         environment: Mapping[str, str],
-    ) -> subprocess.Popen[bytes]:
+    ) -> ChildProcess:
         """Start the candidate with the prepared crash contract."""
 
         del layout

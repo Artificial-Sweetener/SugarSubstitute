@@ -23,18 +23,25 @@ from pathlib import Path
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application.repair import (
+from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
     PreparedRepairRequestError,
+)
+from launcher.sugarsubstitute_launcher.application.repair.models import (
     RepairScope,
 )
 
 
-def test_request_round_trip_preserves_detached_process_behavior(tmp_path: Path) -> None:
+@pytest.mark.parametrize("preparation_id", [None, "a" * 32])
+def test_request_round_trip_preserves_detached_process_behavior(
+    tmp_path: Path, preparation_id: str | None
+) -> None:
     """A valid request should survive atomic persistence without losing intent."""
 
     root = (tmp_path / "install").resolve()
     staging = root / ".repair" / "staging" / "1.2.3"
+    if preparation_id is not None:
+        staging = staging / preparation_id
     request = PreparedRepairRequest(
         install_root=root,
         scope=RepairScope.APPLICATION,
@@ -48,8 +55,10 @@ def test_request_round_trip_preserves_detached_process_behavior(tmp_path: Path) 
         wait_pid=42,
         wait_process_created_at=1234.5,
         relaunch=True,
+        helper_bundle_dir=root / ".repair/helper/1.2.3/session/bundle",
+        preparation_id=preparation_id,
     )
-    path = root / ".repair" / "prepared.json"
+    path = request.request_path
 
     request.save(path)
 
@@ -62,6 +71,9 @@ def test_request_round_trip_preserves_detached_process_behavior(tmp_path: Path) 
         ("staged_app_dir", "{external}"),
         ("staged_launcher_dir", "{root}\\.repair\\staging\\1.2.4\\launcher"),
         ("version", "..\\hostile"),
+        ("helper_bundle_dir", "{external}"),
+        ("preparation_id", "../other"),
+        ("preparation_id", "a" * 32),
     ],
 )
 def test_request_rejects_hostile_or_cross_version_staging_paths(

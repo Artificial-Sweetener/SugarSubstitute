@@ -69,14 +69,16 @@ def test_error_report_dialog_renders_summary_and_full_report() -> None:
     )
 
     try:
-        assert dialog._title_label.text() == "KSampler failed"
-        assert isinstance(dialog._icon_widget, ReportSeverityGlyphWidget)
-        title_metrics = dialog._title_label.fontMetrics()
-        title_rect = title_metrics.tightBoundingRect(dialog._title_label.text())
+        assert dialog.content._title_label.text() == "KSampler failed"
+        assert isinstance(dialog.content._icon_widget, ReportSeverityGlyphWidget)
+        title_metrics = dialog.content._title_label.fontMetrics()
+        title_rect = title_metrics.tightBoundingRect(dialog.content._title_label.text())
         title_top = title_metrics.ascent() + title_rect.top()
         title_bottom = title_top + title_rect.height()
-        message_metrics = dialog._message_label.fontMetrics()
-        message_rect = message_metrics.tightBoundingRect(dialog._message_label.text())
+        message_metrics = dialog.content._message_label.fontMetrics()
+        message_rect = message_metrics.tightBoundingRect(
+            dialog.content._message_label.text()
+        )
         message_label_top = title_metrics.height() + 4
         message_top = message_label_top + message_metrics.ascent() + message_rect.top()
         message_bottom = message_top + message_rect.height()
@@ -84,30 +86,30 @@ def test_error_report_dialog_renders_summary_and_full_report() -> None:
             16,
             max(title_bottom, message_bottom) - min(title_top, message_top) - 1,
         )
-        assert dialog._icon_widget.size().width() == expected_icon_size
-        assert dialog._icon_widget.size().height() == expected_icon_size
-        assert dialog._icon_widget.icon_path().endswith("Error_light.svg")
-        assert dialog._message_label.minimumWidth() == (
+        assert dialog.content._icon_widget.size().width() == expected_icon_size
+        assert dialog.content._icon_widget.size().height() == expected_icon_size
+        assert dialog.content._icon_widget.icon_path().endswith("Error_light.svg")
+        assert dialog.content._message_label.minimumWidth() == (
             720 - (24 * 2) - expected_icon_size - 12
         )
         assert (
-            dialog._message_label.height()
-            >= dialog._message_label.fontMetrics().height()
+            dialog.content._message_label.height()
+            >= dialog.content._message_label.fontMetrics().height()
         )
         assert dialog.yesButton.isHidden()
-        assert dialog._close_button.text() == "Close"
-        assert isinstance(dialog._close_button, PrimaryPushButton)
-        assert dialog._close_button.icon().isNull()
-        assert dialog._copy_button.icon().isNull()
+        assert dialog.content._close_button.text() == "Close"
+        assert isinstance(dialog.content._close_button, PrimaryPushButton)
+        assert dialog.content._close_button.icon().isNull()
+        assert dialog.content._copy_button.icon().isNull()
         assert dialog.viewLayout.spacing() == 0
-        assert dialog._body_layout.spacing() == 12
-        assert "Traceback line 1" in dialog._report_editor.toPlainText()
-        assert dialog._report_editor.isHidden()
+        assert dialog.content._body_layout.spacing() == 12
+        assert "Traceback line 1" in dialog.content._report_editor.toPlainText()
+        assert dialog.content._report_editor.isHidden()
 
-        dialog._toggle_details()
+        dialog.content._toggle_details()
 
-        assert not dialog._report_editor.isHidden()
-        assert dialog._details_button.text() == "Hide report"
+        assert not dialog.content._report_editor.isHidden()
+        assert dialog.content._details_button.text() == "Hide report"
     finally:
         dialog.close()
         delete(dialog)
@@ -137,11 +139,11 @@ def test_error_report_dialog_uses_warning_presentation_for_warning_reports() -> 
     try:
         summary_text = {
             label.text()
-            for label in dialog._summary_frame.findChildren(QLabel)
+            for label in dialog.content._summary_frame.findChildren(QLabel)
             if label.text()
         }
 
-        assert dialog._icon_widget.icon_path().endswith("Warning_light.svg")
+        assert dialog.content._icon_widget.icon_path().endswith("Warning_light.svg")
         assert "Affected cubes" in summary_text
         assert "3" in summary_text
     finally:
@@ -169,11 +171,11 @@ def test_error_report_dialog_wraps_long_header_message() -> None:
     )
 
     try:
-        line_height = dialog._message_label.fontMetrics().height()
+        line_height = dialog.content._message_label.fontMetrics().height()
 
-        assert dialog._message_label.wordWrap()
-        assert dialog._message_label.height() > line_height
-        assert dialog._message_label.sizeHint().height() > line_height
+        assert dialog.content._message_label.wordWrap()
+        assert dialog.content._message_label.height() > line_height
+        assert dialog.content._message_label.sizeHint().height() > line_height
     finally:
         dialog.close()
         delete(dialog)
@@ -199,10 +201,10 @@ def test_error_report_dialog_constrains_body_under_height_pressure() -> None:
 
     try:
         assert dialog.widget.maximumHeight() == 312
-        assert dialog._body_scroll_area.widgetResizable()
-        assert dialog._report_editor.minimumHeight() == 160
+        assert dialog.content._body_scroll_area.widgetResizable()
+        assert dialog.content._report_editor.minimumHeight() == 160
 
-        dialog._toggle_details()
+        dialog.content._toggle_details()
         dialog.show()
         app.processEvents()
 
@@ -236,7 +238,7 @@ def test_error_report_dialog_recenters_after_report_expansion() -> None:
         dialog.show()
         app.processEvents()
 
-        dialog._toggle_details()
+        dialog.content._toggle_details()
         app.processEvents()
 
         assert dialog.size() == parent.size()
@@ -273,32 +275,38 @@ def test_error_report_dialog_animates_report_show_and_hide() -> None:
     try:
         dialog.show()
         app.processEvents()
-        collapsed_height = dialog._body_scroll_area.height()
+        collapsed_height = dialog.content._body_scroll_area.height()
 
-        expanded = QSignalSpy(dialog._body_height_animation.finished)
-        dialog._toggle_details()
+        expanded = QSignalSpy(dialog.content._body_height_animation.finished)
+        dialog.content._toggle_details()
         app.processEvents()
 
-        assert not dialog._report_editor.isHidden()
-        assert dialog._body_height_animation.state() == QAbstractAnimation.State.Running
+        assert not dialog.content._report_editor.isHidden()
+        assert (
+            dialog.content._body_height_animation.state()
+            == QAbstractAnimation.State.Running
+        )
 
-        assert expanded.wait(dialog._body_height_animation.duration() + 500)
+        assert expanded.wait(dialog.content._body_height_animation.duration() + 500)
         app.processEvents()
-        expanded_height = dialog._body_scroll_area.height()
+        expanded_height = dialog.content._body_scroll_area.height()
         assert expanded_height > collapsed_height
 
-        collapsed = QSignalSpy(dialog._body_height_animation.finished)
-        dialog._toggle_details()
+        collapsed = QSignalSpy(dialog.content._body_height_animation.finished)
+        dialog.content._toggle_details()
         app.processEvents()
 
-        assert not dialog._report_editor.isHidden()
-        assert dialog._body_height_animation.state() == QAbstractAnimation.State.Running
+        assert not dialog.content._report_editor.isHidden()
+        assert (
+            dialog.content._body_height_animation.state()
+            == QAbstractAnimation.State.Running
+        )
 
-        assert collapsed.wait(dialog._body_height_animation.duration() + 500)
+        assert collapsed.wait(dialog.content._body_height_animation.duration() + 500)
         app.processEvents()
-        assert dialog._report_editor.isHidden()
-        collapsed_target_height, _ = dialog._body_height_for(False)
-        assert dialog._body_scroll_area.height() == collapsed_target_height
+        assert dialog.content._report_editor.isHidden()
+        collapsed_target_height, _ = dialog.content._body_height_for(False)
+        assert dialog.content._body_scroll_area.height() == collapsed_target_height
     finally:
         dialog.close()
         delete(dialog)
@@ -324,8 +332,8 @@ def test_error_report_dialog_footer_excludes_open_console_action() -> None:
 
     try:
         assert not hasattr(dialog, "_console_button")
-        assert dialog._copy_button.text() == "Copy report"
-        assert isinstance(dialog._close_button, PrimaryPushButton)
+        assert dialog.content._copy_button.text() == "Copy report"
+        assert isinstance(dialog.content._close_button, PrimaryPushButton)
     finally:
         dialog.close()
         delete(dialog)
@@ -348,7 +356,7 @@ def test_error_report_dialog_copies_complete_report_to_clipboard() -> None:
     )
 
     try:
-        dialog._copy_report()
+        dialog.content._copy_report()
 
         assert QApplication.clipboard().text() == report_text
     finally:
@@ -393,13 +401,14 @@ def test_crash_report_actions_copy_open_github_and_restart(
     )
 
     try:
-        assert dialog._report_issue_button is not None
-        assert dialog._restart_button is not None
-        assert dialog._details_button.text() == "Show report"
+        assert dialog.content._report_issue_button is not None
+        assert dialog.content._restart_button is not None
+        assert dialog.content._details_button.text() == "Show report"
         footer_actions = [
             widget.text()
-            for index in range(dialog.buttonLayout.count())
-            if (widget := dialog.buttonLayout.itemAt(index).widget()) is not None
+            for index in range(dialog.content._footer_layout.count())
+            if (item := dialog.content._footer_layout.itemAt(index)) is not None
+            and (widget := item.widget()) is not None
             and isinstance(widget, QAbstractButton)
         ]
         assert footer_actions == [
@@ -409,12 +418,12 @@ def test_crash_report_actions_copy_open_github_and_restart(
             "Restart SugarSubstitute",
         ]
 
-        dialog._toggle_details()
-        dialog._copy_button.click()
-        dialog._report_issue_button.click()
-        dialog._restart_button.click()
+        dialog.content._toggle_details()
+        dialog.content._copy_button.click()
+        dialog.content._report_issue_button.click()
+        dialog.content._restart_button.click()
 
-        assert dialog._details_button.text() == "Hide report"
+        assert dialog.content._details_button.text() == "Hide report"
         assert QApplication.clipboard().text() == report_text
         assert opened_urls == [SUGARSUBSTITUTE_ISSUES_URL]
         assert restart_calls == [None]
@@ -463,13 +472,13 @@ def test_update_rollback_dialog_uses_standard_layout_and_links_reporter(
     try:
         summary_text = {
             label.text()
-            for label in dialog._summary_frame.findChildren(QLabel)
+            for label in dialog.content._summary_frame.findChildren(QLabel)
             if label.text()
         }
         assert dialog.isClosableOnMaskClicked()
-        assert dialog._report_editor.isHidden()
-        assert dialog._report_issue_button is not None
-        assert dialog._report_issue_button.text() == "Report issue"
+        assert dialog.content._report_editor.isHidden()
+        assert dialog.content._report_issue_button is not None
+        assert dialog.content._report_issue_button.text() == "Report issue"
         assert "Stage" in summary_text
         assert "update_rollback" in summary_text
         assert "Workflow" not in summary_text
@@ -477,13 +486,14 @@ def test_update_rollback_dialog_uses_standard_layout_and_links_reporter(
         assert "Attempted version" not in summary_text
         footer_actions = [
             widget.text()
-            for index in range(dialog.buttonLayout.count())
-            if (widget := dialog.buttonLayout.itemAt(index).widget()) is not None
+            for index in range(dialog.content._footer_layout.count())
+            if (item := dialog.content._footer_layout.itemAt(index)) is not None
+            and (widget := item.widget()) is not None
             and isinstance(widget, QAbstractButton)
         ]
         assert footer_actions == ["Copy report", "Report issue", "Close"]
 
-        dialog._report_issue_button.click()
+        dialog.content._report_issue_button.click()
 
         assert opened_urls == [SUGARSUBSTITUTE_ISSUES_URL]
     finally:

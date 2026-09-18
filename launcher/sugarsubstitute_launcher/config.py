@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 import json
+import os
+import secrets
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Self
@@ -121,6 +123,7 @@ class LauncherConfig:
     channel: str
     update_check: UpdateCheckConfig
     release_source: ReleaseSourceConfig | None
+    runtime_setup_pending: bool = False
 
     @classmethod
     def from_layout(
@@ -130,6 +133,7 @@ class LauncherConfig:
         channel: str = STABLE_RELEASE_CHANNEL,
         update_check: UpdateCheckConfig | None = None,
         release_source: ReleaseSourceConfig | None = ReleaseSourceConfig.default(),
+        runtime_setup_pending: bool = False,
     ) -> Self:
         """Create default launcher config for one install layout."""
 
@@ -141,6 +145,7 @@ class LauncherConfig:
             channel=channel,
             update_check=update_check or UpdateCheckConfig(),
             release_source=release_source,
+            runtime_setup_pending=runtime_setup_pending,
         )
 
     @classmethod
@@ -167,16 +172,26 @@ class LauncherConfig:
             channel=_optional_string(payload, "channel", STABLE_RELEASE_CHANNEL),
             update_check=UpdateCheckConfig.from_json(payload.get("update_check")),
             release_source=_release_source_from_payload(payload),
+            runtime_setup_pending=_runtime_setup_pending(payload),
         )
 
     def save(self, path: Path) -> None:
-        """Persist launcher config using stable formatted JSON."""
+        """Atomically publish configuration so interrupted setup retains its phase."""
 
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(self.to_json(), indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
+        temporary_path = path.with_name(
+            f".{path.name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
         )
+        try:
+            with temporary_path.open("w", encoding="utf-8") as stream:
+                stream.write(
+                    json.dumps(self.to_json(), indent=2, sort_keys=True) + "\n"
+                )
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary_path, path)
+        finally:
+            temporary_path.unlink(missing_ok=True)
 
     def to_json(self) -> dict[str, object]:
         """Return the JSON-safe launcher config object."""
@@ -186,6 +201,7 @@ class LauncherConfig:
             "install_root": str(self.install_root),
             "app_dir": str(self.app_dir),
             "runtime_python": str(self.runtime_python),
+            "runtime_setup_pending": self.runtime_setup_pending,
             "channel": self.channel,
             "update_check": self.update_check.to_json(),
             "release_source": (
@@ -223,3 +239,11 @@ def _release_source_from_payload(
     if value is None:
         return None
     return ReleaseSourceConfig.from_json(value)
+
+
+def _runtime_setup_pending(payload: dict[str, Any]) -> bool:
+    """Preserve completed legacy installs and reject ambiguous new phase data."""
+    value = payload.get("runtime_setup_pending", False)
+    if not isinstance(value, bool):
+        raise ValueError("Launcher runtime setup phase must be a boolean.")
+    return value

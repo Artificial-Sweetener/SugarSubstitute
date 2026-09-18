@@ -32,13 +32,19 @@ from tools.ci.comfy_source_checkout import checkout_tag, prepare_checkout
 from tools.ci.comfy_support_matrix import ComfySupportMatrixEntry
 
 
+@pytest.mark.parametrize("deep_storage", [False, True])
 def test_exact_source_cache_reuses_verified_objects_without_upstream(
     tmp_path: Path,
+    deep_storage: bool,
 ) -> None:
     """A warm cache must materialize and update a checkout entirely offline."""
 
     upstream, contracts = _create_upstream(tmp_path)
-    cache_path = tmp_path / "cache"
+    storage = tmp_path
+    if deep_storage:
+        while len(str(storage)) < 180:
+            storage /= "source-cache-workspace"
+    cache_path = storage / "cache"
 
     first_result = prepare_comfy_source_cache(
         cache_path=cache_path,
@@ -50,13 +56,14 @@ def test_exact_source_cache_reuses_verified_objects_without_upstream(
         repository=str(upstream),
         contracts=contracts,
     )
+    _run_git(source_repository, "config", "--unset", "core.longpaths")
     upstream.rename(tmp_path / "upstream-offline.git")
     second_result = prepare_comfy_source_cache(
         cache_path=cache_path,
         repository=str(upstream),
         contracts=contracts,
     )
-    workspace = tmp_path / "workspace"
+    workspace = storage / "workspace"
 
     prepare_checkout(
         workspace,
@@ -68,6 +75,9 @@ def test_exact_source_cache_reuses_verified_objects_without_upstream(
 
     assert first_result.cache_hit is False
     assert second_result.cache_hit is True
+    assert (
+        _git_output(source_repository, "config", "--bool", "core.longpaths") == "true"
+    )
     assert _git_output(workspace, "rev-parse", "HEAD") == contracts[1].commit_sha
     assert (workspace / "version.txt").read_text(encoding="utf-8") == "target"
 
@@ -182,7 +192,15 @@ def _create_upstream(
     _run_git(working, "tag", "v2.0.0")
     target_commit = _git_output(working, "rev-parse", "HEAD")
     subprocess.run(
-        ["git", "clone", "--bare", str(working), str(upstream)],
+        [
+            "git",
+            "-c",
+            "core.longpaths=true",
+            "clone",
+            "--bare",
+            str(working),
+            str(upstream),
+        ],
         check=True,
         capture_output=True,
         text=True,
@@ -221,8 +239,7 @@ def _run_git(repository: Path, *arguments: str) -> None:
     """Run one bounded fixture Git command."""
 
     subprocess.run(
-        ["git", *arguments],
-        cwd=repository,
+        ["git", "-c", "core.longpaths=true", "-C", str(repository), *arguments],
         check=True,
         capture_output=True,
         text=True,
@@ -235,8 +252,7 @@ def _git_output(repository: Path, *arguments: str) -> str:
     """Return normalized fixture Git output."""
 
     result = subprocess.run(
-        ["git", *arguments],
-        cwd=repository,
+        ["git", "-c", "core.longpaths=true", "-C", str(repository), *arguments],
         check=True,
         capture_output=True,
         text=True,

@@ -93,6 +93,7 @@ class CanvasFingerprint:
     preview_lane_keys: tuple[str, ...]
     pending_feedback_counts: Mapping[str, int]
     pending_commit_count: int
+    output_preparation_state: Mapping[str, object]
     pending_projection_workflows: tuple[str, ...]
     document_image_ids: tuple[UUID, ...]
     active_image_id: UUID | None

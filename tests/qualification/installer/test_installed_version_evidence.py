@@ -45,7 +45,7 @@ def test_version_wait_survives_receipt_before_activation_commit(
         LauncherUpdateState(installed_app_version="2.0.0").save(layout.state_path)
 
     monkeypatch.setattr(
-        "tools.ci.installed_version_evidence.time.sleep",
+        "tools.ci.installed_version_evidence.sleep",
         commit_during_wait,
     )
 

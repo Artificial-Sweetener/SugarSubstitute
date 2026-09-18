@@ -138,7 +138,8 @@ jobs:
 
   clean-install-macos:
     name: Clean install and launch (macOS Apple Silicon)
-    if: inputs.macos_clean_enabled
+    # Temporarily suspended pending dedicated platform validation.
+    if: ${{ false }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:

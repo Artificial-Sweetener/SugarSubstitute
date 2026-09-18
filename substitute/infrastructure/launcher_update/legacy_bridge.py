@@ -27,8 +27,10 @@ import urllib.request
 from urllib.parse import urlparse
 
 from sugarsubstitute_shared.launcher_update.models import (
-    LauncherInstallationRecord,
     LauncherRelease,
+)
+from sugarsubstitute_shared.launcher_update.bundle_selection import (
+    LauncherBundleSelection,
 )
 from sugarsubstitute_shared.launcher_update.process import schedule_launcher_update
 from sugarsubstitute_shared.launcher_update.staging import LauncherBundleStager
@@ -91,8 +93,7 @@ class LegacyLauncherUpdateBridge:
         )
         if release.channel != _string(config, "channel", default="stable"):
             return False
-        installation_path = root / "launcher" / "installation.json"
-        installed = LauncherInstallationRecord.load(installation_path)
+        installed = LauncherBundleSelection(root, target).installed_record()
         if installed is not None:
             if installed.target_key != target.key:
                 raise ValueError(

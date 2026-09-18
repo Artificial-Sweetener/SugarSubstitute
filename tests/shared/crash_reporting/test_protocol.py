@@ -104,3 +104,15 @@ def test_crash_redactor_sanitizes_split_and_inline_arguments(tmp_path: Path) -> 
     assert redactor.arguments(
         ("main.py", "--api-key=secret-one", "--password", "secret-two", "--safe=yes")
     ) == ("main.py", "--api-key=<redacted>", "--password", "<redacted>", "--safe=yes")
+
+
+def test_crash_redactor_removes_session_tokens_from_arguments_and_text() -> None:
+    """Keep ephemeral control credentials out of both durable diagnostic forms."""
+    redactor = CrashReportRedactor(home=None, install_root=None)
+    assert redactor.arguments(
+        ("--splash-session-token", "synthetic-control-value", "--port=8188")
+    ) == ("--splash-session-token", "<redacted>", "--port=8188")
+    assert (
+        redactor.text("--splash-session-token=synthetic-control-value")
+        == "--splash-session-token=<redacted>"
+    )

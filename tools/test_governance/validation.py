@@ -59,13 +59,17 @@ def validate_test_governance(
     """Return discovered candidates and every current governance diagnostic."""
 
     try:
-        policy = load_test_policy(policy_path or root / "TEST_POLICY.toml")
+        policy = load_test_policy(
+            policy_path or root / "governance/testing/policy.toml"
+        )
         state = load_test_state(root, policy)
         candidates = discover_test_candidates(root, policy)
     except (OSError, SyntaxError, TypeError, ValueError) as error:
         return TestValidationResult(
             candidates=(),
-            diagnostics=(Diagnostic("TSTATE001", "TEST_POLICY.toml", str(error)),),
+            diagnostics=(
+                Diagnostic("TSTATE001", "governance/testing/policy.toml", str(error)),
+            ),
         )
     current_date = today or datetime.now(UTC).date()
     diagnostics = [
@@ -90,20 +94,26 @@ def _validate_policy(root: Path, policy: TestPolicy) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     if not (root / policy.test_root).is_dir():
         diagnostics.append(
-            Diagnostic("TPOLICY001", "TEST_POLICY.toml", "test_root must exist")
+            Diagnostic(
+                "TPOLICY001", "governance/testing/policy.toml", "test_root must exist"
+            )
         )
     for support_root in policy.semantic_support_roots:
         if not (root / support_root).is_dir():
             diagnostics.append(
                 Diagnostic(
                     "TPOLICY004",
-                    "TEST_POLICY.toml",
+                    "governance/testing/policy.toml",
                     f"semantic support root {support_root.as_posix()} must exist",
                 )
             )
     if not (root / policy.serial_policy).is_file():
         diagnostics.append(
-            Diagnostic("TPOLICY002", "TEST_POLICY.toml", "serial_policy must exist")
+            Diagnostic(
+                "TPOLICY002",
+                "governance/testing/policy.toml",
+                "serial_policy must exist",
+            )
         )
     for allowed_path in sorted(policy.allowed_root_source_paths):
         path = root / allowed_path
@@ -111,7 +121,7 @@ def _validate_policy(root: Path, policy: TestPolicy) -> list[Diagnostic]:
             diagnostics.append(
                 Diagnostic(
                     "TPOLICY003",
-                    "TEST_POLICY.toml",
+                    "governance/testing/policy.toml",
                     f"allowed root source {allowed_path} must exist directly under the test root",
                 )
             )
@@ -131,7 +141,7 @@ def _validate_unique_state(state: TestState) -> list[Diagnostic]:
             diagnostics.append(
                 Diagnostic(
                     "TSTATE002",
-                    "TEST_POLICY.toml",
+                    "governance/testing/policy.toml",
                     f"test-governance record id {identifier} is not unique",
                 )
             )
@@ -143,7 +153,7 @@ def _validate_unique_state(state: TestState) -> list[Diagnostic]:
             diagnostics.append(
                 Diagnostic(
                     "TSTATE003",
-                    "TEST_WAIVERS.toml",
+                    "governance/testing/waivers.toml",
                     f"candidate {candidate} has multiple dispositions",
                 )
             )
@@ -155,7 +165,7 @@ def _validate_unique_state(state: TestState) -> list[Diagnostic]:
             diagnostics.append(
                 Diagnostic(
                     "TSTATE004",
-                    "TEST_DEBT.toml",
+                    "governance/testing/debt.toml",
                     f"candidate {candidate} appears in multiple debt records",
                 )
             )

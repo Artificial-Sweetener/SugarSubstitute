@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.infrastructure.comfy.managed_process_state import ManagedComfyState
+
 from collections.abc import Callable
 from typing import cast
 
@@ -34,10 +36,10 @@ def create_process_manager_startup_shutdown_runtime(
 ) -> StartupShutdownRuntime:
     """Build startup shutdown runtime with the process-manager cleanup adapter."""
 
-    def typed_comfy_state_getter() -> process_manager.ManagedComfyState | None:
+    def typed_comfy_state_getter() -> ManagedComfyState | None:
         """Return the current managed Comfy state with infrastructure typing."""
 
-        return cast(process_manager.ManagedComfyState | None, comfy_state_getter())
+        return cast(ManagedComfyState | None, comfy_state_getter())
 
     return create_startup_shutdown_runtime(
         comfy_state_getter=typed_comfy_state_getter,

@@ -22,15 +22,19 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 import json
 import logging
+import os
 from pathlib import Path
 import secrets
 import subprocess
 import threading
 import time
-from typing import Protocol
 
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
+    CandidateProcess,
+    ApplicationStartupCancelled,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
-from launcher.sugarsubstitute_launcher.process import spawn_detached_process
+from launcher.sugarsubstitute_launcher.process_execution import spawn_supervised_process
 from sugarsubstitute_shared.application_readiness import (
     ApplicationReadinessReceipt,
     ApplicationReadinessSurface,
@@ -75,26 +79,6 @@ class _ReadinessContract:
     outer_token: str | None
 
 
-class CandidateProcess(Protocol):
-    """Expose process lifecycle operations used by readiness supervision."""
-
-    @property
-    def pid(self) -> int:
-        """Return the operating-system process identifier."""
-
-    def poll(self) -> int | None:
-        """Return the exit status when the process has ended."""
-
-    def terminate(self) -> None:
-        """Request graceful process termination."""
-
-    def kill(self) -> None:
-        """Force process termination."""
-
-    def wait(self, timeout: float | None = None) -> int:
-        """Wait for process termination and return its exit status."""
-
-
 class ApplicationReadinessSupervisor:
     """Start an application and require an accepted visible-surface receipt."""
 
@@ -109,6 +93,7 @@ class ApplicationReadinessSupervisor:
         monotonic: Callable[[], float] = time.monotonic,
         wait: Callable[[float], object] | None = None,
         token_factory: Callable[[], str] | None = None,
+        cancellation_requested: Callable[[], bool] | None = None,
         accepted_surfaces: Collection[ApplicationReadinessSurface] = (
             ApplicationReadinessSurface.MAIN_SHELL,
         ),
@@ -125,6 +110,7 @@ class ApplicationReadinessSupervisor:
         self._wait = wait or threading.Event().wait
         self._token_factory = token_factory or (lambda: secrets.token_urlsafe(32))
         self._accepted_surfaces = frozenset(accepted_surfaces)
+        self._cancellation_requested = cancellation_requested
 
     def launch_until_ready(
         self,
@@ -134,6 +120,8 @@ class ApplicationReadinessSupervisor:
         environment: Mapping[str, str],
     ) -> CandidateProcess:
         """Return the running process after an accepted surface is responsive."""
+
+        self._check_cancellation()
 
         contract = self._readiness_contract(layout=layout, environment=environment)
         receipt_path = contract.child_receipt_path
@@ -161,6 +149,7 @@ class ApplicationReadinessSupervisor:
         try:
             deadline = self._monotonic() + self._timeout_seconds
             while self._monotonic() < deadline:
+                self._check_cancellation(process)
                 return_code = process.poll()
                 if return_code is not None:
                     raise ApplicationReadinessError(
@@ -190,11 +179,18 @@ class ApplicationReadinessSupervisor:
                 "SugarSubstitute did not reveal its main window before the startup "
                 f"timeout. Startup log: {startup_log_path}."
             )
-        except BaseException:
+        except BaseException as error:
             stop_candidate_process(process)
+            if isinstance(error, ApplicationReadinessError):
+                error.terminated_process = process
             raise
         finally:
             receipt_path.unlink(missing_ok=True)
+
+    def _check_cancellation(self, process: CandidateProcess | None = None) -> None:
+        """Distinguish the user's cancellation from an unresponsive or failed child."""
+        if self._cancellation_requested is not None and self._cancellation_requested():
+            raise ApplicationStartupCancelled(process)
 
     def _readiness_contract(
         self,
@@ -243,17 +239,17 @@ class ApplicationReadinessSupervisor:
         contract: _ReadinessContract,
         receipt: ApplicationReadinessReceipt,
     ) -> None:
-        """Project a validated child proof into its caller-owned contract."""
+        """Attest the validated child surface through this caller-owned process hop."""
 
         if contract.outer_receipt_path is None or contract.outer_token is None:
             return
         publish_application_readiness_receipt(
             receipt_path=contract.outer_receipt_path,
             receipt=ApplicationReadinessReceipt(
-                pid=receipt.pid,
+                pid=os.getpid(),
                 token=contract.outer_token,
                 surface=receipt.surface,
-                parent_pid=receipt.parent_pid,
+                parent_pid=os.getppid(),
             ),
         )
 
@@ -315,7 +311,9 @@ def _start_candidate_process(
 ) -> tuple[CandidateProcess, Path]:
     """Adapt the launcher process owner to the supervision port."""
 
-    process, log_path = spawn_detached_process(command, environment=environment)
+    process, log_path = spawn_supervised_process(
+        command, environment=environment, allow_handoff=True
+    )
     return process, log_path
 
 
@@ -335,7 +333,6 @@ def stop_candidate_process(process: CandidateProcess) -> None:
 __all__ = [
     "ApplicationReadinessError",
     "ApplicationReadinessSupervisor",
-    "CandidateProcess",
     "DEFAULT_READINESS_TIMEOUT_SECONDS",
     "stop_candidate_process",
 ]

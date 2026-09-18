@@ -140,8 +140,10 @@ class WorkspaceSplitterController:
         )
         return True
 
-    def apply_stack_width_frame(self, stack_width: int) -> tuple[int, ...]:
-        """Transfer stack-width delta from details to canvas from one fixed origin."""
+    def apply_stack_width_frame(
+        self, stack_width: int, *, resized_widget: QWidget
+    ) -> tuple[int, ...]:
+        """Transfer width using current child constraints, even when Qt skips frames."""
 
         origin = self._presentation_origin
         if origin is None:
@@ -158,6 +160,14 @@ class WorkspaceSplitterController:
         sizes = list(origin.sizes)
         sizes[origin.details_index] = details_start + applied_delta
         sizes[origin.canvas_index] = canvas_start - applied_delta
+        ancestor = resized_widget.parentWidget()
+        while ancestor is not None and ancestor is not self._splitter:
+            layout = ancestor.layout()
+            if layout is not None:
+                layout.invalidate()
+                layout.activate()
+            ancestor.updateGeometry()
+            ancestor = ancestor.parentWidget()
         self._splitter.setSizes(sizes)
         return tuple(sizes)
 

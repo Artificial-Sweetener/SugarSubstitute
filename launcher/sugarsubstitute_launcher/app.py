@@ -23,19 +23,17 @@ import os
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from launcher.sugarsubstitute_launcher.cli import LauncherArguments
     from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
     from launcher.sugarsubstitute_launcher.startup_plan import LauncherStartupPlan
-    from launcher.sugarsubstitute_launcher.splash_session import LauncherSplashSession
-    from sugarsubstitute_shared.application_instance_broker import (
-        ApplicationInstanceBroker,
+    from launcher.sugarsubstitute_launcher.startup_splash_session import (
+        StartupSplashSession,
     )
-
-
-LauncherMainWindow: Callable[..., Any] | None = None
+    from sugarsubstitute_shared.application_broker_session import (
+        ApplicationBrokerSession,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -81,6 +79,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         invocation_path=frozen_invocation_path(),
         native_executable_path=native_frozen_executable_path(),
         working_directory_path=Path.cwd(),
+        launcher_ui_child=args.launcher_ui_child,
     )
     layout = startup_candidate.layout
     from launcher.sugarsubstitute_launcher.logging_setup import (
@@ -89,16 +88,21 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     configure_launcher_logging(layout=layout)
     if args.instance_recovery_request is not None:
-        return _run_instance_recovery_window(
+        from launcher.sugarsubstitute_launcher.instance_recovery_application import (
+            run_instance_recovery_window,
+        )
+
+        return run_instance_recovery_window(
             layout=layout,
             request_path=args.instance_recovery_request,
             locale_override=args.locale_override,
         )
 
     app_launch_error: Exception | None = None
-    broker: ApplicationInstanceBroker | None = None
+    broker: ApplicationBrokerSession | None = None
     startup_plan: LauncherStartupPlan | None = None
-    splash_session: LauncherSplashSession | None = None
+    splash_session: StartupSplashSession | None = None
+    startup_resource_registrar: Callable[[Callable[[], None]], str] | None = None
     from sugarsubstitute_shared.supervisor_handoff import supervisor_handoff_present
 
     if (
@@ -118,26 +122,51 @@ def main(argv: Sequence[str] | None = None) -> int:
             locale_override=args.locale_override,
             environment=os.environ,
         )
-    if not args.launcher_ui_child:
-        from launcher.sugarsubstitute_launcher.application_launch import (
-            elect_application,
-        )
+    from sugarsubstitute_shared.application_broker_session import DELEGATED_LAUNCHER_ENV
 
-        broker = _elect_application_with_recovery(
-            layout=layout,
-            process_arguments=process_arguments,
-            locale_override=args.locale_override,
-            elect=elect_application,
+    delegated_launcher = os.environ.pop(DELEGATED_LAUNCHER_ENV, None) == "1"
+    if not args.launcher_ui_child:
+        if delegated_launcher:
+            from sugarsubstitute_shared.delegated_application_broker import (
+                DelegatedApplicationBroker,
+            )
+
+            broker = DelegatedApplicationBroker(os.environ)
+            from launcher.sugarsubstitute_launcher.splash_transfer import (
+                take_borrowed_splash_session,
+            )
+
+            splash_session = take_borrowed_splash_session(
+                os.environ, release=broker.release_startup_resource
+            )
+        else:
+            from launcher.sugarsubstitute_launcher.application_launch import (
+                elect_application,
+            )
+            from launcher.sugarsubstitute_launcher.application_election_recovery import (
+                ApplicationElectionRecovery,
+            )
+
+            election_recovery = ApplicationElectionRecovery(
+                layout=layout,
+                process_arguments=process_arguments,
+                locale_override=args.locale_override,
+                elect=elect_application,
+            )
+            broker = election_recovery.run()
+            if broker is None:
+                if splash_session is not None:
+                    splash_session.close()
+                return 0
+            startup_resource_registrar = broker.register_startup_resource
+    attempt_installed_app = (
+        not args.launcher_ui_child
+        and should_attempt_installed_app_launch(
+            args=args,
+            candidate=startup_candidate,
         )
-        if broker is None:
-            if splash_session is not None:
-                splash_session.close()
-            return 0
-    if not args.launcher_ui_child and should_attempt_installed_app_launch(
-        args=args,
-        candidate=startup_candidate,
-    ):
-        assert broker is not None
+    )
+    if not args.launcher_ui_child:
         from launcher.sugarsubstitute_launcher.splash_session import (
             start_launcher_splash_session,
         )
@@ -145,14 +174,78 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             if splash_session is None:
                 splash_session = start_launcher_splash_session(
+                    layout=layout, locale_override=args.locale_override
+                )
+            from launcher.sugarsubstitute_launcher.startup_recovery import (
+                recover_startup_candidate,
+            )
+
+            try:
+                recovered_candidate = recover_startup_candidate(startup_candidate)
+                if recovered_candidate is not startup_candidate:
+                    startup_candidate = recovered_candidate
+                    attempt_installed_app = should_attempt_installed_app_launch(
+                        args=args, candidate=startup_candidate
+                    )
+            except Exception as error:
+                app_launch_error = error
+                logging.getLogger(__name__).exception(
+                    "Interrupted installation recovery failed; retaining recovery UI."
+                )
+            if app_launch_error is None and not delegated_launcher:
+                assert broker is not None
+                from launcher.sugarsubstitute_launcher.generation_dispatch import (
+                    dispatch_selected_launcher,
+                )
+
+                def resume_baseline_startup() -> None:
+                    """Replace the transferred session before continuing baseline startup."""
+                    nonlocal splash_session
+                    if splash_session is not None:
+                        splash_session.close()
+                    splash_session = start_launcher_splash_session(
+                        layout=layout, locale_override=args.locale_override
+                    )
+
+                selected_result = dispatch_selected_launcher(
                     layout=layout,
-                    locale_override=args.locale_override,
+                    broker=broker,
+                    arguments=process_arguments[1:],
+                    splash_session=splash_session,
+                    register_startup_resource=startup_resource_registrar,
+                    on_baseline_fallback=resume_baseline_startup,
                 )
+                if selected_result is not None:
+                    broker.close()
+                    if splash_session is not None:
+                        splash_session.close()
+                    return selected_result
+        except BaseException:
+            if broker is not None:
+                broker.close()
+            if splash_session is not None:
+                splash_session.close()
+            raise
+    if attempt_installed_app and app_launch_error is None:
+        assert broker is not None
+        from launcher.sugarsubstitute_launcher.splash_session import (
+            start_launcher_splash_session,
+        )
+        from launcher.sugarsubstitute_launcher.application_startup_contract import (
+            ApplicationStartupCancelled,
+        )
+
+        try:
             if splash_session is None:
-                raise RuntimeError(
-                    "The installed startup surface could not be presented."
+                logging.getLogger(__name__).warning(
+                    "Launcher splash unavailable; continuing supervised application "
+                    "launch | install_root=%s",
+                    layout.root,
                 )
-            broker.bind_startup_presenter(lambda _invocation: splash_session.present())
+            else:
+                broker.bind_startup_presenter(
+                    lambda _invocation: splash_session.present()
+                )
             from launcher.sugarsubstitute_launcher.localization import (
                 resolve_launcher_locale,
             )
@@ -195,16 +288,32 @@ def main(argv: Sequence[str] | None = None) -> int:
                 complete_installed_app_handoff,
             )
 
-            complete_installed_app_handoff(
-                layout=layout,
-                broker=broker,
-                locale_argument=locale_argument,
-                no_update_check=args.no_update_check,
-                splash_session=splash_session,
-                handoff_geometry=args.handoff_geometry,
+            from launcher.sugarsubstitute_launcher.startup_plan import (
+                should_launch_installed_app,
             )
-            broker.close()
-            broker = None
+
+            if should_launch_installed_app(args=args, startup_plan=startup_plan):
+                complete_installed_app_handoff(
+                    layout=layout,
+                    broker=broker,
+                    locale_argument=locale_argument,
+                    no_update_check=args.no_update_check,
+                    splash_session=splash_session,
+                    handoff_geometry=args.handoff_geometry,
+                )
+                broker.close()
+                broker = None
+                return 0
+        except ApplicationStartupCancelled:
+            logging.getLogger(__name__).info(
+                "Installed application launch cancelled by the user"
+            )
+            try:
+                if splash_session is not None:
+                    splash_session.close()
+            finally:
+                if broker is not None:
+                    broker.close()
             return 0
         except Exception as error:
             app_launch_error = error
@@ -261,10 +370,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             if splash_session is not None:
                 splash_session.close()
             _release_launch_ownership(broker)
-    return _run_launcher_window(
+    from launcher.sugarsubstitute_launcher.launcher_window_application import (
+        run_launcher_window,
+    )
+
+    return run_launcher_window(
         args=args,
         startup_plan=startup_plan,
-        app_launch_error=app_launch_error,
         broker=broker,
     )
 
@@ -278,54 +390,6 @@ def _configure_normal_logging(startup_plan: LauncherStartupPlan) -> None:
 
     configure_launcher_logging(layout=startup_plan.layout)
     _record_qualification_startup_route(startup_plan)
-
-
-def _elect_application_with_recovery(
-    *,
-    layout: InstallLayout,
-    process_arguments: Sequence[str],
-    locale_override: str | None,
-    elect: Callable[[InstallLayout, Sequence[str]], ApplicationInstanceBroker | None],
-) -> ApplicationInstanceBroker | None:
-    """Elect or provide visible, user-controlled recovery from failed activation."""
-
-    from sugarsubstitute_shared.application_instance_protocol import (
-        ApplicationInstanceBrokerError,
-    )
-
-    while True:
-        try:
-            return elect(layout, process_arguments)
-        except ApplicationInstanceBrokerError as error:
-            logging.getLogger(__name__).exception(
-                "Active application instance could not present a usable surface",
-                extra={"owner_process_id": error.owner_process_id},
-            )
-            from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
-                InstanceRecoveryAction,
-            )
-            from launcher.sugarsubstitute_launcher.launcher_ui_supervision import (
-                supervise_instance_recovery_window,
-            )
-
-            action = supervise_instance_recovery_window(
-                layout=layout,
-                locale_override=locale_override,
-                can_end_owner=(
-                    error.owner_process_id is not None and error.endpoint is not None
-                ),
-            )
-            if action is InstanceRecoveryAction.EXIT:
-                return None
-            if action is InstanceRecoveryAction.END_AND_RETRY:
-                from launcher.sugarsubstitute_launcher.application_instance_recovery import (
-                    terminate_verified_instance_owner,
-                )
-
-                terminate_verified_instance_owner(
-                    error,
-                    expected_executable=Path(sys.executable),
-                )
 
 
 def _configure_launch_error_logging(
@@ -345,104 +409,11 @@ def _configure_launch_error_logging(
     configure_launcher_logging(layout=layout)
 
 
-def _run_launcher_window(
-    *,
-    args: LauncherArguments,
-    startup_plan: LauncherStartupPlan,
-    app_launch_error: Exception | None,
-    broker: ApplicationInstanceBroker | None,
-) -> int:
-    """Show setup or repair UI after installed launch routing is complete."""
-
-    from PySide6.QtWidgets import QApplication
-
-    from sugarsubstitute_shared.qt_application_instance_control import (
-        start_application_instance_control,
-        stop_application_instance_control,
-    )
-
-    from launcher.sugarsubstitute_launcher.application.installation.composition import (
-        build_installation_workflow,
-    )
-    from launcher.sugarsubstitute_launcher.localization import (
-        build_launcher_localization_runtime,
-    )
-    from launcher.sugarsubstitute_launcher.process import (
-        start_installed_launcher_handoff,
-    )
-    from launcher.sugarsubstitute_launcher.release_source_routing import (
-        initial_install_release_source,
-    )
-
-    application = QApplication.instance()
-    owns_application = application is None
-    if application is None:
-        application = QApplication(sys.argv[:1])
-    application = cast(QApplication, application)
-    localization_runtime = build_launcher_localization_runtime(
-        application,
-        layout=startup_plan.layout,
-        locale_override=args.locale_override,
-    )
-    instance_control = start_application_instance_control()
-
-    try:
-        window = _launcher_main_window_class()(
-            initial_layout=startup_plan.layout,
-            continue_install=args.continue_install,
-            repair=args.repair,
-            update_check_enabled=not args.no_update_check,
-            initial_release_source=initial_install_release_source(args.manifest_url),
-            workflow_factory=lambda output_callback: build_installation_workflow(
-                output_callback=output_callback,
-                process_starter=start_installed_launcher_handoff,
-            ),
-            localization_manager=localization_runtime.manager,
-            handoff_geometry=args.handoff_geometry,
-        )
-        if owns_application:
-            window.handoff_completed.connect(application.quit)
-        presenter = None
-        if broker is not None:
-            from launcher.sugarsubstitute_launcher.ui.instance_presentation import (
-                LauncherInstancePresenter,
-            )
-
-            presenter = LauncherInstancePresenter(window)
-            broker.bind_startup_presenter(presenter.present)
-        from sugarsubstitute_shared.application_readiness import (
-            ApplicationReadinessSurface,
-        )
-        from sugarsubstitute_shared.qt_surface_readiness import (
-            schedule_surface_readiness_receipt,
-        )
-
-        schedule_surface_readiness_receipt(
-            surface=ApplicationReadinessSurface.LAUNCHER_WINDOW,
-            window=window,
-        )
-        window.show()
-        from launcher.sugarsubstitute_launcher.ui.installer_qualification import (
-            schedule_installer_qualification,
-        )
-
-        schedule_installer_qualification(window)
-        if owns_application:
-            return int(application.exec())
-        return 0
-    finally:
-        if instance_control is not None:
-            stop_application_instance_control()
-        if broker is not None:
-            broker.bind_startup_presenter(None)
-        _release_launch_ownership(broker)
-
-
 def _complete_launcher_surface_handoff(
     *,
     layout: InstallLayout,
-    splash_session: LauncherSplashSession | None,
-    broker: ApplicationInstanceBroker | None,
+    splash_session: StartupSplashSession | None,
+    broker: ApplicationBrokerSession | None,
     launch_error: Exception | None,
 ) -> None:
     """Retire the splash authority after the launcher window has painted."""
@@ -487,64 +458,8 @@ def _acknowledge_startup_incident_handled_by_repair(
         )
 
 
-def _run_instance_recovery_window(
-    *,
-    layout: InstallLayout,
-    request_path: Path,
-    locale_override: str | None,
-) -> int:
-    """Present one supervisor-requested recovery modal in the Qt child."""
-
-    from PySide6.QtWidgets import QApplication
-
-    from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
-        InstanceRecoveryRequest,
-    )
-    from launcher.sugarsubstitute_launcher.localization import (
-        build_launcher_localization_runtime,
-    )
-    from launcher.sugarsubstitute_launcher.ui.instance_recovery_dialog import (
-        present_instance_recovery_dialog,
-    )
-
-    application = QApplication.instance()
-    owns_application = application is None
-    if application is None:
-        application = QApplication(sys.argv[:1])
-    request = InstanceRecoveryRequest.read(request_path.resolve())
-    localization = build_launcher_localization_runtime(
-        cast(Any, application),
-        layout=layout,
-        locale_override=locale_override,
-    )
-    try:
-        action = present_instance_recovery_dialog(
-            layout=layout,
-            can_end_owner=request.can_end_owner,
-        )
-        request.write_response(action)
-        return 0
-    finally:
-        localization.manager.close()
-        if owns_application:
-            cast(Any, application).quit()
-
-
-def _launcher_main_window_class() -> Callable[..., Any]:
-    """Return the launcher window class without importing GUI code on handoff."""
-
-    global LauncherMainWindow
-    if LauncherMainWindow is None:
-        from launcher.sugarsubstitute_launcher.ui.main_window import (
-            LauncherMainWindow as ImportedLauncherMainWindow,
-        )
-
-        LauncherMainWindow = ImportedLauncherMainWindow
-    return LauncherMainWindow
-
-
 def _release_launch_ownership(
-    broker: ApplicationInstanceBroker | None,
+    broker: ApplicationBrokerSession | None,
 ) -> None:
     """Release parent launcher ownership after child UI reaches terminal state."""
 

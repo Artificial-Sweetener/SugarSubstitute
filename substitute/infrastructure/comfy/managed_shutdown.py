@@ -18,13 +18,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
 import os
 from time import monotonic, sleep
 import subprocess
 
-from sugarsubstitute_shared.localization import ApplicationText, app_text
+from sugarsubstitute_shared.localization import app_text
 
 from substitute.infrastructure.comfy.managed_process_containment import (
     ManagedProcessHandle,
@@ -33,6 +31,10 @@ from substitute.infrastructure.comfy.managed_process_metadata import (
     ManagedProcessMetadata,
 )
 from substitute.infrastructure.comfy.managed_process_probe import is_process_running
+from substitute.infrastructure.comfy.managed_termination_result import (
+    ManagedProcessTerminationResult,
+    ManagedProcessTerminationStatus,
+)
 from substitute.shared.logging.logger import (
     get_logger,
     log_exception,
@@ -43,29 +45,6 @@ from substitute.shared.logging.logger import (
 _LOGGER = get_logger("infrastructure.comfy.managed_shutdown")
 _PROCESS_EXIT_TIMEOUT_SECONDS = 5.0
 _WINDOWS_TASKKILL_TIMEOUT_SECONDS = 5.0
-
-
-class ManagedProcessTerminationStatus(Enum):
-    """Describe the normalized result of one managed-process termination attempt."""
-
-    NO_ACTION_REQUIRED = "no_action_required"
-    TERMINATED_CONFIRMED = "terminated_confirmed"
-    TERMINATION_UNCONFIRMED = "termination_unconfirmed"
-    TERMINATION_COMMAND_FAILED = "termination_command_failed"
-
-
-@dataclass(frozen=True)
-class ManagedProcessTerminationResult:
-    """Describe normalized termination facts for one managed process."""
-
-    status: ManagedProcessTerminationStatus
-    pid: int | None
-    attempted: bool
-    verification_timed_out: bool = False
-    termination_command_timed_out: bool = False
-    elapsed_ms: int = 0
-    user_safe_detail: ApplicationText = ""
-    diagnostic_detail: str = ""
 
 
 def kill_managed_comfy(
@@ -146,7 +125,7 @@ def _kill_windows_process(
     pid: int,
     started_at: float,
 ) -> ManagedProcessTerminationResult:
-    """Terminate one Windows process tree and normalize the result."""
+    """Confirm process exit independently of the termination command's acknowledgement."""
 
     log_info(
         _LOGGER,
@@ -200,27 +179,9 @@ def _kill_windows_process(
             user_safe_detail=app_text("The termination command could not be started."),
             diagnostic_detail=_format_os_error_diagnostic(error),
         )
-    elapsed_ms = _elapsed_ms_since(started_at)
     terminated, verification_timed_out = _verify_process_exit(pid)
+    elapsed_ms = _elapsed_ms_since(started_at)
     diagnostic_detail = _format_completed_process_diagnostic(command_result)
-    if command_result.returncode == 0:
-        if not terminated and verification_timed_out:
-            log_warning(
-                _LOGGER,
-                "Windows taskkill succeeded but exit verification timed out",
-                pid=pid,
-                verification_timeout=True,
-                diagnostic_detail=diagnostic_detail,
-            )
-        return ManagedProcessTerminationResult(
-            status=ManagedProcessTerminationStatus.TERMINATED_CONFIRMED,
-            pid=pid,
-            attempted=True,
-            verification_timed_out=verification_timed_out,
-            elapsed_ms=elapsed_ms,
-            user_safe_detail=app_text("Shutdown finished cleanly."),
-            diagnostic_detail=diagnostic_detail,
-        )
     if terminated:
         return ManagedProcessTerminationResult(
             status=ManagedProcessTerminationStatus.TERMINATED_CONFIRMED,
@@ -231,13 +192,19 @@ def _kill_windows_process(
             diagnostic_detail=diagnostic_detail,
         )
     return ManagedProcessTerminationResult(
-        status=ManagedProcessTerminationStatus.TERMINATION_COMMAND_FAILED,
+        status=(
+            ManagedProcessTerminationStatus.TERMINATION_UNCONFIRMED
+            if command_result.returncode == 0
+            else ManagedProcessTerminationStatus.TERMINATION_COMMAND_FAILED
+        ),
         pid=pid,
         attempted=True,
         verification_timed_out=verification_timed_out,
         elapsed_ms=elapsed_ms,
-        user_safe_detail=app_text(
-            "The termination command did not complete successfully."
+        user_safe_detail=(
+            app_text("Shutdown could not be confirmed before the verification timeout.")
+            if command_result.returncode == 0
+            else app_text("The termination command did not complete successfully.")
         ),
         diagnostic_detail=diagnostic_detail,
     )
@@ -248,27 +215,49 @@ def _kill_windows_job_owned_process(
     metadata: ManagedProcessMetadata,
     containment_handle: object | None,
 ) -> ManagedProcessTerminationResult:
-    """Terminate one live Windows job-owned child through its owning job handle."""
+    """Retire a retained or recovered native family and verify all members have exited."""
 
     from substitute.infrastructure.comfy.windows_job_containment import (
         WindowsJobContainmentHandle,
         close_job_containment_handle,
     )
 
-    if not isinstance(containment_handle, WindowsJobContainmentHandle):
-        return kill_managed_comfy_pid(metadata.pid)
+    from substitute.infrastructure.comfy.windows_managed_job import WindowsManagedJob
+
     started_at = monotonic()
     log_info(
         _LOGGER,
         "Explicit contained shutdown requested",
         containment_mode=metadata.containment_mode,
-        termination_phase="job_close_requested",
+        termination_phase="job_termination_requested",
         owner_pid=metadata.owner_pid,
         managed_pid=metadata.pid,
         job_name=metadata.job_name,
     )
-    close_job_containment_handle(containment_handle)
-    terminated, verification_timed_out = _verify_process_exit(metadata.pid)
+    terminated = False
+    verification_timed_out = False
+    diagnostic = "Native Windows job members completed termination."
+    try:
+        job = WindowsManagedJob.open(metadata.job_name or "", for_termination=True)
+        if job is not None:
+            with job:
+                job.terminate_and_wait(timeout_seconds=_PROCESS_EXIT_TIMEOUT_SECONDS)
+        if isinstance(containment_handle, WindowsJobContainmentHandle):
+            close_job_containment_handle(containment_handle)
+        terminated = True
+    except (OSError, ValueError) as error:
+        verification_timed_out = isinstance(error, TimeoutError)
+        diagnostic = (
+            _format_os_error_diagnostic(error)
+            if isinstance(error, OSError)
+            else str(error)
+        )
+        log_exception(
+            _LOGGER,
+            "Native managed job shutdown failed",
+            job_name=metadata.job_name,
+            pid=metadata.pid,
+        )
     result = ManagedProcessTerminationResult(
         status=(
             ManagedProcessTerminationStatus.TERMINATED_CONFIRMED
@@ -286,11 +275,7 @@ def _kill_windows_job_owned_process(
                 "Shutdown could not be confirmed before the verification timeout."
             )
         ),
-        diagnostic_detail=(
-            "Closed Windows Job Object handle and verified managed process exit."
-            if terminated
-            else "Closed Windows Job Object handle but managed process exit could not be verified."
-        ),
+        diagnostic_detail=diagnostic,
     )
     _log_termination_result(result)
     return result
@@ -583,8 +568,6 @@ def _elapsed_ms_since(started_at: float) -> int:
 
 
 __all__ = [
-    "ManagedProcessTerminationResult",
-    "ManagedProcessTerminationStatus",
     "kill_managed_comfy",
     "kill_managed_comfy_metadata",
     "kill_managed_comfy_pid",

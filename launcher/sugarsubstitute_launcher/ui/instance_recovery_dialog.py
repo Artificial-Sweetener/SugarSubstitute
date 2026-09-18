@@ -20,19 +20,22 @@ from __future__ import annotations
 
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QMessageBox, QPushButton
+from PySide6.QtWidgets import QMessageBox
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
     InstanceRecoveryAction,
 )
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
+from sugarsubstitute_shared.application_instance_protocol import (
+    ApplicationInstanceFailureReason,
+)
 
 
 def present_instance_recovery_dialog(
     *,
     layout: InstallLayout,
-    can_end_owner: bool,
+    reason: ApplicationInstanceFailureReason,
 ) -> InstanceRecoveryAction:
     """Return an explicit action while keeping log access inside the modal."""
 
@@ -40,26 +43,31 @@ def present_instance_recovery_dialog(
         dialog = QMessageBox()
         dialog.setIcon(QMessageBox.Icon.Warning)
         dialog.setWindowTitle(launcher_text("SugarSubstitute did not open"))
-        dialog.setText(
-            launcher_text(
-                "The existing SugarSubstitute instance did not present a usable window."
+        if reason is ApplicationInstanceFailureReason.OTHER_SESSION:
+            dialog.setText(
+                launcher_text("SugarSubstitute is open in another Windows session.")
             )
-        )
-        dialog.setInformativeText(
-            launcher_text(
-                "You can retry, open the launcher logs, or end the unresponsive "
-                "instance and start again."
+            dialog.setInformativeText(
+                launcher_text(
+                    "Return to that Windows session and close SugarSubstitute, then retry here."
+                )
             )
-        )
+        else:
+            dialog.setText(
+                launcher_text(
+                    "SugarSubstitute could not verify which Windows session owns the existing instance."
+                )
+                if reason is ApplicationInstanceFailureReason.SESSION_UNVERIFIED
+                else launcher_text(
+                    "The existing SugarSubstitute instance did not present a usable window."
+                )
+            )
+            dialog.setInformativeText(
+                launcher_text("You can retry or open the launcher logs for details.")
+            )
         retry_button = dialog.addButton(
             launcher_text("Retry"), QMessageBox.ButtonRole.AcceptRole
         )
-        end_button: QPushButton | None = None
-        if can_end_owner:
-            end_button = dialog.addButton(
-                launcher_text("End unresponsive instance and retry"),
-                QMessageBox.ButtonRole.DestructiveRole,
-            )
         logs_button = dialog.addButton(
             launcher_text("Open launcher logs"),
             QMessageBox.ButtonRole.ActionRole,
@@ -72,8 +80,6 @@ def present_instance_recovery_dialog(
         clicked = dialog.clickedButton()
         if clicked is retry_button:
             return InstanceRecoveryAction.RETRY
-        if end_button is not None and clicked is end_button:
-            return InstanceRecoveryAction.END_AND_RETRY
         if clicked is logs_button:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(layout.logs_dir)))
             continue

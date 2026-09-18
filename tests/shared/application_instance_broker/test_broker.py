@@ -24,7 +24,10 @@ from typing import cast
 
 import pytest
 
-from sugarsubstitute_shared import application_instance_broker
+from sugarsubstitute_shared import (
+    application_instance_broker,
+    application_instance_forwarding,
+)
 from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceConnection,
@@ -378,7 +381,7 @@ def test_presentation_deadline_releases_launcher_without_discarding_work(
     )
     connect = cast(
         Callable[[ApplicationInstanceEndpoint], ApplicationInstanceConnection],
-        getattr(application_instance_broker, "connect_instance_endpoint"),
+        getattr(application_instance_forwarding, "connect_instance_endpoint"),
     )
 
     def connect_without_kernel_peer_identity(
@@ -389,7 +392,7 @@ def test_presentation_deadline_releases_launcher_without_discarding_work(
         return _PeerlessConnection(connect(endpoint))
 
     monkeypatch.setattr(
-        application_instance_broker,
+        application_instance_forwarding,
         "connect_instance_endpoint",
         connect_without_kernel_peer_identity,
     )
@@ -526,7 +529,7 @@ def test_macos_native_ownership_survives_repeated_election_and_reuse(
         MacOSMessagePortElection,
         acquire_macos_message_port,
     )
-    from sugarsubstitute_shared.application_instance_transport import instance_identity
+    from sugarsubstitute_shared.application_instance_identity import instance_identity
 
     identity = instance_identity(tmp_path)
     for _cycle in range(128):

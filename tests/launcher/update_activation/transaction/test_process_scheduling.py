@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 import os
 from pathlib import Path
 import subprocess
@@ -29,9 +30,23 @@ from typing import cast
 import pytest
 
 import sugarsubstitute_shared.launcher_update.process as update_process_module
-import sugarsubstitute_shared.launcher_update.transaction as transaction_module
+from sugarsubstitute_shared.process_identity import (
+    ProcessIdentityError,
+    capture_process_identity,
+)
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.transaction import LauncherUpdateTransaction
 
-from .support import _write_scheduled_update_request
+from sugarsubstitute_shared.launcher_update.bundle_selection import (
+    LauncherBundleSelection,
+)
+from sugarsubstitute_shared.launcher_update.targets import WINDOWS_X64_BUNDLE
+
+from .support import (
+    _write_scheduled_update_request,
+    _write_installed_layout,
+    _write_bundle_tree,
+)
 
 
 def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
@@ -83,6 +98,15 @@ def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
         "sugarsubstitute_shared.launcher_update.process.subprocess.Popen",
         fake_popen,
     )
+
+    def fake_native_launch(*args: object, **kwargs: object) -> int:
+        """Capture the same environment at the Windows creation boundary."""
+        return fake_popen(*args, env=kwargs["environment"]).pid
+
+    monkeypatch.setattr(
+        "sugarsubstitute_shared.windows_independent_process.start_independent_windows_process",
+        fake_native_launch,
+    )
     monkeypatch.setattr(
         update_process_module,
         "standard_child_process_dll_search_path",
@@ -96,9 +120,12 @@ def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
         runtime_python=runtime_python,
         app_dir=app_dir,
         relaunch=True,
-        wait_pid=123,
+        wait_pid=os.getpid(),
     )
 
+    assert LauncherUpdateRequest.load(
+        request_path
+    ).wait_identity == capture_process_identity(os.getpid())
     assert str(meipass) not in observed_environment["PATH"].split(os.pathsep)
     assert observed_environment["DYLD_LIBRARY_PATH"] == str(system_library)
     assert "DYLD_LIBRARY_PATH_ORIG" not in observed_environment
@@ -108,19 +135,116 @@ def test_launcher_update_helper_does_not_inherit_frozen_parent_runtime(
 
 
 @pytest.mark.platforms("windows")
-def test_windows_process_probe_does_not_terminate_waited_process() -> None:
-    """Checking a launcher PID on Windows must never signal or terminate it."""
-
-    process = subprocess.Popen(  # noqa: S603
-        [sys.executable, "-c", "import time; time.sleep(30)"],
-    )
-    try:
-        assert transaction_module._process_exists(process.pid) is True
-        assert process.poll() is None
-    finally:
-        process.terminate()
+@pytest.mark.parametrize("incarnation", ["outgoing", "reused"])
+def test_windows_update_wait_tracks_the_original_process(
+    tmp_path: Path, incarnation: str
+) -> None:
+    """Wait for an exact caller without waiting for or stopping a reused PID."""
+    root = _write_installed_layout(tmp_path / "installation")
+    staged = root / "launcher" / "updates" / "staged"
+    _write_bundle_tree(staged, marker="candidate")
+    path = root / "launcher" / "updates" / "pending.json"
+    with subprocess.Popen(  # noqa: S603
+        [sys.executable, "-c", "import sys; sys.stdin.buffer.read(1)"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    ) as process:
         try:
-            process.wait(timeout=10.0)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=5.0)
+            identity = capture_process_identity(process.pid)
+            if incarnation == "reused":
+                identity = replace(identity, created_at=identity.created_at - 1.0)
+            request = LauncherUpdateRequest(
+                install_root=root,
+                version="new",
+                target_key="windows_x64",
+                staged_bundle_dir=staged,
+                relaunch=False,
+            ).with_process_behavior(relaunch=False, wait_identity=identity)
+            request.save(path)
+            transaction = LauncherUpdateTransaction(wait_timeout_seconds=0)
+            if incarnation == "outgoing":
+                with pytest.raises(ProcessIdentityError):
+                    transaction.apply(request_path=path)
+                assert path.exists()
+                assert (
+                    LauncherBundleSelection(root, WINDOWS_X64_BUNDLE).resolve().root
+                    == root
+                )
+            else:
+                transaction.apply(request_path=path)
+                assert not path.exists()
+                selected = LauncherBundleSelection(root, WINDOWS_X64_BUNDLE).resolve()
+                assert selected.version == "new"
+            assert process.poll() is None
+            assert (root / "SugarSubstitute.exe").read_text(
+                encoding="utf-8"
+            ) == "old launcher"
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=10.0)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5.0)
+
+
+@pytest.mark.parametrize("boundary", ["schedule", "relaunch"])
+def test_update_process_does_not_inherit_retired_crash_contract(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, boundary: str
+) -> None:
+    """Updater helpers and new launchers must start outside the outgoing crash session."""
+    from sugarsubstitute_shared.crash_reporting.protocol import (
+        CrashRunContext,
+        CRASH_RUN_TOKEN_ENV,
+    )
+
+    context = CrashRunContext.create(tmp_path / "diagnostics")
+    for key, value in context.environment({}).items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.delenv(CRASH_RUN_TOKEN_ENV)
+    monkeypatch.setenv("QUALIFICATION_TOKEN", "preserved")
+    environments: list[dict[str, str]] = []
+
+    class Process:
+        """Represent only the spawned process identifier at the external boundary."""
+
+        pid = 42
+
+    def launch(*args: object, **kwargs: object) -> Process:
+        """Capture the exact child contract without launching an uncontrolled application."""
+        environment = cast(dict[str, str] | None, kwargs.get("env"))
+        environments.append(dict(os.environ if environment is None else environment))
+        return Process()
+
+    monkeypatch.setattr(
+        "sugarsubstitute_shared.launcher_update.process.subprocess.Popen", launch
+    )
+
+    def native_launch(*args: object, **kwargs: object) -> int:
+        """Observe sanitized state at the Windows native process boundary."""
+        return launch(*args, env=kwargs["environment"]).pid
+
+    monkeypatch.setattr(
+        "sugarsubstitute_shared.windows_independent_process.start_independent_windows_process",
+        native_launch,
+    )
+    if boundary == "schedule":
+        request_path, runtime_python, app_dir = _write_scheduled_update_request(
+            tmp_path
+        )
+        update_process_module.schedule_launcher_update(
+            request_path=request_path,
+            runtime_python=runtime_python,
+            app_dir=app_dir,
+            relaunch=True,
+            wait_pid=None,
+        )
+    else:
+        update_process_module.relaunch_updated_launcher(
+            tmp_path / "SugarSubstitute.exe"
+        )
+    assert len(environments) == 1
+    assert CrashRunContext.from_environment(environments[0]) is None
+    assert environments[0]["QUALIFICATION_TOKEN"] == "preserved"

@@ -36,6 +36,16 @@ class GuiStartupTask:
     callback: Callable[[], None]
 
 
+@dataclass(frozen=True, slots=True)
+class GuiStartupProgress:
+    """Report queue-owned task boundaries, excluding asynchronous readiness work."""
+
+    task_name: str
+    completed: int
+    total: int
+    finished: bool
+
+
 class GuiStartupTaskQueue:
     """Execute GUI startup tasks one at a time through a Qt timer scheduler."""
 
@@ -46,6 +56,7 @@ class GuiStartupTaskQueue:
         startup_timer: StartupTimer | None = None,
         completed: Callable[[], None] | None = None,
         failed: Callable[[str], None] | None = None,
+        progress_observer: Callable[[GuiStartupProgress], None] | None = None,
     ) -> None:
         """Initialize the queue with a single-shot scheduler."""
 
@@ -53,6 +64,9 @@ class GuiStartupTaskQueue:
         self._startup_timer = startup_timer
         self._completed = completed
         self._failed = failed
+        self._progress_observer = progress_observer
+        self._completed_tasks = 0
+        self._total_tasks = 0
         self._tasks: list[GuiStartupTask] = []
         self._running = False
         self._scheduled = False
@@ -73,6 +87,7 @@ class GuiStartupTaskQueue:
             trace_mark("gui_queue.task.add_skipped", task_name=name, reason="cancelled")
             return
         self._tasks.append(GuiStartupTask(name=name, callback=callback))
+        self._total_tasks += 1
         trace_mark(
             "gui_queue.task.added.pending",
             task_name=name,
@@ -157,6 +172,7 @@ class GuiStartupTaskQueue:
                 self._completed()
             return
         task = self._tasks.pop(0)
+        self._publish_progress(task.name, finished=False)
         try:
             trace_mark(
                 "gui_queue.task.start",
@@ -168,6 +184,9 @@ class GuiStartupTaskQueue:
             else:
                 with self._startup_timer.phase(f"gui_startup.{task.name}"):
                     task.callback()
+            if not self._cancelled:
+                self._completed_tasks += 1
+                self._publish_progress(task.name, finished=True)
             trace_mark(
                 "gui_queue.task.end",
                 task_name=task.name,
@@ -195,5 +214,22 @@ class GuiStartupTaskQueue:
             return
         self._schedule_next()
 
+    def _publish_progress(self, name: str, *, finished: bool) -> None:
+        """Isolate optional feedback failure from authoritative task execution."""
+        observer = self._progress_observer
+        if observer is None:
+            return
+        try:
+            observer(
+                GuiStartupProgress(
+                    name, self._completed_tasks, self._total_tasks, finished
+                )
+            )
+        except Exception:
+            self._progress_observer = None
+            log_exception(
+                _LOGGER, "GUI startup progress observer failed", task_name=name
+            )
 
-__all__ = ["GuiStartupTask", "GuiStartupTaskQueue"]
+
+__all__ = ["GuiStartupProgress", "GuiStartupTask", "GuiStartupTaskQueue"]

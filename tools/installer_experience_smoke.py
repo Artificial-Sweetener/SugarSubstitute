@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from tools.install_experience_desktop import reference_desktop
+
+from threading import Event
+
 import argparse
 from dataclasses import asdict
 import json
@@ -29,7 +33,6 @@ from typing import Never, cast
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtGui import QFont, QFontDatabase  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -39,6 +42,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from launcher.sugarsubstitute_launcher.application.installation.progress import (  # noqa: E402
+    InstallationProgressObserver,
+)
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout  # noqa: E402
 from launcher.sugarsubstitute_launcher.localization import (  # noqa: E402
     LauncherLocalizationRuntime,
@@ -50,8 +56,8 @@ from launcher.sugarsubstitute_launcher.ui.experience_models import (  # noqa: E4
 from launcher.sugarsubstitute_launcher.ui.main_window import (  # noqa: E402
     LauncherMainWindow,
 )
-from launcher.sugarsubstitute_launcher.ui.installer_presentation import (  # noqa: E402
-    LauncherUiState,
+from tools.install_experience_launcher_scenarios import (  # noqa: E402
+    project_launcher_page,
 )
 from tools.install_experience_onboarding import (  # noqa: E402
     capture_onboarding_matrix,
@@ -113,7 +119,12 @@ class SideEffectAudit:
         self.handoff_calls = 0
         self.target_mutations = 0
 
-    def workflow_factory(self, _log: Callable[[str], None]) -> Never:
+    def workflow_factory(
+        self,
+        _log: Callable[[str], None],
+        _progress_observer: InstallationProgressObserver,
+        _cancellation: Event,
+    ) -> Never:
         """Reject workflow construction before install or subprocess work exists."""
 
         self.workflow_factory_calls += 1
@@ -129,78 +140,79 @@ def run_headless_smoke(
     output_root = _require_artifact_root(artifact_root)
     output_root.mkdir(parents=True, exist_ok=True)
     application = _application()
-    setTheme(Theme.DARK)
-    audit = SideEffectAudit()
-    window, localization_runtime = _window(
-        application=application,
-        audit=audit,
-        repair=False,
-    )
-    prepare_opaque_dark_capture_surface(window)
-    sentinels = _create_protected_sentinels(output_root)
-    sentinel_hashes_before = _sentinel_hashes(sentinels)
-    window.show()
-    application.processEvents()
-    evidence: list[dict[str, object]] = []
-    try:
-        for page in _PAGES:
-            _project_page(window, page)
-            application.processEvents()
-            if window.failure_presenter.active_dialog is not None:
-                QTest.qWait(250)
-                application.processEvents()
-            screenshot_path = output_root / f"{page}.png"
-            save_opaque_dark_widget_capture(window, screenshot_path)
-            snapshot = window.view.experience_snapshot()
-            evidence.append(
-                {
-                    "scenario": page,
-                    "screenshot": str(screenshot_path),
-                    "snapshot": _snapshot_payload(snapshot),
-                    "status": _visible_status(window),
-                }
-            )
-    finally:
-        window.close()
-        localization_runtime.manager.close()
-        window.deleteLater()
+    with reference_desktop(application):
+        setTheme(Theme.DARK)
+        audit = SideEffectAudit()
+        window, localization_runtime = _window(
+            application=application,
+            audit=audit,
+            repair=False,
+        )
+        prepare_opaque_dark_capture_surface(window)
+        sentinels = _create_protected_sentinels(output_root)
+        sentinel_hashes_before = _sentinel_hashes(sentinels)
+        window.show()
         application.processEvents()
-    onboarding_evidence, onboarding_audit = capture_onboarding_matrix(
-        artifact_root=output_root,
-        install_root_locked=True,
-    )
-    evidence.extend(onboarding_evidence)
-    journey_invariants = _verify_full_journey_entry(evidence)
-    sentinel_hashes_after = _sentinel_hashes(sentinels)
-    if sentinel_hashes_after != sentinel_hashes_before:
-        raise SmokeBoundaryViolation("Smoke scenarios changed protected sentinels.")
-    result: dict[str, object] = {
-        "schema_version": 4,
-        "headless": os.environ.get("QT_QPA_PLATFORM") == "offscreen",
-        "production_windows": (
-            f"{LauncherMainWindow.__module__}.{LauncherMainWindow.__name__}",
-            "substitute.presentation.onboarding.onboarding_window.OnboardingWindow",
-        ),
-        "journey": ("bootstrap-launcher", "comfy-setup", "ready"),
-        "journey_invariants": journey_invariants,
-        "scenarios": evidence,
-        "side_effect_audit": {
-            "workflow_factory_calls": audit.workflow_factory_calls,
-            "manifest_loads": 0,
-            "network_calls": audit.network_calls,
-            "downloads": audit.download_calls,
-            "installs": audit.install_calls,
-            "git_calls": audit.git_calls,
-            "subprocesses": audit.subprocess_calls,
-            "handoffs": audit.handoff_calls,
-            "target_mutations": audit.target_mutations,
-            **onboarding_audit,
-        },
-        "protected_sentinels": sentinel_hashes_after,
-    }
-    evidence_path = output_root / "evidence.json"
-    evidence_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    return result
+        evidence: list[dict[str, object]] = []
+        try:
+            for page in _PAGES:
+                project_launcher_page(window, page)
+                application.processEvents()
+                if window.failure_presenter.active_dialog is not None:
+                    QTest.qWait(250)
+                    application.processEvents()
+                screenshot_path = output_root / f"{page}.png"
+                save_opaque_dark_widget_capture(window, screenshot_path)
+                snapshot = window.view.experience_snapshot()
+                evidence.append(
+                    {
+                        "scenario": page,
+                        "screenshot": str(screenshot_path),
+                        "snapshot": _snapshot_payload(snapshot),
+                        "status": _visible_status(window),
+                    }
+                )
+        finally:
+            window.close()
+            localization_runtime.manager.close()
+            window.deleteLater()
+            application.processEvents()
+        onboarding_evidence, onboarding_audit = capture_onboarding_matrix(
+            artifact_root=output_root,
+            install_root_locked=True,
+        )
+        evidence.extend(onboarding_evidence)
+        journey_invariants = _verify_full_journey_entry(evidence)
+        sentinel_hashes_after = _sentinel_hashes(sentinels)
+        if sentinel_hashes_after != sentinel_hashes_before:
+            raise SmokeBoundaryViolation("Smoke scenarios changed protected sentinels.")
+        result: dict[str, object] = {
+            "schema_version": 4,
+            "headless": os.environ.get("QT_QPA_PLATFORM") == "offscreen",
+            "production_windows": (
+                f"{LauncherMainWindow.__module__}.{LauncherMainWindow.__name__}",
+                "substitute.presentation.onboarding.onboarding_window.OnboardingWindow",
+            ),
+            "journey": ("bootstrap-launcher", "comfy-setup", "ready"),
+            "journey_invariants": journey_invariants,
+            "scenarios": evidence,
+            "side_effect_audit": {
+                "workflow_factory_calls": audit.workflow_factory_calls,
+                "manifest_loads": 0,
+                "network_calls": audit.network_calls,
+                "downloads": audit.download_calls,
+                "installs": audit.install_calls,
+                "git_calls": audit.git_calls,
+                "subprocesses": audit.subprocess_calls,
+                "handoffs": audit.handoff_calls,
+                "target_mutations": audit.target_mutations,
+                **onboarding_audit,
+            },
+            "protected_sentinels": sentinel_hashes_after,
+        }
+        evidence_path = output_root / "evidence.json"
+        evidence_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        return result
 
 
 def _verify_full_journey_entry(
@@ -300,7 +312,7 @@ def run_interactive_smoke(
         audit=audit,
         repair=False,
     )
-    _project_page(window, page)
+    project_launcher_page(window, page)
     window.show()
     try:
         return int(application.exec())
@@ -333,71 +345,6 @@ def _window(
         localization_manager=localization_runtime.manager,
     )
     return window, localization_runtime
-
-
-def _project_page(
-    window: LauncherMainWindow,
-    page: str,
-) -> None:
-    """Drive real widgets into one deterministic smoke scenario."""
-
-    active_dialog = window.failure_presenter.active_dialog
-    if active_dialog is not None:
-        active_dialog.hide()
-        active_dialog.close()
-
-    if page == "language":
-        window.view.show_language_selection()
-        return
-    if page == "install":
-        if window.ui_state is LauncherUiState.SELECT_LANGUAGE:
-            window._handle_primary_clicked()
-        window.view.show_install_location()
-        return
-    if page == "install-failure":
-        window.view.show_install_location()
-        window.view.show_status_output()
-        window._handle_initial_install_failed("Simulated disk permission failure")
-        return
-    if page == "install-complete":
-        window.view.show_install_location()
-        window._append_log("Smoke: exact-version application payload verified.")
-        window._append_log("Smoke: setup handoff ready; no process was started.")
-        window.view.show_status_output()
-        return
-    if page.startswith("repair"):
-        window.view.show_repair_scope()
-        if page == "repair-full":
-            QTest.mouseClick(
-                window.view.repair_page.full_comfy_choice,
-                Qt.MouseButton.LeftButton,
-            )
-        elif page == "repair-working":
-            window.view.repair_page.set_status(
-                "Verifying exact-version files before changing the installation...",
-                working=True,
-            )
-        elif page == "repair-protected-data":
-            window.view.repair_page.set_status(
-                "Protected data verified: models, projects, outputs, inputs, user data, and third-party nodes are unchanged.",
-                working=False,
-            )
-        elif page == "repair-failure":
-            window._handle_repair_preparation_failed(
-                "Simulated locked application file"
-            )
-        elif page == "repair-rollback":
-            window.view.repair_page.set_status(
-                "Validation failed after replacement. The previous application was restored; protected data was unchanged.",
-                working=False,
-            )
-        elif page == "repair-complete":
-            window.view.repair_page.set_status(
-                "Repair completed and verified. SugarSubstitute is ready to start.",
-                working=False,
-            )
-        return
-    raise ValueError(f"Unsupported launcher smoke page: {page}")
 
 
 def _create_protected_sentinels(output_root: Path) -> tuple[Path, ...]:

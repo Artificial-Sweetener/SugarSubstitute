@@ -142,13 +142,16 @@ jobs:
           if ($scope -notin $supportedScopes) {
             throw "Unsupported qualification_scope: $scope"
           }
+          if ($scope -in @("clean-linux", "clean-macos", "updates-linux", "updates-macos")) {
+            throw "Linux and macOS qualification is temporarily suspended pending dedicated validation."
+          }
           $cleanPlatforms = switch ($scope) {
-            { $_ -in @("all", "qualification-all", "clean-all") } { @("windows", "linux"); break }
+            { $_ -in @("all", "qualification-all", "clean-all") } { @("windows"); break }
             { $_ -in @("qualification-windows", "clean-windows") } { @("windows"); break }
-            "clean-linux" { @("linux"); break }
+            "clean-linux" { @(); break }
             default { @() }
           }
-          $cleanMatrix = @($cleanPlatforms | ForEach-Object {
+          $cleanMatrix = ConvertTo-Json -Compress -InputObject @($cleanPlatforms | ForEach-Object {
             if ($_ -eq "windows") {
               @{
                 name = "Windows x64"
@@ -164,23 +167,23 @@ jobs:
                 asset = "SugarSubstitute-$env:CANDIDATE_VERSION-Linux-x86_64.AppImage"
               }
             }
-          }) | ConvertTo-Json -Compress -AsArray
+          })
           $updatePlatforms = switch ($scope) {
-            { $_ -in @("all", "qualification-all", "updates-all") } { @("windows", "linux", "macos"); break }
+            { $_ -in @("all", "qualification-all", "updates-all") } { @("windows"); break }
             { $_ -in @("qualification-windows", "updates-windows") } { @("windows"); break }
-            "updates-linux" { @("linux"); break }
-            "updates-macos" { @("macos"); break }
+            "updates-linux" { @(); break }
+            "updates-macos" { @(); break }
             default { @() }
           }
           $cleanEnabled = if ($cleanPlatforms.Count -gt 0) { "true" } else { "false" }
-          $macosCleanEnabled = if ($scope -in @("all", "qualification-all", "clean-all", "clean-macos")) { "true" } else { "false" }
+          $macosCleanEnabled = "false"
           $updatesEnabled = if ($updatePlatforms.Count -gt 0) { "true" } else { "false" }
           $managedComfyEnabled = if ($scope -eq "managed-comfy") { "true" } else { "false" }
           "clean_enabled=$cleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append
           "clean_matrix=$cleanMatrix" | Out-File $env:GITHUB_OUTPUT -Append
           "macos_clean_enabled=$macosCleanEnabled" | Out-File $env:GITHUB_OUTPUT -Append
           "updates_enabled=$updatesEnabled" | Out-File $env:GITHUB_OUTPUT -Append
-          "update_platforms=$($updatePlatforms | ConvertTo-Json -Compress -AsArray)" | Out-File $env:GITHUB_OUTPUT -Append
+          "update_platforms=$(ConvertTo-Json -Compress -InputObject @($updatePlatforms))" | Out-File $env:GITHUB_OUTPUT -Append
           "managed_comfy_enabled=$managedComfyEnabled" | Out-File $env:GITHUB_OUTPUT -Append
 
   resolve-upgrades:

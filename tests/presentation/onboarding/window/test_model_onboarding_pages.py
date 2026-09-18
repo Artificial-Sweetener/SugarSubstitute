@@ -141,8 +141,8 @@ def test_recommendation_page_renders_centered_five_by_two_family_choices() -> No
     assert all(portrait.height() == 200 for portrait in portraits)
     assert all(portrait.source_size().height() >= 960 for portrait in portraits)
     assert page.card_grid.count() == 10
-    import_item = page.card_grid.itemAtPosition(1, 3)
-    own_item = page.card_grid.itemAtPosition(1, 4)
+    import_item = page.card_grid.itemAt(8)
+    own_item = page.card_grid.itemAt(9)
     assert import_item is not None and import_item.widget() is page.import_card
     assert own_item is not None and own_item.widget() is page.own_model_card
     assert page.own_model_card.title_label.text() == "No thanks,\nI’ll bring my own"

@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from sugarsubstitute_shared.presentation.error_report_presentation import (
+    ErrorReportPresentation,
+)
+
 import logging
 
 from PySide6.QtCore import QUrl
@@ -29,9 +33,6 @@ from sugarsubstitute_shared.crash_reporting.model import (
 )
 from sugarsubstitute_shared.issue_tracker import SUGARSUBSTITUTE_ISSUES_URL
 from sugarsubstitute_shared.localization import ApplicationText, app_text
-from sugarsubstitute_shared.presentation.error_report_dialog import (
-    ErrorReportPresentation,
-)
 from sugarsubstitute_shared.presentation.error_report_glyph import ReportSeverity
 from sugarsubstitute_shared.presentation.localization import render_application_text
 

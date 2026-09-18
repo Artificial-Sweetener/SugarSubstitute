@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from substitute.infrastructure.comfy.managed_process_state import ManagedComfyState
+
 import json
 from pathlib import Path
 import os
@@ -28,14 +30,14 @@ from typing import Callable, Protocol
 from sugarsubstitute_shared.localization import ApplicationText, app_text
 from sugarsubstitute_shared.presentation.localization import render_application_text
 
-from substitute.app.bootstrap.launch_splash import LaunchSplashClient
+from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
 from substitute.application.comfy_startup_diagnostics import (
     ComfyStartupDiagnosticsCollector,
 )
 from substitute.domain.comfy_startup_diagnostics import ComfyStartupIncident
 from substitute.domain.onboarding import InstallationContext
 from substitute.infrastructure.comfy import process_manager
-from substitute.infrastructure.comfy.managed_launcher import ManagedTaskFactory
+from substitute.infrastructure.comfy.managed_process_state import ManagedTaskFactory
 from substitute.shared.logging.logger import (
     get_logger,
     log_warning,
@@ -79,7 +81,7 @@ def activate_target(
     startup_diagnostics: ComfyStartupDiagnosticsCollector,
     launch_task_factory: ManagedTaskFactory,
     process_pump_task_factory: ManagedTaskFactory,
-) -> process_manager.ManagedComfyState | None:
+) -> ManagedComfyState | None:
     """Activate the selected Comfy target before the shell opens."""
 
     target = installation_context.comfy_target
@@ -371,7 +373,7 @@ def managed_startup_fatal_incident(
 
     if comfy_state is None:
         return None
-    if not isinstance(comfy_state, process_manager.ManagedComfyState):
+    if not isinstance(comfy_state, ManagedComfyState):
         return None
     startup_result = comfy_state.startup_result
     if startup_result is None:

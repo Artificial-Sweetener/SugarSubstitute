@@ -18,13 +18,14 @@
 
 from __future__ import annotations
 
+from ..projection.exact_weight_editor import PromptExactWeightEditor
+
 from collections.abc import Callable
 from decimal import Decimal, InvalidOperation
-import re
 from typing import Protocol, TypeGuard
 
-from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtCore import QRectF
+from PySide6.QtGui import QKeyEvent, QMouseEvent
 
 from substitute.application.prompt_editor.editing.syntax_actions import (
     PromptAdjustEmphasisAction,
@@ -60,9 +61,6 @@ from .emphasis_controller import (
     PromptEmphasisSyntaxAction,
     is_emphasis_weight_action,
 )
-
-
-_EXACT_WEIGHT_EDIT_PATTERN = re.compile(r"-?\d*(?:\.\d{0,2})?")
 
 
 def is_weight_syntax_action(
@@ -144,32 +142,13 @@ class PromptExactWeightHost(Protocol):
 class PromptExactWeightProjectionHost(Protocol):
     """Expose projection-owned exact edit and accent state to interactions."""
 
+    exact_weight_editor: PromptExactWeightEditor
+
     def set_overlay_emphasis_accent_range(
         self,
         outer_range: tuple[int, int] | None,
     ) -> None:
         """Apply overlay-owned emphasis accent range to projection paint state."""
-
-    def start_exact_weight_edit(self, token: PromptProjectionToken) -> None:
-        """Start one projection-owned exact edit session."""
-
-    def update_exact_weight_edit(
-        self,
-        *,
-        buffer_text: str,
-        caret_index: int,
-        select_all: bool,
-    ) -> None:
-        """Update the active projection-owned exact edit buffer."""
-
-    def clear_exact_weight_edit(self) -> None:
-        """Clear the active projection-owned exact edit session."""
-
-    def exact_weight_edit_token(self) -> PromptProjectionToken | None:
-        """Return the token currently owning exact edit state."""
-
-    def exact_weight_edit_active(self) -> bool:
-        """Return whether exact edit mode is active."""
 
     def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
         """Return the painted weight-text rect for one token."""
@@ -188,6 +167,13 @@ class PromptExactWeightController:
 
         self._host = host
         self._projection_host = projection_host
+        if projection_host is not None:
+            projection_host.exact_weight_editor.commit_requested.connect(
+                self.finalize_exact_weight_edit
+            )
+            projection_host.exact_weight_editor.cancel_requested.connect(
+                self.cancel_exact_weight_edit
+            )
 
     def apply_syntax_action(
         self,
@@ -292,7 +278,8 @@ class PromptExactWeightController:
 
         if self._projection_host is None:
             return
-        self._projection_host.start_exact_weight_edit(token)
+        self._host.clear_autocomplete_for_exact_weight()
+        self._projection_host.exact_weight_editor.start(token)
 
     def cancel_exact_weight_edit(self) -> None:
         """Exit exact edit mode without mutating prompt text."""
@@ -305,12 +292,11 @@ class PromptExactWeightController:
         token = self.exact_weight_edit_token()
         if token is None:
             return
-        buffer_state = self._exact_edit_state_for_token(token)
-        if buffer_state is None:
-            self.cancel_exact_weight_edit()
+        if self._projection_host is None:
             return
-        buffer_text, _, _ = buffer_state
-        weight = self._parsed_exact_weight(buffer_text)
+        weight = self._parsed_exact_weight(
+            self._projection_host.exact_weight_editor.text()
+        )
         if weight is None:
             self.cancel_exact_weight_edit()
             return
@@ -318,134 +304,39 @@ class PromptExactWeightController:
         self.clear_exact_weight_edit()
         self._apply_exact_weight_commit_action(action)
 
-    def update_exact_weight_caret(
-        self,
-        *,
-        token: PromptProjectionToken,
-        caret_index: int,
-    ) -> None:
-        """Move the active exact-weight caret for one token."""
+    def handle_exact_weight_mouse(self, event: QMouseEvent) -> None:
+        """Delegate viewport mouse delivery to the native numeric input."""
 
-        buffer_state = self._exact_edit_state_for_token(token)
-        if buffer_state is None:
-            return
-        buffer_text, _, _ = buffer_state
-        self.update_exact_weight_edit(
-            buffer_text=buffer_text,
-            caret_index=max(0, min(len(buffer_text), caret_index)),
-            select_all=False,
-        )
+        if self._projection_host is not None:
+            self._projection_host.exact_weight_editor.handle_viewport_mouse(event)
 
     def handle_exact_weight_key_press(self, event: QKeyEvent) -> bool:
-        """Handle native exact-weight editing keys."""
-
-        token = self.exact_weight_edit_token()
-        if token is None:
-            return False
-        buffer_state = self._exact_edit_state_for_token(token)
-        if buffer_state is None:
-            return False
-        buffer_text, caret_index, select_all = buffer_state
-        if event.key() in {Qt.Key.Key_Return, Qt.Key.Key_Enter}:
-            self.finalize_exact_weight_edit()
-            return True
-        if event.key() == Qt.Key.Key_Space and event.text() == " ":
-            self.finalize_exact_weight_edit()
-            return False
-        if event.key() == Qt.Key.Key_Escape:
-            self.cancel_exact_weight_edit()
-            return True
-        if event.key() == Qt.Key.Key_Backspace:
-            self._delete_from_exact_weight_buffer(
-                buffer_text=buffer_text,
-                caret_index=caret_index,
-                select_all=select_all,
-                backspace=True,
-            )
-            return True
-        if event.key() == Qt.Key.Key_Delete:
-            self._delete_from_exact_weight_buffer(
-                buffer_text=buffer_text,
-                caret_index=caret_index,
-                select_all=select_all,
-                backspace=False,
-            )
-            return True
-        if event.key() == Qt.Key.Key_Left:
-            self.update_exact_weight_edit(
-                buffer_text=buffer_text,
-                caret_index=max(0, caret_index - 1),
-                select_all=False,
-            )
-            return True
-        if event.key() == Qt.Key.Key_Right:
-            self.update_exact_weight_edit(
-                buffer_text=buffer_text,
-                caret_index=min(len(buffer_text), caret_index + 1),
-                select_all=False,
-            )
-            return True
-        if event.key() == Qt.Key.Key_Home:
-            self.update_exact_weight_edit(
-                buffer_text=buffer_text,
-                caret_index=0,
-                select_all=False,
-            )
-            return True
-        if event.key() == Qt.Key.Key_End:
-            self.update_exact_weight_edit(
-                buffer_text=buffer_text,
-                caret_index=len(buffer_text),
-                select_all=False,
-            )
-            return True
-        if event.text() and event.text() in "-0123456789.":
-            self._insert_exact_weight_text(
-                text=event.text(),
-                buffer_text=buffer_text,
-                caret_index=caret_index,
-                select_all=select_all,
-            )
-            return True
-        return False
-
-    def update_exact_weight_edit(
-        self,
-        *,
-        buffer_text: str,
-        caret_index: int,
-        select_all: bool,
-    ) -> None:
-        """Update exact edit buffer state through the projection owner."""
+        """Route host-delivered keys through the native exact-weight input."""
 
         if self._projection_host is None:
-            return
-        self._projection_host.update_exact_weight_edit(
-            buffer_text=buffer_text,
-            caret_index=caret_index,
-            select_all=select_all,
-        )
+            return False
+        return self._projection_host.exact_weight_editor.handle_key(event)
 
     def clear_exact_weight_edit(self) -> None:
         """Cancel or finish exact edit mode through the projection owner."""
 
         if self._projection_host is None:
             return
-        self._projection_host.clear_exact_weight_edit()
+        self._projection_host.exact_weight_editor.clear_edit()
 
     def exact_weight_edit_token(self) -> PromptProjectionToken | None:
         """Return the current projection-owned exact edit token."""
 
         if self._projection_host is None:
             return None
-        return self._projection_host.exact_weight_edit_token()
+        return self._projection_host.exact_weight_editor.token()
 
     def exact_weight_edit_active(self) -> bool:
         """Return whether projection-owned exact edit mode is active."""
 
         return (
             self._projection_host is not None
-            and self._projection_host.exact_weight_edit_active()
+            and self._projection_host.exact_weight_editor.active
         )
 
     def token_weight_text_rect(self, token: PromptProjectionToken) -> QRectF | None:
@@ -454,82 +345,6 @@ class PromptExactWeightController:
         if self._projection_host is None:
             return None
         return self._projection_host.token_weight_text_rect(token)
-
-    @staticmethod
-    def _exact_edit_state_for_token(
-        token: PromptProjectionToken,
-    ) -> tuple[str, int, bool] | None:
-        """Return projection-owned exact-edit buffer state for one token."""
-
-        if token.editing_value_text is None:
-            return None
-        caret_index = (
-            len(token.editing_value_text)
-            if token.editing_caret_index is None
-            else token.editing_caret_index
-        )
-        return (
-            token.editing_value_text,
-            caret_index,
-            token.editing_select_all,
-        )
-
-    def _insert_exact_weight_text(
-        self,
-        *,
-        text: str,
-        buffer_text: str,
-        caret_index: int,
-        select_all: bool,
-    ) -> None:
-        """Insert one validated character into the active exact-weight buffer."""
-
-        if select_all:
-            next_buffer = text
-            next_caret = len(text)
-        else:
-            next_buffer = buffer_text[:caret_index] + text + buffer_text[caret_index:]
-            next_caret = caret_index + len(text)
-        if not _EXACT_WEIGHT_EDIT_PATTERN.fullmatch(next_buffer):
-            return
-        self.update_exact_weight_edit(
-            buffer_text=next_buffer,
-            caret_index=next_caret,
-            select_all=False,
-        )
-
-    def _delete_from_exact_weight_buffer(
-        self,
-        *,
-        buffer_text: str,
-        caret_index: int,
-        select_all: bool,
-        backspace: bool,
-    ) -> None:
-        """Delete one character from the active exact-weight buffer."""
-
-        if select_all:
-            self.update_exact_weight_edit(
-                buffer_text="",
-                caret_index=0,
-                select_all=False,
-            )
-            return
-        if backspace:
-            if caret_index == 0:
-                return
-            next_buffer = buffer_text[: caret_index - 1] + buffer_text[caret_index:]
-            next_caret = caret_index - 1
-        else:
-            if caret_index >= len(buffer_text):
-                return
-            next_buffer = buffer_text[:caret_index] + buffer_text[caret_index + 1 :]
-            next_caret = caret_index
-        self.update_exact_weight_edit(
-            buffer_text=next_buffer,
-            caret_index=next_caret,
-            select_all=False,
-        )
 
     @staticmethod
     def _parsed_exact_weight(
@@ -541,9 +356,9 @@ class PromptExactWeightController:
             return None
         try:
             weight = Decimal(text)
+            return weight.quantize(Decimal("0.00"))
         except InvalidOperation:
             return None
-        return weight.quantize(Decimal("0.00"))
 
     @staticmethod
     def _exact_weight_action_for_token(

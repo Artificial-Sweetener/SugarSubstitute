@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-import shutil
+from collections.abc import Callable
 import ssl
 import urllib.request
 from pathlib import Path
@@ -27,6 +27,10 @@ from urllib.request import url2pathname
 
 from launcher.sugarsubstitute_launcher.manifest import ReleaseAsset
 from sugarsubstitute_shared.tls import SystemTrustTlsContext
+from sugarsubstitute_shared.asset_transfer import (
+    ObservedAssetTransfer,
+    TransferProgress,
+)
 
 
 DEFAULT_DOWNLOAD_TIMEOUT_SECONDS = 60.0
@@ -44,11 +48,13 @@ class AssetDownloader:
         *,
         timeout_seconds: float = DEFAULT_DOWNLOAD_TIMEOUT_SECONDS,
         tls_context: ssl.SSLContext | None = None,
+        progress_observer: Callable[[TransferProgress], None] | None = None,
     ) -> None:
         """Store the timeout and verified context used for remote downloads."""
 
         self._timeout_seconds = timeout_seconds
         self._tls_context = tls_context or SystemTrustTlsContext.create()
+        self._transfer = ObservedAssetTransfer(progress_observer)
 
     def download(self, *, asset: ReleaseAsset, destination_path: Path) -> Path:
         """Download one asset into a partial file before final promotion."""
@@ -63,9 +69,10 @@ class AssetDownloader:
             source_path = Path(url2pathname(parsed_url.path))
             if not source_path.exists():
                 raise AssetDownloadError(f"Release asset does not exist: {source_path}")
-            shutil.copyfile(source_path, partial_path)
+            with source_path.open("rb") as source, partial_path.open("wb") as output:
+                self._transfer.copy(source, output, total_bytes=asset.size_bytes)
         elif parsed_url.scheme == "https":
-            self._download_remote(asset.url, partial_path)
+            self._download_remote(asset, partial_path)
         elif parsed_url.scheme == "http":
             raise AssetDownloadError("Remote release asset URLs must use HTTPS.")
         else:
@@ -84,10 +91,10 @@ class AssetDownloader:
         partial_path.replace(destination_path)
         return destination_path
 
-    def _download_remote(self, url: str, partial_path: Path) -> None:
+    def _download_remote(self, asset: ReleaseAsset, partial_path: Path) -> None:
         """Download one remote asset with an explicit timeout."""
 
-        request = urllib.request.Request(url, method="GET")
+        request = urllib.request.Request(asset.url, method="GET")
         with (
             urllib.request.urlopen(
                 request,
@@ -96,4 +103,4 @@ class AssetDownloader:
             ) as response,
             partial_path.open("wb") as destination,
         ):
-            shutil.copyfileobj(response, destination)
+            self._transfer.copy(response, destination, total_bytes=asset.size_bytes)

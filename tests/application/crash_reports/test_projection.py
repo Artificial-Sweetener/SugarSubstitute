@@ -25,7 +25,7 @@ from sugarsubstitute_shared.crash_reporting import (
     CrashKind,
 )
 from substitute.application.crash_reports import build_crash_error_report
-from substitute.application.errors import render_error_report
+from substitute.application.error_report_builder import render_error_report
 
 
 def test_confirmed_crash_projects_every_diagnostic_into_standard_report() -> None:

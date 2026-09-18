@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from tests.support.prompt_editor.projection_engine_support import surface_for
+
 from typing import Any, cast
 
 from PySide6.QtCore import QEvent, Qt
@@ -161,7 +163,7 @@ def test_phase25_1_prompt_weight_invalid_exact_edit_cancels_without_mutation() -
     token = _first_weighted_token(box)
 
     cast(Any, controls)._start_exact_weight_edit(token)
-    cast(Any, controls)._exact_edit_host.update_exact_weight_edit(
+    surface_for(box).exact_weight_editor.update_buffer(
         buffer_text="abc",
         caret_index=3,
         select_all=False,

@@ -18,16 +18,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Mapping, Sequence
 import os
 from pathlib import Path
-import secrets
-import shutil
+from typing import Protocol
 
 from launcher.sugarsubstitute_launcher.application.repair.request import (
     PreparedRepairRequest,
+    PreparedRepairRequestError,
 )
-from launcher.sugarsubstitute_launcher.process import start_detached_handoff
+from launcher.sugarsubstitute_launcher.process_execution import start_detached_handoff
 from sugarsubstitute_shared.process_identity import capture_process_identity
 from sugarsubstitute_shared.launcher_update.targets import (
     launcher_bundle_target_for_key,
@@ -35,11 +35,13 @@ from sugarsubstitute_shared.launcher_update.targets import (
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
 
 
-class RepairHandoffError(RuntimeError):
-    """Report an independent helper that cannot be staged or launched safely."""
+class ProcessStarter(Protocol):
+    """Launch a repair child with the exact outgoing ownership envelope."""
 
-
-ProcessStarter = Callable[[Sequence[str]], None]
+    def __call__(
+        self, command: Sequence[str], *, environment: Mapping[str, str]
+    ) -> None:
+        """Start an independent process with explicit inherited context."""
 
 
 def launch_prepared_repair_helper(
@@ -48,40 +50,40 @@ def launch_prepared_repair_helper(
     starter: ProcessStarter = start_detached_handoff,
     current_pid: int | None = None,
 ) -> Path:
-    """Copy the verified helper, bind the caller identity, and start it hidden."""
+    """Retain an independent launcher bundle and bind its outgoing caller identity."""
 
     request = PreparedRepairRequest.load(request_path)
+    if request.helper_bundle_dir is None:
+        raise PreparedRepairRequestError(
+            "Repair has no prepared independent launcher bundle."
+        )
     target = launcher_bundle_target_for_key(request.target_key)
-    source = request.staged_launcher_dir / target.executable_relative_path
-    support_repair = (
-        request.staged_launcher_dir / target.support_relative_path / "Repair.exe"
-    )
-    if support_repair.is_file():
-        source = support_repair
-    if not source.is_file():
-        raise RepairHandoffError(f"Prepared repair helper is missing: {source}")
-    helper_dir = request.install_root / ".repair" / "helper" / request.version
-    helper_dir.mkdir(parents=True, exist_ok=True)
-    helper = helper_dir / source.name
-    temporary = helper.with_name(f".{helper.name}.{secrets.token_hex(4)}.tmp")
-    try:
-        shutil.copy2(source, temporary)
-        os.replace(temporary, helper)
-    finally:
-        temporary.unlink(missing_ok=True)
+    helper = request.helper_bundle_dir / target.executable_relative_path
+    if not helper.is_file():
+        raise PreparedRepairRequestError("Prepared repair helper is missing.")
     identity = capture_process_identity(current_pid or os.getpid())
     request.with_process_behavior(
         wait_pid=identity.pid,
         wait_process_created_at=identity.created_at,
         relaunch=request.relaunch,
     ).save(request_path)
+    from sugarsubstitute_shared.qt_application_instance_control import (
+        active_application_supervisor_identity,
+    )
+    from sugarsubstitute_shared.supervisor_handoff import with_supervisor_handoff
+
+    environment = dict(os.environ)
+    supervisor = active_application_supervisor_identity()
+    if supervisor is not None:
+        environment = with_supervisor_handoff(environment, supervisor)
     starter(
         (
             subprocess_path(helper),
             f"--execute-repair-request={subprocess_path(request_path)}",
-        )
+        ),
+        environment=environment,
     )
     return helper
 
 
-__all__ = ["RepairHandoffError", "launch_prepared_repair_helper"]
+__all__ = ["launch_prepared_repair_helper"]

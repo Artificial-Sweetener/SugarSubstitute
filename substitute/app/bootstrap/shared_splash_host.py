@@ -103,6 +103,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     splash_constructed_monotonic_ns = time.monotonic_ns()
 
+    from substitute.app.bootstrap.theme import schedule_splash_theme
+
+    splash.firstFramePainted.connect(
+        lambda: schedule_splash_theme(
+            theme_mode=args.theme_mode, accent_color=args.accent_color
+        )
+    )
+
     first_paint_monotonic_ns: list[int] = []
     splash.firstFramePainted.connect(
         lambda: (
@@ -204,6 +212,12 @@ def _handle_session_message(
     if message.message_type == "clear_activity":
         splash.clear_activity()
         return
+    if message.message_type == "fatal" and message.line is not None:
+        splash.show_failure(message.line)
+        return
+    if message.progress is not None and message.line is not None:
+        splash.set_progress(message.progress, status=message.line)
+        return
     if message.line:
         splash.append_log(message.line)
 
@@ -225,7 +239,7 @@ def _apply_session_dispatch(
 def _close_splash_and_quit(*, splash: Any, app: QApplication) -> None:
     """Stop splash-owned native work before leaving the Qt event loop."""
 
-    splash.close()
+    splash.dismiss()
     app.quit()
 
 

@@ -92,6 +92,7 @@ class CanvasProjectionScheduler(QObject):
         self._active_prompt_interval_ms = max(0, int(active_prompt_interval_ms))
         self._pending_generated: dict[str, UUID | None] = {}
         self._pending_deferred: dict[str, _PendingProjection] = {}
+        self._is_shutdown = False
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(self._idle_interval_ms)
@@ -106,6 +107,8 @@ class CanvasProjectionScheduler(QObject):
     ) -> None:
         """Request projection for one workflow according to priority policy."""
 
+        if self._is_shutdown:
+            return
         if reason is ProjectionReason.USER_SELECTED_OUTPUT:
             self._pending_generated.pop(workflow_id, None)
             self._pending_deferred.pop(workflow_id, None)
@@ -141,6 +144,8 @@ class CanvasProjectionScheduler(QObject):
     def flush(self) -> None:
         """Project the active coalesced request when policy allows it."""
 
+        if self._is_shutdown:
+            return
         active_workflow_id = self._active_workflow_id()
         if not self._can_project_pending(active_workflow_id):
             log_debug(
@@ -174,6 +179,8 @@ class CanvasProjectionScheduler(QObject):
     def flush_pending_for_workflow(self, workflow_id: str) -> None:
         """Force any pending projection for one workflow."""
 
+        if self._is_shutdown:
+            return
         has_generated = workflow_id in self._pending_generated
         deferred_projection = self._pending_deferred.pop(workflow_id, None)
         if not has_generated and deferred_projection is None:
@@ -193,6 +200,16 @@ class CanvasProjectionScheduler(QObject):
 
         self._pending_generated.pop(workflow_id, None)
         self._pending_deferred.pop(workflow_id, None)
+
+    def shutdown(self) -> None:
+        """Cancel queued projections and reject delivery to a retired document."""
+
+        if self._is_shutdown:
+            return
+        self._is_shutdown = True
+        self._timer.stop()
+        self._pending_generated.clear()
+        self._pending_deferred.clear()
 
     def rename_workflow(self, old_workflow_id: str, new_workflow_id: str) -> None:
         """Re-key pending projection work after a workflow ID changes."""

@@ -80,6 +80,26 @@ def main() -> None:
         record_type=StartupTimingRecord,
     )
     try:
+        from substitute.app.bootstrap.early_splash_text import (
+            translate_early_splash_text,
+        )
+        from substitute.app.bootstrap.startup_bootstrap_feedback import (
+            BootstrapStage,
+            StartupBootstrapFeedback,
+        )
+
+        def translate_startup_message(source: str) -> str:
+            """Resolve startup text before the main Qt application exists."""
+            return translate_early_splash_text(
+                app_root=app_root,
+                language_identifier=early_locale.effective_language.identifier,
+                source_text=source,
+            )
+
+        feedback = StartupBootstrapFeedback(
+            early_splash, translate=translate_startup_message
+        )
+        feedback.report(BootstrapStage.COMPONENTS)
         from substitute.app.bootstrap.env_file import load_env_file
 
         load_env_file(app_root / ".env")
@@ -104,6 +124,7 @@ def main() -> None:
             if cancel_relay is not None
             else None,
             prebootstrap_timing_records=tuple(startup_records),
+            bootstrap_feedback=feedback,
         )
         early_splash = None
     finally:

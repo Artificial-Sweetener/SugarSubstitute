@@ -21,6 +21,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from substitute.infrastructure.comfy.standalone_environment.hydration_state import (
+    StandaloneHydrationState,
+)
+
 
 def workspace_venv_dir(workspace: Path) -> Path:
     """Return the managed workspace virtual-environment directory."""
@@ -55,18 +59,16 @@ def workspace_nested_main_path(workspace: Path) -> Path:
 
 
 def is_workspace_installed(workspace: Path) -> bool:
-    """Return whether the managed workspace contains installed runtime artifacts."""
+    """Require installed artifacts outside an unfinished hydration transaction."""
 
     return (
         workspace_python_path(workspace).exists()
         and workspace_main_path(workspace).exists()
+        and not StandaloneHydrationState(workspace).incomplete
     )
 
 
 def is_workspace_launchable(workspace: Path) -> bool:
-    """Return whether the managed workspace can be launched immediately."""
+    """Use the installation owner to exclude incomplete runtimes from launch."""
 
-    return (
-        workspace_python_path(workspace).exists()
-        and workspace_main_path(workspace).exists()
-    )
+    return is_workspace_installed(workspace)

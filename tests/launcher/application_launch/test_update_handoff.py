@@ -25,7 +25,10 @@ from typing import Any, cast
 
 import pytest
 
-from launcher.sugarsubstitute_launcher import installed_app_handoff
+from launcher.sugarsubstitute_launcher import (
+    installed_application_supervisor,
+    installed_app_handoff,
+)
 from launcher.sugarsubstitute_launcher.config import LauncherConfig
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.update_orchestrator import (
@@ -47,6 +50,9 @@ class _Broker:
         """Store the restart decisions consumed after child exits."""
 
         self._restarts = iter(restarts)
+
+    def bind_startup_presenter(self, presenter: object) -> None:
+        """Accept presentation registration at the broker boundary."""
 
     def child_environment(self, environment: Mapping[str, str]) -> dict[str, str]:
         """Mark one environment as authenticated by the supervisor."""
@@ -77,6 +83,11 @@ def test_normal_handoff_supervises_restarts_with_the_same_broker(
 ) -> None:
     """A child restart should create another child, never another launcher."""
 
+    monkeypatch.setattr(
+        installed_application_supervisor,
+        "start_launcher_splash_session",
+        lambda **_: None,
+    )
     layout = _layout(tmp_path)
     broker = _Broker((True, False))
     environments: list[dict[str, str]] = []
@@ -92,6 +103,9 @@ def test_normal_handoff_supervises_restarts_with_the_same_broker(
     class _Supervisor:
         """Record each full child lifetime."""
 
+        def __init__(self, **kwargs: object) -> None:
+            """Accept the startup cancellation policy at the process boundary."""
+
         def supervise(self, **kwargs: object) -> int:
             """Capture the authenticated environment."""
 
@@ -102,7 +116,7 @@ def test_normal_handoff_supervises_restarts_with_the_same_broker(
 
     monkeypatch.setattr(installed_app_handoff, "LauncherUpdateOrchestrator", _NoUpdate)
     monkeypatch.setattr(
-        installed_app_handoff, "ApplicationLifecycleSupervisor", _Supervisor
+        installed_application_supervisor, "ApplicationLifecycleSupervisor", _Supervisor
     )
 
     installed_app_handoff.complete_installed_app_handoff(
@@ -128,6 +142,11 @@ def test_update_failure_state_is_forwarded_without_a_lock_file(
 ) -> None:
     """Carry sticky remote degradation through the broker-owned child channel."""
 
+    monkeypatch.setattr(
+        installed_application_supervisor,
+        "start_launcher_splash_session",
+        lambda **_: None,
+    )
     layout = _layout(tmp_path)
     captured: list[dict[str, str]] = []
 
@@ -141,10 +160,14 @@ def test_update_failure_state_is_forwarded_without_a_lock_file(
                 checked_manifest=True,
                 installed_update=False,
                 failure_reason="URLError",
+                connectivity_failure=True,
             )
 
     class _Supervisor:
         """Capture the single degraded child environment."""
+
+        def __init__(self, **kwargs: object) -> None:
+            """Accept the startup cancellation policy at the process boundary."""
 
         def supervise(self, **kwargs: object) -> int:
             """Record the environment and finish the child lifetime."""
@@ -160,7 +183,7 @@ def test_update_failure_state_is_forwarded_without_a_lock_file(
         _FailedUpdate,
     )
     monkeypatch.setattr(
-        installed_app_handoff, "ApplicationLifecycleSupervisor", _Supervisor
+        installed_application_supervisor, "ApplicationLifecycleSupervisor", _Supervisor
     )
 
     installed_app_handoff.complete_installed_app_handoff(
@@ -175,12 +198,19 @@ def test_update_failure_state_is_forwarded_without_a_lock_file(
     assert captured[0][STARTUP_REMOTE_DEGRADED_ENV] == "1"
 
 
-def test_launcher_bundle_update_handoff_does_not_start_the_old_app(
+@pytest.mark.parametrize("schedule_failure", [False, True])
+def test_launcher_update_handoff_preserves_app_until_helper_starts(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    schedule_failure: bool,
 ) -> None:
-    """Let the durable launcher updater replace and relaunch the supervisor."""
+    """Transfer ownership only after helper creation; otherwise retain the app."""
 
+    monkeypatch.setattr(
+        installed_application_supervisor,
+        "start_launcher_splash_session",
+        lambda **_: None,
+    )
     layout = _layout(tmp_path)
     closed: list[bool] = []
     scheduled: list[dict[str, object]] = []
@@ -199,7 +229,9 @@ def test_launcher_bundle_update_handoff_does_not_start_the_old_app(
             return PreLaunchUpdateResult(
                 checked_manifest=True,
                 installed_update=True,
-                launcher_update_request_path=str(layout.launcher_update_request_path),
+                launcher_update_request_path=str(
+                    (layout.launcher_dir / "updates" / "fixture-request.json")
+                ),
             )
 
     monkeypatch.setattr(
@@ -207,15 +239,33 @@ def test_launcher_bundle_update_handoff_does_not_start_the_old_app(
         "LauncherUpdateOrchestrator",
         _LauncherUpdate,
     )
+
+    def schedule(**kwargs: object) -> int:
+        """Inject an OS launch denial before any updater owns the installation."""
+        scheduled.append(kwargs)
+        if schedule_failure:
+            raise PermissionError("The operating system denied helper creation")
+        return 42
+
+    continued: list[bool] = []
+
+    class InstalledSupervisor:
+        """Observe the installed application boundary after optional update failure."""
+
+        def __init__(self, **kwargs: object) -> None:
+            """Retain failure attribution for normal application startup."""
+            assert kwargs["remote_failure_reason"] is None
+
+        def supervise(self, **kwargs: object) -> None:
+            """Require the original splash to remain usable for normal startup."""
+            assert schedule_failure
+            assert kwargs["splash_session"] is splash
+            assert closed == []
+            continued.append(True)
+
+    monkeypatch.setattr(installed_app_handoff, "schedule_launcher_update", schedule)
     monkeypatch.setattr(
-        installed_app_handoff,
-        "schedule_launcher_update",
-        lambda **kwargs: scheduled.append(kwargs),
-    )
-    monkeypatch.setattr(
-        installed_app_handoff,
-        "ApplicationLifecycleSupervisor",
-        lambda: pytest.fail("The replaced launcher must not start the old app."),
+        installed_app_handoff, "InstalledApplicationSupervisor", InstalledSupervisor
     )
 
     installed_app_handoff.complete_installed_app_handoff(
@@ -227,5 +277,8 @@ def test_launcher_bundle_update_handoff_does_not_start_the_old_app(
         handoff_geometry=None,
     )
 
-    assert closed == [True]
-    assert scheduled[0]["request_path"] == layout.launcher_update_request_path
+    assert closed == ([] if schedule_failure else [True])
+    assert continued == ([True] if schedule_failure else [])
+    assert scheduled[0]["request_path"] == (
+        layout.launcher_dir / "updates" / "fixture-request.json"
+    )

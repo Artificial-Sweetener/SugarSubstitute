@@ -40,7 +40,12 @@ from substitute.presentation.shell.output_image_preparation_dispatcher import (
     OutputImagePreparationDispatcher,
     prepare_output_image,
 )
-from tests.support.execution import ImmediateTaskSubmitter, QueuedTaskSubmitter
+from substitute.infrastructure.execution.thread_pool_lane import ThreadPoolExecutionLane
+from tests.support.execution import (
+    ImmediateTaskSubmitter,
+    QueuedTaskSubmitter,
+    RecordingDispatcher,
+)
 from tests.support.qt.lifecycle import destroy_qt_object, ensure_qt_application
 
 TResult = TypeVar("TResult")
@@ -280,6 +285,42 @@ def test_dispatcher_publishes_concurrent_decodes_in_submission_order() -> None:
 
     dispatcher.shutdown()
     destroy_qt_object(dispatcher)
+
+
+def test_dispatcher_discards_completed_decode_delivered_after_shutdown(
+    tmp_path: Path,
+) -> None:
+    """A settled worker result must not cross its presentation owner's close boundary."""
+
+    ensure_qt_application()
+    delivery = RecordingDispatcher()
+    lane = ThreadPoolExecutionLane(
+        name="image_decode",
+        max_workers=1,
+        queue_capacity=2,
+        thread_name_prefix="output_shutdown",
+        dispatcher=delivery,
+    )
+    dispatcher = OutputImagePreparationDispatcher(
+        loader=_Loader(QImage(8, 8, QImage.Format.Format_ARGB32)),
+        submitter=lane,
+    )
+    prepared: list[PreparedOutputImage] = []
+    dispatcher.prepared.connect(prepared.append)
+    try:
+        dispatcher.submit(_request(tmp_path / "completed.png"))
+        lane.shutdown(wait=True)
+        delivery.wait_for_callbacks(2)
+        dispatcher.shutdown()
+        dispatcher.shutdown()
+        delivery.run_all()
+        dispatcher.submit(_request(tmp_path / "late.png"))
+        assert prepared == []
+        assert delivery.callbacks == ()
+    finally:
+        dispatcher.shutdown()
+        lane.shutdown(wait=True)
+        destroy_qt_object(dispatcher)
 
 
 def _request(path: Path) -> OutputImageCommitRequest:

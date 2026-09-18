@@ -17,9 +17,9 @@
 
 I kept building the same workflow sections, switching them on and off, moving them around, and wiring them back together. Eventually I got fed up. Those sections became [**Cubes**](https://github.com/Artificial-Sweetener/SugarCubes), and the desktop app around them became SugarSubstitute.
 
-**SugarSubstitute is in public beta.** Windows x64, Apple Silicon, and Linux x64 have dedicated installers.
+**SugarSubstitute is in public beta.** Windows x64 is currently the only actively supported platform.
 
-**[Download the latest beta](#install-it)** for Windows x64, Apple Silicon, or Linux x64.
+**[Download the latest beta](#install-it)** for Windows x64.
 
 See the [roadmap](ROADMAP.md) for what I want to build next, and tell me what I'm missing.
 
@@ -72,30 +72,9 @@ Managed setup supports NVIDIA through CUDA, supported AMD RDNA hardware through 
 
 Next: [choose how SugarSubstitute should use ComfyUI](#choose-your-comfyui-setup).
 
-### <img src="docs/release/platforms/apple.svg" width="22" height="22" alt=""> macOS Apple Silicon
+### Linux and macOS — temporarily suspended
 
-**[Download the latest macOS Apple Silicon installer](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-macOS-Apple-Silicon.dmg)**
-
-Open the DMG, launch SugarSubstitute Setup, and use the default `~/Applications/SugarSubstitute` folder or another folder you own. Managed setup uses Apple's MPS acceleration on Apple Silicon. Intel Macs are not supported.
-
-SugarSubstitute is ad-hoc signed but not notarized because this project does not participate in Apple's paid Developer Program. macOS will warn that it cannot verify the developer. If you downloaded the DMG from this repository, use macOS Privacy & Security settings to allow it to open.
-
-I have only tested SugarSubstitute directly on Windows. The macOS package is built on Apple Silicon through GitHub Actions, but it still needs more people using it on real Macs.
-
-Next: [choose how SugarSubstitute should use ComfyUI](#choose-your-comfyui-setup).
-
-### <img src="docs/release/platforms/linux.svg" width="22" height="22" alt=""> Linux x64
-
-Choose the package that fits your system:
-
-- **[Download the latest Linux x86_64 AppImage](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-x86_64.AppImage)** for a portable installer. Mark it as executable, then run it.
-- **[Download the latest Linux amd64 Debian package](https://github.com/Artificial-Sweetener/SugarSubstitute/releases/latest/download/SugarSubstitute-Installer-Linux-amd64.deb)** for Debian, Ubuntu, and related distributions. Install the package, then run `sugarsubstitute-setup`.
-
-The default install folder is `~/.local/share/SugarSubstitute`. Managed setup supports NVIDIA through CUDA, AMD through ROCm, and Intel GPUs through XPU. A managed CPU-only Linux environment is not currently available.
-
-I have only tested SugarSubstitute directly on Windows. The Linux packages are built on Linux through GitHub Actions, but they still need more people using them across real distributions and desktop environments.
-
-Next: [choose how SugarSubstitute should use ComfyUI](#choose-your-comfyui-setup).
+Linux and macOS support, builds, and automated platform validation are temporarily suspended. We do not currently have dedicated testers for these platforms. We intend to resume support after the maintainer can validate them; there is no restart date yet. Earlier packages remain unvalidated and are not recommended for use.
 
 ### From a Git clone
 
@@ -111,18 +90,6 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt pytest pytest-xdist ruff mypy pre-commit
 .\.venv\Scripts\pre-commit.exe install
 .\.venv\Scripts\python.exe main.py
-```
-
-On macOS or Linux, open a terminal and run:
-
-```bash
-git clone https://github.com/Artificial-Sweetener/SugarSubstitute.git
-cd SugarSubstitute
-python3.12 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r requirements.txt pytest pytest-xdist ruff mypy pre-commit
-.venv/bin/pre-commit install
-.venv/bin/python main.py
 ```
 
 The first source launch opens the same setup flow as the packaged application. Let it create a managed ComfyUI environment or connect it to an existing one. After setup, use the final command again whenever you want to run your development checkout.

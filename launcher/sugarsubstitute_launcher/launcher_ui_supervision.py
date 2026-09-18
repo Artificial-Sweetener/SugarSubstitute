@@ -32,13 +32,16 @@ from launcher.sugarsubstitute_launcher.application_lifecycle_supervisor import (
     ApplicationLifecycleSupervisor,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.application_instance_protocol import (
+    ApplicationInstanceFailureReason,
+)
 from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
     InstanceRecoveryAction,
     InstanceRecoveryRequest,
 )
 from launcher.sugarsubstitute_launcher.launcher_ui_process import (
     build_launcher_ui_command,
-    start_crash_reporter,
+    present_crash_report,
 )
 from launcher.sugarsubstitute_launcher.runtime_paths import frozen_support_path
 from sugarsubstitute_shared.windows_long_paths import subprocess_path
@@ -103,7 +106,7 @@ def supervise_launcher_window(
         accepted_surfaces=(ApplicationReadinessSurface.LAUNCHER_WINDOW,),
         readiness_timeout_seconds=_LAUNCHER_WINDOW_READINESS_TIMEOUT_SECONDS,
         crash_supervisor=ApplicationCrashSupervisor(
-            reporter_starter=start_crash_reporter,
+            reporter_starter=present_crash_report,
             native_runtime_resolver=_current_native_runtime,
         ),
     )
@@ -119,8 +122,9 @@ def supervise_instance_recovery_window(
     *,
     layout: InstallLayout,
     locale_override: str | None,
-    can_end_owner: bool,
+    reason: ApplicationInstanceFailureReason,
     supervisor: LauncherUiCrashSupervisor | None = None,
+    bundle_layout: InstallLayout | None = None,
 ) -> InstanceRecoveryAction:
     """Run the Qt recovery modal in the supervised launcher UI executable."""
 
@@ -128,9 +132,8 @@ def supervise_instance_recovery_window(
         prefix="SugarSubstitute-instance-recovery-"
     ) as temporary_directory:
         request, request_path = InstanceRecoveryRequest.create(
-            Path(temporary_directory)
+            Path(temporary_directory), reason=reason
         )
-        request = request.with_owner_termination(can_end_owner)
         request.write(request_path)
         child_arguments = [
             "--launcher-ui-child",
@@ -142,6 +145,7 @@ def supervise_instance_recovery_window(
             layout=layout,
             child_arguments=child_arguments,
             supervisor=supervisor,
+            bundle_layout=bundle_layout,
         )
         if result != 0:
             return InstanceRecoveryAction.EXIT
@@ -156,16 +160,19 @@ def _supervise(
     layout: InstallLayout,
     child_arguments: Sequence[str],
     supervisor: LauncherUiCrashSupervisor | None,
+    bundle_layout: InstallLayout | None = None,
 ) -> int:
     """Run one current-launcher child through the shared crash protocol."""
 
+    from functools import partial
+
     crash_owner = supervisor or ApplicationCrashSupervisor(
-        reporter_starter=start_crash_reporter,
+        reporter_starter=partial(present_crash_report, bundle_layout=bundle_layout),
         native_runtime_resolver=_current_native_runtime,
     )
     return crash_owner.supervise(
         layout=layout,
-        command=build_launcher_ui_command(layout, child_arguments),
+        command=build_launcher_ui_command(bundle_layout or layout, child_arguments),
         environment=os.environ,
     )
 

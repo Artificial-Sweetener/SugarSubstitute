@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -161,7 +162,7 @@ def test_supervisor_replaces_outer_receipt_across_authorized_restart(
     onboarding_receipt = ApplicationReadinessReceipt.from_json(
         json.loads(receipt_path.read_text(encoding="utf-8"))
     )
-    assert onboarding_receipt.pid == processes[0].pid
+    assert onboarding_receipt.pid == os.getpid()
     assert onboarding_receipt.token == "outer-token"
     assert onboarding_receipt.surface is ApplicationReadinessSurface.ONBOARDING
     assert child_environments[0][READINESS_PATH_ENV] != str(receipt_path)
@@ -177,7 +178,7 @@ def test_supervisor_replaces_outer_receipt_across_authorized_restart(
         json.loads(receipt_path.read_text(encoding="utf-8"))
     )
     assert second_result is processes[1]
-    assert final_receipt.pid == processes[1].pid
+    assert final_receipt.pid == os.getpid()
     assert final_receipt.token == "outer-token"
     assert final_receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
     assert child_environments[1][READINESS_PATH_ENV] != str(receipt_path)
@@ -260,7 +261,7 @@ def test_nested_supervisor_projects_final_surface_to_original_outer_contract(
     final_receipt = ApplicationReadinessReceipt.from_json(
         json.loads(outer_receipt_path.read_text(encoding="utf-8"))
     )
-    assert final_receipt.pid == app_process.pid
+    assert final_receipt.pid == os.getpid()
     assert final_receipt.token == "outer-token"
     assert final_receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
 
@@ -372,10 +373,8 @@ def test_supervisor_replaces_outer_receipt_across_real_processes(
     onboarding_receipt = ApplicationReadinessReceipt.from_json(
         json.loads(receipt_path.read_text(encoding="utf-8"))
     )
-    assert onboarding_process.pid in {
-        onboarding_receipt.pid,
-        onboarding_receipt.parent_pid,
-    }
+    assert onboarding_receipt.pid == os.getpid()
+    assert onboarding_receipt.parent_pid == os.getppid()
     assert onboarding_process.wait(timeout=5) == 0
     main_shell_process = supervisor.launch_until_ready(
         layout=layout,
@@ -389,11 +388,9 @@ def test_supervisor_replaces_outer_receipt_across_real_processes(
         final_receipt = ApplicationReadinessReceipt.from_json(
             json.loads(receipt_path.read_text(encoding="utf-8"))
         )
-        assert main_shell_process.pid in {
-            final_receipt.pid,
-            final_receipt.parent_pid,
-        }
-        assert final_receipt.pid != onboarding_receipt.pid
+        assert final_receipt.pid == os.getpid()
+        assert final_receipt.parent_pid == os.getppid()
+        assert main_shell_process.pid != onboarding_process.pid
         assert final_receipt.token == "outer-token"
         assert final_receipt.surface is ApplicationReadinessSurface.MAIN_SHELL
     finally:

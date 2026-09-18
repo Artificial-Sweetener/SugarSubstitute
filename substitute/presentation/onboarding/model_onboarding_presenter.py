@@ -18,6 +18,10 @@
 
 from __future__ import annotations
 
+from substitute.presentation.onboarding.onboarding_download_text import (
+    download_action_text,
+)
+
 from collections.abc import Callable
 
 from sugarsubstitute_shared.localization import ApplicationText, app_text
@@ -51,7 +55,6 @@ from substitute.presentation.onboarding.onboarding_existing_model_page import (
 )
 from substitute.presentation.onboarding.onboarding_model_download_review_page import (
     ModelDownloadReviewPage,
-    download_action_text,
 )
 from substitute.presentation.onboarding.onboarding_models import OnboardingPageId
 from substitute.presentation.onboarding.onboarding_folder_setup_page import (
@@ -77,7 +80,6 @@ class ModelOnboardingPresenter:
         review_page: ModelDownloadReviewPage,
         primary_button: LocalizedPrimaryPushButton,
         navigate: Callable[[OnboardingPageId], None],
-        refresh_height: Callable[[], None],
         open_model_page: Callable[[str], object] | None = None,
         recipe_planner: ModelInstallRecipePlanner | None = None,
     ) -> None:
@@ -92,7 +94,6 @@ class ModelOnboardingPresenter:
         self._review_page = review_page
         self._primary_button = primary_button
         self._navigate = navigate
-        self._refresh_height = refresh_height
         self._open_model_page = open_model_page or (lambda _url: None)
         self._recipe_planner = recipe_planner or ModelInstallRecipePlanner()
         self._waiting_for_scan = False
@@ -134,7 +135,6 @@ class ModelOnboardingPresenter:
         elif page_id is OnboardingPageId.FOLDERS:
             self._folder_page.configure_model_picker(allow_default=True)
             self._folder_page.reset_scan_status()
-            self._refresh_height()
             self._primary_button.setEnabled(True)
         elif page_id is OnboardingPageId.MODEL_RECOMMENDATIONS:
             self._render_current_recommendations()
@@ -295,7 +295,6 @@ class ModelOnboardingPresenter:
         self._recommendation_failed = False
         self._waiting_for_recommendations = True
         self._recommendation_page.show_loading(missing_families[0])
-        self._refresh_height()
         apply_application_text(
             self._primary_button, app_text("Loading recommendations…")
         )
@@ -371,7 +370,6 @@ class ModelOnboardingPresenter:
         self._recommendation_page.show_failure(missing_families[0], message)
         apply_application_text(self._primary_button, app_text("Try again"))
         self._primary_button.setEnabled(True)
-        self._refresh_height()
 
     def _thumbnail_finished(
         self,
@@ -400,7 +398,6 @@ class ModelOnboardingPresenter:
         self._folder_page.set_scan_status(message)
         apply_application_text(self._primary_button, app_text("Try again"))
         self._primary_button.setEnabled(True)
-        self._refresh_height()
 
     def _set_use_own_model(self, selected: bool) -> None:
         """Store the explicit no-download choice and keep it exclusive with cards."""
@@ -497,7 +494,6 @@ class ModelOnboardingPresenter:
             self._session.current_family_has_selection()
             or self._session.current_family_is_declined()
         )
-        self._refresh_height()
 
     def _set_version_selected(self, version_id: int, selected: bool) -> None:
         """Retain one exact-version selection and update the Continue gate."""
@@ -528,7 +524,6 @@ class ModelOnboardingPresenter:
             download_action_text(plan),
         )
         self._primary_button.setEnabled(bool(plan.files) and plan.has_sufficient_space)
-        self._refresh_height()
 
     def _remove_review_model(self, version_id: int) -> None:
         """Remove one checkout item and immediately refresh totals and action state."""

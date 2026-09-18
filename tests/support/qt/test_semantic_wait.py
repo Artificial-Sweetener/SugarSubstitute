@@ -122,6 +122,26 @@ def test_wait_for_qt_condition_destroys_native_wait_objects(
     assert all(not isValid(qt_object) for qt_object in created)
 
 
+def test_early_event_loop_exit_is_not_reported_as_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Distinguish interrupted Qt delivery from expiration of the failure deadline."""
+
+    def create_interrupted_loop() -> QEventLoop:
+        """Queue an exit unrelated to either semantic completion or the deadline."""
+        event_loop = QEventLoop()
+        QTimer.singleShot(0, event_loop.quit)
+        return event_loop
+
+    monkeypatch.setattr(semantic_wait, "QEventLoop", create_interrupted_loop)
+    with pytest.raises(AssertionError, match="Qt event loop exited before"):
+        wait_for_qt_condition(
+            lambda: False,
+            description="output registration",
+            state=lambda: {"registered": 0},
+        )
+
+
 def test_wait_for_qt_signal_handles_signal_emitted_before_wait() -> None:
     """Accept an already-observed signal without waiting for another emission."""
 

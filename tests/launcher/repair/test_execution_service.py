@@ -19,194 +19,45 @@
 from __future__ import annotations
 
 from pathlib import Path
+from collections.abc import Mapping, Sequence
+import sys
 
 import pytest
 
-from launcher.sugarsubstitute_launcher.application.repair import (
-    ManagedComfyOwnership,
-    PreparedRepairRequest,
-    RepairExecutionService,
+from launcher.sugarsubstitute_launcher.application.repair.models import (
     RepairScope,
+)
+from launcher.sugarsubstitute_launcher.application.repair.execution_service import (
+    RepairExecutionService,
+)
+from launcher.sugarsubstitute_launcher.application.repair.integrity import (
     directory_tree_sha256,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
 from launcher.sugarsubstitute_launcher.platforms import WINDOWS_X64
-from launcher.sugarsubstitute_launcher.runtime_models import RuntimeProvisioningResult
+from sugarsubstitute_shared.launcher_update.bundle_selection import (
+    LauncherBundleSelection,
+)
+from sugarsubstitute_shared.launcher_update.models import LauncherInstallationRecord
+from sugarsubstitute_shared.launcher_update.targets import WINDOWS_X64_BUNDLE
+from launcher.sugarsubstitute_launcher.runtime_command import (
+    SubprocessRuntimeCommandRunner,
+)
+from launcher.sugarsubstitute_launcher.repair_helper import run_prepared_repair
+from launcher.sugarsubstitute_launcher.application.repair.progress import (
+    RepairProgress,
+    RepairStage,
+)
 
 
-class _RuntimeProvisioner:
-    """Create a deterministic runtime candidate without subprocesses or downloads."""
-
-    def provision(self, *, layout: InstallLayout) -> RuntimeProvisioningResult:
-        """Materialize the expected Python and return its typed outcome."""
-
-        layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
-        layout.runtime_python.write_bytes(b"candidate-python")
-        return RuntimeProvisioningResult(
-            python_executable=layout.runtime_python,
-            requirements_path=layout.app_dir / "requirements.txt",
-        )
-
-
-class _RejectingStateWriter:
-    """Inject final validation failure after all candidate components exist."""
-
-    def write(self, *, layout: InstallLayout, request: PreparedRepairRequest) -> None:
-        """Create representative candidate launcher state."""
-
-        del request
-        layout.state_path.parent.mkdir(parents=True, exist_ok=True)
-        layout.state_path.write_text("candidate", encoding="utf-8")
-
-    def validate(
-        self, *, layout: InstallLayout, request: PreparedRepairRequest
-    ) -> None:
-        """Reject the candidate after observing its active location."""
-
-        del layout, request
-        raise RuntimeError("injected final validation failure")
-
-
-class _ManagedComfyRepairer:
-    """Restore exact representative owned nodes without network or subprocesses."""
-
-    def repair_owned_nodes(
-        self,
-        *,
-        layout: InstallLayout,
-        ownership: ManagedComfyOwnership,
-    ) -> None:
-        """Create both transaction-owned nodepack candidates."""
-
-        assert ownership.workspace_root == layout.root / "comfyui"
-        custom_nodes = layout.root / "comfyui" / "custom_nodes"
-        for name in ("substitute-backend", "SugarCubes"):
-            path = custom_nodes / name
-            path.mkdir(parents=True)
-            (path / "version.txt").write_text("new-owned", encoding="utf-8")
-
-    def validate_owned_nodes(
-        self,
-        *,
-        layout: InstallLayout,
-        ownership: ManagedComfyOwnership,
-    ) -> None:
-        """Require both candidates to exist after repair."""
-
-        assert ownership.install_owned
-        for name in ("substitute-backend", "SugarCubes"):
-            assert (
-                layout.root / "comfyui" / "custom_nodes" / name / "version.txt"
-            ).read_text(encoding="utf-8") == "new-owned"
-
-    def stage_full_managed_comfy(
-        self,
-        *,
-        layout: InstallLayout,
-        ownership: ManagedComfyOwnership,
-        destination: Path,
-    ) -> None:
-        """Create fresh core, environment, and exact owned-node candidates."""
-
-        assert ownership.workspace_root == layout.root / "comfyui"
-        (destination / "main.py").parent.mkdir(parents=True, exist_ok=True)
-        (destination / "main.py").write_text("fresh-core", encoding="utf-8")
-        (destination / ".venv" / "Scripts").mkdir(parents=True)
-        (destination / ".venv" / "Scripts" / "python.exe").write_bytes(b"fresh")
-        for name in ("substitute-backend", "SugarCubes"):
-            node = destination / "custom_nodes" / name
-            node.mkdir(parents=True)
-            (node / "version.txt").write_text("full-owned", encoding="utf-8")
-
-    def validate_full_managed_comfy(
-        self,
-        *,
-        layout: InstallLayout,
-        ownership: ManagedComfyOwnership,
-    ) -> None:
-        """Require fresh core/runtime and both owned packages after promotion."""
-
-        assert ownership.workspace_root == layout.root / "comfyui"
-        workspace = layout.root / "comfyui"
-        assert (workspace / "main.py").read_text(encoding="utf-8") == "fresh-core"
-        assert (workspace / ".venv" / "Scripts" / "python.exe").is_file()
-        for name in ("substitute-backend", "SugarCubes"):
-            assert (workspace / "custom_nodes" / name / "version.txt").read_text(
-                encoding="utf-8"
-            ) == "full-owned"
-
-
-def _write_app(path: Path, version: str) -> None:
-    """Create one structurally valid app payload with literal version metadata."""
-
-    (path / "substitute").mkdir(parents=True)
-    (path / "third_party").mkdir()
-    (path / "main.py").write_text("", encoding="utf-8")
-    (path / "requirements.txt").write_text("", encoding="utf-8")
-    (path / "sitecustomize.py").write_text("", encoding="utf-8")
-    (path / "substitute" / "_version.py").write_text(
-        f'__version__ = "{version}"\n', encoding="utf-8"
-    )
-
-
-def _write_launcher(path: Path) -> None:
-    """Create a valid Windows launcher bundle including adjacent repair entrypoint."""
-
-    path.mkdir(parents=True)
-    (path / "SugarSubstitute.exe").write_bytes(b"new-launcher")
-    (path / "launcher-bin").mkdir()
-    (path / "launcher-bin" / "LauncherUi.exe").write_bytes(b"new-launcher-ui")
-    (path / "launcher-bin" / "Repair.exe").write_bytes(b"new-repair")
-    (path / "launcher-bin" / "runtime.dll").write_bytes(b"new-support")
-
-
-def _prepared_request(
-    layout: InstallLayout,
-    *,
-    version: str = "1.2.3",
-    scope: RepairScope = RepairScope.APPLICATION,
-) -> PreparedRepairRequest:
-    """Stage a complete application and launcher candidate under repair ownership."""
-
-    staging = layout.root / ".repair" / "staging" / version
-    app = staging / "app"
-    launcher = staging / "launcher"
-    _write_app(app, version)
-    _write_launcher(launcher)
-    return PreparedRepairRequest(
-        install_root=layout.root,
-        scope=scope,
-        version=version,
-        channel="stable",
-        target_key=WINDOWS_X64.key,
-        staged_app_dir=app,
-        staged_launcher_dir=launcher,
-        staged_app_sha256=directory_tree_sha256(app),
-        staged_launcher_sha256=directory_tree_sha256(launcher),
-    )
-
-
-def _write_old_install(layout: InstallLayout) -> None:
-    """Create replaceable components and protected data with distinct bytes."""
-
-    _write_app(layout.app_dir, "0.9.0")
-    layout.runtime_python.parent.mkdir(parents=True)
-    layout.runtime_python.write_bytes(b"old-python")
-    layout.executable_path.parent.mkdir(parents=True, exist_ok=True)
-    layout.executable_path.write_bytes(b"old-launcher")
-    layout.launcher_support_path.mkdir()
-    (layout.launcher_support_path / "LauncherUi.exe").write_bytes(b"old-launcher-ui")
-    (layout.launcher_support_path / "Repair.exe").write_bytes(b"old-repair")
-    (layout.launcher_support_path / "runtime.dll").write_bytes(b"old-support")
-    protected = (
-        layout.user_dir / "projects" / "work.json",
-        layout.appdata_dir / "session" / "autosave.json",
-        layout.root / "comfyui" / "models" / "model.safetensors",
-        layout.root / "comfyui" / "custom_nodes" / "third-party" / "node.py",
-    )
-    for index, path in enumerate(protected):
-        path.parent.mkdir(parents=True)
-        path.write_bytes(f"protected-{index}".encode())
+from .execution_support import (
+    _RuntimeProvisioner,
+    _RejectingStateWriter,
+    _ManagedComfyRepairer,
+    _write_launcher,
+    _prepared_request,
+    _write_old_install,
+)
 
 
 def test_execution_commits_exact_version_and_preserves_all_user_comfy_data(
@@ -235,11 +86,21 @@ def test_execution_commits_exact_version_and_preserves_all_user_comfy_data(
         encoding="utf-8"
     ) == '__version__ = "1.2.3"\n'
     assert layout.runtime_python.read_bytes() == b"candidate-python"
-    assert layout.executable_path.read_bytes() == b"new-launcher"
+    assert layout.executable_path.read_bytes() == b"old-launcher"
+    assert (layout.launcher_support_path / "Repair.exe").read_bytes() == b"old-repair"
+    selection = LauncherBundleSelection(layout.root, WINDOWS_X64_BUNDLE)
+    selected = selection.resolve()
+    assert selected.version == request.version
+    assert selected.root != layout.root
+    assert (selected.root / "SugarSubstitute.exe").read_bytes() == b"new-launcher"
     assert (
-        layout.launcher_support_path / "LauncherUi.exe"
+        selected.root / "launcher-bin/LauncherUi.exe"
     ).read_bytes() == b"new-launcher-ui"
-    assert (layout.launcher_support_path / "Repair.exe").read_bytes() == b"new-repair"
+    assert (selected.root / "launcher-bin/Repair.exe").read_bytes() == b"new-repair"
+    baseline_record = LauncherInstallationRecord.load(layout.launcher_installation_path)
+    assert baseline_record is not None and baseline_record.version == "0.9.0"
+    active_record = selection.installed_record()
+    assert active_record is not None and active_record.version == request.version
     assert {path: path.read_bytes() for path in protected_paths} == before
 
 
@@ -273,6 +134,13 @@ def test_execution_rolls_back_every_component_after_final_validation_failure(
     _write_old_install(layout)
     request = _prepared_request(layout)
 
+    selection = LauncherBundleSelection(layout.root, WINDOWS_X64_BUNDLE)
+    prior_staging = layout.launcher_dir / "updates" / "prior"
+    _write_launcher(prior_staging)
+    previous = selection.publish(prior_staging, version="0.9.1")
+    selection.activate(previous)
+    layout.state_path.write_bytes(b"old application state")
+
     with pytest.raises(RuntimeError, match="rolled back"):
         RepairExecutionService(
             runtime_provisioner=_RuntimeProvisioner(),
@@ -289,6 +157,8 @@ def test_execution_rolls_back_every_component_after_final_validation_failure(
     ).read_bytes() == b"old-launcher-ui"
     assert (layout.launcher_support_path / "Repair.exe").read_bytes() == b"old-repair"
     assert (layout.launcher_support_path / "runtime.dll").read_bytes() == b"old-support"
+    assert selection.resolve() == previous
+    assert layout.state_path.read_bytes() == b"old application state"
 
 
 def test_execution_repairs_only_owned_nodes_when_managed_ownership_is_proven(
@@ -329,10 +199,14 @@ def test_execution_repairs_only_owned_nodes_when_managed_ownership_is_proven(
         ) == "new-owned"
 
 
+@pytest.mark.parametrize("failure_phase", [None, "provision", "validate"])
+@pytest.mark.parametrize("existing_runtime", [False, True])
 def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
     tmp_path: Path,
+    failure_phase: str | None,
+    existing_runtime: bool,
 ) -> None:
-    """Full repair should promote fresh core while protected and third-party bytes survive."""
+    """Construct at the final path, preserve user data, and roll back either runtime failure."""
 
     layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
     _write_old_install(layout)
@@ -348,27 +222,235 @@ def test_full_managed_comfy_repair_replaces_core_and_preserves_user_roots(
     )
     workspace = layout.root / "comfyui"
     (workspace / "main.py").write_text("old-core", encoding="utf-8")
-    (workspace / ".venv" / "Scripts").mkdir(parents=True)
-    (workspace / ".venv" / "Scripts" / "python.exe").write_bytes(b"old")
+    if existing_runtime:
+        (workspace / ".venv" / "Scripts").mkdir(parents=True)
+        (workspace / ".venv" / "Scripts" / "python.exe").write_bytes(b"old")
     protected = (
         workspace / "models" / "model.safetensors",
         workspace / "user" / "workflow.json",
         workspace / "input" / "source.png",
         workspace / "output" / "result.png",
         workspace / "custom_nodes" / "third-party" / "node.py",
+        workspace / "custom_nodes" / "SugarCubes" / ".sugarcubes" / "authored.cube",
+        workspace / ".substitute" / "model_root.json",
     )
     for index, path in enumerate(protected):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(f"sentinel-{index}".encode())
     before = {path: path.read_bytes() for path in protected}
 
-    result = RepairExecutionService(
+    events: list[RepairProgress] = []
+    service = RepairExecutionService(
         runtime_provisioner=_RuntimeProvisioner(),
-        comfy_repairer=_ManagedComfyRepairer(),
-    ).execute_application(
-        _prepared_request(layout, scope=RepairScope.FULL_MANAGED_COMFY)
+        comfy_repairer=_ManagedComfyRepairer(failure_phase),
+        progress_observer=events.append,
     )
+    request = _prepared_request(layout, scope=RepairScope.FULL_MANAGED_COMFY)
+    if failure_phase is not None:
+        with pytest.raises(RuntimeError, match="rolled back"):
+            service.execute_application(request)
+        assert (workspace / "main.py").read_text(encoding="utf-8") == "old-core"
+        if existing_runtime:
+            assert (
+                workspace / ".venv" / "Scripts" / "python.exe"
+            ).read_bytes() == b"old"
+        else:
+            assert not (workspace / ".venv").exists()
+        assert {path: path.read_bytes() for path in protected} == before
+        assert events[-1].stage is not None
+        assert not (layout.root / ".repair" / "pending.json").exists()
+        return
+    result = service.execute_application(request)
 
     assert result.comfy_quarantine_root is not None
     assert (workspace / "main.py").read_text(encoding="utf-8") == "fresh-core"
     assert {path: path.read_bytes() for path in protected} == before
+    assert [event.stage for event in events] == [
+        RepairStage.VALIDATE_INPUT,
+        RepairStage.RESTORE_APPLICATION,
+        RepairStage.PREPARE_RUNTIME,
+        RepairStage.SAVE_STATE,
+        RepairStage.VALIDATE_APPLICATION,
+        RepairStage.PREPARE_COMFY,
+        RepairStage.RESTORE_COMFY,
+        RepairStage.VALIDATE_COMFY,
+        None,
+    ]
+    assert [event.completed for event in events] == list(range(9))
+    assert {event.total for event in events} == {8}
+
+
+@pytest.mark.parametrize("reject", [False, True])
+def test_progress_reaches_completion_only_after_successful_commit(
+    tmp_path: Path,
+    reject: bool,
+) -> None:
+    """A rolled-back repair must never emit successful terminal progress."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    events: list[RepairProgress] = []
+    service = RepairExecutionService(
+        runtime_provisioner=_RuntimeProvisioner(),
+        state_writer=_RejectingStateWriter() if reject else None,
+        progress_observer=events.append,
+    )
+    request = _prepared_request(layout)
+    if reject:
+        with pytest.raises(RuntimeError, match="rolled back"):
+            service.execute_application(request)
+    else:
+        service.execute_application(request)
+    assert [event.stage for event in events[:5]] == [
+        RepairStage.VALIDATE_INPUT,
+        RepairStage.RESTORE_APPLICATION,
+        RepairStage.PREPARE_RUNTIME,
+        RepairStage.SAVE_STATE,
+        RepairStage.VALIDATE_APPLICATION,
+    ]
+    assert [event.completed for event in events] == list(range(5 if reject else 6))
+    assert {event.total for event in events} == {5}
+    assert (events[-1].stage is None) is not reject
+
+
+def test_progress_observer_failure_cannot_abort_repair(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Keep presentation callbacks outside the repair transaction's failure contract."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+
+    def broken_observer(progress: RepairProgress) -> None:
+        """Reject a real stage report at the presentation boundary."""
+        raise RuntimeError(f"presentation failed at {progress.stage}")
+
+    result = RepairExecutionService(
+        runtime_provisioner=_RuntimeProvisioner(),
+        progress_observer=broken_observer,
+    ).execute_application(_prepared_request(layout))
+    assert result.version == "1.2.3"
+    assert "Repair progress observer failed" in caplog.text
+
+
+def test_failed_repair_can_retry_without_downloading_or_rebuilding_its_inputs(
+    tmp_path: Path,
+) -> None:
+    """A retry uses the same verified source after the first candidate is rolled back."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    request = _prepared_request(layout)
+    rejecting = RepairExecutionService(
+        runtime_provisioner=_RuntimeProvisioner(),
+        state_writer=_RejectingStateWriter(),
+    )
+    with pytest.raises(RuntimeError, match="rolled back"):
+        rejecting.execute_application(request)
+    assert directory_tree_sha256(request.staged_app_dir) == request.staged_app_sha256
+    assert (
+        directory_tree_sha256(request.staged_launcher_dir)
+        == request.staged_launcher_sha256
+    )
+    result = RepairExecutionService(
+        runtime_provisioner=_RuntimeProvisioner()
+    ).execute_application(request)
+    assert result.version == request.version
+    assert directory_tree_sha256(request.staged_app_dir) == request.staged_app_sha256
+    assert (
+        directory_tree_sha256(request.staged_launcher_dir)
+        == request.staged_launcher_sha256
+    )
+
+
+def test_detached_repair_bootstraps_runtime_from_its_bundled_tool(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rebuild a removed runtime through the real helper and bundled uv owner."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    layout.uv_executable.parent.mkdir(parents=True, exist_ok=True)
+    layout.uv_executable.write_bytes(b"old-uv")
+    managed_state = layout.appdata_dir / "runtime_state" / "managed_runtime.json"
+    managed_state.parent.mkdir(parents=True)
+    managed_state.write_bytes(
+        b'{"workspace_path":"comfyui","validation_status":"valid"}'
+    )
+    original_managed_state = managed_state.read_bytes()
+    bundle = tmp_path / "helper-bundle"
+    bundled_uv = bundle / "launcher_assets" / WINDOWS_X64.uv_executable_name
+    bundled_uv.parent.mkdir(parents=True)
+    bundled_uv.write_bytes(b"bundled-uv")
+    monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+    request = _prepared_request(layout)
+    request_path = layout.root / ".repair" / "prepared.json"
+    request.save(request_path)
+    commands: list[tuple[str, ...]] = []
+
+    def run_command(
+        self: SubprocessRuntimeCommandRunner,
+        command: Sequence[str],
+        *,
+        cwd: Path,
+        env: Mapping[str, str],
+    ) -> None:
+        """Model subprocess output while retaining real runtime orchestration."""
+        del self, env
+        assert cwd == layout.root
+        assert layout.uv_executable.read_bytes() == b"bundled-uv"
+        commands.append(tuple(command))
+        if "venv" in command:
+            layout.runtime_python.parent.mkdir(parents=True, exist_ok=True)
+            layout.runtime_python.write_bytes(b"candidate-python")
+
+    monkeypatch.setattr(SubprocessRuntimeCommandRunner, "run", run_command)
+    result = run_prepared_repair(request_path)
+
+    assert result.version == request.version
+    assert not request_path.exists()
+    assert layout.runtime_python.read_bytes() == b"candidate-python"
+    assert layout.uv_executable.read_bytes() == b"bundled-uv"
+    assert managed_state.read_bytes() == original_managed_state
+    assert any("venv" in command for command in commands)
+    assert (layout.user_dir / "projects" / "work.json").read_bytes() == b"protected-0"
+
+
+def test_repair_preserves_live_crash_diagnostics_and_child_output(
+    tmp_path: Path,
+) -> None:
+    """Repair must not move files its own live diagnostic writers still hold open."""
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    fault = layout.appdata_dir / "diagnostics" / "python-fault.log"
+    child_log = layout.root / ".repair" / "diagnostics" / "repair-child.log"
+    for path in (fault, child_log):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"retained diagnostic\n")
+    request = _prepared_request(layout)
+    with fault.open("ab") as fault_stream, child_log.open("ab") as child_stream:
+        RepairExecutionService(
+            runtime_provisioner=_RuntimeProvisioner()
+        ).execute_application(request)
+        fault_stream.write(b"crash runtime still active\n")
+        child_stream.write(b"repair worker finished\n")
+    assert fault.read_bytes() == b"retained diagnostic\ncrash runtime still active\n"
+    assert child_log.read_bytes() == b"retained diagnostic\nrepair worker finished\n"
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_repair_retains_update_preferences(tmp_path: Path, enabled: bool) -> None:
+    """Repair must retain update consent and cadence while replacing damaged state."""
+    from launcher.sugarsubstitute_launcher.config import (
+        LauncherConfig,
+        UpdateCheckConfig,
+    )
+
+    layout = InstallLayout.from_root(tmp_path / "install", target=WINDOWS_X64)
+    _write_old_install(layout)
+    preferences = UpdateCheckConfig(enabled=enabled, frequency="weekly")
+    LauncherConfig.from_layout(layout=layout, update_check=preferences).save(
+        layout.config_path
+    )
+    RepairExecutionService(
+        runtime_provisioner=_RuntimeProvisioner()
+    ).execute_application(_prepared_request(layout))
+    assert LauncherConfig.load(layout.config_path).update_check == preferences

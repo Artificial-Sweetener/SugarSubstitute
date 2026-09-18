@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from threading import Event
+
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Any, cast
@@ -25,6 +27,9 @@ from typing import Any, cast
 from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication
 
+from launcher.sugarsubstitute_launcher.application.installation.progress import (
+    InstallationProgressObserver,
+)
 from launcher.sugarsubstitute_launcher.application.installation.workflow import (
     InstallationWorkflow,
 )
@@ -98,7 +103,10 @@ def workflow_factory(
     artifact_installer: object | None = None,
     runtime_provisioner: object | None = None,
     process_starter: Callable[[Sequence[str]], None] = lambda _command: None,
-) -> Callable[[Callable[[str], None]], InstallationWorkflow]:
+    admit_installation: Callable[[InstallLayout], bool] | None = None,
+) -> Callable[
+    [Callable[[str], None], InstallationProgressObserver, Event], InstallationWorkflow
+]:
     """Build test workflows from explicit installer boundary doubles."""
 
     resolved_layout_preparer = layout_preparer or LayoutInstaller()
@@ -109,6 +117,8 @@ def workflow_factory(
 
     def create_workflow(
         _output_callback: Callable[[str], None],
+        progress_observer: InstallationProgressObserver,
+        _cancellation: Event,
     ) -> InstallationWorkflow:
         """Return one workflow using the configured test boundaries."""
 
@@ -117,6 +127,8 @@ def workflow_factory(
             artifact_installer=cast(Any, resolved_artifact_installer),
             runtime_provisioner=cast(Any, resolved_runtime_provisioner),
             process_starter=process_starter,
+            progress_observer=progress_observer,
+            admit_installation=admit_installation,
         )
 
     return create_workflow

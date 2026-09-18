@@ -26,10 +26,17 @@ from typing import cast
 
 import pytest
 
+from launcher.sugarsubstitute_launcher.application_election_recovery import (
+    ApplicationElectionRecovery,
+)
 from launcher.sugarsubstitute_launcher import app as launcher_app
 from launcher.sugarsubstitute_launcher import application_launch
 from launcher.sugarsubstitute_launcher import crash_routing
-from launcher.sugarsubstitute_launcher import installed_app_handoff
+from launcher.sugarsubstitute_launcher import (
+    installed_app_handoff,
+    installed_application_supervisor,
+)
+from launcher.sugarsubstitute_launcher import generation_dispatch
 from launcher.sugarsubstitute_launcher import launcher_ui_supervision
 from launcher.sugarsubstitute_launcher import logging_setup
 from launcher.sugarsubstitute_launcher import localization
@@ -39,6 +46,12 @@ from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
 )
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.selected_installation_admission import (
+    reserve_selected_installation,
+)
+from sugarsubstitute_shared.application_instance_election import (
+    SelectedInstallationReservation,
+)
 from launcher.sugarsubstitute_launcher.instance_recovery_contract import (
     InstanceRecoveryAction,
 )
@@ -58,9 +71,16 @@ from tests.launcher.application_launch.instance_routing_support import (
 )
 
 
+@pytest.mark.parametrize("splash_available", [True, False])
+@pytest.mark.parametrize(
+    ("delegated", "borrowed"), [(False, False), (True, False), (True, True)]
+)
 def test_installed_launcher_supervises_one_broker_authorized_child(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    splash_available: bool,
+    delegated: bool,
+    borrowed: bool,
 ) -> None:
     """The elected launcher should remain through the complete child lifetime."""
 
@@ -70,6 +90,9 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
 
     class _Supervisor:
         """Capture the installed application process without spawning it."""
+
+        def __init__(self, **kwargs: object) -> None:
+            """Accept the startup cancellation policy at the process boundary."""
 
         def supervise(self, **kwargs: object) -> int:
             """Record command and environment at the crash-owner boundary."""
@@ -90,23 +113,77 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
     monkeypatch.setattr(
         splash_session,
         "start_launcher_splash_session",
-        lambda **_kwargs: SimpleNamespace(
-            app_arguments=(),
-            client=None,
-            ensure_closed=lambda: None,
-            present=lambda: "startup-splash",
+        lambda **_kwargs: (
+            SimpleNamespace(
+                app_arguments=(),
+                client=None,
+                ensure_closed=lambda: None,
+                close=lambda: None,
+                cancellation_requested=lambda: False,
+                present=lambda: "startup-splash",
+            )
+            if splash_available
+            else None
         ),
     )
     monkeypatch.setattr(
-        installed_app_handoff,
+        installed_application_supervisor,
         "ApplicationLifecycleSupervisor",
         _Supervisor,
     )
     monkeypatch.setattr(
-        launcher_app,
-        "LauncherMainWindow",
+        launcher_ui_supervision,
+        "supervise_launcher_window",
         lambda **_kwargs: pytest.fail("Installed launch must not show setup UI."),
     )
+
+    if delegated:
+        from sugarsubstitute_shared import delegated_application_broker
+
+        monkeypatch.setenv("SUGAR_SUBSTITUTE_DELEGATED_LAUNCHER", "1")
+        monkeypatch.setattr(
+            delegated_application_broker,
+            "DelegatedApplicationBroker",
+            lambda _environment: broker,
+        )
+        monkeypatch.setattr(
+            application_launch,
+            "elect_application",
+            lambda *_args: pytest.fail(
+                "Delegated launcher must retain baseline election"
+            ),
+        )
+
+    inherited_arguments: list[str] = []
+    released_resources: list[str] = []
+    resource_identity: str | None = None
+    if borrowed:
+        from uuid import uuid4
+        from launcher.sugarsubstitute_launcher.splash_transfer import (
+            export_splash_session,
+        )
+        from sugarsubstitute_shared.launch_splash.session import (
+            create_splash_session_spec,
+            splash_session_args,
+        )
+
+        resource_identity = uuid4().hex
+        monkeypatch.setattr(
+            broker, "release_startup_resource", released_resources.append
+        )
+        spec = create_splash_session_spec(port=12345)
+        for key, value in export_splash_session(
+            spec, resource_identity=resource_identity
+        ).items():
+            monkeypatch.setenv(key, value)
+        inherited_arguments = splash_session_args(spec)
+        monkeypatch.setattr(
+            splash_session,
+            "start_launcher_splash_session",
+            lambda **_kwargs: pytest.fail(
+                "Borrowed startup must not create a second splash."
+            ),
+        )
 
     assert launcher_app.main([]) == 0
     assert calls[0][0] == [
@@ -114,9 +191,12 @@ def test_installed_launcher_supervises_one_broker_authorized_child(
         subprocess_path(layout.app_entrypoint),
         f"--install-root={subprocess_path(layout.root)}",
         "--locale=en",
+        *inherited_arguments,
     ]
     assert calls[0][1]["TEST_INSTANCE_BROKER"] == "connected"
+    assert "SUGAR_SUBSTITUTE_DELEGATED_LAUNCHER" not in calls[0][1]
     assert broker.closed
+    assert released_resources == ([resource_identity] if borrowed else [])
 
 
 def test_installed_launcher_performs_only_reviewed_work_before_splash(
@@ -210,6 +290,11 @@ def test_installed_launcher_performs_only_reviewed_work_before_splash(
         "complete_installed_app_handoff",
         lambda **_kwargs: events.append("handoff"),
     )
+    monkeypatch.setattr(
+        generation_dispatch,
+        "dispatch_selected_launcher",
+        lambda **_kwargs: events.append("generation-dispatch"),
+    )
     monkeypatch.setattr(launcher_app, "_configure_normal_logging", lambda _plan: None)
 
     assert launcher_app.main(["--locale=en"]) == 0
@@ -221,7 +306,7 @@ def test_installed_launcher_performs_only_reviewed_work_before_splash(
         "launch-route",
         "splash",
     ]
-    assert events[6:] == ["locale", "crash-recovery", "handoff"]
+    assert events[6:] == ["generation-dispatch", "locale", "crash-recovery", "handoff"]
 
 
 def test_pending_report_recovery_failure_does_not_open_repair(
@@ -246,6 +331,7 @@ def test_pending_report_recovery_failure_does_not_open_repair(
             app_arguments=(),
             client=None,
             ensure_closed=lambda: None,
+            cancellation_requested=lambda: False,
             present=lambda: "startup-splash",
         ),
     )
@@ -270,15 +356,15 @@ def test_pending_report_recovery_failure_does_not_open_repair(
     assert broker.closed
 
 
-def test_unavailable_installed_splash_routes_to_visible_repair(
+def test_unavailable_installed_splash_preserves_application_launch(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Never continue a potentially long installed launch without a surface."""
+    """A failed presentation helper must not classify a valid install as damaged."""
 
     layout = _installed_layout(tmp_path)
     broker = _Broker()
-    repair_requests: list[bool] = []
+    handoffs: list[object] = []
     monkeypatch.setattr(sys, "executable", str(layout.executable_path))
     monkeypatch.setattr(
         application_launch,
@@ -293,23 +379,18 @@ def test_unavailable_installed_splash_routes_to_visible_repair(
     monkeypatch.setattr(
         installed_app_handoff,
         "complete_installed_app_handoff",
-        lambda **_kwargs: pytest.fail("Invisible application launch is forbidden."),
+        lambda **kwargs: handoffs.append(kwargs["splash_session"]),
     )
-
-    def supervise_repair(**kwargs: object) -> int:
-        """Record that invisible startup routes to a repair surface."""
-
-        repair_requests.append(bool(kwargs["repair"]))
-        return 0
 
     monkeypatch.setattr(
         launcher_ui_supervision,
         "supervise_launcher_window",
-        supervise_repair,
+        lambda **_kwargs: pytest.fail("Splash failure must not open repair."),
     )
 
     assert launcher_app.main([]) == 0
-    assert repair_requests == [True]
+    assert handoffs == [None]
+    assert not broker.startup_presenters
     assert broker.closed
 
 
@@ -412,10 +493,12 @@ def test_application_election_uses_the_resolved_installation_identity(
         *,
         install_root: Path,
         invocation: object,
+        reserve_selected: SelectedInstallationReservation,
     ) -> ApplicationInstanceBroker | None:
         """Record the native election inputs without opening an endpoint."""
 
         arguments = getattr(invocation, "arguments")
+        assert reserve_selected is reserve_selected_installation
         observed.append((install_root, tuple(arguments)))
         return None
 
@@ -458,7 +541,7 @@ def test_failed_secondary_activation_shows_recovery_and_retries(
     def present_recovery(**kwargs: object) -> InstanceRecoveryAction:
         """Record recovery eligibility and request a bounded retry."""
 
-        presented.append(bool(kwargs["can_end_owner"]))
+        presented.append("can_end_owner" in kwargs)
         return InstanceRecoveryAction.RETRY
 
     monkeypatch.setattr(
@@ -467,12 +550,12 @@ def test_failed_secondary_activation_shows_recovery_and_retries(
         present_recovery,
     )
 
-    result = launcher_app._elect_application_with_recovery(
+    result = ApplicationElectionRecovery(
         layout=layout,
         process_arguments=("Substitute",),
         locale_override="en",
         elect=elect,
-    )
+    ).run()
 
     assert result is expected_result
     assert attempts == 2

@@ -22,6 +22,10 @@ from collections.abc import Mapping, Sequence
 import os
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.selected_installation_admission import (
+    reserve_selected_installation,
+)
+from sugarsubstitute_shared.application_broker_session import ApplicationBrokerSession
 from sugarsubstitute_shared.application_instance_broker import ApplicationInstanceBroker
 from sugarsubstitute_shared.application_instance_protocol import ApplicationInvocation
 from sugarsubstitute_shared.application_runtime_mode import (
@@ -39,11 +43,12 @@ def elect_application(
     return ApplicationInstanceBroker.elect(
         install_root=layout.root,
         invocation=ApplicationInvocation.capture(arguments),
+        reserve_selected=reserve_selected_installation,
     )
 
 
 def installed_application_environment(
-    broker: ApplicationInstanceBroker,
+    broker: ApplicationBrokerSession,
     *,
     remote_failure_reason: str | None,
     environment: Mapping[str, str] | None = None,

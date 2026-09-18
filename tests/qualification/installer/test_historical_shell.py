@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -155,7 +156,12 @@ def test_historical_onboarding_accepts_preset_root_and_reaches_real_main_shell(
     desktop = SimpleNamespace(
         windows=lambda: [unattributed_window, onboarding, main_window]
     )
-    monkeypatch.setattr("tools.ci.drive_windows_installer.time.sleep", lambda _: None)
+    process_sleep = time.sleep
+    monkeypatch.setattr(
+        "tools.ci.drive_windows_installer.time",
+        SimpleNamespace(sleep=lambda _: None, monotonic=time.monotonic),
+    )
+    assert time.sleep is process_sleep
 
     main_pid = _complete_historical_onboarding(
         desktop=desktop,
@@ -197,7 +203,12 @@ def test_historical_windows_shell_wait_surfaces_terminal_startup_failure(
     )
     managed_output = layout.root / "historical-managed-comfy-startup.log"
     managed_output.write_text("managed Comfy exited with code 1\n", encoding="utf-8")
-    monkeypatch.setattr("tools.ci.drive_windows_installer.time.sleep", lambda _: None)
+    process_sleep = time.sleep
+    monkeypatch.setattr(
+        "tools.ci.drive_windows_installer.time",
+        SimpleNamespace(sleep=lambda _: None, monotonic=time.monotonic),
+    )
+    assert time.sleep is process_sleep
 
     with pytest.raises(
         WindowsInstallerAutomationError,

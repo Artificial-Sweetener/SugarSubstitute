@@ -22,12 +22,13 @@ from pathlib import Path
 
 from launcher.sugarsubstitute_launcher.application.repair.models import (
     ManagedComfyOwnership,
-    RepairDisposition,
     RepairOperation,
     RepairPlan,
     RepairScope,
 )
+from sugarsubstitute_shared.repair_recovery.disposition import RepairDisposition
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from sugarsubstitute_shared.launcher_update.bundle_paths import LauncherBundlePaths
 from sugarsubstitute_shared.launcher_update.targets import (
     launcher_bundle_target_for_key,
 )
@@ -66,6 +67,16 @@ class RepairPlanService:
                 "unsaved-work recovery state",
             ),
             self._operation(
+                layout.appdata_dir / "runtime_state",
+                RepairDisposition.PRESERVE,
+                "managed Comfy configuration and runtime coordination",
+            ),
+            self._operation(
+                layout.appdata_dir / "diagnostics",
+                RepairDisposition.PRESERVE,
+                "active crash reporting and retained incident evidence",
+            ),
+            self._operation(
                 root / _COMFY_DIR_NAME,
                 RepairDisposition.PRESERVE,
                 "Comfy installation and models are outside application repair",
@@ -78,21 +89,31 @@ class RepairPlanService:
             ),
             self._operation(
                 layout.launcher_dir,
-                RepairDisposition.QUARANTINE,
-                "replaceable launcher state",
+                RepairDisposition.PRESERVE,
+                "launcher generations, selection, and baseline identity",
             ),
         ]
         launcher_target = launcher_bundle_target_for_key(layout.target.key)
         operations.extend(
             self._operation(
                 root / replacement_root,
-                RepairDisposition.REPLACE,
-                "installed launcher bundle",
+                RepairDisposition.PRESERVE,
+                "durable launch and recovery bootstrap",
             )
             for replacement_root in launcher_target.replacement_roots
         )
+        operations.extend(
+            self._operation(
+                path, RepairDisposition.REPLACE, "repaired application state"
+            )
+            for path in (
+                layout.config_path,
+                layout.state_path,
+                LauncherBundlePaths(root).selection,
+            )
+        )
         operations.extend(self._quarantine_unowned_root_entries(layout, operations))
-        operations.extend(self._quarantine_replaceable_appdata(layout))
+        operations.extend(self._quarantine_replaceable_appdata(layout, operations))
         if comfy_ownership is not None:
             comfy_root = self._verified_managed_comfy_root(layout, comfy_ownership)
             operations.extend(self._owned_node_operations(comfy_root))
@@ -141,6 +162,13 @@ class RepairPlanService:
             )
         )
         operations.extend(self._owned_node_operations(comfy_root))
+        operations.append(
+            self._operation(
+                comfy_root / ".substitute" / "model_root.json",
+                RepairDisposition.PRESERVE,
+                "authoritative Comfy model-root selection",
+            )
+        )
         protected_names = {*_COMFY_USER_DIR_NAMES, "custom_nodes"}
         active_names = (
             {child.name for child in comfy_root.iterdir()}
@@ -194,13 +222,22 @@ class RepairPlanService:
         """Return exact replacement operations for app-owned custom nodes."""
 
         custom_nodes = comfy_root / "custom_nodes"
-        return tuple(
+        package_operations = tuple(
             RepairPlanService._operation(
                 custom_nodes / name,
                 RepairDisposition.REPLACE,
                 "SugarSubstitute-owned custom node",
             )
             for name in _OWNED_NODE_DIR_NAMES
+        )
+        library = custom_nodes / "SugarCubes" / ".sugarcubes"
+        return (
+            *package_operations,
+            RepairPlanService._operation(
+                library,
+                RepairDisposition.PRESERVE,
+                "SugarCubes repositories, local authoring, and identity state",
+            ),
         )
 
     @staticmethod
@@ -227,11 +264,17 @@ class RepairPlanService:
     @staticmethod
     def _quarantine_replaceable_appdata(
         layout: InstallLayout,
+        declared_operations: list[RepairOperation],
     ) -> tuple[RepairOperation, ...]:
-        """Quarantine non-session application state for fresh reconstruction."""
+        """Rebuild application data outside the plan's authoritative preserved roots."""
 
         if not layout.appdata_dir.exists():
             return ()
+        preserved_roots = {
+            operation.path
+            for operation in declared_operations
+            if operation.disposition is RepairDisposition.PRESERVE
+        }
         return tuple(
             RepairPlanService._operation(
                 child,
@@ -239,7 +282,7 @@ class RepairPlanService:
                 "replaceable application state",
             )
             for child in layout.appdata_dir.iterdir()
-            if child.name != "session"
+            if child.resolve() not in preserved_roots
         )
 
     @staticmethod
@@ -248,8 +291,13 @@ class RepairPlanService:
         disposition: RepairDisposition,
         reason: str,
     ) -> RepairOperation:
-        """Build one normalized repair operation."""
+        """Normalize an operation only when its filesystem boundary is direct."""
 
+        if any(
+            candidate.is_symlink() or candidate.is_junction()
+            for candidate in (path, *path.parents)
+        ):
+            raise RepairPlanError(f"Repair operation is redirected: {path}")
         return RepairOperation(
             path=path.resolve(),
             disposition=disposition,

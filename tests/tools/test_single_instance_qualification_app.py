@@ -20,6 +20,8 @@ from collections.abc import Callable
 import json
 import os
 from pathlib import Path
+import time
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -49,16 +51,21 @@ def test_application_registration_delay_is_explicit_and_one_shot(
 
     observed: list[tuple[float, int]] = []
     marker_path = application_preregistration_marker_path(tmp_path)
+    process_sleep = time.sleep
 
     def observe_preregistration(delay: float) -> None:
         """Capture the disposable synchronization marker during the delay."""
 
+        assert time.sleep is process_sleep
         payload = json.loads(marker_path.read_text(encoding="utf-8"))
         observed.append((delay, payload["pid"]))
 
     sleep: Callable[[float], None] = observe_preregistration
     monkeypatch.setenv(APPLICATION_REGISTRATION_DELAY_ENV, "1.25")
-    monkeypatch.setattr("tools.single_instance_qualification_app.time.sleep", sleep)
+    monkeypatch.setattr(
+        "tools.single_instance_qualification_app.time",
+        SimpleNamespace(sleep=sleep, monotonic=time.monotonic),
+    )
 
     _delay_application_registration(tmp_path)
     _delay_application_registration(tmp_path)
@@ -85,8 +92,8 @@ def test_window_construction_gate_starts_after_registration_and_releases_explici
 
     monkeypatch.setenv(APPLICATION_WINDOW_CONSTRUCTION_GATE_ENV, "1")
     monkeypatch.setattr(
-        "tools.single_instance_qualification_app.time.sleep",
-        release_after_observing_marker,
+        "tools.single_instance_qualification_app.time",
+        SimpleNamespace(sleep=release_after_observing_marker, monotonic=time.monotonic),
     )
 
     _wait_at_window_construction_gate(tmp_path)
@@ -114,8 +121,8 @@ def test_application_registration_gate_releases_explicitly(
 
     monkeypatch.setenv(APPLICATION_REGISTRATION_GATE_ENV, "1")
     monkeypatch.setattr(
-        "tools.single_instance_qualification_app.time.sleep",
-        release_after_observing_marker,
+        "tools.single_instance_qualification_app.time",
+        SimpleNamespace(sleep=release_after_observing_marker, monotonic=time.monotonic),
     )
 
     _wait_at_application_registration_gate(tmp_path)

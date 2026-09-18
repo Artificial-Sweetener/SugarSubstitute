@@ -20,14 +20,24 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 import json
 from pathlib import Path
 from typing import Literal, Protocol, Self, cast
+from sugarsubstitute_shared.process_identity import ProcessIdentity
 
 
 _MAXIMUM_MESSAGE_BYTES = 1024 * 1024
 BROKER_ENDPOINT_ENV = "SUGAR_SUBSTITUTE_INSTANCE_BROKER_ENDPOINT"
 BROKER_TOKEN_ENV = "SUGAR_SUBSTITUTE_INSTANCE_BROKER_TOKEN"
+
+
+class ApplicationInstanceFailureReason(StrEnum):
+    """Preserve the activation failure that determines user recovery guidance."""
+
+    UNAVAILABLE = "unavailable"
+    OTHER_SESSION = "other-session"
+    SESSION_UNVERIFIED = "session-unverified"
 
 
 class ApplicationInstanceBrokerError(RuntimeError):
@@ -37,14 +47,29 @@ class ApplicationInstanceBrokerError(RuntimeError):
         self,
         message: str,
         *,
-        owner_process_id: int | None = None,
+        owner_identity: ProcessIdentity | None = None,
         endpoint: ApplicationInstanceEndpoint | None = None,
+        native_owner: NativeApplicationInstanceOwner | None = None,
+        reason: ApplicationInstanceFailureReason = ApplicationInstanceFailureReason.UNAVAILABLE,
     ) -> None:
         """Retain the verified owner and endpoint needed for explicit recovery."""
 
         super().__init__(message)
-        self.owner_process_id = owner_process_id
+        self.owner_identity = owner_identity
         self.endpoint = endpoint
+        self.reason = reason
+        self.native_owner = native_owner
+        if native_owner is not None and (
+            native_owner.identity != owner_identity or native_owner.endpoint != endpoint
+        ):
+            raise ValueError(
+                "Native owner evidence must match the failed endpoint and identity."
+            )
+
+    @property
+    def owner_process_id(self) -> int | None:
+        """Project the verified identity for recovery presentation."""
+        return self.owner_identity.pid if self.owner_identity is not None else None
 
 
 class ApplicationInstanceConnection(Protocol):
@@ -182,6 +207,19 @@ class ApplicationInstanceEndpoint:
         return cls(transport=transport, address=address, port=port)
 
 
+@dataclass(frozen=True, slots=True)
+class NativeApplicationInstanceOwner:
+    """Retain kernel-observed ownership separately from protocol-reported identity.
+
+    This local evidence is never read from a message or persisted. The executable
+    belongs to the same captured process incarnation that owns the native endpoint.
+    """
+
+    endpoint: ApplicationInstanceEndpoint
+    identity: ProcessIdentity
+    executable: Path
+
+
 def send_instance_message(
     connection: ApplicationInstanceConnection,
     payload: Mapping[str, object],
@@ -278,6 +316,7 @@ __all__ = [
     "ApplicationInstanceBrokerError",
     "ApplicationInstanceConnection",
     "ApplicationInstanceEndpoint",
+    "NativeApplicationInstanceOwner",
     "ApplicationInvocation",
     "ApplicationInvocationOutcome",
     "ApplicationInvocationReceipt",

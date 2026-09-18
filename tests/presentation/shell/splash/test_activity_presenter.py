@@ -85,15 +85,15 @@ def test_silent_activity_animates_without_growing_transcript() -> None:
     )
 
     expected_frames = {
-        0.0: "Updating SugarCubes. · 0:00",
-        1.0: "Updating SugarCubes.. · 0:01",
-        2.0: "Updating SugarCubes... · 0:02",
-        120.0: "Updating SugarCubes is taking longer than usual. · 2:00",
-        121.0: "Updating SugarCubes is taking longer than usual.. · 2:01",
-        122.0: "Updating SugarCubes is taking longer than usual... · 2:02",
-        300.0: "Still updating SugarCubes—network may be slow. · 5:00",
-        301.0: "Still updating SugarCubes—network may be slow.. · 5:01",
-        302.0: "Still updating SugarCubes—network may be slow... · 5:02",
+        0.0: "Updating SugarCubes.",
+        1.0: "Updating SugarCubes..",
+        2.0: "Updating SugarCubes...",
+        120.0: "Updating SugarCubes is taking longer than usual.",
+        121.0: "Updating SugarCubes is taking longer than usual..",
+        122.0: "Updating SugarCubes is taking longer than usual...",
+        300.0: "Still updating SugarCubes—network may be slow.",
+        301.0: "Still updating SugarCubes—network may be slow..",
+        302.0: "Still updating SugarCubes—network may be slow...",
     }
     for elapsed_seconds, expected in expected_frames.items():
         clock.now = elapsed_seconds
@@ -146,9 +146,9 @@ def test_activity_scheduler_delivers_headless_dot_frames() -> None:
     presenter.shutdown()
 
     assert frames[:3] == [
-        "Waiting for ComfyUI. · 0:00",
-        "Waiting for ComfyUI.. · 0:01",
-        "Waiting for ComfyUI... · 0:02",
+        "Waiting for ComfyUI.",
+        "Waiting for ComfyUI..",
+        "Waiting for ComfyUI...",
     ]
 
 
@@ -171,10 +171,73 @@ def test_activity_preserves_logs_and_clears_only_its_tail_row() -> None:
 
     assert stream.snapshot() == (
         "Downloaded package metadata",
-        "Installing dependencies. · 0:00",
+        "Installing dependencies.",
     )
 
     presenter.clear()
 
     assert presenter.active is False
     assert stream.snapshot() == ("Downloaded package metadata",)
+
+
+def test_output_detail_keeps_operation_age_and_wait_levels() -> None:
+    """Retain shared timing when logs refine the operation shown to the user."""
+    clock = _Clock()
+    stream = TerminalOutputStream(max_lines=20)
+    presenter = SplashActivityPresenter(stream=stream, clock=clock)
+    frames: list[str] = []
+    presenter.textChanged.connect(frames.append)
+    try:
+        presenter.start(SplashActivity("Waiting", "Long wait", "Extended wait"))
+        clock.now = 119
+        presenter.set_detail("Loading custom node: SugarCubes.")
+        assert frames[-1].startswith("Loading custom node: SugarCubes...")
+        clock.now = 120
+        presenter.refresh()
+        assert "taking longer than usual" in frames[-1]
+        assert "SugarCubes" in frames[-1]
+        assert "\nThis is taking" in frames[-1]
+        assert stream.snapshot()[-1] == "Long wait."
+        clock.now = 121
+        presenter.set_detail("Loading custom node: AnotherNode.")
+        assert "taking longer than usual" in frames[-1]
+        assert "AnotherNode" in frames[-1]
+        clock.now = 300
+        presenter.refresh()
+        assert "taking much longer than expected" in frames[-1]
+        presenter.clear_detail()
+        assert frames[-1].startswith("Extended wait")
+        presenter.clear()
+        assert frames[-1] == ""
+        presenter.set_detail("Starting the ComfyUI server.")
+        assert frames[-1] == "Starting the ComfyUI server."
+        presenter.shutdown()
+        presenter.set_detail("Should not restart")
+        assert "Should not restart" not in frames[-1]
+    finally:
+        presenter.shutdown()
+
+
+def test_output_summaries_never_replace_console_activity() -> None:
+    """Keep console wait feedback independent of collapsed-only output summaries."""
+    clock = _Clock()
+    stream = TerminalOutputStream(max_lines=20)
+    presenter = SplashActivityPresenter(stream=stream, clock=clock)
+    frames: list[str] = []
+    presenter.textChanged.connect(frames.append)
+    try:
+        presenter.set_detail("Configuring ComfyUI attention.")
+        assert stream.snapshot() == ()
+        presenter.start(
+            SplashActivity("Waiting for ComfyUI", "Long wait", "Still waiting")
+        )
+        stream.append_line("Using attention backend")
+        presenter.set_detail("Configuring ComfyUI attention.")
+        assert frames[-1] == "Configuring ComfyUI attention."
+        assert stream.snapshot() == ("Using attention backend", "Waiting for ComfyUI.")
+        clock.now = 1
+        presenter.refresh()
+        assert stream.snapshot()[-1] == "Waiting for ComfyUI.."
+        assert frames[-1] == "Configuring ComfyUI attention.."
+    finally:
+        presenter.shutdown()

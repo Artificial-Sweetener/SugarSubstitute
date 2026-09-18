@@ -23,10 +23,11 @@ from pathlib import Path
 import pytest
 
 from substitute.infrastructure.filesystem import remove_app_owned_path
-from sugarsubstitute_shared.launcher_update.models import (
-    LauncherInstallationRecord,
-    LauncherUpdateRequest,
+from sugarsubstitute_shared.launcher_update.request import LauncherUpdateRequest
+from sugarsubstitute_shared.launcher_update.bundle_selection import (
+    LauncherBundleSelection,
 )
+from sugarsubstitute_shared.launcher_update.targets import WINDOWS_X64_BUNDLE
 from sugarsubstitute_shared.launcher_update.transaction import (
     LauncherUpdateTransaction,
 )
@@ -92,18 +93,20 @@ def test_transaction_promotes_launcher_inside_long_install_root(
             request_path=request_path
         )
 
+        selected = LauncherBundleSelection(install_root, WINDOWS_X64_BUNDLE).resolve()
+        assert selected.version == "0.20.0"
         assert (install_root / "SugarSubstitute.exe").read_text(
             encoding="utf-8"
+        ) == "old launcher"
+        assert (selected.root / "SugarSubstitute.exe").read_text(
+            encoding="utf-8"
         ) == "new launcher"
-        assert (install_root / "launcher-bin" / "LauncherUi.exe").read_text(
+        assert (selected.root / "launcher-bin" / "LauncherUi.exe").read_text(
             encoding="utf-8"
         ) == "new launcher UI"
-        assert (install_root / "launcher-bin" / "runtime.txt").read_text(
+        assert (selected.root / "launcher-bin" / "runtime.txt").read_text(
             encoding="utf-8"
         ) == "new runtime"
-        assert LauncherInstallationRecord.load(
-            install_root / "launcher" / "installation.json"
-        ) == LauncherInstallationRecord(version="0.20.0", target_key="windows_x64")
         assert not request_path.exists()
     finally:
         remove_app_owned_path(cleanup_root)

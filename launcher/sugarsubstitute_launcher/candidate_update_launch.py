@@ -26,10 +26,14 @@ from typing import Protocol
 from launcher.sugarsubstitute_launcher.application_readiness_supervisor import (
     ApplicationReadinessError,
     ApplicationReadinessSupervisor,
-    CandidateProcess,
     stop_candidate_process,
 )
+from launcher.sugarsubstitute_launcher.application_startup_contract import (
+    ApplicationStartupCancelled,
+    CandidateProcess,
+)
 from launcher.sugarsubstitute_launcher.crash_supervisor import (
+    ClassifiedProcessExit,
     ApplicationCrashSupervisor,
     PreparedCrashRun,
 )
@@ -90,7 +94,8 @@ class CandidateCrashSupervisor(Protocol):
         layout: InstallLayout,
         process: CandidateProcess,
         prepared: PreparedCrashRun,
-    ) -> int:
+        expected_cancellation: bool = False,
+    ) -> ClassifiedProcessExit:
         """Classify a candidate for the remainder of its lifetime."""
 
     def supervise(
@@ -128,10 +133,13 @@ def launch_prepared_update(
     crash_supervisor: CandidateCrashSupervisor | None = None,
     rollback_reporter: UpdateRollbackReporter = record_update_rollback,
     on_ready: Callable[[], None] | None = None,
+    cancellation_requested: Callable[[], bool] | None = None,
 ) -> None:
     """Commit after visible readiness or restore and relaunch the prior app."""
 
-    readiness_supervisor = supervisor or ApplicationReadinessSupervisor()
+    readiness_supervisor = supervisor or ApplicationReadinessSupervisor(
+        cancellation_requested=cancellation_requested
+    )
     crash_owner = crash_supervisor or ApplicationCrashSupervisor()
     prepared = crash_owner.prepare(
         layout=layout,
@@ -150,6 +158,19 @@ def launch_prepared_update(
         except BaseException:
             stop_candidate_process(process)
             raise
+    except ApplicationStartupCancelled as cancelled:
+        if cancelled.terminated_process is not None:
+            crash_owner.supervise_process(
+                layout=layout,
+                process=cancelled.terminated_process,
+                prepared=prepared,
+                expected_cancellation=True,
+            )
+        activation.rollback()
+        _LOGGER.info(
+            "Cancelled update startup; restored the previous application without relaunching"
+        )
+        raise
     except BaseException as candidate_error:
         if (
             isinstance(candidate_error, ApplicationReadinessError)

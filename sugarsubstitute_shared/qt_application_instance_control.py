@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Callable
 import logging
+from pathlib import Path
 from typing import Protocol
 
 from PySide6.QtCore import QCoreApplication, QEvent, QObject, QTimer, Qt, Signal
@@ -56,6 +57,9 @@ class ApplicationSupervisorControl(Protocol):
 
     def request_restart(self) -> bool:
         """Request one supervisor-owned child restart."""
+
+    def claim_installation(self, install_root: Path) -> bool:
+        """Admit the selected folder through the existing supervisor."""
 
     def complete_invocation(
         self,
@@ -118,6 +122,10 @@ class ApplicationInstanceControlClient(QObject):
         """Ask the existing launcher supervisor to own the next application run."""
 
         return self._client.request_restart()
+
+    def claim_installation(self, install_root: Path) -> bool:
+        """Delegate worker-thread admission without interacting with Qt state."""
+        return self._client.claim_installation(install_root)
 
     @property
     def supervisor_identity(self) -> ProcessIdentity | None:

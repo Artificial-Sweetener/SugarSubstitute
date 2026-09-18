@@ -28,10 +28,8 @@ from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceEndpoint,
 )
 
+from sugarsubstitute_shared.windows_process_security import process_user_sid
 
-_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-_TOKEN_QUERY = 0x0008
-_TOKEN_USER = 1
 _PIPE_REJECT_REMOTE_CLIENTS = 0x00000008
 _PIPE_BUFFER_BYTES = 65536
 _PIPE_CONNECT_WAIT_MILLISECONDS = 100
@@ -81,7 +79,7 @@ class WindowsNamedPipeConnection:
             handle,
             peer_is_server=self._peer_is_server,
         )
-        return _process_user_sid(peer_process_id) == _process_user_sid(None)
+        return process_user_sid(peer_process_id) == process_user_sid(None)
 
     def peer_process_id(self) -> int | None:
         """Return the peer process identifier reported by the named pipe kernel."""
@@ -127,13 +125,15 @@ class WindowsNamedPipeListener:
             self._pending_handles.clear()
             accept_connection = self._active_accept_connection
             self._active_accept_connection = None
-        if accept_connection is not None:
-            accept_connection.close()
-        for handle in handles:
-            try:
-                CloseHandle(handle)
-            except OSError:
-                pass
+        try:
+            if accept_connection is not None:
+                accept_connection.close()
+        finally:
+            for handle in handles:
+                try:
+                    CloseHandle(handle)
+                except OSError:
+                    pass
 
     def _new_handle(self, *, first: bool = False) -> int:
         """Create one local-only pipe instance, optionally requiring first owner."""
@@ -163,7 +163,7 @@ class WindowsNamedPipeListener:
         )
 
     def _accept_connection(self) -> Connection:
-        """Accept one client while keeping a replacement pipe instance ready."""
+        """Transfer the accepted pipe only while this listener still owns it."""
 
         import _winapi
         from multiprocessing.connection import PipeConnection
@@ -195,14 +195,19 @@ class WindowsNamedPipeListener:
                     _result, native_error = overlapped.GetOverlappedResult(True)
                     if native_error:
                         raise OSError(native_error, "Named-pipe connection failed.")
-            return connection
-        except BaseException:
-            connection.close()
-            raise
-        finally:
             with self._lock:
-                if self._active_accept_connection is connection:
+                if self._closed:
+                    raise OSError("Application instance named-pipe listener is closed.")
+                self._active_accept_connection = None
+                return connection
+        except BaseException:
+            with self._lock:
+                owns_connection = self._active_accept_connection is connection
+                if owns_connection:
                     self._active_accept_connection = None
+            if owns_connection:
+                connection.close()
+            raise
 
 
 def connect_windows_named_pipe(
@@ -239,79 +244,6 @@ def _named_pipe_peer_process_id(handle: int, *, peer_is_server: bool) -> int:
     if not query(wintypes.HANDLE(handle), ctypes.byref(process_id)):
         raise ctypes.WinError(ctypes.get_last_error())
     return int(process_id.value)
-
-
-def _process_user_sid(process_id: int | None) -> str:
-    """Return one process token's canonical user SID."""
-
-    from ctypes import wintypes
-
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
-    kernel32.GetCurrentProcess.argtypes = []
-    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
-    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-    kernel32.OpenProcess.restype = wintypes.HANDLE
-    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-    kernel32.CloseHandle.restype = wintypes.BOOL
-    kernel32.LocalFree.argtypes = [wintypes.HLOCAL]
-    kernel32.LocalFree.restype = wintypes.HLOCAL
-    advapi32.OpenProcessToken.argtypes = [
-        wintypes.HANDLE,
-        wintypes.DWORD,
-        ctypes.POINTER(wintypes.HANDLE),
-    ]
-    advapi32.OpenProcessToken.restype = wintypes.BOOL
-    advapi32.GetTokenInformation.argtypes = [
-        wintypes.HANDLE,
-        ctypes.c_int,
-        ctypes.c_void_p,
-        wintypes.DWORD,
-        ctypes.POINTER(wintypes.DWORD),
-    ]
-    advapi32.GetTokenInformation.restype = wintypes.BOOL
-    advapi32.ConvertSidToStringSidW.argtypes = [
-        ctypes.c_void_p,
-        ctypes.POINTER(wintypes.LPWSTR),
-    ]
-    advapi32.ConvertSidToStringSidW.restype = wintypes.BOOL
-    process = (
-        kernel32.GetCurrentProcess()
-        if process_id is None
-        else kernel32.OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, False, process_id)
-    )
-    if not process:
-        raise ctypes.WinError(ctypes.get_last_error())
-    token = wintypes.HANDLE()
-    try:
-        if not advapi32.OpenProcessToken(process, _TOKEN_QUERY, ctypes.byref(token)):
-            raise ctypes.WinError(ctypes.get_last_error())
-        required = wintypes.DWORD()
-        advapi32.GetTokenInformation(
-            token, _TOKEN_USER, None, 0, ctypes.byref(required)
-        )
-        buffer = ctypes.create_string_buffer(required.value)
-        if not advapi32.GetTokenInformation(
-            token,
-            _TOKEN_USER,
-            buffer,
-            required.value,
-            ctypes.byref(required),
-        ):
-            raise ctypes.WinError(ctypes.get_last_error())
-        sid_pointer = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_void_p)).contents
-        sid_text = wintypes.LPWSTR()
-        if not advapi32.ConvertSidToStringSidW(sid_pointer, ctypes.byref(sid_text)):
-            raise ctypes.WinError(ctypes.get_last_error())
-        try:
-            return str(sid_text.value)
-        finally:
-            kernel32.LocalFree(ctypes.cast(sid_text, wintypes.HLOCAL))
-    finally:
-        if token:
-            kernel32.CloseHandle(token)
-        if process_id is not None:
-            kernel32.CloseHandle(process)
 
 
 __all__ = [

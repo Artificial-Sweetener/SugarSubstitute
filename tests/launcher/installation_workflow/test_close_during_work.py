@@ -25,6 +25,9 @@ from types import SimpleNamespace
 import pytest
 
 from launcher.sugarsubstitute_launcher.install_layout import InstallLayout
+from launcher.sugarsubstitute_launcher.repair_preparation_operation import (
+    RepairPreparationOperation,
+)
 from launcher.sugarsubstitute_launcher.ui.main_window import LauncherMainWindow
 from tests.launcher.installation_workflow.support import (
     advance_to_install_location,
@@ -109,7 +112,7 @@ def test_close_during_initial_install_waits_for_its_safe_boundary(
 
     assert window.isVisible()
     assert "Finishing the current setup step before closing." in (
-        window.view.progress_log.log_view.toPlainText()
+        window.view.status_panel.progress_log.log_view.toPlainText()
     )
     release_install.set()
     wait_for_launcher_condition(
@@ -203,9 +206,11 @@ def test_close_during_runtime_prevents_setup_process_handoff(
     application.processEvents()
 
 
+@pytest.mark.parametrize("outcome", ["success", "failure"])
 def test_close_during_repair_staging_prevents_repair_handoff(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    outcome: str,
 ) -> None:
     """Leave active files untouched when close wins before staged repair handoff."""
 
@@ -214,20 +219,35 @@ def test_close_during_repair_staging_prevents_repair_handoff(
     staging_started = threading.Event()
     release_staging = threading.Event()
     handoff_paths: list[Path] = []
+    cancellations: list[bool] = []
+    failures: list[bool] = []
+    original_cancel = RepairPreparationOperation.request_cancel
+
+    def cancel(operation: RepairPreparationOperation) -> None:
+        """Observe Close reaching the operation while keeping its cancellation real."""
+        original_cancel(operation)
+        cancellations.append(True)
 
     def prepare_repair(_service: object, **_arguments: object) -> object:
         """Hold immutable staging until close has been observed."""
 
         staging_started.set()
         assert release_staging.wait(5)
+        if outcome == "failure":
+            raise OSError("Controlled preparation failure during Close")
         return object()
 
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.repair_preparation_execution.RepairPreparationService.prepare_bound_application_repair",
+        "launcher.sugarsubstitute_launcher.repair_preparation_operation.RepairPreparationOperation.run",
         prepare_repair,
     )
+    monkeypatch.setattr(RepairPreparationOperation, "request_cancel", cancel)
     monkeypatch.setattr(
-        "launcher.sugarsubstitute_launcher.ui.main_window.launch_prepared_repair_helper",
+        "launcher.sugarsubstitute_launcher.ui.installer_failure_presenter.InstallerFailurePresenter.show_failure",
+        lambda *args, **kwargs: failures.append(True),
+    )
+    monkeypatch.setattr(
+        "launcher.sugarsubstitute_launcher.ui.repair_preparation_controller.launch_prepared_repair_helper",
         lambda *, request_path: handoff_paths.append(request_path),
     )
     window = LauncherMainWindow(
@@ -249,8 +269,10 @@ def test_close_during_repair_staging_prevents_repair_handoff(
     release_staging.set()
     wait_for_launcher_condition(
         application,
-        lambda: not window.isVisible() and not window.repair_execution.running,
+        lambda: not window.isVisible() and not window.repair_preparation.running,
     )
     assert handoff_paths == []
+    assert cancellations == [True]
+    assert failures == []
     window.deleteLater()
     application.processEvents()

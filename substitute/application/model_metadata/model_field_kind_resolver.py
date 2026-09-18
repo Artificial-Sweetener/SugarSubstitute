@@ -49,12 +49,19 @@ _UNQUALIFIED_MODEL_FIELDS = {
 }
 
 
+def declared_model_kind_for_field(*, class_type: str, input_key: str) -> str | None:
+    """Return only a declared node-input contract suitable for selecting a widget."""
+    return _EXACT_MODEL_FIELDS.get((class_type.strip(), input_key.strip()))
+
+
 def model_kind_for_field(*, class_type: str, input_key: str) -> str | None:
     """Return the model catalog kind for one recognized model-picker field."""
 
     normalized_class_type = class_type.strip()
     normalized_input_key = input_key.strip()
-    exact_kind = _EXACT_MODEL_FIELDS.get((normalized_class_type, normalized_input_key))
+    exact_kind = declared_model_kind_for_field(
+        class_type=normalized_class_type, input_key=normalized_input_key
+    )
     if exact_kind is not None:
         return exact_kind
     unqualified_kind = _UNQUALIFIED_MODEL_FIELDS.get(normalized_input_key)
@@ -74,4 +81,4 @@ def model_kind_for_field(*, class_type: str, input_key: str) -> str | None:
     return None
 
 
-__all__ = ["model_kind_for_field"]
+__all__ = ["declared_model_kind_for_field", "model_kind_for_field"]

@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame, QGridLayout, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QWidget
 
 from sugarsubstitute_shared.localization import app_text
 from sugarsubstitute_shared.presentation.localization import render_application_text
@@ -31,12 +31,15 @@ from substitute.presentation.onboarding.onboarding_recommendation_geometry impor
     PORTRAIT_WIDTH,
 )
 from substitute.presentation.widgets.busy_ring import BusyRing
+from substitute.presentation.onboarding.onboarding_model_card_layout import (
+    ModelCardLayout,
+)
 
 
 class RecommendationLoadingGallery:
     """Own loading-card construction and progress-ring lifetime."""
 
-    def __init__(self, *, host: QWidget, grid: QGridLayout) -> None:
+    def __init__(self, *, host: QWidget, grid: ModelCardLayout) -> None:
         """Bind the loading composition to the recommendation card host."""
 
         self._host = host
@@ -48,7 +51,7 @@ class RecommendationLoadingGallery:
 
         accessible_name = render_application_text(app_text("Loading recommendations…"))
         self._host.setMinimumHeight(CARD_HEIGHT)
-        for index in range(10):
+        for _index in range(10):
             card = QFrame(self._host)
             card.setObjectName("OnboardingRecommendationLoadingCard")
             card.setFixedSize(CARD_WIDTH, CARD_HEIGHT)
@@ -71,7 +74,7 @@ class RecommendationLoadingGallery:
             portrait_layout.addStretch(1)
             card_layout.addWidget(portrait)
 
-            self._grid.addWidget(card, index // 5, index % 5)
+            self._grid.addWidget(card)
             self._rings.append(ring)
 
     def clear(self) -> None:

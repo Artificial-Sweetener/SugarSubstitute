@@ -40,6 +40,9 @@ from qfluentwidgets import (  # type: ignore[import-untyped]
 
 from launcher.sugarsubstitute_launcher.localized_text import launcher_text
 from launcher.sugarsubstitute_launcher.ui.experience_models import RepairChoice
+from launcher.sugarsubstitute_launcher.ui.repair_preparation_progress_view import (
+    RepairPreparationProgressView,
+)
 
 
 class RepairScopePage(QFrame):
@@ -108,12 +111,14 @@ class RepairScopePage(QFrame):
         self.status_label.setWordWrap(True)
         self.status_label.hide()
         layout.addWidget(self.status_label)
+        self.preparation_progress = RepairPreparationProgressView(self)
+        layout.addWidget(self.preparation_progress)
         layout.addStretch(1)
         footer = QHBoxLayout()
         footer.addStretch(1)
         cancel = PushButton(launcher_text("Cancel"), self)
         cancel.clicked.connect(self.cancel_requested)
-        self.primary_button = PrimaryPushButton(launcher_text("Review repair"), self)
+        self.primary_button = PrimaryPushButton(launcher_text("Start repair"), self)
         self.primary_button.clicked.connect(self.continue_requested)
         footer.addWidget(cancel)
         footer.addWidget(self.primary_button)
@@ -132,12 +137,13 @@ class RepairScopePage(QFrame):
 
         self.status_label.setText(message)
         self.status_label.setVisible(bool(message))
+        self.preparation_progress.set_working(working)
         self.application_choice.setEnabled(not working)
         self.full_comfy_choice.setEnabled(not working)
         self.primary_button.setText(
             launcher_text("Preparing repair...")
             if working
-            else launcher_text("Review repair")
+            else launcher_text("Start repair")
         )
         self.primary_button.setEnabled(not working)
 

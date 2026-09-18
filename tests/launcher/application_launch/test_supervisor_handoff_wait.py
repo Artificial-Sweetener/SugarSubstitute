@@ -30,18 +30,20 @@ from sugarsubstitute_shared.process_identity import ProcessIdentity
 from sugarsubstitute_shared.supervisor_handoff import with_supervisor_handoff
 
 
-def test_handoff_starts_splash_before_waiting_for_exact_supervisor(
+@pytest.mark.parametrize("splash_available", [True, False])
+def test_handoff_waits_for_exact_supervisor_even_without_splash(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    splash_available: bool,
 ) -> None:
-    """No supervisor wait may happen before a visible startup surface exists."""
+    """Attempt presentation without making it a requirement for safe handoff."""
 
     identity = ProcessIdentity(pid=4321, created_at=123.5)
     environment = with_supervisor_handoff({"BASE": "preserved"}, identity)
     events: list[object] = []
-    splash = object.__new__(LauncherSplashSession)
+    splash = object.__new__(LauncherSplashSession) if splash_available else None
 
-    def start_splash(**_kwargs: object) -> LauncherSplashSession:
+    def start_splash(**_kwargs: object) -> LauncherSplashSession | None:
         """Record surface creation before returning the retained session."""
 
         events.append("splash")

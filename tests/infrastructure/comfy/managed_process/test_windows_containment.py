@@ -17,12 +17,10 @@
 """Tests for one managed ComfyUI process behavior owner."""
 
 from __future__ import annotations
-
-from __future__ import annotations
 import os
 from pathlib import Path
 import subprocess
-from typing import Any, cast
+from typing import Any, Self, cast
 import pytest
 from substitute.infrastructure.comfy import (
     managed_shutdown,
@@ -31,14 +29,17 @@ from substitute.infrastructure.comfy import (
 from substitute.infrastructure.comfy.managed_process_metadata import (
     ManagedProcessMetadata,
 )
-from substitute.infrastructure.comfy.managed_shutdown import (
+from substitute.infrastructure.comfy.managed_termination_result import (
     ManagedProcessTerminationStatus,
+)
+from substitute.infrastructure.comfy.managed_shutdown import (
     kill_managed_comfy,
     kill_managed_comfy_pid,
 )
 from substitute.infrastructure.comfy.windows_job_containment import (
     WindowsJobContainmentHandle,
 )
+from substitute.infrastructure.comfy.windows_managed_job import WindowsManagedJob
 
 
 class _FakeProcess:
@@ -52,6 +53,24 @@ class _FakeProcess:
         """Return the configured process exit status."""
 
         return self._returncode
+
+
+@pytest.fixture
+def shutdown_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Advance the external shutdown clock without delaying verification tests."""
+    elapsed = 0.0
+
+    def now() -> float:
+        """Return the controlled monotonic time."""
+        return elapsed
+
+    def advance(seconds: float) -> None:
+        """Advance time at the shutdown owner's wait boundary."""
+        nonlocal elapsed
+        elapsed += seconds
+
+    monkeypatch.setattr(managed_shutdown, "monotonic", now)
+    monkeypatch.setattr(managed_shutdown, "sleep", advance)
 
 
 def test_kill_managed_comfy_reports_success_when_process_already_gone() -> None:
@@ -87,8 +106,9 @@ def test_kill_managed_comfy_pid_reports_windows_taskkill_timeout(
 
 def test_kill_managed_comfy_pid_reports_windows_verification_timeout(
     monkeypatch: pytest.MonkeyPatch,
+    shutdown_clock: None,
 ) -> None:
-    """Successful Windows taskkill should still count as confirmed shutdown."""
+    """Require process exit even when Windows acknowledges the termination command."""
 
     monkeypatch.setattr(os, "name", "nt", raising=False)
     monkeypatch.setattr(
@@ -106,7 +126,7 @@ def test_kill_managed_comfy_pid_reports_windows_verification_timeout(
     result = kill_managed_comfy_pid(124)
 
     assert result.attempted is True
-    assert result.status is ManagedProcessTerminationStatus.TERMINATED_CONFIRMED
+    assert result.status is ManagedProcessTerminationStatus.TERMINATION_UNCONFIRMED
     assert result.termination_command_timed_out is False
     assert result.verification_timed_out is True
     assert "SUCCESS:" not in result.user_safe_detail
@@ -114,6 +134,7 @@ def test_kill_managed_comfy_pid_reports_windows_verification_timeout(
 
 def test_kill_managed_comfy_pid_captures_windows_stdout_only_in_diagnostics(
     monkeypatch: pytest.MonkeyPatch,
+    shutdown_clock: None,
 ) -> None:
     """Raw taskkill stdout should remain diagnostic-only."""
 
@@ -134,7 +155,7 @@ def test_kill_managed_comfy_pid_captures_windows_stdout_only_in_diagnostics(
 
     assert "SUCCESS:" not in result.user_safe_detail
     assert "SUCCESS:" in result.diagnostic_detail
-    assert result.status is ManagedProcessTerminationStatus.TERMINATED_CONFIRMED
+    assert result.status is ManagedProcessTerminationStatus.TERMINATION_UNCONFIRMED
 
 
 def test_kill_managed_comfy_pid_reports_windows_invocation_failure(
@@ -183,14 +204,37 @@ def test_kill_managed_comfy_pid_reports_windows_success(
     assert "terminated" in result.diagnostic_detail
 
 
-def test_windows_job_owned_shutdown_closes_only_containment_handles(
+@pytest.mark.parametrize(
+    "native_failure",
+    [None, OSError("Native operation failed"), TimeoutError("Native exit timed out")],
+    ids=["completed", "native-error", "native-timeout"],
+)
+def test_windows_job_owned_shutdown_releases_ownership_only_after_family_exit(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    native_failure: OSError | None,
 ) -> None:
-    """Windows contained shutdown should close the job handle before exit verification."""
+    """Keep original ownership until the native family exit barrier completes."""
 
-    close_calls: list[str] = []
-    verification_calls: list[int] = []
+    operations: list[str] = []
+
+    class _NativeJob:
+        """Control the native termination boundary without replacing result policy."""
+
+        def __enter__(self) -> Self:
+            """Retain the native reference for this operation."""
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            """Release the operation's borrowed reference."""
+
+        def terminate_and_wait(self, *, timeout_seconds: float) -> None:
+            """Publish native completion or the supplied OS failure."""
+            operations.append("native_exit")
+            if native_failure is not None:
+                raise native_failure
+
+    monkeypatch.setattr(WindowsManagedJob, "open", lambda *args, **kwargs: _NativeJob())
     handle = WindowsJobContainmentHandle(
         job_handle=11,
         process_handle=22,
@@ -208,12 +252,7 @@ def test_windows_job_owned_shutdown_closes_only_containment_handles(
     monkeypatch.setattr(
         windows_job_containment,
         "close_job_containment_handle",
-        lambda raw_handle: close_calls.append(raw_handle.job_name),
-    )
-    monkeypatch.setattr(
-        managed_shutdown,
-        "_verify_process_exit",
-        lambda pid, **kwargs: _record_verification(verification_calls, pid),
+        lambda raw_handle: operations.append("release_owner"),
     )
 
     result = managed_shutdown.kill_managed_comfy_metadata(
@@ -221,9 +260,13 @@ def test_windows_job_owned_shutdown_closes_only_containment_handles(
         containment_handle=handle,
     )
 
-    assert close_calls == ["job-1"]
-    assert verification_calls == [321]
-    assert result.status is ManagedProcessTerminationStatus.TERMINATED_CONFIRMED
+    if native_failure is None:
+        assert operations == ["native_exit", "release_owner"]
+        assert result.status is ManagedProcessTerminationStatus.TERMINATED_CONFIRMED
+    else:
+        assert operations == ["native_exit"]
+        assert result.status is ManagedProcessTerminationStatus.TERMINATION_UNCONFIRMED
+        assert result.verification_timed_out is isinstance(native_failure, TimeoutError)
 
 
 def _raise_taskkill_timeout(*args: object, **kwargs: object) -> object:
@@ -235,13 +278,3 @@ def _raise_taskkill_timeout(*args: object, **kwargs: object) -> object:
         cmd=command,
         timeout=timeout if isinstance(timeout, int | float) else 5.0,
     )
-
-
-def _record_verification(
-    calls: list[int],
-    pid: int,
-) -> tuple[bool, bool]:
-    """Record one verification request and report a confirmed exit."""
-
-    calls.append(pid)
-    return True, False

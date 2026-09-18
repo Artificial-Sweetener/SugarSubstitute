@@ -14,9 +14,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Own fileless application election and supervisor IPC for one user session."""
+"""Own fileless application election and supervisor IPC for one installation account."""
 
 from __future__ import annotations
+
+from sugarsubstitute_shared.application_instance_election import (
+    ApplicationInstanceReservation,
+    SelectedInstallationReservation,
+    reserve_application_instance,
+)
 
 from collections.abc import Callable, Mapping
 import json
@@ -24,17 +30,13 @@ import logging
 import os
 from pathlib import Path
 import secrets
-import sys
 import threading
-import time
-from typing import Protocol, Self
+from typing import Self
 
 from sugarsubstitute_shared.application_instance_protocol import (
     ApplicationInstanceConnection,
     ApplicationInstanceBrokerError,
-    ApplicationInstanceEndpoint,
     ApplicationInvocation,
-    RoutedApplicationInvocation,
     BROKER_ENDPOINT_ENV,
     BROKER_TOKEN_ENV,
     parse_routed_application_invocation,
@@ -44,28 +46,18 @@ from sugarsubstitute_shared.application_instance_protocol import (
 from sugarsubstitute_shared.application_invocation_router import (
     ApplicationInvocationRouter,
 )
-from sugarsubstitute_shared.application_instance_transport import (
-    ApplicationInstanceListener,
-    bind_instance_listener,
-    connect_instance_endpoint,
-    endpoint_is_already_owned,
-    instance_endpoint,
-    instance_identity,
+from sugarsubstitute_shared.application_instance_bindings import (
+    ApplicationInstanceBindings,
 )
+
+
+from sugarsubstitute_shared.startup_resource_owner import StartupResourceOwner
 
 
 _LOGGER = logging.getLogger(__name__)
 _MAXIMUM_PENDING_INVOCATIONS = 64
-_PRESENTATION_TIMEOUT_SECONDS = 15.0
 _SUPERVISOR_RECEIPT_DEADLINE_SECONDS = 14.0
 _CONNECTION_HANDSHAKE_TIMEOUT_SECONDS = 2.0
-
-
-class _InstanceOwnerClaim(Protocol):
-    """Retain an auxiliary native ownership resource until broker shutdown."""
-
-    def close(self) -> None:
-        """Release native ownership idempotently."""
 
 
 class ApplicationInstanceBroker:
@@ -74,33 +66,37 @@ class ApplicationInstanceBroker:
     def __init__(
         self,
         *,
-        endpoint: ApplicationInstanceEndpoint,
-        listener: ApplicationInstanceListener,
+        reservation: ApplicationInstanceReservation,
         child_token: str,
-        owner_claim: _InstanceOwnerClaim | None,
         accept_listener_invocations: bool,
+        reserve_selected: SelectedInstallationReservation | None = None,
     ) -> None:
         """Start accepting invocations on the already-claimed native endpoint."""
 
-        self._endpoint = endpoint
-        self._listener = listener
+        self._endpoint = reservation.endpoint
         self._child_token = child_token
-        self._owner_claim = owner_claim
         self._accept_listener_invocations = accept_listener_invocations
         self._closing = threading.Event()
         self._restart_requested = threading.Event()
+        self._restart_lock = threading.Lock()
+        self._startup_resources = StartupResourceOwner()
         self._router = ApplicationInvocationRouter(
             child_token=child_token,
             closing=self._closing,
             maximum_active_requests=_MAXIMUM_PENDING_INVOCATIONS,
             receipt_deadline_seconds=_SUPERVISOR_RECEIPT_DEADLINE_SECONDS,
         )
-        self._accept_thread = threading.Thread(
-            target=self._accept_connections,
-            name="application-instance-broker",
-            daemon=True,
-        )
-        self._accept_thread.start()
+        try:
+            self._bindings = ApplicationInstanceBindings(
+                reservation,
+                closing=self._closing,
+                handle_connection=self._handle_connection,
+                reserve_selected=reserve_selected,
+            )
+        except BaseException:
+            self._router.close()
+            self._startup_resources.close()
+            raise
 
     @classmethod
     def elect(
@@ -108,69 +104,28 @@ class ApplicationInstanceBroker:
         *,
         install_root: Path,
         invocation: ApplicationInvocation,
+        reserve_selected: SelectedInstallationReservation | None = None,
     ) -> Self | None:
         """Become the supervisor or forward this invocation to the elected owner."""
 
-        identity = instance_identity(install_root)
-        endpoint = instance_endpoint(identity)
-        owner_claim: _InstanceOwnerClaim | None = None
-        if sys.platform.startswith("linux"):
-            from sugarsubstitute_shared.application_instance_linux import (
-                LinuxSessionBusElection,
-                acquire_linux_session_bus,
-            )
-
-            bus_result = acquire_linux_session_bus(identity)
-            if bus_result.election is LinuxSessionBusElection.SECONDARY:
-                _forward_invocation(endpoint, invocation)
-                return None
-            owner_claim = bus_result.claim
-        elif sys.platform == "darwin":
-            from sugarsubstitute_shared.application_instance_macos import (
-                MacOSMessagePortElection,
-                acquire_macos_message_port,
-            )
-
-            message_port_result = acquire_macos_message_port(identity)
-            if message_port_result.election is MacOSMessagePortElection.SECONDARY:
-                _forward_invocation(endpoint, invocation)
-                return None
-            owner_claim = message_port_result.claim
-        try:
-            listener = bind_instance_listener(endpoint)
-        except OSError as error:
-            if owner_claim is not None:
-                owner_claim.close()
-            if not endpoint_is_already_owned(error):
-                raise
-            try:
-                _forward_invocation(endpoint, invocation)
-                _LOGGER.info(
-                    "Forwarded launch to the active application supervisor",
-                    extra={"instance_transport": endpoint.transport},
-                )
-                return None
-            except ApplicationInstanceBrokerError:
-                raise
-            except BaseException:
-                raise ApplicationInstanceBrokerError(
-                    "Application instance election lost, but the elected supervisor "
-                    "could not accept this invocation."
-                ) from error
+        reservation = reserve_application_instance(install_root, invocation)
+        if reservation is None:
+            return None
         _LOGGER.info(
-            "Elected application supervisor through native IPC | owner_pid=%s | "
-            "transport=%s",
+            "Elected application supervisor through native IPC | owner_pid=%s | transport=%s",
             os.getpid(),
-            endpoint.transport,
+            reservation.endpoint.transport,
         )
-        broker = cls(
-            endpoint=endpoint,
-            listener=listener,
-            child_token=secrets.token_urlsafe(32),
-            owner_claim=owner_claim,
-            accept_listener_invocations=True,
-        )
-        return broker
+        try:
+            return cls(
+                reservation=reservation,
+                child_token=secrets.token_urlsafe(32),
+                accept_listener_invocations=True,
+                reserve_selected=reserve_selected,
+            )
+        except BaseException:
+            reservation.close()
+            raise
 
     def child_environment(
         self,
@@ -186,10 +141,19 @@ class ApplicationInstanceBroker:
     def consume_restart_request(self) -> bool:
         """Return and clear the child's one pending supervised restart request."""
 
-        if not self._restart_requested.is_set():
-            return False
-        self._restart_requested.clear()
-        return True
+        with self._restart_lock:
+            if not self._restart_requested.is_set():
+                return False
+            self._restart_requested.clear()
+            return True
+
+    def register_startup_resource(self, cleanup: Callable[[], None]) -> str:
+        """Retain cleanup locally and return a generation-specific release identity."""
+        return self._startup_resources.register(cleanup)
+
+    def release_startup_resource(self, identity: str) -> bool:
+        """Release only the matching resource through its original process owner."""
+        return self._startup_resources.release(identity)
 
     def bind_startup_presenter(
         self,
@@ -205,24 +169,14 @@ class ApplicationInstanceBroker:
         if self._closing.is_set():
             return
         self._closing.set()
-        try:
-            self._listener.close()
-        except OSError:
-            pass
+        self._startup_resources.close()
+        stopped = self._bindings.close()
         self._router.close()
-        if threading.current_thread() is not self._accept_thread:
-            self._accept_thread.join(timeout=2.0)
-            if self._accept_thread.is_alive():
-                _LOGGER.warning("Application instance accept thread did not stop")
-        if self._owner_claim is not None:
-            self._owner_claim.close()
-            self._owner_claim = None
         _LOGGER.info(
-            "Application supervisor shutdown completed | owner_pid=%s | "
-            "transport=%s | accept_thread_stopped=%s",
+            "Application supervisor shutdown completed | owner_pid=%s | transport=%s | accept_threads_stopped=%s",
             os.getpid(),
             self._endpoint.transport,
-            not self._accept_thread.is_alive(),
+            stopped,
         )
 
     def __enter__(self) -> Self:
@@ -234,23 +188,6 @@ class ApplicationInstanceBroker:
         """Release native ownership when supervision finishes."""
 
         self.close()
-
-    def _accept_connections(self) -> None:
-        """Accept local requests until the supervisor releases ownership."""
-
-        while not self._closing.is_set():
-            try:
-                connection = self._listener.accept()
-            except OSError:
-                if not self._closing.is_set():
-                    time.sleep(0.01)
-                continue
-            threading.Thread(
-                target=self._handle_connection,
-                args=(connection,),
-                name="application-instance-request",
-                daemon=True,
-            ).start()
 
     def _handle_connection(self, connection: ApplicationInstanceConnection) -> None:
         """Validate and route one invocation or child control request."""
@@ -282,13 +219,54 @@ class ApplicationInstanceBroker:
                 )
                 send_instance_message(connection, {"status": "rejected"})
                 return
+            if kind == "claim-installation":
+                root = message.get("install_root")
+                if not isinstance(root, str) or not Path(root).is_absolute():
+                    send_instance_message(connection, {"status": "rejected"})
+                    return
+                try:
+                    admitted = self._bindings.claim(
+                        Path(root),
+                        on_activity=lambda: send_instance_message(
+                            connection, {"status": "pending"}
+                        ),
+                    )
+                except ApplicationInstanceBrokerError:
+                    _LOGGER.warning(
+                        "Selected installation admission failed", exc_info=True
+                    )
+                    send_instance_message(connection, {"status": "rejected"})
+                    return
+                send_instance_message(
+                    connection, {"status": "admitted" if admitted else "presented"}
+                )
+                return
             if kind == "register-child":
                 retain_connection = True
                 self._router.register_child(connection)
                 return
             if kind == "restart":
-                self._restart_requested.set()
+                with self._restart_lock:
+                    self._restart_requested.set()
                 send_instance_message(connection, {"status": "accepted"})
+                return
+            if kind == "release-startup-resource":
+                identity = message.get("resource_identity")
+                released = isinstance(identity, str) and self.release_startup_resource(
+                    identity
+                )
+                send_instance_message(
+                    connection, {"status": "accepted" if released else "rejected"}
+                )
+                return
+            if kind == "supervisor-session":
+                send_instance_message(connection, {"status": "accepted"})
+                return
+            if kind == "consume-restart":
+                send_instance_message(
+                    connection,
+                    {"status": "accepted", "restart": self.consume_restart_request()},
+                )
                 return
             send_instance_message(connection, {"status": "rejected"})
         except (OSError, TimeoutError, ValueError, json.JSONDecodeError):
@@ -303,86 +281,6 @@ class ApplicationInstanceBroker:
                     connection.close()
                 except OSError:
                     pass
-
-
-def _forward_invocation(
-    endpoint: ApplicationInstanceEndpoint,
-    invocation: ApplicationInvocation,
-) -> None:
-    """Forward a secondary launch and require explicit supervisor acceptance."""
-
-    request = RoutedApplicationInvocation(
-        request_id=secrets.token_urlsafe(24),
-        invocation=invocation,
-    )
-    _LOGGER.info(
-        "Forwarding secondary invocation | requester_pid=%s | request_id=%s | "
-        "transport=%s",
-        os.getpid(),
-        request.request_id,
-        endpoint.transport,
-    )
-    try:
-        connection = connect_instance_endpoint(endpoint)
-    except OSError as error:
-        raise ApplicationInstanceBrokerError(
-            "The active application supervisor could not be reached.",
-            endpoint=endpoint,
-        ) from error
-    owner_process_id = connection.peer_process_id()
-    try:
-        send_instance_message(connection, request.to_message())
-        try:
-            response = receive_instance_message(
-                connection,
-                timeout_seconds=_PRESENTATION_TIMEOUT_SECONDS,
-            )
-            owner_process_id = _response_owner_process_id(
-                response,
-                fallback=owner_process_id,
-            )
-        except (OSError, TimeoutError) as error:
-            raise ApplicationInstanceBrokerError(
-                "The active application did not present a usable window in time.",
-                owner_process_id=owner_process_id,
-                endpoint=endpoint,
-            ) from error
-    finally:
-        connection.close()
-    if (
-        response.get("status") != "presented"
-        or response.get("request_id") != request.request_id
-    ):
-        raise ApplicationInstanceBrokerError(
-            "The active application could not present a usable window.",
-            owner_process_id=owner_process_id,
-            endpoint=endpoint,
-        )
-    _LOGGER.info(
-        "Secondary invocation produced a visible surface | requester_pid=%s | "
-        "owner_pid=%s | request_id=%s | surface=%s",
-        os.getpid(),
-        owner_process_id,
-        request.request_id,
-        response.get("surface"),
-    )
-
-
-def _response_owner_process_id(
-    response: Mapping[str, object],
-    *,
-    fallback: int | None,
-) -> int | None:
-    """Prefer the supervisor identity carried by its authenticated response."""
-
-    owner_process_id = response.get("owner_process_id")
-    if (
-        isinstance(owner_process_id, int)
-        and not isinstance(owner_process_id, bool)
-        and owner_process_id > 0
-    ):
-        return owner_process_id
-    return fallback
 
 
 __all__ = [

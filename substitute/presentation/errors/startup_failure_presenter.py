@@ -14,39 +14,38 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Present blocking startup failure reports before the shell exists."""
+"""Present blocking startup failures in an independently owned Fluent window."""
 
 from __future__ import annotations
 
-from sugarsubstitute_shared.presentation.localization import set_localized_window_title
-
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QWidget
-
+from sugarsubstitute_shared.presentation.error_report_window import (
+    SharedErrorReportWindow,
+)
+from sugarsubstitute_shared.presentation.localization import (
+    render_application_text,
+    set_localized_window_title,
+)
+from substitute.application.error_report_builder import ErrorReportBuilder
 from substitute.application.errors import ErrorReport
-from substitute.presentation.errors.error_presenter import ErrorPresenter
+from substitute.presentation.dialogs.error_report_presentation import (
+    build_error_report_presentation,
+)
 
 
 def present_startup_failure_report(report: ErrorReport) -> None:
-    """Show one blocking startup failure report in a temporary host widget."""
-
-    host = QWidget()
-    set_localized_window_title(host, "ComfyUI startup failed")
-    host.setWindowFlag(Qt.WindowType.Tool, True)
-    host.resize(1024, 768)
-    screen = QApplication.primaryScreen()
-    if screen is not None:
-        geometry = screen.availableGeometry()
-        host.move(
-            geometry.left() + (geometry.width() - host.width()) // 2,
-            geometry.top() + (geometry.height() - host.height()) // 2,
-        )
-    host.show()
+    """Own one report window whose native close also ends the blocking lifetime."""
+    report_text = ErrorReportBuilder(text_renderer=render_application_text).render(
+        report
+    )
+    window = SharedErrorReportWindow(
+        presentation=build_error_report_presentation(report, report_text),
+    )
+    set_localized_window_title(window, "ComfyUI startup failed")
     try:
-        ErrorPresenter(parent=host).show_error_report(report)
+        window.exec()
     finally:
-        host.close()
-        host.deleteLater()
+        window.close()
+        window.deleteLater()
 
 
 __all__ = ["present_startup_failure_report"]

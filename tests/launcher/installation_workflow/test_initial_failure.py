@@ -88,11 +88,13 @@ def test_initial_install_failure_restores_editable_retry_state(
     assert window.view.install_path_edit.isEnabled() is True
     assert window.view.browse_button is not None
     assert window.view.browse_button.isEnabled() is True
-    assert "launcher copy failed" in (window.view.progress_log.log_view.toPlainText())
+    assert "launcher copy failed" in (
+        window.view.status_panel.progress_log.log_view.toPlainText()
+    )
     dialog = window.failure_presenter.active_dialog
     assert dialog is not None
     assert dialog.isVisible()
-    assert "launcher copy failed" in dialog._report_text
-    dialog._copy_button.click()
-    assert application.clipboard().text() == dialog._report_text
+    assert "launcher copy failed" in dialog.content._report_text
+    dialog.content._copy_button.click()
+    assert application.clipboard().text() == dialog.content._report_text
     close_and_delete_launcher_window(window)
