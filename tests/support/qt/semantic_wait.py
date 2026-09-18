@@ -32,7 +32,7 @@ def wait_for_qt_condition(
     description: str = "semantic Qt condition",
     state: Callable[[], object] | None = None,
 ) -> None:
-    """Run Qt delivery until semantic state appears or its failure bound expires."""
+    """Run Qt delivery and distinguish deadline expiration from interrupted delivery."""
 
     if condition():
         return
@@ -41,6 +41,7 @@ def wait_for_qt_condition(
     observation_timer.setInterval(1)
     failure_timeout = QTimer()
     failure_timeout.setSingleShot(True)
+    expired = False
 
     def finish_when_observed() -> None:
         """Stop delivery as soon as the authoritative state is visible."""
@@ -48,8 +49,14 @@ def wait_for_qt_condition(
         if condition():
             event_loop.quit()
 
+    def finish_at_deadline() -> None:
+        """Record actual deadline delivery before ending the nested event loop."""
+        nonlocal expired
+        expired = True
+        event_loop.quit()
+
     observation_timer.timeout.connect(finish_when_observed)
-    failure_timeout.timeout.connect(event_loop.quit)
+    failure_timeout.timeout.connect(finish_at_deadline)
     try:
         observation_timer.start()
         failure_timeout.start(timeout_ms)
@@ -59,13 +66,15 @@ def wait_for_qt_condition(
         observation_timer.stop()
         failure_timeout.stop()
         observation_timer.timeout.disconnect(finish_when_observed)
-        failure_timeout.timeout.disconnect(event_loop.quit)
+        failure_timeout.timeout.disconnect(finish_at_deadline)
         for qt_object in (observation_timer, failure_timeout, event_loop):
             if isValid(qt_object):
                 delete(qt_object)
     if observed:
         return
     state_detail = "" if state is None else f"; state={state()!r}"
+    if not expired:
+        raise AssertionError(f"Qt event loop exited before {description}{state_detail}")
     raise AssertionError(
         f"Timed out after {timeout_ms} ms waiting for {description}{state_detail}"
     )

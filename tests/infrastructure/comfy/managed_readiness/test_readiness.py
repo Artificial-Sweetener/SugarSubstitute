@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import time
 from types import SimpleNamespace
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -133,15 +134,19 @@ def test_wait_for_ready_retries_until_probe_succeeds(
         "probe_http_ready",
         lambda *, host, port: next(probe_results),
     )
-    monkeypatch.setattr(
-        "substitute.infrastructure.comfy.managed_readiness.time.sleep",
-        lambda delay: sleep_calls.append(delay),
-    )
+    process_sleep = time.sleep
+    process_monotonic = time.monotonic
     monotonic_values = iter((0.0, 0.0, 1.0, 1.0, 2.0, 2.0))
     monkeypatch.setattr(
-        "substitute.infrastructure.comfy.managed_readiness.time.monotonic",
-        lambda: next(monotonic_values),
+        managed_readiness,
+        "time",
+        SimpleNamespace(
+            sleep=lambda delay: sleep_calls.append(delay),
+            monotonic=lambda: next(monotonic_values),
+        ),
     )
+    assert time.sleep is process_sleep
+    assert time.monotonic is process_monotonic
 
     assert (
         managed_readiness.wait_for_ready(
