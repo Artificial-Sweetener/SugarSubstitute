@@ -49,21 +49,13 @@ jobs:
         shell: pwsh
         run: node scripts\update-release-versions.mjs ${{ inputs.version }} ${{ inputs.channel }}
 
-      - name: Build pinned Windows Crashpad runtime
-        shell: pwsh
-        run: >-
-          .\.venv\Scripts\python.exe tools\build_crashpad_runtime.py
-          --workspace build\crashpad-native
-          --output-root third_party\bin\crashpad
-          --with-probe
-
-      - name: Qualify Windows Crashpad capture and idle footprint
-        shell: pwsh
-        run: >-
-          .\.venv\Scripts\python.exe tools\qualify_crashpad_runtime.py
-          --runtime-dir third_party\bin\crashpad\windows-x64
-          --probe build\crashpad-native\checkout\crashpad\out\SugarSubstitute\sugarsubstitute_crashpad_probe.exe
-          --artifact-dir build\qualification\crashpad
+      - name: Prepare qualified Windows Crashpad runtime
+        uses: ./.github/actions/prepare-crashpad-runtime
+        with:
+          python: .\.venv\Scripts\python.exe
+          target: windows-x64
+          runtime-dir: third_party\bin\crashpad\windows-x64
+          probe-path: build\crashpad-native\checkout\crashpad\out\SugarSubstitute\sugarsubstitute_crashpad_probe.exe
 
       - name: Upload Windows Crashpad qualification evidence
         if: always()
@@ -150,19 +142,13 @@ jobs:
       - name: Apply release version
         run: node scripts/update-release-versions.mjs ${{ inputs.version }} ${{ inputs.channel }}
 
-      - name: Build pinned Apple Silicon Crashpad runtime
-        run: >-
-          .venv/bin/python tools/build_crashpad_runtime.py
-          --workspace build/crashpad-native
-          --output-root third_party/bin/crashpad
-          --with-probe
-
-      - name: Qualify Apple Silicon Crashpad capture and idle footprint
-        run: >-
-          .venv/bin/python tools/qualify_crashpad_runtime.py
-          --runtime-dir third_party/bin/crashpad/macos-arm64
-          --probe build/crashpad-native/checkout/crashpad/out/SugarSubstitute/sugarsubstitute_crashpad_probe
-          --artifact-dir build/qualification/crashpad
+      - name: Prepare qualified Apple Silicon Crashpad runtime
+        uses: ./.github/actions/prepare-crashpad-runtime
+        with:
+          python: .venv/bin/python
+          target: macos-arm64
+          runtime-dir: third_party/bin/crashpad/macos-arm64
+          probe-path: build/crashpad-native/checkout/crashpad/out/SugarSubstitute/sugarsubstitute_crashpad_probe
 
       - name: Upload Apple Silicon Crashpad qualification evidence
         if: always()
@@ -227,19 +213,13 @@ jobs:
       - name: Install Crashpad native build dependencies
         uses: ./.github/actions/setup-crashpad-linux
 
-      - name: Build pinned Linux Crashpad runtime
-        run: >-
-          .venv/bin/python tools/build_crashpad_runtime.py
-          --workspace build/crashpad-native
-          --output-root third_party/bin/crashpad
-          --with-probe
-
-      - name: Qualify Linux Crashpad capture and idle footprint
-        run: >-
-          .venv/bin/python tools/qualify_crashpad_runtime.py
-          --runtime-dir third_party/bin/crashpad/linux-x64
-          --probe build/crashpad-native/checkout/crashpad/out/SugarSubstitute/sugarsubstitute_crashpad_probe
-          --artifact-dir build/qualification/crashpad
+      - name: Prepare qualified Linux Crashpad runtime
+        uses: ./.github/actions/prepare-crashpad-runtime
+        with:
+          python: .venv/bin/python
+          target: linux-x64
+          runtime-dir: third_party/bin/crashpad/linux-x64
+          probe-path: build/crashpad-native/checkout/crashpad/out/SugarSubstitute/sugarsubstitute_crashpad_probe
 
       - name: Upload Linux Crashpad qualification evidence
         if: always()

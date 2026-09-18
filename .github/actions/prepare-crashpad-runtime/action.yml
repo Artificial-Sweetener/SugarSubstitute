@@ -1,0 +1,169 @@
+name: Prepare qualified Crashpad runtime
+description: Restore or build exact native Crashpad outputs and qualify them before packaging.
+
+inputs:
+  python:
+    description: Repository environment interpreter used by the Crashpad owner.
+    required: true
+  target:
+    description: Official platform target used by the release package.
+    required: true
+  workspace:
+    description: Disposable Crashpad source and build workspace.
+    required: false
+    default: build/crashpad-native
+  output-root:
+    description: Root receiving the staged native runtime.
+    required: false
+    default: third_party/bin/crashpad
+  runtime-dir:
+    description: Exact staged runtime directory cached and qualified.
+    required: true
+  probe-path:
+    description: Exact native qualification probe cached with the runtime.
+    required: true
+  artifact-dir:
+    description: Directory receiving fresh qualification evidence.
+    required: false
+    default: build/qualification/crashpad
+  cache-epoch:
+    description: Emergency compatibility epoch for native cache invalidation.
+    required: false
+    default: "1"
+
+outputs:
+  cache-hit:
+    description: Whether the exact content- and toolchain-addressed runtime restored.
+    value: ${{ steps.restore.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve Crashpad cache identity
+      id: identity
+      shell: pwsh
+      env:
+        CACHE_EPOCH: ${{ inputs.cache-epoch }}
+        CRASHPAD_TARGET: ${{ inputs.target }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        $repositoryRoot = (Resolve-Path -LiteralPath ".").Path
+        $inputPaths = @(
+          (Resolve-Path -LiteralPath "tools/build_crashpad_runtime.py").Path
+        ) + @(
+          Get-ChildItem -LiteralPath "native/crashpad" -File -Recurse |
+            Sort-Object FullName |
+            Select-Object -ExpandProperty FullName
+        )
+        $buildInputs = foreach ($path in $inputPaths) {
+          $relativePath = [IO.Path]::GetRelativePath($repositoryRoot, $path).Replace("\", "/")
+          $digest = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$relativePath=$digest"
+        }
+
+        if ($env:RUNNER_OS -eq "Windows") {
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $visualStudio = (& $vswhere -products * -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+          if (-not $visualStudio) {
+            throw "No Visual Studio installation with the native C++ workload was found."
+          }
+          $vcToolsVersion = (Get-Content -LiteralPath "$visualStudio\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt" -Raw).Trim()
+          $windowsSdkVersion = Get-ChildItem -LiteralPath "${env:ProgramFiles(x86)}\Windows Kits\10\Lib" -Directory |
+            Sort-Object Name -Descending |
+            Select-Object -First 1 -ExpandProperty Name
+          $toolchain = "$env:ImageOS|msvc=$vcToolsVersion|windows-sdk=$windowsSdkVersion"
+        }
+        elseif ($env:RUNNER_OS -eq "macOS") {
+          $toolchain = "$env:ImageOS|$((& xcodebuild -version) -join '|')|$((& xcrun clang --version) -join '|')"
+        }
+        elseif ($env:RUNNER_OS -eq "Linux") {
+          $toolchain = "$env:ImageOS|$((& cc --version) -join '|')|$((& ld --version) -join '|')"
+        }
+        else {
+          throw "Unsupported Crashpad cache host: $env:RUNNER_OS"
+        }
+
+        $identity = @(
+          "epoch=$env:CACHE_EPOCH"
+          "target=$env:CRASHPAD_TARGET"
+          "runner=${{ runner.os }}/${{ runner.arch }}"
+          "toolchain=$toolchain"
+          $buildInputs
+        ) -join "`n"
+        $identityBytes = [Text.Encoding]::UTF8.GetBytes($identity)
+        $identityHash = [Convert]::ToHexString(
+          [Security.Cryptography.SHA256]::HashData($identityBytes)
+        ).ToLowerInvariant()
+        "primary-key=crashpad-v$env:CACHE_EPOCH-${{ runner.os }}-${{ runner.arch }}-$env:CRASHPAD_TARGET-$identityHash" >> $env:GITHUB_OUTPUT
+
+    - name: Restore exact Crashpad runtime cache
+      id: restore
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          ${{ inputs.runtime-dir }}
+          ${{ inputs.probe-path }}
+        key: ${{ steps.identity.outputs.primary-key }}
+
+    - name: Validate restored Crashpad outputs
+      if: steps.restore.outputs.cache-hit == 'true'
+      shell: pwsh
+      env:
+        PROBE_PATH: ${{ inputs.probe-path }}
+        RUNTIME_DIR: ${{ inputs.runtime-dir }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        if (-not (Test-Path -LiteralPath $env:RUNTIME_DIR -PathType Container)) {
+          throw "The exact Crashpad cache omitted its runtime directory."
+        }
+        if (-not (Test-Path -LiteralPath $env:PROBE_PATH -PathType Leaf)) {
+          throw "The exact Crashpad cache omitted its qualification probe."
+        }
+        $runtimeFiles = @(Get-ChildItem -LiteralPath $env:RUNTIME_DIR -File)
+        if ($runtimeFiles.Count -ne 2) {
+          throw "The exact Crashpad cache must contain the handler and client library."
+        }
+
+    - name: Build pinned Crashpad runtime on cache miss
+      if: steps.restore.outputs.cache-hit != 'true'
+      shell: pwsh
+      env:
+        OUTPUT_ROOT: ${{ inputs.output-root }}
+        PYTHON_EXECUTABLE: ${{ inputs.python }}
+        WORKSPACE: ${{ inputs.workspace }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        & $env:PYTHON_EXECUTABLE tools/build_crashpad_runtime.py --workspace $env:WORKSPACE --output-root $env:OUTPUT_ROOT --with-probe
+        if ($LASTEXITCODE -ne 0) {
+          throw "Pinned Crashpad runtime build failed."
+        }
+
+    - name: Qualify Crashpad capture and idle footprint
+      shell: pwsh
+      env:
+        ARTIFACT_DIR: ${{ inputs.artifact-dir }}
+        PROBE_PATH: ${{ inputs.probe-path }}
+        PYTHON_EXECUTABLE: ${{ inputs.python }}
+        RUNTIME_DIR: ${{ inputs.runtime-dir }}
+      run: |
+        $ErrorActionPreference = "Stop"
+        & $env:PYTHON_EXECUTABLE tools/qualify_crashpad_runtime.py --runtime-dir $env:RUNTIME_DIR --probe $env:PROBE_PATH --artifact-dir $env:ARTIFACT_DIR
+        if ($LASTEXITCODE -ne 0) {
+          throw "Crashpad runtime qualification failed."
+        }
+
+    - name: Save qualified Crashpad runtime cache
+      if: >-
+        steps.restore.outputs.cache-hit != 'true' &&
+        (github.ref == 'refs/heads/main' ||
+        github.ref == 'refs/heads/canary') &&
+        (github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'repository_dispatch' ||
+        github.event_name == 'schedule')
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          ${{ inputs.runtime-dir }}
+          ${{ inputs.probe-path }}
+        key: ${{ steps.identity.outputs.primary-key }}
