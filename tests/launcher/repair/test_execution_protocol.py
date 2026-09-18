@@ -52,6 +52,12 @@ def test_repair_frames_reject_invalid_objects(payload: bytes) -> None:
         RepairFrameDecoder().feed(payload)
 
 
+def test_repair_frame_nesting_ignores_delimiters_inside_strings() -> None:
+    """Count structural containers without rejecting inert delimiter text."""
+    decoder = RepairFrameDecoder()
+    assert decoder.feed(b'{"details":"[[[{{{]}}}"}\n') == [{"details": "[[[{{{]}}}"}]
+
+
 def test_repair_frames_bound_incomplete_input() -> None:
     """Stop an unterminated frame at its byte limit instead of retaining more input."""
     decoder = RepairFrameDecoder()
