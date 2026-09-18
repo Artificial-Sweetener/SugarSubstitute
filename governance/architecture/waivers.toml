@@ -1923,7 +1923,7 @@ kind = "structural"
 justification = "This module owns one user-level driver for the real-shell output canvas. Harness-safe shell construction, workflow and output seeding, preview and final delivery, route selection, rendered control interaction, workflow lifecycle, projection waiting, and snapshot capture are operations over the same mounted shell and active output session."
 issue = "chore:SS-WAIVER-S120"
 review_by = 2026-12-15
-max_lines = 670
+max_lines = 665
 
 [[waivers]]
 id = "SS-WAIVER-S126"
