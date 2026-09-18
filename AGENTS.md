@@ -154,7 +154,12 @@ ownership or new behavior in a mixed file.
 
 ## Architecture Governance
 
-`ARCHITECTURE_POLICY.toml` defines the enforced authored-code scope. The
+Repository governance lives under `governance/`, grouped by concern:
+`architecture/` owns structural policy and reviewed state; `testing/` owns
+test policy, reviewed state, and focused-test target selection. Paths declared
+inside these policies are relative to the repository root.
+
+`governance/architecture/policy.toml` defines the enforced authored-code scope. The
 structural soft ceiling is 350 nonblank, noncomment lines and the hard gate is
 500. Generated Qt resource modules are exact policy exclusions because their
 shape is owned by the resource compiler. File size is an ownership alarm, not
@@ -162,11 +167,11 @@ proof that a file is mixed or cohesive.
 
 The current repository has two explicit state mechanisms:
 
-- `ARCHITECTURE_DEBT.toml` records assessed current mixed ownership. Each debt
+- `governance/architecture/debt.toml` records assessed current mixed ownership. Each debt
   names the owner, exact paths and fingerprint, distinct responsibilities,
   tracking issue, review date, and next extraction. It is a current-state
   snapshot, not a historical ledger.
-- `ARCHITECTURE_WAIVERS.toml` records exact, bounded hard-gate exceptions. A
+- `governance/architecture/waivers.toml` records exact, bounded hard-gate exceptions. A
   `structural` waiver is reserved for a genuinely cohesive owner whose size is
   justified. A `remediation` waiver must link assessed debt, cap the current
   line count, and name a lower next limit.
@@ -205,9 +210,9 @@ structure or architecture state. The checker runs in pre-commit and CI and
 rejects new hard-gate overages, stale fingerprints, expired records, unbounded
 remediation, invalid links, duplicate dispositions, and unused waivers.
 
-`TEST_POLICY.toml` defines mechanically discoverable test-layout and execution
-review candidates. `TEST_DEBT.toml` records assessed inappropriate current test
-design, and `TEST_WAIVERS.toml` records exact reviewed classifications or
+`governance/testing/policy.toml` defines mechanically discoverable test-layout and execution
+review candidates. `governance/testing/debt.toml` records assessed inappropriate current test
+design, and `governance/testing/waivers.toml` records exact reviewed classifications or
 debt-linked remediation exceptions. Candidate discovery is evidence, not an
 automated judgment. Every discovered candidate requires source-level review;
 the checker validates exact source fingerprints, current candidate locators,

@@ -43,8 +43,8 @@ def _fixture_policy() -> ArchitecturePolicy:
         source_files=(),
         source_extensions=frozenset({".py"}),
         excluded_paths=frozenset(),
-        debt_registry=Path("ARCHITECTURE_DEBT.toml"),
-        waiver_registry=Path("ARCHITECTURE_WAIVERS.toml"),
+        debt_registry=Path("governance/architecture/debt.toml"),
+        waiver_registry=Path("governance/architecture/waivers.toml"),
     )
 
 
@@ -221,7 +221,7 @@ def test_current_runtime_boundary_inventory_is_exact() -> None:
 
     diagnostics = validate_crash_boundary_policy(
         _PROJECT_ROOT,
-        load_policy(_PROJECT_ROOT / "ARCHITECTURE_POLICY.toml"),
+        load_policy(_PROJECT_ROOT / "governance/architecture/policy.toml"),
     )
 
     assert diagnostics == []
