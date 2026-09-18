@@ -25,7 +25,7 @@ from threading import Event
 import pytest
 from collections.abc import Callable
 
-from PySide6.QtCore import QCoreApplication, QEvent, QThread, Slot
+from PySide6.QtCore import QCoreApplication, QThread, Slot
 from PySide6.QtWidgets import QApplication, QPushButton
 
 from launcher.sugarsubstitute_launcher.application.repair.models import RepairScope
@@ -36,10 +36,13 @@ from launcher.sugarsubstitute_launcher.ui.repair_controller import RepairControl
 from launcher.sugarsubstitute_launcher.ui.repair_window import RepairWindow
 from launcher.sugarsubstitute_launcher.ui.repair_worker import RepairWorker
 from tests.support.qt.semantic_wait import wait_for_qt_condition
+from tests.support.qt.lifecycle import destroy_qt_object
 from launcher.sugarsubstitute_launcher.repair_process_supervisor import (
     RepairProcessSupervisor,
 )
 from sugarsubstitute_shared.installation_mutation import installation_mutation
+
+_WORKER_COMPLETION_TIMEOUT_MS = 10_000
 
 
 def _request(root: Path) -> PreparedRepairRequest:
@@ -61,11 +64,13 @@ def _request(root: Path) -> PreparedRepairRequest:
 def _dispose(window: RepairWindow) -> None:
     """Wait for worker cleanup before disposing the native window and its children."""
     wait_for_qt_condition(
-        lambda: not any(thread.isRunning() for thread in window.findChildren(QThread))
+        lambda: not any(thread.isRunning() for thread in window.findChildren(QThread)),
+        timeout_ms=_WORKER_COMPLETION_TIMEOUT_MS,
+        description="repair worker cleanup",
+        state=lambda: [thread.isRunning() for thread in window.findChildren(QThread)],
     )
     window.close()
-    window.deleteLater()
-    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    destroy_qt_object(window)
 
 
 @pytest.mark.platforms("windows")
@@ -249,10 +254,20 @@ def test_retry_and_open_wait_for_worker_cleanup(
     assert primary is not None
     try:
         controller.start()
-        wait_for_qt_condition(primary.isVisible)
+        wait_for_qt_condition(
+            lambda: primary.isVisible() and primary.text() == "Try again",
+            timeout_ms=_WORKER_COMPLETION_TIMEOUT_MS,
+            description="recoverable repair result",
+            state=lambda: (primary.isVisible(), primary.text(), len(attempts)),
+        )
         assert primary.text() == "Try again"
         primary.click()
-        wait_for_qt_condition(primary.isVisible)
+        wait_for_qt_condition(
+            lambda: primary.isVisible() and primary.text() == "Open SugarSubstitute",
+            timeout_ms=_WORKER_COMPLETION_TIMEOUT_MS,
+            description="successful retry result",
+            state=lambda: (primary.isVisible(), primary.text(), len(attempts)),
+        )
         assert len(attempts) == 2
         assert primary.text() == "Open SugarSubstitute"
         primary.click()

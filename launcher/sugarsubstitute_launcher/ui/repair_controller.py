@@ -81,8 +81,8 @@ class RepairController(QObject):
         worker.succeeded.connect(self._success)
         worker.failed.connect(self._failed)
         worker.fatal_failure.connect(self._fatal_failure)
-        worker.finished.connect(worker.deleteLater)
         worker.finished.connect(thread.quit)
+        thread.finished.connect(worker.deleteLater)
         thread.finished.connect(self._finished)
         thread.finished.connect(thread.deleteLater)
         self._thread = thread

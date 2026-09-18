@@ -25,6 +25,7 @@ from typing import cast
 
 MAXIMUM_REPAIR_FRAME_BYTES = 64 * 1024
 REPAIR_EXECUTION_ENDPOINT_ENV = "SUGAR_SUBSTITUTE_REPAIR_EXECUTION_ENDPOINT"
+_MAXIMUM_REPAIR_FRAME_NESTING = 64
 
 
 def encode_repair_frame(message: Mapping[str, object]) -> bytes:
@@ -61,6 +62,7 @@ class RepairFrameDecoder:
 
     def _decode(self) -> dict[str, object]:
         """Parse one inert JSON object with bounded memory and nesting failures."""
+        _reject_excessive_json_nesting(self._pending)
         try:
             value = json.loads(self._pending)
         except (ValueError, RecursionError, UnicodeDecodeError) as error:
@@ -68,6 +70,31 @@ class RepairFrameDecoder:
         if not isinstance(value, dict):
             raise ValueError("Repair execution frame must contain an object.")
         return cast(dict[str, object], value)
+
+
+def _reject_excessive_json_nesting(payload: bytearray) -> None:
+    """Reject unsafe container depth without counting delimiters inside strings."""
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for byte in payload:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif byte == ord("\\"):
+                escaped = True
+            elif byte == ord('"'):
+                in_string = False
+            continue
+        if byte == ord('"'):
+            in_string = True
+        elif byte in (ord("["), ord("{")):
+            depth += 1
+            if depth > _MAXIMUM_REPAIR_FRAME_NESTING:
+                raise ValueError("Repair execution frame nesting exceeds its limit.")
+        elif byte in (ord("]"), ord("}")):
+            depth = max(0, depth - 1)
 
 
 def repair_message_details(message: dict[str, object]) -> str:
