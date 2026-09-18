@@ -22,6 +22,10 @@ from typing import Any, Callable, Sequence
 
 from substitute.app.bootstrap.launch_splash import SplashCancelCallback
 from substitute.app.bootstrap.launch_splash_client import LaunchSplashClient
+from substitute.app.bootstrap.startup_bootstrap_feedback import (
+    BootstrapStage,
+    StartupBootstrapFeedback,
+)
 from substitute.app.bootstrap.startup_timing import StartupTimer, StartupTimingRecord
 from substitute.app.bootstrap.startup_cli import (
     parse_startup_cli_arguments,
@@ -64,6 +68,7 @@ def run_application(
     initial_splash_cancel_connector: Callable[[SplashCancelCallback], None]
     | None = None,
     prebootstrap_timing_records: Sequence[StartupTimingRecord] = (),
+    bootstrap_feedback: StartupBootstrapFeedback | None = None,
 ) -> int:
     """Run startup orchestration and return the Qt event-loop exit code."""
 
@@ -72,7 +77,9 @@ def run_application(
     no_comfy = cli_options.no_comfy
     handoff_geometry = cli_options.handoff_geometry
     trace_startup_cli_arguments(cli_options)
+    feedback = bootstrap_feedback or StartupBootstrapFeedback()
     startup_timer = StartupTimer()
+    feedback.report(BootstrapStage.INSTALLATION)
     startup_environment = prepare_startup_environment(
         explicit_install_root=cli_options.install_root,
         startup_timer=startup_timer,
@@ -87,12 +94,14 @@ def run_application(
         prebootstrap_timing_records=prebootstrap_timing_records,
         startup_timer=startup_timer,
     )
+    feedback.report(BootstrapStage.COMPONENTS)
     with startup_timer.phase("startup.import_runtime_modules"):
         with trace_span("startup.import_runtime_modules"):
             composition, lifecycle = _load_startup_runtime_modules()
 
     lifecycle.register_signal_handlers()
     install_qt_message_trace_handler()
+    feedback.report(BootstrapStage.SERVICES)
     runtime_bootstrap = build_startup_runtime_bootstrap(
         cli_args=cli_args,
         locale_override=cli_options.locale_override,
@@ -133,6 +142,7 @@ def run_application(
     comfy_output_stream = runtime_bootstrap.comfy_output_stream
     runtime_services = runtime_bootstrap.runtime_services
     startup_resources = create_startup_resource_registry()
+    feedback.report(BootstrapStage.WORKSPACE)
     restore_plan_preparation = prepare_startup_restore_plan(
         startup_timer=startup_timer,
         installation_context=installation_context,
@@ -141,6 +151,7 @@ def run_application(
         restore_projection_target_key_for_context=composition._cube_cache_target_key,
     )
     initial_restore_plan = restore_plan_preparation.restore_plan
+    feedback.report(BootstrapStage.INTERFACE)
     startup_support_graph = create_startup_support_graph(initial_splash=initial_splash)
     startup_support_graph.ready_shell_state.runtime_state.bind_managed_comfy_runtime_owner(
         runtime_services.managed_comfy_runtime_owner

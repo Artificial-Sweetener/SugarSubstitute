@@ -28,20 +28,16 @@ from PySide6.QtGui import (
     QCloseEvent,
     QColor,
     QCursor,
-    QFontMetrics,
     QGuiApplication,
     QIcon,
     QMouseEvent,
     QPixmap,
 )
-from PySide6.QtWidgets import QAbstractButton, QLabel, QWidget
+from PySide6.QtWidgets import QAbstractButton, QHBoxLayout, QLabel, QWidget
 from qframelesswindow import AcrylicWindow  # type: ignore[import-untyped]
 
 from substitute.presentation.resources.app_icon import application_icon
 from substitute.presentation.shell.splash_feedback import SplashFeedback
-from sugarsubstitute_shared.presentation.terminal.output_style import (
-    create_terminal_output_font,
-)
 
 if TYPE_CHECKING:
     from sugarsubstitute_shared.launch_splash.progress import SplashProgress
@@ -56,12 +52,13 @@ if TYPE_CHECKING:
 _DEFAULT_ACCENT_COLOR = "#E91E63"
 _SPLASH_WINDOW_RECT = QRect(0, 0, 558, 558)
 _SPLASH_MASCOT_RECT = QRect(83, 7, 387, 386)
-_SPLASH_CONSOLE_RECT = QRect(6, 358, 546, 193)
+_SPLASH_CONSOLE_RECT = QRect(24, 356, 510, 178)
 
 
 class _SplashTitleBar(Protocol):
     """Describe qframeless titlebar controls used by the splash window."""
 
+    hBoxLayout: QHBoxLayout
     minBtn: QAbstractButton
     maxBtn: QAbstractButton
     closeBtn: QAbstractButton
@@ -93,13 +90,6 @@ class _SplashTitleBarButton(Protocol):
 
     def setPressedBackgroundColor(self, color: QColor) -> None:
         """Set the pressed background color."""
-
-
-def build_splash_terminal_section_height() -> int:
-    """Return the compact splash-owned height for the shared terminal surface."""
-
-    _ = QFontMetrics(create_terminal_output_font())
-    return _SPLASH_CONSOLE_RECT.height()
 
 
 class SplashWindow(AcrylicWindow):  # type: ignore[misc]
@@ -145,8 +135,7 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
             defer_animation_until_first_paint and icon is None
         )
         self._configure_titlebar_buttons()
-        if not self._defer_animation_until_first_paint:
-            self._apply_backdrop()
+        self._apply_backdrop()
 
         container = QWidget(self)
         self._container = container
@@ -161,7 +150,9 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
             activity_clock=activity_clock,
         )
         self._feedback.setObjectName("SplashTerminalSection")
-        self._feedback.setFixedHeight(build_splash_terminal_section_height())
+        self._feedback.detailsVisibilityChanged.connect(
+            self._console_visibility_changed
+        )
         self.log_view = self._feedback.log_view
 
         self.setFixedSize(_SPLASH_WINDOW_RECT.size())
@@ -291,8 +282,14 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
         if not hasattr(self, "_container"):
             return
         self._container.setGeometry(_SPLASH_WINDOW_RECT)
-        self._visual.setGeometry(_SPLASH_MASCOT_RECT)
-        self._feedback.setGeometry(_SPLASH_CONSOLE_RECT)
+        expanded = self._feedback.details_visible
+        mascot = QRect(_SPLASH_MASCOT_RECT)
+        if not expanded:
+            mascot.moveCenter(_SPLASH_WINDOW_RECT.center())
+        self._visual.setGeometry(mascot)
+        self._feedback.setGeometry(
+            _SPLASH_CONSOLE_RECT if expanded else QRect(24, 486, 510, 48)
+        )
         self._feedback.raise_()
         try:
             self.titleBar.raise_()
@@ -360,7 +357,7 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
         titlebar.closeBtn.setStyleSheet("CloseButton { background: transparent; }")
 
     def _apply_backdrop(self) -> None:
-        """Apply the configured native material after the bootstrap frame when asked."""
+        """Apply the resolved native material while the splash is still hidden."""
 
         from substitute.presentation.shell.window_effects import apply_acrylic_effect
 
@@ -393,7 +390,19 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
             LocalizationBindings,
         )
 
+        from substitute.presentation.shell.titlebar_buttons import (
+            ComfyOutputToggleButton,
+        )
+
         self._feedback.enrich()
+        titlebar = cast(_SplashTitleBar, self.titleBar)
+        self._console_button = ComfyOutputToggleButton(self.titleBar)
+        titlebar.hBoxLayout.insertWidget(
+            titlebar.hBoxLayout.indexOf(titlebar.closeBtn), self._console_button
+        )
+        self._console_button.setChecked(self._feedback.details_visible)
+        self._console_button.toggled.connect(self._feedback.set_details_visible)
+        self._console_visibility_changed(self._feedback.details_visible)
         self._localization = LocalizationBindings(self)
         self._localization.bind_window_title(
             self,
@@ -410,6 +419,20 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
                 "Failed to localize splash titlebar",
                 error=repr(error),
             )
+
+    @Slot(bool)
+    def _console_visibility_changed(self, visible: bool) -> None:
+        """Keep titlebar disclosure and mascot placement synchronized with diagnostics."""
+        from sugarsubstitute_shared.presentation.localization import (
+            set_localized_accessible_name,
+        )
+
+        self._console_button.setChecked(visible)
+        set_localized_accessible_name(
+            self._console_button,
+            "Hide Comfy output" if visible else "Show Comfy output",
+        )
+        self._apply_content_geometry()
 
     def _build_splash_visual(self, icon: QIcon | None, parent: QWidget) -> QWidget:
         """Return the animated splash visual or a static icon fallback."""
@@ -471,7 +494,6 @@ class SplashWindow(AcrylicWindow):  # type: ignore[misc]
         if not self._defer_animation_until_first_paint:
             return
         self._defer_animation_until_first_paint = False
-        self._apply_backdrop()
         self._ensure_runtime_enrichment()
         previous_visual = self._visual
         visual = self._build_animated_splash_visual(self._container)

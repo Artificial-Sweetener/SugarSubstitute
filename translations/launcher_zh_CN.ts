@@ -54,7 +54,7 @@
       <translation>取消修复</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="191"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="176"></location>
       <source>Checking for SugarSubstitute updates.</source>
       <translation>正在检查 SugarSubstitute 更新。</translation>
     </message>
@@ -64,7 +64,7 @@
       <translation>正在检查修复文件</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="106"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="112"></location>
       <source>Checking the repair release</source>
       <translation>正在检查修复版本</translation>
     </message>
@@ -154,7 +154,7 @@
       <translation>退出</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_close_coordinator.py" line="113"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_close_coordinator.py" line="114"></location>
       <source>Finishing the current setup step before closing.</source>
       <translation>完成当前设置步骤后关闭。</translation>
     </message>
@@ -194,7 +194,7 @@
       <translation>安装运行环境</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="293"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="278"></location>
       <source>Installed SugarSubstitute %1.</source>
       <translation>SugarSubstitute %1 已安装。</translation>
     </message>
@@ -289,7 +289,7 @@
       <translation>平台：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_controller.py" line="156"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_controller.py" line="158"></location>
       <source>Prepare repair</source>
       <translation>准备修复</translation>
     </message>
@@ -304,12 +304,12 @@
       <translation>正在准备安装 SugarSubstitute。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="108"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="114"></location>
       <source>Preparing application files</source>
       <translation>正在准备应用文件</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="110"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="116"></location>
       <source>Preparing launcher files</source>
       <translation>正在准备启动器文件</translation>
     </message>
@@ -324,7 +324,7 @@
       <translation>正在准备应用运行环境</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="116"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="122"></location>
       <source>Preparing the repair helper</source>
       <translation>正在准备修复助手</translation>
     </message>
@@ -369,12 +369,12 @@
       <translation>修复完成</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_controller.py" line="149"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_controller.py" line="151"></location>
       <source>Repair could not be prepared. Nothing in the active installation was changed. Details: %1</source>
       <translation>无法准备修复。当前安装未发生更改。详细信息：%1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="118"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="124"></location>
       <source>Repair is ready</source>
       <translation>修复已准备就绪</translation>
     </message>
@@ -589,7 +589,7 @@
       <translation>现有的 SugarSubstitute 实例未显示可用窗口。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="382"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/launcher_update_preparation.py" line="133"></location>
       <source>The launcher will restart to finish updating.</source>
       <translation>启动器将重启以完成更新。</translation>
     </message>
@@ -634,12 +634,12 @@
       <translation>请使用主目录中可写的文件夹，例如 ~/Applications/SugarSubstitute。使用系统“应用程序”文件夹进行更新和运行环境设置时，可能需要管理员权限。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="112"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="118"></location>
       <source>Verifying application files</source>
       <translation>正在验证应用文件</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="114"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="120"></location>
       <source>Verifying launcher files</source>
       <translation>正在验证启动器文件</translation>
     </message>

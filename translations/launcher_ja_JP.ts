@@ -54,7 +54,7 @@
       <translation>修復をキャンセル</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="191"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="176"></location>
       <source>Checking for SugarSubstitute updates.</source>
       <translation>SugarSubstitute のアップデートを確認しています。</translation>
     </message>
@@ -64,7 +64,7 @@
       <translation>修復ファイルを確認しています</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="106"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="112"></location>
       <source>Checking the repair release</source>
       <translation>修復用のリリースを確認しています</translation>
     </message>
@@ -154,7 +154,7 @@
       <translation>終了</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_close_coordinator.py" line="113"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/installation_close_coordinator.py" line="114"></location>
       <source>Finishing the current setup step before closing.</source>
       <translation>現在のセットアップ手順を完了してから閉じます。</translation>
     </message>
@@ -194,7 +194,7 @@
       <translation>ランタイムをインストール</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="293"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="278"></location>
       <source>Installed SugarSubstitute %1.</source>
       <translation>SugarSubstitute %1 をインストールしました。</translation>
     </message>
@@ -289,7 +289,7 @@
       <translation>プラットフォーム: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_controller.py" line="156"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_controller.py" line="158"></location>
       <source>Prepare repair</source>
       <translation>修復を準備</translation>
     </message>
@@ -304,12 +304,12 @@
       <translation>SugarSubstitute のインストールを準備しています。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="108"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="114"></location>
       <source>Preparing application files</source>
       <translation>アプリケーションファイルを準備しています</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="110"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="116"></location>
       <source>Preparing launcher files</source>
       <translation>ランチャーファイルを準備しています</translation>
     </message>
@@ -324,7 +324,7 @@
       <translation>アプリの実行環境を準備しています</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="116"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="122"></location>
       <source>Preparing the repair helper</source>
       <translation>修復ヘルパーを準備しています</translation>
     </message>
@@ -369,12 +369,12 @@
       <translation>修復が完了しました</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_controller.py" line="149"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_controller.py" line="151"></location>
       <source>Repair could not be prepared. Nothing in the active installation was changed. Details: %1</source>
       <translation>修復を準備できませんでした。現在のインストールは変更されていません。詳細: %1</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="118"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="124"></location>
       <source>Repair is ready</source>
       <translation>修復の準備ができました</translation>
     </message>
@@ -589,7 +589,7 @@
       <translation>既存の SugarSubstitute インスタンスは使用可能なウィンドウを表示しませんでした。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/update_orchestrator.py" line="382"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/launcher_update_preparation.py" line="133"></location>
       <source>The launcher will restart to finish updating.</source>
       <translation>アップデートを完了するため、ランチャーを再起動します。</translation>
     </message>
@@ -634,12 +634,12 @@
       <translation>~/Applications/SugarSubstitute など、ホームディレクトリ内の書き込み可能なフォルダーを使用してください。システムの「アプリケーション」フォルダーでは、更新やランタイムのセットアップに管理者権限が必要になる場合があります。</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="112"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="118"></location>
       <source>Verifying application files</source>
       <translation>アプリケーションファイルを検証しています</translation>
     </message>
     <message>
-      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="114"></location>
+      <location filename="../launcher/sugarsubstitute_launcher/ui/repair_preparation_progress_view.py" line="120"></location>
       <source>Verifying launcher files</source>
       <translation>ランチャーファイルを検証しています</translation>
     </message>

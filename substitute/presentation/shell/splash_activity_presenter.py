@@ -118,6 +118,7 @@ class SplashActivityPresenter(QObject):
         self._stream = stream
         self._clock = clock
         self._activity: SplashActivity | None = None
+        self._detail: SplashActivity | None = None
         self._closed = False
         self._started_at = 0.0
         self._scheduler = scheduler_factory(
@@ -130,7 +131,7 @@ class SplashActivityPresenter(QObject):
     def active(self) -> bool:
         """Return whether an activity currently owns the terminal tail row."""
 
-        return self._activity is not None
+        return self._activity is not None or self._detail is not None
 
     def start(self, activity: SplashActivity) -> None:
         """Start or replace the active operation and render its first frame."""
@@ -138,34 +139,70 @@ class SplashActivityPresenter(QObject):
         if self._closed:
             return
         self._activity = activity
+        self._detail = None
         self._started_at = self._clock()
         self.refresh()
         self._scheduler.start()
+
+    def set_detail(self, message: str) -> None:
+        """Refine operation copy without resetting the shared elapsed-time policy."""
+        if self._closed:
+            return
+        from sugarsubstitute_shared.localization import app_text
+        from sugarsubstitute_shared.presentation.localization import (
+            render_application_text,
+        )
+
+        if not self.active:
+            self._started_at = self._clock()
+        operation = message.rstrip(".…。")
+        self._detail = SplashActivity(
+            initial_text=operation,
+            long_wait_text=render_application_text(
+                app_text("%1…\nThis is taking longer than usual", operation)
+            ),
+            extended_wait_text=render_application_text(
+                app_text("%1…\nThis is taking much longer than expected", operation)
+            ),
+        )
+        self.refresh()
+        self._scheduler.start()
+
+    def clear_detail(self) -> None:
+        """Restore the containing operation's current wait level after a milestone."""
+        self._detail = None
+        if self._activity is None:
+            self.clear()
+        else:
+            self.refresh()
 
     def clear(self) -> None:
         """Stop activity animation and remove its transient terminal row."""
 
         self._scheduler.stop()
         self._activity = None
+        self._detail = None
         self._stream.clear_transient_line()
         self.textChanged.emit("")
 
     def restore_after_log(self, record: str) -> None:
         """Restore activity after a durable log replaced its transient row."""
 
-        if self._activity is not None and not _is_transient_record(record):
+        if self.active and not _is_transient_record(record):
             self.refresh()
 
     @Slot()
     def refresh(self) -> None:
         """Replace the terminal tail with the current time-derived frame."""
 
-        activity = self._activity
+        activity = self._detail or self._activity
         if activity is None:
             return
         elapsed_seconds = max(0.0, self._clock() - self._started_at)
         text = render_splash_activity(activity, elapsed_seconds)
-        self._stream.append_line(f"{text}\r")
+        if self._activity is not None:
+            terminal_text = render_splash_activity(self._activity, elapsed_seconds)
+            self._stream.append_line(f"{terminal_text}\r")
         self.textChanged.emit(text)
 
     def shutdown(self) -> None:
@@ -174,6 +211,7 @@ class SplashActivityPresenter(QObject):
         self._closed = True
         self._scheduler.stop()
         self._activity = None
+        self._detail = None
 
 
 def _is_transient_record(record: str) -> bool:

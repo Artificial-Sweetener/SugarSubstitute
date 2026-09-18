@@ -250,6 +250,18 @@ Prömpt prëvïëw:
       <translation>⟦%1; blöckëd üntïl ïssüës àrë rësölvëd. ···⟧</translation>
     </message>
     <message>
+      <source>%1…
+This is taking longer than usual</source>
+      <translation>⟦%1…
+Thïs ïs tàkïng löngër thàn üsüàl ···⟧</translation>
+    </message>
+    <message>
+      <source>%1…
+This is taking much longer than expected</source>
+      <translation>⟦%1…
+Thïs ïs tàkïng müch löngër thàn ëxpëctëd ···⟧</translation>
+    </message>
+    <message>
       <source>1 ComfyUI process is still running. Close ComfyUI to continue.</source>
       <translation>⟦1 CömfyÜÏ pröcëss ïs stïll rünnïng. Clösë CömfyÜÏ tö cöntïnüë. ···⟧</translation>
     </message>
@@ -782,6 +794,10 @@ Prömpt prëvïëw:
       <translation>⟦Chëck yöür ïntërnët cönnëctïön. ···⟧</translation>
     </message>
     <message>
+      <source>Checking ComfyUI extensions.</source>
+      <translation>⟦Chëckïng CömfyÜÏ ëxtënsïöns. ···⟧</translation>
+    </message>
+    <message>
       <source>Checking ComfyUI's Python environment.</source>
       <translation>⟦Chëckïng CömfyÜÏ's Pythön ënvïrönmënt. ···⟧</translation>
     </message>
@@ -804,6 +820,10 @@ Prömpt prëvïëw:
     <message>
       <source>Checking the Python environment</source>
       <translation>⟦Chëckïng thë Pythön ënvïrönmënt ···⟧</translation>
+    </message>
+    <message>
+      <source>Checking the installation.</source>
+      <translation>⟦Chëckïng thë ïnstàllàtïön. ···⟧</translation>
     </message>
     <message>
       <source>Checking the remote ComfyUI connection.</source>
@@ -1398,6 +1418,10 @@ Prömpt prëvïëw:
       <translation>⟦CömfyÜÏ ëxïtëd bëförë ït bëcàmë rëàdy. ···⟧</translation>
     </message>
     <message>
+      <source>ComfyUI extension setup is complete.</source>
+      <translation>⟦CömfyÜÏ ëxtënsïön sëtüp ïs cömplëtë. ···⟧</translation>
+    </message>
+    <message>
       <source>ComfyUI failed to start</source>
       <translation>⟦CömfyÜÏ fàïlëd tö stàrt ···⟧</translation>
     </message>
@@ -1570,6 +1594,14 @@ Prömpt prëvïëw:
       <translation>⟦Cönfïgürëd ···⟧</translation>
     </message>
     <message>
+      <source>Configuring ComfyUI attention.</source>
+      <translation>⟦Cönfïgürïng CömfyÜÏ àttëntïön. ···⟧</translation>
+    </message>
+    <message>
+      <source>Configuring ComfyUI model folders.</source>
+      <translation>⟦Cönfïgürïng CömfyÜÏ mödël földërs. ···⟧</translation>
+    </message>
+    <message>
       <source>Configuring the ComfyUI models folder.</source>
       <translation>⟦Cönfïgürïng thë CömfyÜÏ mödëls földër. ···⟧</translation>
     </message>
@@ -1596,6 +1628,10 @@ Prömpt prëvïëw:
     <message>
       <source>Connected to %1.</source>
       <translation>⟦Cönnëctëd tö %1. ···⟧</translation>
+    </message>
+    <message>
+      <source>Connecting to ComfyUI.</source>
+      <translation>⟦Cönnëctïng tö CömfyÜÏ. ···⟧</translation>
     </message>
     <message>
       <source>Connection</source>
@@ -1876,6 +1912,10 @@ Install these nodes now?</source>
     <message>
       <source>Curve</source>
       <translation>⟦Cürvë ···⟧</translation>
+    </message>
+    <message>
+      <source>Custom node %1 could not load.</source>
+      <translation>⟦Cüstöm nödë %1 cöüld nöt löàd. ···⟧</translation>
     </message>
     <message>
       <source>Cut</source>
@@ -2382,6 +2422,10 @@ Install these nodes now?</source>
       <translation>⟦Fïnïsh sëtüp sö Sübstïtütë knöws whërë tö këëp ïts fïlës. ···⟧</translation>
     </message>
     <message>
+      <source>Finishing ComfyUI custom node loading.</source>
+      <translation>⟦Fïnïshïng CömfyÜÏ cüstöm nödë löàdïng. ···⟧</translation>
+    </message>
+    <message>
       <source>Finishing your setup</source>
       <translation>⟦Fïnïshïng yöür sëtüp ···⟧</translation>
     </message>
@@ -2746,6 +2790,10 @@ Install these nodes now?</source>
       <translation>⟦Ïnstàllïng Sübstïtütë Cömfy nödëpàcks. ···⟧</translation>
     </message>
     <message>
+      <source>Installing dependencies for %1.</source>
+      <translation>⟦Ïnstàllïng dëpëndëncïës för %1. ···⟧</translation>
+    </message>
+    <message>
       <source>Installing packages or changing model paths while ComfyUI is running can leave its environment in an inconsistent state.</source>
       <translation>⟦Ïnstàllïng pàckàgës ör chàngïng mödël pàths whïlë CömfyÜÏ ïs rünnïng càn lëàvë ïts ënvïrönmënt ïn àn ïncönsïstënt stàtë. ···⟧</translation>
     </message>
@@ -2930,6 +2978,10 @@ Install these nodes now?</source>
       <translation>⟦Löàd rëcïpë fàïlëd ···⟧</translation>
     </message>
     <message>
+      <source>Loaded custom node: %1.</source>
+      <translation>⟦Löàdëd cüstöm nödë: %1. ···⟧</translation>
+    </message>
+    <message>
       <source>Loading</source>
       <translation>⟦Löàdïng ···⟧</translation>
     </message>
@@ -2942,8 +2994,20 @@ Install these nodes now?</source>
       <translation>⟦Löàdïng CömfyÜÏ cönnëctïön sëttïngs. ···⟧</translation>
     </message>
     <message>
+      <source>Loading ComfyUI custom nodes.</source>
+      <translation>⟦Löàdïng CömfyÜÏ cüstöm nödës. ···⟧</translation>
+    </message>
+    <message>
       <source>Loading active target Cube Library state.</source>
       <translation>⟦Löàdïng àctïvë tàrgët Cübë Lïbràry stàtë. ···⟧</translation>
+    </message>
+    <message>
+      <source>Loading application components.</source>
+      <translation>⟦Löàdïng àpplïcàtïön cömpönënts. ···⟧</translation>
+    </message>
+    <message>
+      <source>Loading custom node: %1.</source>
+      <translation>⟦Löàdïng cüstöm nödë: %1. ···⟧</translation>
     </message>
     <message>
       <source>Loading definition</source>
@@ -2956,6 +3020,10 @@ Install these nodes now?</source>
     <message>
       <source>Loading recommendations…</source>
       <translation>⟦Löàdïng rëcömmëndàtïöns… ···⟧</translation>
+    </message>
+    <message>
+      <source>Loading the ComfyUI runtime.</source>
+      <translation>⟦Löàdïng thë CömfyÜÏ rüntïmë. ···⟧</translation>
     </message>
     <message>
       <source>Loading...</source>
@@ -3820,6 +3888,10 @@ I’ll bring my own</source>
       <translation>⟦Prëpàrïng CömfyÜÏ ïn thë bàckgröünd. ···⟧</translation>
     </message>
     <message>
+      <source>Preparing ComfyUI's compute device.</source>
+      <translation>⟦Prëpàrïng CömfyÜÏ's cömpütë dëvïcë. ···⟧</translation>
+    </message>
+    <message>
       <source>Preparing ComfyUI.</source>
       <translation>⟦Prëpàrïng CömfyÜÏ. ···⟧</translation>
     </message>
@@ -3832,12 +3904,24 @@ I’ll bring my own</source>
       <translation>⟦Prëpàrïng àccëlëràtïön süppört. ···⟧</translation>
     </message>
     <message>
+      <source>Preparing application services.</source>
+      <translation>⟦Prëpàrïng àpplïcàtïön sërvïcës. ···⟧</translation>
+    </message>
+    <message>
+      <source>Preparing custom-node dependencies.</source>
+      <translation>⟦Prëpàrïng cüstöm-nödë dëpëndëncïës. ···⟧</translation>
+    </message>
+    <message>
       <source>Preparing managed acceleration support.</source>
       <translation>⟦Prëpàrïng mànàgëd àccëlëràtïön süppört. ···⟧</translation>
     </message>
     <message>
       <source>Preparing setup tasks…</source>
       <translation>⟦Prëpàrïng sëtüp tàsks… ···⟧</translation>
+    </message>
+    <message>
+      <source>Preparing the ComfyUI database.</source>
+      <translation>⟦Prëpàrïng thë CömfyÜÏ dàtàbàsë. ···⟧</translation>
     </message>
     <message>
       <source>Preparing the application interface.</source>
@@ -3858,6 +3942,10 @@ I’ll bring my own</source>
     <message>
       <source>Preparing your existing ComfyUI setup.</source>
       <translation>⟦Prëpàrïng yöür ëxïstïng CömfyÜÏ sëtüp. ···⟧</translation>
+    </message>
+    <message>
+      <source>Preparing your saved workspace.</source>
+      <translation>⟦Prëpàrïng yöür sàvëd wörkspàcë. ···⟧</translation>
     </message>
     <message>
       <source>Preserves hard mask edges by copying the nearest pixel without blending.</source>
@@ -4372,6 +4460,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
       <translation>⟦Rëstàrtïng Cömfy ···⟧</translation>
     </message>
     <message>
+      <source>Restarting ComfyUI to apply updated dependencies.</source>
+      <translation>⟦Rëstàrtïng CömfyÜÏ tö àpply üpdàtëd dëpëndëncïës. ···⟧</translation>
+    </message>
+    <message>
       <source>Retry</source>
       <translation>⟦Rëtry ···⟧</translation>
     </message>
@@ -4502,6 +4594,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Running</source>
       <translation>⟦Rünnïng ···⟧</translation>
+    </message>
+    <message>
+      <source>Running setup for %1.</source>
+      <translation>⟦Rünnïng sëtüp för %1. ···⟧</translation>
     </message>
     <message>
       <source>Runs the currently selected regular or infinite generation action.</source>
@@ -4638,6 +4734,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Scaling quality</source>
       <translation>⟦Scàlïng qüàlïty ···⟧</translation>
+    </message>
+    <message>
+      <source>Scanning ComfyUI models and assets.</source>
+      <translation>⟦Scànnïng CömfyÜÏ mödëls ànd àssëts. ···⟧</translation>
     </message>
     <message>
       <source>Scanning for SDXL and Anima…</source>
@@ -5050,6 +5150,10 @@ Nö knöwn ëxtënsïön clàïmànt. ···⟧</translation>
     <message>
       <source>Starting setup…</source>
       <translation>⟦Stàrtïng sëtüp… ···⟧</translation>
+    </message>
+    <message>
+      <source>Starting the ComfyUI server.</source>
+      <translation>⟦Stàrtïng thë CömfyÜÏ sërvër. ···⟧</translation>
     </message>
     <message>
       <source>Starting the model download.</source>
@@ -6220,6 +6324,14 @@ Thë GNÜ Gënëràl Püblïc Lïcënsë vërsïön 3 prötëcts yöür rïght t
     <message>
       <source>Updating planned change order.</source>
       <translation>⟦Üpdàtïng plànnëd chàngë ördër. ···⟧</translation>
+    </message>
+    <message>
+      <source>Updating the ComfyUI extension catalog (%1/%2).</source>
+      <translation>⟦Üpdàtïng thë CömfyÜÏ ëxtënsïön càtàlög (%1/%2). ···⟧</translation>
+    </message>
+    <message>
+      <source>Updating the ComfyUI extension catalog.</source>
+      <translation>⟦Üpdàtïng thë CömfyÜÏ ëxtënsïön càtàlög. ···⟧</translation>
     </message>
     <message>
       <source>Updating the recipe...</source>
